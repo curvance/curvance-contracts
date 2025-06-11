@@ -9,7 +9,7 @@ import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -147,7 +147,7 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
         
         // we aren't using this struct, only for required arguments
         DeleverageStruct memory deleverageData = DeleverageStruct({
-            positionToken: IPToken(address(pBALRETH)),
+            positionToken: ICToken(address(pBALRETH)),
             collateralAmount: 0,
             borrowToken: IEToken(address(eUSDC)),
             swapData: swapData,

@@ -143,11 +143,11 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         IMarketManager.LiqInstructions memory liqInstructions;
         liqInstructions = IMarketManager.LiqInstructions({
             eToken: address(eUSDC),
-            pToken: address(pBALRETH),
+            cToken: address(pBALRETH),
             numAccounts: 5,
             liquidateExact: false,
             eTokenRepaid: 0,
-            pTokenLiquidated: 0,
+            cTokenLiquidated: 0,
             badDebt: 0
         });
 
@@ -158,16 +158,16 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         uint256[] memory lFactorsPreLiquidation = _getLFactorsPreLiquidation();
         uint256[] memory debtBalancesPreLiquidation = _getDebtBalancePreLiquidation();
 
-        (,uint256 eTokenPrice, uint256 pTokenPrice) = 
+        (,uint256 eTokenPrice, uint256 cTokenPrice) = 
             marketManagerIsolated.liquidationStatusOf(borrowers[0], address(eUSDC), address(pBALRETH));
 
         (uint256[] memory maxAmount, uint256[] memory liquidatedPTokens, uint256[] memory collateralRequired) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction(
-                eTokenPrice, pTokenPrice, lFactorsPreLiquidation
+                eTokenPrice, cTokenPrice, lFactorsPreLiquidation
             );
 
         uint256 expectedTotalBadDebt;
-        uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRateCached();
 
         for(uint i; i < 5; i++) {
             expectedTotalBadDebt += _calculateBadDebt(
@@ -176,9 +176,9 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
                 collateralAvailable,
                 collateralRequired[i],
                 liquidatedPTokens[i],
-                pTokenPrice,
+                cTokenPrice,
                 eTokenPrice,
-                pTokenExchangeRate
+                cTokenExchangeRate
             );
         }
 
@@ -325,14 +325,14 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
 
     function _getLiquidationValuesWithHigherPrecision_NonAuction(
         uint256 eTokenPrice,
-        uint256 pTokenPrice,
+        uint256 cTokenPrice,
         uint256[] memory lFactors
     ) internal view returns (
         uint256[] memory maxAmount, 
         uint256[] memory liquidatedPTokens,
         uint256[] memory collateralRequired
     ) {
-        uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRateCached();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
@@ -350,7 +350,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
             
             // Calculate with extra precision
             uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
-                (pTokenPrice * pTokenExchangeRate)) * 1e18) / 1e6;
+                (cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
             maxAmount[i] = (auctionCFactor * borrowAmounts[i]) / WAD;
             
@@ -380,17 +380,17 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         uint256 _collateralAvailable,
         uint256 _collateralRequired,
         uint256 _liquidatedPTokens,
-        uint256 _pTokenUnderlyingPrice,
+        uint256 _cTokenUnderlyingPrice,
         uint256 _eTokenUnderlyingPrice,
-        uint256 _pTokenExchangeRate
+        uint256 _cTokenExchangeRate
     ) internal pure returns (uint256 badDebt) {
 
         if(_collateralRequired > _collateralAvailable) {
     
         badDebt = (_debtBalance - _debtAmount) -
         FixedPointMathLib.mulDivUp(
-            ((_collateralAvailable - _liquidatedPTokens) * _pTokenExchangeRate) / WAD,
-            _pTokenUnderlyingPrice,
+            ((_collateralAvailable - _liquidatedPTokens) * _cTokenExchangeRate) / WAD,
+            _cTokenUnderlyingPrice,
             (_eTokenUnderlyingPrice * WAD) / 1e6
         );
 

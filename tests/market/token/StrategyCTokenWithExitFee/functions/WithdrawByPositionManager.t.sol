@@ -2,14 +2,14 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
-import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
+import { StrategyCToken } from "contracts/market/token/StrategyCToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -142,7 +142,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         
         // we aren't using this struct, only for required arguments
         DeleverageStruct memory deleverageData = DeleverageStruct({
-            positionToken: IPToken(address(pBALRETHWithExitFee)),
+            positionToken: ICToken(address(pBALRETHWithExitFee)),
             collateralAmount: 0,
             borrowToken: IEToken(address(eUSDC)),
             swapData: swapData,

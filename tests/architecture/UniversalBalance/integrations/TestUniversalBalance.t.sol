@@ -7,7 +7,7 @@ import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtO
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 
 import "tests/market/TestBaseMarketIsolated.sol";
 
@@ -20,7 +20,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
     MockDataFeed public mockStethFeed;
     MockV3Aggregator public mockWbtcFeed;
 
-    SimplePToken public pWBTC;
+    SimpleCToken public pWBTC;
     UniversalBalance public universalBalance;
 
     address[] public owners;
@@ -113,7 +113,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         // deploy pWBTC
         {
             // deploy aura position vault
-            pWBTC = new SimplePToken(
+            pWBTC = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
                 address(marketManagerIsolated)

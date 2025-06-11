@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
-import { SimplePToken, IERC20 } from "contracts/market/token/SimplePToken.sol";
+import { SimpleCToken, IERC20 } from "contracts/market/token/SimpleCToken.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 

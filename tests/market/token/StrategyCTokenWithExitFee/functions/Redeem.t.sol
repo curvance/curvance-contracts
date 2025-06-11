@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
-import { BasePToken } from "contracts/market/token/BasePToken.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
 contract StrategyCTokenWithExitFeeRedeemTest is
     TestBaseStrategyCTokenWithExitFee
@@ -21,7 +21,7 @@ contract StrategyCTokenWithExitFeeRedeemTest is
     {
         pBALRETHWithExitFee.mint(100, address(this));
         vm.expectRevert(
-            BasePToken.BasePToken__EmptyAction.selector
+            BaseCToken.BaseCToken__EmptyAction.selector
         );
         pBALRETHWithExitFee.redeem(0, address(this), address(this));
     }

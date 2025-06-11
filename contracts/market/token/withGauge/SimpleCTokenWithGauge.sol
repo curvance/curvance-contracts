@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BasePTokenWithGauge } from "contracts/market/token/withGauge/BasePTokenWithGauge.sol";
+import { BaseCTokenWithGauge } from "contracts/market/token/withGauge/BaseCTokenWithGauge.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";

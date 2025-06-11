@@ -155,7 +155,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     uint256[] lFactorsPreLiquidation_auction;
     uint256[] lFactorsPreLiquidation_regular;
     uint256 eTokenPrice;
-    uint256 pTokenPrice;
+    uint256 cTokenPrice;
     uint256[] maxAmount_auction;
     uint256[] liquidatedPTokens_auction;
     uint256[] collateralRequired_auction;
@@ -176,7 +176,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         // ===== Cache liquidation values =====
 
-        uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRateCached();
 
         totalBorrowsBefore = eUSDC.totalBorrows();
 
@@ -186,17 +186,17 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         lFactorsPreLiquidation_auction = _getLFactorsPreLiquidation(auctionBorrowers);
         lFactorsPreLiquidation_regular = _getLFactorsPreLiquidation(regularBorrowers);
 
-        (,eTokenPrice, pTokenPrice) = 
+        (,eTokenPrice, cTokenPrice) = 
             marketManagerIsolated.liquidationStatusOf(auctionBorrowers[0], address(eUSDC), address(pBALRETH));
 
         (maxAmount_auction, liquidatedPTokens_auction, collateralRequired_auction) = 
             _getLiquidationValuesWithHigherPrecision_Auction(
-                eTokenPrice, pTokenPrice, lFactorsPreLiquidation_auction, closeFactor, validPenalty
+                eTokenPrice, cTokenPrice, lFactorsPreLiquidation_auction, closeFactor, validPenalty
             );
 
         (maxAmount_regular, liquidatedPTokens_regular, collateralRequired_regular) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction(
-                eTokenPrice, pTokenPrice, lFactorsPreLiquidation_regular
+                eTokenPrice, cTokenPrice, lFactorsPreLiquidation_regular
             );
 
         console2.log("CHECKPOINT 1");
@@ -208,9 +208,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
                 collateralAmounts[i],
                 collateralRequired_auction[i],
                 liquidatedPTokens_auction[i],
-                pTokenPrice,
+                cTokenPrice,
                 eTokenPrice,
-                pTokenExchangeRate
+                cTokenExchangeRate
             );
             totalBadDebtAuction += badDebt_auction[i];
             console2.log("badDebt_auction", badDebt_auction[i]);
@@ -223,9 +223,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
                 collateralAmounts[i],
                 collateralRequired_regular[i],
                 liquidatedPTokens_regular[i],
-                pTokenPrice,
+                cTokenPrice,
                 eTokenPrice,
-                pTokenExchangeRate
+                cTokenExchangeRate
             );
             totalBadDebtRegular += badDebt_regular[i];
             console2.log("badDebt_regular", badDebt_regular[i]);
@@ -435,14 +435,14 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
     function _getLiquidationValuesWithHigherPrecision_NonAuction(
         uint256 eTokenPrice,
-        uint256 pTokenPrice,
+        uint256 cTokenPrice,
         uint256[] memory lFactors
     ) internal view returns (
         uint256[] memory maxAmount, 
         uint256[] memory liquidatedPTokens,
         uint256[] memory collateralRequired
     ) {
-        uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRateCached();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
@@ -460,7 +460,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             
             // Calculate with extra precision
             uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
-                (pTokenPrice * pTokenExchangeRate)) * 1e18) / 1e6;
+                (cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
             maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
             
@@ -486,7 +486,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
     function _getLiquidationValuesWithHigherPrecision_Auction(
         uint256 eTokenPrice,
-        uint256 pTokenPrice,
+        uint256 cTokenPrice,
         uint256[] memory lFactors,
         uint256 auctionCFactor,
         uint256 auctionLiqIncentive
@@ -495,7 +495,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256[] memory liquidatedPTokens,
         uint256[] memory collateralRequired
     ) {
-        uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRateCached();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
@@ -509,7 +509,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             
             // Calculate with extra precision
             uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
-                (pTokenPrice * pTokenExchangeRate)) * 1e18) / 1e6;
+                (cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
             maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
             
@@ -539,17 +539,17 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256 _collateralAvailable,
         uint256 _collateralRequired,
         uint256 _liquidatedPTokens,
-        uint256 _pTokenUnderlyingPrice,
+        uint256 _cTokenUnderlyingPrice,
         uint256 _eTokenUnderlyingPrice,
-        uint256 _pTokenExchangeRate
+        uint256 _cTokenExchangeRate
     ) internal pure returns (uint256 badDebt) {
 
         if(_collateralRequired > _collateralAvailable) {
     
         badDebt = (_debtBalance - _debtAmount) -
         FixedPointMathLib.mulDivUp(
-            ((_collateralAvailable - _liquidatedPTokens) * _pTokenExchangeRate) / WAD,
-            _pTokenUnderlyingPrice,
+            ((_collateralAvailable - _liquidatedPTokens) * _cTokenExchangeRate) / WAD,
+            _cTokenUnderlyingPrice,
             (_eTokenUnderlyingPrice * WAD) / 1e6
         );
 

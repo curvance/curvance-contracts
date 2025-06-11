@@ -4,7 +4,7 @@
 // import { EToken } from "contracts/market/token/EToken.sol";
 // import { IERC20 } from "contracts/interfaces/IERC20.sol";
 // import { WAD } from "contracts/libraries/Constants.sol";
-// import { IPToken } from "contracts/interfaces/IPToken.sol";
+// import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 // contract FuzzEToken is FuzzMarketManager {
 //     constructor() {
@@ -448,13 +448,13 @@
 //     /// @custom:property dtok-25 liquidating a non-exact amount should increase the position token balance by (amount seized by liquidation - amount seized by protocol)
 //     /// @custom:precondition liquidating an account's maximum
 //     /// @custom:precondition eToken is supported
-//     /// @custom:precondition pToken is supported
-//     /// @custom:precondition market manager for eToken and pToken match
+//     /// @custom:precondition cToken is supported
+//     /// @custom:precondition market manager for eToken and cToken match
 //     /// @custom:precondition account has collateral posted for respective token
 //     /// @custom:precondition account is in "danger" of liquidation
 //     /// @custom:limitation insufficient assertions on the invalid_amount error check, as the calculation on # of shares is needed to determine if it will actually revert
 //     /// @custom:limitation currently this contract is accruing interest to make sure exchange rates catch up before calculating. This property should be loosened to allow for more dynamic range testing, however this will require a hypothetical interest function to exist
-//     /// @custom:limitation this property is also currently ONLY testing the eToken = DAI, pToken = pUSDC and should be expanded as other liquidation functions should be
+//     /// @custom:limitation this property is also currently ONLY testing the eToken = DAI, cToken = pUSDC and should be expanded as other liquidation functions should be
 //     /// @custom:limitation missing collateralPostedFor assertion difference checks
 //     function liquidate_should_succeed_with_non_exact(uint256 amount) public {
 //         address eToken = address(eDAI);
@@ -480,7 +480,7 @@
 //         {
 //             uint256 senderBalanceUnderlying = IERC20(underlyingEToken)
 //                 .balanceOf(msg.sender);
-//             uint256 collateralBalanceBefore = IPToken(positionToken).balanceOf(
+//             uint256 collateralBalanceBefore = ICToken(positionToken).balanceOf(
 //                 address(this)
 //             );
 //             uint256 priorDebt = EToken(eToken).debtBalanceCached(
@@ -520,11 +520,11 @@
 //                 );
 //                 emit LogUint256(
 //                     "current bal",
-//                     IPToken(positionToken).balanceOf(address(this))
+//                     ICToken(positionToken).balanceOf(address(this))
 //                 );
 //                 assertEq(
 //                     collateralBalanceBefore -
-//                         IPToken(positionToken).balanceOf(address(this)),
+//                         ICToken(positionToken).balanceOf(address(this)),
 //                     seizedForLiquidation,
 //                     "DTOK-23 soft liquidate should decrease collateral balance for account"
 //                 );
@@ -568,7 +568,7 @@
 
 //     /// @custom:property dtok-19 Applying a soft liquidation of exactly 0 tokens should fail with InvalidParameter or InvalidParameter errors.
 //     /// @custom:precondition marketmanager must not have seizePaused
-//     /// @custom:precondition pToken must be listed in the marketmanager
+//     /// @custom:precondition cToken must be listed in the marketmanager
 //     /// @custom:precondition eToken must be listed in the marketmanager
 //     function liquidate_should_fail_with_exact_with_zero(
 //         address eToken,
@@ -604,7 +604,7 @@
 //     /// @custom:property dtok-28 Liquidating an exact amount should result in the underlying token balance of msg.sender after liquidation being equal to the previous underlying balance + debt to liquidate.
 //     /// @custom:property dtok-29 Liquidating an exact amount should result in position token balance of the sender increasing by (amount seized by liquidation - amount seized by the protocol)
 //     /// @custom:precondition eToken being liquidated is eDAI
-//     /// @custom:precondition pToken being liquidated is pUSDC
+//     /// @custom:precondition cToken being liquidated is pUSDC
 //     /// @custom:precondition account being liquidated is address(this)
 //     /// @custom:limitation once posting of collateral etc can be done by any address, open up to any account can be liquidated
 //     /// @custom:limitation current uses a constant for dai and usdc price to push the position into an liquidatable state, see liquidateAccount in marketManager for dynamic generation

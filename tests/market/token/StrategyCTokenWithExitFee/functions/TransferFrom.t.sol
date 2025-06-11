@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
-import { BasePToken } from "contracts/market/token/BasePToken.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
 
 contract StrategyCTokenWithExitFeeTransferFromTest is
@@ -19,7 +19,7 @@ contract StrategyCTokenWithExitFeeTransferFromTest is
     function test_strategyCTokenWithExitFeeTransferFrom_fail_whenTransferZeroAmount()
         public
     {
-        vm.expectRevert(BasePToken.BasePToken__EmptyAction.selector);
+        vm.expectRevert(BaseCToken.BaseCToken__EmptyAction.selector);
         pBALRETHWithExitFee.transferFrom(address(this), user1, 0);
     }
 

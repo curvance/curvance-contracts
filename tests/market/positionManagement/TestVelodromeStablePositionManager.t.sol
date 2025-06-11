@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { VelodromeStablePToken } from "contracts/market/token/VelodromeStablePToken.sol";
+import { VelodromeStableCToken } from "contracts/market/token/VelodromeStableCToken.sol";
 import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeStableLPAdaptor.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
@@ -11,7 +11,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { VelodromePositionManager } from "contracts/market/position-management/VelodromePositionManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
 import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
@@ -28,7 +28,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
     IVeloRouter public veloRouter =
         IVeloRouter(0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858);
 
-    VelodromeStablePToken public pUSDCDAI;
+    VelodromeStableCToken public pUSDCDAI;
     VelodromeStableLPAdaptor public adaptor;
     VelodromePositionManager public positionManagement;
 
@@ -101,7 +101,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
         // setup pUSDCDAI
         {
-            pUSDCDAI = new VelodromeStablePToken(
+            pUSDCDAI = new VelodromeStableCToken(
                 ICentralRegistry(address(centralRegistry)),
                 IERC20(_VELODROME_DAI_USDC),
                 address(marketManagerIsolated),
@@ -194,7 +194,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         VelodromePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pUSDCDAI));
+        leverageData.positionToken = ICToken(address(pUSDCDAI));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _USDC_ADDRESS;
@@ -265,7 +265,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         VelodromePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pUSDCDAI));
+        leverageData.positionToken = ICToken(address(pUSDCDAI));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage - leverageFee;
         leverageData.swapData.outputToken = _USDC_ADDRESS;
@@ -320,7 +320,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         (,,,, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
 
-        deleverageData.positionToken = IPToken(address(pUSDCDAI));
+        deleverageData.positionToken = ICToken(address(pUSDCDAI));
         deleverageData.collateralAmount = 0.00003 ether;
         deleverageData.borrowToken = IEToken(address(eDAI));
 
@@ -387,7 +387,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         uint256 protocolBalanceBeforeDeLeverage = IERC20(_VELODROME_DAI_USDC)
             .balanceOf(centralRegistry.daoAddress());
 
-        deleverageData.positionToken = IPToken(address(pUSDCDAI));
+        deleverageData.positionToken = ICToken(address(pUSDCDAI));
         deleverageData.collateralAmount = collateralAmount;
         deleverageData.borrowToken = IEToken(address(eDAI));
 
@@ -465,7 +465,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         VelodromePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pUSDCDAI));
+        leverageData.positionToken = ICToken(address(pUSDCDAI));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _USDC_ADDRESS;
@@ -516,7 +516,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         (,,,, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
 
-        deleverageData.positionToken = IPToken(address(pUSDCDAI));
+        deleverageData.positionToken = ICToken(address(pUSDCDAI));
         deleverageData.collateralAmount = 0.00003 ether;
         deleverageData.borrowToken = IEToken(address(eDAI));
 

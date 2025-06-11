@@ -3,9 +3,9 @@ pragma solidity ^0.8.19;
 
 import "forge-std/StdStorage.sol";
 import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
-import { BasePToken } from "contracts/market/token/BasePToken.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
-import { MockAuraPTokenWithExitFee } from "contracts/mocks/MockAuraPTokenWithExitFee.sol";
+import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { StrategyCTokenWithExitFee } from "contracts/market/token/StrategyCTokenWithExitFee.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -23,7 +23,7 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
         vm.expectRevert(
             PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
         );
-        new MockAuraPTokenWithExitFee(
+        new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(0)),
             balRETH,
             address(marketManagerIsolated),
@@ -37,8 +37,8 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
     function test_strategyCTokenWithExitFeeDeployment_fail_whenMarketManagerIsNotSet()
         public
     {
-        vm.expectRevert(BasePToken.BasePToken__InvalidMarketManager.selector);
-        new MockAuraPTokenWithExitFee(
+        vm.expectRevert(BaseCToken.BaseCToken__InvalidMarketManager.selector);
+        new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(1),
@@ -58,11 +58,11 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
             .checked_write(type(uint232).max);
 
         vm.expectRevert(
-            BasePToken
-                .BasePToken__UnderlyingAssetTotalSupplyExceedsMaximum
+            BaseCToken
+                .BaseCToken__UnderlyingAssetTotalSupplyExceedsMaximum
                 .selector
         );
-        new MockAuraPTokenWithExitFee(
+        new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManagerIsolated),
@@ -81,7 +81,7 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
                 .StrategyCTokenWithExitFee__InvalidExitFee
                 .selector
         );
-        new MockAuraPTokenWithExitFee(
+        new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManagerIsolated),
@@ -93,7 +93,7 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
     }
 
     function test_strategyCTokenWithExitFeeDeployment_success() public {
-        pBALRETHWithExitFee = new MockAuraPTokenWithExitFee(
+        pBALRETHWithExitFee = new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManagerIsolated),

@@ -6,12 +6,12 @@ import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtO
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
 import { BaseMulticallChecker } from "contracts/calldata-checker/multicall-checker/BaseMulticallChecker.sol";
 import { RedstoneAdaptorMulticallChecker } from "contracts/calldata-checker/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
@@ -34,7 +34,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
-    SimplePToken public pWBTC;
+    SimpleCToken public pWBTC;
     SimplePositionManager public positionManagement;
 
     receive() external payable {}
@@ -150,7 +150,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         // deploy pWBTC
         {
             // deploy aura position vault
-            pWBTC = new SimplePToken(
+            pWBTC = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
                 address(marketManagerIsolated)
@@ -341,7 +341,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         SimplePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eUSDC));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pWBTC));
+        leverageData.positionToken = ICToken(address(pWBTC));
         leverageData.swapData.inputToken = _USDC_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WBTC_ADDRESS;

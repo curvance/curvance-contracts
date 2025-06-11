@@ -6,10 +6,10 @@ import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { CompoundingPToken} from "contracts/market/token/CompoundingPToken.sol";
+import { StrategyCToken} from "contracts/market/token/StrategyCToken.sol";
 import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestAuraPToken is TestBaseMarketIsolated {
+contract TestAuraCToken is TestBaseMarketIsolated {
     address internal _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;
     address internal _AURA_ADDRESS =
         0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
@@ -132,7 +132,7 @@ contract TestAuraPToken is TestBaseMarketIsolated {
         marketManagerIsolated.listToken(address(pBALRETH));
     }
 
-    function testHarvestAuraPToken() public {
+    function testHarvestAuraCToken() public {
         uint256 assets = 100e18;
         _prepareBALRETH(user1, assets);
 
@@ -188,7 +188,7 @@ contract TestAuraPToken is TestBaseMarketIsolated {
 
         // check vault data without modification to vesting period
 
-        CompoundingPToken.VaultData memory vaultData = pBALRETH.getVaultYieldStatus();
+        StrategyCToken.VaultData memory vaultData = pBALRETH.getVaultYieldStatus();
         uint256 rewardRate = vaultData.rewardRate;
         uint256 vestingPeriodEnd = vaultData.vestingPeriodEnd;
         uint256 lastVestClaim = vaultData.lastVestClaim;
@@ -260,7 +260,7 @@ contract TestAuraPToken is TestBaseMarketIsolated {
         // setCompoundingPaused
         pBALRETH.setCompoundingPaused(true);
 
-        vm.expectRevert(CompoundingPToken.CompoundingPToken__CompoundingPaused.selector);
+        vm.expectRevert(StrategyCToken.StrategyCToken__CompoundingPaused.selector);
         pBALRETH.harvest(bytes("0"));
 
     }

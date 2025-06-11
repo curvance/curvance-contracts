@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { EToken } from "contracts/market/token/EToken.sol";
-import { BasePToken } from "contracts/market/token/BasePToken.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -249,6 +249,7 @@ contract AuxiliaryData {
         if (mToken_.isPToken()) {
             collateralPostedOf = IPToken(mToken).collateralPosted(account);
         }
+    }
 
     /// @notice Returns the `mToken` underlying balance of the `account`.
     /// @param account The address of the account to query.
@@ -432,8 +433,8 @@ contract AuxiliaryData {
             numTokens
         );
         for (uint256 i; i < numTokens; i++) {
-            BasePToken marketToken = BasePToken(pTokens[i]);
-            IERC20 token = IERC20(marketToken.underlying());
+            BaseCToken marketToken = BaseCToken(pTokens[i]);
+            IERC20 token = IERC20(marketToken.asset());
             MarketPTokenData memory pTokenData;
 
             if (account != address(0)) {

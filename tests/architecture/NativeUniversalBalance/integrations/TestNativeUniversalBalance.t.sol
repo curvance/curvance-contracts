@@ -8,7 +8,7 @@ import { EToken } from "contracts/market/token/EToken.sol";
 import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBalance.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 
 import "tests/market/TestBaseMarketIsolated.sol";
 
@@ -22,7 +22,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
     MockDataFeed public mockStethFeed;
     MockV3Aggregator public mockWbtcFeed;
 
-    SimplePToken public cWBTC;
+    SimpleCToken public cWBTC;
     NativeUniversalBalance public nativeUniversalBalance;
     EToken public eWETH;
 
@@ -113,7 +113,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         address[] memory markets = new address[](1);
         markets[0] = address(eWETH);
 
-        pWBTC = new SimplePToken(
+        pWBTC = new SimpleCToken(
             ICentralRegistry(address(centralRegistry)),
             wbtc,
             address(marketManagerIsolated)

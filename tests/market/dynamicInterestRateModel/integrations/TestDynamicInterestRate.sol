@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import "forge-std/console2.sol";
 
@@ -50,7 +50,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         oracleManager.addMTokenSupport(address(eDAI));
         _prepareDAI(owner, 100e18);
         dai.approve(address(eDAI), 100e18);
-        // Setup pToken (pUSDC)
+        // Setup cToken (pUSDC)
         oracleManager.addMTokenSupport(address(pUSDC));
         _prepareUSDC(owner, 100e6);
         usdc.approve(address(pUSDC), 100e6);

@@ -18,7 +18,7 @@ import { EToken } from "contracts/market/token/EToken.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
 import { TestnetToken } from "contracts/mocks/TestnetToken.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
@@ -453,7 +453,7 @@ contract StartContractsConfig is
     ) internal returns (address) {
         IERC20 underlying = IERC20(tokenAddress);
         address pToken = address(
-            new SimplePToken(cr, underlying, address(market))
+            new SimpleCToken(cr, underlying, address(market))
         );
         _saveDeployedContracts(name, pToken);
 

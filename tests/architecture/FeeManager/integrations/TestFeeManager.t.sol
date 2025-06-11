@@ -109,7 +109,7 @@ contract TestFeeManager is TestBaseFeeManager {
         chainlinkEthUsd.updateAnswer(2500e8);
         chainlinkUsdcUsd.updateAnswer(1e8);
 
-        // deal WETH (assume it's from pTokens)
+        // deal WETH (assume it's from cTokens)
         address[] memory rewardTokens = new address[](1);
         rewardTokens[0] = _WETH_ADDRESS;
         feeManager.addRewardTokens(rewardTokens);
@@ -248,7 +248,7 @@ contract TestFeeManager is TestBaseFeeManager {
         chainlinkEthUsd.updateAnswer(2500e8);
         chainlinkUsdcUsd.updateAnswer(1e8);
 
-        // deal WETH (assume it's from pTokens)
+        // deal WETH (assume it's from cTokens)
         address[] memory rewardTokens = new address[](1);
         rewardTokens[0] = _WETH_ADDRESS;
         feeManager.addRewardTokens(rewardTokens);

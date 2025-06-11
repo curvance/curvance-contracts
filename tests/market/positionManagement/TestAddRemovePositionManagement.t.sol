@@ -1,22 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { PositionManagementSimple } from "contracts/market/position-management/PositionManagementSimple.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract TestAddRemovePositionManagement is TestBaseMarketIsolated {
     address public owner;
     address public user;
 
-    PositionManagementSimple public positionManagement;
+    SimplePositionManager public positionManagement;
 
     receive() external payable {}
 
@@ -47,7 +41,7 @@ contract TestAddRemovePositionManagement is TestBaseMarketIsolated {
             dai.approve(address(eDAI), 200000e18);
         }
 
-        // deploy simple pToken
+        // deploy simple cToken
         {
             _deployPUSDC();
             oracleManager.addMTokenSupport(address(pUSDC));
@@ -56,7 +50,7 @@ contract TestAddRemovePositionManagement is TestBaseMarketIsolated {
 
         }
 
-        positionManagement = new PositionManagementSimple(
+        positionManagement = new SimplePositionManager(
             ICentralRegistry(address(centralRegistry)),
             address(marketManagerIsolated),
             _WETH_ADDRESS

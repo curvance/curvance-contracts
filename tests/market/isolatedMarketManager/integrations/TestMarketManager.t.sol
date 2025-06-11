@@ -4,7 +4,7 @@
 // import { TestBaseMarketManagerEntropy } from "../TestBaseMarketManagerEntropy.sol";
 // import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 // import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-// import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
+// import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
 // import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 // import { EToken } from "contracts/market/token/EToken.sol";
 // import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -42,7 +42,7 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimplePToken[] memory pTokens = new MockSimplePToken[](
+//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -110,7 +110,7 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimplePToken[] memory pTokens = new MockSimplePToken[](
+//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -165,7 +165,7 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimplePToken[] memory pTokens = new MockSimplePToken[](
+//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -219,7 +219,7 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimplePToken[] memory pTokens = new MockSimplePToken[](
+//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -266,7 +266,7 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimplePToken[] memory pTokens = new MockSimplePToken[](
+//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -331,7 +331,7 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimplePToken[] memory pTokens = new MockSimplePToken[](
+//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -396,7 +396,7 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimplePToken[] memory pTokens = new MockSimplePToken[](
+//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);

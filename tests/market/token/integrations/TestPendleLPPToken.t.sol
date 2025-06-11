@@ -5,7 +5,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { IPendleRouter, ApproxParams, LimitOrderData } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
-import { PendleLPPToken, IERC20 } from "contracts/market/token/PendleLPPToken.sol";
+import { PendleLPCToken, IERC20 } from "contracts/market/token/PendleLPCToken.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
@@ -21,7 +21,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
     address internal _PENDLE = 0x808507121B80c02388fAd14726482e061B8da827;
     address internal _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market
 
-    PendleLPPToken public cSTETH;
+    PendleLPCToken public cSTETH;
     MockV3Aggregator public chainlinkPendleUsd;
 
     receive() external payable {}
@@ -57,7 +57,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
 
-        cSTETH = new PendleLPPToken(
+        cSTETH = new PendleLPCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_LP_STETH),
             address(marketManagerIsolated),

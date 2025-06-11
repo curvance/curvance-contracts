@@ -122,11 +122,11 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
         uint256 incentive = 1.15e18; 
         uint256 earnTokenPrice = 2e18; 
-        uint256 pTokenPrice = 1677420866257185401796; 
+        uint256 cTokenPrice = 1677420866257185401796; 
         uint256 exchangeRate = 1e18;  
         
         uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
-            (pTokenPrice * exchangeRate);
+            (cTokenPrice * exchangeRate);
         
         uint256 amountAdjusted = (250000000 * 10**18) / 10**6;
         
@@ -152,8 +152,8 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     //     eUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETH));
     //     vm.stopPrank();
 
-    //     uint256 liquidatorpTokenBalance = pBALRETH.balanceOf(user3);
-    //     assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenalty());
+    //     uint256 liquidatorcTokenBalance = pBALRETH.balanceOf(user3);
+    //     assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenalty());
 
     //     uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
     //     assertEq(liquidatorUSDCBalance, 0);
@@ -165,11 +165,11 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
         uint256 incentive = 1.10e18; // Default 10% penalty
         uint256 earnTokenPrice = 2e18; 
-        uint256 pTokenPrice = 1677420866257185401796; 
+        uint256 cTokenPrice = 1677420866257185401796; 
         uint256 exchangeRate = 1e18;  
         
         uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
-            (pTokenPrice * exchangeRate);
+            (cTokenPrice * exchangeRate);
         
         uint256 amountAdjusted = (250000000 * 10**18) / 10**6;
         
@@ -194,8 +194,8 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     //     eUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETH));
     //     vm.stopPrank();
 
-    //     uint256 liquidatorpTokenBalance = pBALRETH.balanceOf(user3);
-    //     assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDefaultPenalty());
+    //     uint256 liquidatorcTokenBalance = pBALRETH.balanceOf(user3);
+    //     assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDefaultPenalty());
 
     //     uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
     //     assertEq(liquidatorUSDCBalance, 0);
@@ -262,8 +262,8 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         eUSDC.liquidate(usersToLiquidate, address(pBALRETH));
         vm.stopPrank();
 
-        // uint256 liquidatorpTokenBalance = pBALRETH.balanceOf(user3);
-        // assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(debtBalance));
+        // uint256 liquidatorcTokenBalance = pBALRETH.balanceOf(user3);
+        // assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(debtBalance));
 
         // uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
         // assertEq(liquidatorUSDCBalance, debtBalance - closeBalance);
@@ -274,12 +274,12 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
         uint256 incentive = 1.15e18; 
         uint256 earnTokenPrice = 2e18; 
-        uint256 pTokenPrice = 1677420866257185401796; 
+        uint256 cTokenPrice = 1677420866257185401796; 
         uint256 exchangeRate = 1e18;
         uint256 closeFactor = 1e18;
         
         uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
-            (pTokenPrice * exchangeRate);
+            (cTokenPrice * exchangeRate);
         
         uint256 maxAmount = (closeFactor * debtBalance) / WAD;
         uint256 amountAdjusted = (maxAmount * 10**18) / 10**6;

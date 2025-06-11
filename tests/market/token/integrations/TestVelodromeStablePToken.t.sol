@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { VelodromeStablePToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeStablePToken.sol";
+import { VelodromeStableCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeStableCToken.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
@@ -21,7 +21,7 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
         IVeloRouter(0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858);
     address public optiSwap = 0x6108FeAA628155b073150F408D0b390eC3121834;
 
-    VelodromeStablePToken public pUSDCDAI;
+    VelodromeStableCToken public pUSDCDAI;
     MockV3Aggregator public chainlinkVELO;
     MockV3Aggregator public chainlinkUSDC;
 
@@ -51,7 +51,7 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(veloRouter)))
         );
 
-        pUSDCDAI = new VelodromeStablePToken(
+        pUSDCDAI = new VelodromeStableCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_USDC_DAI),
             address(marketManagerIsolated),

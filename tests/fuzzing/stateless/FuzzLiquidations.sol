@@ -2,7 +2,7 @@
 
 // import { WAD } from "contracts/libraries/Constants.sol";
 // import { IEToken } from "contracts/interfaces/IEToken.sol";
-// import { IPToken } from "contracts/interfaces/IPToken.sol";
+// import { ICToken } from "contracts/interfaces/ICToken.sol";
 // import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 
 // contract FuzzLiquidations is StatefulBaseMarket {
@@ -276,7 +276,7 @@
 //     /// @custom:property liq-11 if position token decimals < earnTokenDecimals, amountAdjusted < debtBalanceCached
 //     function _calculateAmountAdjusted() private {
 //         // Saves state
-//         uint256 positionTokenDecimals = IPToken(positionToken).decimals();
+//         uint256 positionTokenDecimals = ICToken(positionToken).decimals();
 //         uint256 earnTokenDecimals = IEToken(earnToken).decimals();
 
 //         uint256 amountAdjusted = (data.debtBalanceCached *

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
-import { BasePToken } from "contracts/market/token/BasePToken.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
 
 contract StrategyCTokenTransferTest is TestBaseStrategyCToken {
@@ -17,7 +17,7 @@ contract StrategyCTokenTransferTest is TestBaseStrategyCToken {
     function test_strategyCTokenTransfer_fail_whenTransferZeroAmount()
         public
     {
-        vm.expectRevert(BasePToken.BasePToken__EmptyAction.selector);
+        vm.expectRevert(BaseCToken.BaseCToken__EmptyAction.selector);
         pBALRETH.transfer(user1, 0);
     }
 

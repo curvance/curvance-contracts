@@ -8,7 +8,7 @@
 
 // import { MockToken } from "contracts/mocks/MockToken.sol";
 // import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-// import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
+// import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
 // import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 // import { CVE } from "contracts/token/CVE.sol";
@@ -19,7 +19,7 @@
 // import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 // import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 // import { EToken } from "contracts/market/token/EToken.sol";
-// import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
+// import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
 // import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 // 
 // import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -55,13 +55,13 @@
 //     MarketManager public marketManager;
 //     OracleManager public oracleManager;
 
-//     AuraPToken public pBALRETH;
+//     AuraCToken public pBALRETH;
 
 //     EToken public eUSDC;
 //     EToken public eDAI;
 
-//     MockSimplePToken public pDAI;
-//     MockSimplePToken public pUSDC;
+//     MockSimpleCToken public pDAI;
+//     MockSimpleCToken public pUSDC;
 //     MockToken public usdc;
 //     MockToken public dai;
 //     MockToken public WETH;
@@ -386,8 +386,8 @@
 //         return eDAI;
 //     }
 
-//     function _deployPUSDC() internal returns (MockSimplePToken) {
-//         pUSDC = new MockSimplePToken(
+//     function _deployPUSDC() internal returns (MockSimpleCToken) {
+//         pUSDC = new MockSimpleCToken(
 //             ICentralRegistry(address(centralRegistry)),
 //             address(usdc),
 //             address(marketManager)
@@ -395,8 +395,8 @@
 //         return pUSDC;
 //     }
 
-//     function _deployPDAI() internal returns (MockSimplePToken) {
-//         pDAI = new MockSimplePToken(
+//     function _deployPDAI() internal returns (MockSimpleCToken) {
+//         pDAI = new MockSimpleCToken(
 //             ICentralRegistry(address(centralRegistry)),
 //             address(dai),
 //             address(marketManager)
@@ -612,9 +612,9 @@
 //         require(marketManager.isListed(eToken));
 //     }
 
-//     function _isSupportedPToken(address pToken) internal view {
-//         require(pToken == address(pUSDC) || pToken == address(pDAI));
-//         require(marketManager.isListed(pToken));
+//     function _isSupportedPToken(address cToken) internal view {
+//         require(cToken == address(pUSDC) || cToken == address(pDAI));
+//         require(marketManager.isListed(cToken));
 //     }
 
 //     function _getLiquidityDeficit(

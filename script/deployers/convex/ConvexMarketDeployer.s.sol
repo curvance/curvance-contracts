@@ -6,7 +6,7 @@ import "forge-std/console.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
-import { Convex2PoolPToken } from "contracts/market/token/Convex2PoolPToken.sol";
+import { Convex2PoolCToken } from "contracts/market/token/Convex2PoolCToken.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -165,7 +165,7 @@ contract ConvexMarketDeployer is DeployConfiguration {
         if (pToken == address(0)) {
             if (param.underlyings.length == 2) {
                 pToken = address(
-                    new Convex2PoolPToken(
+                    new Convex2PoolCToken(
                         ICentralRegistry(centralRegistry),
                         IERC20(param.asset),
                         marketManager,
@@ -176,7 +176,7 @@ contract ConvexMarketDeployer is DeployConfiguration {
                 );
             } else if (param.underlyings.length == 3) {
                 pToken = address(
-                    new Convex2PoolPToken(
+                    new Convex2PoolCToken(
                         ICentralRegistry(centralRegistry),
                         IERC20(param.asset),
                         marketManager,
@@ -187,7 +187,7 @@ contract ConvexMarketDeployer is DeployConfiguration {
                 );
             } else if (param.underlyings.length == 4) {
                 pToken = address(
-                    new Convex2PoolPToken(
+                    new Convex2PoolCToken(
                         ICentralRegistry(centralRegistry),
                         IERC20(param.asset),
                         marketManager,

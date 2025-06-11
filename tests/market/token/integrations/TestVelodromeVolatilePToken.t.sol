@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { VelodromeVolatilePToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeVolatilePToken.sol";
+import { VelodromeVolatileCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeVolatileCToken.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -23,7 +23,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
     IVeloGauge public gauge =
         IVeloGauge(0xE7630c9560C59CCBf5EEd8f33dd0ccA2E67a3981);
 
-    VelodromeVolatilePToken public pWETHUSDC;
+    VelodromeVolatileCToken public pWETHUSDC;
     MockV3Aggregator public chainlinkVELO;
     MockV3Aggregator public chainlinkWETH;
 
@@ -53,7 +53,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(veloRouter)))
         );
 
-        pWETHUSDC = new VelodromeVolatilePToken(
+        pWETHUSDC = new VelodromeVolatileCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_WETH_USDC),
             address(marketManagerIsolated),

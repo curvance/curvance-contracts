@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { Convex2PoolPToken, IERC20 } from "contracts/market/token/Convex2PoolPToken.sol";
+import { Convex2PoolCToken, IERC20 } from "contracts/market/token/Convex2PoolCToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
@@ -20,13 +20,13 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         0x6B27D7BC63F1999D14fF9bA900069ee516669ee8;
     address public CONVEX_BOOSTER = 0xF403C135812408BFbE8713b5A23a04b3D48AAE31;
 
-    Convex2PoolPToken cSTETH;
+    Convex2PoolCToken cSTETH;
     MockV3Aggregator public chainlinkStethUsd;
 
     function setUp() public override {
         super.setUp();
 
-        cSTETH = new Convex2PoolPToken(
+        cSTETH = new Convex2PoolCToken(
             ICentralRegistry(address(centralRegistry)),
             CONVEX_STETH_ETH_POOL,
             address(marketManagerIsolated),

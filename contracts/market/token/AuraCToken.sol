@@ -47,9 +47,9 @@ contract AuraCToken is StrategyCToken {
 
     /// ERRORS ///
 
-    error AuraPToken__UnsafePool();
-    error AuraPToken__InvalidVaultConfig();
-    error AuraPToken__NoYield();
+    error AuraCToken__UnsafePool();
+    error AuraCToken__InvalidVaultConfig();
+    error AuraCToken__NoYield();
 
     /// CONSTRUCTOR ///
 
@@ -68,7 +68,7 @@ contract AuraCToken is StrategyCToken {
         vestPeriod_
     ) {
         if (block.chainid != 1) {
-            revert AuraPToken__UnsafePool();
+            revert AuraCToken__UnsafePool();
         }
 
         strategyData.pid = pid_;
@@ -82,7 +82,7 @@ contract AuraCToken is StrategyCToken {
         // Validate that the pool is still active and that the lp token
         // and rewarder in Aura matches what we are configuring for.
         if (pidToken != asset() || shutdown || balRewards != rewarder_) {
-            revert AuraPToken__InvalidVaultConfig();
+            revert AuraCToken__InvalidVaultConfig();
         }
 
         strategyData.rewarder = IBaseRewardPool(rewarder_);
@@ -265,7 +265,7 @@ contract AuraCToken is StrategyCToken {
             // Deposit assets into Aura.
             yield = IERC20(asset()).balanceOf(address(this));
             if (yield == 0) {
-                revert AuraPToken__NoYield();
+                revert AuraCToken__NoYield();
             }
 
             (, , , , , bool isShutdown) = strategyData.booster.poolInfo(

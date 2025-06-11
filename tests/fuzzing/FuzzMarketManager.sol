@@ -1,4 +1,4 @@
-// import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
+// import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
 // import { EToken } from "contracts/market/token/EToken.sol";
 // import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 // import { IMToken } from "contracts/interfaces/IMToken.sol";
@@ -128,30 +128,30 @@
 //         }
 //         require(marketManager.mintPaused(mtoken) != 2);
 
-//         address underlyingAddress = MockSimplePToken(mtoken).underlying();
+//         address underlyingAddress = MockSimpleCToken(mtoken).underlying();
 //         amount = clampBetweenBoundsFromOne(lower, amount);
 //         require(_mintAndApprove(underlyingAddress, mtoken, amount));
-//         uint256 prePTokenBalanceThis = MockSimplePToken(mtoken).balanceOf(
+//         uint256 prePTokenBalanceThis = MockSimpleCToken(mtoken).balanceOf(
 //             address(this)
 //         );
-//         uint256 preTotalAssets = MockSimplePToken(mtoken).totalAssets();
+//         uint256 preTotalAssets = MockSimpleCToken(mtoken).totalAssets();
 
 //         // TODO: investigate 20 min hold period for debt token ()
-//         try MockSimplePToken(mtoken).deposit(amount, address(this)) {
-//             uint256 postPTokenBalanceThis = MockSimplePToken(mtoken).balanceOf(
+//         try MockSimpleCToken(mtoken).deposit(amount, address(this)) {
+//             uint256 postPTokenBalanceThis = MockSimpleCToken(mtoken).balanceOf(
 //                 address(this)
 //             );
 
 //             assertLt(
 //                 prePTokenBalanceThis,
 //                 postPTokenBalanceThis,
-//                 "MARKET-4 pre and post pToken balance should increase"
+//                 "MARKET-4 pre and post cToken balance should increase"
 //             );
 //         } catch (bytes memory revertData) {
 //             uint256 errorSelector = extractErrorSelector(revertData);
 //             bool convertToSharesOverflow;
 
-//             try MockSimplePToken(mtoken).convertToShares(amount) {} catch (
+//             try MockSimpleCToken(mtoken).convertToShares(amount) {} catch (
 //                 bytes memory convertSharesData
 //             ) {
 //                 uint256 convertSharesError = extractErrorSelector(
@@ -161,7 +161,7 @@
 //                     "convert to shares error did overflow",
 //                     convertSharesError
 //                 );
-//                 // BasePToken._convertToShares will revert when `mulDivDown` overflows with `revert(0,0)
+//                 // BaseCToken._convertToShares will revert when `mulDivDown` overflows with `revert(0,0)
 //                 if (convertSharesError == 2904890407) {
 //                     convertToSharesOverflow = true;
 //                 }
@@ -473,7 +473,7 @@
 //                 // ensure account collateral has increased by # of tokens
 //                 uint256 newCollateralForUser = _collateralPostedFor(mtoken);
 
-//                 uint256 mtokenExchange = MockSimplePToken(mtoken)
+//                 uint256 mtokenExchange = MockSimpleCToken(mtoken)
 //                     .exchangeRateSafe();
 //                 assertEq(
 //                     (newCollateralForUser) * mtokenExchange,

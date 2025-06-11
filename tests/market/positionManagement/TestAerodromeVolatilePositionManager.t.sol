@@ -3,14 +3,14 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { AerodromeVolatilePToken } from "contracts/market/token/AerodromeVolatilePToken.sol";
+import { AerodromeVolatileCToken } from "contracts/market/token/AerodromeVolatileCToken.sol";
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { AerodromePositionManager } from "contracts/market/position-management/AerodromePositionManager.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
@@ -28,7 +28,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
     IVeloRouter public aeroRouter =
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
-    AerodromeVolatilePToken public pWETHUSDC;
+    AerodromeVolatileCToken public pWETHUSDC;
     VelodromeVolatileLPAdaptor public adaptor;
     AerodromePositionManager public positionManagement;
 
@@ -126,7 +126,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         // setup pWETHUSDC
         {
-            pWETHUSDC = new AerodromeVolatilePToken(
+            pWETHUSDC = new AerodromeVolatileCToken(
                 ICentralRegistry(address(centralRegistry)),
                 IERC20(_AERODROME_WETH_USDC),
                 address(marketManagerIsolated),
@@ -223,7 +223,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pWETHUSDC));
+        leverageData.positionToken = ICToken(address(pWETHUSDC));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -279,7 +279,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pWETHUSDC));
+        leverageData.positionToken = ICToken(address(pWETHUSDC));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -353,7 +353,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pWETHUSDC));
+        leverageData.positionToken = ICToken(address(pWETHUSDC));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -427,7 +427,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pWETHUSDC));
+        leverageData.positionToken = ICToken(address(pWETHUSDC));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -482,7 +482,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory eDAISnapshotBefore = eDAI.getSnapshot(user);
         uint256 pWETHUSDCBalanceBefore = pWETHUSDC.balanceOf(user);
 
-        deleverageData.positionToken = IPToken(address(pWETHUSDC));
+        deleverageData.positionToken = ICToken(address(pWETHUSDC));
         deleverageData.collateralAmount = 0.00003 ether;
         deleverageData.borrowToken = IEToken(address(eDAI));
 
@@ -570,7 +570,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pWETHUSDC));
+        leverageData.positionToken = ICToken(address(pWETHUSDC));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -623,7 +623,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory eDAISnapshotBefore = eDAI.getSnapshot(user);
         uint256 pWETHUSDCBalanceBefore = pWETHUSDC.balanceOf(user);
 
-        deleverageData.positionToken = IPToken(address(pWETHUSDC));
+        deleverageData.positionToken = ICToken(address(pWETHUSDC));
         deleverageData.collateralAmount = 0.00003 ether;
         deleverageData.borrowToken = IEToken(address(eDAI));
 

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
-import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
+import { StrategyCToken } from "contracts/market/token/StrategyCToken.sol";
 
 contract StrategyCTokenWithExitFeePreviewRedeemTest is
     TestBaseStrategyCTokenWithExitFee

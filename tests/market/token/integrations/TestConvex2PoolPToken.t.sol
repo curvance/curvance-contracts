@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { Convex2PoolPToken, IERC20 } from "contracts/market/token/Convex2PoolPToken.sol";
+import { Convex2PoolCToken, IERC20 } from "contracts/market/token/Convex2PoolCToken.sol";
 import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
@@ -24,7 +24,7 @@ contract TestConvex2PoolPToken is TestBaseMarketIsolated {
     MockDataFeed public mockCRVFeed;
     MockDataFeed public mockCVXFeed;
     MockDataFeed public mockWethFeed;
-    Convex2PoolPToken public cSTETH;
+    Convex2PoolCToken public cSTETH;
 
     /*
     LP token address	0x21E27a5E5513D6e65C4f830167390997aA84843a
@@ -49,7 +49,7 @@ contract TestConvex2PoolPToken is TestBaseMarketIsolated {
         _skipEpochDuration(1);
         vm.roll(block.number + 1000);
 
-        cSTETH = new Convex2PoolPToken(
+        cSTETH = new Convex2PoolCToken(
             ICentralRegistry(address(centralRegistry)),
             CONVEX_STETH_ETH_POOL,
             address(marketManagerIsolated),

@@ -14,8 +14,8 @@ import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
-import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
+import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { PendleZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/PendleZapperCalldataChecker.sol";
@@ -27,7 +27,7 @@ import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/B
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { MockMessageTransmitter } from "contracts/mocks/MockMessageTransmitter.sol";
 import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.sol";
-import { MockAuraPTokenWithExitFee } from "contracts/mocks/MockAuraPTokenWithExitFee.sol";
+import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { QueryTest } from "tests/utils/QueryTest.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
@@ -449,8 +449,8 @@ contract TestBaseMarketIsolated is TestBase {
     function _deployPUSDC()
         internal
         initMainVariables
-        returns (SimplePToken) {
-        pUSDC = new SimplePToken(
+        returns (SimpleCToken) {
+        pUSDC = new SimpleCToken(
             ICentralRegistry(address(centralRegistry)),
             usdc,
             address(marketManagerIsolated)
@@ -461,9 +461,9 @@ contract TestBaseMarketIsolated is TestBase {
     function _deployPBALRETH()
         internal
         initMainVariables
-        returns (AuraPToken)
+        returns (AuraCToken)
     {
-        pBALRETH = pBALRETHs[block.chainid] = new AuraPToken(
+        pBALRETH = pBALRETHs[block.chainid] = new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManagerIsolated),
@@ -477,11 +477,11 @@ contract TestBaseMarketIsolated is TestBase {
     function _deployPBALRETHWithExitFee()
         internal
         initMainVariables
-        returns (MockAuraPTokenWithExitFee)
+        returns (MockAuraCTokenWithExitFee)
     {
         pBALRETHWithExitFee = pBALRETHWithExitFees[
             block.chainid
-        ] = new MockAuraPTokenWithExitFee(
+        ] = new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManagerIsolated),

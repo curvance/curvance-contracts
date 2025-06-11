@@ -5,13 +5,13 @@ import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { SwapType } from "contracts/interfaces/external/pendle/IPSwapAggregator.sol";
 import { PendlePTPositionManager } from "contracts/market/position-management/PendlePTPositionManager.sol";
 import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendlePrincipalTokenAdaptor.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { IERC20 } from "contracts/market/token/PendleLPPToken.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -31,7 +31,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
 
     PendlePTPositionManager public positionManagement;
     PendlePrincipalTokenAdaptor public adaptor;
-    SimplePToken public pPendlePT;
+    SimpleCToken public pPendlePT;
     IERC20 public pendlePT = IERC20(_PT_STETH);
 
     address public owner;
@@ -111,7 +111,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
 
         // deploy pPendlePT
         {
-            pPendlePT = new SimplePToken(
+            pPendlePT = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
                 pendlePT,
                 address(marketManagerIsolated)
@@ -191,7 +191,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         PendlePTPositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pPendlePT));
+        leverageData.positionToken = ICToken(address(pPendlePT));
         PendleLib.PendleData memory data;
         data.approx.guessMin = 0.001e18;
         data.approx.guessMax = 10.0e18;
@@ -314,7 +314,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         PendlePTPositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pPendlePT));
+        leverageData.positionToken = ICToken(address(pPendlePT));
         PendleLib.PendleData memory data;
         data.approx.guessMin = 0.001e18;
         data.approx.guessMax = 10.0e18;
@@ -366,7 +366,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
 
         emit debugUint("eDAIBorrowedBefore", eDAIBorrowedBefore);
 
-        deleverageData.positionToken = IPToken(address(pPendlePT));
+        deleverageData.positionToken = ICToken(address(pPendlePT));
         deleverageData.collateralAmount = 1 ether;
         deleverageData.borrowToken = IEToken(address(eDAI));
 

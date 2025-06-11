@@ -3,7 +3,7 @@
 
 // import { TestBaseMarketManagerEntropy } from "../TestBaseMarketManagerEntropy.sol";
 // import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-// import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
+// import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
 // import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 // import { EToken } from "contracts/market/token/EToken.sol";
 // import { IMToken } from "contracts/interfaces/IMToken.sol";
@@ -45,7 +45,7 @@
 //     )
 //         internal
 //         returns (
-//             MockSimplePToken[] memory,
+//             MockSimpleCToken[] memory,
 //             EToken[] memory,
 //             address[] memory,
 //             MockV3Aggregator[] memory,
@@ -61,7 +61,7 @@
 //         noOfUsers = noOfUsersCollateral + noOfUsersDebt + noOfUsersMixed;
 //         entropy = uint256(_entropy) + 1;
 
-//         MockSimplePToken[] memory pTokens = new MockSimplePToken[](
+//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -102,7 +102,7 @@
 //         uint256 collateralLimit,
 //         uint256 debtLimit,
 //         address[] memory users,
-//         MockSimplePToken[] memory pTokens,
+//         MockSimpleCToken[] memory pTokens,
 //         EToken[] memory eTokens
 //     ) internal {
 //         uint256 runs;
@@ -158,7 +158,7 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimplePToken[] memory pTokens = new MockSimplePToken[](
+//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -214,7 +214,7 @@
 //         uint16 _entropy
 //     ) public {
 //         (
-//             MockSimplePToken[] memory pTokens,
+//             MockSimpleCToken[] memory pTokens,
 //             EToken[] memory eTokens,
 //             address[] memory users,
 //             MockV3Aggregator[] memory pTokensAgg,
@@ -243,7 +243,7 @@
 //         uint16 _entropy
 //     ) public {
 //         (
-//             MockSimplePToken[] memory pTokens,
+//             MockSimpleCToken[] memory pTokens,
 //             EToken[] memory eTokens,
 //             address[] memory users,
 //             MockV3Aggregator[] memory pTokensAgg,
@@ -272,7 +272,7 @@
 //         uint16 _entropy
 //     ) public {
 //         (
-//             MockSimplePToken[] memory pTokens,
+//             MockSimpleCToken[] memory pTokens,
 //             EToken[] memory eTokens,
 //             address[] memory users,
 //             MockV3Aggregator[] memory pTokensAgg,

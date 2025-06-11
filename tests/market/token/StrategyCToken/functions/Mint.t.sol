@@ -3,14 +3,14 @@ pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
 
-import { BasePToken } from "contracts/market/token/BasePToken.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
 contract StrategyCTokenMintTest is TestBaseStrategyCToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function test_strategyCTokenMint_fail_whenTransferZeroAmount() public {
         vm.expectRevert(
-            BasePToken.BasePToken__EmptyAction.selector
+            BaseCToken.BaseCToken__EmptyAction.selector
         );
         pBALRETH.mint(0, address(this));
     }

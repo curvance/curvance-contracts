@@ -2,7 +2,7 @@
 // pragma solidity ^0.8.19;
 
 // import "tests/market/TestBaseMarketIsolated.sol";
-// import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
+// import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
 // import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
 
 // import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -51,24 +51,24 @@
 //         return (eTokens, eTokensAgg);
 //     }
 
-//     function _deployCollaterToken() internal returns (MockSimplePToken) {
-//         // deploy collateral token and pToken
+//     function _deployCollaterToken() internal returns (MockSimpleCToken) {
+//         // deploy collateral token and cToken
 //         MockERC20Token mockUnderlying = new MockERC20Token();
 //         vm.label(address(mockUnderlying), "tokenCollateral");
-//         MockSimplePToken SimplePToken = new MockSimplePToken(
+//         MockSimpleCToken SimpleCToken = new MockSimpleCToken(
 //             ICentralRegistry(address(centralRegistry)),
 //             address(mockUnderlying),
 //             address(marketManagerIsolated)
 //         );
-//         vm.label(address(SimplePToken), "pToken");
+//         vm.label(address(SimpleCToken), "cToken");
 
-//         // start market for pToken
+//         // start market for cToken
 //         uint256 startAmount = 42069;
 //         mockUnderlying.mint(address(this), startAmount);
-//         mockUnderlying.approve(address(SimplePToken), startAmount);
-//         marketManagerIsolated.listToken(address(SimplePToken));
+//         mockUnderlying.approve(address(SimpleCToken), startAmount);
+//         marketManagerIsolated.listToken(address(SimpleCToken));
 //         vm.label(address(marketManagerIsolated), "marketManager");
-//         return SimplePToken;
+//         return SimpleCToken;
 //     }
 
 //     function _deployEarnToken() internal returns (EToken) {
@@ -113,24 +113,24 @@
 
 //     function _genCollateral(
 //         address _user,
-//         MockSimplePToken _pToken,
+//         MockSimpleCToken _cToken,
 //         uint256 _amount
 //     ) internal {
-//         MockERC20Token tokenCollateral = MockERC20Token(_pToken.underlying());
+//         MockERC20Token tokenCollateral = MockERC20Token(_cToken.underlying());
 //         vm.startPrank(_user);
 //         tokenCollateral.mint(address(_user), _amount);
-//         tokenCollateral.approve(address(_pToken), _amount);
-//         _pToken.deposit(_amount, address(_user));
+//         tokenCollateral.approve(address(_cToken), _amount);
+//         _cToken.deposit(_amount, address(_user));
 //         vm.stopPrank();
 //     }
 
 //     function _postCollateral(
 //         address _user,
-//         MockSimplePToken _pToken,
+//         MockSimpleCToken _cToken,
 //         uint256 _amount
 //     ) internal {
 //         vm.prank(_user);
-//         _pToken.postCollateral(_amount);
+//         _cToken.postCollateral(_amount);
 //     }
 
 //     function _supplyEToken(
@@ -154,13 +154,13 @@
 //     function _checkLiquidation(
 //         address _user,
 //         EToken _eToken,
-//         MockSimplePToken _pToken,
+//         MockSimpleCToken _cToken,
 //         uint256 _amount,
 //         bool _exact
 //     ) internal view returns (uint256 liqAmount, uint256 liquidatedTokens) {
 //         (liqAmount, liquidatedTokens) = marketManagerIsolated.canLiquidate(
 //             address(_eToken),
-//             address(_pToken),
+//             address(_cToken),
 //             _user,
 //             _amount,
 //             _exact
@@ -211,18 +211,18 @@
 //         uint256 _collateralAvailable,
 //         address _user,
 //         EToken _eToken,
-//         MockSimplePToken _pToken,
+//         MockSimpleCToken _cToken,
 //         bool _exact
 //     ) internal view returns (uint256, uint256) {
 //         (, , , , , , uint256 baseCFactor, uint256 cFactorCurve) = marketManagerIsolated
-//             .tokenData(address(_pToken));
+//             .tokenData(address(_cToken));
 
 //         uint256 cFactor = baseCFactor + ((cFactorCurve * 1e18) / WAD);
 //         uint256 debtAmount = (cFactor * _eToken.debtBalanceCached(_user)) /
 //             WAD;
 
 //         PriceReturnData memory data = chainlinkAdaptor.getPrice(
-//             _pToken.underlying(),
+//             _cToken.underlying(),
 //             true,
 //             true
 //         );
@@ -230,7 +230,7 @@
 //             _calcExpected(
 //                 _collateralAvailable,
 //                 _eToken,
-//                 _pToken,
+//                 _cToken,
 //                 cFactor,
 //                 debtAmount,
 //                 data.price,
@@ -241,7 +241,7 @@
 //     function _calcExpected(
 //         uint256 _collateralAvailable,
 //         EToken _eToken,
-//         MockSimplePToken _pToken,
+//         MockSimpleCToken _cToken,
 //         uint256 /* cFactor */,
 //         uint256 debtAmount,
 //         uint256 price,
@@ -261,7 +261,7 @@
 //             uint256 liqCurve,
 //             ,
 
-//         ) = marketManagerIsolated.tokenData(address(_pToken));
+//         ) = marketManagerIsolated.tokenData(address(_cToken));
 
 //         PriceReturnData memory earnTokenData = chainlinkAdaptor.getPrice(
 //             _eToken.underlying(),
@@ -274,8 +274,8 @@
 
 //         uint256 incentive = liqBaseIncentive + liqCurve;
 //         uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
-//             (price * _pToken.exchangeRateCached());
-//         uint256 amountAdjusted = (debtAmount * (10 ** _pToken.decimals())) /
+//             (price * _cToken.exchangeRateCached());
+//         uint256 amountAdjusted = (debtAmount * (10 ** _cToken.decimals())) /
 //             (10 ** _eToken.decimals());
 //         uint256 expectedLiquidatedTokens = (amountAdjusted *
 //             debtToCollateralRatio) / WAD;
@@ -317,20 +317,20 @@
 
 //     function _liquidateAllExact(
 //         EToken[] memory eTokens,
-//         MockSimplePToken[] memory pTokens,
+//         MockSimpleCToken[] memory cTokens,
 //         address[] memory users
 //     ) internal {
 //         console2.log("_liquidateExact");
 //         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
 //             for (uint256 j = 0; j < noOfPositionTokens; j++) {
-//                 if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(pTokens[j]))) {
+//                 if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(cTokens[j]))) {
 //                     console2.log(
 //                         "user %s not flagged for liquidation",
 //                         users[i]
 //                     );
 //                     continue;
 //                 }
-//                 if (pTokens[j].balanceOf(users[i]) == 0) {
+//                 if (cTokens[j].balanceOf(users[i]) == 0) {
 //                     continue;
 //                 }
 //                 for (uint256 k = 0; k < noOfEarnTokens; k++) {
@@ -343,9 +343,9 @@
 //                     console2.log(
 //                         "liquidate %s %s",
 //                         address(eTokens[k]),
-//                         address(pTokens[j])
+//                         address(cTokens[j])
 //                     );
-//                     _liquidate(eTokens[k], pTokens[j], users[i], true);
+//                     _liquidate(eTokens[k], cTokens[j], users[i], true);
 //                     break;
 //                 }
 //             }
@@ -354,20 +354,20 @@
 
 //     function _liquidateAllByEToken(
 //         EToken[] memory eTokens,
-//         MockSimplePToken[] memory pTokens,
+//         MockSimpleCToken[] memory cTokens,
 //         address[] memory users
 //     ) internal {
 //         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
 //             console2.log("user %s", users[i]);
 //             for (uint256 j = 0; j < noOfPositionTokens; j++) {
-//                 if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(pTokens[j]))) {
+//                 if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(cTokens[j]))) {
 //                     console2.log(
 //                         "user %s not flagged for liquidation",
 //                         users[i]
 //                     );
 //                     continue;
 //                 }
-//                 if (pTokens[j].balanceOf(users[i]) == 0) {
+//                 if (cTokens[j].balanceOf(users[i]) == 0) {
 //                     continue;
 //                 }
 //                 for (uint256 k = 0; k < noOfEarnTokens; k++) {
@@ -380,9 +380,9 @@
 //                     console2.log(
 //                         "liquidate %s %s",
 //                         address(eTokens[k]),
-//                         address(pTokens[j])
+//                         address(cTokens[j])
 //                     );
-//                     _liquidate(eTokens[k], pTokens[j], users[i], false);
+//                     _liquidate(eTokens[k], cTokens[j], users[i], false);
 //                     break;
 //                 }
 //             }
@@ -391,7 +391,7 @@
 
 //     function _liquidate(
 //         EToken _eToken,
-//         MockSimplePToken _pToken,
+//         MockSimpleCToken _cToken,
 //         address _user,
 //         bool _exact
 //     ) internal {
@@ -399,15 +399,15 @@
 
 //         console2.log("\n expected liquidation");
 //         (uint256 expectedLiqAmount, ) = _expectedLiquidation(
-//             _pToken.balanceOf(_user),
+//             _cToken.balanceOf(_user),
 //             _user,
 //             _eToken,
-//             _pToken,
+//             _cToken,
 //             _exact
 //         );
 
 //         console2.log("\n check liquidation");
-//         _checkLiquidation(_user, _eToken, _pToken, expectedLiqAmount, _exact);
+//         _checkLiquidation(_user, _eToken, _cToken, expectedLiqAmount, _exact);
 
 //         console2.log("\n prep liquidation");
 //         _prepareLiquidation(liquidator, _eToken, expectedLiqAmount);
@@ -416,13 +416,13 @@
 //         if (_exact) {
 //             _eTokenLiquidateExact(
 //                 _eToken,
-//                 _pToken,
+//                 _cToken,
 //                 expectedLiqAmount,
 //                 _user,
 //                 liquidator
 //             );
 //         } else {
-//             _eTokenLiquidate(_eToken, _pToken, _user, liquidator);
+//             _eTokenLiquidate(_eToken, _cToken, _user, liquidator);
 //         }
 //     }
 
@@ -436,7 +436,7 @@
 
 //     function _eTokenLiquidateExact(
 //         EToken _eToken,
-//         MockSimplePToken _collateral,
+//         MockSimpleCToken _collateral,
 //         uint256 _expectedLiqAmount,
 //         address _account,
 //         address _liquidator
@@ -455,7 +455,7 @@
 
 //     function _eTokenLiquidate(
 //         EToken _eToken,
-//         MockSimplePToken _collateral,
+//         MockSimpleCToken _collateral,
 //         address _account,
 //         address _liquidator
 //     ) internal {

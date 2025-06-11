@@ -202,7 +202,7 @@
 
 | ID         | Property                                                                                                                        | Result |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| S-MARKET-1 | A user’s pToken balance must always be greater than the total collateral posted for a pToken.                                   | Passed |
+| S-MARKET-1 | A user’s cToken balance must always be greater than the total collateral posted for a pToken.                                   | Passed |
 | S-MARKET-2 | Market collateral posted of 0 for a token should have collateral posted for a token to be equivalent to the max collateral cap. | Passed |
 | S-MARKET-3 | Market collateral posted should always be less than max collateralCap for a non-zero collateral cap.                            | Passed |
 | S-MARKET-4 | The total supply of a token should never go down to zero once it has been listed.                                               | Passed |

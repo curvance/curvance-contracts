@@ -10,7 +10,7 @@ import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtO
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
-import { PendleLPPToken } from "contracts/market/token/PendleLPPToken.sol";
+import { PendleLPCToken } from "contracts/market/token/PendleLPCToken.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
@@ -29,7 +29,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
     bool internal _IS_PT = false;
 
     PendleLPTokenAdaptor public adaptor;
-    PendleLPPToken public pSTETH;
+    PendleLPCToken public pSTETH;
 
     receive() external payable {}
 
@@ -55,7 +55,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPriceFeed(_LP_STETH, address(adaptor));
 
-        pSTETH = new PendleLPPToken(
+        pSTETH = new PendleLPCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_LP_STETH),
             address(marketManagerIsolated),

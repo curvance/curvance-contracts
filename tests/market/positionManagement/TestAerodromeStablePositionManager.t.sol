@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { AerodromeStablePToken } from "contracts/market/token/AerodromeStablePToken.sol";
+import { AerodromeStableCToken } from "contracts/market/token/AerodromeStableCToken.sol";
 import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeStableLPAdaptor.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
@@ -10,7 +10,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { AerodromePositionManager } from "contracts/market/position-management/AerodromePositionManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
@@ -29,7 +29,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
     IERC20 public aerodromeDAIUSDC;
-    AerodromeStablePToken public pUSDCDAI;
+    AerodromeStableCToken public pUSDCDAI;
     VelodromeStableLPAdaptor public adaptor;
     AerodromePositionManager public positionManagement;
 
@@ -103,7 +103,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         // setup pUSDCDAI
         {
-            pUSDCDAI = new AerodromeStablePToken(
+            pUSDCDAI = new AerodromeStableCToken(
                 ICentralRegistry(address(centralRegistry)),
                 IERC20(_AERODROME_DAI_USDC),
                 address(marketManagerIsolated),
@@ -204,7 +204,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pUSDCDAI));
+        leverageData.positionToken = ICToken(address(pUSDCDAI));
         leverageData.swapData.inputToken = address(0x0);
         leverageData.swapData.inputAmount = 0;
         leverageData.swapData.outputToken = address(0x0);
@@ -244,7 +244,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pUSDCDAI));
+        leverageData.positionToken = ICToken(address(pUSDCDAI));
         leverageData.swapData.inputToken = address(0x0);
         leverageData.swapData.inputAmount = 0;
         leverageData.swapData.outputToken = address(0x0);
@@ -302,7 +302,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pUSDCDAI));
+        leverageData.positionToken = ICToken(address(pUSDCDAI));
         leverageData.swapData.inputToken = address(0x0);
         leverageData.swapData.inputAmount = 0;
         leverageData.swapData.outputToken = address(0x0);
@@ -360,7 +360,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pUSDCDAI));
+        leverageData.positionToken = ICToken(address(pUSDCDAI));
         leverageData.swapData.inputToken = address(0x0);
         leverageData.swapData.inputAmount = 0;
         leverageData.swapData.outputToken = address(0x0);
@@ -399,7 +399,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory eDAISnapshotBefore = eDAI.getSnapshot(user);
         uint256 pUSDCDAIBalanceBefore = pUSDCDAI.balanceOf(user);
 
-        deleverageData.positionToken = IPToken(address(pUSDCDAI));
+        deleverageData.positionToken = ICToken(address(pUSDCDAI));
         deleverageData.collateralAmount = 0.00003 ether;
         deleverageData.borrowToken = IEToken(address(eDAI));
 
@@ -469,7 +469,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pUSDCDAI));
+        leverageData.positionToken = ICToken(address(pUSDCDAI));
         leverageData.swapData.inputToken = address(0x0);
         leverageData.swapData.inputAmount = 0;
         leverageData.swapData.outputToken = address(0x0);
@@ -508,7 +508,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory eDAISnapshotBefore = eDAI.getSnapshot(user);
         uint256 pUSDCDAIBalanceBefore = pUSDCDAI.balanceOf(user);
 
-        deleverageData.positionToken = IPToken(address(pUSDCDAI));
+        deleverageData.positionToken = ICToken(address(pUSDCDAI));
         deleverageData.collateralAmount = 0.00003 ether;
         deleverageData.borrowToken = IEToken(address(eDAI));
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BasePToken } from "contracts/market/token/BasePToken.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -44,7 +44,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      facilitating the distribution of native tokens both liquid and
 ///      locked to users based on their contributions to the protocol over
 ///      time.
-abstract contract BasePTokenWithGauge is BasePToken {
+abstract contract BaseCTokenWithGauge is BaseCToken {
     /// CONSTANTS ///
 
     /// @notice Address of the Gauge Manager.
@@ -52,7 +52,7 @@ abstract contract BasePTokenWithGauge is BasePToken {
 
     /// ERRORS ///
 
-    error BasePToken__InvalidGaugeManager();
+    error BaseCToken__InvalidGaugeManager();
 
     /// CONSTRUCTOR ///
 
@@ -60,12 +60,12 @@ abstract contract BasePTokenWithGauge is BasePToken {
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address marketManager_
-    ) BasePToken(centralRegistry_, asset_, marketManager_) {
+    ) BaseCToken(centralRegistry_, asset_, marketManager_) {
         address gaugeManagerAddress = centralRegistry.gaugeManager();
 
         // Validate Gauge Manager has been set.
         if (gaugeManagerAddress == address(0)) {
-            revert BasePToken__InvalidGaugeManager();
+            revert BaseCToken__InvalidGaugeManager();
         }
         // Set `gaugeManager`.
         gaugeManager = IGaugeManager(gaugeManagerAddress);

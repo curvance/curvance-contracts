@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
-import { BasePToken } from "contracts/market/token/BasePToken.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
 
 contract StrategyCTokenRedeemTest is TestBaseStrategyCToken {
@@ -42,7 +42,7 @@ contract StrategyCTokenRedeemTest is TestBaseStrategyCToken {
         pBALRETH.mint(100, address(this));
 
         vm.expectRevert(
-            BasePToken.BasePToken__EmptyAction.selector
+            BaseCToken.BaseCToken__EmptyAction.selector
         );
         pBALRETH.redeem(0, address(this), address(this));
     }
