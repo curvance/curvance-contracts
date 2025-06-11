@@ -7,7 +7,7 @@ import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.s
 import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
 
-contract AerodromeStablePToken is VelodromeStableCToken {
+contract AerodromeStableCToken is VelodromeStableCToken {
     /// CONSTRUCTOR ///
 
     constructor(

@@ -9,7 +9,7 @@ import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
-import { VelodromeVolatilePToken, IVeloGauge, IVeloRouter, IVeloPairFactory } from "contracts/market/token/VelodromeVolatileCToken.sol";
+import { VelodromeVolatileCToken, IVeloGauge, IVeloRouter, IVeloPairFactory } from "contracts/market/token/VelodromeVolatileCToken.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
@@ -26,7 +26,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
     address internal _USDC = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
     bool internal _IS_STABLE = false;
 
-    VelodromeVolatilePToken public pToken;
+    VelodromeVolatileCToken public pToken;
     VelodromeVolatileLPAdaptor public adaptor;
 
     receive() external payable {}
@@ -97,7 +97,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
             address(adaptor)
         );
 
-        pToken = new VelodromeVolatilePToken(
+        pToken = new VelodromeVolatileCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_VELODROME_WETH_USDC),
             address(marketManagerIsolated),

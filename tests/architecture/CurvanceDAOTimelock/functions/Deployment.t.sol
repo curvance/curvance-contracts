@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import { TestBaseTimelock } from "../TestBaseTimelock.sol";
-import { Timelock } from "contracts/architecture/DAOTimelock.sol";
+import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract TimelockDeploymentTest is TestBaseTimelock {
@@ -11,15 +11,15 @@ contract TimelockDeploymentTest is TestBaseTimelock {
     {
         vm.expectRevert(
             abi.encodeWithSelector(
-                Timelock.Timelock__InvalidCentralRegistry.selector,
+                DAOTimelock.Timelock__InvalidCentralRegistry.selector,
                 address(0)
             )
         );
-        new Timelock(ICentralRegistry(address(0)));
+        new DAOTimelock(ICentralRegistry(address(0)));
     }
 
     function test_timelockDeployment_success() public {
-        Timelock timelock = new Timelock(
+        DAOTimelock timelock = new DAOTimelock(
             ICentralRegistry(address(centralRegistry))
         );
 

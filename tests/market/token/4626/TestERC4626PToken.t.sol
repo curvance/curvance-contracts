@@ -5,7 +5,7 @@ import { TestERC4626 } from "tests/market/token/4626/TestERC4626.sol";
 import { TestBaseMarketIsolated, ICentralRegistry } from "tests/market/TestBaseMarketIsolated.sol";
 
 import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
-import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
+import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
 
 contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
     // @todo check the failing tests: test_maxWithdraw! which reverts
@@ -32,7 +32,7 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
         // deploy position token and pToken
         MockERC20Token mockUnderlying = new MockERC20Token();
         vm.label(address(mockUnderlying), "tokenCollateral");
-        MockSimplePToken mockPToken = new MockSimplePToken(
+        MockSimpleCToken mockPToken = new MockSimpleCToken(
             ICentralRegistry(address(centralRegistry)),
             address(mockUnderlying),
             address(marketManagerIsolated)

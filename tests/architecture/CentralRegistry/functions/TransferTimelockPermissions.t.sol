@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { Timelock } from "contracts/architecture/DAOTimelock.sol";
+import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract TransferTimelockPermissionsTest is TestBaseMarketIsolated {
@@ -25,7 +25,7 @@ contract TransferTimelockPermissionsTest is TestBaseMarketIsolated {
     }
 
     function test_transferTimelockPermissions_success() public {
-        Timelock newTimelock1 = new Timelock(
+        DAOTimelock newTimelock1 = new DAOTimelock(
             ICentralRegistry(address(centralRegistry))
         );
 
@@ -72,7 +72,7 @@ contract TransferTimelockPermissionsTest is TestBaseMarketIsolated {
         assertTrue(newTimelock1.hasRole(newTimelock1.PROPOSER_ROLE(), address(1)));
         assertTrue(newTimelock1.hasRole(newTimelock1.EXECUTOR_ROLE(), address(1)));
 
-        Timelock newTimelock2 = new Timelock(
+        DAOTimelock newTimelock2 = new DAOTimelock(
             ICentralRegistry(address(centralRegistry))
         );
 

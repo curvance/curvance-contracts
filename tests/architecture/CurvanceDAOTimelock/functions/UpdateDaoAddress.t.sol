@@ -2,12 +2,12 @@
 pragma solidity 0.8.26;
 
 import { TestBaseTimelock } from "../TestBaseTimelock.sol";
-import { Timelock } from "contracts/architecture/DAOTimelock.sol";
+import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract UpdateDaoAddressTest is TestBaseTimelock {
     function test_updateDaoAddress_success() public {
-        Timelock timelock = new Timelock(
+        DAOTimelock timelock = new DAOTimelock(
             ICentralRegistry(address(centralRegistry))
         );
 
