@@ -103,22 +103,26 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
             address(marketManagerIsolated),
             IVeloGauge(_VELODROME_GAUGE),
             IVeloPairFactory(_VELODROME_FACTORY),
-            IVeloRouter(_VELODROME_ROUTER)
+            IVeloRouter(_VELODROME_ROUTER),
+            1 days
         );
         oracleManager.addMTokenSupport(address(pToken));
 
         deal(_VELODROME_WETH_USDC, address(this), 1 ether);
         IERC20(_VELODROME_WETH_USDC).approve(address(pToken), 1 ether);
-        marketManagerIsolated.listToken(address(pToken));
+        marketManagerIsolated.listTokens(address(pToken), address(pToken));
 
         marketManagerIsolated.updatePositionToken(
-            address(pToken),
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            1000
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            1000     // baseCFactor 20%
         );
 
         address[] memory tokens = new address[](1);

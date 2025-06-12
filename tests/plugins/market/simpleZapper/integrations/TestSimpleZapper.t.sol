@@ -43,7 +43,6 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             // support market
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManagerIsolated.listToken(address(eDAI));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(eDAI));
         }
@@ -53,24 +52,29 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             _deployPUSDC();
             _prepareUSDC(owner, 100e6);
             usdc.approve(address(pUSDC), 100e6);
-            marketManagerIsolated.listToken(address(pUSDC));
-            oracleManager.addMTokenSupport(address(pUSDC));
-            marketManagerIsolated.updatePositionToken(
-                address(pUSDC),
-                7000,
-                4000, // liquidate at 71%
-                3000,
-                200, // 2% liq incentive
-                400,
-                1000
-            );
 
-            address[] memory mTokens = new address[](1);
-            mTokens[0] = address(pUSDC);
-            uint256[] memory caps = new uint256[](1);
-            caps[0] = 100 ether;
-            marketManagerIsolated.setCollateralCaps(mTokens, caps);
         }
+
+        marketManagerIsolated.listTokens(address(pUSDC), address(eDAI));
+        oracleManager.addMTokenSupport(address(pUSDC));
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            1000     // baseCFactor 20%
+        );
+
+        address[] memory mTokens = new address[](1);
+        mTokens[0] = address(pUSDC);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100 ether;
+        marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 1000 ether);

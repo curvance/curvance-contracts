@@ -13,6 +13,12 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         super.setUp();
 
         assets.push(IMToken(address(eUSDC)));
+
+        _prepareBALRETH(address(this), 1e18);
+        _prepareUSDC(address(this), 1e18);
+
+        balRETH.approve(address(pBALRETH), 1e18);
+        
     }
 
     function test_getPricesForMarket_fail_whenAssetsLengthIsZero() public {
@@ -38,7 +44,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         vm.prank(address(this));
         usdc.approve(address(eUSDC), 1e18);
 
-        marketManagerIsolated.listToken(address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         vm.prank(address(marketManagerIsolated));
         eUSDC.startMarket(address(this));
@@ -54,7 +60,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         vm.prank(address(this));
         usdc.approve(address(eUSDC), 1e18);
 
-        marketManagerIsolated.listToken(address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
         _addSinglePriceFeed();
 
         vm.prank(address(marketManagerIsolated));
@@ -71,7 +77,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         vm.prank(address(this));
         usdc.approve(address(eUSDC), 1e18);
 
-        marketManagerIsolated.listToken(address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         vm.prank(address(marketManagerIsolated));
         eUSDC.startMarket(address(this));

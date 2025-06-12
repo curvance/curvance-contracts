@@ -59,21 +59,25 @@ contract TestPendleZapper is TestBaseMarketIsolated {
             ICentralRegistry(address(centralRegistry)),
             IERC20(_LP_STETH),
             address(marketManagerIsolated),
-            IPendleRouter(_PENDLE_ROUTER)
+            IPendleRouter(_PENDLE_ROUTER),
+            1 days
         );
         oracleManager.addMTokenSupport(address(pSTETH));
 
         deal(_LP_STETH, address(this), 1 ether);
         IERC20(_LP_STETH).approve(address(pSTETH), 1 ether);
-        marketManagerIsolated.listToken(address(pSTETH));
+        marketManagerIsolated.listTokens(address(pSTETH), address(pSTETH));
         marketManagerIsolated.updatePositionToken(
-            address(pSTETH),
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            1000
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            1000     // baseCFactor 20%
         );
 
         address[] memory tokens = new address[](1);

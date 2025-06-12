@@ -74,7 +74,6 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             // support market
             _prepareUSDC(owner, 200000e6);
             usdc.approve(address(eUSDC), 200000e6);
-            marketManagerIsolated.listToken(address(eUSDC));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(eUSDC));
             address[] memory markets = new address[](1);
@@ -97,25 +96,10 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             // support market
             _prepareWETH(owner, 1 ether);
             weth.approve(address(pWETH), 1 ether);
-            marketManagerIsolated.listToken(address(pWETH));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(pWETH));
             // set position token configuration
-            marketManagerIsolated.updatePositionToken(
-                address(pWETH),
-                7000,
-                4000, // liquidate at 71%
-                3000,
-                200, // 2% liq incentive
-                400,
-                1000
-            );
 
-            address[] memory mTokens = new address[](1);
-            mTokens[0] = address(pWETH);
-            uint256[] memory caps = new uint256[](1);
-            caps[0] = 100 ether;
-            marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
             // address[] memory markets = new address[](1);
             // markets[0] = address(pWETH);
@@ -124,6 +108,25 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             // vm.prank(user2);
             // marketManager.enterMarkets(markets);
         }
+
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            1000     // baseCFactor 20%
+        );
+
+        address[] memory mTokens = new address[](1);
+        mTokens[0] = address(pWETH);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100 ether;
+        marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
         provideEnoughLiquidityForLeverage();
     }
