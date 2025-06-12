@@ -29,6 +29,19 @@ abstract contract BaseCTokenWithYield is BaseCToken {
     ///         after this vesting period ends.
     NewVestingData public pendingVestingPeriodUpdate;
 
+    /// @dev Internal packed vesting data:
+    ///      StrategyCToken Bits Layout:
+    ///      - [0..127]   `vestingRate`.
+    ///      - [128..191] `vestingPeriodEnd`.
+    ///      - [192..255] `lastVestingClaim`.
+    ///
+    ///      BorrowableCToken Bits Layout:
+    ///      - [0..79]   `vestingRate`.
+    ///      - [80..119] `vestingPeriodEnd`.
+    ///      - [120..159] `lastVestingClaim`.
+    ///      - [160..255] `debtExchangeRate`.
+    uint256 internal _vestingData;
+
     /// ERRORS ///
 
     error BaseCTokenWithYield__InvalidVestingPeriod();
@@ -83,29 +96,6 @@ abstract contract BaseCTokenWithYield is BaseCToken {
     ) {
         result = _totalAssets + _calculatePendingYield();
     }
-
-    /// @notice Sets a new `_vestingData` invariant based on `yieldToVest`,
-    ///         and `periodToVest` parameters together with the current
-    ///         block timestamp.
-    /// @param yieldToVest The yield to vest over `periodToVest`.
-    /// @param periodToVest The period in which `yieldToVest` is vested
-    ///                     over to users.
-    function _setNewVestingData(
-        uint256 yieldToVest,
-        uint256 periodToVest
-    ) internal virtual {}
-
-    /// @notice Packs parameters together with current block timestamp to
-    ///         calculate the new packed vault data value.
-    /// @param newVestingRate The new rate, per second, that the vault vests
-    ///                      fresh rewards.
-    /// @param newVestingPeriod The timestamp of when the new vesting period
-    ///                      ends, which is block.timestamp + `vestingPeriod`.
-    /// @return result The new packed vault data value.
-    function _packVestingData(
-        uint256 newVestingRate,
-        uint256 newVestingPeriod
-    ) internal view virtual returns (uint256 result) {}
 
     /// @notice Returns whether the current vesting period has ended,
     ///         based on the last vest timestamp.
