@@ -12,7 +12,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 
 import "forge-std/console2.sol";
 
-// ## Scenario 1: Multiple Users Liquidated
+// ## Scenario 1: Multiple Users Liquidated, all using liquidate() function
 // - Setup: 5 users with varying health factors
 // - User 1: 1.0 pBALRETH ($1,600), 800 USDC debt (healthy)
 // - User 2: 1.0 pBALRETH ($1,600), 1,000 USDC debt (borderline)

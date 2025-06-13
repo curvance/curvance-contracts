@@ -30,7 +30,8 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
             109,
             _REWARDER,
             _AURA_BOOSTER,
-            200
+            200,
+            1 days
         );
     }
 
@@ -45,7 +46,8 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
             109,
             _REWARDER,
             _AURA_BOOSTER,
-            200
+            200,
+            1 days
         );
     }
 
@@ -59,7 +61,7 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
 
         vm.expectRevert(
             BaseCToken
-                .BaseCToken__UnderlyingAssetTotalSupplyExceedsMaximum
+                .BaseCToken__UnsupportedAsset
                 .selector
         );
         new MockAuraCTokenWithExitFee(
@@ -69,7 +71,8 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
             109,
             _REWARDER,
             _AURA_BOOSTER,
-            200
+            200,
+            1 days
         );
     }
 
@@ -88,7 +91,8 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
             109,
             _REWARDER,
             _AURA_BOOSTER,
-            201
+            201,
+            1 days
         );
     }
 
@@ -100,14 +104,15 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
             109,
             _REWARDER,
             _AURA_BOOSTER,
-            200
+            200,
+            1 days
         );
 
         assertEq(
             address(pBALRETHWithExitFee.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(pBALRETHWithExitFee.underlying(), _BAL_WETH_RETH_ADDRESS);
+        assertEq(pBALRETHWithExitFee.asset(), _BAL_WETH_RETH_ADDRESS);
         assertEq(
             address(pBALRETHWithExitFee.marketManager()),
             address(marketManagerIsolated)

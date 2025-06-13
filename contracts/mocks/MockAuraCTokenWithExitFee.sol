@@ -43,7 +43,7 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
 
     /// EVENTS ///
 
-    event Harvest(uint256 yield);
+    // event Harvest(uint256 yield);
 
     /// ERRORS ///
 

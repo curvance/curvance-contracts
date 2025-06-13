@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
-
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract StrategyCTokenRedeemTest is TestBaseStrategyCToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
@@ -22,7 +22,7 @@ contract StrategyCTokenRedeemTest is TestBaseStrategyCToken {
 
         centralRegistry.setTransferableStatus(true);
 
-        vm.expectRevert(marketManagerIsolated.MarketManager__Unauthorized.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         pBALRETH.redeem(10, address(this), address(this));
     }
 
@@ -34,7 +34,7 @@ contract StrategyCTokenRedeemTest is TestBaseStrategyCToken {
         centralRegistry.setCooldown(10 days);
         centralRegistry.setCooldown(5 days);
 
-        vm.expectRevert(marketManagerIsolated.MarketManager__Unauthorized.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         pBALRETH.redeem(10, address(this), address(this));
     }
 
@@ -42,7 +42,7 @@ contract StrategyCTokenRedeemTest is TestBaseStrategyCToken {
         pBALRETH.mint(100, address(this));
 
         vm.expectRevert(
-            BaseCToken.BaseCToken__EmptyAction.selector
+            BaseCToken.BaseCToken__ZeroAmount.selector
         );
         pBALRETH.redeem(0, address(this), address(this));
     }

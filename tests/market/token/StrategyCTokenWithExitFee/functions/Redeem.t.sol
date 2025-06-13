@@ -21,7 +21,7 @@ contract StrategyCTokenWithExitFeeRedeemTest is
     {
         pBALRETHWithExitFee.mint(100, address(this));
         vm.expectRevert(
-            BaseCToken.BaseCToken__EmptyAction.selector
+            BaseCToken.BaseCToken__ZeroAmount.selector
         );
         pBALRETHWithExitFee.redeem(0, address(this), address(this));
     }

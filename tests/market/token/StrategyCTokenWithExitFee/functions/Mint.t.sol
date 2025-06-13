@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
 
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract StrategyCTokenWithExitFeeMintTest is
     TestBaseStrategyCTokenWithExitFee
@@ -14,7 +15,7 @@ contract StrategyCTokenWithExitFeeMintTest is
         public
     {
         vm.expectRevert(
-            BaseCToken.BaseCToken__EmptyAction.selector
+            BaseCToken.BaseCToken__ZeroAmount.selector
         );
         pBALRETHWithExitFee.mint(0, address(this));
     }
@@ -24,7 +25,7 @@ contract StrategyCTokenWithExitFeeMintTest is
     {
         marketManagerIsolated.setMintPaused(address(pBALRETHWithExitFee), true);
 
-        vm.expectRevert(marketManagerIsolated.MarketManager__Paused.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         pBALRETHWithExitFee.mint(100, address(this));
     }
 

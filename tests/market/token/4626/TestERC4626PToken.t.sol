@@ -43,7 +43,10 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
         uint256 startAmount = 77777;
         mockUnderlying.mint(address(this), startAmount);
         mockUnderlying.approve(address(mockPToken), startAmount);
-        marketManagerIsolated.listToken(address(mockPToken));
+
+        _prepareDAI(address(this), 20000000e18);
+        dai.approve(address(eDAI), 20000000e18);
+        marketManagerIsolated.listTokens(address(mockPToken), address(eDAI));
 
         _underlying_ = address(mockUnderlying);
         _vault_ = address(mockPToken);

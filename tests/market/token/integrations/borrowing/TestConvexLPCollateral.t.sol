@@ -32,7 +32,8 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             address(marketManagerIsolated),
             CONVEX_STETH_ETH_POOL_ID,
             CONVEX_STETH_ETH_REWARD,
-            CONVEX_BOOSTER
+            CONVEX_BOOSTER,
+            1 days
         );
     }
 
@@ -99,17 +100,19 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             1 ether
         );
         _prepareUSDC(address(this), 1 ether);
-        marketManagerIsolated.listToken(address(cSTETH));
         SafeTransferLib.safeApprove(_USDC_ADDRESS, address(eUSDC), 1 ether);
-        marketManagerIsolated.listToken(address(eUSDC));
+        marketManagerIsolated.listTokens(address(cSTETH), address(eUSDC));
         marketManagerIsolated.updatePositionToken(
-            address(cSTETH),
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            1000
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            1000     // baseCFactor 20%
         );
         address[] memory tokens = new address[](1);
         tokens[0] = address(cSTETH);
@@ -172,7 +175,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         vm.startPrank(user1);
         usdc.approve(address(eUSDC), type(uint256).max);
         vm.expectRevert(
-            marketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
+            MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
         eUSDC.repay(0);
 

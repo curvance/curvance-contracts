@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
-
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract ETokenBorrowTest is TestBaseEToken {
     event Borrow(address borrower, uint256 borrowAmount);
@@ -18,7 +18,7 @@ contract ETokenBorrowTest is TestBaseEToken {
         uint256 cash = eUSDC.marketUnderlyingHeld();
 
         vm.expectRevert(
-            marketManagerIsolated.MarketManager__InsufficientCollateral.selector
+            MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
         eUSDC.borrow(cash + 1);
     }

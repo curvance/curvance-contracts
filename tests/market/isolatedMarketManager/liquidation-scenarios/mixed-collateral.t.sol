@@ -12,7 +12,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 
 import "forge-std/console2.sol";
 
-// ## Scenario 2: Mixed Collateral Results w/ 92% LTV
+// ## Scenario 2: Mixed Collateral Results w/ 92% LTV, all using liquidate() function
 // - Setup: 4 users with different positions
 // - User 1: 2.5 pBALRETH ($4,000), 2,500 USDC debt (very healthy)
 // - User 2: 2.0 pBALRETH ($3,200), 2,500 USDC debt (healthy)

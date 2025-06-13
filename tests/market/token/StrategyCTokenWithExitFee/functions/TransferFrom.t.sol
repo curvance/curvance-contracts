@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 
 contract StrategyCTokenWithExitFeeTransferFromTest is
@@ -19,7 +20,7 @@ contract StrategyCTokenWithExitFeeTransferFromTest is
     function test_strategyCTokenWithExitFeeTransferFrom_fail_whenTransferZeroAmount()
         public
     {
-        vm.expectRevert(BaseCToken.BaseCToken__EmptyAction.selector);
+        vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
         pBALRETHWithExitFee.transferFrom(address(this), user1, 0);
     }
 
@@ -35,7 +36,7 @@ contract StrategyCTokenWithExitFeeTransferFromTest is
     {
         marketManagerIsolated.setTransferPaused(true);
 
-        vm.expectRevert(marketManagerIsolated.MarketManager__Paused.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         pBALRETHWithExitFee.transferFrom(address(this), user1, 100);
     }
 

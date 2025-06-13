@@ -8,7 +8,7 @@ import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 
-// ## Scenario 3: No Users Liquidated
+// ## Scenario 3: No Users Liquidated, all using liquidate() function
 // - Setup: 3 users with healthy positions
 // - User 1: 1.5 pBALRETH ($2,400), 1,000 USDC debt
 // - User 2: 1.4 pBALRETH ($2,240), 1,000 USDC debt

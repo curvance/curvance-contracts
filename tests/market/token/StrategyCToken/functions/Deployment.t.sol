@@ -26,7 +26,8 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
             address(marketManagerIsolated),
             109,
             _REWARDER,
-            _AURA_BOOSTER
+            _AURA_BOOSTER,
+            1 days
         );
     }
 
@@ -40,7 +41,8 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
             address(1),
             109,
             _REWARDER,
-            _AURA_BOOSTER
+            _AURA_BOOSTER,
+            1 days
         );
     }
 
@@ -54,7 +56,7 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
 
         vm.expectRevert(
             BaseCToken
-                .BaseCToken__UnderlyingAssetTotalSupplyExceedsMaximum
+                .BaseCToken__UnsupportedAsset
                 .selector
         );
         new AuraCToken(
@@ -63,7 +65,8 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
             address(marketManagerIsolated),
             109,
             _REWARDER,
-            _AURA_BOOSTER
+            _AURA_BOOSTER,
+            1 days
         );
     }
 
@@ -74,14 +77,15 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
             address(marketManagerIsolated),
             109,
             _REWARDER,
-            _AURA_BOOSTER
+            _AURA_BOOSTER,
+            1 days
         );
 
         assertEq(
             address(pBALRETH.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(pBALRETH.underlying(), _BAL_WETH_RETH_ADDRESS);
+        assertEq(pBALRETH.asset(), _BAL_WETH_RETH_ADDRESS);
         assertEq(address(pBALRETH.marketManager()), address(marketManagerIsolated));
         assertEq(pBALRETH.name(), "Curvance Balancer rETH Stable Pool");
     }

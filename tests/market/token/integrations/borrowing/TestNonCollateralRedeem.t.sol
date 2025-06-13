@@ -11,7 +11,7 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
 
     function test_partialCollateralizedWithdraw() public {
         // Get underlying
-        MockERC20Token balRETH = MockERC20Token(pBALRETH.underlying());
+        MockERC20Token balRETH = MockERC20Token(pBALRETH.asset());
         MockERC20Token USDC = MockERC20Token(eUSDC.underlying());
 
         // Prepare token balances
@@ -23,18 +23,20 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
         USDC.approve(address(eUSDC), 1_000_000e6);
 
         // List tokens
-        marketManagerIsolated.listToken(address(pBALRETH));
-        marketManagerIsolated.listToken(address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         // Config position token
         marketManagerIsolated.updatePositionToken(
-            address(pBALRETH),
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            1000
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            1000     // baseCFactor 20%
         );
         address[] memory mTokens = new address[](1);
         mTokens[0] = address(pBALRETH);

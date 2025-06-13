@@ -80,7 +80,6 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         // list eUSDC
         _prepareUSDC(address(this), _ONE);
         usdc.approve(address(eUSDC), _ONE);
-        marketManagerIsolated.listToken(address(eUSDC));
         // deposit reserves
         eUSDC.depositReserves(1000e6);
 
@@ -92,16 +91,19 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
             address(pBALRETHWithExitFee),
             77777
         );
-        marketManagerIsolated.listToken(address(pBALRETHWithExitFee));
+        marketManagerIsolated.listTokens(address(pBALRETHWithExitFee), address(eUSDC));
 
         marketManagerIsolated.updatePositionToken(
-            address(pBALRETHWithExitFee),
-            7000,
-            4000, // liquidate at 71%
-            3000,
-            200, // 2% liq incentive
-            400,
-            1000
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            1000     // baseCFactor 20%
         );
 
         address[] memory tokens = new address[](1);
@@ -159,7 +161,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         uint256 collateralReceivedWithExitFee = _removeExitFeeFromAssets(collateralRemoveAmount);
 
 
-        pBALRETHWithExitFee.withdrawByPositionManager(user1, collateralRemoveAmount, deleverageData);
+        pBALRETHWithExitFee.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageData);
 
         // a usual workflow would swap the collateral for the borrowToken, repay the borrowToken
         // we are checking that the exit fee is applied

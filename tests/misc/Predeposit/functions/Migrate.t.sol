@@ -25,8 +25,7 @@ contract MigrateTest is TestBasePredeposit {
         usdc.approve(address(eUSDC), 1000e6);
         balRETH.approve(address(pBALRETH), 1000e18);
 
-        marketManagerIsolated.listToken(address(eUSDC));
-        marketManagerIsolated.listToken(address(pBALRETH));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         vm.startPrank(user1);
 
@@ -49,13 +48,16 @@ contract MigrateTest is TestBasePredeposit {
         vm.stopPrank();
 
         marketManagerIsolated.updatePositionToken(
-            address(pBALRETH),
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            1000
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            1000     // baseCFactor 20%
         );
         address[] memory mTokens = new address[](1);
         mTokens[0] = address(pBALRETH);

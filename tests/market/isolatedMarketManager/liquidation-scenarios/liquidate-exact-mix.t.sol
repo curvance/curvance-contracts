@@ -12,14 +12,15 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 
 import "forge-std/console2.sol";
 
-// ## Scenario 4: Mixed Auction and Regular Liquidations, all using liquidate() function
+// ## Scenario 4: Mixed Auction and Regular Liquidations, with a mix of liquidateExact() and liquidate()
 // - Setup: 4 users with varying positions
 // - User 1: 1.9 pBALRETH ($2,850), 2500 USDC debt (for Auction)
 // - User 2: 1.9 pBALRETH ($2,850), 2500 USDC debt (for Auction)
 // - User 3: 1.9 pBALRETH ($2,850), 2500 USDC debt (for regular)
 // - User 4: 1.9 pBALRETH ($2,850), 2500 USDC debt (for regular)
-// - Action 1: Price drop by to ~$1,300, Auction transaction with custom parameters for User 1 and User 2
-// - Action 2: Regular liquidation attempt for User 3 and User 4
+// - Action 1: Price drop by to ~$1,300, 
+//   Auction transaction with custom parameters for User 1 and User 2, User 1 uses liquidateExact() and User 2 uses liquidate()
+// - Action 2: Regular liquidation attempt for User 3 and User 4, User 3 uses liquidateExact() and User 4 uses liquidate()
 // - Expected: Users 1 and 2 liquidated via Auction with custom parameters, Users 3 and 4 via regular liquidation
 //          All users have the same underwater position, so each accrue bad debt at the moment.
 //          Users who are liquidated via Auction accrue less bad debt because their positions are not completely closed
