@@ -10,7 +10,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 
 ///
-/// @title Curvance DAO Timelock
+/// @title DAO Timelock
 /// @notice A timelock controller for the Curvance DAO that enforces a delay
 ///         period before administrative operations can be executed.
 /// @dev This contract extends OpenZeppelin's TimelockController with
