@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
+
 /// @title Curvance Action Registry.
 /// @notice Facilitates locking a users token transferability or plugin
 ///         approvals as a secondary protective layer against phishing
@@ -23,7 +25,7 @@ pragma solidity ^0.8.26;
 ///      Integrators of the transfer lock call can expect roughly a
 ///      3% increase to transfer calls for optimized ERC20 implementations.
 ///
-abstract contract ActionRegistry {
+abstract contract ActionRegistry is IActionRegistry {
     /// TYPES ///
 
     /// @title User Configuration
@@ -142,12 +144,15 @@ abstract contract ActionRegistry {
 
     /// @notice Checks whether `user` has transferability enabled or disabled
     ///         for their tokens.
-    /// @return Returns true if the user has transferability disabled.
+    /// @param user The address to check whether transferability is enabled or
+    ///             disabled for.
+    /// @return result Indicates whether `user` has transferability disabled
+    ///                or not, true = disabled, false = not disabled.
     function checkTransfersDisabled(
         address user
-    ) external view returns (bool) {
+    ) external view returns (bool result) {
         UserConfig memory userConfig = _userConfig[user];
-        return (userConfig.transferDisabled ||
+        result = (userConfig.transferDisabled ||
             userConfig.transferEnabledTimestamp > block.timestamp);
     }
 
@@ -194,16 +199,16 @@ abstract contract ActionRegistry {
 
     /// PLUGIN DELEGATION MANAGEMENT ///
 
-    /// @notice Returns `user`'s approval index.
+    /// @notice Returns `user`'s current approval index value.
     /// @dev The approval index is a way to revoke approval on all tokens,
     ///      and features at once if a malicious delegation was allowed by
     ///      `user`.
     /// @param user The user to check delegated approval index for.
-    /// @return `User`'s approval index.
-    function getUserApprovalIndex(
+    /// @return result The `user`'s current approval index value.
+    function userApprovalIndex(
         address user
-    ) external view returns (uint256) {
-        return _userConfig[user].approvalIndex;
+    ) external view returns (uint256 result) {
+        result = _userConfig[user].approvalIndex;
     }
 
     /// @notice Increments a caller's approval index.
@@ -221,12 +226,15 @@ abstract contract ActionRegistry {
 
     /// @notice Checks whether `user` has delegation enabled or disabled
     ///         for user actions inside Curvance.
-    /// @return Returns true if the user has delegation disabled.
+    /// @param user The address to check whether delegation is enabled or
+    ///             disabled for.
+    /// @return result Indicates whether `user` has delegation disabled
+    ///                or not, true = disabled, false = not disabled.
     function checkDelegationDisabled(
         address user
-    ) external view returns (bool) {
+    ) external view returns (bool result) {
         UserConfig memory userConfig = _userConfig[user];
-        return (userConfig.delegationDisabled ||
+        result = (userConfig.delegationDisabled ||
             userConfig.delegationEnabledTimestamp > block.timestamp);
     }
 
@@ -271,16 +279,17 @@ abstract contract ActionRegistry {
     /// @dev Checks that action timestamp was not recently updated and
     ///      calculates the timestamp that the desired action will be
     ///      enabled.
+    /// @return result The timestamp at which action(s) will be enabled again.
     function _calculateActionEnableTimestamp(
         uint256 enabledTimestamp
-    ) internal view returns (uint256) {
+    ) internal view returns (uint256 result) {
         // Validate the user did not recently reduce their action cooldown
         // period, triggering their action cooldown.
         if (enabledTimestamp > block.timestamp) {
             _revert(_COOLDOWN_ACTIVE_SELECTOR);
         }
-
-        return (_userConfig[msg.sender].lockCooldown + block.timestamp);
+        
+        result = _userConfig[msg.sender].lockCooldown + block.timestamp;
     }
 
     /// @dev Internal helper for reverting efficiently.

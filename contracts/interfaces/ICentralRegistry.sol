@@ -160,9 +160,7 @@ interface ICentralRegistry {
 
     /// @notice Returns `user`'s approval index.
     /// @param user The user to check approval index for.
-    function getUserApprovalIndex(
-        address user
-    ) external view returns (uint256);
+    function userApprovalIndex(address user) external view returns (uint256);
 
     /// @notice Returns whether a user has delegation disabled.
     /// @param user The user to check delegation status for.
