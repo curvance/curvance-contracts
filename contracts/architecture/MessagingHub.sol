@@ -195,7 +195,7 @@ contract MessagingHub is QueryResponse {
             signatures
         );
         uint256 numResponses = r.responses.length;
-        uint256[] memory chainIds = centralRegistry.getForeignChainIds();
+        uint256[] memory chainIds = centralRegistry.foreignChainIds();
         if (numResponses != chainIds.length) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }

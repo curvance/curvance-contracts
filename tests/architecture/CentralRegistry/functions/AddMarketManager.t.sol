@@ -61,7 +61,7 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
     }
 
     function test_addMarketManager_success() public {
-        address[] memory marketManagers = centralRegistry.getMarketManagers();
+        address[] memory marketManagers = centralRegistry.marketManagers();
 
         assertFalse(centralRegistry.isMarketManager(newMarket));
 
@@ -72,11 +72,11 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
 
         assertTrue(centralRegistry.isMarketManager(newMarket));
         assertEq(
-            centralRegistry.getMarketManagers().length,
+            centralRegistry.marketManagers().length,
             marketManagers.length + 1
         );
         assertEq(
-            centralRegistry.getMarketManagers()[marketManagers.length],
+            centralRegistry.marketManagers()[marketManagers.length],
             newMarket
         );
         assertEq(

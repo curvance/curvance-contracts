@@ -146,10 +146,10 @@ interface ICentralRegistry {
 
     /// @notice Returns an array of Chain IDs recorded in the Crosschain
     ///         Protocol's Chain ID format.
-    function getForeignChainIds() external view returns (uint256[] memory);
+    function foreignChainIds() external view returns (uint256[] memory);
 
     /// @notice Returns an array of Curvance markets on this chain.
-    function getMarketManagers() external view returns (address[] memory);
+    function marketManagers() external view returns (address[] memory);
 
     /// @notice Increments a caller's approval index.
     /// @dev By incrementing their approval index, a user's delegates will all

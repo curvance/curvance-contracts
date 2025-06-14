@@ -147,7 +147,7 @@ contract AuxiliaryData {
     /// @notice Returns the current TVL inside Curvance.
     /// @return result The current TVL inside Curvance, in `WAD`.
     function getTotalTVL() public view returns (uint256 result) {
-        address[] memory markets = getMarketManagers();
+        address[] memory markets = marketManagers();
         uint256 numMarkets = markets.length;
 
         for (uint256 i; i < numMarkets; ) {
@@ -158,7 +158,7 @@ contract AuxiliaryData {
     /// @notice Returns the current collateral TVL inside Curvance.
     /// @return result The current collateral TVL inside Curvance, in `WAD`.
     function getTotalCollateralTVL() public view returns (uint256 result) {
-        address[] memory markets = getMarketManagers();
+        address[] memory markets = marketManagers();
         uint256 numMarkets = markets.length;
 
         for (uint256 i; i < numMarkets; ) {
@@ -169,7 +169,7 @@ contract AuxiliaryData {
     /// @notice Returns the current lending TVL inside Curvance.
     /// @return result The current lending TVL inside Curvance, in `WAD`.
     function getTotalLendingTVL() public view returns (uint256 result) {
-        address[] memory markets = getMarketManagers();
+        address[] memory markets = marketManagers();
         uint256 numMarkets = markets.length;
 
         for (uint256 i; i < numMarkets; ) {
@@ -180,7 +180,7 @@ contract AuxiliaryData {
     /// @notice Returns the current outstanding borrows inside Curvance.
     /// @return result The current outstanding borrows inside Curvance, in `WAD`.
     function getTotalBorrows() public view returns (uint256 result) {
-        address[] memory markets = getMarketManagers();
+        address[] memory markets = marketManagers();
         uint256 numMarkets = markets.length;
 
         for (uint256 i; i < numMarkets; ) {
@@ -188,8 +188,8 @@ contract AuxiliaryData {
         }
     }
 
-    function getMarketManagers() public view returns (address[] memory) {
-        return centralRegistry.getMarketManagers();
+    function marketManagers() public view returns (address[] memory) {
+        return centralRegistry.marketManagers();
     }
 
     /// TOKEN-SPECIFIC FUNCTIONS ///
@@ -332,7 +332,7 @@ contract AuxiliaryData {
     function getAllMarketData(
         address account
     ) public view returns (AllMarketData[] memory) {
-        address[] memory markets = this.getMarketManagers();
+        address[] memory markets = this.marketManagers();
         uint256 numMarkets = markets.length;
         AllMarketData[] memory results = new AllMarketData[](numMarkets);
 
