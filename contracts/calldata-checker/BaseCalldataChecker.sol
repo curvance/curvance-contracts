@@ -42,38 +42,41 @@ abstract contract BaseCalldataChecker {
     ///         to check against an expected selector.
     /// @dev Byte array must be at least 4 bytes long.
     /// @param sigData The bytes array to pull a function signature from.
+    /// @return result The function signature hash of `sigData`.
     function _getFuncSigHash(
         bytes memory sigData
-    ) internal pure returns (bytes4 sig) {
+    ) internal pure returns (bytes4 result) {
         if (sigData.length < 4) {
             revert BaseCalldataChecker__InvalidSig();
         }
 
         assembly {
-            sig := mload(add(sigData, 32))
+            result := mload(add(sigData, 32))
         }
     }
 
     /// @notice Returns the expected parameters for a function call with
     ///         the bytes array.
     /// @param paramsData The bytes array to pull a function parameters from.
+    /// @return result A bytes array containing parameters for a function
+    ///                call with `paramsData`.
     function _getFuncParams(
         bytes memory paramsData
-    ) internal pure returns (bytes memory) {
-        return _slice(paramsData, 4, paramsData.length - 4);
+    ) internal pure returns (bytes memory result) {
+        result = _slice(paramsData, 4, paramsData.length - 4);
     }
 
-    /// @notice Modifies `byteArrayToSlice` into desired form based on
+    /// @notice Modifies `sliceData` into the desired sliced form based on
     ///         `sliceStartPoint` starting point, and `sliceLength` length.
-    /// @param byteArrayToSlice The bytes array to slice.
+    /// @param sliceData The bytes array to slice.
     /// @param sliceStartPoint The starting point of the slice.
     /// @param sliceLength The length of the slice.
-    /// @return The sliced bytes array.
+    /// @return result The sliced bytes array.
     function _slice(
-        bytes memory byteArrayToSlice,
+        bytes memory sliceData,
         uint256 sliceStartPoint,
         uint256 sliceLength
-    ) internal pure returns (bytes memory) {
+    ) internal pure returns (bytes memory result) {
         if (sliceLength > _SLICE_OVERFLOW_LIMIT) {
             revert BaseCalldataChecker__OverflowError();
         }
@@ -82,18 +85,16 @@ abstract contract BaseCalldataChecker {
             revert BaseCalldataChecker__OverflowError();
         }
 
-        if (byteArrayToSlice.length < sliceStartPoint + sliceLength) {
+        if (sliceData.length < sliceStartPoint + sliceLength) {
             revert BaseCalldataChecker__OutOfBounds();
         }
-
-        bytes memory tempBytes;
 
         assembly {
             switch iszero(sliceLength)
             case 0 {
-                // Get a location of some free memory and store it in tempBytes as
-                // Solidity does for memory variables.
-                tempBytes := mload(0x40)
+                // Get a location of some free memory and store it in `result`
+                // as Solidity does for memory variables.
+                result := mload(0x40)
 
                 // The first word of the slice result is potentially a partial
                 // word read from the original array. To read it, we calculate
@@ -110,7 +111,7 @@ abstract contract BaseCalldataChecker {
                 // the following copy loop was copying the origin's length
                 // and then ending prematurely not copying everything it should.
                 let mc := add(
-                    add(tempBytes, lengthmod),
+                    add(result, lengthmod),
                     mul(0x20, iszero(lengthmod))
                 )
                 let end := add(mc, sliceLength)
@@ -120,7 +121,7 @@ abstract contract BaseCalldataChecker {
                     // as the one above.
                     let cc := add(
                         add(
-                            add(byteArrayToSlice, lengthmod),
+                            add(sliceData, lengthmod),
                             mul(0x20, iszero(lengthmod))
                         ),
                         sliceStartPoint
@@ -132,7 +133,7 @@ abstract contract BaseCalldataChecker {
                     mstore(mc, mload(cc))
                 }
 
-                mstore(tempBytes, sliceLength)
+                mstore(result, sliceLength)
 
                 //update free-memory pointer
                 //allocating the array padded to 32 bytes like the compiler does now
@@ -140,15 +141,13 @@ abstract contract BaseCalldataChecker {
             }
             //if we want a zero-length slice let's just return a zero-length array
             default {
-                tempBytes := mload(0x40)
+                result := mload(0x40)
                 //zero out the 32 bytes slice we are about to return
                 //we need to do it because Solidity does not garbage collect
-                mstore(tempBytes, 0)
+                mstore(result, 0)
 
-                mstore(0x40, add(tempBytes, 0x20))
+                mstore(0x40, add(result, 0x20))
             }
         }
-
-        return tempBytes;
     }
 }
