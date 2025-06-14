@@ -26,10 +26,15 @@ pragma solidity ^0.8.26;
 ///    for the target contract and function signature.
 ///
 abstract contract BaseCalldataChecker {
+    /// CONSTANTS ///
+
+    uint256 internal constant _SLICE_OVERFLOW_LIMIT = type(uint256).max - 31;
+
     /// ERRORS /// 
 
     error BaseCalldataChecker__InvalidSig();
     error BaseCalldataChecker__OutOfBounds();
+    error BaseCalldataChecker__OverflowError();
 
     /// INTERNAL FUNCTIONS ///
 
@@ -69,6 +74,14 @@ abstract contract BaseCalldataChecker {
         uint256 sliceStartPoint,
         uint256 sliceLength
     ) internal pure returns (bytes memory) {
+        if (sliceLength > _SLICE_OVERFLOW_LIMIT) {
+            revert BaseCalldataChecker__OverflowError();
+        }
+
+        if (sliceStartPoint > type(uint256).max - sliceLength) {
+            revert BaseCalldataChecker__OverflowError();
+        }
+
         if (byteArrayToSlice.length < sliceStartPoint + sliceLength) {
             revert BaseCalldataChecker__OutOfBounds();
         }
