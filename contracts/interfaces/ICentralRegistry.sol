@@ -39,6 +39,9 @@ interface ICentralRegistry {
     /// @notice Returns Protocol DAO address.
     function daoAddress() external view returns (address);
 
+    /// @notice Returns Protocol Emergency Council address.
+    function emergencyCouncil() external view returns (address);
+
     /// @notice Indicates if address has DAO permissions or not.
     function hasDaoPermissions(
         address addressToCheck
