@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-/// @title BaseCallDataChecker
+/// @title BaseCalldataChecker
 /// @notice A base contract that provides utility functions for parsing and examining calldata
 /// @dev This abstract contract serves as the foundation for all calldata verification contracts
 ///    in the Curvance protocol. It provides essential low-level utilities to:
@@ -25,17 +25,27 @@ pragma solidity ^0.8.26;
 ///    The system consults the Central Registry to find the correct calldata checker
 ///    for the target contract and function signature.
 ///
-abstract contract BaseCallDataChecker {
+abstract contract BaseCalldataChecker {
+    /// ERRORS /// 
+
+    error BaseCalldataChecker__InvalidSig();
+    error BaseCalldataChecker__OutOfBounds();
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Queries the function signature of `sigData`, this is used
     ///         to check against an expected selector.
+    /// @dev Byte array must be at least 4 bytes long.
     /// @param sigData The bytes array to pull a function signature from.
     function _getFuncSigHash(
         bytes memory sigData
     ) internal pure returns (bytes4 sig) {
+        if (sigData.length < 4) {
+            revert BaseCalldataChecker__InvalidSig();
+        }
+
         assembly {
-            sig := mload(add(sigData, add(32, 0)))
+            sig := mload(add(sigData, 32))
         }
     }
 
@@ -48,25 +58,25 @@ abstract contract BaseCallDataChecker {
         return _slice(paramsData, 4, paramsData.length - 4);
     }
 
-    /// @notice Modifies `_bytes` into desired form based on
-    ///         `_start` starting point,and `_length` length.
-    /// @param _bytes The bytes array to slice.
-    /// @param _start The starting point of the slice.
-    /// @param _length The length of the slice.
+    /// @notice Modifies `byteArrayToSlice` into desired form based on
+    ///         `sliceStartPoint` starting point, and `sliceLength` length.
+    /// @param byteArrayToSlice The bytes array to slice.
+    /// @param sliceStartPoint The starting point of the slice.
+    /// @param sliceLength The length of the slice.
     /// @return The sliced bytes array.
     function _slice(
-        bytes memory _bytes,
-        uint256 _start,
-        uint256 _length
+        bytes memory byteArrayToSlice,
+        uint256 sliceStartPoint,
+        uint256 sliceLength
     ) internal pure returns (bytes memory) {
-        require(_length + 31 >= _length, "slice_overflow");
-        require(_start + _length >= _start, "slice_overflow");
-        require(_bytes.length >= _start + _length, "slice_outOfBounds");
+        if (byteArrayToSlice.length < sliceStartPoint + sliceLength) {
+            revert BaseCalldataChecker__OutOfBounds();
+        }
 
         bytes memory tempBytes;
 
         assembly {
-            switch iszero(_length)
+            switch iszero(sliceLength)
             case 0 {
                 // Get a location of some free memory and store it in tempBytes as
                 // Solidity does for memory variables.
@@ -80,7 +90,7 @@ abstract contract BaseCallDataChecker {
                 // land at the beginning of the contents of the new array. When
                 // we're done copying, we overwrite the full first word with
                 // the actual length of the slice.
-                let lengthmod := and(_length, 31)
+                let lengthmod := and(sliceLength, 31)
 
                 // The multiplication in the next line is necessary
                 // because when slicing multiples of 32 bytes (lengthmod == 0)
@@ -90,17 +100,17 @@ abstract contract BaseCallDataChecker {
                     add(tempBytes, lengthmod),
                     mul(0x20, iszero(lengthmod))
                 )
-                let end := add(mc, _length)
+                let end := add(mc, sliceLength)
 
                 for {
                     // The multiplication in the next line has the same exact purpose
                     // as the one above.
                     let cc := add(
                         add(
-                            add(_bytes, lengthmod),
+                            add(byteArrayToSlice, lengthmod),
                             mul(0x20, iszero(lengthmod))
                         ),
-                        _start
+                        sliceStartPoint
                     )
                 } lt(mc, end) {
                     mc := add(mc, 0x20)
@@ -109,7 +119,7 @@ abstract contract BaseCallDataChecker {
                     mstore(mc, mload(cc))
                 }
 
-                mstore(tempBytes, _length)
+                mstore(tempBytes, sliceLength)
 
                 //update free-memory pointer
                 //allocating the array padded to 32 bytes like the compiler does now

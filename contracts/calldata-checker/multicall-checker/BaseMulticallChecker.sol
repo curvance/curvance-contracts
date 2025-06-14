@@ -2,12 +2,12 @@
 pragma solidity ^0.8.26;
 
 import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
-import { BaseCallDataChecker } from "contracts/calldata-checker/BaseCallDataChecker.sol";
+import { BaseCalldataChecker } from "contracts/calldata-checker/BaseCalldataChecker.sol";
 
 /// @title BaseMulticallChecker
 /// @notice A base contract for validating multicall operations related to oracle price updates
 /// @dev This abstract contract serves as the foundation for protocol-specific oracle 
-///      validation. It inherits from IMulticallChecker and BaseCallDataChecker to provide:
+///      validation. It inherits from IMulticallChecker and BaseCalldataChecker to provide:
 ///      
 ///      1. A standardized interface for all multicall checkers
 ///      2. Access to core calldata examination utilities
@@ -32,7 +32,7 @@ import { BaseCallDataChecker } from "contracts/calldata-checker/BaseCallDataChec
 ///
 abstract contract BaseMulticallChecker is
     IMulticallChecker,
-    BaseCallDataChecker
+    BaseCalldataChecker
 {  
     /// ERRORS ///
     error MulticallChecker__TargetError();
