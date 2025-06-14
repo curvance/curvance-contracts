@@ -30,7 +30,7 @@ import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 /// - Grants the DAO address both proposer and executor roles.
 /// - Supports interface detection via ERC165.
 ///
-contract DAOTimelock is TimelockController, ERC165 {
+contract DAOTimelock is TimelockController, ERC165, ITimelock {
     /// CONSTANTS ///
 
     /// @notice Minimum delay for timelock transaction proposals to execute.

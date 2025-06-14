@@ -172,7 +172,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice The number of chains supported by the Curvance Protocol.
     /// @dev Stored redundantly to reduce gas overhead.
     uint256 public supportedChains;
-    
+
     /// @notice Array of Chain IDs recorded in the Crosschain Protocol's Chain
     ///         ID format.
     /// @dev Stored redundantly to reduce gas overhead.
@@ -294,12 +294,17 @@ contract CentralRegistry is ERC165, ActionRegistry {
         address sequencer_,
         address feeToken_
     ) {
-        if (daoAddress_ == address(0)) {
-            daoAddress_ = msg.sender;
+        if (
+            ERC165Checker.supportsInterface(
+                timelock_,
+                type(ITimelock).interfaceId
+            )
+        ) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
-        if (timelock_ == address(0)) {
-            timelock_ = msg.sender;
+        if (daoAddress_ == address(0)) {
+            daoAddress_ = msg.sender;
         }
 
         if (emergencyCouncil_ == address(0)) {
@@ -863,6 +868,15 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @param newTimelock The new timelock address.
     function transferTimelockPermissions(address newTimelock) external {
         _checkEmergencyCouncilPermissions();
+
+        if (
+            ERC165Checker.supportsInterface(
+                newTimelock,
+                type(ITimelock).interfaceId
+            )
+        ) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
 
         // Cache old timelock.
         address previousTimelock = timelock;
