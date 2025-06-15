@@ -129,6 +129,7 @@ contract DAOTimelock is TimelockController, ERC165, ITimelock {
         if (newDelay < MINIMUM_DELAY) {
             revert DAOTimelock__InvalidParameter();
         }
+        
         super.updateDelay(newDelay);
     }
 
