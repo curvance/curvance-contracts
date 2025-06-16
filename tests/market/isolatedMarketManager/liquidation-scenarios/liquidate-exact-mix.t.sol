@@ -14,33 +14,21 @@ import "forge-std/console2.sol";
 
 // ## Scenario 4: Mixed Auction and Regular Liquidations, with a mix of liquidateExact() and liquidate()
 // - Setup: 4 users with varying positions
-// - User 1: 1.9 pBALRETH ($2,850), 2500 USDC debt (for Auction)
-// - User 2: 1.9 pBALRETH ($2,850), 2500 USDC debt (for Auction)
-// - User 3: 1.9 pBALRETH ($2,850), 2500 USDC debt (for regular)
-// - User 4: 1.9 pBALRETH ($2,850), 2500 USDC debt (for regular)
+// - User 1: 1.9 pBALRETH ($2,850), 2500 USDC debt
 // - Action 1: Price drop by to ~$1,300, 
-//   Auction transaction with custom parameters for User 1 and User 2, User 1 uses liquidateExact() and User 2 uses liquidate()
-// - Action 2: Regular liquidation attempt for User 3 and User 4, User 3 uses liquidateExact() and User 4 uses liquidate()
-// - Expected: Users 1 and 2 liquidated via Auction with custom parameters, Users 3 and 4 via regular liquidation
-//          All users have the same underwater position, so each accrue bad debt at the moment.
-//          Users who are liquidated via Auction accrue less bad debt because their positions are not completely closed
-//                  because they use a lower close factor than using liquiding the maximum amount.
-//          Users who are liquidated without Auction are fully liquidated and accrue the full bad debt amount.
-
-// TODO: Use different loan/collateral ratios for each user. Currently each have the same collateral amount and loan.
-
+// - Action 2: User 1 is liquidated via regular liquidation using liquidateExact() 1/4 of their total debt
+// - Action 3: User 1 is liquidated via regular liquidation using liquidateExact() 1/4 of their remaining debt
+// - Action 3: User 1 has the rest of their debt liquidated via regular liquidation using liquidate()
 
 contract MixedAuction is TestBaseMarketManagerIsolated {
 
     address borrower1 = makeAddr("borrower1");
-    address borrower2 = makeAddr("borrower2");
-    address borrower3 = makeAddr("borrower3");
-    address borrower4 = makeAddr("borrower4");
+
+    address[] borrowers = [borrower1];
 
     uint256 borrowAmount = 2500e6;
-    address[] auctionBorrowers = [borrower1, borrower2];
-    address[] regularBorrowers = [borrower3, borrower4];
-    uint256[] collateralAmounts = [1.9e18, 1.9e18, 1.9e18, 1.9e18];
+
+    uint256 collateralAmountStart = 1.9e18;
 
     uint256 WAD_SQUARED = 1e36;
 
@@ -55,9 +43,10 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     uint256 validPenalty = 1.04e18;
     uint256 closeFactor = 0.50e18;
 
+    uint256[] amountToRepayPartial;
+
     event BadDebtRecognized(address liquidator, uint256 amount);
     event Repay(address liquidator, address account, uint256 amount);
-
 
     function setUp() public override {
         super.setUp();
@@ -151,387 +140,320 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         console2.log("SETUP COMPLETE");
     }
 
-    uint256[] debtBalancesPreLiquidation_auction;
-    uint256[] debtBalancesPreLiquidation_regular;
-    uint256[] lFactorsPreLiquidation_auction;
-    uint256[] lFactorsPreLiquidation_regular;
+    uint256 totalBorrowsBefore;
     uint256 eTokenPrice;
     uint256 cTokenPrice;
-    uint256[] maxAmount_auction;
-    uint256[] liquidatedPTokens_auction;
-    uint256[] collateralRequired_auction;
-    uint256[] maxAmount_regular;
-    uint256[] liquidatedPTokens_regular;
-    uint256[] collateralRequired_regular;
-    uint256[] badDebt_auction = new uint256[](2);
-    uint256[] badDebt_regular = new uint256[](2);
-    uint256 totalBadDebtRegular;
-    uint256 totalBadDebtAuction;
-    uint256 totalBorrowsBefore;
-    uint256 totalDebtRepaid;
+    uint256 quarterRatio = 0.25e18;
 
-    function test_mixedAuction() public {
+    function test_liquidateExactMix() public {
 
-        _prepareUSDC(dappControlUser, 100000e6);
-        _prepareUSDC(address(this), 100000e6);
-
-        // ===== Cache liquidation values =====
+        // ===== Cache general liquidation values =====
 
         uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
 
         totalBorrowsBefore = eUSDC.totalBorrows();
 
-        debtBalancesPreLiquidation_auction = _getDebtBalancePreLiquidation(auctionBorrowers);
-        debtBalancesPreLiquidation_regular = _getDebtBalancePreLiquidation(regularBorrowers);
+        uint256 debtBalancesPreLiquidation = _getDebtBalancePreLiquidation(borrower1);
 
-        lFactorsPreLiquidation_auction = _getLFactorsPreLiquidation(auctionBorrowers);
-        lFactorsPreLiquidation_regular = _getLFactorsPreLiquidation(regularBorrowers);
+        uint256 lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower1);
 
         (,eTokenPrice, cTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(auctionBorrowers[0], address(eUSDC), address(pBALRETH));
+            marketManagerIsolated.liquidationStatusOf(borrower1, address(eUSDC), address(pBALRETH));
 
-        (maxAmount_auction, liquidatedPTokens_auction, collateralRequired_auction) = 
-            _getLiquidationValuesWithHigherPrecision_Auction(
-                eTokenPrice, cTokenPrice, lFactorsPreLiquidation_auction, closeFactor, validPenalty
+        // ===== Cache first liquidation values =====
+        amountToRepayPartial = new uint256[](1);
+
+        // repay a quarter of the total debt
+        amountToRepayPartial[0] = (debtBalancesPreLiquidation * quarterRatio) / WAD;
+
+        (uint256 maxAmount_liquidateExact_1, uint256 liquidatedPTokens_liquidateExact_first, uint256 collateralRequired_liquidateExact_1) = 
+            _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
+                eTokenPrice, 
+                cTokenPrice, 
+                lFactorsPreLiquidation,
+                collateralAmountStart, 
+                amountToRepayPartial[0]
             );
 
-        (maxAmount_regular, liquidatedPTokens_regular, collateralRequired_regular) = 
-            _getLiquidationValuesWithHigherPrecision_NonAuction(
-                eTokenPrice, cTokenPrice, lFactorsPreLiquidation_regular
-            );
+        uint256 badDebt_expected_liquidateExact_1 = _calculateBadDebt(
+            debtBalancesPreLiquidation,
+            maxAmount_liquidateExact_1,
+            collateralAmountStart,
+            collateralRequired_liquidateExact_1,
+            liquidatedPTokens_liquidateExact_first,
+            cTokenPrice,
+            eTokenPrice,
+            cTokenExchangeRate
+        );
 
-        console2.log("CHECKPOINT 1");
+        uint256 totalDebtPaid_first = amountToRepayPartial[0] + badDebt_expected_liquidateExact_1;
 
-        for(uint i; i < 2; i++) {
-            badDebt_auction[i] = _calculateBadDebt(
-                debtBalancesPreLiquidation_auction[i],
-                maxAmount_auction[i],
-                collateralAmounts[i],
-                collateralRequired_auction[i],
-                liquidatedPTokens_auction[i],
-                cTokenPrice,
-                eTokenPrice,
-                cTokenExchangeRate
-            );
-            totalBadDebtAuction += badDebt_auction[i];
-            console2.log("badDebt_auction", badDebt_auction[i]);
-        }
+        uint256 remainingDebt_after_first = debtBalancesPreLiquidation - totalDebtPaid_first;
 
-        for(uint i; i < 2; i++) {
-            badDebt_regular[i] = _calculateBadDebt(
-                debtBalancesPreLiquidation_regular[i],
-                maxAmount_regular[i],
-                collateralAmounts[i],
-                collateralRequired_regular[i],
-                liquidatedPTokens_regular[i],
-                cTokenPrice,
-                eTokenPrice,
-                cTokenExchangeRate
-            );
-            totalBadDebtRegular += badDebt_regular[i];
-            console2.log("badDebt_regular", badDebt_regular[i]);
-        }
+        // ===== First liquidation using liquidateExact() =====
 
-            // ===== Liquidate =====
+        address first_liquidator = makeAddr("first_liquidator");
+        _prepareUSDC(first_liquidator, 100_000e6);
 
-        vm.startPrank(dappControlUser);
-        usdc.approve(address(eUSDC), 100000e6);
+        vm.startPrank(first_liquidator);
 
-        marketManagerIsolated.setAuctionParameters(validPenalty, closeFactor);
-        marketManagerIsolated.unlockAuctionCollateral(address(eUSDC));
-
-        // Assert BadDebtRecognized event is emitted with expected total bad debt
+        // expect bad debt emit and debt repaid
         vm.expectEmit();
-        emit BadDebtRecognized(dappControlUser, totalBadDebtAuction);
-        emit Repay(dappControlUser, auctionBorrowers[0], maxAmount_auction[0] + badDebt_auction[0]);
-        emit Repay(dappControlUser, auctionBorrowers[1], maxAmount_auction[1] + badDebt_auction[1]);
+        emit BadDebtRecognized(first_liquidator, badDebt_expected_liquidateExact_1);
+        emit Repay(first_liquidator, borrower1, totalDebtPaid_first);
 
-        eUSDC.liquidate(
-            auctionBorrowers,
+        eUSDC.liquidateExact(
+            borrowers,
+            amountToRepayPartial,
             address(pBALRETH)
         );
-        marketManagerIsolated.lockAuctionCollateral();
-        marketManagerIsolated.resetAuctionParameters();
+
         vm.stopPrank();
 
-        usdc.approve(address(eUSDC), 100000e6);
+        // ===== Cache second liquidation values =====
 
-        // Assert BadDebtRecognized event is emitted with expected total bad debt
+        // repay a quarter of the remaining debt
+        amountToRepayPartial[0] = (remainingDebt_after_first * quarterRatio) / WAD;
+
+        // Update lFactor (shouldn't change much)
+        lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower1);
+
+        // Update expected remaining collateral
+        uint256 collateralAmount_after_first = collateralAmountStart - liquidatedPTokens_liquidateExact_first;
+
+        (uint256 maxAmount_liquidateExact_2, uint256 liquidatedPTokens_liquidateExact_2, uint256 collateralRequired_liquidateExact_2) = 
+            _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
+                eTokenPrice, 
+                cTokenPrice, 
+                lFactorsPreLiquidation,
+                collateralAmount_after_first, 
+                amountToRepayPartial[0]
+            );
+
+        uint256 badDebt_expected_liquidateExact_2 = _calculateBadDebt(
+            debtBalancesPreLiquidation,
+            maxAmount_liquidateExact_2,
+            collateralAmount_after_first,
+            collateralRequired_liquidateExact_2,
+            liquidatedPTokens_liquidateExact_2,
+            cTokenPrice,
+            eTokenPrice,
+            cTokenExchangeRate
+        );
+
+        uint256 totalDebtPaid_second = amountToRepayPartial[0] + badDebt_expected_liquidateExact_2;
+
+        uint256 remainingDebt_after_second = remainingDebt_after_first - totalDebtPaid_second;
+
+        // ====== Second liquidation using liquidateExact() =====
+
+        address second_liquidator = makeAddr("second_liquidator");
+        _prepareUSDC(second_liquidator, 100_000e6);
+
+        vm.startPrank(second_liquidator);
+
+        // expect bad debt emit and debt repaid
         vm.expectEmit();
-        emit BadDebtRecognized(address(this), totalBadDebtRegular);
-        emit Repay(address(this), regularBorrowers[0], maxAmount_regular[0] + badDebt_regular[0]);
-        emit Repay(address(this), regularBorrowers[1], maxAmount_regular[1] + badDebt_regular[1]);
+        emit BadDebtRecognized(second_liquidator, badDebt_expected_liquidateExact_2);
+        emit Repay(second_liquidator, borrower1, totalDebtPaid_second);
 
-        eUSDC.liquidate(
-            regularBorrowers,
+        // The second liquidation should have the same expected result as the first
+
+        eUSDC.liquidateExact(
+            borrowers,
+            amountToRepayPartial,
             address(pBALRETH)
         );
 
-        // ===== Validate =====
+        vm.stopPrank();
 
-        // Verify debt balances
-        assertEq(eUSDC.debtBalanceCached(auctionBorrowers[0]), debtBalancesPreLiquidation_auction[0] - (maxAmount_auction[0] + badDebt_auction[0]), "Auction borrower 1 debt balance mismatch");
-        assertEq(eUSDC.debtBalanceCached(auctionBorrowers[1]), debtBalancesPreLiquidation_auction[1] - (maxAmount_auction[1] + badDebt_auction[1]), "Auction borrower 2 debt balance mismatch");
-        assertEq(eUSDC.debtBalanceCached(regularBorrowers[0]), debtBalancesPreLiquidation_regular[0] - (maxAmount_regular[0] + badDebt_regular[0]), "Regular borrower 1 debt balance mismatch");
-        assertEq(eUSDC.debtBalanceCached(regularBorrowers[1]), debtBalancesPreLiquidation_regular[1] - (maxAmount_regular[1] + badDebt_regular[1]), "Regular borrower 2 debt balance mismatch");
+        // ===== Cache third liquidation values =====
 
-        // Verify collateral is reduced by liquidatedPTokens
-        assertApproxEqAbs(
-            pBALRETH.balanceOf(auctionBorrowers[0]),
-            collateralAmounts[0] - (liquidatedPTokens_auction[0]),
-            1000, // Tolerance of 1000 wei 
-            "Collateral post liquidation mismatch"
-        );
+        // Update lFactor (shouldn't change much)
+        lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower1);
 
-        assertApproxEqAbs(
-            pBALRETH.balanceOf(auctionBorrowers[1]),
-            collateralAmounts[1] - (liquidatedPTokens_auction[1]),
-            1000, // Tolerance of 1000 wei 
-            "Collateral post liquidation mismatch"
-        );
+        // Update expected remaining collateral
+        uint256 collateralAmount_after_second = collateralAmount_after_first - liquidatedPTokens_liquidateExact_2;
 
-        assertApproxEqAbs(
-            pBALRETH.balanceOf(regularBorrowers[0]),
-            collateralAmounts[2] - (liquidatedPTokens_regular[0]),
-            1000, // Tolerance of 1000 wei 
-            "Collateral post liquidation mismatch"
-        );
+        // ====== Third liquidation using liquidate ======
+        // third liquidation should liquidate all remaining debt
 
-        assertApproxEqAbs(
-            pBALRETH.balanceOf(regularBorrowers[1]),
-            collateralAmounts[3] - (liquidatedPTokens_regular[1]),
-            1000, // Tolerance of 1000 wei 
-            "Collateral post liquidation mismatch"
-        );
+        // repay the remaining debt
+        amountToRepayPartial[0] = remainingDebt_after_second;
 
-        // Assert Total borrows is reduced by the amount of debt repaid
-
-        totalDebtRepaid = maxAmount_auction[0] + 
-        maxAmount_auction[1] + 
-        maxAmount_regular[0] + 
-        maxAmount_regular[1] + 
-        badDebt_auction[0] + 
-        badDebt_auction[1] + 
-        badDebt_regular[0] + 
-        badDebt_regular[1];
-
-        assertApproxEqAbs(
-            eUSDC.totalBorrows(),
-            totalBorrowsBefore - totalDebtRepaid,
-            100, // Small tolerance
-            "Incorrect totalBorrows after liquidation"
-        );
-
-        // Verify liquidator received the expected collateral
-        uint256 expectedDappControlUserLiquidatorBalance = 
-        (liquidatedPTokens_auction[0]) + 
-        (liquidatedPTokens_auction[1]);
-
-        uint256 expectedNormalUserLiquidatorBalance = 
-        (liquidatedPTokens_regular[0]) + 
-        (liquidatedPTokens_regular[1]);
-
-        console2.log("expectedDappControlUserLiquidatorBalance", expectedDappControlUserLiquidatorBalance);
-        console2.log("liquidatedPTokens_auction[0]", liquidatedPTokens_auction[0]);
-        console2.log("liquidatedPTokens_auction[1]", liquidatedPTokens_auction[1]);
-        console2.log("liquidatedPTokens_regular[0]", liquidatedPTokens_regular[0]);
-        console2.log("liquidatedPTokens_regular[1]", liquidatedPTokens_regular[1]);
-
-        assertApproxEqAbs(
-            pBALRETH.balanceOf(dappControlUser),
-            expectedDappControlUserLiquidatorBalance,
-            1000,
-            "Dapp control user didn't receive expected collateral"
-        );
-
-        assertApproxEqAbs(
-            pBALRETH.balanceOf(address(this)),
-            expectedNormalUserLiquidatorBalance,
-            1000,
-            "Liquidator didn't receive expected collateral"
-        );
-
-        // Verify lFactors
-        // Auction borrowers should still have lFactor > 0
-        // Regular borrowers should have lFactor since fully liquidated
-
-        for(uint i = 0; i < 2; i++) {
-            (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
-                auctionBorrowers[i],
-                address(eUSDC),
-                address(pBALRETH)
+        (uint256 maxAmount_liquidateExact_3, uint256 liquidatedPTokens_liquidateExact_3, uint256 collateralRequired_liquidateExact_3) = 
+            _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
+                eTokenPrice, 
+                cTokenPrice, 
+                lFactorsPreLiquidation,
+                collateralAmount_after_second, 
+                amountToRepayPartial[0]
             );
 
-            assertGt(lFactorAfter, 0, "Auction borrower should still have lFactor > 0");
-        }
+        uint256 badDebt_expected_liquidateExact_3 = _calculateBadDebt(
+            debtBalancesPreLiquidation,
+            maxAmount_liquidateExact_3,
+            collateralAmount_after_second,
+            collateralRequired_liquidateExact_3,
+            liquidatedPTokens_liquidateExact_3,
+            cTokenPrice,
+            eTokenPrice,
+            cTokenExchangeRate
+        );
 
-        for(uint i = 0; i < 2; i++) {
-            (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
-                regularBorrowers[i],
-                address(eUSDC),
-                address(pBALRETH)
-            );
+        uint256 totalDebtPaid_third = amountToRepayPartial[0] + badDebt_expected_liquidateExact_3;
 
-            assertEq(lFactorAfter, 0, "Regular borrower should have lFactor = 0");
-        }
+        uint256 remainingDebt_after_third = remainingDebt_after_second - totalDebtPaid_third;
 
+        address third_liquidator = makeAddr("third_liquidator");
+        _prepareUSDC(third_liquidator, 100_000e6);
 
+        vm.startPrank(third_liquidator);
+
+        // expect bad debt emit and debt repaid
+        vm.expectEmit();
+        emit BadDebtRecognized(third_liquidator, badDebt_expected_liquidateExact_3);
+        emit Repay(third_liquidator, borrower1, totalDebtPaid_third);
+
+        eUSDC.liquidate(
+            borrowers,
+            address(pBALRETH)
+        );
+
+       vm.stopPrank();
+
+        // ===== Final Assertions =====
+
+        // Verify borrower1's debt is fully liquidated
+        assertEq(eUSDC.debtBalanceCached(borrower1), 0, "Borrower1 should have zero debt remaining");
+
+        // Verify borrower1's collateral is fully liquidated
+        assertEq(pBALRETH.balanceOf(borrower1), 0, "Borrower1 should have zero collateral remaining");
+
+        // Verify total borrows decreased appropriately
+        uint256 totalBorrowsAfter = eUSDC.totalBorrows();
+        assertLt(totalBorrowsAfter, totalBorrowsBefore, "Total borrows should have decreased");
+
+        // Verify the position is no longer liquidatable
+        (uint256 lFactorFinal,,) = marketManagerIsolated.liquidationStatusOf(
+            borrower1,
+            address(eUSDC),
+            address(pBALRETH)
+        );
+        assertEq(lFactorFinal, 0, "Position should no longer be liquidatable");
+
+        // Verify remaining debt calculation was correct
+        assertApproxEqAbs(remainingDebt_after_third, 0, 1, "Remaining debt should be approximately zero");
+        
 
     }
-
 
     function _createPositions() internal {
-        _prepareBALRETH(borrower1, collateralAmounts[0]);
-        _prepareBALRETH(borrower2, collateralAmounts[1]);
-        _prepareBALRETH(borrower3, collateralAmounts[2]);
-        _prepareBALRETH(borrower4, collateralAmounts[3]);
+        _prepareBALRETH(borrower1, collateralAmountStart);
 
         vm.startPrank(borrower1);
-        balRETH.approve(address(pBALRETH), collateralAmounts[0]);
-        pBALRETH.depositAsCollateral(collateralAmounts[0], borrower1);
-        eUSDC.borrow(borrowAmount);
-        vm.stopPrank();
-
-        vm.startPrank(borrower2);
-        balRETH.approve(address(pBALRETH), collateralAmounts[1]);
-        pBALRETH.depositAsCollateral(collateralAmounts[1], borrower2);
-        eUSDC.borrow(borrowAmount);
-        vm.stopPrank();
-
-        vm.startPrank(borrower3);
-        balRETH.approve(address(pBALRETH), collateralAmounts[2]);
-        pBALRETH.depositAsCollateral(collateralAmounts[2], borrower3);
-        eUSDC.borrow(borrowAmount);
-        vm.stopPrank();
-
-        vm.startPrank(borrower4);
-        balRETH.approve(address(pBALRETH), collateralAmounts[3]);
-        pBALRETH.depositAsCollateral(collateralAmounts[3], borrower4);
+        balRETH.approve(address(pBALRETH), collateralAmountStart);
+        pBALRETH.depositAsCollateral(collateralAmountStart, borrower1);
         eUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
     }
 
-    function _getLFactorsPreLiquidation(address[] memory borrowers) internal view returns (uint256[] memory lFactors) {
-        lFactors = new uint256[](2);
+    function _getLFactorsPreLiquidation(address _borrowers) internal view returns (uint256 lFactors) {
 
-        for(uint i; i < borrowers.length; i++) {
-            (lFactors[i],,) = marketManagerIsolated.liquidationStatusOf(
-                borrowers[i],
+            (lFactors,,) = marketManagerIsolated.liquidationStatusOf(
+                _borrowers,
                 address(eUSDC),
                 address(pBALRETH)
             );
-        }
 
         return lFactors;
     }
 
-    function _getDebtBalancePreLiquidation(address[] memory borrowers) internal view returns (uint256[] memory debtBalances) {
-        debtBalances = new uint256[](borrowers.length);
-        for(uint i; i < borrowers.length; i++) {
-            debtBalances[i] = eUSDC.debtBalanceCached(borrowers[i]);
-        }
-        return debtBalances;
+    function _getDebtBalancePreLiquidation(address _borrower) internal view returns (uint256 debtBalance) {
+
+        debtBalance = eUSDC.debtBalanceCached(_borrower);
+
     }
 
-    function _getLiquidationValuesWithHigherPrecision_NonAuction(
-        uint256 eTokenPrice,
-        uint256 cTokenPrice,
-        uint256[] memory lFactors
+    function _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
+        uint256 _eTokenPrice,
+        uint256 _cTokenPrice,
+        uint256 lFactors,
+        uint256 _collateralAmounts,
+        uint256 _borrowAmounts
     ) internal view returns (
-        uint256[] memory maxAmount, 
-        uint256[] memory liquidatedPTokens,
-        uint256[] memory collateralRequired
+        uint256 maxAmount, 
+        uint256 liquidatedPTokens,
+        uint256 collateralRequired
     ) {
         uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
-        
-        maxAmount = new uint256[](lFactors.length);
-        liquidatedPTokens = new uint256[](lFactors.length);
-        collateralRequired = new uint256[](lFactors.length);
-
-        for (uint i; i < lFactors.length; i++) {
-            if (lFactors[i] == 0) continue;
+    
+            if (lFactors == 0) return (0,0,0);
             
             // Follow the contract's exact calculations but with higher precision
-            uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactors[i]) / WAD);
-            uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors[i]) / WAD);
+            uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactors / WAD));
+            uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors) / WAD);
             
             // Calculate with extra precision
-            uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
-                (cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
+            uint256 highPrecisionD2C = (((auctionLiqIncentive * _eTokenPrice * WAD * PRECISION_FACTOR) /
+                (_cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
-            maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
+            maxAmount = (auctionCFactor * borrowAmount) / WAD;
             
             // Calculate with extra precision
-            liquidatedPTokens[i] = (maxAmount[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
+            liquidatedPTokens = (maxAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
             
-            if (liquidatedPTokens[i] > collateralAmounts[i]) {
+            if (liquidatedPTokens > _collateralAmounts) {
                 // Use the contract's exact formula
-                maxAmount[i] = FixedPointMathLib.mulDivUp(
-                    maxAmount[i],
-                    collateralAmounts[i],
-                    liquidatedPTokens[i]
+                maxAmount = FixedPointMathLib.mulDivUp(
+                    maxAmount,
+                    _collateralAmounts,
+                    liquidatedPTokens
                 );
-                liquidatedPTokens[i] = collateralAmounts[i];
+                liquidatedPTokens = _collateralAmounts;
             }
             
             // Use the contract's exact formula
-            collateralRequired[i] = (borrowAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
-        }
+            collateralRequired = (_borrowAmounts * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
+
 
         return (maxAmount, liquidatedPTokens, collateralRequired);
     }
 
-    function _getLiquidationValuesWithHigherPrecision_Auction(
-        uint256 eTokenPrice,
-        uint256 cTokenPrice,
-        uint256[] memory lFactors,
-        uint256 auctionCFactor,
-        uint256 auctionLiqIncentive
+    function _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
+        uint256 _eTokenPrice,
+        uint256 _cTokenPrice,
+        uint256 lFactor,
+        uint256 _debtAmount,
+        uint256 _collateralAmount
     ) internal view returns (
-        uint256[] memory maxAmount, 
-        uint256[] memory liquidatedPTokens,
-        uint256[] memory collateralRequired
+        uint256 maxAmount,
+        uint256 liquidatedPTokens,
+        uint256 collateralRequired
     ) {
         uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
+            
+        // Follow the contract's exact calculations but with higher precision
+        uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
+        uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
         
-        maxAmount = new uint256[](lFactors.length);
-        liquidatedPTokens = new uint256[](lFactors.length);
-        collateralRequired = new uint256[](lFactors.length);
+        // Calculate with extra precision
+        uint256 highPrecisionD2C = (((auctionLiqIncentive * _eTokenPrice * WAD * PRECISION_FACTOR) /
+            (_cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
 
-        for (uint i; i < lFactors.length; i++) {
-            if (lFactors[i] == 0) continue;
-            
-            // Calculate with extra precision
-            uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
-                (cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
-                
-            maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
-            
-            // Calculate with extra precision
-            liquidatedPTokens[i] = (maxAmount[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
-            
-            if (liquidatedPTokens[i] > collateralAmounts[i]) {
-                // Use the contract's exact formula
-                maxAmount[i] = FixedPointMathLib.mulDivUp(
-                    maxAmount[i],
-                    collateralAmounts[i],
-                    liquidatedPTokens[i]
-                );
-                liquidatedPTokens[i] = collateralAmounts[i];
-            }
-            
-            // Use the contract's exact formula
-            collateralRequired[i] = (borrowAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
-        }
+        maxAmount = (auctionCFactor * _debtAmount) / WAD;
 
-        return (maxAmount, liquidatedPTokens, collateralRequired);
+        // Calculate with extra precision
+        liquidatedPTokens = (maxAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
+        
+        collateralRequired = (_debtAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
     }
 
     function _calculateBadDebt(

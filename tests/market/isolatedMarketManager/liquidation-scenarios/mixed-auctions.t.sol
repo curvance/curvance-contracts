@@ -434,8 +434,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     }
 
     function _getLiquidationValuesWithHigherPrecision_NonAuction(
-        uint256 eTokenPrice,
-        uint256 cTokenPrice,
+        uint256 _eTokenPrice,
+        uint256 _cTokenPrice,
         uint256[] memory lFactors
     ) internal view returns (
         uint256[] memory maxAmount, 
@@ -459,8 +459,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors[i]) / WAD);
             
             // Calculate with extra precision
-            uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
-                (cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
+            uint256 highPrecisionD2C = (((auctionLiqIncentive * _eTokenPrice * WAD * PRECISION_FACTOR) /
+                (_cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
             maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
             
@@ -485,8 +485,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     }
 
     function _getLiquidationValuesWithHigherPrecision_Auction(
-        uint256 eTokenPrice,
-        uint256 cTokenPrice,
+        uint256 _eTokenPrice,
+        uint256 _cTokenPrice,
         uint256[] memory lFactors,
         uint256 auctionCFactor,
         uint256 auctionLiqIncentive
@@ -508,8 +508,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             if (lFactors[i] == 0) continue;
             
             // Calculate with extra precision
-            uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
-                (cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
+            uint256 highPrecisionD2C = (((auctionLiqIncentive * _eTokenPrice * WAD * PRECISION_FACTOR) /
+                (_cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
             maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
             

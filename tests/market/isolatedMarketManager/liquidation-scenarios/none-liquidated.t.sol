@@ -69,7 +69,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         marketManagerIsolated.updatePositionToken(
             8000,    // collRatio 80% 
             2500,    // collReqSoft 25%
-            2200,    // collReqHard 22% (increased to be > liqIncMax + 1%)
+            2200,    // collReqHard 22% 
             1000,    // liqIncBase 10%
             1500,    // liqIncHard 15%
             500,     // liqIncMin 5%

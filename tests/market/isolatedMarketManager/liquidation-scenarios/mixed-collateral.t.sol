@@ -9,6 +9,7 @@ import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 
 import "forge-std/console2.sol";
 
@@ -381,11 +382,11 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         uint256 _cTokenUnderlyingPrice,
         uint256 _eTokenUnderlyingPrice,
         uint256 _cTokenExchangeRate
-    ) internal pure returns (uint256 badDebt) {
+    ) internal pure returns (uint256 expectedBadDebt) {
 
         if(_collateralRequired > _collateralAvailable) {
     
-        badDebt = (_debtBalance - _debtAmount) -
+        expectedBadDebt = (_debtBalance - _debtAmount) -
         FixedPointMathLib.mulDivUp(
             ((_collateralAvailable - _liquidatedPTokens) * _cTokenExchangeRate) / WAD,
             _cTokenUnderlyingPrice,
