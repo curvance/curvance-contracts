@@ -241,8 +241,8 @@ contract Convex2PoolCToken is StrategyCToken {
                 _afterDeposit(yield, 0);
             }
 
-            // Update vesting info, query `vestPeriod` here to cache it.
-            _setNewVestingData(yield, vestingPeriod);
+            // Set new yield vesting data.
+            _setVestingData(yield);
 
             emit Harvest(yield);
         }

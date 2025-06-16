@@ -242,8 +242,8 @@ contract VelodromeStableCToken is StrategyCToken {
             // yield farming.
             _afterDeposit(yield, 0);
 
-            // Update vesting info, query `vestPeriod` here to cache it.
-            _setNewVestingData(yield, vestingPeriod);
+            // Set new yield vesting data.
+            _setVestingData(yield);
 
             emit Harvest(yield);
         }

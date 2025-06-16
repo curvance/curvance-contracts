@@ -8,11 +8,12 @@ interface IPluginDelegable {
     ///             permissions.
     /// @param delegate The address that will be approved or restricted
     ///                 from delegated actions on behalf of the caller.
-    /// @return Returns whether `delegate` is an approved delegate of `user`.
+    /// @return result Indicates whether `delegate` is an approved delegate or
+    ///                not of `user`, true = disabled, false = not disabled.
     function isDelegate(
         address user,
         address delegate
-    ) external view returns (bool);
+    ) external view returns (bool result);
 
     /// @notice Approves or restricts `delegate`'s authority to operate
     ///         on the caller's behalf.

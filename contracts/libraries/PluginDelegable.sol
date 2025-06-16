@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
 /// @title Curvance Plugin Delegation Manager.
 /// @notice Facilitates delegated actions on behalf of a user inside Curvance.
@@ -11,7 +12,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 ///      to an address or addresses users can utilize potential third-party
 ///      features such as limit orders, crosschain actions, reward auto
 ///      compounding, chained (multiple sequential) actions, etc.
-abstract contract PluginDelegable {
+abstract contract PluginDelegable is IPluginDelegable {
     /// @notice Curvance DAO Hub.
     ICentralRegistry public immutable centralRegistry;
 
@@ -72,49 +73,57 @@ abstract contract PluginDelegable {
             revert PluginDelegable_InvalidParameter();
         }
 
-        if (checkDelegationDisabled(msg.sender)) {
+        if (centralRegistry.checkDelegationDisabled(msg.sender)) {
             revert PluginDelegable__DelegatingDisabled();
         }
 
-        uint256 approvalIndex = getUserApprovalIndex(msg.sender);
-        _isDelegate[msg.sender][approvalIndex][delegate] = isApproved;
+        uint256 currentIndex = centralRegistry.userApprovalIndex(msg.sender);
+        _isDelegate[msg.sender][currentIndex][delegate] = isApproved;
 
-        emit DelegateApproval(msg.sender, delegate, approvalIndex, isApproved);
+        emit DelegateApproval(msg.sender, delegate, currentIndex, isApproved);
     }
 
-    /// PUBLIC FUNCTIONS ///
+    /// @notice Returns `user`'s current approval index value.
+    /// @dev The approval index is a way to revoke approval on all tokens,
+    ///      and features at once if a malicious delegation was allowed by
+    ///      `user`.
+    /// @param user The user to check delegated approval index for.
+    /// @return result The `user`'s current approval index value.
+    function userApprovalIndex(
+        address user
+    ) external view returns (uint256 result) {
+        result = centralRegistry.userApprovalIndex(user);
+    }
 
     /// @notice Returns whether `delegate` has the ability to act on behalf of
     ///         `user`.
     /// @param user The address to check whether `delegate` has delegation
     ///             permissions for.
     /// @param delegate The address to check delegation permissions of `user`.
-    /// @return Returns whether `delegate` is an approved delegate of `user`.
+    /// @return result Indicates whether `delegate` is an approved delegate or
+    ///                not of `user`, true = disabled, false = not disabled.
     function isDelegate(
         address user,
         address delegate
-    ) public view returns (bool) {
-        return _isDelegate[user][getUserApprovalIndex(user)][delegate];
-    }
-
-    /// @notice Returns `user`'s approval index.
-    /// @dev The approval index is a way to revoke approval on all tokens,
-    ///      and features at once if a malicious delegation was allowed by
-    ///      `user`.
-    /// @param user The user to check delegated approval index for.
-    /// @return `User`'s approval index.
-    function getUserApprovalIndex(address user) public view returns (uint256) {
-        return centralRegistry.getUserApprovalIndex(user);
+    ) external view returns (bool result) {
+        result = _isDelegate[
+            user
+        ][centralRegistry.userApprovalIndex(user)][delegate];
     }
 
     /// @notice Returns whether a user has delegation disabled.
     /// @dev This is not a silver bullet for phishing attacks, but, adds
     ///      an additional wall of defense.
     /// @param user The user to check delegation status for.
-    /// @return Whether the user has new delegation disabled or not.
-    function checkDelegationDisabled(address user) public view returns (bool) {
-        return centralRegistry.checkDelegationDisabled(user);
+    /// @return result Indicates whether `user` has delegation disabled
+    ///                or not, true = disabled, false = not disabled.
+    function checkDelegationDisabled(
+        address user
+    ) external view returns (bool result) {
+        result = centralRegistry.checkDelegationDisabled(user);
     }
+
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Checks whether `delegate` has the ability to act on behalf of
     ///         `user`, reverts if they do not.
@@ -123,7 +132,7 @@ abstract contract PluginDelegable {
     /// @param delegate The address to check delegation permissions of `user`.
     function _checkDelegate(address user, address delegate) internal view {
         if (
-            !_isDelegate[user][centralRegistry.getUserApprovalIndex(user)][
+            !_isDelegate[user][centralRegistry.userApprovalIndex(user)][
                 delegate
             ]
         ) {

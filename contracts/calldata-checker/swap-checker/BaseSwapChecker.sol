@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BaseCallDataChecker } from "contracts/calldata-checker/BaseCallDataChecker.sol";
+import { BaseCalldataChecker } from "contracts/calldata-checker/BaseCalldataChecker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldataChecker.sol";
@@ -9,7 +9,7 @@ import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldata
 /// @title BaseSwapChecker
 /// @notice A base contract for validating external swap operations and DEX interactions
 /// @dev This abstract contract serves as the foundation for protocol-specific swap
-///      validation. It inherits from IExternalCalldataChecker and BaseCallDataChecker to provide:
+///      validation. It inherits from IExternalCalldataChecker and BaseCalldataChecker to provide:
 ///      
 ///      1. A standardized interface for all swap checkers
 ///      2. Access to core calldata examination utilities
@@ -37,7 +37,7 @@ import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldata
 ///
 abstract contract BaseSwapChecker is
     IExternalCalldataChecker,
-    BaseCallDataChecker
+    BaseCalldataChecker
 {
     /// ERRORS ///
 

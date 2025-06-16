@@ -8,7 +8,7 @@ contract IncrementApprovalIndexTest is TestBaseMarketIsolated {
     event ApprovalIndexIncremented(address indexed user, uint256 newIndex);
 
     function test_incrementApprovalIndex_success() public {
-        assertEq(centralRegistry.getUserApprovalIndex(user1), 0);
+        assertEq(centralRegistry.userApprovalIndex(user1), 0);
 
         vm.startPrank(user1);
 
@@ -23,6 +23,6 @@ contract IncrementApprovalIndexTest is TestBaseMarketIsolated {
 
         assert(!pBALRETH.isDelegate(user1, user2)); // Ensure delegation is reset
 
-        assertEq(centralRegistry.getUserApprovalIndex(user1), 1);
+        assertEq(centralRegistry.userApprovalIndex(user1), 1);
     }
 }

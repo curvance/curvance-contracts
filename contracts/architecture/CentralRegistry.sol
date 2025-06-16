@@ -11,6 +11,7 @@ import { ActionRegistry } from "contracts/libraries/ActionRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
+import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IVotingHub } from "contracts/interfaces/IVotingHub.sol";
@@ -120,7 +121,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Array of all the addresses for all Curvance market managers
     ///         on this chain.
-    address[] public marketManagers;
+    address[] internal _marketManagers;
 
     // PROTOCOL FEE VALUES
 
@@ -171,10 +172,11 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice The number of chains supported by the Curvance Protocol.
     /// @dev Stored redundantly to reduce gas overhead.
     uint256 public supportedChains;
+
     /// @notice Array of Chain IDs recorded in the Crosschain Protocol's Chain
     ///         ID format.
     /// @dev Stored redundantly to reduce gas overhead.
-    uint256[] public foreignChainIds;
+    uint256[] internal _foreignChainIds;
     
     /// @notice ChainId => 2 = supported; 1 = unsupported.
     mapping(uint256 => ChainData) public supportedChainData;
@@ -292,12 +294,17 @@ contract CentralRegistry is ERC165, ActionRegistry {
         address sequencer_,
         address feeToken_
     ) {
-        if (daoAddress_ == address(0)) {
-            daoAddress_ = msg.sender;
+        if (
+            ERC165Checker.supportsInterface(
+                timelock_,
+                type(ITimelock).interfaceId
+            )
+        ) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
-        if (timelock_ == address(0)) {
-            timelock_ = msg.sender;
+        if (daoAddress_ == address(0)) {
+            daoAddress_ = msg.sender;
         }
 
         if (emergencyCouncil_ == address(0)) {
@@ -862,6 +869,15 @@ contract CentralRegistry is ERC165, ActionRegistry {
     function transferTimelockPermissions(address newTimelock) external {
         _checkEmergencyCouncilPermissions();
 
+        if (
+            ERC165Checker.supportsInterface(
+                newTimelock,
+                type(ITimelock).interfaceId
+            )
+        ) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
         // Cache old timelock.
         address previousTimelock = timelock;
         timelock = newTimelock;
@@ -985,7 +1001,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         isMarketManager[newAddress] = true;
         // We store supported markets semi redundantly for offchain querying.
-        marketManagers.push(newAddress);
+        _marketManagers.push(newAddress);
         // Convert interest factor parameter from basis points to `WAD`
         // for precision calculations.
         protocolInterestFee[newAddress] = _bpToWad(
@@ -1012,11 +1028,11 @@ contract CentralRegistry is ERC165, ActionRegistry {
         delete isMarketManager[addressApproved];
 
         // Cache market list.
-        uint256 numMarkets = marketManagers.length;
+        uint256 numMarkets = _marketManagers.length;
         uint256 marketIndex = numMarkets;
 
         for (uint256 i; i < numMarkets; ++i) {
-            if (marketManagers[i] == addressApproved) {
+            if (_marketManagers[i] == addressApproved) {
                 marketIndex = i;
                 break;
             }
@@ -1029,11 +1045,11 @@ contract CentralRegistry is ERC165, ActionRegistry {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
-        // Copy last `marketManagers` slot to `marketIndex` slot.
-        marketManagers[marketIndex] = marketManagers[numMarkets];
+        // Copy last `_marketManagers` slot to `marketIndex` slot.
+        _marketManagers[marketIndex] = _marketManagers[numMarkets];
         // Remove the last element to remove `addressApproved`
-        // from marketManagers list.
-        marketManagers.pop();
+        // from _marketManagers list.
+        _marketManagers.pop();
         emit PermissionsUpdated("Market Manager", addressApproved, false);
     }
 
@@ -1229,7 +1245,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         messagingToGETHChainId[messagingChainId] = chainId;
         GETHToMessagingChainId[chainId] = messagingChainId;
         ++supportedChains;
-        foreignChainIds.push(chainId);
+        _foreignChainIds.push(chainId);
 
         emit NewChainAdded(chainId, relayer);
     }
@@ -1347,13 +1363,13 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Returns an array of Chain IDs recorded in the Crosschain
     /// Protocol's Chain ID format.
-    function getForeignChainIds() external view returns (uint256[] memory) {
-        return foreignChainIds;
+    function foreignChainIds() external view returns (uint256[] memory) {
+        return _foreignChainIds;
     }
 
     /// @notice Returns an array of Curvance markets on this chain.
-    function getMarketManagers() external view returns (address[] memory) {
-        return marketManagers;
+    function marketManagers() external view returns (address[] memory) {
+        return _marketManagers;
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -1367,6 +1383,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ) public view virtual override returns (bool) {
         return
             interfaceId == type(ICentralRegistry).interfaceId ||
+            interfaceId == type(IActionRegistry).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
@@ -1376,10 +1393,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @param chainId Chain ID to remove.
     function _removeForeignChainId(uint256 chainId) internal {
         uint256 i;
-        uint256 numForeignChainIds = foreignChainIds.length;
+        uint256 numForeignChainIds = _foreignChainIds.length;
 
         for (; i < numForeignChainIds; ++i) {
-            if (foreignChainIds[i] == chainId) {
+            if (_foreignChainIds[i] == chainId) {
                 break;
             }
         }
@@ -1387,10 +1404,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
         numForeignChainIds--;
 
         for (; i < numForeignChainIds; ++i) {
-            foreignChainIds[i] = foreignChainIds[i + 1];
+            _foreignChainIds[i] = _foreignChainIds[i + 1];
         }
 
-        foreignChainIds.pop();
+        _foreignChainIds.pop();
     }
 
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`

@@ -56,7 +56,7 @@ contracts/
 **Contents**:
 - 📁 `multicall-checker/`: Contracts for validating multicall operations related to oracle price updates
 - 📁 `swap-checker/`: Contracts for validating external swap operations and DEX interactions.
-- 📄 `BaseCallDataChecker.sol`: A base contract that provides utility functions for parsing and examining calldata.
+- 📄 `BaseCalldataChecker.sol`: A base contract that provides utility functions for parsing and examining calldata.
 
 <br/>
 
