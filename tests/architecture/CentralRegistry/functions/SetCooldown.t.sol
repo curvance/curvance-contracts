@@ -180,6 +180,30 @@ contract SetCooldownTest is TestBaseMarketIsolated {
         
         vm.stopPrank();
     }
+
+    function test_setCooldown_success_afterAllCooldownsExpire() public {
+        vm.startPrank(user1);
         
+        centralRegistry.setCooldown(10 days);
+        
+        // trigger both locks
+        centralRegistry.setTransferableStatus(true);
+        centralRegistry.setDelegableStatus(true);
+        centralRegistry.setTransferableStatus(false);
+        centralRegistry.setDelegableStatus(false);
+        
+        // wait for all cooldowns to expire
+        skip(11 days);
+        
+        assertFalse(centralRegistry.checkTransfersDisabled(user1));
+        assertFalse(centralRegistry.checkDelegationDisabled(user1));
+        
+        // now should be able set new cooldown
+        vm.expectEmit(true, true, true, true);
+        emit CooldownSet(user1, 5 days);
+        centralRegistry.setCooldown(5 days);
+        
+        vm.stopPrank();
+    }
 
 }
