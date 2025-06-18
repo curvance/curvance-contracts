@@ -42,7 +42,7 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
         for (uint256 i = 0; i < _noOfTokens; i++) {
             MockSimpleCToken pToken = _deployCollaterToken();
             pTokens[i] = pToken;
-            pTokensAgg[i] = _deployOracleManagerForToken(pToken.underlying());
+            pTokensAgg[i] = _deployOracleManagerForToken(pToken.asset());
             pTokensUnderlyingAgg[i] = _deployOracleManagerForToken(
                 address(pToken)
             );

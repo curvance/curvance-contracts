@@ -499,7 +499,7 @@ contract StartContractsConfig is
     ) internal {
         address oracleManager = _getDeployedContract("oracleManager");
         address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
-        address underlying = IMToken(mToken).underlying();
+        address underlying = IMToken(mToken).asset();
 
         if (chainlinkEth == address(0) && chainlinkUsd == address(0)) {
             return;

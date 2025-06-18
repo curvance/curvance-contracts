@@ -337,7 +337,7 @@ abstract contract BasePositionManager is
         LeverageStruct memory leverageData
     ) external override {
         // We cast to a generic mToken but this will always be an eToken.
-        address borrowUnderlying = IMToken(borrowToken).underlying();
+        address borrowUnderlying = IMToken(borrowToken).asset();
         // Take protocol fee, if any.
         uint256 fee = _getFee(
             borrowToken,
@@ -454,7 +454,7 @@ abstract contract BasePositionManager is
         IEToken borrowToken = deleverageData.borrowToken;
 
         // Unwrap deleverage instructions for debt repayment.
-        address borrowUnderlying = borrowToken.underlying();
+        address borrowUnderlying = borrowToken.asset();
         uint256 repayAmount = deleverageData.repayAmount;
         uint256 borrowUnderlyingBalance = IERC20(borrowUnderlying).balanceOf(
             address(this)
@@ -585,7 +585,7 @@ abstract contract BasePositionManager is
             borrowToken
         );
 
-        uint256 liquidityAvailable = IERC20(IMToken(borrowToken).underlying())
+        uint256 liquidityAvailable = IERC20(IMToken(borrowToken).asset())
             .balanceOf(borrowToken);
 
         if (liquidityAvailable < maxDebtBorrowable) {

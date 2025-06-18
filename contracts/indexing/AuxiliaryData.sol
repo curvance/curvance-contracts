@@ -476,7 +476,7 @@ contract AuxiliaryData {
         for (uint256 i; i < numTokens; ++i) {
             MarketETokenData memory eTokenData;
             EToken marketToken = EToken(eTokens[i]);
-            IERC20 token = IERC20(marketToken.underlying());
+            IERC20 token = IERC20(marketToken.asset());
 
             if (account != address(0)) {
                 eTokenData.underlyingBalance = token.balanceOf(account);
@@ -737,7 +737,7 @@ contract AuxiliaryData {
 
         // Get outstanding borrows then query price and return.
         result =
-            (_getTokenPrice(eToken.underlying(), false) *
+            (_getTokenPrice(eToken.asset(), false) *
                 eToken.totalBorrows()) /
             10 ** eToken.decimals();
     }

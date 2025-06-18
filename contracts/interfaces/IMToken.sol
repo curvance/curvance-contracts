@@ -22,7 +22,7 @@ interface IMToken {
     function startMarket(address by) external returns (bool);
 
     /// @notice Returns the address of the underlying asset.
-    function underlying() external view returns (address);
+    function asset() external view returns (address);
 
     /// @notice Returns the decimals of the mToken.
     /// @dev We pull directly from underlying incase its a proxy contract,

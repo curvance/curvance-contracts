@@ -66,7 +66,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// CONSTANTS ///
 
     /// @notice The underlying asset for the EToken, cannot be a fee-on-transfer token.
-    address public immutable underlying;
+    address public immutable asset;
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
 
@@ -180,7 +180,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         emit NewInterestFactor(0, newInterestFactor);
 
-        underlying = underlying_;
+        asset = underlying_;
         name = string.concat(
             "Curvance interest-bearing ",
             IERC20(underlying_).name()
@@ -189,7 +189,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // Sanity check underlying so that we know users will not need to
         // mint anywhere close to exchange rate, in `WAD`.
-        if (IERC20(underlying).totalSupply() >= type(uint232).max) {
+        if (IERC20(asset).totalSupply() >= type(uint232).max) {
             _revert(_VALIDATION_FAILED_SELECTOR);
         }
     }
@@ -209,7 +209,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     function rescueToken(address token, uint256 amount) external {
         _checkDaoPermissions();
 
-        if (token == underlying) {
+        if (token == asset) {
             revert EToken__TransferError();
         }
 
@@ -598,7 +598,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // On success, the market will deposit `amount` to the market.
         SafeTransferLib.safeTransferFrom(
-            underlying,
+            asset,
             msg.sender,
             address(this),
             amount
@@ -815,7 +815,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @return The number of decimals for this eToken,
     ///         matching the underlying token.
     function decimals() public view returns (uint8) {
-        return IERC20(underlying).decimals();
+        return IERC20(asset).decimals();
     }
 
     /// @notice Gets balance of this contract, in terms of the underlying.
@@ -823,7 +823,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ///      current transaction, if any.
     /// @return The quantity of underlying tokens held by the market.
     function marketUnderlyingHeld() public view returns (uint256) {
-        return IERC20(underlying).balanceOf(address(this));
+        return IERC20(asset).balanceOf(address(this));
     }
 
     /// @notice Returns the type of Curvance token.
@@ -1128,7 +1128,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         _beforeWithdrawAction(account, tokens);
         // Transfer underlying to `recipient`.
-        SafeTransferLib.safeTransfer(underlying, recipient, amount);
+        SafeTransferLib.safeTransfer(asset, recipient, amount);
 
         emit Transfer(account, address(0), tokens);
         return amount;
@@ -1154,7 +1154,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         totalBorrows = totalBorrows + amount;
 
         // Transfer underlying to `recipient`.
-        SafeTransferLib.safeTransfer(underlying, recipient, amount);
+        SafeTransferLib.safeTransfer(asset, recipient, amount);
 
         emit Borrow(account, amount);
     }
@@ -1176,7 +1176,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ) internal returns (uint256) {
         // Transfer underlying into the eToken contract.
         SafeTransferLib.safeTransferFrom(
-            underlying,
+            asset,
             minter,
             address(this),
             amount
@@ -1223,7 +1223,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         }
 
         SafeTransferLib.safeTransferFrom(
-            underlying,
+            asset,
             payer,
             address(this),
             amount
@@ -1309,7 +1309,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         );
 
         SafeTransferLib.safeTransferFrom(
-            underlying,
+            asset,
             liquidator,
             address(this),
             liqResults.debtRepaid
@@ -1395,7 +1395,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Withdraw reserves, in shares.
         _beforeWithdrawAction(daoAddress, tokens);
         // Transfer underlying to DAO, in assets.
-        SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
+        SafeTransferLib.safeTransfer(asset, daoAddress, amount);
     }
 
     /// @dev Helper function for reverting efficiently.

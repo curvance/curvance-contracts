@@ -40,7 +40,7 @@ contract SimplePositionManager is BasePositionManager {
         address /* recipient */
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
-        address borrowUnderlying = leverageData.borrowToken.underlying();
+        address borrowUnderlying = leverageData.borrowToken.asset();
         address collateralUnderlying = leverageData.positionToken.asset();
 
         if (borrowUnderlying == collateralUnderlying) {
@@ -92,7 +92,7 @@ contract SimplePositionManager is BasePositionManager {
         }
 
         SwapperLib.Swap memory swapData = deleverageData.swapData[0];
-        address borrowUnderlying = deleverageData.borrowToken.underlying();
+        address borrowUnderlying = deleverageData.borrowToken.asset();
         address collateralUnderlying = deleverageData
             .positionToken
             .asset();

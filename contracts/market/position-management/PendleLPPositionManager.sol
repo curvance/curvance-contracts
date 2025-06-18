@@ -58,7 +58,7 @@ contract PendleLPPositionManager is BasePositionManager {
         address /* recipient */
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
-        address borrowUnderlying = leverageData.borrowToken.underlying();
+        address borrowUnderlying = leverageData.borrowToken.asset();
         address lpToken = leverageData.positionToken.asset();
         (IStandardizedYield sy, , ) = IPMarket(lpToken).readTokens();
 
@@ -120,7 +120,7 @@ contract PendleLPPositionManager is BasePositionManager {
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         address lpToken = deleverageData.positionToken.asset();
-        address borrowUnderlying = deleverageData.borrowToken.underlying();
+        address borrowUnderlying = deleverageData.borrowToken.asset();
         (IStandardizedYield sy, , ) = IPMarket(lpToken).readTokens();
 
         address tokenOut;

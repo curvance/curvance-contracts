@@ -93,7 +93,7 @@ contract ETokenDeploymentTest is TestBaseEToken {
         );
 
         assertEq(address(eUSDC.centralRegistry()), address(centralRegistry));
-        assertEq(eUSDC.underlying(), _USDC_ADDRESS);
+        assertEq(eUSDC.asset(), _USDC_ADDRESS);
         assertEq(
             address(eUSDC.interestRateModel()),
             address(interestRateModel)

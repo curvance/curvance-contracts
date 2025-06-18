@@ -71,7 +71,7 @@ contract CCTPBorrowZapper is ReentrancyGuard {
         // Borrow on behalf of caller.
         EToken(eToken).borrowFor(msg.sender, address(this), borrowAmount);
 
-        address underlying = EToken(eToken).underlying();
+        address underlying = EToken(eToken).asset();
 
         // Check if swapping is necessary.
         if (underlying != feeToken) {

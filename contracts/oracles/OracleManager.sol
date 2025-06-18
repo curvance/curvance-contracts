@@ -227,7 +227,7 @@ contract OracleManager is IOracleManager {
         IMToken(newMToken).isCollateralizable();
 
         mTokenAssets[newMToken].isMToken = true;
-        mTokenAssets[newMToken].underlying = IMToken(newMToken).underlying();
+        mTokenAssets[newMToken].underlying = IMToken(newMToken).asset();
     }
 
     /// @notice Removes a mToken's support in the Oracle Manager.

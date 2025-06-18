@@ -112,7 +112,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         linkedToken = IEToken(eToken);
-        address underlying_ = IMToken(eToken).underlying();
+        address underlying_ = IMToken(eToken).asset();
         underlying = underlying_;
 
         IERC20(underlying_).approve(eToken, type(uint256).max);

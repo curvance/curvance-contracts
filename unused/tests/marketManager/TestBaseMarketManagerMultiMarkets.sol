@@ -46,7 +46,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         for (uint256 i = 0; i < _noOfTokens; i++) {
             EToken eToken = _deployEarnToken();
             eTokens[i] = eToken;
-            eTokensAgg[i] = _deployOracleManagerForToken(eToken.underlying());
+            eTokensAgg[i] = _deployOracleManagerForToken(eToken.asset());
         }
         return (eTokens, eTokensAgg);
     }
@@ -116,7 +116,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         MockSimpleCToken _pToken,
         uint256 _amount
     ) internal {
-        MockERC20Token tokenCollateral = MockERC20Token(_pToken.underlying());
+        MockERC20Token tokenCollateral = MockERC20Token(_pToken.asset());
         vm.startPrank(_user);
         tokenCollateral.mint(address(_user), _amount);
         tokenCollateral.approve(address(_pToken), _amount);
@@ -138,7 +138,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         EToken _eToken,
         uint256 _amount
     ) internal {
-        MockERC20Token tokenDebt = MockERC20Token(_eToken.underlying());
+        MockERC20Token tokenDebt = MockERC20Token(_eToken.asset());
         vm.startPrank(_user);
         tokenDebt.mint(address(_user), _amount);
         tokenDebt.approve(address(_eToken), _amount);
@@ -180,7 +180,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
     ) internal {
         vm.startPrank(_liquidator);
         console2.log("\n prep liq");
-        MockERC20Token tokenDebt = MockERC20Token(_eToken.underlying());
+        MockERC20Token tokenDebt = MockERC20Token(_eToken.asset());
         console2.log(
             "eToken %s underlying %s",
             address(_eToken),
@@ -199,7 +199,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         vm.startPrank(_liquidator);
         for (uint256 i = 0; i < _eTokens.length; i++) {
             MockERC20Token tokenDebt = MockERC20Token(
-                _eTokens[i].underlying()
+                _eTokens[i].asset()
             );
             tokenDebt.approve(address(_eTokens[i]), 1e26);
             tokenDebt.mint(_liquidator, 1e26);
@@ -222,7 +222,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
             WAD;
 
         PriceReturnData memory data = chainlinkAdaptor.getPrice(
-            _pToken.underlying(),
+            _pToken.asset(),
             true,
             true
         );
@@ -264,7 +264,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         ) = marketManager.tokenData(address(_pToken));
 
         PriceReturnData memory earnTokenData = chainlinkAdaptor.getPrice(
-            _eToken.underlying(),
+            _eToken.asset(),
             true,
             true
         );
@@ -335,7 +335,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
                 }
                 for (uint256 k = 0; k < noOfEarnTokens; k++) {
                     if (
-                        IERC20(eTokens[k].underlying()).balanceOf(users[i]) ==
+                        IERC20(eTokens[k].asset()).balanceOf(users[i]) ==
                         0
                     ) {
                         continue;
@@ -372,7 +372,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
                 }
                 for (uint256 k = 0; k < noOfEarnTokens; k++) {
                     if (
-                        IERC20(eTokens[k].underlying()).balanceOf(users[i]) ==
+                        IERC20(eTokens[k].asset()).balanceOf(users[i]) ==
                         0
                     ) {
                         continue;

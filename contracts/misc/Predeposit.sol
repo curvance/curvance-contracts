@@ -346,7 +346,7 @@ contract Predeposit {
 
         // Validate the protocol token has the predeposit token as its
         // underlying.
-        if (IMToken(protocolToken).underlying() != predepositToken) {
+        if (IMToken(protocolToken).asset() != predepositToken) {
             revert Predeposit__InvalidParameters();
         }
 

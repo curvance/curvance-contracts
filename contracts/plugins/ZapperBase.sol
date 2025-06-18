@@ -74,7 +74,7 @@ abstract contract ZapperBase is ReentrancyGuard {
     ///         Either as a pToken position or eToken position.
     /// @param mToken The Curvance pToken address.
     /// @param underlying The input token address, should match
-    ///                   mToken.underlying().
+    ///                   mToken.asset().
     /// @param isPToken Whether `mToken` is a pToken or not.
     /// @param assets The amount of `underlying` to deposit into mToken
     ///               position.
@@ -102,7 +102,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         }
 
         // Validate `underlying` matches underlying token of mToken contract.
-        if (IMToken(mToken).underlying() != underlying) {
+        if (IMToken(mToken).asset() != underlying) {
             revert ZapperBase__UnderlyingTokenIsNotInputToken();
         }
 
@@ -175,7 +175,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         address recipient
     ) internal {
         // Validate `underlying` matches underlying token of mToken contract.
-        if (IMToken(mToken).underlying() != underlying) {
+        if (IMToken(mToken).asset() != underlying) {
             revert ZapperBase__ExecutionError();
         }
 

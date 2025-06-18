@@ -200,7 +200,7 @@ contract SimpleRewardZapper is ZapperBase {
         }
 
         // Cache underlying to minimize external calls.
-        address eTokenUnderlying = IMToken(eToken).underlying();
+        address eTokenUnderlying = IMToken(eToken).asset();
 
         if (rewardToken != eTokenUnderlying) {
             // Validate that if we are swapping that the output token

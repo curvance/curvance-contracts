@@ -48,7 +48,7 @@ contract NativeUniversalBalance is UniversalBalance {
     ) UniversalBalance(centralRegistry_, eToken) {
         // Validate that eToken underlying and native wrapped token
         // contract match addresses.
-        if (IMToken(eToken).underlying() != nativeWrappedToken) {
+        if (IMToken(eToken).asset() != nativeWrappedToken) {
             revert NativeUniversalBalance__UnderlyingTokenMismatch();
         }
     }
