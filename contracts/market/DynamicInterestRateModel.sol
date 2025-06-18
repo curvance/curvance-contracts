@@ -220,6 +220,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     error DynamicInterestRateModel__InvalidAdjustmentVelocity();
     error DynamicInterestRateModel__InvalidDecayRate();
     error DynamicInterestRateModel__InvalidMultiplierMax();
+    error DynamicInterestRateModel__InvalidThresholdLength();
 
     /// CONSTRUCTOR ///
 
@@ -766,6 +767,10 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 thresholdLength = (WAD - vertexUtilStart) / 2;
         config.increaseThreshold = vertexUtilStart + thresholdLength;
         config.increaseThresholdMax = WAD;
+
+        if (vertexUtilStart < thresholdLength) {
+            revert DynamicInterestRateModel__InvalidThresholdLength();
+        }
 
         // Dynamic rates start decreasing as soon as we are below desired
         // utilization (vertexUtilStart).

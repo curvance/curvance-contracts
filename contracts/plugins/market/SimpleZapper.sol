@@ -159,10 +159,6 @@ contract SimpleZapper is ZapperBase {
         SwapperLib.Swap memory swapData,
         address recipient
     ) external nonReentrant returns (uint256) {
-        if (swapData.inputToken == swapData.outputToken) {
-            revert ZapperBase__ExecutionError();
-        }
-
         // Exit Curvance position.
         _exitCurvance(
             redemptionData.mToken,
