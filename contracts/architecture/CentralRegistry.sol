@@ -295,7 +295,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         address feeToken_
     ) {
         if (
-            ERC165Checker.supportsInterface(
+            !ERC165Checker.supportsInterface(
                 timelock_,
                 type(ITimelock).interfaceId
             )
