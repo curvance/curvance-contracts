@@ -297,7 +297,7 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
             _afterDeposit(yield, 0);
 
             // Update vesting info, query `vestPeriod` here to cache it.
-            _setNewVestingData(yield, vestingPeriod);
+            _setVestingData(yield);
 
             emit Harvest(yield);
         }

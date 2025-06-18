@@ -352,7 +352,7 @@ contract MarketManagerIsolated is
     ) external view returns (uint256, uint256, bool[] memory) {
         // Make sure they are not trying to hypothetically borrow
         // a position token.
-        if (IMToken(mTokenModified).isPToken() && borrowAmount > 0) {
+        if (IMToken(mTokenModified).isCollateralizable() && borrowAmount > 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -723,7 +723,7 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        if (!IMToken(pToken).isPToken() ||  IMToken(eToken).isPToken()) {
+        if (!IMToken(pToken).isCollateralizable() ||  !IMToken(eToken).isBorrowable()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 

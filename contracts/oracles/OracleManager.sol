@@ -224,7 +224,7 @@ contract OracleManager is IOracleManager {
         }
 
         // We call a Curvance specific MToken function as a sanity check.
-        IMToken(newMToken).isPToken();
+        IMToken(newMToken).isCollateralizable();
 
         mTokenAssets[newMToken].isMToken = true;
         mTokenAssets[newMToken].underlying = IMToken(newMToken).underlying();
@@ -568,7 +568,7 @@ contract OracleManager is IOracleManager {
         for (uint256 i; i < numAssets; ++i) {
             snapshots[i] = assets[i].getSnapshot(account);
             (underlyingPrices[i], errorCode) = getPrice(
-                assets[i].underlying(),
+                assets[i].asset(),
                 true,
                 snapshots[i].isPToken
             );

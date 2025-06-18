@@ -357,7 +357,7 @@ contract Predeposit {
 
         // Pull the data directly from the contract rather than from parameter
         // input.
-        tokenData[predepositToken].isPToken = IMToken(protocolToken).isPToken();
+        tokenData[predepositToken].isPToken = IMToken(protocolToken).isCollateralizable();
         tokenData[predepositToken].mTokenAddress = protocolToken;
 
         emit MigrationTokenConfigured(predepositToken, protocolToken);

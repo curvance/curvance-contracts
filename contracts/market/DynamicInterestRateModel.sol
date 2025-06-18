@@ -292,7 +292,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         // Validate that the token being linked is actually an earn token
         // and not a position token, if the token is not an mToken at all
         // this will also natively fail, which is fine too.
-        if (IEToken(eTokenAddress).isPToken()) {
+        if (!IEToken(eTokenAddress).isBorrowable()) {
             _revert(_INVALID_TOKEN_SELECTOR);
         }
 

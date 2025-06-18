@@ -391,7 +391,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         for (uint256 i; i < numTokens; ) {
             eToken = IEToken(eTokens[i++]);
             // Revert if somehow a misconfigured token made it in here.
-            if (eToken.isPToken()) {
+            if (eToken.isBorrowable()) {
                 _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
             }
 

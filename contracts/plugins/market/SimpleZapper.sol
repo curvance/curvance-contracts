@@ -237,7 +237,7 @@ contract SimpleZapper is ZapperBase {
             _enterCurvance(
                 mToken,
                 swapData.outputToken,
-                IMToken(mToken).isPToken(), // Check whether new deposit is for a PToken or EToken.
+                IMToken(mToken).isCollateralizable(), // Check whether new deposit is for a PToken or EToken.
                 outAmount,
                 expectedShares,
                 collateralize,

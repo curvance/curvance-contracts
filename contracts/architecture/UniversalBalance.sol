@@ -107,7 +107,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address eToken
     ) PluginDelegable(centralRegistry_) {
         // Validate inputted eToken is actually an eToken.
-        if (IMToken(eToken).isPToken()) {
+        if (!IMToken(eToken).isBorrowable()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 

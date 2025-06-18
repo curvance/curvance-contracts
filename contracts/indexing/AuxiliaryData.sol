@@ -219,7 +219,7 @@ contract AuxiliaryData {
             token, account
         ) == 2 ? true : false;
         balanceOf = IMToken(token).balanceOf(account);
-        collateralOrDebtAmount = IMToken(token).isPToken()
+        collateralOrDebtAmount = IMToken(token).isCollateralizable()
             ? IPToken(token).collateralPosted(account)
             : IEToken(token).debtBalanceCached(account);
     }
@@ -246,7 +246,7 @@ contract AuxiliaryData {
             hasPosition = true;
         }
         balanceOf = mToken_.balanceOf(account);
-        if (mToken_.isPToken()) {
+        if (mToken_.isCollateralizable()) {
             collateralPostedOf = IPToken(mToken).collateralPosted(account);
         }
     }
@@ -558,7 +558,7 @@ contract AuxiliaryData {
 
         for (uint256 i; i < numAssets; ) {
             token = assets[i++];
-            getLower = IMToken(token).isPToken() ? true : false;
+            getLower = IMToken(token).isBorrowable() ? true : false;
             result += getTokenTVL(token, getLower);
         }
     }
@@ -634,7 +634,7 @@ contract AuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (IMToken(asset).isPToken()) {
+            if (IMToken(asset).isBorrowable()) {
                 ++numCollateralAssets;
             }
         }
@@ -644,7 +644,7 @@ contract AuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (IMToken(asset).isPToken()) {
+            if (IMToken(asset).isBorrowable()) {
                 collateralAssets[collateralAssetsIndex++] = asset;
             }
         }
@@ -665,7 +665,7 @@ contract AuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (!IMToken(asset).isPToken()) {
+            if (!IMToken(asset).isBorrowable()) {
                 ++numDebtAssets;
             }
         }
@@ -675,7 +675,7 @@ contract AuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (!IMToken(asset).isPToken()) {
+            if (!IMToken(asset).isBorrowable()) {
                 debtAssets[debtAssetsIndex++] = asset;
             }
         }
@@ -743,7 +743,7 @@ contract AuxiliaryData {
     }
 
     function getTokenPrice(address token) public view returns (uint256) {
-        return _getTokenPrice(token, IMToken(token).isPToken() ? true : false);
+        return _getTokenPrice(token, IMToken(token).isCollateralizable() ? true : false);
     }
 
     /// INTERNAL FUNCTIONS ///

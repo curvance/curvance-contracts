@@ -82,7 +82,7 @@ abstract contract BasePositionManager is
         IMToken[] memory mTokens = marketManager.assetsOf(account);
         uint256 numTokens = mTokens.length;
         for (uint256 i; i < numTokens; ++i) {
-            if (!mTokens[i].isPToken()) {
+            if (mTokens[i].isBorrowable()) {
                 IEToken(address(mTokens[i])).accrueInterest();
             }
         }
