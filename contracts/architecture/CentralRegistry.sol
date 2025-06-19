@@ -295,7 +295,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         address feeToken_
     ) {
         if (
-            ERC165Checker.supportsInterface(
+            !ERC165Checker.supportsInterface(
                 timelock_,
                 type(ITimelock).interfaceId
             )
@@ -391,7 +391,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         for (uint256 i; i < numTokens; ) {
             eToken = IEToken(eTokens[i++]);
             // Revert if somehow a misconfigured token made it in here.
-            if (eToken.isBorrowable()) {
+            if (!eToken.isBorrowable()) {
                 _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
             }
 
@@ -870,7 +870,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         _checkEmergencyCouncilPermissions();
 
         if (
-            ERC165Checker.supportsInterface(
+            !ERC165Checker.supportsInterface(
                 newTimelock,
                 type(ITimelock).interfaceId
             )
@@ -1102,7 +1102,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate `newAddress` is not currently supported.
         if (hasAuctionPermissions[newAddress]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
         hasAuctionPermissions[newAddress] = true;
@@ -1120,7 +1120,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate `addressApproved` is currently supported.
         if (!hasAuctionPermissions[addressApproved]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
         delete hasAuctionPermissions[addressApproved];

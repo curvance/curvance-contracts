@@ -455,7 +455,7 @@ contract OracleManager is IOracleManager {
         // Query the exchange rate between mToken and its underlying token
         // and convert the price into WAD form.
         if (mAsset != address(0)) {
-            price = (price * IMToken(mAsset).exchangeRateCached()) / WAD;
+            price = (price * IMToken(mAsset).exchangeRate()) / WAD;
         }
 
         // If somehow a feed returns a price of 0,

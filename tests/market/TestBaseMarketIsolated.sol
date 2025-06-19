@@ -33,6 +33,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
+import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 
 contract TestBaseMarketIsolated is TestBase {
     struct PerChainData {
@@ -78,6 +79,7 @@ contract TestBaseMarketIsolated is TestBase {
     }
 
     function _deployBaseContracts() internal {
+        _deployDAOTimelock();
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();
@@ -86,6 +88,7 @@ contract TestBaseMarketIsolated is TestBase {
         _deployMessagingHub();
         _deployVotingHub();
         _deployFeeManager();
+
 
         vm.warp(centralRegistry.genesisEpoch());
         rewardManager.startRewardManager();
@@ -96,7 +99,7 @@ contract TestBaseMarketIsolated is TestBase {
             block.chainid
         ] = new CentralRegistry(
             _ZERO_ADDRESS,
-            _ZERO_ADDRESS,
+            address(daoTimelock),
             _ZERO_ADDRESS,
             block.timestamp + 1,
             address(0),
@@ -130,6 +133,12 @@ contract TestBaseMarketIsolated is TestBase {
             address(0)
         );
         centralRegistry.setCVE(address(cve));
+    }
+
+    function _deployDAOTimelock() internal initMainVariables {
+        daoTimelock = daoTimelocks[block.chainid] = new DAOTimelock(
+            ICentralRegistry(address(centralRegistry))
+        );
     }
 
     function _deployRewardManager() internal initMainVariables {

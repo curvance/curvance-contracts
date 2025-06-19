@@ -26,6 +26,7 @@ import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
+import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 
 import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
 
@@ -104,6 +105,7 @@ contract TestVariables {
     MarketManagerIsolated public marketManagerIsolated;
     OracleManager public oracleManager;
     AuxiliaryData public auxiliaryData;
+    DAOTimelock public daoTimelock;
     EToken public eUSDC;
     EToken public eDAI;
 
@@ -146,6 +148,7 @@ contract TestVariables {
     mapping(uint256 => ChainlinkAdaptor) public dualChainlinkAdaptors;
     mapping(uint256 => MarketManagerIsolated) public marketManagersIsolated;
     mapping(uint256 => AuxiliaryData) public auxiliaryDatas;
+    mapping(uint256 => DAOTimelock) public daoTimelocks;
     mapping(uint256 => OracleManager) public oracleManagers;
     mapping(uint256 => EToken) public eUSDCs;
     mapping(uint256 => EToken) public eDAIs;

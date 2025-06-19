@@ -71,6 +71,8 @@ interface IMToken {
 
     /// @notice Returns share -> asset exchange rate, in `WAD`.
     /// @dev Oracle Manager calculates mToken value from this exchange rate.
+    function exchangeRate() external view returns (uint256);
+
     function exchangeRateCached() external view returns (uint256);
 
     /// @notice Executes multiple calls in a single transaction.

@@ -11,12 +11,14 @@ contract BasicSettersTest is TestBaseMarketIsolated {
     string[] public getters;
     string[] public expectedLogs;
 
+    event debugUint(uint256);
+
     function setUp() public virtual override {
         super.setUp();
 
         centralRegistry = new CentralRegistry(
             _ZERO_ADDRESS,
-            _ZERO_ADDRESS,
+            address(daoTimelock),
             _ZERO_ADDRESS,
             block.timestamp + 1,
             address(0),
@@ -55,6 +57,8 @@ contract BasicSettersTest is TestBaseMarketIsolated {
             "CVE",
             "VeCVE",
             "Reward Manager",
+            "Gauge Manager",
+            "Voting Hub",
             "Messaging Hub",
             "Oracle Manager",
             "Fee Manager",
@@ -87,6 +91,8 @@ contract BasicSettersTest is TestBaseMarketIsolated {
         uint8 length = uint8(setters.length);
         for (uint256 i; i < length; i++) {
             address newAddr = user1;
+
+            emit debugUint(i);
 
             vm.expectEmit(true, true, true, true);
             emit CoreContractUpdated(expectedLogs[i], newAddr);

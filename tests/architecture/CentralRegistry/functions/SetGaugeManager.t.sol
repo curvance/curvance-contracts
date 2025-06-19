@@ -15,7 +15,7 @@ contract SetGaugeManagerTest is TestBaseMarketIsolated {
 
         centralRegistry = new CentralRegistry(
             _ZERO_ADDRESS,
-            _ZERO_ADDRESS,
+            address(daoTimelock),
             _ZERO_ADDRESS,
             block.timestamp + 1,
             address(0),
@@ -33,6 +33,9 @@ contract SetGaugeManagerTest is TestBaseMarketIsolated {
     }
 
     function test_setGaugeManager_fail_whenGenesisEpochHasStarted() public {
+
+        centralRegistry.setGaugeManager(address(gaugeManager));
+        
         // Set genesis epoch to the past
         vm.warp(block.timestamp + 2);
 

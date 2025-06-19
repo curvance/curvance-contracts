@@ -12,7 +12,6 @@ contract TestBaseEToken is TestBaseMarketIsolated {
     function setUp() public virtual override {
         super.setUp();
 
-        // use mock pricing for testing
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
@@ -61,19 +60,16 @@ contract TestBaseEToken is TestBaseMarketIsolated {
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
-        _prepareUSDC(user1, _ONE);
-        _prepareUSDC(address(this), _ONE);
-
-        vm.prank(user1);
-        usdc.approve(address(eUSDC), _ONE);
-
-        usdc.approve(address(eUSDC), _ONE);
-
-        eUSDC.depositReserves(1000e6);
-        _prepareBALRETH(address(this), 10e18);
-        balRETH.approve(address(pBALRETH), 10e18);
+        _prepareUSDC(address(this), _ONE + 77777);
+        _prepareBALRETH(address(this), 10e18 + 77777);
+        
+        usdc.approve(address(eUSDC), _ONE + 77777);
+        balRETH.approve(address(pBALRETH), 10e18 + 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        
+        
+        // Configure position token
         marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
@@ -87,11 +83,15 @@ contract TestBaseEToken is TestBaseMarketIsolated {
             1000     // baseCFactor 10%
         );
 
+        // Set collateral caps
         address[] memory tokens = new address[](1);
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
+
+        eUSDC.depositReserves(1000e6);
+        
 
         pBALRETH.mint(_ONE, address(this));
     }

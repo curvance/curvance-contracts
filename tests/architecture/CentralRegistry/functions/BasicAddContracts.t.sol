@@ -60,6 +60,7 @@ contract BasicAddContractsTest is TestBaseMarketIsolated {
 
     function test_addFunc_fail_whenParametersMisconfigured() public {
         uint8 length = uint8(addFuncs.length);
+        
         for (uint256 i; i < length; i++) {
             bytes memory sig = abi.encodeWithSignature(addFuncs[i], user1);
             (bool success, bytes memory data) = address(centralRegistry).call(

@@ -28,7 +28,7 @@ contract StrategyCTokenTransferTest is TestBaseStrategyCToken {
         marketManagerIsolated.setTransferPaused(true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        pBALRETH.transfer(user1, 0);
+        pBALRETH.transfer(user1, 1e18);
     }
 
     function test_strategyCTokenTransfer_success() public {

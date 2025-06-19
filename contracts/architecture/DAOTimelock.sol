@@ -35,14 +35,14 @@ contract DAOTimelock is TimelockController, ERC165 {
             address(0)
         )
     {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert Timelock__InvalidCentralRegistry(address(centralRegistry_));
-        }
+        // if (
+        //     !ERC165Checker.supportsInterface(
+        //         address(centralRegistry_),
+        //         type(ICentralRegistry).interfaceId
+        //     )
+        // ) {
+        //     revert Timelock__InvalidCentralRegistry(address(centralRegistry_));
+        // }
 
         centralRegistry = centralRegistry_;
 

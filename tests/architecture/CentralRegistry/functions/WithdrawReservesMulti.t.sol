@@ -13,8 +13,10 @@ contract WithdrawReservesMultiTest is TestBaseMarketIsolated {
         eTokens.push(address(eDAI));
 
         _prepareDAI(address(this), 1000e18);
+        _prepareBALRETH(address(this), 1000e18);
 
         dai.approve(address(eDAI), 1000e18);
+        balRETH.approve(address(pBALRETH), 1000e18);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
     }

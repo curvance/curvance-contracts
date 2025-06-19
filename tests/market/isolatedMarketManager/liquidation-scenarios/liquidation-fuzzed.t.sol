@@ -21,7 +21,7 @@ import "forge-std/console2.sol";
 // 5. Use liquidate() to liquidate the position.
 // 6. Assert all liquidation values match expected values
 
-contract StructuredLiquidationTest is TestBaseMarketManagerIsolated {
+contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
 
     address borrower = makeAddr("borrower");
 

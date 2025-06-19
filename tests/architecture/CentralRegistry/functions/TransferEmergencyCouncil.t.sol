@@ -4,6 +4,8 @@ pragma solidity 0.8.26;
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 contract TransferEmergencyCouncilTest is TestBaseMarketIsolated {
     address public newEmergencyCouncil1 = address(1001);
     address public newEmergencyCouncil2 = address(1002);
@@ -43,7 +45,8 @@ contract TransferEmergencyCouncilTest is TestBaseMarketIsolated {
         assertTrue(
             centralRegistry.hasElevatedPermissions(newEmergencyCouncil1)
         );
-        assertTrue(centralRegistry.hasElevatedPermissions(address(this)));
+        // No longer true because we aren't using address(this) as the timelock anymore in tests
+        assertFalse(centralRegistry.hasElevatedPermissions(address(this)));
 
         vm.expectEmit(true, true, true, true);
         emit PermissionsTransferred(
