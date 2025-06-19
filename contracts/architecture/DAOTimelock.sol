@@ -89,15 +89,10 @@ contract DAOTimelock is TimelockController, ERC165, ITimelock {
         _checkCanCancel();
 
         if (!isOperationPending(id)) {
-            revert TimelockUnexpectedOperationState(
-                id,
-                _encodeStateBitmap(
-                    OperationState.Waiting
-                ) | _encodeStateBitmap(OperationState.Ready)
-            );
+            revert DAOTimelock__InvalidParameter();
         }
-        delete _timestamps[id];
 
+        delete _timestamps[id];
         emit Cancelled(id);
     }
 

@@ -852,7 +852,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         // Notify Timelock Controller of a DAO address update.
         if (timelock != address(0)) {
             if (
-                !ERC165Checker.supportsInterface(
+                ERC165Checker.supportsInterface(
                     timelock,
                     type(ITimelock).interfaceId
                 )
