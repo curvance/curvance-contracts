@@ -101,7 +101,8 @@ abstract contract PluginDelegable is IPluginDelegable {
     ///             permissions for.
     /// @param delegate The address to check delegation permissions of `user`.
     /// @return result Indicates whether `delegate` is an approved delegate or
-    ///                not of `user`, true = disabled, false = not disabled.
+    ///                not of `user`, true = is a delegate, false = is not
+    ///                a delegate.
     function isDelegate(
         address user,
         address delegate

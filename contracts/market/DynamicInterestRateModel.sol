@@ -80,7 +80,7 @@ import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol"
 ///            mentioning.
 ///
 ///            If implementing this dynamic interest rate model, its suggested
-///            to not play too much with `MAX_VERTEX_ADJUSTMENT_RATE` because 
+///            to not play too much with `_MAX_VERTEX_ADJUSTMENT_RATE` because 
 ///            a user can try to "game" the multiplier updates by borrowing
 ///            large amounts to increase borrow rates, and repaying 20 minutes
 ///            later. Or lending a bunch to "suppress" interest rates, with
@@ -130,34 +130,62 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// CONSTANTS ///
 
+    
+    /// @notice Curvance DAO hub.
+    ICentralRegistry public immutable centralRegistry;
+
     /// @notice Maximum Rate at which the vertex multiplier will
     ///         decay per adjustment, in `WAD`.
     /// @dev .05e18 = 5%.
-    uint256 public constant MAX_VERTEX_DECAY_RATE = .05e18;
+    uint256 internal constant _MAX_VERTEX_DECAY_RATE = .05e18;
     /// @notice The maximum frequency in which the vertex can have
     ///         between adjustments. It is important that this value is not
     ///         too high as users could in theory borrow a ton of assets
     ///         right before adjustment shifts, artificially increasing rates.
-    uint256 public constant MAX_VERTEX_ADJUSTMENT_RATE = 4 hours;
+    uint256 internal constant _MAX_VERTEX_ADJUSTMENT_RATE = 4 hours;
     /// @notice The minimum frequency in which the vertex can have
     ///         between adjustments.
-    uint256 public constant MIN_VERTEX_ADJUSTMENT_RATE = 20 minutes;
+    uint256 internal constant _MIN_VERTEX_ADJUSTMENT_RATE = 20 minutes;
     /// @notice The maximum rate at with the vertex multiplier is adjusted,
     ///         in WAD on top of base rate (1 `WAD`).
     ///         E.g. 1 * WAD = 200% multiplied to vertex interest rate per
     ///         adjustment at 100% utilization,
     ///         due to 100% (in WAD) applied on top.
-    uint256 public constant MAX_VERTEX_ADJUSTMENT_VELOCITY = 1e18;
+    uint256 internal constant _MAX_VERTEX_ADJUSTMENT_VELOCITY = 1e18;
     /// @notice The minimum rate at with the vertex multiplier is adjusted,
     ///         in WAD on top of base rate (1 `WAD`).
     ///         E.g. 0.1 * WAD = 110% multiplied to vertex interest rate per
     ///         adjustment at 100% utilization,
     ///         due to 100% (in WAD) applied on top.
-    uint256 public constant MIN_VERTEX_ADJUSTMENT_VELOCITY = 0.1e18;
-
-    /// @notice Curvance DAO hub.
-    ICentralRegistry public immutable centralRegistry;
-
+    uint256 internal constant _MIN_VERTEX_ADJUSTMENT_VELOCITY = 0.1e18;
+    /// @notice The maximum value that the vertex interest rate can
+    ///         be set to begin at, in `WAD`.
+    ///         E.g. 0.99 * WAD = Vertex rate begins at 99% utilization.
+    uint256 internal constant _MAX_VERTEX_UTIL_START = 0.99e18;
+    /// @notice The maximum value that the annual base interest rate can
+    ///         be set to, in `WAD`.
+    ///         E.g. 150 * WAD = 150% Base Interest Rate value at
+    ///         `vertexStartingPoint` % borrowing utilization.
+    uint256 internal constant _MAX_BASE_INTEREST_RATE_PER_YEAR = 150e18;
+    /// @notice The maximum value that the annual vertex interest rate can
+    ///         be set to, in `WAD`.
+    ///         E.g. 100 * WAD = 200% Vertex Interest Rate value at
+    ///         100% borrowing utilization.
+    uint256 internal constant _MAX_VERTEX_INTEREST_RATE_PER_YEAR = 200e18;
+    /// @notice The maximum value that the `vertexMultiplierMax` can be set
+    ///         to, in `WAD`.
+    ///         E.g. 1 * WAD = 100% Maximum vertex multiplier maximum value.
+    /// @dev Our theoretical limit for the vertex multiplier is:
+    ///      (2^256 - 1) / 3e36 = 3.8597e40.
+    ///      Where 3e36 is the theoretical maximum value of shift and
+    ///      2^256 - 1 is type(uint256).max.
+    ///      As a result, we cap the vertex maximum before this number to
+    ///      prevent any overflows on values.
+    uint256 internal constant _MAXIMUM_VERTEX_MULTIPLIER_MAX = 1e40;
+    /// @notice The minimum value that the `vertexMultiplierMax` can be set
+    ///         to, in `WAD`.
+    ///         E.g. 1 * WAD = 100% Minimum vertex multiplier maximum value.
+    uint256 internal constant _MINIMUM_VERTEX_MULTIPLIER_MAX = 1e18;
     /// @notice Rate at which interest is compounded, in seconds.
     /// @dev 10 minutes = 600 seconds.
     uint256 internal constant _INTEREST_ACCRUAL_PERIOD = 10 minutes;
@@ -216,6 +244,8 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     error DynamicInterestRateModel__Unauthorized();
     error DynamicInterestRateModel__InvalidToken();
     error DynamicInterestRateModel__InvalidCentralRegistry();
+    error DynamicInterestRateModel__InvalidUtilizationStart();
+    error DynamicInterestRateModel__InvalidInterestRatePerYear();
     error DynamicInterestRateModel__InvalidAdjustmentRate();
     error DynamicInterestRateModel__InvalidAdjustmentVelocity();
     error DynamicInterestRateModel__InvalidDecayRate();
@@ -706,34 +736,43 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         vertexMultiplierMax = _bpToWad(vertexMultiplierMax);
         decayRate = _bpToWad(decayRate);
 
+        if (vertexUtilStart > _MAX_VERTEX_UTIL_START) {
+            revert DynamicInterestRateModel__InvalidUtilizationStart();
+        }
+
+        if (baseRatePerYear > _MAX_BASE_INTEREST_RATE_PER_YEAR) {
+            revert DynamicInterestRateModel__InvalidInterestRatePerYear();
+        }
+
+        if (vertexRatePerYear > _MAX_VERTEX_INTEREST_RATE_PER_YEAR) {
+            revert DynamicInterestRateModel__InvalidInterestRatePerYear();
+        }
+
+        // Validate Decay rate is below the maximum bound.
+        if (decayRate > _MAX_VERTEX_DECAY_RATE) {
+            revert DynamicInterestRateModel__InvalidDecayRate();
+        }
+
         // Validate Adjustment Velocity is in acceptable bounds.
         if (
-            adjustmentVelocity > MAX_VERTEX_ADJUSTMENT_VELOCITY ||
-            adjustmentVelocity < MIN_VERTEX_ADJUSTMENT_VELOCITY
+            adjustmentVelocity > _MAX_VERTEX_ADJUSTMENT_VELOCITY ||
+            adjustmentVelocity < _MIN_VERTEX_ADJUSTMENT_VELOCITY
         ) {
             revert DynamicInterestRateModel__InvalidAdjustmentVelocity();
         }
 
         // Validate Adjustment Rate is in acceptable bounds.
         if (
-            adjustmentRate > MAX_VERTEX_ADJUSTMENT_RATE ||
-            adjustmentRate < MIN_VERTEX_ADJUSTMENT_RATE
+            adjustmentRate > _MAX_VERTEX_ADJUSTMENT_RATE ||
+            adjustmentRate < _MIN_VERTEX_ADJUSTMENT_RATE
         ) {
             revert DynamicInterestRateModel__InvalidAdjustmentRate();
         }
 
-        // Validate Decay rate is below the maximum bound.
-        if (decayRate > MAX_VERTEX_DECAY_RATE) {
-            revert DynamicInterestRateModel__InvalidDecayRate();
-        }
-
-        // Our theoretical limit for the vertex multiplier is:
-        // (2^256 - 1) / 3e36 = 3.8597e40.
-        // Where 3e36 is the theoretical maximum value of shift and
-        // 2^256 - 1 is type(uint256).max.
-        // As a result, we cap the vertex maximum before this number to
-        // prevent any overflows on values.
-        if (vertexMultiplierMax > 1e40) {
+        if (
+            vertexMultiplierMax > _MAXIMUM_VERTEX_MULTIPLIER_MAX ||
+            vertexMultiplierMax < _MINIMUM_VERTEX_MULTIPLIER_MAX
+        ) {
             revert DynamicInterestRateModel__InvalidMultiplierMax();
         }
 
