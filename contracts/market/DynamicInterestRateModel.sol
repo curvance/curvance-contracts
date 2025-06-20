@@ -164,14 +164,14 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     uint256 internal constant _MAX_VERTEX_UTIL_START = 0.99e18;
     /// @notice The maximum value that the annual base interest rate can
     ///         be set to, in `WAD`.
-    ///         E.g. 150 * WAD = 150% Base Interest Rate value at
+    ///         E.g. 1.5 * WAD = 150% Base Interest Rate value at
     ///         `vertexStartingPoint` % borrowing utilization.
-    uint256 internal constant _MAX_BASE_INTEREST_RATE_PER_YEAR = 150e18;
+    uint256 internal constant _MAX_BASE_INTEREST_RATE_PER_YEAR = 1.5e18;
     /// @notice The maximum value that the annual vertex interest rate can
     ///         be set to, in `WAD`.
-    ///         E.g. 100 * WAD = 200% Vertex Interest Rate value at
+    ///         E.g. 2 * WAD = 200% Vertex Interest Rate value at
     ///         100% borrowing utilization.
-    uint256 internal constant _MAX_VERTEX_INTEREST_RATE_PER_YEAR = 200e18;
+    uint256 internal constant _MAX_VERTEX_INTEREST_RATE_PER_YEAR = 2e18;
     /// @notice The maximum value that the `vertexMultiplierMax` can be set
     ///         to, in `WAD`.
     ///         E.g. 1 * WAD = 100% Maximum vertex multiplier maximum value.

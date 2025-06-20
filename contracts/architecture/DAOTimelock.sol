@@ -147,7 +147,7 @@ contract DAOTimelock is TimelockController, ERC165, ITimelock {
     function _checkCanCancel() internal view {
         if (
             _msgSender() != centralRegistry.emergencyCouncil() &&
-            !hasRole(role, _msgSender())
+            !hasRole(CANCELLER_ROLE, _msgSender())
             ) {
                 revert DAOTimelock__Unauthorized();
         }
