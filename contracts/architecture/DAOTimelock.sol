@@ -9,7 +9,6 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 
-///
 /// @title DAO Timelock
 /// @notice A timelock controller for the Curvance DAO that enforces a delay
 ///         period before administrative operations can be executed.
@@ -26,9 +25,9 @@ import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 ///   proposals.
 ///
 /// This implementation:
-/// - Stays in sync with DAO address changes through the CentralRegistry.
-/// - Grants the DAO address both proposer and executor roles.
-/// - Supports interface detection via ERC165.
+/// - Stays in sync with permissioned addresses changes through the
+///   CentralRegistry.
+/// - Grants the DAO address both proposer/executor/canceller roles.
 ///
 contract DAOTimelock is TimelockController, ERC165, ITimelock {
     /// CONSTANTS ///
