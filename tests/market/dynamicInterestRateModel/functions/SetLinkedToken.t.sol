@@ -5,8 +5,8 @@ import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateMo
 import { EToken } from "contracts/market/token/EToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract SetLinkedETokenTest is TestBaseDynamicInterestRateModel {
-    event EarnTokenLinked(address eTokenAddress);
+contract SetLinkedTokenTest is TestBaseDynamicInterestRateModel {
+    event TokenLinked(address eTokenAddress);
 
     EToken public eToken;
 
@@ -31,7 +31,7 @@ contract SetLinkedETokenTest is TestBaseDynamicInterestRateModel {
         );
     }
 
-    function test_setLinkedEToken_fail_whenCallerIsNotAuthorized() public {
+    function test_setLinkedToken_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(1));
 
         vm.expectRevert(
@@ -39,46 +39,46 @@ contract SetLinkedETokenTest is TestBaseDynamicInterestRateModel {
                 .DynamicInterestRateModel__Unauthorized
                 .selector
         );
-        interestRateModel.setLinkedEToken(address(eToken));
+        interestRateModel.setLinkedToken(address(eToken));
     }
 
-    function test_setLinkedEToken_fail_whenETokenHasAlreadyLinked() public {
-        interestRateModel.setLinkedEToken(address(eToken));
+    function test_setLinkedToken_fail_whenETokenHasAlreadyLinked() public {
+        interestRateModel.setLinkedToken(address(eToken));
 
         vm.expectRevert(
             DynamicInterestRateModel
                 .DynamicInterestRateModel__Unauthorized
                 .selector
         );
-        interestRateModel.setLinkedEToken(address(eToken));
+        interestRateModel.setLinkedToken(address(eToken));
     }
 
-    function test_setLinkedEToken_fail_whenETokenIsPToken() public {
+    function test_setLinkedToken_fail_whenETokenIsPToken() public {
         vm.expectRevert(
             DynamicInterestRateModel
                 .DynamicInterestRateModel__InvalidToken
                 .selector
         );
-        interestRateModel.setLinkedEToken(address(pBALRETH));
+        interestRateModel.setLinkedToken(address(pBALRETH));
     }
 
-    function test_setLinkedEToken_fail_whenInterestRateModelMismatch() public {
+    function test_setLinkedToken_fail_whenInterestRateModelMismatch() public {
         vm.expectRevert(
             DynamicInterestRateModel
                 .DynamicInterestRateModel__InvalidToken
                 .selector
         );
-        interestRateModel.setLinkedEToken(address(eDAI));
+        interestRateModel.setLinkedToken(address(eDAI));
     }
 
-    function test_setLinkedEToken_success() public {
-        assertEq(interestRateModel.linkedEToken(), _ZERO_ADDRESS);
+    function test_setLinkedToken_success() public {
+        assertEq(interestRateModel.linkedToken(), _ZERO_ADDRESS);
 
         vm.expectEmit(true, true, true, true);
-        emit EarnTokenLinked(address(eToken));
+        emit TokenLinked(address(eToken));
 
-        interestRateModel.setLinkedEToken(address(eToken));
+        interestRateModel.setLinkedToken(address(eToken));
 
-        assertEq(interestRateModel.linkedEToken(), address(eToken));
+        assertEq(interestRateModel.linkedToken(), address(eToken));
     }
 }

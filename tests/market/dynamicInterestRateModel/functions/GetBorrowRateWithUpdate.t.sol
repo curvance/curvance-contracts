@@ -12,7 +12,7 @@ contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
     uint256 public util;
     uint256 public vertexMultiplier;
 
-    function test_getBorrowRateWithUpdate_fail_whenCallerIsNotLinkedEToken()
+    function test_getBorrowRateWithUpdate_fail_whenCallerIsNotLinkedToken()
         public
     {
         vm.expectRevert(

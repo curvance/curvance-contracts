@@ -439,7 +439,7 @@ contract TestBaseMarketIsolated is TestBase {
             _deployDynamicInterestRateModel(token)
         );
 
-        interestRateModels[block.chainid][token].setLinkedEToken(
+        interestRateModels[block.chainid][token].setLinkedToken(
             address(eToken)
         );
 

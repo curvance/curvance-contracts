@@ -88,7 +88,7 @@ abstract contract BaseCToken is
 
     /// @notice Amount of tokens that has been posted as collateral,
     ///         in shares.
-    uint256 marketCollateralPosted;
+    uint256 public marketCollateralPosted;
 
     /// @notice Token name metadata.
     string internal _name;

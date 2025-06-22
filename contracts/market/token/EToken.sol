@@ -251,8 +251,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         }
 
         // Validate that the interest rate model has been properly linked
-        // to this earn token contract.
-        if (interestRateModel.linkedEToken() != address(this)) {
+        // to this token contract.
+        if (interestRateModel.linkedToken() != address(this)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 

@@ -5,9 +5,8 @@ import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken, IInterestRateModel } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
 
 /// @title Curvance Dynamic Interest Rate Model.
 /// @notice Manages borrow and supply interest rates for Curvance debt tokens.
@@ -69,15 +68,15 @@ import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol"
 ///         is also subjected to the decay multiplier.
 ///
 ///      NOTE: The Dynamic Interest Rate model will not be able to update its
-///            modifier until an earn token is properly linked to it via
-///            setLinkedEToken().
+///            modifier until a borrowable Curvance token is properly linked
+///            to it via setlinkedToken().
 ///
-///            If an earn token updates to another dynamic interest rate model
-///            contract then this contract theoretically can still be called
-///            by it afterwards if the smart contract was malformed, this does
-///            not really have any tangible impact but for developers who may
-///            adapt this smart contract in the future, I figure its worth
-///            mentioning.
+///            If a borrowable Curvance token updates to another dynamic
+///            interest rate model contract then this contract theoretically
+///            can still be called by it afterwards if the smart contract was
+///            malformed, this does not really have any tangible impact but
+///            for developers who may adapt this smart contract in the future,
+///            I figure its worth mentioning.
 ///
 ///            If implementing this dynamic interest rate model, its suggested
 ///            to not play too much with `_MAX_VERTEX_ADJUSTMENT_RATE` because 
@@ -203,13 +202,14 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// STORAGE ///
 
-    /// @notice The earn token linked to this interest rate model contract.
-    /// @dev Once this earn token is set it can never be changed again
+    /// @notice The borrowable Curvance token linked to this interest rate
+    ///         model contract.
+    /// @dev Once this token is set it can never be changed again
     ///      replicating an immutable value, it also will be completely
-    ///      depreciated if that earn token ever switches to another
+    ///      depreciated if that token ever switches to another
     ///      interest rate model, automatically depreciating this
     ///      implementation.
-    address public linkedEToken;
+    address public linkedToken;
 
     /// @notice Struct containing current configuration data for the
     ///         dynamic interest rate model.
@@ -237,7 +237,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         bool vertexReset
     );
 
-    event EarnTokenLinked(address eTokenAddress);
+    event TokenLinked(address cTokenAddress);
 
     /// ERRORS ///
 
@@ -304,41 +304,42 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Sets the dynamic interest rate model's linked earn token
-    ///         (eToken) which interest rates this contract will manage.
+    /// @notice Sets the dynamic interest rate model's linked borrowable
+    ///         Curvance token (cToken) which interest rates this contract
+    ///         will manage.
     /// @dev Once this function is properly it can never be called again.
-    /// @param eTokenAddress The address of the earn token to be linked
+    /// @param cTokenAddress The address of the token to be linked
     ///                      to this interest rate model contract.
-    function setLinkedEToken(address eTokenAddress) external {
+    function setlinkedToken(address cTokenAddress) external {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Validate that an earn token has not already been linked to this
-        // smart contract.
-        if (linkedEToken != address(0)) {
+        // Validate that a borrowable Curvance token has not already been
+        // linked to this smart contract.
+        if (linkedToken != address(0)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Validate that the token being linked is actually an earn token
-        // and not a position token, if the token is not an mToken at all
-        // this will also natively fail, which is fine too.
-        if (IEToken(eTokenAddress).isPToken()) {
+        // Validate that the token being linked is actually a borrowable token
+        // if the token is not a Curvance token this will also natively fail,
+        // which is fine too.
+        if (IBorrowableCToken(cTokenAddress).isBorrowable()) {
             _revert(_INVALID_TOKEN_SELECTOR);
         }
 
-        // Validate that the earn token is actually expecting this interest
+        // Validate that the token is actually expecting this interest
         // rate model to be linked to it.
         if (
-            address(IEToken(eTokenAddress).interestRateModel()) !=
+            address(IBorrowableCToken(cTokenAddress).interestRateModel()) !=
             address(this)
         ) {
             _revert(_INVALID_TOKEN_SELECTOR);
         }
 
-        linkedEToken = eTokenAddress;
+        linkedToken = cTokenAddress;
 
-        emit EarnTokenLinked(eTokenAddress);
+        emit TokenLinked(cTokenAddress);
     }
 
     /// @notice Updates the dynamic interest rate model's configuration values
@@ -398,9 +399,9 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 borrows,
         uint256 reserves
     ) external returns (uint256 borrowRate) {
-        // Validate that the linked earn token itself is calling to update
-        // its interest rates.
-        if (msg.sender != linkedEToken) {
+        // Validate that the linked token itself is calling to update
+        // its interest accrued.
+        if (msg.sender != linkedToken) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
