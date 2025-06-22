@@ -214,9 +214,10 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             marketManagerIsolated.addPositionManager(address(positionManagement));
         }
 
-        address[] memory multicallProviders = new address[](2);
+        address[] memory multicallProviders = new address[](3);
         multicallProviders[0] = address(pWBTC);
         multicallProviders[1] = address(positionManagement);
+        multicallProviders[2] = address(eWETH);
         centralRegistry.setMulticallProviders(multicallProviders, true);
 
         centralRegistry.setExternalCalldataChecker(

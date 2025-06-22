@@ -16,6 +16,7 @@ contract TestOracleManager is TestBaseOracleManager {
     function setUp() public override {
         _fork("ETH_NODE_URI_OPTIMISM", 110333246);
 
+        _deployDAOTimelock();
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();

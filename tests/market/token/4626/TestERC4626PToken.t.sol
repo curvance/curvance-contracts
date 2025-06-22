@@ -16,6 +16,7 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
 
         _USDC_ADDRESSES[1] = address(new MockERC20Token());
 
+        _deployDAOTimelock();
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();

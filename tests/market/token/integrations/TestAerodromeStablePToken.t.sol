@@ -43,6 +43,7 @@ contract TestAerodromeStablePToken is TestBaseMarketIsolated {
     function setUp() public override {
         _fork("ETH_NODE_URI_BASE", 19000000);
 
+        _deployDAOTimelock();
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();

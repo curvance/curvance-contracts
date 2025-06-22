@@ -17,6 +17,7 @@ contract TestApi3Adaptor is TestBaseOracleManager {
     function setUp() public override {
         _fork("ETH_NODE_URI_ARBITRUM", 174096479);
 
+        _deployDAOTimelock();
         _deployCentralRegistry();
         _deployOracleManager();
 

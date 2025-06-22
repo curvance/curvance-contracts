@@ -36,6 +36,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
     function setUp() public override {
         _fork(20287400);
 
+        _deployDAOTimelock();
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();

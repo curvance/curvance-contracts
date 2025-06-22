@@ -19,8 +19,6 @@ import { SimplePositionManager } from "contracts/market/position-management/Simp
 
 import "tests/market/TestBaseMarketIsolated.sol";
 
-contract User {}
-
 contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
@@ -86,8 +84,9 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             redstoneSigners,
             3
         );
-        adapter.addAsset(_WBTC_ADDRESS, true, 8, 12 hours);
-        adapter.addAsset(_WBTC_ADDRESS, false, 18, 12 hours);
+
+        adapter.addAsset(_WBTC_ADDRESS, true, 8, 10 minutes);
+        adapter.addAsset(_WBTC_ADDRESS, false, 18, 10 minutes);
 
         multicallChecker = new RedstoneAdaptorMulticallChecker(
             address(centralRegistry)
@@ -210,10 +209,16 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             _UNISWAP_V3_SWAP_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
+
+        address[] memory multicallProviders = new address[](3);
+        multicallProviders[0] = address(pWBTC);
+        multicallProviders[1] = address(positionManagement);
+        multicallProviders[2] = address(eUSDC);
+        centralRegistry.setMulticallProviders(multicallProviders, true);
     }
 
     function provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = address(new User());
+        address liquidityProvider = address(user2);
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareWBTC(liquidityProvider, 10 ether);
         // mint eUSDC
