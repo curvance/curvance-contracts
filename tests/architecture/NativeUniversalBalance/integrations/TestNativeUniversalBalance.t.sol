@@ -118,17 +118,13 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             address(marketManagerIsolated)
         );
 
-        // Move WBTC preparation AFTER creating cWBTC
         _prepareWBTC(owner, 1e8);
         wbtc.approve(address(cWBTC), 1e8);
 
-        // 1. FIRST: List the tokens
         marketManagerIsolated.listTokens(address(cWBTC), address(eWETH));
 
-        // 2. THEN: Add MToken support
         oracleManager.addMTokenSupport(address(cWBTC));
 
-        // 3. FINALLY: Update position token configuration
         marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
@@ -148,11 +144,10 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         caps[0] = 100e8;
         marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
-        // Add debt caps for eWETH
         address[] memory eTokens = new address[](1);
         eTokens[0] = address(eWETH);
         uint256[] memory debtCaps = new uint256[](1);
-        debtCaps[0] = 1000e18;  // Set a reasonable debt cap for WETH borrowing
+        debtCaps[0] = 1000e18;  
         marketManagerIsolated.setDebtCaps(eTokens, debtCaps);
 
         owners.push(user2);
