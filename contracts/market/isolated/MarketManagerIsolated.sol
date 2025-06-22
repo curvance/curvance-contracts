@@ -573,7 +573,6 @@ contract MarketManagerIsolated is
         IMarketManager.LiqResults memory results,
         uint256[] memory
     ) {
-        _checkIsToken(instructions.eToken);
         (
             CachedLiqData memory cachedData,
             AuctionLiqData memory auctionData
@@ -1711,7 +1710,7 @@ contract MarketManagerIsolated is
         // Cache all variables needed for computing liquidation levels and
         // compress into one struct for stack too deep limits.
         cachedData.pToken = pToken;
-        cachedData.pTokenExchangeRate = IPToken(pToken).exchangeRateCached();
+        cachedData.pTokenExchangeRate = IPToken(pToken).exchangeRate();
         cachedData.pTokenCollReqSoft = tokenData[pToken].collReqSoft;
         cachedData.pTokenCollReqHard = tokenData[pToken].collReqHard;
         cachedData.pTokenDecimals = 10 ** IERC20(pToken).decimals();

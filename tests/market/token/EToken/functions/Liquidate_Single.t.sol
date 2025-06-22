@@ -8,6 +8,8 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { WAD } from "contracts/libraries/Constants.sol";
 import "forge-std/console2.sol";
 
+// TODO: canLiquidate is no longer callable by anyone!
+
 contract LiquidateSingleTest is TestBaseETokenIsolated {
 
     uint256 eTokenUnderlyingPrice = 1e18;

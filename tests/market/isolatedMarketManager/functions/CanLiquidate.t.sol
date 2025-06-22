@@ -32,6 +32,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             badDebt: 0
         });
 
+        vm.prank(address(eUSDC));
+
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.canLiquidate(
             address(this),
@@ -51,6 +53,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             cTokenLiquidated: 0,
             badDebt: 0
         });
+
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.canLiquidate(
@@ -79,6 +83,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             badDebt: 0
         });
 
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InvalidParameter.selector
@@ -121,6 +126,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             badDebt: 0
         });
 
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
@@ -165,6 +171,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             badDebt: 0
         });
 
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
@@ -242,6 +249,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             badDebt: 0
         });
 
+        vm.prank(address(eUSDC));
+
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
         );
@@ -280,6 +289,10 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
+        
+        caps[0] = 100_000e6;
+        tokens[0] = address(eUSDC);
+        marketManagerIsolated.setDebtCaps(tokens, caps);
 
         _setupUserPositionAndOracles();
 
@@ -297,7 +310,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         mockWethFeed.setMockAnswer(1000e8);
         mockRethFeed.setMockAnswer(1000e8);
 
-
+        vm.prank(address(eUSDC));
 
         // =================== RESULTS ==================
         (

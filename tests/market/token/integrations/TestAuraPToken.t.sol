@@ -129,6 +129,11 @@ contract TestAuraCToken is TestBaseMarketIsolated {
             address(pBALRETH),
             _ONE
         );
+
+        _prepareUSDC(address(this), 1000e6);
+
+        usdc.approve(address(eUSDC), type(uint256).max);
+
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
     }
 
@@ -205,6 +210,7 @@ contract TestAuraCToken is TestBaseMarketIsolated {
         );
 
         vm.startPrank(user1);
+        
         pBALRETH.withdraw(pBALRETH.balanceOf(user1), user1, user1);
         vm.stopPrank();
 

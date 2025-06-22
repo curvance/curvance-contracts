@@ -105,6 +105,10 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
 
+        tokens[0] = address(eDAI);
+        caps[0] = 100_000e18;
+        marketManagerIsolated.setDebtCaps(tokens, caps);
+
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();
     }

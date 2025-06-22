@@ -56,13 +56,13 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
-            address(mockUsdcFeed),
+            address(mockWethFeed),
             0,
             true
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
-            address(mockUsdcFeed),
+            address(mockWethFeed),
             0,
             true
         );
@@ -102,12 +102,11 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         vm.roll(block.number + 1000);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockWbtcFeed.updateAnswer(60000e8);
 
         _prepareWETH(owner, 200000 ether);
         weth.approve(address(eWETH), 200000e18);
-        _prepareWBTC(owner, 1e8);
-        wbtc.approve(address(cWBTC), 1e8);
 
         oracleManager.addMTokenSupport(address(eWETH));
         address[] memory markets = new address[](1);
@@ -119,6 +118,17 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             address(marketManagerIsolated)
         );
 
+        // Move WBTC preparation AFTER creating cWBTC
+        _prepareWBTC(owner, 1e8);
+        wbtc.approve(address(cWBTC), 1e8);
+
+        // 1. FIRST: List the tokens
+        marketManagerIsolated.listTokens(address(cWBTC), address(eWETH));
+
+        // 2. THEN: Add MToken support
+        oracleManager.addMTokenSupport(address(cWBTC));
+
+        // 3. FINALLY: Update position token configuration
         marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
@@ -132,16 +142,18 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             2000     // baseCFactor 20%
         );
 
-        // add MToken support on oracle manager
-        oracleManager.addMTokenSupport(address(cWBTC));
-
-        marketManagerIsolated.listTokens(address(eWETH), address(cWBTC));
-
         address[] memory mTokens = new address[](1);
         mTokens[0] = address(cWBTC);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100e8;
         marketManagerIsolated.setCollateralCaps(mTokens, caps);
+
+        // Add debt caps for eWETH
+        address[] memory eTokens = new address[](1);
+        eTokens[0] = address(eWETH);
+        uint256[] memory debtCaps = new uint256[](1);
+        debtCaps[0] = 1000e18;  // Set a reasonable debt cap for WETH borrowing
+        marketManagerIsolated.setDebtCaps(eTokens, debtCaps);
 
         owners.push(user2);
         owners.push(user3);

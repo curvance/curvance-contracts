@@ -86,10 +86,12 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
             // support market
             _prepareBALRETH(owner, 1 ether);
             balRETH.approve(address(pBALRETH), 1 ether);
-
         }
 
-            // set collateral factor
+        // First, list the tokens before updating position token parameters
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
+
+        // Now update the position token parameters
         marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
@@ -102,13 +104,16 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
             5000,    // maxEffectiveCFactor 50%
             1000     // baseCFactor 20%
         );
+        
         address[] memory tokens = new address[](1);
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
+        tokens[0] = address(eDAI);
+        caps[0] = 100_000e18;
+        marketManagerIsolated.setDebtCaps(tokens, caps);
     }
 
     function testInitialize() public {

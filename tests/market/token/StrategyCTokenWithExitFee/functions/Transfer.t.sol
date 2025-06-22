@@ -30,7 +30,7 @@ contract StrategyCTokenWithExitFeeTransferTest is
         marketManagerIsolated.setTransferPaused(true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        pBALRETHWithExitFee.transfer(user1, 0);
+        pBALRETHWithExitFee.transfer(user1, 1e18);
     }
 
     function test_strategyCTokenWithExitFeeTransfer_success() public {

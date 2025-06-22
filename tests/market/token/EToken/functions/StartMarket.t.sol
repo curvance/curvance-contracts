@@ -36,8 +36,11 @@ contract ETokenStartMarketTest is TestBaseEToken {
     }
 
     function test_eTokenStartMarket_success() public {
-        vm.prank(user1);
+        _prepareUSDC(address(user1), 1000e6);
+
+        vm.startPrank(user1);
         SafeTransferLib.safeApprove(_USDC_ADDRESS, address(eUSDC), 1e18);
+        vm.stopPrank();
 
         uint256 totalSupply = eUSDC.totalSupply();
 

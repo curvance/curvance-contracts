@@ -7,6 +7,7 @@ import { IPositionManager } from "./IPositionManager.sol";
 
 struct AccountSnapshot {
     address asset;
+    bool isPToken;
     uint8 decimals;
     uint256 exchangeRate;
     uint256 collateralPosted;

@@ -12,13 +12,15 @@ contract WithdrawReservesMultiTest is TestBaseMarketIsolated {
 
         eTokens.push(address(eDAI));
 
-        _prepareDAI(address(this), 1000e18);
+        _prepareDAI(address(this), 100e18 + 77777);
         _prepareBALRETH(address(this), 1000e18);
 
-        dai.approve(address(eDAI), 1000e18);
+        dai.approve(address(eDAI), 100e18 + 77777);
         balRETH.approve(address(pBALRETH), 1000e18);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
+
+        eDAI.depositReserves(100 ether);
     }
 
     function test_withdrawReservesMulti_fail_whenCallerIsNotAuthorized()

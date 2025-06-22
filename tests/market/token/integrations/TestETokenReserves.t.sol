@@ -108,6 +108,10 @@ contract TestETokenReserves is TestBaseMarketIsolated {
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
+
+        tokens[0] = address(eDAI);
+        caps[0] = 100_000e18;
+        marketManagerIsolated.setDebtCaps(tokens, caps);
     }
 
     function testInitialize() public {

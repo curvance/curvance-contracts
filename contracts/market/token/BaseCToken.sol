@@ -430,6 +430,7 @@ abstract contract BaseCToken is
         return (
             AccountSnapshot({
                 asset: address(this),
+                isPToken: true,
                 decimals: decimals(),
                 collateralPosted: collateralPosted[account],
                 debtOutstanding: 0, // Defaults to zero, only overridden in BorrowableCToken

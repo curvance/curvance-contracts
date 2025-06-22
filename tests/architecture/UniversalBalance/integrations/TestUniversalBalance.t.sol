@@ -97,18 +97,18 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
         mockWbtcFeed.updateAnswer(60000e8);
 
-        // deploy eUSDC
-        {
-            // support market
-            _prepareUSDC(owner, 200_000e6);
-            _prepareBALRETH(owner, 1000e18);
-            usdc.approve(address(eUSDC), 200_000e6);
-            balRETH.approve(address(pBALRETH), 1000e18);
-            marketManagerIsolated.listTokens(address(eUSDC), address(pBALRETH));
+        // // deploy eUSDC
+        // {
+        //     // support market
+        //     _prepareUSDC(owner, 200_000e6);
+        //     _prepareBALRETH(owner, 1000e18);
+        //     usdc.approve(address(eUSDC), 200_000e6);
+        //     balRETH.approve(address(pBALRETH), 1000e18);
+        //     marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-            address[] memory markets = new address[](1);
-            markets[0] = address(eUSDC);
-        }
+        //     address[] memory markets = new address[](1);
+        //     markets[0] = address(eUSDC);
+        // }
 
         // deploy pWBTC
         {
@@ -123,7 +123,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
             _prepareWBTC(owner, 1e8);
             _prepareUSDC(owner, 1000e6);    
             wbtc.approve(address(pWBTC), 1e8);
-            usdc.approve(address(pWBTC), 1000e6);
+            usdc.approve(address(eUSDC), 1000e6);
             marketManagerIsolated.listTokens(address(pWBTC), address(eUSDC));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(pWBTC));
@@ -146,6 +146,11 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100e8;
             marketManagerIsolated.setCollateralCaps(mTokens, caps);
+
+            mTokens[0] = address(eUSDC);
+            uint256[] memory debtCaps = new uint256[](1);
+            debtCaps[0] = 1_000_000e6;
+            marketManagerIsolated.setDebtCaps(mTokens, debtCaps);
         }
 
         owners.push(user2);

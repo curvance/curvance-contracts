@@ -88,6 +88,7 @@ contract TestBaseMarketIsolated is TestBase {
         _deployMessagingHub();
         _deployVotingHub();
         _deployFeeManager();
+        _deployAuxiliaryData();
 
 
         vm.warp(centralRegistry.genesisEpoch());

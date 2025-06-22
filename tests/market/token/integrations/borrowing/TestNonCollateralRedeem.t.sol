@@ -38,11 +38,16 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
             5000,    // maxEffectiveCFactor 50%
             1000     // baseCFactor 20%
         );
-        address[] memory mTokens = new address[](1);
-        mTokens[0] = address(pBALRETH);
-        uint256[] memory newCollateralCaps = new uint256[](1);
-        newCollateralCaps[0] = 1_000_000e18;
-        marketManagerIsolated.setCollateralCaps(mTokens, newCollateralCaps);
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(pBALRETH);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 1_000_000e18;
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
+
+        caps[0] = 100_000e6;
+        tokens[0] = address(eUSDC);
+        marketManagerIsolated.setDebtCaps(tokens, caps);
+
 
         // Deposit 1 pBALRETH
         pBALRETH.deposit(1e18, address(this));

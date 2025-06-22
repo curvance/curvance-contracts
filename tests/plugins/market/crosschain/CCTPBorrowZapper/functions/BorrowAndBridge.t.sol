@@ -114,6 +114,10 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
 
+        caps[0] = 100_000e18;
+        tokens[0] = address(eDAI);
+        marketManagerIsolated.setDebtCaps(tokens, caps);
+
         // provide enough liquidity
         _provideEnoughLiquidityForLeverage();
 

@@ -72,8 +72,12 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         address[] memory tokens = new address[](1);
         tokens[0] = address(pUSDC);
         uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
+        caps[0] = 200_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
+
+        tokens[0] = address(eDAI);
+        caps[0] = 200_000e18;
+        marketManagerIsolated.setDebtCaps(tokens, caps);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, INITIAL_DEPOSIT - 100e18);

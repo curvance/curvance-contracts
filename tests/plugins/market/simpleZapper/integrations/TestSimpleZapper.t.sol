@@ -76,6 +76,10 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         caps[0] = 100 ether;
         marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
+        caps[0] = 100_000e18;
+        mTokens[0] = address(eDAI);
+        marketManagerIsolated.setDebtCaps(mTokens, caps);
+
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 1000 ether);
         _prepareUSDC(liquidityProvider, 100e6);

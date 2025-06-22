@@ -4,6 +4,9 @@ pragma solidity ^0.8.19;
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { console2 } from "forge-std/console2.sol";
+import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import "forge-std/console.sol";
 
 contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
     MockDataFeed public mockUsdcFeed;
@@ -89,6 +92,10 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         usdc.approve(address(eUSDC), _ONE);
         balRETH.approve(address(pBALRETH), _ONE + 77777);
 
+        console2.log("balRETH address:", address(balRETH));
+        address balRETHUnderlying = pBALRETH.asset();
+        console2.log("pBALRETH underlying:", balRETHUnderlying); 
+
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         eUSDC.depositReserves(1000e6);
@@ -114,6 +121,13 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
 
+
+        address[] memory eTokens = new address[](1);
+        eTokens[0] = address(eUSDC);
+        uint256[] memory debtCaps_ = new uint256[](1);
+        debtCaps_[0] = 1_000_000e6;
+        marketManagerIsolated.setDebtCaps(eTokens, debtCaps_);
+
         // pBALRETH.mint(_ONE, address(this));
 
         address liquidityProvider = makeAddr("liquidityProvider");
@@ -130,10 +144,18 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
 
         _prepareBALRETH(user1, _ONE);
 
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        mockRethFeed.setMockUpdatedAt(block.timestamp);
+
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), _ONE);
         pBALRETH.deposit(_ONE, user1);
         pBALRETH.postCollateral(_ONE - 1);
+
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        mockRethFeed.setMockUpdatedAt(block.timestamp);
 
         eUSDC.borrow(1000e6);
         vm.stopPrank();

@@ -95,6 +95,10 @@ contract TestBaseETokenIsolated is TestBaseMarketIsolated {
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
 
+        tokens[0] = address(eUSDC);
+        caps[0] = 100_000e6;
+        marketManagerIsolated.setDebtCaps(tokens, caps);
+
         pBALRETH.mint(_ONE, address(this));
     }
 

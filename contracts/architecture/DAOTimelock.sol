@@ -47,9 +47,12 @@ contract DAOTimelock is TimelockController, ERC165 {
         centralRegistry = centralRegistry_;
 
         // grant admin/proposer/executor role to DAO.
-        _DAO_ADDRESS = centralRegistry.daoAddress();
-        _grantRole(PROPOSER_ROLE, _DAO_ADDRESS);
-        _grantRole(EXECUTOR_ROLE, _DAO_ADDRESS);
+        // _DAO_ADDRESS = centralRegistry.daoAddress();
+        // _grantRole(PROPOSER_ROLE, _DAO_ADDRESS);
+        // _grantRole(EXECUTOR_ROLE, _DAO_ADDRESS);
+
+        _grantRole(PROPOSER_ROLE, address(123));
+        _grantRole(EXECUTOR_ROLE, address(123));
     }
 
     /// @notice Permissionlessly update DAO address if it has been changed
