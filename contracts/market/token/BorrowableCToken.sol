@@ -341,7 +341,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 asset: address(this),
                 decimals: decimals(),
                 collateralPosted: collateralPosted[account],
-                debtOutstanding: debtBalanceCached(account),
+                debtOutstanding: debtBalance(account),
                 exchangeRate: _convertToAssets(WAD, _getTotalAssets())
             })
         );
@@ -375,14 +375,14 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Update pending interest.
         accrueInterest();
 
-        result = debtBalanceCached(account);
+        result = debtBalance(account);
     }
 
     /// @notice Returns the current debt balance for `account`.
     /// @dev Note: Pending interest is not applied in this calculation.
     /// @param account The address whose debt balance should be calculated.
     /// @return result The current outstanding debt balance of `account`.
-    function debtBalanceCached(
+    function debtBalance(
         address account
     ) public view returns (uint256 result) {
         // Cache debt data to save gas.
@@ -395,7 +395,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         }
 
         // Calculate debt balance using the debt indexes:
-        // debtBalanceCached calculation:
+        // Debt balance calculation:
         // ((Account's outstanding debt * Market's debt index) /
         // Account's debt index).
         result =
@@ -439,7 +439,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Calculate current account debt then add `amount`.
         // Then update account exchange rate, and total borrow balances.
-        _setDebtOf(account, uint176(debtBalanceCached(account) + amount));
+        _setDebtOf(account, uint176(debtBalance(account) + amount));
         marketOutstandingDebt = marketOutstandingDebt + amount;
 
         // Transfer underlying to `recipient`.
@@ -465,7 +465,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         marketManager.canRepay(address(this), account);
 
         // Cache how much the account has to save gas.
-        uint256 accountDebt = debtBalanceCached(account);
+        uint256 accountDebt = debtBalance(account);
 
         // If amount == 0, repay max; amount = accountDebt.
         amount = amount == 0 ? accountDebt : amount;
@@ -590,7 +590,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // NOTE: We dont use _getDebtOf because we already cached market's
             // debt exchange rate index and we do not want to repeatedly load
             // that storage slot.
-            newDebtOf = debtBalanceCached(
+            newDebtOf = debtBalance(
                 cachedAccount = accounts[i]
             ) - cachedAmount;
             /// @solidity memory-safe-assembly

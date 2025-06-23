@@ -177,7 +177,7 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     /// @param vestingData Current packed vault data value.
     /// @return result Boolean value indicating whether the current
     ///                vesting period has ended or not.
-    function _checkVestStatus(
+    function _checkVestingFinished(
         uint256 vestingData
     ) internal pure override returns (bool result) {
         result = 

@@ -102,7 +102,7 @@ abstract contract BaseCTokenWithYield is BaseCToken {
     /// @param packedVestingData Current packed vault data value.
     /// @return result Boolean value indicating whether the current
     ///                vesting period has ended or not.
-    function _checkVestStatus(
+    function _checkVestingFinished(
         uint256 packedVestingData
     ) internal pure virtual returns (bool result) {}
 
