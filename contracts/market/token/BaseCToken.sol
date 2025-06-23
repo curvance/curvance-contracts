@@ -136,9 +136,9 @@ abstract contract BaseCToken is
         // Set `marketManager`.
         marketManager = IMarketManager(MarketManager_);
 
-        // Sanity check underlying so that we know users will not need to
+        // Sanity check of _asset so that we know users will not need to
         // mint anywhere close to causing an overflow.
-        if (asset_.totalSupply() >= type(uint232).max) {
+        if (asset_.totalSupply() >= type(uint216).max) {
             revert BaseCToken__UnsupportedAsset();
         }
     }

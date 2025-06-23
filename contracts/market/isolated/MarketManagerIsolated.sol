@@ -165,18 +165,17 @@ contract MarketManagerIsolated is
     /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
     mapping(address => uint256) public borrowPaused;
 
-    /// @notice The total amount of `mToken` that can be posted as collateral,
+    /// @notice The total amount of `cToken` that can be posted as collateral,
     ///         in shares.
     /// @dev Token Address => Market-wide Collateral Cap, in shares.
     mapping(address => uint256) public collateralCaps;
 
-    /// @notice The total amount of `mToken` underlying that can be borrowed,
+    /// @notice The total amount of `cToken` underlying that can be borrowed,
     ///         in assets.
     /// @dev Token Address => Market-wide Debt Cap, in assets.
     mapping(address => uint256) public debtCaps;
 
-    /// @notice Whether an address is an authorized position management
-    ///         operator or not.
+    /// @notice Whether an address is an authorized position manager or not.
     /// @dev Address => Is an approved position management operator.
     mapping(address => bool) public isPositionManager;
 

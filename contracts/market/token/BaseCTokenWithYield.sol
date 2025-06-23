@@ -36,10 +36,10 @@ abstract contract BaseCTokenWithYield is BaseCToken {
     ///      - [192..255] `lastVestingClaim`.
     ///
     ///      BorrowableCToken Bits Layout:
-    ///      - [0..79]   `vestingRate`.
-    ///      - [80..119] `vestingPeriodEnd`.
-    ///      - [120..159] `lastVestingClaim`.
-    ///      - [160..255] `debtExchangeRate`.
+    ///      - [0..95]   `vestingRate`.
+    ///      - [96..135] `vestingPeriodEnd`.
+    ///      - [136..175] `lastVestingClaim`.
+    ///      - [176..255] `marketDebtIndex`.
     uint256 internal _vestingData;
 
     /// ERRORS ///
