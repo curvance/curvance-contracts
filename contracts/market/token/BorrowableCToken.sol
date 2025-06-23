@@ -16,27 +16,16 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Struct form of `_vestingData`, a bitshifted packed variable.
     ///         With data related to lenders vesting data from outstanding
     ///         debt.
-    /// @param vestingRate The rate that the vault vests fresh yield.
-    /// @param vestingPeriodEnd When the current vesting period ends.
-    /// @param lastVestingClaim Last time vesting yield was claimed.
-    /// @param marketDebtIndex The most up to date debt index for
-    ///                        calculating account outstanding debt.
+    /// @param vestingRate The rate that the vault vests lending interest.
+    /// @param vestingPeriodEnd When the current interest vesting period ends.
+    /// @param lastVestingClaim Last time vesting interest was claimed.
+    /// @param marketDebtIndex The market debt index, used for calculating
+    ///                        account outstanding debt.
     struct VestingData {
         uint96 vestingRate;
         uint40 vestingPeriodEnd;
         uint40 lastVestingClaim;
         uint80 marketDebtIndex;
-    }
-
-    /// @notice Struct form of `_debtOf`, a bitshifted packed variable.
-    ///         With data related to borrowers vesting data from outstanding
-    ///         debt.
-    /// @param outstandingDebt Outstanding account debt based on
-    ///                        `accountDebtIndex`.
-    /// @param accountDebtIndex Current debt index for the account.
-    struct DebtData {
-        uint176 outstandingDebt;
-        uint80 accountDebtIndex;
     }
 
     /// CONSTANTS ///
@@ -50,12 +39,12 @@ contract BorrowableCToken is BaseCTokenWithYield {
     uint256 internal constant _BITMASK_VESTING_RATE = (1 << 96) - 1;
     /// @dev Mask of a timestamp entry in `_vestingData`.
     uint256 internal constant _BITMASK_TIMESTAMP = (1 << 40) - 1;
-    /// @dev Mask of all bits in packed vault data except the 40 bits
-    ///      for `lastVestingClaim`.
+    /// @dev Mask of bits in `_vestingData` until the start of
+    ///      `lastVestingClaim`.
     uint256 internal constant _BITMASK_VEST_END_COMPLEMENT = (1 << 136) - 1;
-    /// @dev Mask of all bits in packed vault data except the 40 bits
-    ///      for `lastVestingClaim`.
-    uint256 internal constant _BITMASK_OUTSTANDING_DEBT_COMPLEMENT = (1 << 176) - 1;
+    /// @dev Mask of all bits in `_vestingData` except the 80 bits
+    ///      for a debt index value.
+    uint256 internal constant _BITMASK_DEBT_INDEX_COMPLEMENT = (1 << 176) - 1;
     /// @dev The bit position of `vestingPeriodEnd` in `_vestingData`.
     uint256 internal constant _BITPOS_VEST_END = 96;
     /// @dev The bit position of `lastVestingClaim` in `_vestingData`.
@@ -611,7 +600,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 // Then create the new debtOf variable with:
                 // `newDebtOf | cachedDebtIndex`.
                 newDebtOf := or(
-                    and(newDebtOf, _BITMASK_OUTSTANDING_DEBT_COMPLEMENT),
+                    and(newDebtOf, _BITMASK_DEBT_INDEX_COMPLEMENT),
                     shl(_BITPOS_DEBT_INDEX, cachedDebtIndex)
                 )
             }

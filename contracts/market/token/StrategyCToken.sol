@@ -29,8 +29,8 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     uint256 internal constant _BITMASK_VESTING_RATE = (1 << 176) - 1;
     /// @dev Mask of a timestamp entry in `_vestingData`.
     uint256 internal constant _BITMASK_TIMESTAMP = (1 << 40) - 1;
-    /// @dev Mask of all bits in packed vault data except the 40 bits
-    ///      for `lastVestingClaim`.
+    /// @dev Mask of all bits in `_vestingData` except the 40 bits for
+    ///      `lastVestingClaim`.
     uint256 internal constant _BITMASK_LAST_CLAIM_COMPLEMENT = (1 << 216) - 1;
     /// @dev The bit position of `vestingPeriodEnd` in `_vestingData`.
     uint256 internal constant _BITPOS_VEST_END = 176;
