@@ -73,10 +73,10 @@ contract StakedGMXCToken is StrategyCToken {
         _canCompound();
 
         // Vest pending yield if there are any.
-        _vestIfNeeded();
+        accrueIfNeeded();
 
         // Can only harvest once previous vesting period is done.
-        if (_checkVestStatus(_vestingData)) {
+        if (_checkVestingFinished(_vestingData)) {
             _updateVestingPeriodIfNeeded();
 
             // Claim pending Staked GMX rewards.

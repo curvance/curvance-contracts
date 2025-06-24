@@ -7,8 +7,10 @@ interface IInterestRateModel {
     /// @return The interval at which interest accrues.
     function accrualPeriod() external view returns (uint256);
 
-    /// @notice The earn token linked to this interest rate model contract.
-    function linkedEToken() external view returns (address);
+    /// @notice The borrowable token linked to this interest rate model
+    ///         contract.
+    function linkedToken() external view returns (address);
+    
     /// @notice Calculates the current borrow rate, per compound.
     /// @param cash The amount of cash in the market.
     /// @param borrows The amount of borrows in the market.

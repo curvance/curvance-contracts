@@ -11,26 +11,14 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 ///      totalAssets is not actually using the balances stored in the
 ///      contract, rather it only uses an internal balance.
 abstract contract StrategyCToken is BaseCTokenWithYield {
-    /// TYPES ///
-
-    /// @notice Struct form of `_vestingData`, a bitshifted packed variable.
-    /// @param vestingRate The rate that the vault vests fresh yield.
-    /// @param vestingPeriodEnd When the current vesting period ends.
-    /// @param lastVestingClaim Last time vesting yield was claimed.
-    struct VestingData {
-        uint176 vestingRate;
-        uint40 vestingPeriodEnd;
-        uint40 lastVestingClaim;
-    }
-
     /// CONSTANTS ///
 
     /// @dev Mask of vesting rate entry in `_vestingData`.
     uint256 internal constant _BITMASK_VESTING_RATE = (1 << 176) - 1;
     /// @dev Mask of a timestamp entry in `_vestingData`.
     uint256 internal constant _BITMASK_TIMESTAMP = (1 << 40) - 1;
-    /// @dev Mask of all bits in packed vault data except the 40 bits
-    ///      for `lastVestingClaim`.
+    /// @dev Mask of all bits in `_vestingData` except the 40 bits for
+    ///      `lastVestingClaim`.
     uint256 internal constant _BITMASK_LAST_CLAIM_COMPLEMENT = (1 << 216) - 1;
     /// @dev The bit position of `vestingPeriodEnd` in `_vestingData`.
     uint256 internal constant _BITPOS_VEST_END = 176;
@@ -72,23 +60,6 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Virtual function to harvest yield from the vault.
-    /// @return yield The yield harvested from the vault.
-    function harvest(bytes calldata) external virtual returns (uint256 yield);
-
-    
-    /// @notice Returns the current cToken yield status information.
-    /// @return result A VestingData struct containing:
-    ///         vestingRate: Yield per second in `asset()`.
-    ///         vestingPeriodEnd: When the current vesting period ends and
-    ///                           a new harvest can execute.
-    ///         lastVestingClaim: Last time pending vested yield was claimed.
-    function getVestingYieldData() external view nonReadReentrant returns (
-        VestingData memory result
-    ) {
-        result =  _unpackedVestingData(_vestingData);
-    }
-
     /// @notice Permissioned function to set compounding paused.
     /// @dev Requires elevated authority if unpausing.
     /// @param state Whether compounded should be paused or unpaused.
@@ -110,7 +81,59 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
         emit CompoundingPaused(state);
     }
 
+    /// @notice Returns the current cToken yield status information.
+    /// @return vestingRate Yield per second in `asset()`.
+    /// @return vestingPeriodEnd When the current vesting period ends and
+    ///                          a new harvest can execute.
+    /// @return lastVestingClaim Last time pending vested yield was claimed.
+    function getVestingYieldData() external view nonReadReentrant returns (
+        uint256 vestingRate,
+        uint256 vestingPeriodEnd,
+        uint256 lastVestingClaim
+    ) {
+        uint256 vestingData = _vestingData;
+        vestingRate = uint176(vestingData);
+        vestingPeriodEnd = uint40(vestingData >> _BITPOS_VEST_END);
+        lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
+    }
+
+    /// @notice Virtual function to harvest yield from the vault.
+    /// @return yield The yield harvested from the vault.
+    function harvest(bytes calldata) external virtual returns (uint256 yield);
+
+    /// PUBLIC FUNCTIONS ///
+
+    /// @notice Vests pending rewards, and updates vesting data.
+    function accrueIfNeeded() public override {
+        uint256 pendingYieldToVest = _getPendingYield();
+        
+        // Vest pending yield, if there is any.
+        if (pendingYieldToVest > 0) {
+            // Update the lastVestingClaim timestamp.
+            _setlastVestingClaim(uint40(block.timestamp));
+            
+            // Update _totalAssets invariant with pending yield added.
+            _totalAssets = _totalAssets + pendingYieldToVest;
+        }
+    }
+
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Calculates pending yield that have been vested.
+    /// @dev If there are no pending yield or the vesting period has ended,
+    ///      it returns 0.
+    /// @return pendingYield The calculated pending yield.
+    function _getPendingYield() internal view override returns (
+        uint256 pendingYield
+    ) {
+        // Cache vesting data.
+        uint256 vestingData = _vestingData;
+        pendingYield =  _getPendingYield(
+            uint176(vestingData),
+            uint40(vestingData >> _BITPOS_VEST_END),
+            uint40(vestingData >> _BITPOS_LAST_VEST)
+        );
+    }
 
     /// @notice Sets a new `_vestingData` invariant based on `yieldToVest`,
     ///         calculated from the yield generated by a strategy.
@@ -159,89 +182,17 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
             (lastVestingClaimCasted << _BITPOS_LAST_VEST);
     }
 
-    /// @notice Returns the unpacked `VestingData` struct
-    ///         from `packedVestingData`.
-    /// @param vestingData The current packed vesting data value.
-    /// @return result The current vesting data, but unpacked into
-    ///                a VestingData struct.
-    function _unpackedVestingData(
-        uint256 vestingData
-    ) internal pure returns (VestingData memory result) {
-        result.vestingRate = uint176(vestingData);
-        result.vestingPeriodEnd = uint40(vestingData >> _BITPOS_VEST_END);
-        result.lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
-    }
-
     /// @notice Returns whether the current vesting period has ended,
     ///         based on the last vest timestamp.
     /// @param vestingData Current packed vault data value.
     /// @return result Boolean value indicating whether the current
     ///                vesting period has ended or not.
-    function _checkVestStatus(
+    function _checkVestingFinished(
         uint256 vestingData
     ) internal pure override returns (bool result) {
         result = 
             uint40(vestingData >> _BITPOS_LAST_VEST) >=
             uint40(vestingData >> _BITPOS_VEST_END);
-    }
-
-    /// @notice Calculates pending yield that have been vested.
-    /// @dev If there are no pending yield or the vesting period has ended,
-    ///      it returns 0.
-    /// @return pendingYield The calculated pending yield.
-    function _calculatePendingYield()
-        internal
-        view
-        override
-        returns (uint256 pendingYield)
-    {
-        VestingData memory vestingData = _unpackedVestingData(_vestingData);
-        // Check whether there are pending yield vesting.
-        if (
-            vestingData.vestingRate > 0 &&
-            vestingData.lastVestingClaim < vestingData.vestingPeriodEnd
-        ) {
-            // When calculating pending yield:
-            // pendingYield =
-            // If the vesting period has not ended:
-            // PY = vestingRate * (block.timestamp - lastTimeVestClaimed).
-            // If the vesting period has ended:
-            // PY = vestingRate * (vestingPeriodEnd - lastTimeVestClaimed)).
-            // Then in either case:
-            // Divide the pending yield by `WAD` (1e18) for precision.
-            pendingYield =
-                (
-                    block.timestamp < vestingData.vestingPeriodEnd
-                        ? (vestingData.vestingRate *
-                            (block.timestamp - vestingData.lastVestingClaim))
-                        : (vestingData.vestingRate *
-                            (vestingData.vestingPeriodEnd -
-                                vestingData.lastVestingClaim))
-                ) /
-                WAD;
-        }
-    }
-
-    /// @notice Vests pending yield, and updates last vest timestamp.
-    /// @param newTotalAssets The current assets of the vault, this is called
-    ///                       with the previous total amount plus pending
-    ///                       yield to recognize from time based vesting.
-    function _vestYield(uint256 newTotalAssets) internal override {
-        // Update the lastVestingClaim timestamp.
-        _setlastVestingClaim(uint40(block.timestamp));
-
-        // Set internal _totalAssets balance to `currentAssets` which is the
-        // current _totalAssets values plus pending yield.
-        _totalAssets = newTotalAssets;
-    }
-
-    /// @notice Vests pending rewards, and updates vault data.
-    function _vestIfNeeded() internal override {
-        // Vest pending rewards.
-        uint256 pendingYieldToVest = _calculatePendingYield();
-        if (pendingYieldToVest > 0) {
-            _vestYield(pendingYieldToVest);
-        }
     }
 
     /// @notice Updates asset values for a pending deposit.

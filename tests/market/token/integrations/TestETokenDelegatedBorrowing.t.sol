@@ -260,7 +260,7 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
             )
         );
 
-        interestRateModels[block.chainid][token].setLinkedEToken(
+        interestRateModels[block.chainid][token].setLinkedToken(
             address(eToken)
         );
 
