@@ -109,6 +109,9 @@ contract MarketManagerIsolated is
     /// @dev 20 minutes = 1,200 seconds.
     uint256 public constant MIN_HOLD_PERIOD = 20 minutes;
 
+    /// @dev Limit for market debt cap to max sure outstanding user debt
+    ///      never overflows `outstandingDebt` value inside _debtOf.
+    uint256 internal constant _MAX_DEBT_CAP = type(uint168).max;
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvalidParameter()")))`
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0x65513fc1;
     /// @dev `bytes4(keccak256(bytes("MarketManager__Unauthorized()")))`
@@ -977,17 +980,17 @@ contract MarketManagerIsolated is
 
     /// @notice Set `newDebtCaps` for the given `eTokens`.
     /// @dev Can emit {DebtCapUpdated} event(s).
-    /// @param eTokens The addresses of the tokens to change the
-    ///                debt caps for.
+    /// @param tokens The addresses of the tokens to change the
+    ///               debt caps for.
     /// @param newDebtCaps The new collateral cap values to be
     ///                          set, in assets.
     function setDebtCaps(
-        address[] calldata eTokens,
+        address[] calldata tokens,
         uint256[] calldata newDebtCaps
     ) external {
         _checkMarketPermissions();
 
-        uint256 numTokens = eTokens.length;
+        uint256 numTokens = tokens.length;
 
         /// @solidity memory-safe-assembly
         assembly {
@@ -1003,14 +1006,21 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        uint256 cachedDebtCap;
+        address cachedToken;
         for (uint256 i; i < numTokens; ++i) {
+            cachedDebtCap = newDebtCaps[i];
+            cachedToken = tokens[i];
+            if (cachedDebtCap > _MAX_DEBT_CAP) {
+                _revert(_INVALID_PARAMETER_SELECTOR);
+            }
             // Do not let people borrow assets if they are not intended to be.
-            if (!IMToken(eTokens[i]).isBorrowable()) {
+            if (!IMToken(cachedToken).isBorrowable()) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
-            debtCaps[eTokens[i]] = newDebtCaps[i];
-            emit DebtCapUpdated(eTokens[i], newDebtCaps[i]);
+            debtCaps[cachedToken] = cachedDebtCap;
+            emit DebtCapUpdated(cachedToken, cachedDebtCap);
         }
     }
 
