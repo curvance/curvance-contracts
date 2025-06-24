@@ -35,20 +35,16 @@ contract DAOTimelock is TimelockController, ERC165 {
 
     /// @notice Minimum delay for timelock transaction proposals to execute.
     uint256 public constant MINIMUM_DELAY = 5 days;
-
-    /// @notice Emergency Council address.
-    address public _EMERGENCY_COUNCIL;
-
+    
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
     /// STORAGE ///
 
-
-    /// STORAGE ///
-
-    /// @notice Internally stored Curvance DAO address.
+    /// @notice Curvance DAO address.
     address internal _DAO_ADDRESS;
+    /// @notice Curvance Emergency Council address.
+    address internal _EMERGENCY_COUNCIL;
 
     /// ERRORS ///
 
@@ -77,14 +73,6 @@ contract DAOTimelock is TimelockController, ERC165 {
         ) {
             revert DAOTimelock__InvalidParameter();
         }
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert DAOTimelock__InvalidParameter();
-        }
 
         centralRegistry = centralRegistry_;
 
@@ -93,20 +81,12 @@ contract DAOTimelock is TimelockController, ERC165 {
         _grantRole(PROPOSER_ROLE, _DAO_ADDRESS);
         _grantRole(EXECUTOR_ROLE, _DAO_ADDRESS);
         _grantRole(CANCELLER_ROLE, _DAO_ADDRESS);
+
         _EMERGENCY_COUNCIL = centralRegistry.emergencyCouncil();
         _grantRole(CANCELLER_ROLE, _EMERGENCY_COUNCIL);
     }
 
     /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Cancels a queued action.
-    /// @dev Only callable by `CANCELLER_ROLE` or the Emergency Council.
-    ///      May emit a {Cancelled} event.
-    /// @param id The queued action to cancel.
-    function cancel(bytes32 id) public override {
-        _checkCanCancel();
-        super.cancel(id);
-    }
 
     /// @notice Permissionlessly update roles if it has been changed
     ///         through the Protocol Central Registry.
@@ -140,36 +120,23 @@ contract DAOTimelock is TimelockController, ERC165 {
     }
 
 
+    /// @param Returns the minimum delay before a proposal can be executed,
+    ///        in `seconds`.
     function getMinDelay() public view override returns (uint256 result) {
-            uint256 currentDelay = super.getMinDelay();
-            result = currentDelay < MINIMUM_DELAY ? MINIMUM_DELAY : currentDelay;
+        uint256 currentDelay = super.getMinDelay();
+        result = currentDelay < MINIMUM_DELAY ? MINIMUM_DELAY : currentDelay;
     }
 
     /// @notice Returns true if this contract implements the interface defined
     ///         by `interfaceId`.
     /// @param interfaceId The interface to check for implementation.
     /// @return Whether `interfaceId` is implemented or not.
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view virtual override(ERC165, TimelockController) returns (
-        bool
-    ) {
-    ) public view virtual override(ERC165, TimelockController) returns (
-        bool
-    ) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override (
+        ERC165,
+        TimelockController
+    ) returns (bool) {
         return
             interfaceId == type(ITimelock).interfaceId ||
             super.supportsInterface(interfaceId);
-    }
-
-    /// @dev Checks whether the caller has sufficient permissions
-    ///      to cancel a queued action.
-    function _checkCanCancel() internal view {
-        if (
-            _msgSender() != centralRegistry.emergencyCouncil() &&
-            !hasRole(CANCELLER_ROLE, _msgSender())
-            ) {
-                revert DAOTimelock__Unauthorized();
-        }
     }
 }
