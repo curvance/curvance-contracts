@@ -5,9 +5,8 @@ import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken, IInterestRateModel } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
 
 /// @title Curvance Dynamic Interest Rate Model.
 /// @notice Manages borrow and supply interest rates for Curvance debt tokens.
@@ -69,18 +68,18 @@ import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol"
 ///         is also subjected to the decay multiplier.
 ///
 ///      NOTE: The Dynamic Interest Rate model will not be able to update its
-///            modifier until an earn token is properly linked to it via
-///            setLinkedEToken().
+///            modifier until a borrowable Curvance token is properly linked
+///            to it via setlinkedToken().
 ///
-///            If an earn token updates to another dynamic interest rate model
-///            contract then this contract theoretically can still be called
-///            by it afterwards if the smart contract was malformed, this does
-///            not really have any tangible impact but for developers who may
-///            adapt this smart contract in the future, I figure its worth
-///            mentioning.
+///            If a borrowable Curvance token updates to another dynamic
+///            interest rate model contract then this contract theoretically
+///            can still be called by it afterwards if the smart contract was
+///            malformed, this does not really have any tangible impact but
+///            for developers who may adapt this smart contract in the future,
+///            I figure its worth mentioning.
 ///
 ///            If implementing this dynamic interest rate model, its suggested
-///            to not play too much with `MAX_VERTEX_ADJUSTMENT_RATE` because 
+///            to not play too much with `_MAX_VERTEX_ADJUSTMENT_RATE` because 
 ///            a user can try to "game" the multiplier updates by borrowing
 ///            large amounts to increase borrow rates, and repaying 20 minutes
 ///            later. Or lending a bunch to "suppress" interest rates, with
@@ -130,34 +129,62 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// CONSTANTS ///
 
+    
+    /// @notice Curvance DAO hub.
+    ICentralRegistry public immutable centralRegistry;
+
     /// @notice Maximum Rate at which the vertex multiplier will
     ///         decay per adjustment, in `WAD`.
     /// @dev .05e18 = 5%.
-    uint256 public constant MAX_VERTEX_DECAY_RATE = .05e18;
+    uint256 internal constant _MAX_VERTEX_DECAY_RATE = .05e18;
     /// @notice The maximum frequency in which the vertex can have
     ///         between adjustments. It is important that this value is not
     ///         too high as users could in theory borrow a ton of assets
     ///         right before adjustment shifts, artificially increasing rates.
-    uint256 public constant MAX_VERTEX_ADJUSTMENT_RATE = 4 hours;
+    uint256 internal constant _MAX_VERTEX_ADJUSTMENT_RATE = 4 hours;
     /// @notice The minimum frequency in which the vertex can have
     ///         between adjustments.
-    uint256 public constant MIN_VERTEX_ADJUSTMENT_RATE = 20 minutes;
+    uint256 internal constant _MIN_VERTEX_ADJUSTMENT_RATE = 20 minutes;
     /// @notice The maximum rate at with the vertex multiplier is adjusted,
     ///         in WAD on top of base rate (1 `WAD`).
     ///         E.g. 1 * WAD = 200% multiplied to vertex interest rate per
     ///         adjustment at 100% utilization,
     ///         due to 100% (in WAD) applied on top.
-    uint256 public constant MAX_VERTEX_ADJUSTMENT_VELOCITY = 1e18;
+    uint256 internal constant _MAX_VERTEX_ADJUSTMENT_VELOCITY = 1e18;
     /// @notice The minimum rate at with the vertex multiplier is adjusted,
     ///         in WAD on top of base rate (1 `WAD`).
     ///         E.g. 0.1 * WAD = 110% multiplied to vertex interest rate per
     ///         adjustment at 100% utilization,
     ///         due to 100% (in WAD) applied on top.
-    uint256 public constant MIN_VERTEX_ADJUSTMENT_VELOCITY = 0.1e18;
-
-    /// @notice Curvance DAO hub.
-    ICentralRegistry public immutable centralRegistry;
-
+    uint256 internal constant _MIN_VERTEX_ADJUSTMENT_VELOCITY = 0.1e18;
+    /// @notice The maximum value that the vertex interest rate can
+    ///         be set to begin at, in `WAD`.
+    ///         E.g. 0.99 * WAD = Vertex rate begins at 99% utilization.
+    uint256 internal constant _MAX_VERTEX_UTIL_START = 0.99e18;
+    /// @notice The maximum value that the annual base interest rate can
+    ///         be set to, in `WAD`.
+    ///         E.g. 1.5 * WAD = 150% Base Interest Rate value at
+    ///         `vertexStartingPoint` % borrowing utilization.
+    uint256 internal constant _MAX_BASE_INTEREST_RATE_PER_YEAR = 1.5e18;
+    /// @notice The maximum value that the annual vertex interest rate can
+    ///         be set to, in `WAD`.
+    ///         E.g. 2 * WAD = 200% Vertex Interest Rate value at
+    ///         100% borrowing utilization.
+    uint256 internal constant _MAX_VERTEX_INTEREST_RATE_PER_YEAR = 2e18;
+    /// @notice The maximum value that the `vertexMultiplierMax` can be set
+    ///         to, in `WAD`.
+    ///         E.g. 1 * WAD = 100% Maximum vertex multiplier maximum value.
+    /// @dev Our theoretical limit for the vertex multiplier is:
+    ///      (2^256 - 1) / 3e36 = 3.8597e40.
+    ///      Where 3e36 is the theoretical maximum value of shift and
+    ///      2^256 - 1 is type(uint256).max.
+    ///      As a result, we cap the vertex maximum before this number to
+    ///      prevent any overflows on values.
+    uint256 internal constant _MAXIMUM_VERTEX_MULTIPLIER_MAX = 1e40;
+    /// @notice The minimum value that the `vertexMultiplierMax` can be set
+    ///         to, in `WAD`.
+    ///         E.g. 1 * WAD = 100% Minimum vertex multiplier maximum value.
+    uint256 internal constant _MINIMUM_VERTEX_MULTIPLIER_MAX = 1e18;
     /// @notice Rate at which interest is compounded, in seconds.
     /// @dev 10 minutes = 600 seconds.
     uint256 internal constant _INTEREST_ACCRUAL_PERIOD = 10 minutes;
@@ -175,13 +202,14 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// STORAGE ///
 
-    /// @notice The earn token linked to this interest rate model contract.
-    /// @dev Once this earn token is set it can never be changed again
+    /// @notice The borrowable Curvance token linked to this interest rate
+    ///         model contract.
+    /// @dev Once this token is set it can never be changed again
     ///      replicating an immutable value, it also will be completely
-    ///      depreciated if that earn token ever switches to another
+    ///      depreciated if that token ever switches to another
     ///      interest rate model, automatically depreciating this
     ///      implementation.
-    address public linkedEToken;
+    address public linkedToken;
 
     /// @notice Struct containing current configuration data for the
     ///         dynamic interest rate model.
@@ -209,17 +237,20 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         bool vertexReset
     );
 
-    event EarnTokenLinked(address eTokenAddress);
+    event TokenLinked(address cTokenAddress);
 
     /// ERRORS ///
 
     error DynamicInterestRateModel__Unauthorized();
     error DynamicInterestRateModel__InvalidToken();
     error DynamicInterestRateModel__InvalidCentralRegistry();
+    error DynamicInterestRateModel__InvalidUtilizationStart();
+    error DynamicInterestRateModel__InvalidInterestRatePerYear();
     error DynamicInterestRateModel__InvalidAdjustmentRate();
     error DynamicInterestRateModel__InvalidAdjustmentVelocity();
     error DynamicInterestRateModel__InvalidDecayRate();
     error DynamicInterestRateModel__InvalidMultiplierMax();
+    error DynamicInterestRateModel__InvalidThresholdLength();
 
     /// CONSTRUCTOR ///
 
@@ -273,41 +304,42 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Sets the dynamic interest rate model's linked earn token
-    ///         (eToken) which interest rates this contract will manage.
+    /// @notice Sets the dynamic interest rate model's linked borrowable
+    ///         Curvance token (cToken) which interest rates this contract
+    ///         will manage.
     /// @dev Once this function is properly it can never be called again.
-    /// @param eTokenAddress The address of the earn token to be linked
+    /// @param cTokenAddress The address of the token to be linked
     ///                      to this interest rate model contract.
-    function setLinkedEToken(address eTokenAddress) external {
+    function setlinkedToken(address cTokenAddress) external {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Validate that an earn token has not already been linked to this
-        // smart contract.
-        if (linkedEToken != address(0)) {
+        // Validate that a borrowable Curvance token has not already been
+        // linked to this smart contract.
+        if (linkedToken != address(0)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Validate that the token being linked is actually an earn token
-        // and not a position token, if the token is not an mToken at all
-        // this will also natively fail, which is fine too.
-        if (!IEToken(eTokenAddress).isBorrowable()) {
+        // Validate that the token being linked is actually a borrowable token
+        // if the token is not a Curvance token this will also natively fail,
+        // which is fine too.
+        if (IBorrowableCToken(cTokenAddress).isBorrowable()) {
             _revert(_INVALID_TOKEN_SELECTOR);
         }
 
-        // Validate that the earn token is actually expecting this interest
+        // Validate that the token is actually expecting this interest
         // rate model to be linked to it.
         if (
-            address(IEToken(eTokenAddress).interestRateModel()) !=
+            address(IBorrowableCToken(cTokenAddress).interestRateModel()) !=
             address(this)
         ) {
             _revert(_INVALID_TOKEN_SELECTOR);
         }
 
-        linkedEToken = eTokenAddress;
+        linkedToken = cTokenAddress;
 
-        emit EarnTokenLinked(eTokenAddress);
+        emit TokenLinked(cTokenAddress);
     }
 
     /// @notice Updates the dynamic interest rate model's configuration values
@@ -367,9 +399,9 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 borrows,
         uint256 reserves
     ) external returns (uint256 borrowRate) {
-        // Validate that the linked earn token itself is calling to update
-        // its interest rates.
-        if (msg.sender != linkedEToken) {
+        // Validate that the linked token itself is calling to update
+        // its interest accrued.
+        if (msg.sender != linkedToken) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -705,34 +737,43 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         vertexMultiplierMax = _bpToWad(vertexMultiplierMax);
         decayRate = _bpToWad(decayRate);
 
+        if (vertexUtilStart > _MAX_VERTEX_UTIL_START) {
+            revert DynamicInterestRateModel__InvalidUtilizationStart();
+        }
+
+        if (baseRatePerYear > _MAX_BASE_INTEREST_RATE_PER_YEAR) {
+            revert DynamicInterestRateModel__InvalidInterestRatePerYear();
+        }
+
+        if (vertexRatePerYear > _MAX_VERTEX_INTEREST_RATE_PER_YEAR) {
+            revert DynamicInterestRateModel__InvalidInterestRatePerYear();
+        }
+
+        // Validate Decay rate is below the maximum bound.
+        if (decayRate > _MAX_VERTEX_DECAY_RATE) {
+            revert DynamicInterestRateModel__InvalidDecayRate();
+        }
+
         // Validate Adjustment Velocity is in acceptable bounds.
         if (
-            adjustmentVelocity > MAX_VERTEX_ADJUSTMENT_VELOCITY ||
-            adjustmentVelocity < MIN_VERTEX_ADJUSTMENT_VELOCITY
+            adjustmentVelocity > _MAX_VERTEX_ADJUSTMENT_VELOCITY ||
+            adjustmentVelocity < _MIN_VERTEX_ADJUSTMENT_VELOCITY
         ) {
             revert DynamicInterestRateModel__InvalidAdjustmentVelocity();
         }
 
         // Validate Adjustment Rate is in acceptable bounds.
         if (
-            adjustmentRate > MAX_VERTEX_ADJUSTMENT_RATE ||
-            adjustmentRate < MIN_VERTEX_ADJUSTMENT_RATE
+            adjustmentRate > _MAX_VERTEX_ADJUSTMENT_RATE ||
+            adjustmentRate < _MIN_VERTEX_ADJUSTMENT_RATE
         ) {
             revert DynamicInterestRateModel__InvalidAdjustmentRate();
         }
 
-        // Validate Decay rate is below the maximum bound.
-        if (decayRate > MAX_VERTEX_DECAY_RATE) {
-            revert DynamicInterestRateModel__InvalidDecayRate();
-        }
-
-        // Our theoretical limit for the vertex multiplier is:
-        // (2^256 - 1) / 3e36 = 3.8597e40.
-        // Where 3e36 is the theoretical maximum value of shift and
-        // 2^256 - 1 is type(uint256).max.
-        // As a result, we cap the vertex maximum before this number to
-        // prevent any overflows on values.
-        if (vertexMultiplierMax > 1e40) {
+        if (
+            vertexMultiplierMax > _MAXIMUM_VERTEX_MULTIPLIER_MAX ||
+            vertexMultiplierMax < _MINIMUM_VERTEX_MULTIPLIER_MAX
+        ) {
             revert DynamicInterestRateModel__InvalidMultiplierMax();
         }
 
@@ -766,6 +807,10 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 thresholdLength = (WAD - vertexUtilStart) / 2;
         config.increaseThreshold = vertexUtilStart + thresholdLength;
         config.increaseThresholdMax = WAD;
+
+        if (vertexUtilStart < thresholdLength) {
+            revert DynamicInterestRateModel__InvalidThresholdLength();
+        }
 
         // Dynamic rates start decreasing as soon as we are below desired
         // utilization (vertexUtilStart).

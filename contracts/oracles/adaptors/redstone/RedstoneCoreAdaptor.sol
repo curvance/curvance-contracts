@@ -64,6 +64,9 @@ contract RedstoneCoreAdaptor is
     ///         acceptable.
     uint256 constant DEFAULT_MAX_DATA_TIMESTAMP_AHEAD_SECONDS = 1 minutes;
 
+    /// @notice Chain's native token symbol metadata.
+    string internal _nativeTokenSymbol;
+
     /// STORAGE ///
 
     /// @notice Array containing a list of all authorised signers
@@ -102,11 +105,14 @@ contract RedstoneCoreAdaptor is
     constructor(
         ICentralRegistry centralRegistry_,
         address[] memory signers,
-        uint256 uniqueSignersThreshold_
+        uint256 uniqueSignersThreshold_,
+        string memory nativeTokenSymbol
     )
         BaseOracleAdaptor(centralRegistry_)
         PrimaryProdDataServiceConsumerBase(signers)
     {
+        _nativeTokenSymbol = nativeTokenSymbol;
+
         // Validate that unique signer threshold is within acceptable limits.
         if (MINIMUM_SIGNERS_THRESHOLD_ALLOWED > uniqueSignersThreshold_) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
@@ -254,9 +260,13 @@ contract RedstoneCoreAdaptor is
             // denominated feeds, so we use toBytes32 here.
             symbolHash = Bytes32Helper._toBytes32(asset);
         } else {
-            // Redstone Core appends "/ETH" at the end of ETH denominated
-            // feeds, so we use toBytes32WithETH here.
-            symbolHash = Bytes32Helper._toBytes32WithETH(asset);
+            // Redstone Core appends "/" + the native chain token's symbol at
+            // the end of native denominated feeds, so we use
+            // toBytes32WithSymbol here.
+            symbolHash = Bytes32Helper._toBytes32WithSymbol(
+                asset,
+                _nativeTokenSymbol
+            );
         }
 
         AdaptorData storage data = adaptorData[asset][inUSD];

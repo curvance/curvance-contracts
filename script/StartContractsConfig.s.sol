@@ -418,7 +418,7 @@ contract StartContractsConfig is
             )
         );
         _saveDeployedContracts(name, eToken);
-        interestRateModel.setLinkedEToken(eToken);
+        interestRateModel.setLinkedToken(eToken);
 
         if (tokenAddress != _getDeployedContract("SWETH")) {
             _addChainlinkOracleSupport(

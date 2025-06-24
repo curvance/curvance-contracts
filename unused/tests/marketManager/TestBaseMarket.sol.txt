@@ -466,7 +466,7 @@ contract TestBaseMarket is TestBase {
             address(marketManagerIsolated),
             _deployIsolatedDynamicInterestRateModel(_USDC_ADDRESS)
         );
-        isolatedInterestRateModels[block.chainid][_USDC_ADDRESS].setLinkedEToken(
+        isolatedInterestRateModels[block.chainid][_USDC_ADDRESS].setLinkedToken(
             address(eUSDCIsolated)
         );
         return eUSDCIsolated;
@@ -482,7 +482,7 @@ contract TestBaseMarket is TestBase {
             _deployDynamicInterestRateModel(token)
         );
 
-        interestRateModels[block.chainid][token].setLinkedEToken(
+        interestRateModels[block.chainid][token].setLinkedToken(
             address(eToken)
         );
 

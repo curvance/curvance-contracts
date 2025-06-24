@@ -88,7 +88,7 @@ abstract contract BaseCToken is
 
     /// @notice Amount of tokens that has been posted as collateral,
     ///         in shares.
-    uint256 marketCollateralPosted;
+    uint256 public marketCollateralPosted;
 
     /// @notice Token name metadata.
     string internal _name;
@@ -136,9 +136,9 @@ abstract contract BaseCToken is
         // Set `marketManager`.
         marketManager = IMarketManager(MarketManager_);
 
-        // Sanity check underlying so that we know users will not need to
+        // Sanity check of _asset so that we know users will not need to
         // mint anywhere close to causing an overflow.
-        if (asset_.totalSupply() >= type(uint232).max) {
+        if (asset_.totalSupply() >= type(uint216).max) {
             revert BaseCToken__UnsupportedAsset();
         }
     }
@@ -189,10 +189,10 @@ abstract contract BaseCToken is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        _vestIfNeeded();
+        accrueIfNeeded();
 
         // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via _vestIfNeeded().
+        // yield are already vested via accrueIfNeeded().
         uint256 ta = _totalAssets;
         uint256 ownerBalance = _checkRedemption(
             assets,
@@ -210,7 +210,7 @@ abstract contract BaseCToken is
             shares
         );
 
-        // Process the position management redemption leg.
+        // Process the position manager redemption leg.
         _processPositionManagerRedemption(
             owner,
             assets,
@@ -384,9 +384,10 @@ abstract contract BaseCToken is
         // its validated inside the other listed token getting debt repaid
         // within.
 
+        uint256 numAccounts = accounts.length;
+        uint256 totalAmount;
         uint256 amount;
         address account;
-        uint256 numAccounts = accounts.length;
         for (uint256 i; i < numAccounts; ++i) {
             amount = shares[i];
             // If theres no debt to repay for this user can
@@ -399,15 +400,22 @@ abstract contract BaseCToken is
 
             // Execute any prior liquidation actions.
             _beforeLiquidationAction(account, liquidator, amount);
+            totalAmount += amount;
 
             // Remove liquidated account's collateral.
-            _removeCollateral(account, amount);
-            
-            // Efficiently transfer liquidated token balance from `account`
+            // Update user collateral posted invariant.
+            collateralPosted[account] = collateralPosted[account] - amount;
+            emit CollateralUpdated(account, amount, false);
+
+            // Efficiently transfer liquidated tokens from `account`
             // to `liquidator`.
             _transferFromWithoutAllowance(account, liquidator, amount);
             emit Liquidated(liquidator, account, amount);
         }
+
+        // Update market collateral posted invariant for all the accounts
+        // liquidated.
+        marketCollateralPosted = marketCollateralPosted - totalAmount;
     }
 
     /// @notice Returns share -> asset exchange rate, in `WAD`.
@@ -703,6 +711,9 @@ abstract contract BaseCToken is
         return _previewRedeem(shares, _getTotalAssets());
     }
 
+    /// @notice Accrues pending yield, and updates vesting data.
+    function accrueIfNeeded() public virtual {}
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Deposits `assets` and mints shares to `receiver`.
@@ -713,7 +724,7 @@ abstract contract BaseCToken is
         uint256 assets,
         address receiver
     ) internal virtual returns (uint256 shares) {
-        _vestIfNeeded();
+        accrueIfNeeded();
 
         // Check for rounding error by converting assets to shares,
         // since we round down in previewDeposit.
@@ -738,7 +749,7 @@ abstract contract BaseCToken is
         uint256 shares,
         address receiver
     ) internal virtual returns (uint256 assets) {
-        _vestIfNeeded();
+        accrueIfNeeded();
         _checkZeroAmount(shares);
         _checkDeposit(receiver);
 
@@ -749,7 +760,7 @@ abstract contract BaseCToken is
         // Execute deposit.
         // No need to check for rounding error, previewMint rounds up.
         // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via _vestIfNeeded().
+        // rewards are already vested via accrueIfNeeded().
         _processDeposit(
             msg.sender,
             receiver,
@@ -776,10 +787,10 @@ abstract contract BaseCToken is
         address owner,
         bool forceRedeemCollateral
     ) internal virtual returns (uint256 shares) {
-        _vestIfNeeded();
+        accrueIfNeeded();
 
         // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via _vestIfNeeded().
+        // rewards are already vested via accrueIfNeeded().
         uint256 ta = _totalAssets;
         uint256 ownerBalance = _checkRedemption(
             assets,
@@ -837,10 +848,10 @@ abstract contract BaseCToken is
         bool delegatedAction,
         bool forceRedeemCollateral
     ) internal virtual returns (uint256 assets) {
-        _vestIfNeeded();
+        accrueIfNeeded();
 
         // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via _vestIfNeeded().
+        // rewards are already vested via accrueIfNeeded().
         uint256 ta = _totalAssets;
         uint256 ownerBalance = _checkRedemption(
             assets = _previewRedeem(shares, ta),
@@ -1280,9 +1291,6 @@ abstract contract BaseCToken is
         // Document removal of `assets` from `ta` due to withdrawal.
         _totalAssets = _totalAssets - assets;
     }
-
-    /// @notice Vests pending rewards, and updates vault data.
-    function _vestIfNeeded() internal virtual {}
 
     /// @dev from Multicall
     /// @return The central registry.

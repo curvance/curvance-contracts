@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
+pragma solidity ^0.8.26;
 
 import { TimelockController } from "@openzeppelin/contracts/governance/TimelockController.sol";
 
@@ -43,11 +44,16 @@ contract DAOTimelock is TimelockController, ERC165 {
 
     /// STORAGE ///
 
+
+    /// STORAGE ///
+
     /// @notice Internally stored Curvance DAO address.
     address internal _DAO_ADDRESS;
 
     /// ERRORS ///
 
+    error DAOTimelock__InvalidParameter();
+    error DAOTimelock__Unauthorized();
     error DAOTimelock__InvalidParameter();
     error DAOTimelock__Unauthorized();
 
@@ -63,6 +69,14 @@ contract DAOTimelock is TimelockController, ERC165 {
             address(0)
         )
     {
+        if (
+            !ERC165Checker.supportsInterface(
+                address(centralRegistry_),
+                type(ICentralRegistry).interfaceId
+            )
+        ) {
+            revert DAOTimelock__InvalidParameter();
+        }
         if (
             !ERC165Checker.supportsInterface(
                 address(centralRegistry_),
@@ -109,6 +123,10 @@ contract DAOTimelock is TimelockController, ERC165 {
             _grantRole(EXECUTOR_ROLE, registryDaoAddress);
             _grantRole(CANCELLER_ROLE, registryDaoAddress);
             _DAO_ADDRESS = registryDaoAddress;
+            _grantRole(PROPOSER_ROLE, registryDaoAddress);
+            _grantRole(EXECUTOR_ROLE, registryDaoAddress);
+            _grantRole(CANCELLER_ROLE, registryDaoAddress);
+            _DAO_ADDRESS = registryDaoAddress;
         }
 
         address registryEC = centralRegistry.emergencyCouncil();
@@ -133,6 +151,9 @@ contract DAOTimelock is TimelockController, ERC165 {
     /// @return Whether `interfaceId` is implemented or not.
     function supportsInterface(
         bytes4 interfaceId
+    ) public view virtual override(ERC165, TimelockController) returns (
+        bool
+    ) {
     ) public view virtual override(ERC165, TimelockController) returns (
         bool
     ) {

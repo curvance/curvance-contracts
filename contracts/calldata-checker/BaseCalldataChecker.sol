@@ -98,8 +98,8 @@ abstract contract BaseCalldataChecker {
         assembly {
             switch iszero(sliceLength)
             case 0 {
-                // Get a location of some free memory and store it in `result`
-                // as Solidity does for memory variables.
+                // Get a location of some free memory and store it in
+                // `result`.
                 result := mload(0x40)
 
                 // The first word of the slice result is potentially a partial
@@ -145,9 +145,8 @@ abstract contract BaseCalldataChecker {
                 // 32 bytes like the compiler does.
                 mstore(0x40, and(add(mc, 31), not(31)))
             }
-            
-            // If we want a zero-length slice let's just return a zero-length
-            // array.
+
+            // If we want a zero-length slice just return a zero-length array.
             default {
                 result := mload(0x40)
                 // Zero out the 32 bytes slice we are about to return.
