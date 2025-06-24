@@ -384,9 +384,10 @@ abstract contract BaseCToken is
         // its validated inside the other listed token getting debt repaid
         // within.
 
+        uint256 numAccounts = accounts.length;
+        uint256 totalAmount;
         uint256 amount;
         address account;
-        uint256 numAccounts = accounts.length;
         for (uint256 i; i < numAccounts; ++i) {
             amount = shares[i];
             // If theres no debt to repay for this user can
@@ -399,15 +400,22 @@ abstract contract BaseCToken is
 
             // Execute any prior liquidation actions.
             _beforeLiquidationAction(account, liquidator, amount);
+            totalAmount += amount;
 
             // Remove liquidated account's collateral.
-            _removeCollateral(account, amount);
-            
-            // Efficiently transfer liquidated token balance from `account`
+            // Update user collateral posted invariant.
+            collateralPosted[account] = collateralPosted[account] - amount;
+            emit CollateralUpdated(account, amount, false);
+
+            // Efficiently transfer liquidated tokens from `account`
             // to `liquidator`.
             _transferFromWithoutAllowance(account, liquidator, amount);
             emit Liquidated(liquidator, account, amount);
         }
+
+        // Update market collateral posted invariant for all the accounts
+        // liquidated.
+        marketCollateralPosted = marketCollateralPosted - totalAmount;
     }
 
     /// @notice Returns share -> asset exchange rate, in `WAD`.
