@@ -158,7 +158,7 @@ contract AuraCToken is StrategyCToken {
         _canCompound();
 
         // Vest pending yield if there are any.
-        _vestIfNeeded();
+        accrueIfNeeded();
 
         // Can only harvest once previous vesting period is done.
         if (_checkVestingFinished(_vestingData)) {

@@ -101,6 +101,22 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     /// @return yield The yield harvested from the vault.
     function harvest(bytes calldata) external virtual returns (uint256 yield);
 
+    /// PUBLIC FUNCTIONS ///
+
+    /// @notice Vests pending rewards, and updates vesting data.
+    function accrueIfNeeded() public override {
+        uint256 pendingYieldToVest = _getPendingYield();
+        
+        // Vest pending yield, if there is any.
+        if (pendingYieldToVest > 0) {
+            // Update the lastVestingClaim timestamp.
+            _setlastVestingClaim(uint40(block.timestamp));
+            
+            // Update _totalAssets invariant with pending yield added.
+            _totalAssets = _totalAssets + pendingYieldToVest;
+        }
+    }
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Calculates pending yield that have been vested.
@@ -177,19 +193,6 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
         result = 
             uint40(vestingData >> _BITPOS_LAST_VEST) >=
             uint40(vestingData >> _BITPOS_VEST_END);
-    }
-
-    /// @notice Vests pending rewards, and updates vesting data.
-    function _vestIfNeeded() internal override {
-        uint256 pendingYieldToVest = _getPendingYield();
-        
-        // Vest pending yield, if there is any.
-        if (pendingYieldToVest > 0) {
-            // Update the lastVestingClaim timestamp.
-            _setlastVestingClaim(uint40(block.timestamp));
-            // Update _totalAssets invariant with pending yield added.
-            _totalAssets = _totalAssets + pendingYieldToVest;
-        }
     }
 
     /// @notice Updates asset values for a pending deposit.

@@ -189,10 +189,10 @@ abstract contract BaseCToken is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        _vestIfNeeded();
+        accrueIfNeeded();
 
         // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via _vestIfNeeded().
+        // yield are already vested via accrueIfNeeded().
         uint256 ta = _totalAssets;
         uint256 ownerBalance = _checkRedemption(
             assets,
@@ -210,7 +210,7 @@ abstract contract BaseCToken is
             shares
         );
 
-        // Process the position management redemption leg.
+        // Process the position manager redemption leg.
         _processPositionManagerRedemption(
             owner,
             assets,
@@ -702,6 +702,9 @@ abstract contract BaseCToken is
         return _previewRedeem(shares, _getTotalAssets());
     }
 
+    /// @notice Accrues pending yield, and updates vesting data.
+    function accrueIfNeeded() public virtual {}
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Deposits `assets` and mints shares to `receiver`.
@@ -712,7 +715,7 @@ abstract contract BaseCToken is
         uint256 assets,
         address receiver
     ) internal virtual returns (uint256 shares) {
-        _vestIfNeeded();
+        accrueIfNeeded();
 
         // Check for rounding error by converting assets to shares,
         // since we round down in previewDeposit.
@@ -737,7 +740,7 @@ abstract contract BaseCToken is
         uint256 shares,
         address receiver
     ) internal virtual returns (uint256 assets) {
-        _vestIfNeeded();
+        accrueIfNeeded();
         _checkZeroAmount(shares);
         _checkDeposit(receiver);
 
@@ -748,7 +751,7 @@ abstract contract BaseCToken is
         // Execute deposit.
         // No need to check for rounding error, previewMint rounds up.
         // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via _vestIfNeeded().
+        // rewards are already vested via accrueIfNeeded().
         _processDeposit(
             msg.sender,
             receiver,
@@ -775,10 +778,10 @@ abstract contract BaseCToken is
         address owner,
         bool forceRedeemCollateral
     ) internal virtual returns (uint256 shares) {
-        _vestIfNeeded();
+        accrueIfNeeded();
 
         // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via _vestIfNeeded().
+        // rewards are already vested via accrueIfNeeded().
         uint256 ta = _totalAssets;
         uint256 ownerBalance = _checkRedemption(
             assets,
@@ -836,10 +839,10 @@ abstract contract BaseCToken is
         bool delegatedAction,
         bool forceRedeemCollateral
     ) internal virtual returns (uint256 assets) {
-        _vestIfNeeded();
+        accrueIfNeeded();
 
         // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via _vestIfNeeded().
+        // rewards are already vested via accrueIfNeeded().
         uint256 ta = _totalAssets;
         uint256 ownerBalance = _checkRedemption(
             assets = _previewRedeem(shares, ta),
@@ -1279,9 +1282,6 @@ abstract contract BaseCToken is
         // Document removal of `assets` from `ta` due to withdrawal.
         _totalAssets = _totalAssets - assets;
     }
-
-    /// @notice Vests pending rewards, and updates vault data.
-    function _vestIfNeeded() internal virtual {}
 
     /// @dev from Multicall
     /// @return The central registry.
