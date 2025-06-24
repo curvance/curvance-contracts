@@ -28,14 +28,15 @@ import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 /// This implementation:
 /// - Stays in sync with permissioned addresses changes through the
 ///   CentralRegistry.
-/// - Grants the DAO address both proposer/executor/canceller roles.
+/// - Grants permissioned protocol addresses roles
+///   (proposer/executor/canceller) inside the timelock executor.
 ///
 contract DAOTimelock is TimelockController, ERC165 {
     /// CONSTANTS ///
 
     /// @notice Minimum delay for timelock transaction proposals to execute.
     uint256 public constant MINIMUM_DELAY = 5 days;
-    
+
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
@@ -49,9 +50,6 @@ contract DAOTimelock is TimelockController, ERC165 {
     /// ERRORS ///
 
     error DAOTimelock__InvalidParameter();
-    error DAOTimelock__Unauthorized();
-    error DAOTimelock__InvalidParameter();
-    error DAOTimelock__Unauthorized();
 
     /// CONSTRUCTOR ///
 
@@ -76,12 +74,13 @@ contract DAOTimelock is TimelockController, ERC165 {
 
         centralRegistry = centralRegistry_;
 
-        // grant admin/proposer/executor/canceller role to DAO.
+        // Grant proposer/executor/canceller role to DAO operator.
         _DAO_ADDRESS = centralRegistry.daoAddress();
         _grantRole(PROPOSER_ROLE, _DAO_ADDRESS);
         _grantRole(EXECUTOR_ROLE, _DAO_ADDRESS);
         _grantRole(CANCELLER_ROLE, _DAO_ADDRESS);
 
+        // Grant canceller role to DAO Emergency Council.
         _EMERGENCY_COUNCIL = centralRegistry.emergencyCouncil();
         _grantRole(CANCELLER_ROLE, _EMERGENCY_COUNCIL);
     }
