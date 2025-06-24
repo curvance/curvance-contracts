@@ -80,8 +80,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         // list eUSDC
         _prepareUSDC(address(this), _ONE);
         usdc.approve(address(eUSDC), _ONE);
-        // deposit reserves
-        eUSDC.depositReserves(1000e6);
+
 
         // list pBALRETHWithExitFee
         _prepareBALRETH(address(this), 77777);
@@ -91,6 +90,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
             address(pBALRETHWithExitFee),
             77777
         );
+
         marketManagerIsolated.listTokens(address(pBALRETHWithExitFee), address(eUSDC));
 
         marketManagerIsolated.updatePositionToken(
@@ -112,7 +112,15 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
 
+        tokens[0] = address(eUSDC);
+        caps[0] = 1_000_000e6;
+
+        marketManagerIsolated.setDebtCaps(tokens, caps);
+
         addPositionManagement();
+
+        // deposit reserves
+        eUSDC.depositReserves(1000e6);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);

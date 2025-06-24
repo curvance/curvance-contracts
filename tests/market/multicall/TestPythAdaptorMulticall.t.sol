@@ -20,8 +20,6 @@ import { PythAdaptorMulticallChecker } from "contracts/calldata-checker/multical
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
 import "tests/market/TestBaseMarketIsolated.sol";
 
-contract User {}
-
 contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
@@ -227,7 +225,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
     }
 
     function provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = address(new User());
+        address liquidityProvider = user2;
         // _prepareUSDC(liquidityProvider, 200000e6);
         _prepareWBTC(liquidityProvider, 10 ether);
         _prepareWETH(liquidityProvider, 200000 ether);

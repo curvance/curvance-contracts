@@ -60,7 +60,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         vm.stopPrank();
 
         console2.log("eUSDC.debtBalanceCached(user1)", eUSDC.debtBalanceCached(user1));
-        console2.log("eUSDC.exchangeRateCached()", eUSDC.exchangeRateCached());
+        console2.log("eUSDC.exchangeRate()", eUSDC.exchangeRate());
         console2.log("Debt amount returned", debtAmountReturned[0]);
         console2.log("LiqResults.liquidatedAmounts[0]", results.liquidatedAmounts[0]);
         console2.log("LiqResults.debtRepaid", results.debtRepaid);
@@ -76,7 +76,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
 
         assertEq(eUSDC.debtBalanceCached(user1), 0, "eUSDC debt balance mismatch");
         assertEq(pBALRETH.exchangeRate(), _ONE, "pBALRETH exchange rate mismatch");
-        assertLt(eUSDC.exchangeRateCached(), _ONE, "eUSDC exchange rate mismatch, there should be bad debt");
+        assertLt(eUSDC.exchangeRate(), _ONE, "eUSDC exchange rate mismatch, there should be bad debt");
         assertEq(pBALRETH.balanceOf(user2), _ONE - 1, "Liquidator pBALRETH balance mismatch");
         assertEq(usdc.balanceOf(user2), 1000e6 - results.debtRepaid, "Liquidator USDC balance mismatch");
        

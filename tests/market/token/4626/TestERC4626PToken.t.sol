@@ -7,6 +7,11 @@ import { TestBaseMarketIsolated, ICentralRegistry } from "tests/market/TestBaseM
 import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
 import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
+// NOTES:
+// 1. test_RevertWhen_Redeem fails because of insufficient liquidity
+
 contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
     // @todo check the failing tests: test_maxWithdraw! which reverts
     // test_redeem, test_withdraw have problem with allowance
@@ -15,14 +20,15 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
         vm.warp(1640926800);
 
         _USDC_ADDRESSES[1] = address(new MockERC20Token());
+        _DAI_ADDRESSES[1] = address(new MockERC20Token());
 
-        _deployDAOTimelock();
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
         _deployGaugeManager();
         _deployMarketManager();
+        _deployEDAI();
 
         vm.warp(centralRegistry.genesisEpoch());
         rewardManager.startRewardManager();
@@ -45,9 +51,14 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
         mockUnderlying.mint(address(this), startAmount);
         mockUnderlying.approve(address(mockPToken), startAmount);
 
+        console2.log("checkpoint 1");
+
         _prepareDAI(address(this), 20000000e18);
+        console2.log("checkpoint 2");
         dai.approve(address(eDAI), 20000000e18);
+        console2.log("checkpoint 3");
         marketManagerIsolated.listTokens(address(mockPToken), address(eDAI));
+        console2.log("checkpoint 4");
 
         _underlying_ = address(mockUnderlying);
         _vault_ = address(mockPToken);

@@ -79,8 +79,8 @@ contract TestBaseMarketIsolated is TestBase {
     }
 
     function _deployBaseContracts() internal {
-        _deployDAOTimelock();
         _deployCentralRegistry();
+        _deployDAOTimelock();
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
@@ -100,7 +100,6 @@ contract TestBaseMarketIsolated is TestBase {
             block.chainid
         ] = new CentralRegistry(
             _ZERO_ADDRESS,
-            address(daoTimelock),
             _ZERO_ADDRESS,
             block.timestamp + 1,
             address(0),
@@ -122,6 +121,14 @@ contract TestBaseMarketIsolated is TestBase {
         );
     }
 
+    function _deployDAOTimelock() internal initMainVariables {
+        daoTimelock = daoTimelocks[block.chainid] = new DAOTimelock(
+            ICentralRegistry(address(centralRegistry))
+        );
+
+        centralRegistry.transferTimelockPermissions(address(daoTimelock));
+    }
+
     function _deployCVE() internal virtual initMainVariables {
         // If TokenBridgeRelayer doesn't exist on the address,
         // deploy mock TokenBridgeRelayer on the address.
@@ -134,12 +141,6 @@ contract TestBaseMarketIsolated is TestBase {
             address(0)
         );
         centralRegistry.setCVE(address(cve));
-    }
-
-    function _deployDAOTimelock() internal initMainVariables {
-        daoTimelock = daoTimelocks[block.chainid] = new DAOTimelock(
-            ICentralRegistry(address(centralRegistry))
-        );
     }
 
     function _deployRewardManager() internal initMainVariables {

@@ -39,13 +39,14 @@ contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
     function setUp() public override {
         _fork("ETH_NODE_URI_OPTIMISM", 109095500);
 
-        _deployDAOTimelock();
+        
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
         _deployGaugeManager();
         _deployMarketManager();
+        _deployEDAI();
 
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
@@ -104,6 +105,9 @@ contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
         uint256 assets = 0.0001e18;
         deal(_WETH_USDC, user1, assets);
         deal(_WETH_USDC, address(this), 77777);
+
+        _prepareDAI(address(this), 77777);
+        dai.approve(address(eDAI), 77777);
 
         IERC20(_WETH_USDC).approve(address(pWETHUSDC), 77777);
         marketManagerIsolated.listTokens(address(pWETHUSDC), address(eDAI));

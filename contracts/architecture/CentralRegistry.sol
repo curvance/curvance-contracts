@@ -288,21 +288,11 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     constructor(
         address daoAddress_,
-        address timelock_,
         address emergencyCouncil_,
         uint256 genesisEpoch_,
         address sequencer_,
         address feeToken_
     ) {
-        if (
-            !ERC165Checker.supportsInterface(
-                timelock_,
-                type(ITimelock).interfaceId
-            )
-        ) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
         if (daoAddress_ == address(0)) {
             daoAddress_ = msg.sender;
         }
@@ -320,7 +310,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Configure DAO permission data.
         daoAddress = daoAddress_;
-        timelock = timelock_;
         emergencyCouncil = emergencyCouncil_;
 
         emit PermissionsTransferred(
@@ -328,7 +317,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
             address(0),
             daoAddress_
         );
-        emit PermissionsTransferred("Timelock", address(0), timelock_);
         emit PermissionsTransferred(
             "Emergency Council",
             address(0),
@@ -336,24 +324,19 @@ contract CentralRegistry is ERC165, ActionRegistry {
         );
 
         // Provide base dao permissions to `daoAddress_`,
-        // `timelock_` and `emergencyCouncil_`.
+        // and `emergencyCouncil_`.
         hasDaoPermissions[daoAddress_] = true;
-        hasDaoPermissions[timelock_] = true;
         hasDaoPermissions[emergencyCouncil_] = true;
 
-        // Provide elevated dao permissions to `timelock` and
-        // `emergencyCouncil`.
-        hasElevatedPermissions[timelock_] = true;
+        // Provide elevated dao permissions to `emergencyCouncil`.
         hasElevatedPermissions[emergencyCouncil_] = true;
 
         // Provide market permissions to `daoAddress_`,
-        // `timelock_` and `emergencyCouncil_`.
+        // and `emergencyCouncil_`.
         hasMarketPermissions[daoAddress_] = true;
-        hasMarketPermissions[timelock_] = true;
         hasMarketPermissions[emergencyCouncil_] = true;
 
         emit PermissionsUpdated("Market", daoAddress_, true);
-        emit PermissionsUpdated("Market", timelock_, true);
         emit PermissionsUpdated("Market", emergencyCouncil_, true);
 
         genesisEpoch = genesisEpoch_;
@@ -857,7 +840,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
                     type(ITimelock).interfaceId
                 )
             ) {
-                ITimelock(timelock).updateDaoAddress();
+                ITimelock(timelock).updateRoles();
             }
         }
     }

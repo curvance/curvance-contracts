@@ -846,7 +846,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     function exchangeRateWithUpdate() public returns (uint256) {
         // Update pending interest.
         accrueInterest();
-        return exchangeRateCached();
+        return exchangeRate();
     }
 
     /// @notice Updates pending interest and returns the up-to-date exchange
@@ -859,13 +859,13 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     {
         // Update pending interest.
         accrueInterest();
-        return exchangeRateCached();
+        return exchangeRate();
     }
 
     /// @notice Returns the up-to-date exchange rate from the underlying
     ///         to the eToken.
     /// @return Cached exchange rate, in `WAD`.
-    function exchangeRateCached() public view returns (uint256) {
+    function exchangeRate() public view returns (uint256) {
         // We do not need to check for totalSupply = 0, because,
         // when we list a market we mint `_BASE_UNDERLYING_RESERVE` initially.
         // exchangeRate calculation:
@@ -885,7 +885,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @return The number of tokens a user would receive for converting
     ///         `amount`.
     function convertToShares(uint256 amount) public view returns (uint256) {
-        return FixedPointMathLib.mulDiv(amount, WAD, exchangeRateCached());
+        return FixedPointMathLib.mulDiv(amount, WAD, exchangeRate());
     }
 
     /// @notice Returns the amount of underlying that would be exchanged
@@ -895,7 +895,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @return The number of underlying a user would receive for converting
     ///         `tokens`.
     function convertToAssets(uint256 tokens) public view returns (uint256) {
-        return FixedPointMathLib.mulDiv(tokens, exchangeRateCached(), WAD);
+        return FixedPointMathLib.mulDiv(tokens, exchangeRate(), WAD);
     }
 
     /// @inheritdoc ERC165

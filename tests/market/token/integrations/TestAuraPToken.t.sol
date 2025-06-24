@@ -9,6 +9,8 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { StrategyCToken} from "contracts/market/token/StrategyCToken.sol";
 import "tests/market/TestBaseMarketIsolated.sol";
 
+// NOTES: testHarvestAuraCToken fails because the amount of underlying assets is not enough to redeem
+
 contract TestAuraCToken is TestBaseMarketIsolated {
     address internal _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;
     address internal _AURA_ADDRESS =

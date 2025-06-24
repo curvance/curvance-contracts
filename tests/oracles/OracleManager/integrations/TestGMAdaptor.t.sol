@@ -21,7 +21,7 @@ contract TestGMAdaptor is TestBaseOracleManager {
     function setUp() public override {
         _fork("ETH_NODE_URI_ARBITRUM", 145755190);
 
-        _deployDAOTimelock();
+        
         _deployCentralRegistry();
         _deployOracleManager();
 

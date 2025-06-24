@@ -37,7 +37,7 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
 
     function setUp() public override {
         _fork("ETH_NODE_URI_OPTIMISM", 109095500);
-        _deployDAOTimelock();
+        
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();

@@ -203,7 +203,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertEq(eDAI.debtBalanceCached(user1), minimumBorrowAmount);
-        assertEq(eDAI.exchangeRateCached(), _ONE);
+        assertEq(eDAI.exchangeRate(), _ONE);
 
         // try borrow()
         skip(1200);
@@ -211,28 +211,28 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertGt(eDAI.debtBalanceCached(user1), minimumBorrowAmount + 100e18);
-        assertGt(eDAI.exchangeRateCached(), _ONE);
+        assertGt(eDAI.exchangeRate(), _ONE);
 
         // skip min hold period
         skip(20 minutes);
 
         // try partial repay
         uint256 borrowBalanceBefore = eDAI.debtBalanceCached(user1);
-        uint256 exchangeRateBefore = eDAI.exchangeRateCached();
+        uint256 exchangeRateBefore = eDAI.exchangeRate();
         _prepareDAI(user1, 20e18);
         dai.approve(address(eDAI), 20e18);
         eDAI.repay(20e18);
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertGt(eDAI.debtBalanceCached(user1), borrowBalanceBefore - 20e18);
-        assertGt(eDAI.exchangeRateCached(), exchangeRateBefore);
+        assertGt(eDAI.exchangeRate(), exchangeRateBefore);
 
         // skip some period
         skip(1200);
 
         // try repay full
         borrowBalanceBefore = eDAI.debtBalanceCached(user1);
-        exchangeRateBefore = eDAI.exchangeRateCached();
+        exchangeRateBefore = eDAI.exchangeRate();
         _prepareDAI(user1, borrowBalanceBefore);
         dai.approve(address(eDAI), borrowBalanceBefore);
         eDAI.repay(borrowBalanceBefore);
@@ -240,7 +240,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertGt(eDAI.debtBalanceCached(user1), 0);
-        assertGt(eDAI.exchangeRateCached(), exchangeRateBefore);
+        assertGt(eDAI.exchangeRate(), exchangeRateBefore);
     }
 
     function testPTokenRedeemOnBorrow() public {
@@ -306,7 +306,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertGt(eDAI.debtBalanceCached(user1), 500e18);
-        assertGt(eDAI.exchangeRateCached(), _ONE);
+        assertGt(eDAI.exchangeRate(), _ONE);
     }
 
     function testPTokenTransferOnBorrow() public {
@@ -370,7 +370,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         assertEq(eDAI.balanceOf(user2), 1000e18);
         assertEq(eDAI.debtBalanceCached(user2), 0e18);
-        assertEq(eDAI.exchangeRateCached(), _ONE);
+        assertEq(eDAI.exchangeRate(), _ONE);
     }
 
     function testLiquidationExact() public {
@@ -420,7 +420,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertApproxEqRel(eDAI.debtBalanceCached(user1), 750e18, 0.01e18);
-        assertApproxEqRel(eDAI.exchangeRateCached(), _ONE, 0.01e18);
+        assertApproxEqRel(eDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
     function testLiquidation() public {
@@ -469,7 +469,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertEq(eDAI.debtBalanceCached(user1), 0);
-        assertApproxEqRel(eDAI.exchangeRateCached(), _ONE, 0.01e18);
+        assertApproxEqRel(eDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
     function testLiquidationWithFullValueLoss() public {
@@ -506,7 +506,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertApproxEqRel(eDAI.debtBalanceCached(user1), 830e18, 0.01e18);
-        assertApproxEqRel(eDAI.exchangeRateCached(), _ONE, 0.01e18);
+        assertApproxEqRel(eDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
     function testSoftLiquidation() public {
@@ -561,7 +561,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertApproxEqRel(eDAI.debtBalanceCached(user1), 900e18, 0.01e18);
-        assertApproxEqRel(eDAI.exchangeRateCached(), _ONE, 0.01e18);
+        assertApproxEqRel(eDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
     function testRevertBorrowAndLiquidateWithZeroCollRatio() public {

@@ -5,8 +5,8 @@ import { TestBaseTimelock } from "../TestBaseTimelock.sol";
 import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract UpdateDaoAddressTest is TestBaseTimelock {
-    function test_updateDaoAddress_success() public {
+contract UpdateRolesTest is TestBaseTimelock {
+    function test_updateRoles_success() public {
         DAOTimelock timelock = new DAOTimelock(
             ICentralRegistry(address(centralRegistry))
         );
@@ -16,7 +16,7 @@ contract UpdateDaoAddressTest is TestBaseTimelock {
         assertTrue(timelock.hasRole(timelock.PROPOSER_ROLE(), daoAddress));
         assertTrue(timelock.hasRole(timelock.EXECUTOR_ROLE(), daoAddress));
 
-        timelock.updateDaoAddress();
+        timelock.updateRoles();
 
         assertTrue(timelock.hasRole(timelock.PROPOSER_ROLE(), daoAddress));
         assertTrue(timelock.hasRole(timelock.EXECUTOR_ROLE(), daoAddress));
@@ -24,7 +24,7 @@ contract UpdateDaoAddressTest is TestBaseTimelock {
         vm.prank(daoAddress);
         centralRegistry.transferDaoPermissions(address(1));
 
-        timelock.updateDaoAddress();
+        timelock.updateRoles();
 
         assertFalse(timelock.hasRole(timelock.PROPOSER_ROLE(), daoAddress));
         assertFalse(timelock.hasRole(timelock.EXECUTOR_ROLE(), daoAddress));

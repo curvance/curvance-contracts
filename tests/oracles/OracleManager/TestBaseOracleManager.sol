@@ -14,8 +14,9 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
 
     function setUp() public virtual override {
         _fork(18031848);
-        _deployDAOTimelock();
+        
         _deployCentralRegistry();
+        _deployDAOTimelock();
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
@@ -69,7 +70,6 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
             block.chainid
         ] = new CentralRegistry(
             _ZERO_ADDRESS,
-            address(daoTimelock),
             _ZERO_ADDRESS,
             block.timestamp + 1,
             address(sequencer),

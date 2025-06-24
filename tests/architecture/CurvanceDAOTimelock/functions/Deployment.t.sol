@@ -10,10 +10,7 @@ contract TimelockDeploymentTest is TestBaseTimelock {
         public
     {
         vm.expectRevert(
-            abi.encodeWithSelector(
-                DAOTimelock.Timelock__InvalidCentralRegistry.selector,
-                address(0)
-            )
+                DAOTimelock.DAOTimelock__InvalidParameter.selector
         );
         new DAOTimelock(ICentralRegistry(address(0)));
     }

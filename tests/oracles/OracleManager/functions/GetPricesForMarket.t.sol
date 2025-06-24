@@ -14,6 +14,8 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
 
         assets.push(IMToken(address(eUSDC)));
 
+        _deployPBALRETH();
+
         _prepareBALRETH(address(this), 1e18);
         _prepareUSDC(address(this), 1e18);
 

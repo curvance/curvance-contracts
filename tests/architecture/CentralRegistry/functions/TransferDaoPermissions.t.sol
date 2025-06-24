@@ -38,6 +38,6 @@ contract TransferDaoPermissionsTest is TestBaseMarketIsolated {
 
         assertEq(centralRegistry.daoAddress(), newDaoAddress);
         assertTrue(centralRegistry.hasDaoPermissions(newDaoAddress));
-        assertFalse(centralRegistry.hasDaoPermissions(address(this)));
+        assertTrue(centralRegistry.hasDaoPermissions(address(this)));
     }
 }

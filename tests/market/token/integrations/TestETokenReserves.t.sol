@@ -147,7 +147,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
 
         {
             // check accrue interest after 1 day
-            uint256 exchangeRateBefore = eDAI.exchangeRateCached();
+            uint256 exchangeRateBefore = eDAI.exchangeRate();
             uint256 totalReserves = eDAI.totalReserves();
             assertEq(totalReserves, 0);
             uint256 totalBorrowsBefore = eDAI.totalBorrows();
@@ -177,7 +177,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
             // check borrower debt increased
             assertEq(eDAI.balanceOf(user1), 0);
             assertEq(eDAI.debtBalanceCached(user1), debtBalanceBefore + debt);
-            assertGt(eDAI.exchangeRateCached(), exchangeRateBefore);
+            assertGt(eDAI.exchangeRate(), exchangeRateBefore);
 
             // dao eDAI balance doesn't increase
             assertEq(eDAI.balanceOf(dao), daoBalanceBefore);
@@ -191,7 +191,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
 
         {
             // check accrue interest after another day
-            uint256 exchangeRateBefore = eDAI.exchangeRateCached();
+            uint256 exchangeRateBefore = eDAI.exchangeRate();
             uint256 totalReserves = eDAI.totalReserves();
             uint256 totalBorrowsBefore = eDAI.totalBorrows();
             uint256 daoBalanceBefore = eDAI.balanceOf(dao);
@@ -223,7 +223,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
                 debtBalanceBefore + debt,
                 1 ether
             );
-            assertGt(eDAI.exchangeRateCached(), exchangeRateBefore);
+            assertGt(eDAI.exchangeRate(), exchangeRateBefore);
 
             // dao eDAI balance doesn't increase
             assertEq(eDAI.balanceOf(dao), daoBalanceBefore);
@@ -239,7 +239,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
     function testDaoDepositReserves() public {
         testDaoInterestFromEToken();
 
-        uint256 exchangeRate = eDAI.exchangeRateCached();
+        uint256 exchangeRate = eDAI.exchangeRate();
         uint256 totalReservesBefore = eDAI.totalReserves();
         uint256 gaugeBalanceBefore = gaugeManager.balanceOf(
             address(eDAI),
@@ -268,7 +268,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
 
         {
             // withdraw half
-            uint256 exchangeRate = eDAI.exchangeRateCached();
+            uint256 exchangeRate = eDAI.exchangeRate();
             uint256 totalReservesBefore = eDAI.totalReserves();
             uint256 daiBalanceBefore = dai.balanceOf(dao);
             uint256 gaugeBalanceBefore = gaugeManager.balanceOf(
@@ -294,7 +294,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
 
         {
             // withdraw half
-            uint256 exchangeRate = eDAI.exchangeRateCached();
+            uint256 exchangeRate = eDAI.exchangeRate();
             uint256 totalReservesBefore = eDAI.totalReserves();
             uint256 daiBalanceBefore = dai.balanceOf(dao);
 

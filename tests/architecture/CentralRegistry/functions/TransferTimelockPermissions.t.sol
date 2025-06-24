@@ -70,7 +70,7 @@ contract TransferTimelockPermissionsTest is TestBaseMarketIsolated {
         vm.prank(address(newTimelock1));
         centralRegistry.transferDaoPermissions(address(1));
 
-        // After transferDaoPermissions (which now calls updateDaoAddress automatically),
+        // After transferDaoPermissions (which now calls updateRoles automatically),
         // check if old dao no longer has roles and new dao now has roles
         assertFalse(newTimelock1.hasRole(newTimelock1.PROPOSER_ROLE(), initialDaoAddress));
         assertFalse(newTimelock1.hasRole(newTimelock1.EXECUTOR_ROLE(), initialDaoAddress));

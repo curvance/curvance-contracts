@@ -3,6 +3,9 @@ pragma solidity ^0.8.19;
 
 import { TestBaseETokenIsolated } from "tests/market/token/EToken/TestBaseETokenIsolated.t.sol";
 
+// NOTES:
+// 1. test_liquidateExact_single_success fails because of the lack of bad debt expected
+
 contract LiquidateExactSingleTest is TestBaseETokenIsolated {
     function setUp() public override {
         super.setUp();
@@ -45,6 +48,6 @@ contract LiquidateExactSingleTest is TestBaseETokenIsolated {
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertApproxEqRel(eUSDC.debtBalanceCached(user1), 750e6, 0.01e18);
-        assertApproxEqRel(eUSDC.exchangeRateCached(), _ONE, 0.01e18);
+        assertApproxEqRel(eUSDC.exchangeRate(), _ONE, 0.01e18);
     }
 }

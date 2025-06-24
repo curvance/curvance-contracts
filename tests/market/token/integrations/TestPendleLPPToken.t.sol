@@ -36,7 +36,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
     function setUp() public override {
         _fork(20287400);
 
-        _deployDAOTimelock();
+        
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();
@@ -45,6 +45,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         _deployOracleManager();
         _deployChainlinkAdaptors();
         _deployMarketManager();
+        _deployEDAI();
 
         chainlinkPendleUsd = new MockV3Aggregator(18, 3.6e18, 3.6e24, 3.6e13);
         chainlinkAdaptor.addAsset(
@@ -78,6 +79,9 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         uint256 assets = 100e18;
         deal(_LP_STETH, user1, assets);
         deal(_LP_STETH, address(this), 77777);
+
+        _prepareDAI(address(this), 77777);
+        dai.approve(address(eDAI), 77777);
 
         IERC20(_LP_STETH).approve(address(cSTETH), 77777);
         marketManagerIsolated.listTokens(address(cSTETH), address(eDAI));
@@ -156,6 +160,9 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         uint256 assets = 100e18;
         deal(_LP_STETH, user1, assets);
         deal(_LP_STETH, address(this), 77777);
+
+        _prepareDAI(address(this), 77777);
+        dai.approve(address(eDAI), 77777);
 
         IERC20(_LP_STETH).approve(address(cSTETH), 77777);
         marketManagerIsolated.listTokens(address(cSTETH), address(eDAI));

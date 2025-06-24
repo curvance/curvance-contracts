@@ -274,7 +274,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
 
         uint256 incentive = liqBaseIncentive + liqCurve;
         uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
-            (price * _pToken.exchangeRateCached());
+            (price * _pToken.exchangeRate());
         uint256 amountAdjusted = (debtAmount * (10 ** _pToken.decimals())) /
             (10 ** _eToken.decimals());
         uint256 expectedLiquidatedTokens = (amountAdjusted *

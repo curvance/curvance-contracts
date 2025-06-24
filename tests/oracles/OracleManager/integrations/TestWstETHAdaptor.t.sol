@@ -19,7 +19,7 @@ contract TestWstETHAdaptor is TestBaseOracleManager {
     function setUp() public override {
         _fork(18031848);
         console2.log("Forked to block 18031848");
-        _deployDAOTimelock();
+        
         console2.log("Deployed DAO Timelock");
         _deployCentralRegistry();
         console2.log("Deployed Central Registry");

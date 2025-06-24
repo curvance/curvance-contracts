@@ -198,7 +198,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertEq(eUSDC.debtBalanceCached(user1), 500e6);
-        assertEq(eUSDC.exchangeRateCached(), 1 ether);
+        assertEq(eUSDC.exchangeRate(), 1 ether);
 
         // try borrow()
         skip(1200);
@@ -206,28 +206,28 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertGt(eUSDC.debtBalanceCached(user1), 600e6);
-        assertGt(eUSDC.exchangeRateCached(), 1 ether);
+        assertGt(eUSDC.exchangeRate(), 1 ether);
 
         // skip min hold period
         skip(20 minutes);
 
         // try partial repay
         uint256 borrowBalanceBefore = eUSDC.debtBalanceCached(user1);
-        uint256 exchangeRateBefore = eUSDC.exchangeRateCached();
+        uint256 exchangeRateBefore = eUSDC.exchangeRate();
         _prepareUSDC(user1, 200e6);
         usdc.approve(address(eUSDC), 200e6);
         eUSDC.repay(200e6);
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertGt(eUSDC.debtBalanceCached(user1), borrowBalanceBefore - 200e6);
-        assertGt(eUSDC.exchangeRateCached(), exchangeRateBefore);
+        assertGt(eUSDC.exchangeRate(), exchangeRateBefore);
 
         // skip some period
         skip(20 minutes);
 
         // try repay full
         borrowBalanceBefore = eUSDC.debtBalanceCached(user1);
-        exchangeRateBefore = eUSDC.exchangeRateCached();
+        exchangeRateBefore = eUSDC.exchangeRate();
         _prepareUSDC(user1, borrowBalanceBefore);
         usdc.approve(address(eUSDC), borrowBalanceBefore);
         eUSDC.repay(borrowBalanceBefore);
@@ -235,7 +235,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertGt(eUSDC.debtBalanceCached(user1), 0);
-        assertGt(eUSDC.exchangeRateCached(), exchangeRateBefore);
+        assertGt(eUSDC.exchangeRate(), exchangeRateBefore);
     }
 
     function testPTokenRedeemOnBorrow() public {
@@ -301,7 +301,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertGt(eUSDC.debtBalanceCached(user1), 500e6);
-        assertGt(eUSDC.exchangeRateCached(), 1 ether);
+        assertGt(eUSDC.exchangeRate(), 1 ether);
     }
 
     function testPTokenTransferOnBorrow() public {
@@ -362,11 +362,11 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertEq(eUSDC.debtBalanceCached(user1), 500e6);
-        assertEq(eUSDC.exchangeRateCached(), 1 ether);
+        assertEq(eUSDC.exchangeRate(), 1 ether);
 
         assertEq(eUSDC.balanceOf(user2), 1000e6);
         assertEq(eUSDC.debtBalanceCached(user2), 0);
-        assertEq(eUSDC.exchangeRateCached(), 1 ether);
+        assertEq(eUSDC.exchangeRate(), 1 ether);
     }
 
     function testLiquidationExact() public {
@@ -418,7 +418,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertApproxEqRel(eUSDC.debtBalanceCached(user1), 750e6, 0.01e18);
-        assertApproxEqRel(eUSDC.exchangeRateCached(), 1 ether, 0.01e18);
+        assertApproxEqRel(eUSDC.exchangeRate(), 1 ether, 0.01e18);
     }
 
     function testLiquidation() public {
@@ -467,6 +467,6 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertEq(eUSDC.debtBalanceCached(user1), 0);
-        assertApproxEqRel(eUSDC.exchangeRateCached(), 1 ether, 0.01e18);
+        assertApproxEqRel(eUSDC.exchangeRate(), 1 ether, 0.01e18);
     }
 }

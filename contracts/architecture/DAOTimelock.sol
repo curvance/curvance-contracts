@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { TimelockController } from "@openzeppelin/contracts/governance/TimelockController.sol";
 
@@ -9,19 +9,47 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 
+/// @title DAO Timelock
+/// @notice A timelock controller for the Curvance DAO that enforces a delay
+///         period before administrative operations can be executed.
+/// @dev This contract extends OpenZeppelin's TimelockController with
+///      Curvance-specific functionality. It enforces a minimum delay of
+///      5-days for all timelock transaction proposals.
+///
+/// The timelock serves as a security mechanism that:
+/// - Creates transparency by making governance actions visible before
+///   execution.
+/// - Provides a window for token holders to exit if they disagree with
+///   proposed changes.
+/// - Protects the protocol from immediate execution of potentially malicious
+///   proposals.
+///
+/// This implementation:
+/// - Stays in sync with permissioned addresses changes through the
+///   CentralRegistry.
+/// - Grants the DAO address both proposer/executor/canceller roles.
+///
 contract DAOTimelock is TimelockController, ERC165 {
     /// CONSTANTS ///
 
     /// @notice Minimum delay for timelock transaction proposals to execute.
-    uint256 public constant MINIMUM_DELAY = 7 days;
+    uint256 public constant MINIMUM_DELAY = 5 days;
+
+    /// @notice Emergency Council address.
+    address public _EMERGENCY_COUNCIL;
+
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
+
+    /// STORAGE ///
+
     /// @notice Internally stored Curvance DAO address.
     address internal _DAO_ADDRESS;
 
     /// ERRORS ///
 
-    error Timelock__InvalidCentralRegistry(address invalidCentralRegistry);
+    error DAOTimelock__InvalidParameter();
+    error DAOTimelock__Unauthorized();
 
     /// CONSTRUCTOR ///
 
@@ -35,38 +63,68 @@ contract DAOTimelock is TimelockController, ERC165 {
             address(0)
         )
     {
-        // if (
-        //     !ERC165Checker.supportsInterface(
-        //         address(centralRegistry_),
-        //         type(ICentralRegistry).interfaceId
-        //     )
-        // ) {
-        //     revert Timelock__InvalidCentralRegistry(address(centralRegistry_));
-        // }
+        if (
+            !ERC165Checker.supportsInterface(
+                address(centralRegistry_),
+                type(ICentralRegistry).interfaceId
+            )
+        ) {
+            revert DAOTimelock__InvalidParameter();
+        }
 
         centralRegistry = centralRegistry_;
 
-        // grant admin/proposer/executor role to DAO.
-        // _DAO_ADDRESS = centralRegistry.daoAddress();
-        // _grantRole(PROPOSER_ROLE, _DAO_ADDRESS);
-        // _grantRole(EXECUTOR_ROLE, _DAO_ADDRESS);
-
-        _grantRole(PROPOSER_ROLE, address(123));
-        _grantRole(EXECUTOR_ROLE, address(123));
+        // grant admin/proposer/executor/canceller role to DAO.
+        _DAO_ADDRESS = centralRegistry.daoAddress();
+        _grantRole(PROPOSER_ROLE, _DAO_ADDRESS);
+        _grantRole(EXECUTOR_ROLE, _DAO_ADDRESS);
+        _grantRole(CANCELLER_ROLE, _DAO_ADDRESS);
+        _EMERGENCY_COUNCIL = centralRegistry.emergencyCouncil();
+        _grantRole(CANCELLER_ROLE, _EMERGENCY_COUNCIL);
     }
 
-    /// @notice Permissionlessly update DAO address if it has been changed
-    ///         through the Curvance Central Registry.
-    function updateDaoAddress() external {
-        address daoAddress = centralRegistry.daoAddress();
-        if (daoAddress != _DAO_ADDRESS) {
-            _revokeRole(PROPOSER_ROLE, _DAO_ADDRESS);
-            _revokeRole(EXECUTOR_ROLE, _DAO_ADDRESS);
+    /// EXTERNAL FUNCTIONS ///
 
-            _grantRole(PROPOSER_ROLE, daoAddress);
-            _grantRole(EXECUTOR_ROLE, daoAddress);
-            _DAO_ADDRESS = daoAddress;
+    /// @notice Cancels a queued action.
+    /// @dev Only callable by `CANCELLER_ROLE` or the Emergency Council.
+    ///      May emit a {Cancelled} event.
+    /// @param id The queued action to cancel.
+    function cancel(bytes32 id) public override {
+        _checkCanCancel();
+        super.cancel(id);
+    }
+
+    /// @notice Permissionlessly update roles if it has been changed
+    ///         through the Protocol Central Registry.
+    function updateRoles() external {
+        address registryDaoAddress = centralRegistry.daoAddress();
+        address timelockDaoAddress = _DAO_ADDRESS;
+
+        if (registryDaoAddress != timelockDaoAddress) {
+            _revokeRole(PROPOSER_ROLE, timelockDaoAddress);
+            _revokeRole(EXECUTOR_ROLE, timelockDaoAddress);
+            _revokeRole(CANCELLER_ROLE, timelockDaoAddress);
+
+            _grantRole(PROPOSER_ROLE, registryDaoAddress);
+            _grantRole(EXECUTOR_ROLE, registryDaoAddress);
+            _grantRole(CANCELLER_ROLE, registryDaoAddress);
+            _DAO_ADDRESS = registryDaoAddress;
         }
+
+        address registryEC = centralRegistry.emergencyCouncil();
+        address timelockEC = _EMERGENCY_COUNCIL;
+        if (registryEC != timelockEC) {
+            _revokeRole(CANCELLER_ROLE, timelockEC);
+
+            _grantRole(CANCELLER_ROLE, registryEC);
+            _EMERGENCY_COUNCIL = registryEC;
+        }
+    }
+
+
+    function getMinDelay() public view override returns (uint256 result) {
+            uint256 currentDelay = super.getMinDelay();
+            result = currentDelay < MINIMUM_DELAY ? MINIMUM_DELAY : currentDelay;
     }
 
     /// @notice Returns true if this contract implements the interface defined
@@ -75,9 +133,22 @@ contract DAOTimelock is TimelockController, ERC165 {
     /// @return Whether `interfaceId` is implemented or not.
     function supportsInterface(
         bytes4 interfaceId
-    ) public view virtual override(ERC165, TimelockController) returns (bool) {
+    ) public view virtual override(ERC165, TimelockController) returns (
+        bool
+    ) {
         return
             interfaceId == type(ITimelock).interfaceId ||
             super.supportsInterface(interfaceId);
+    }
+
+    /// @dev Checks whether the caller has sufficient permissions
+    ///      to cancel a queued action.
+    function _checkCanCancel() internal view {
+        if (
+            _msgSender() != centralRegistry.emergencyCouncil() &&
+            !hasRole(CANCELLER_ROLE, _msgSender())
+            ) {
+                revert DAOTimelock__Unauthorized();
+        }
     }
 }

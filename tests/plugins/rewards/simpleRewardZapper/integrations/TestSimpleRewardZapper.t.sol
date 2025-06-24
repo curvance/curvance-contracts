@@ -13,8 +13,6 @@ import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract User {}
-
 contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
@@ -109,6 +107,9 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             // marketManager.enterMarkets(markets);
         }
 
+        // list tokens
+        marketManagerIsolated.listTokens(address(pWETH), address(eUSDC));
+
         marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
@@ -128,11 +129,15 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         caps[0] = 100 ether;
         marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
+        mTokens[0] = address(eUSDC);
+        caps[0] = 1_000_000e6;
+        marketManagerIsolated.setDebtCaps(mTokens, caps);
+
         provideEnoughLiquidityForLeverage();
     }
 
     function provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = address(new User());
+        address liquidityProvider = makeAddr("Liquidity_provider");
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareWETH(liquidityProvider, 10 ether);
         // mint eUSDC
