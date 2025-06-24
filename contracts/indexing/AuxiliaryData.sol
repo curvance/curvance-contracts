@@ -11,7 +11,7 @@ import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
@@ -221,7 +221,7 @@ contract AuxiliaryData {
         balanceOf = IMToken(token).balanceOf(account);
         collateralOrDebtAmount = IMToken(token).isCollateralizable()
             ? IPToken(token).collateralPosted(account)
-            : IEToken(token).debtBalanceCached(account);
+            : IBorrowableCToken(token).debtBalanceCached(account);
     }
 
     /// @notice Returns if an account has an active position in `mToken`.
@@ -271,14 +271,14 @@ contract AuxiliaryData {
         address account,
         address token
     ) public view returns (uint256) {
-        return IEToken(token).debtBalanceCached(account);
+        return IBorrowableCToken(token).debtBalanceCached(account);
     }
 
     /// @notice Calculates the current eToken utilization rate.
     /// @param eToken The earning token to pull interest rate data for.
     /// @return The utilization rate, in `WAD`.
     function getUtilizationRate(address eToken) public view returns (uint256) {
-        IEToken ieToken = IEToken(eToken);
+        IBorrowableCToken ieToken = IBorrowableCToken(eToken);
         return
             ieToken.interestRateModel().utilizationRate(
                 ieToken.marketUnderlyingHeld(),
@@ -293,7 +293,7 @@ contract AuxiliaryData {
     function getBorrowRatePerYear(
         address eToken
     ) public view returns (uint256) {
-        IEToken ieToken = IEToken(eToken);
+        IBorrowableCToken ieToken = IBorrowableCToken(eToken);
         return
             ieToken.interestRateModel().getBorrowRatePerYear(
                 ieToken.marketUnderlyingHeld(),
@@ -309,7 +309,7 @@ contract AuxiliaryData {
     function getPredictedBorrowRatePerYear(
         address eToken
     ) public view returns (uint256) {
-        IEToken ieToken = IEToken(eToken);
+        IBorrowableCToken ieToken = IBorrowableCToken(eToken);
         return
             ieToken.interestRateModel().getPredictedBorrowRatePerYear(
                 ieToken.marketUnderlyingHeld(),
@@ -324,7 +324,7 @@ contract AuxiliaryData {
     function getSupplyRatePerYear(
         address eToken
     ) public view returns (uint256) {
-        IEToken ieToken = IEToken(eToken);
+        IBorrowableCToken ieToken = IBorrowableCToken(eToken);
         return
             ieToken.interestRateModel().getSupplyRatePerYear(
                 ieToken.marketUnderlyingHeld(),
@@ -733,7 +733,7 @@ contract AuxiliaryData {
     function getTokenBorrows(
         address token
     ) public view returns (uint256 result) {
-        IEToken eToken = IEToken(token);
+        IBorrowableCToken eToken = IBorrowableCToken(token);
 
         // Get outstanding borrows then query price and return.
         result =

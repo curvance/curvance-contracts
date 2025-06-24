@@ -2,7 +2,7 @@
 // import { EToken } from "contracts/market/token/EToken.sol";
 // import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 // import { IMToken } from "contracts/interfaces/IMToken.sol";
-// import { IEToken } from "contracts/interfaces/IEToken.sol";
+// import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 // import { WAD } from "contracts/libraries/Constants.sol";
 // import { OracleManager } from "contracts/oracles/OracleManager.sol";
 // import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
@@ -888,7 +888,7 @@
 //                     );
 //                 } else {
 //                     assertEq(
-//                         IEToken(address(assets[i])).debtBalanceCached(
+//                         IBorrowableCToken(address(assets[i])).debtBalanceCached(
 //                             address(this)
 //                         ),
 //                         0,
@@ -902,9 +902,9 @@
 //                     if (assets[i].isPToken()) {
 //                         continue;
 //                     }
-//                     uint256 totalBorrows = IEToken(address(assets[i]))
+//                     uint256 totalBorrows = IBorrowableCToken(address(assets[i]))
 //                         .totalBorrows();
-//                     uint256 accountDebt = IEToken(address(assets[i]))
+//                     uint256 accountDebt = IBorrowableCToken(address(assets[i]))
 //                         .debtBalanceCached(address(this));
 //                     if (totalBorrows < accountDebt) {
 //                         emit LogUint256(

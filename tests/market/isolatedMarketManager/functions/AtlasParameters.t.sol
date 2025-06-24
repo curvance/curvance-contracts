@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import { TestBaseMarketManagerIsolated } from "tests/market/isolatedMarketManager/TestBaseMarketManagerIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 
 contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     address dappControlUser = makeAddr("dappControlUser");
@@ -246,7 +246,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         eUSDC.accrueInterest(); // pull interest forward
-        uint256 debtBalance = IEToken(address(eUSDC)).debtBalanceCached(user1);
+        uint256 debtBalance = IBorrowableCToken(address(eUSDC)).debtBalanceCached(user1);
 
         uint256 closeBalance = (debtBalance * 0.30e18) / 1e18;
 

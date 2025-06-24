@@ -10,7 +10,7 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
@@ -154,7 +154,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         DeleverageStruct memory deleverageData = DeleverageStruct({
             positionToken: ICToken(address(pBALRETHWithExitFee)),
             collateralAmount: 0,
-            borrowToken: IEToken(address(eUSDC)),
+            borrowToken: IBorrowableCToken(address(eUSDC)),
             swapData: swapData,
             repayAmount: 0,
             auxData: ""

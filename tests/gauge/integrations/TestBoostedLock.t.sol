@@ -1,7 +1,7 @@
 // // SPDX-License-Identifier: UNLICENSED
 // pragma solidity ^0.8.15;
 
-// import { IEToken } from "contracts/interfaces/IEToken.sol";
+// import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 // import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 // import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 // import { EToken } from "contracts/market/token/EToken.sol";

@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 import { EToken } from "contracts/market/token/EToken.sol";
@@ -344,7 +344,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         ) * 50) / 100;
 
         SimplePositionManager.LeverageStruct memory leverageData;
-        leverageData.borrowToken = IEToken(address(eWETH));
+        leverageData.borrowToken = IBorrowableCToken(address(eWETH));
         leverageData.borrowAmount = amountForLeverage;
         leverageData.positionToken = ICToken(address(pWBTC));
         leverageData.swapData.inputToken = _WETH_ADDRESS;

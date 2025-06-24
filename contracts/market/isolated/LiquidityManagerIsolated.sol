@@ -8,7 +8,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 /// @title Curvance Liquidity Manager.
@@ -623,7 +623,7 @@ abstract contract LiquidityManagerIsolated {
                     // If the asset is not the pToken, the asset must be an `eToken`
                     // debt position because this market is limited to one
                     // pToken and one eToken.
-                    debt = IEToken(cachedData.eToken).debtBalanceCached(account);
+                    debt = IBorrowableCToken(cachedData.eToken).debtBalanceCached(account);
                     // If they have a debt balance,
                     // we need to document collateral requirements.
                     if (debt > 0) {

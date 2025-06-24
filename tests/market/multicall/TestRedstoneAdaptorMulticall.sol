@@ -5,7 +5,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
@@ -344,7 +344,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         ) * 50) / 100;
 
         SimplePositionManager.LeverageStruct memory leverageData;
-        leverageData.borrowToken = IEToken(address(eUSDC));
+        leverageData.borrowToken = IBorrowableCToken(address(eUSDC));
         leverageData.borrowAmount = amountForLeverage;
         leverageData.positionToken = ICToken(address(pWBTC));
         leverageData.swapData.inputToken = _USDC_ADDRESS;

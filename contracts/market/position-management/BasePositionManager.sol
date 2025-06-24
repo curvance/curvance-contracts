@@ -18,7 +18,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
@@ -83,7 +83,7 @@ abstract contract BasePositionManager is
         uint256 numTokens = mTokens.length;
         for (uint256 i; i < numTokens; ++i) {
             if (mTokens[i].isBorrowable()) {
-                IEToken(address(mTokens[i])).accrueInterest();
+                IBorrowableCToken(address(mTokens[i])).accrueInterest();
             }
         }
 
@@ -451,7 +451,7 @@ abstract contract BasePositionManager is
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        IEToken borrowToken = deleverageData.borrowToken;
+        IBorrowableCToken borrowToken = deleverageData.borrowToken;
 
         // Unwrap deleverage instructions for debt repayment.
         address borrowUnderlying = borrowToken.asset();
@@ -686,7 +686,7 @@ abstract contract BasePositionManager is
         LeverageStruct memory leverageData,
         address account
     ) internal {
-        IEToken borrowToken = leverageData.borrowToken;
+        IBorrowableCToken borrowToken = leverageData.borrowToken;
         uint256 borrowAmount = leverageData.borrowAmount;
         uint256 maxBorrowAmount = maxRemainingLeverageOf(
             account,

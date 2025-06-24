@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import { TestBaseMarketManagerIsolated } from "tests/market/isolatedMarketManager/TestBaseMarketManagerIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";

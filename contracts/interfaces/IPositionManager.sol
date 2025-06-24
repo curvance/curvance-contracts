@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 interface IPositionManager {
@@ -19,7 +19,7 @@ interface IPositionManager {
     /// @param auxData Optional auxiliary data for execution of a leverage
     ///                action.
     struct LeverageStruct {
-        IEToken borrowToken;
+        IBorrowableCToken borrowToken;
         uint256 borrowAmount;
         ICToken positionToken;
         SwapperLib.Swap swapData;
@@ -42,7 +42,7 @@ interface IPositionManager {
     struct DeleverageStruct {
         ICToken positionToken;
         uint256 collateralAmount;
-        IEToken borrowToken;
+        IBorrowableCToken borrowToken;
         SwapperLib.Swap[] swapData;
         uint256 repayAmount;
         bytes auxData;

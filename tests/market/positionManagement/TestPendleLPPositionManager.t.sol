@@ -12,7 +12,7 @@
 // import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 // import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 // import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-// import { IEToken } from "contracts/interfaces/IEToken.sol";
+// import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 // import { ICToken } from "contracts/interfaces/ICToken.sol";
 // import { IERC20 } from "contracts/interfaces/IERC20.sol";
 // import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";

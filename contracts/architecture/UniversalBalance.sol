@@ -11,7 +11,7 @@ import { RescueLib } from "contracts/libraries/RescueLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
@@ -57,7 +57,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// CONSTANTS ///
 
     /// @notice The address of the token linked to this contract.
-    IEToken public immutable linkedToken;
+    IBorrowableCToken public immutable linkedToken;
 
     /// @notice The address of Universal Balance underlying token.
     address public immutable underlying;
@@ -111,7 +111,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        linkedToken = IEToken(eToken);
+        linkedToken = IBorrowableCToken(eToken);
         address underlying_ = IMToken(eToken).asset();
         underlying = underlying_;
 

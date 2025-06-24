@@ -8,7 +8,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 
 contract Predeposit {
     /// TYPES ///
@@ -291,7 +291,7 @@ contract Predeposit {
             }
         } else {
             // Migrate a debt token to be lent to users.
-            IEToken(mToken).mintFor(amount, msg.sender);
+            IBorrowableCToken(mToken).mintFor(amount, msg.sender);
         }
 
         // Remove any excess approval.

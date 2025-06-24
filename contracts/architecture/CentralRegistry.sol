@@ -9,7 +9,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { ActionRegistry } from "contracts/libraries/ActionRegistry.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
@@ -369,10 +369,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
-        IEToken eToken;
+        IBorrowableCToken eToken;
 
         for (uint256 i; i < numTokens; ) {
-            eToken = IEToken(eTokens[i++]);
+            eToken = IBorrowableCToken(eTokens[i++]);
             // Revert if somehow a misconfigured token made it in here.
             if (!eToken.isBorrowable()) {
                 _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);

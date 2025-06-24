@@ -118,8 +118,7 @@ contract DAOTimelock is TimelockController, ERC165 {
         }
     }
 
-
-    /// @param Returns the minimum delay before a proposal can be executed,
+    /// @return result The minimum delay before a proposal can be executed,
     ///        in `seconds`.
     function getMinDelay() public view override returns (uint256 result) {
         uint256 currentDelay = super.getMinDelay();
