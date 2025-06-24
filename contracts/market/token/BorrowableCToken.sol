@@ -715,25 +715,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
             (WAD << _BITPOS_DEBT_INDEX);
     }
 
-    /// @notice Checks whether there is sufficient assets to handle
-    ///         a withdrawal of `assets` based on assets currently held in
-    ///         this contract.
-    /// @param assets The amount of assets to withdraw which is checked
-    ///               against current assets held in the contract.
-    function _checkAssetsHeld(uint256 assets) internal view override {
-        // Check if we have enough underlying held to support the withdrawal.
-        // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
-        // the market never actually runs out of assets and may introduce
-        // invariant manipulation.
-        // This also acts as a protective mechanism against trying to
-        // manipulate marketOutstandingDebt above total underlying assets
-        // inside the system since there will always be at least
-        // _BASE_UNDERLYING_RESERVE excess inside the market.
-        if (assetsHeld() < assets + _BASE_UNDERLYING_RESERVE) {
-            revert BorrowableCToken__InsufficientAssetsHeld();
-        }
-    }
-
     /// @notice Packs `newOutstandingDebt` with current `marketDebtIndex` to
     ///         create new packed `_debtOf` for `account`.
     /// @param account The account to set `_debtOf` value for.
@@ -763,9 +744,34 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @dev If there are no pending yield or the vesting period has ended,
     ///      it returns 0.
     /// @return pendingYield The calculated pending yield.
-    function _calculatePendingYield()
-        internal
-        view
-        override
-        returns (uint256 pendingYield) {}
+    function _getPendingYield() internal view override returns (
+        uint256 pendingYield
+    ) {
+        // Cache vesting data.
+        uint256 vestingData = _vestingData;
+        pendingYield =  _getPendingYield(
+            uint96(vestingData),
+            uint40(vestingData >> _BITPOS_VEST_END),
+            uint40(vestingData >> _BITPOS_LAST_VEST)
+        );
+    }
+
+    /// @notice Checks whether there is sufficient assets to handle
+    ///         a withdrawal of `assets` based on assets currently held in
+    ///         this contract.
+    /// @param assets The amount of assets to withdraw which is checked
+    ///               against current assets held in the contract.
+    function _checkAssetsHeld(uint256 assets) internal view override {
+        // Check if we have enough underlying held to support the withdrawal.
+        // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
+        // the market never actually runs out of assets and may introduce
+        // invariant manipulation.
+        // This also acts as a protective mechanism against trying to
+        // manipulate marketOutstandingDebt above total underlying assets
+        // inside the system since there will always be at least
+        // _BASE_UNDERLYING_RESERVE excess inside the market.
+        if (assetsHeld() < assets + _BASE_UNDERLYING_RESERVE) {
+            revert BorrowableCToken__InsufficientAssetsHeld();
+        }
+    }
 }
