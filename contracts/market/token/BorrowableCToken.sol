@@ -759,37 +759,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _debtOf[account] = newDebtOf;
     }
 
-    /// @notice Sets a new `_vestingData` invariant based on `yieldToVest`,
-    ///         and `periodToVest` parameters together with the current
-    ///         block timestamp.
-    /// @param yieldToVest The yield to vest over `periodToVest`.
-    /// @param periodToVest The period in which `yieldToVest` is vested
-    ///                     over to users.
-    function _setNewVestingData(
-        uint256 yieldToVest,
-        uint256 periodToVest
-    ) internal {}
-
-    /// @notice Packs parameters together with current block timestamp to
-    ///         calculate the new packed vault data value.
-    /// @param newlastVestTimestamp The timestamp of when the last vest occurred.
-    /// @param newDebtExchangeRate The new exchange rate for debt to be
-    ///                            calculated at.
-    /// @return result The new packed vault data value.
-    function _vestInterest(
-        uint256 newlastVestTimestamp,
-        uint256 newDebtExchangeRate
-    ) internal view virtual returns (uint256 result) {}
-
-    /// @notice Returns whether the current vesting period has ended,
-    ///         based on the last vest timestamp.
-    /// @param packedVestingData Current packed vault data value.
-    /// @return result Boolean value indicating whether the current
-    ///                vesting period has ended or not.
-    function _checkVestStatus(
-        uint256 packedVestingData
-    ) internal pure override returns (bool result) {}
-
     /// @notice Calculates pending yield that have been vested.
     /// @dev If there are no pending yield or the vesting period has ended,
     ///      it returns 0.
@@ -799,8 +768,4 @@ contract BorrowableCToken is BaseCTokenWithYield {
         view
         override
         returns (uint256 pendingYield) {}
-
-    /// @notice Vests pending yield, and updates vesting data.
-    function _vestYield(uint256 /* newTotalAssets */) internal override {}
-
 }

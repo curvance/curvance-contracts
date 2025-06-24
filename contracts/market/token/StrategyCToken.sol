@@ -222,25 +222,16 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
         }
     }
 
-    /// @notice Vests pending yield, and updates last vest timestamp.
-    /// @param newTotalAssets The current assets of the vault, this is called
-    ///                       with the previous total amount plus pending
-    ///                       yield to recognize from time based vesting.
-    function _vestYield(uint256 newTotalAssets) internal override {
-        // Update the lastVestingClaim timestamp.
-        _setlastVestingClaim(uint40(block.timestamp));
-
-        // Set internal _totalAssets balance to `currentAssets` which is the
-        // current _totalAssets values plus pending yield.
-        _totalAssets = newTotalAssets;
-    }
-
-    /// @notice Vests pending rewards, and updates vault data.
+    /// @notice Vests pending rewards, and updates vesting data.
     function _vestIfNeeded() internal override {
-        // Vest pending rewards.
         uint256 pendingYieldToVest = _calculatePendingYield();
+        
+        // Vest pending yield, if there is any.
         if (pendingYieldToVest > 0) {
-            _vestYield(pendingYieldToVest);
+            // Update the lastVestingClaim timestamp.
+            _setlastVestingClaim(uint40(block.timestamp));
+            // Update _totalAssets invariant with pending yield added.
+            _totalAssets = _totalAssets + pendingYieldToVest;
         }
     }
 

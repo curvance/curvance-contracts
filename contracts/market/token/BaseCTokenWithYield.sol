@@ -116,9 +116,6 @@ abstract contract BaseCTokenWithYield is BaseCToken {
         virtual
         returns (uint256 pendingYield) {}
 
-    /// @notice Vests pending yield, and updates vesting data.
-    function _vestYield(uint256 /* newTotalAssets */) internal virtual {}
-
     /// @notice Updates the vesting period, if needed.
     /// @dev If there a pending vesting update,
     ///      and prior vest is done then `vestingPeriod` is updated.
