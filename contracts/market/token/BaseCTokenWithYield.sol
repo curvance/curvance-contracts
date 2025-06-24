@@ -94,27 +94,41 @@ abstract contract BaseCTokenWithYield is BaseCToken {
     function _getTotalAssets() internal view override returns (
         uint256 result
     ) {
-        result = _totalAssets + _calculatePendingYield();
+        result = _totalAssets + _getPendingYield();
     }
 
-    /// @notice Returns whether the current vesting period has ended,
-    ///         based on the last vest timestamp.
-    /// @param packedVestingData Current packed vault data value.
-    /// @return result Boolean value indicating whether the current
-    ///                vesting period has ended or not.
-    function _checkVestingFinished(
-        uint256 packedVestingData
-    ) internal pure virtual returns (bool result) {}
-
-    /// @notice Calculates pending yield that have been vested.
+    /// @notice Calculates pending yield that has been vested.
     /// @dev If there are no pending yield or the vesting period has ended,
     ///      it returns 0.
-    /// @return pendingYield The calculated pending yield.
-    function _calculatePendingYield()
+    /// @return pendingYield The calculated pending yield, in assets.
+    function _getPendingYield(
+        uint256 vestingRate,
+        uint256 lastVestingClaim,
+        uint256 vestingPeriodEnd
+    )
         internal
         view
-        virtual
-        returns (uint256 pendingYield) {}
+        returns (uint256 pendingYield)
+    {
+        // Check whether there are pending yield vesting.
+        if (vestingRate > 0 && lastVestingClaim < vestingPeriodEnd) {
+            // When calculating pending yield:
+            // pendingYield =
+            // If the vesting period has not ended:
+            // PY = vestingRate * (block.timestamp - lastTimeVestClaimed).
+            // If the vesting period has ended:
+            // PY = vestingRate * (vestingPeriodEnd - lastTimeVestClaimed)).
+            // Then in either case:
+            // Divide the pending yield by `WAD` (1e18) for precision.
+            pendingYield =
+                (
+                    block.timestamp < vestingPeriodEnd
+                        ? vestingRate * (block.timestamp - lastVestingClaim)
+                        : vestingRate * (vestingPeriodEnd - lastVestingClaim)
+                ) /
+                WAD;
+        }
+    }
 
     /// @notice Updates the vesting period, if needed.
     /// @dev If there a pending vesting update,
@@ -128,4 +142,19 @@ abstract contract BaseCTokenWithYield is BaseCToken {
             delete pendingVestingPeriodUpdate.updateNeeded;
         }
     }
+
+    /// @notice Calculates pending yield that have been vested.
+    /// @dev If there are no pending yield or the vesting period has ended,
+    ///      it returns 0.
+    /// @return The calculated pending yield.
+    function _getPendingYield() internal view virtual returns (uint256);
+
+    /// @notice Returns whether the current vesting period has ended,
+    ///         based on the last vest timestamp.
+    /// @param packedVestingData Current packed vault data value.
+    /// @return result Boolean value indicating whether the current
+    ///                vesting period has ended or not.
+    function _checkVestingFinished(
+        uint256 packedVestingData
+    ) internal pure virtual returns (bool result) {}
 }
