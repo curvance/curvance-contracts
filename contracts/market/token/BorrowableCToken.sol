@@ -130,7 +130,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     function setInterestRateModel(address newInterestRateModel) external {
         _checkElevatedPermissions();
 
-        // Update pending interest.
+        // Accrue interest if needed.
         accrueIfNeeded();
 
         _setInterestRateModel(IInterestRateModel(newInterestRateModel));
@@ -143,7 +143,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     function setInterestFee(uint256 newInterestFee) external {
         _checkElevatedPermissions();
 
-        // Update pending interest.
+        // Accrue interest if needed.
         accrueIfNeeded();
 
         _setInterestFee(newInterestFee);
@@ -154,7 +154,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @dev Updates pending interest before executing the borrow.
     /// @param amount The amount of the underlying asset to borrow.
     function borrow(uint256 amount) external nonReentrant {
-        // Update pending interest.
+        // Accrue interest if needed.
         accrueIfNeeded();
 
         // Reverts if borrow not allowed.
@@ -188,7 +188,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ) external nonReentrant {
         _checkDelegate(account, msg.sender);
 
-        // Update pending interest.
+        // Accrue interest if needed.
         accrueIfNeeded();
 
         // Reverts if borrow not allowed.
@@ -221,7 +221,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Update pending interest.
+        // Accrue interest if needed.
         // This generally is a redundant check due to interest accrual
         // done inside checkSlippage check in position management contract
         // implementations, but we keep this check in for invariant
@@ -259,9 +259,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param amount The amount to repay, or 0 for the full outstanding
     ///               amount.
     function repay(uint256 amount) external nonReentrant {
-        // Update pending interest.
-        accrueIfNeeded();
-
         _repay(msg.sender, msg.sender, amount);
     }
 
@@ -272,9 +269,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param amount The amount to repay, or 0 for the full outstanding
     ///               amount.
     function repayFor(address account, uint256 amount) external nonReentrant {
-        // Update pending interest.
-        accrueIfNeeded();
-
         _repay(msg.sender, account, amount);
     }
 
@@ -353,7 +347,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         nonReentrant
         returns (uint256 result)
     {
-        // Update pending interest.
+        // Accrue interest if needed.
         accrueIfNeeded();
 
         result = marketOutstandingDebt;
@@ -368,7 +362,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     function debtBalanceUpdated(
         address account
     ) external nonReentrant returns (uint256 result) {
-        // Update pending interest.
+        // Accrue interest if needed.
         accrueIfNeeded();
 
         result = debtBalance(account);
@@ -440,7 +434,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // Calculate the interest vesting cycles for new vesting period.
             // The weird multiplication logic here is to round down to
             // discrete vesting cycles.
-            accrualPeriod = ((block.timestamp - lastVestingClaim) / accrualPeriod) * accrualPeriod;
+            accrualPeriod = ((block.timestamp - lastVestingClaim) /
+                accrualPeriod) * accrualPeriod;
             vestingPeriodEnd = lastVestingClaim + accrualPeriod;
             // Calculate the borrow rate to new the new interest vesting rate per second.
             vestingRate = interestRateModel.getBorrowRateWithUpdate(
@@ -576,6 +571,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
         address account,
         uint256 amount
     ) internal returns (uint256) {
+        // Accrue interest if needed.
+        accrueIfNeeded();
+
         // Validate that the payer is allowed to repay the loan.
         marketManager.canRepay(address(this), account);
 
@@ -653,7 +651,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Update pending interest.
+        // Accrue interest if needed.
         accrueIfNeeded();
 
         IMarketManager.LiqResults memory liqResults;
