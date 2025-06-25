@@ -5,7 +5,7 @@ import { WAD, DENOMINATOR, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libra
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { IOracleAdaptor, PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
@@ -82,12 +82,13 @@ contract OracleManager is IOracleManager {
         bool hadError;
     }
 
-    /// @notice Stored data for an mToken.
-    /// @param isMToken Used to indicate if the provided address is an
-    ///                 MToken or not.
-    /// @param underlying Address of the underlying asset for the MToken.
-    struct MTokenData {
-        bool isMToken;
+    /// @notice Stored data for Curvance token.
+    /// @param isCToken Used to indicate if the provided address is a
+    ///                 Curvance token or not.
+    /// @param underlying Address of the underlying asset for the Curvance
+    ///                   token.
+    struct CTokenData {
+        bool isCToken;
         address underlying;
     }
 
@@ -128,12 +129,12 @@ contract OracleManager is IOracleManager {
     ///         11000 = 10% deviation.
     uint256 public badSourceDivergenceFlag = 1.01e4;
 
-    // Address => Adaptor approval status
+    // Address => Adaptor approval status.
     mapping(address => bool) public isApprovedAdaptor;
-    // Address => Price Feed addresses
+    // Address => Price Feed addresses.
     mapping(address => address[]) public assetPriceFeeds;
-    // Address => MToken metadata
-    mapping(address => MTokenData) public mTokenAssets;
+    // Address => Curvance token metadata.
+    mapping(address => CTokenData) public cTokenAssets;
 
     /// ERRORS ///
 
@@ -213,34 +214,35 @@ contract OracleManager is IOracleManager {
         _removeFeed(asset, msg.sender);
     }
 
-    /// @notice Adds a new mToken to the Oracle Manager.
-    /// @dev Requires that `newMToken` isn't already supported.
-    /// @param newMToken The address of the mToken to support.
-    function addMTokenSupport(address newMToken) external {
+    /// @notice Adds a new Curvance token to the Oracle Manager.
+    /// @dev Requires that `newCToken` isn't already supported.
+    /// @param newCToken The address of the Curvance token to support.
+    function addCTokenSupport(address newCToken) external {
         _checkElevatedPermissions();
 
-        if (mTokenAssets[newMToken].isMToken) {
+        if (cTokenAssets[newCToken].isCToken) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // We call a Curvance specific MToken function as a sanity check.
-        IMToken(newMToken).isCollateralizable();
+        // We call a Curvance-specific token function as a sanity check.
+        ICToken(newCToken).isCollateralizable();
 
-        mTokenAssets[newMToken].isMToken = true;
-        mTokenAssets[newMToken].underlying = IMToken(newMToken).asset();
+        cTokenAssets[newCToken].isCToken = true;
+        cTokenAssets[newCToken].underlying = ICToken(newCToken).asset();
     }
 
-    /// @notice Removes a mToken's support in the Oracle Manager.
-    /// @dev Requires that the mToken is supported.
-    /// @param mTokenToRemove The address of the mToken to remove support for.
-    function removeMTokenSupport(address mTokenToRemove) external {
+    /// @notice Removes a Curvance token's support in the Oracle Manager.
+    /// @dev Requires that the Curvance token is supported.
+    /// @param cTokenToRemove The address of the Curvance token to remove
+    ///                       support for.
+    function removeCTokenSupport(address cTokenToRemove) external {
         _checkElevatedPermissions();
 
-        if (!mTokenAssets[mTokenToRemove].isMToken) {
+        if (!cTokenAssets[cTokenToRemove].isCToken) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        delete mTokenAssets[mTokenToRemove];
+        delete cTokenAssets[cTokenToRemove];
     }
 
     /// @notice Adds `newAdaptor` as an approved adaptor.
@@ -347,9 +349,9 @@ contract OracleManager is IOracleManager {
     function getAdaptorTypes(
         address asset
     ) external view returns (uint256, uint256) {
-        bool isMToken = mTokenAssets[asset].isMToken;
-        if (isMToken) {
-            asset = mTokenAssets[asset].underlying;
+        bool isCToken = cTokenAssets[asset].isCToken;
+        if (isCToken) {
+            asset = cTokenAssets[asset].underlying;
         }
 
         uint256 numFeeds = assetPriceFeeds[asset].length;
@@ -392,8 +394,8 @@ contract OracleManager is IOracleManager {
     /// @param asset The address of the asset to check.
     /// @return True if the asset is supported, false otherwise.
     function isSupportedAsset(address asset) external view returns (bool) {
-        if (mTokenAssets[asset].isMToken) {
-            return assetPriceFeeds[mTokenAssets[asset].underlying].length > 0;
+        if (cTokenAssets[asset].isCToken) {
+            return assetPriceFeeds[cTokenAssets[asset].underlying].length > 0;
         }
 
         return assetPriceFeeds[asset].length > 0;
@@ -434,15 +436,15 @@ contract OracleManager is IOracleManager {
             return (0, BAD_SOURCE);
         }
 
-        address mAsset;
-        // Check whether asset is an mToken.
-        if (mTokenAssets[asset].isMToken) {
-            mAsset = asset;
-            asset = mTokenAssets[asset].underlying;
+        address cToken;
+        // Check whether `asset` is Curvance token.
+        if (cTokenAssets[asset].isCToken) {
+            cToken = asset;
+            asset = cTokenAssets[asset].underlying;
         }
 
         // Route pricing to a single feed source or dual feed source.
-        if (_checkHasSupportedFeeds(asset) < 2) { // Returns number of feeds supported.
+        if (_checkHasSupportedFeeds(asset) < 2) {
             bool hadError;
             (price, hadError) = _getPriceFromFeed(asset, 0, inUSD, getLower);
             if (hadError) {
@@ -452,10 +454,10 @@ contract OracleManager is IOracleManager {
             (price, errorCode) = _getPriceDualFeed(asset, inUSD, getLower);
         }
 
-        // Query the exchange rate between mToken and its underlying token
-        // and convert the price into WAD form.
-        if (mAsset != address(0)) {
-            price = (price * IMToken(mAsset).exchangeRate()) / WAD;
+        // Query the exchange rate between a Curvance token and its underlying
+        // token and convert the price into WAD form.
+        if (cToken != address(0)) {
+            price = (price * ICToken(cToken).exchangeRate()) / WAD;
         }
 
         // If somehow a feed returns a price of 0,
@@ -527,7 +529,7 @@ contract OracleManager is IOracleManager {
         // is for getting prices needed for an isolated market which is a
         // pToken and eToken debt.
         (eTokenUnderlyingPrice, errorCode) = getPrice(
-            mTokenAssets[eToken].underlying,
+            cTokenAssets[eToken].underlying,
             true,
             false
         );
@@ -552,23 +554,24 @@ contract OracleManager is IOracleManager {
     /// @return uint256 The number of assets `account` is in.
     function getPricesForMarket(
         address account,
-        IMToken[] calldata assets,
+        address[] calldata assets,
         uint256 errorCodeBreakpoint
     )
         external
         view
-        returns (AccountSnapshot[] memory, uint256[] memory, uint256)
-    {
+        returns (AccountSnapshot[] memory, uint256[] memory, uint256) {
         uint256 numAssets = assets.length;
 
         AccountSnapshot[] memory snapshots = new AccountSnapshot[](numAssets);
         uint256[] memory underlyingPrices = new uint256[](numAssets);
         uint256 errorCode;
 
+        ICToken asset;
         for (uint256 i; i < numAssets; ++i) {
-            snapshots[i] = assets[i].getSnapshot(account);
+            asset = ICToken(assets[i]);
+            snapshots[i] = asset.getSnapshot(account);
             (underlyingPrices[i], errorCode) = getPrice(
-                assets[i].asset(),
+                asset.asset(),
                 true,
                 snapshots[i].isPToken
             );

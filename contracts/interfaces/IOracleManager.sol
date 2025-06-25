@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 
 interface IOracleManager {
     /// @notice Retrieves the price of a specified asset from either single
@@ -68,7 +68,7 @@ interface IOracleManager {
     /// @return uint256 The number of assets `account` is in.
     function getPricesForMarket(
         address account,
-        IMToken[] calldata assets,
+        address[] calldata assets,
         uint256 errorCodeBreakpoint
     )
         external
