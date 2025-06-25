@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
-import { LiquidityManagerIsolated, IMToken, IOracleManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
+import { LiquidityManagerIsolated, ICToken, IOracleManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -13,7 +13,6 @@ import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 /// @title Curvance DAO Market Manager.
 /// @notice Manages risk within the Curvance DAO markets.
@@ -258,11 +257,12 @@ contract MarketManagerIsolated is
 
     /// @notice Returns the assets an account has entered.
     /// @param account The address of the account to pull assets for.
-    /// @return A dynamic list with the assets `account` has entered.
+    /// @return result An array containing the assets `account` has
+    ///                positions in.
     function assetsOf(
         address account
-    ) external view returns (IMToken[] memory) {
-        return accountAssets[account].assets;
+    ) external view returns (address[] memory result) {
+        result = accountAssets[account].assets;
     }
 
     /// @notice Determine `account`'s current status between collateral,
@@ -354,7 +354,7 @@ contract MarketManagerIsolated is
     ) external view returns (uint256, uint256, bool[] memory) {
         // Make sure they are not trying to hypothetically borrow
         // a position token.
-        if (IMToken(mTokenModified).isCollateralizable() && borrowAmount > 0) {
+        if (ICToken(mTokenModified).isCollateralizable() && borrowAmount > 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -422,7 +422,7 @@ contract MarketManagerIsolated is
         // If `account` does not have a position in `pToken`, open one.
         if (accountPositions[pToken][account] != 2) {
             accountPositions[pToken][account] = 2;
-            accountAssets[account].assets.push(IMToken(pToken));
+            accountAssets[account].assets.push(pToken);
 
             emit PositionUpdated(pToken, account, true);
         }
@@ -645,7 +645,7 @@ contract MarketManagerIsolated is
         _checkIsListedToken(eToken);
 
         if (
-            IMToken(cToken).marketManager() != IMToken(eToken).marketManager()
+            ICToken(cToken).marketManager() != ICToken(eToken).marketManager()
         ) {
             revert MarketManager__MarketManagerMismatch();
         }
@@ -724,7 +724,7 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        if (!IMToken(pToken).isCollateralizable() ||  !IMToken(eToken).isBorrowable()) {
+        if (!ICToken(pToken).isCollateralizable() ||  !ICToken(eToken).isBorrowable()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -734,10 +734,10 @@ contract MarketManagerIsolated is
 
         // Immediately deposit into the market to prevent any rounding
         // exploits.
-        if (!IMToken(pToken).startMarket(msg.sender)) {
+        if (!ICToken(pToken).startMarket(msg.sender)) {
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
-        if (!IMToken(eToken).startMarket(msg.sender)) {
+        if (!ICToken(eToken).startMarket(msg.sender)) {
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
 
@@ -1014,7 +1014,7 @@ contract MarketManagerIsolated is
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
             // Do not let people borrow assets if they are not intended to be.
-            if (!IMToken(cachedToken).isBorrowable()) {
+            if (!ICToken(cachedToken).isBorrowable()) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
@@ -1307,7 +1307,7 @@ contract MarketManagerIsolated is
             // so update this so borrow position is monitored in liquidity
             // checks.
             accountPositions[eToken][account] = 2;
-            accountAssets[account].assets.push(IMToken(eToken));
+            accountAssets[account].assets.push(eToken);
 
             emit PositionUpdated(eToken, account, true);
         }
@@ -1581,7 +1581,7 @@ contract MarketManagerIsolated is
         liquidatedPTokens = (debtAmount * debtToCollateralMultiplier) / WAD;
 
         // Cache `account`'s collateral posted of `pToken`.
-        uint256 collateralAvailable = IPToken(
+        uint256 collateralAvailable = ICToken(
             cachedData.pToken
         ).collateralPosted(account);
 
@@ -1719,7 +1719,7 @@ contract MarketManagerIsolated is
         // Cache all variables needed for computing liquidation levels and
         // compress into one struct for stack too deep limits.
         cachedData.pToken = pToken;
-        cachedData.pTokenExchangeRate = IPToken(pToken).exchangeRate();
+        cachedData.pTokenExchangeRate = ICToken(pToken).exchangeRate();
         cachedData.pTokenCollReqSoft = tokenData[pToken].collReqSoft;
         cachedData.pTokenCollReqHard = tokenData[pToken].collReqHard;
         cachedData.pTokenDecimals = 10 ** IERC20(pToken).decimals();
@@ -1769,15 +1769,15 @@ contract MarketManagerIsolated is
         }
 
         // Cache asset list.
-        IMToken[] memory userAssets = accountAssets[account].assets;
+        address[] memory userAssets = accountAssets[account].assets;
 
         // Cache asset array characteristics.
         uint256 numAssets = userAssets.length;
         uint256 lastAssetIndex = userAssets.length - 1;
-        address cachedToken;
+        address token;
 
         // Copy last item in list to location of item to be removed.
-        IMToken[] storage storedAssets = accountAssets[account].assets;
+        address[] storage storedAssets = accountAssets[account].assets;
 
         // Go backwards through position list so swap and pop maintains
         // continuity.
@@ -1804,11 +1804,11 @@ contract MarketManagerIsolated is
                     storedAssets.pop();
                 }
 
-                cachedToken = address(userAssets[i]);
+                token = userAssets[i];
 
                 // Remove `mToken` account position flag.
-                accountPositions[cachedToken][account] = 1;
-                emit PositionUpdated(cachedToken, account, false);
+                accountPositions[token][account] = 1;
+                emit PositionUpdated(token, account, false);
             }
         }
     }

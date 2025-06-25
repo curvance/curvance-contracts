@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
-
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
@@ -433,7 +429,7 @@ contract AuxiliaryData {
             numTokens
         );
         for (uint256 i; i < numTokens; i++) {
-            BaseCToken marketToken = BaseCToken(pTokens[i]);
+            ICToken marketToken = ICToken(pTokens[i]);
             IERC20 token = IERC20(marketToken.asset());
             MarketPTokenData memory pTokenData;
 
@@ -475,7 +471,7 @@ contract AuxiliaryData {
         );
         for (uint256 i; i < numTokens; ++i) {
             MarketETokenData memory eTokenData;
-            BorrowableCToken marketToken = BorrowableCToken(eTokens[i]);
+            IBorrowableCToken marketToken = IBorrowableCToken(eTokens[i]);
             IERC20 token = IERC20(marketToken.asset());
 
             if (account != address(0)) {

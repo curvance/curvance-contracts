@@ -6,8 +6,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
@@ -25,7 +24,7 @@ abstract contract LiquidityManagerIsolated {
     ///                          which activates the redeem/repay/exit market
     ///                          cooldown.
     struct AccountData {
-        IMToken[] assets;
+        address[] assets;
         uint256 cooldownTimestamp;
     }
 
@@ -285,9 +284,9 @@ abstract contract LiquidityManagerIsolated {
                 }
             } else {
                 // If they have a debt balance, increment their debt.
-                if (snapshot.debtBalance > 0) {
+                if (snapshot.debtOutstanding > 0) {
                     accountDebt += _assetValue(
-                        snapshot.debtBalance,
+                        snapshot.debtOutstanding,
                         underlyingPrices[i],
                         10 ** snapshot.decimals,
                         false
@@ -380,9 +379,9 @@ abstract contract LiquidityManagerIsolated {
                 }
             } else {
                 // If they have a debt balance, increment their debt.
-                if (snapshot.debtBalance > 0) {
+                if (snapshot.debtOutstanding > 0) {
                     newDebt += _assetValue(
-                        snapshot.debtBalance,
+                        snapshot.debtOutstanding,
                         underlyingPrices[i],
                         10 ** snapshot.decimals,
                         false
@@ -544,9 +543,9 @@ abstract contract LiquidityManagerIsolated {
 
                 // If they have a debt balance,
                 // we need to document collateral requirements.
-                if (snapshot.debtBalance > 0) {
+                if (snapshot.debtOutstanding > 0) {
                     accountData.accountDebt += _assetValue(
-                        snapshot.debtBalance,
+                        snapshot.debtOutstanding,
                         underlyingPrices[i],
                         10 ** snapshot.decimals,
                         false
@@ -594,15 +593,15 @@ abstract contract LiquidityManagerIsolated {
         returns (uint256 lFactor, uint256 debt)
     {
         AccountLiqData memory accountData;
-        IMToken[] memory assets = accountAssets[account].assets;
+        address[] memory assets = accountAssets[account].assets;
 
         {
-            address cachedAsset;
+            address asset;
             // We cannot cache assets.length as we'd run into a
             // stack too deep compiler error here.
             for (uint256 i; i < assets.length;) {
-                cachedAsset = address(assets[i++]);
-                if (cachedAsset == cachedData.pToken) {
+                asset = assets[i++];
+                if (asset == cachedData.pToken) {
                     // NOTE: We already check collRatio in _canLiquidate and
                     // theres one pToken in an isolated non-rehypothecated market
                     // so we do not need to check again.
@@ -615,7 +614,7 @@ abstract contract LiquidityManagerIsolated {
                             cachedData.pTokenCollReqSoft,
                             cachedData.pTokenCollReqHard,
                             cachedData.pTokenUnderlyingPrice,
-                            IPToken(cachedData.pToken).collateralPosted(account),
+                            ICToken(cachedData.pToken).collateralPosted(account),
                             accountData.accountCollateralSoft,
                             accountData.accountCollateralHard
                     );
@@ -623,7 +622,7 @@ abstract contract LiquidityManagerIsolated {
                     // If the asset is not the pToken, the asset must be an `eToken`
                     // debt position because this market is limited to one
                     // pToken and one eToken.
-                    debt = IBorrowableCToken(cachedData.eToken).debtBalanceCached(account);
+                    debt = IBorrowableCToken(cachedData.eToken).debtBalance(account);
                     // If they have a debt balance,
                     // we need to document collateral requirements.
                     if (debt > 0) {
@@ -828,7 +827,7 @@ abstract contract LiquidityManagerIsolated {
             tokenData[asset].collReqSoft,
             tokenData[asset].collReqHard,
             price,
-            IPToken(asset).collateralPosted(account),
+            ICToken(asset).collateralPosted(account),
             softSumPrior,
             hardSumPrior
         );

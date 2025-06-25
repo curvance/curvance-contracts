@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
-import { IPositionManager } from "./IPositionManager.sol";
+import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
 struct AccountSnapshot {
     address asset;

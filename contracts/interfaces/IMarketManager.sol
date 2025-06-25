@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { IMToken } from "contracts/interfaces/IMToken.sol";
-
 interface IMarketManager {
     /// TYPES ///
 
@@ -237,7 +235,7 @@ interface IMarketManager {
     /// @return A dynamic list with the assets `account` has entered.
     function assetsOf(
         address account
-    ) external view returns (IMToken[] memory);
+    ) external view returns (address[] memory);
 
     /// @notice Determine `account`'s current status between collateral,
     ///         debt, and additional liquidity.
