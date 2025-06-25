@@ -12,8 +12,6 @@ import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 
 import "tests/market/TestBaseMarketIsolated.sol";
 
-contract User {}
-
 contract TestNativeUniversalBalance is TestBaseMarketIsolated {
     address public owner;
 

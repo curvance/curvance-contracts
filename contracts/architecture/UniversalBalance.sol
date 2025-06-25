@@ -462,7 +462,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         if (willLend) {
             // Will natively fail if amount == 0 on gaugeManager call.
             // Records balance in tokens (shares).
-            uint256 tokensReceived = linkedToken.mint(amount, recipient);
+            uint256 tokensReceived = linkedToken.deposit(amount, recipient);
             userBalances[recipient].lentBalance += tokensReceived;
 
             emit Deposit(msg.sender, recipient, amount, willLend);

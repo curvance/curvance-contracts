@@ -327,7 +327,7 @@ contract AuxiliaryData {
         IBorrowableCToken ieToken = IBorrowableCToken(eToken);
         return
             ieToken.interestRateModel().getSupplyRatePerYear(
-                ieToken.marketUnderlyingHeld(),
+                ieToken.assetsHeld(),
                 ieToken.totalBorrows(),
                 ieToken.convertToAssets(ieToken.totalReserves()),
                 ieToken.interestFactor()

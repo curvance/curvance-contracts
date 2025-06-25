@@ -118,4 +118,11 @@ interface IBorrowableCToken is ICToken {
     /// @notice Returns the interest factor of the market.
     /// @return The interest factor of the market.
     function interestFactor() external view returns (uint256);
+
+    /// @notice Gets balance of this contract, in terms of the underlying.
+    /// @dev This excludes changes in underlying token balance by the
+    ///      current transaction, if any.
+    /// @return The quantity of underlying tokens held by the market.
+    function assetsHeld() external view returns (uint256);
+    
 }
