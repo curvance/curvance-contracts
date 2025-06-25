@@ -74,11 +74,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// EVENTS ///
 
-    event InterestAccrued(
-        uint256 debtAccumulated,
-        uint256 newMarketDebtIndex,
-        uint256 marketOutstandingDebt
-    );
+    event InterestAccrualUpdate(uint256 debtPerSecond, uint256 vestingPeriod);
     event Borrow(address account, uint256 amount);
     event Repay(address payer, address account, uint256 amount);
     event BadDebtRecognized(address liquidator, uint256 amount);
@@ -135,7 +131,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _checkElevatedPermissions();
 
         // Update pending interest.
-        accrueInterest();
+        accrueIfNeeded();
 
         _setInterestRateModel(IInterestRateModel(newInterestRateModel));
     }
@@ -148,7 +144,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _checkElevatedPermissions();
 
         // Update pending interest.
-        accrueInterest();
+        accrueIfNeeded();
 
         _setInterestFee(newInterestFee);
     }
@@ -159,7 +155,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param amount The amount of the underlying asset to borrow.
     function borrow(uint256 amount) external nonReentrant {
         // Update pending interest.
-        accrueInterest();
+        accrueIfNeeded();
 
         // Reverts if borrow not allowed.
         // Notifies the Market Manager that a user is taking on more debt,
@@ -193,7 +189,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _checkDelegate(account, msg.sender);
 
         // Update pending interest.
-        accrueInterest();
+        accrueIfNeeded();
 
         // Reverts if borrow not allowed.
         // Notifies the Market Manager that a user is taking on more debt,
@@ -231,7 +227,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // implementations, but we keep this check in for invariant
         // protection in the case of a incorrectly implemented position
         // management contract.
-        accrueInterest();
+        accrueIfNeeded();
 
         // Notifies the Market Manager that a user is taking on more debt,
         // and to pause user redemptions for 20 minutes.
@@ -264,7 +260,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///               amount.
     function repay(uint256 amount) external nonReentrant {
         // Update pending interest.
-        accrueInterest();
+        accrueIfNeeded();
 
         _repay(msg.sender, msg.sender, amount);
     }
@@ -277,7 +273,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///               amount.
     function repayFor(address account, uint256 amount) external nonReentrant {
         // Update pending interest.
-        accrueInterest();
+        accrueIfNeeded();
 
         _repay(msg.sender, account, amount);
     }
@@ -358,7 +354,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         returns (uint256 result)
     {
         // Update pending interest.
-        accrueInterest();
+        accrueIfNeeded();
 
         result = marketOutstandingDebt;
     }
@@ -373,7 +369,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         address account
     ) external nonReentrant returns (uint256 result) {
         // Update pending interest.
-        accrueInterest();
+        accrueIfNeeded();
 
         result = debtBalance(account);
     }
@@ -406,29 +402,130 @@ contract BorrowableCToken is BaseCTokenWithYield {
             );
     }
 
-    /// @notice Vests pending rewards, and updates vesting data.
+    /// @notice Can accrue interest yield, configure next interest accrual
+    ///         period, and updates vesting data, if needed.
+    /// @dev May emit a {InterestAccrualUpdate} event.
     function accrueIfNeeded() public override {
         uint256 vestingData = _vestingData;
-        uint256 vestingRate = uint176(vestingData);
         uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_VEST_END);
+        // If no time has passed since the last accrual can exit.
+        if (block.timestamp == lastVestingClaim) {
+            return;
+        }
+
+        uint256 vestingRate = uint176(vestingData);
         uint256 vestingPeriodEnd = uint40(vestingData >> _BITPOS_LAST_VEST);
+        uint256 marketDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
+        uint256 outstandingDebt = marketOutstandingDebt;
+        uint256 cachedTa = _totalAssets;
         uint256 pendingYieldToVest = _getPendingYield(
             vestingRate,
             lastVestingClaim,
             vestingPeriodEnd
         );
-
-        // Update last claim timestamp 
+        
+        // Update last claim timestamp, stopping at vesting end if vesting
+        // period is over.
         lastVestingClaim = block.timestamp > vestingPeriodEnd
             ? vestingPeriodEnd : block.timestamp;
+
+        uint256 protocolFees;
         
+        // Check if it is time to start a new vesting period.
+        if (block.timestamp >= vestingPeriodEnd) {
+            // Cache interest accrual fee, and vesting period to save gas.
+            uint256 accrualPeriod = vestingPeriod;
+            uint256 protocolInterestFee = interestFee;
+
+            // Calculate the interest vesting cycles for new vesting period.
+            // The weird multiplication logic here is to round down to
+            // discrete vesting cycles.
+            accrualPeriod = ((block.timestamp - lastVestingClaim) / accrualPeriod) * accrualPeriod;
+            vestingPeriodEnd = lastVestingClaim + accrualPeriod;
+            // Calculate the borrow rate to new the new interest vesting rate per second.
+            vestingRate = interestRateModel.getBorrowRateWithUpdate(
+                assetsHeld(),
+                outstandingDebt,
+                0
+            );
+
+            // Check whether the DAO takes a cut of interest, and whether new
+            // assets will vest over time the next vesting period.
+            if (protocolInterestFee > 0  && vestingRate > 0) {
+                // Fees are initially calculated off vesting rate giving us
+                // essentially fees per second, in assets. Which we can then
+                // subtract directly from vestingRate so theres no precision loss.
+                protocolFees = FixedPointMathLib.mulDivUp(
+                    vestingRate,
+                    protocolInterestFee,
+                    WAD
+                );
+                vestingRate = vestingRate - protocolFees;
+                // We can now convert the per second assets value to the
+                // amount of shares to be minted by the end of the new
+                // `vestingPeriodEnd`. Next we need to discount the amount of
+                // shares minted by the future interest to be vested so that
+                // the protocol is not overpaid. The discount share amount can
+                // be calculated with:
+                // shares * (current assets / current assets + future assets)
+                protocolFees = FixedPointMathLib.mulDiv(
+                    convertToShares(protocolFees * accrualPeriod * outstandingDebt),
+                    cachedTa,
+                    cachedTa + (pendingYieldToVest + 
+                        (vestingRate * accrualPeriod / WAD)) * outstandingDebt
+                );
+            }
+
+            emit InterestAccrualUpdate(vestingRate, accrualPeriod);
+        }
+
+        // Check if theres new yield to be vested, which could happen if the
+        // previous vesting period ended and current block.timestamp extends
+        // into the new vesting period.
+        pendingYieldToVest += _getPendingYield(
+            vestingRate,
+            lastVestingClaim,
+            vestingPeriodEnd
+        );
+
+        // If theres fees we need to mint new shares for the protocol.
+        if (protocolFees > 0) {
+            // Cache the current dao address then mint shares to the dao.
+            address daoAddress = centralRegistry.daoAddress();
+            _mint(daoAddress, protocolFees);
+            _afterDepositAction(daoAddress, protocolFees);
+        }
+
         // Vest pending yield, if there is any.
         if (pendingYieldToVest > 0) {
-            // Update the lastVestingClaim timestamp.
-            // _setlastVestingClaim(uint40(block.timestamp));
-            
-            // Update _totalAssets invariant with pending yield added.
-            _totalAssets = _totalAssets + pendingYieldToVest;
+            // pendingYieldToVest at this point is a % of outstanding debt
+            // which is exactly what we want to increase our debt index by.
+            marketDebtIndex =
+                (pendingYieldToVest * marketDebtIndex) + marketDebtIndex;
+            // Convert pendingYieldToVest to a numerical value of new debt.
+            pendingYieldToVest = pendingYieldToVest * outstandingDebt;
+            // Update _totalAssets and marketOutstandingDebt invariants
+            // with pending yield added.
+            _totalAssets = cachedTa + pendingYieldToVest;
+            marketOutstandingDebt = outstandingDebt + pendingYieldToVest;
+        }
+
+        assembly {
+            // Mask vestingRate to the lower 176 bits,
+            // in case the upper bits somehow aren't clean.
+            vestingRate := and(vestingRate, _BITMASK_VESTING_RATE)
+            // Equals vestingRate | (vestingPeriodEnd << _BITPOS_VEST_END) |
+            //        block.timestamp << _BITPOS_LAST_VEST | marketDebtIndex.
+            vestingData := or(
+                vestingRate,
+                or(
+                    or(
+                        shl(_BITPOS_VEST_END, vestingPeriodEnd),
+                        shl(_BITPOS_LAST_VEST, timestamp())
+                    ),
+                    shl(_BITPOS_DEBT_INDEX, marketDebtIndex)
+                )  
+            )
         }
     }
 
@@ -557,7 +654,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         }
 
         // Update pending interest.
-        accrueInterest();
+        accrueIfNeeded();
 
         IMarketManager.LiqResults memory liqResults;
 

@@ -367,6 +367,7 @@ abstract contract BaseCToken is
     ///         to `liquidator` due to a liquidation.
     /// @dev Will fail unless called by a different listed cToken
     ///      during the process of liquidation.
+    ///      May emit {CollateralUpdated} and {Liquidated} events.
     /// @param liquidator The account receiving seized collateralized cTokens.
     /// @param accounts An array containing the accounts having
     ///                 collateral seized.
