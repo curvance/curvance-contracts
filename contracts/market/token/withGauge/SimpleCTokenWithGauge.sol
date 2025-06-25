@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BasePTokenWithGauge } from "contracts/market/token/withGauge/BasePTokenWithGauge.sol";
+import { BaseCTokenWithGauge } from "contracts/market/token/withGauge/BaseCTokenWithGauge.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -10,7 +10,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///         IE assets can NOT be locked.
 ///         This way assets can be easily liquidated when loans default.
 /// @dev Built to support assets that do not generate rewards in external,
-///      claimable tokens. Meaning SimplePToken is built for assets such as:
+///      claimable tokens. Meaning SimpleCTokenWithGauge is built for assets such as:
 ///      WETH, LSTs, Principal Tokens, Stablecoins, Yield-bearing stablecoins,
 ///      etc.
 ///
@@ -18,12 +18,12 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      facilitating the distribution of native tokens both liquid and
 ///      locked to users based on their contributions to the protocol over
 ///      time.
-contract SimplePToken is BasePTokenWithGauge {
+contract SimpleCTokenWithGauge is BaseCTokenWithGauge {
     /// CONSTRUCTOR ///
 
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address marketManager_
-    ) BasePTokenWithGauge(centralRegistry_, asset_, marketManager_) {}
+    ) BaseCTokenWithGauge(centralRegistry_, asset_, marketManager_) {}
 }

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
+pragma solidity ^0.8.26;
 
 import { TimelockController } from "@openzeppelin/contracts/governance/TimelockController.sol";
 
@@ -27,9 +28,10 @@ import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 /// This implementation:
 /// - Stays in sync with permissioned addresses changes through the
 ///   CentralRegistry.
-/// - Grants the DAO address both proposer/executor/canceller roles.
+/// - Grants permissioned protocol addresses roles
+///   (proposer/executor/canceller) inside the timelock executor.
 ///
-contract DAOTimelock is TimelockController, ERC165, ITimelock {
+contract DAOTimelock is TimelockController, ERC165 {
     /// CONSTANTS ///
 
     /// @notice Minimum delay for timelock transaction proposals to execute.
@@ -40,13 +42,14 @@ contract DAOTimelock is TimelockController, ERC165, ITimelock {
 
     /// STORAGE ///
 
-    /// @notice Internally stored Curvance DAO address.
+    /// @notice Curvance DAO address.
     address internal _DAO_ADDRESS;
+    /// @notice Curvance Emergency Council address.
+    address internal _EMERGENCY_COUNCIL;
 
     /// ERRORS ///
 
     error DAOTimelock__InvalidParameter();
-    error DAOTimelock__Unauthorized();
 
     /// CONSTRUCTOR ///
 
@@ -71,37 +74,26 @@ contract DAOTimelock is TimelockController, ERC165, ITimelock {
 
         centralRegistry = centralRegistry_;
 
-        // grant admin/proposer/executor/canceller role to DAO.
+        // Grant proposer/executor/canceller role to DAO operator.
         _DAO_ADDRESS = centralRegistry.daoAddress();
         _grantRole(PROPOSER_ROLE, _DAO_ADDRESS);
         _grantRole(EXECUTOR_ROLE, _DAO_ADDRESS);
         _grantRole(CANCELLER_ROLE, _DAO_ADDRESS);
+
+        // Grant canceller role to DAO Emergency Council.
+        _EMERGENCY_COUNCIL = centralRegistry.emergencyCouncil();
+        _grantRole(CANCELLER_ROLE, _EMERGENCY_COUNCIL);
     }
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Cancels a queued action.
-    /// @dev Only callable by `CANCELLER_ROLE` or the Emergency Council.
-    ///      May emit a {Cancelled} event.
-    /// @param id The queued action to cancel.
-    function cancel(bytes32 id) public override {
-        _checkCanCancel();
-
-        if (!isOperationPending(id)) {
-            revert DAOTimelock__InvalidParameter();
-        }
-
-        delete _timestamps[id];
-        emit Cancelled(id);
-    }
-
-    /// @notice Permissionlessly update DAO address if it has been changed.
+    /// @notice Permissionlessly update roles if it has been changed
     ///         through the Protocol Central Registry.
-    function updateDaoAddress() external {
+    function updateRoles() external {
         address registryDaoAddress = centralRegistry.daoAddress();
         address timelockDaoAddress = _DAO_ADDRESS;
 
-        if (daoAddress != timelockDaoAddress) {
+        if (registryDaoAddress != timelockDaoAddress) {
             _revokeRole(PROPOSER_ROLE, timelockDaoAddress);
             _revokeRole(EXECUTOR_ROLE, timelockDaoAddress);
             _revokeRole(CANCELLER_ROLE, timelockDaoAddress);
@@ -110,45 +102,39 @@ contract DAOTimelock is TimelockController, ERC165, ITimelock {
             _grantRole(EXECUTOR_ROLE, registryDaoAddress);
             _grantRole(CANCELLER_ROLE, registryDaoAddress);
             _DAO_ADDRESS = registryDaoAddress;
+            _grantRole(PROPOSER_ROLE, registryDaoAddress);
+            _grantRole(EXECUTOR_ROLE, registryDaoAddress);
+            _grantRole(CANCELLER_ROLE, registryDaoAddress);
+            _DAO_ADDRESS = registryDaoAddress;
+        }
+
+        address registryEC = centralRegistry.emergencyCouncil();
+        address timelockEC = _EMERGENCY_COUNCIL;
+        if (registryEC != timelockEC) {
+            _revokeRole(CANCELLER_ROLE, timelockEC);
+
+            _grantRole(CANCELLER_ROLE, registryEC);
+            _EMERGENCY_COUNCIL = registryEC;
         }
     }
 
-    /// @notice Updates the minimum delay between an action queue and
-    ///         execution.
-    /// @dev `newDelay` cannot be less than `MINIMUM_DELAY`.
-    ///      May emit a {MinDelayChange} event.
-    /// @param newDelay The new minimum delay between action queue and
-    ///                 execution.
-    function updateDelay(uint256 newDelay) external override {
-        if (newDelay < MINIMUM_DELAY) {
-            revert DAOTimelock__InvalidParameter();
-        }
-        
-        super.updateDelay(newDelay);
+    /// @return result The minimum delay before a proposal can be executed,
+    ///        in `seconds`.
+    function getMinDelay() public view override returns (uint256 result) {
+        uint256 currentDelay = super.getMinDelay();
+        result = currentDelay < MINIMUM_DELAY ? MINIMUM_DELAY : currentDelay;
     }
 
     /// @notice Returns true if this contract implements the interface defined
     ///         by `interfaceId`.
     /// @param interfaceId The interface to check for implementation.
     /// @return Whether `interfaceId` is implemented or not.
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view virtual override(ERC165, TimelockController) returns (
-        bool
-    ) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override (
+        ERC165,
+        TimelockController
+    ) returns (bool) {
         return
             interfaceId == type(ITimelock).interfaceId ||
             super.supportsInterface(interfaceId);
-    }
-
-    /// @dev Checks whether the caller has sufficient permissions
-    ///      to cancel a queued action.
-    function _checkCanCancel() internal view {
-        if (
-            _msgSender() != centralRegistry.emergencyCouncil() &&
-            !hasRole(CANCELLER_ROLE, _msgSender())
-            ) {
-                revert DAOTimelock__Unauthorized();
-        }
     }
 }

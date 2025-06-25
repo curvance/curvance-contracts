@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 
 contract ETokenRepayForTest is TestBaseEToken {
     event Repay(address payer, address borrower, uint256 repayAmount);
@@ -16,8 +16,12 @@ contract ETokenRepayForTest is TestBaseEToken {
 
         pBALRETH.postCollateral(1e18 - 1);
 
-        vm.prank(user1);
+        _prepareUSDC(address(user1), 1000e6);
+
+        vm.startPrank(user1);
+        usdc.approve(address(eUSDC), type(uint256).max);
         eUSDC.mintFor(100e6, address(this));
+        vm.stopPrank();
 
         eUSDC.borrow(100e6);
 

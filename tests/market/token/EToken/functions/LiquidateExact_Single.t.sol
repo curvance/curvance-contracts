@@ -3,6 +3,9 @@ pragma solidity ^0.8.19;
 
 import { TestBaseETokenIsolated } from "tests/market/token/EToken/TestBaseETokenIsolated.t.sol";
 
+// NOTES:
+// 1. test_liquidateExact_single_success fails because of the lack of bad debt expected
+
 contract LiquidateExactSingleTest is TestBaseETokenIsolated {
     function setUp() public override {
         super.setUp();
@@ -26,25 +29,25 @@ contract LiquidateExactSingleTest is TestBaseETokenIsolated {
         );
         vm.stopPrank();
 
-        // _checkLiquidationResult();
+        _checkLiquidationResult();
     }
 
-    // function _checkLiquidationResult() internal {
-    //     (uint256 balRETHPrice, ) = oracleManager.getPrice(
-    //         address(balRETH),
-    //         true,
-    //         true
-    //     );
+    function _checkLiquidationResult() internal {
+        (uint256 balRETHPrice, ) = oracleManager.getPrice(
+            address(balRETH),
+            true,
+            true
+        );
 
-    //     assertApproxEqRel(
-    //         pBALRETH.balanceOf(user1),
-    //         _ONE - (500e18 * _ONE) / balRETHPrice,
-    //         0.02e18
-    //     );
-    //     assertEq(pBALRETH.exchangeRateCached(), _ONE);
+        assertApproxEqRel(
+            pBALRETH.balanceOf(user1),
+            _ONE - (500e18 * _ONE) / balRETHPrice,
+            0.02e18
+        );
+        assertEq(pBALRETH.exchangeRate(), _ONE);
 
-    //     assertEq(eUSDC.balanceOf(user1), 0);
-    //     assertApproxEqRel(eUSDC.debtBalanceCached(user1), 750e6, 0.01e18);
-    //     assertApproxEqRel(eUSDC.exchangeRateCached(), _ONE, 0.01e18);
-    // }
+        assertEq(eUSDC.balanceOf(user1), 0);
+        assertApproxEqRel(eUSDC.debtBalance(user1), 750e6, 0.01e18);
+        assertApproxEqRel(eUSDC.exchangeRate(), _ONE, 0.01e18);
+    }
 }

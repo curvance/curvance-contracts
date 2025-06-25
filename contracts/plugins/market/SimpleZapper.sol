@@ -114,7 +114,7 @@ contract SimpleZapper is ZapperBase {
         }
 
         // Cache underlying to minimize external calls.
-        address eTokenUnderlying = IMToken(eToken).underlying();
+        address eTokenUnderlying = IMToken(eToken).asset();
         uint256 outAmount;
 
         // Make sure if we are swapping that we are swapping into the proper
@@ -233,7 +233,7 @@ contract SimpleZapper is ZapperBase {
             _enterCurvance(
                 mToken,
                 swapData.outputToken,
-                IMToken(mToken).isPToken(), // Check whether new deposit is for a PToken or EToken.
+                IMToken(mToken).isCollateralizable(), // Check whether new deposit is for a PToken or EToken.
                 outAmount,
                 expectedShares,
                 collateralize,

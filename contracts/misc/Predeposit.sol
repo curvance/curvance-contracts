@@ -8,7 +8,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 
 contract Predeposit {
     /// TYPES ///
@@ -291,7 +291,7 @@ contract Predeposit {
             }
         } else {
             // Migrate a debt token to be lent to users.
-            IEToken(mToken).mintFor(amount, msg.sender);
+            IBorrowableCToken(mToken).mint(amount, msg.sender);
         }
 
         // Remove any excess approval.
@@ -346,7 +346,7 @@ contract Predeposit {
 
         // Validate the protocol token has the predeposit token as its
         // underlying.
-        if (IMToken(protocolToken).underlying() != predepositToken) {
+        if (IMToken(protocolToken).asset() != predepositToken) {
             revert Predeposit__InvalidParameters();
         }
 
@@ -357,7 +357,7 @@ contract Predeposit {
 
         // Pull the data directly from the contract rather than from parameter
         // input.
-        tokenData[predepositToken].isPToken = IMToken(protocolToken).isPToken();
+        tokenData[predepositToken].isPToken = IMToken(protocolToken).isCollateralizable();
         tokenData[predepositToken].mTokenAddress = protocolToken;
 
         emit MigrationTokenConfigured(predepositToken, protocolToken);

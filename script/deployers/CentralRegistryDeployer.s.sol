@@ -26,7 +26,6 @@ contract CentralRegistryDeployer is DeployConfiguration {
         centralRegistry = address(
             new CentralRegistry(
                 daoAddress,
-                timelock,
                 emergencyCouncil,
                 genesisEpoch,
                 sequencer,

@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { AerodromeStablePToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/AerodromeStablePToken.sol";
+import { AerodromeStableCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/AerodromeStableCToken.sol";
 import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeStableLPAdaptor.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
@@ -25,7 +25,7 @@ contract TestAerodromeStablePToken is TestBaseMarketIsolated {
     IVeloRouter public aeroRouter =
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
-    AerodromeStablePToken public pUSDCDAI;
+    AerodromeStableCToken public pUSDCDAI;
     VelodromeStableLPAdaptor public adaptor;
     MockV3Aggregator public chainlinkAERO;
     MockV3Aggregator public chainlinkDAI;
@@ -57,13 +57,14 @@ contract TestAerodromeStablePToken is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(aeroRouter)))
         );
 
-        pUSDCDAI = new AerodromeStablePToken(
+        pUSDCDAI = new AerodromeStableCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_AERODROME_DAI_USDC),
             address(marketManagerIsolated),
             gauge,
             aeroPairFactory,
-            aeroRouter
+            aeroRouter,
+            1 days
         );
 
         vm.warp(veCVE.nextEpochStartTime());
@@ -191,7 +192,7 @@ contract TestAerodromeStablePToken is TestBaseMarketIsolated {
         deal(_AERODROME_DAI_USDC, address(this), 77777);
 
         IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 77777);
-        marketManagerIsolated.listToken(address(pUSDCDAI));
+        marketManagerIsolated.listTokens(address(pUSDCDAI), address(eDAI));
 
         vm.prank(user1);
         IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), assets);

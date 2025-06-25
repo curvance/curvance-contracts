@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 
@@ -20,7 +20,7 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
     address internal _CHAINLINK_STETH_USD =
         0xCfE54B5cD566aB89272946F602D76Ea879CAb4a8;
 
-    SimplePToken public pToken;
+    SimpleCToken public pToken;
     Curve2PoolLPAdaptor public adaptor;
 
     receive() external payable {}
@@ -30,7 +30,7 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 
-        pToken = new SimplePToken(
+        pToken = new SimpleCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_CURVE_STETH_LP),
             address(marketManager)

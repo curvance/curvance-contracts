@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { Convex2PoolPToken, IERC20 } from "contracts/market/token/Convex2PoolPToken.sol";
+import { Convex2PoolCToken, IERC20 } from "contracts/market/token/Convex2PoolCToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
@@ -20,19 +20,20 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         0x6B27D7BC63F1999D14fF9bA900069ee516669ee8;
     address public CONVEX_BOOSTER = 0xF403C135812408BFbE8713b5A23a04b3D48AAE31;
 
-    Convex2PoolPToken cSTETH;
+    Convex2PoolCToken cSTETH;
     MockV3Aggregator public chainlinkStethUsd;
 
     function setUp() public override {
         super.setUp();
 
-        cSTETH = new Convex2PoolPToken(
+        cSTETH = new Convex2PoolCToken(
             ICentralRegistry(address(centralRegistry)),
             CONVEX_STETH_ETH_POOL,
             address(marketManagerIsolated),
             CONVEX_STETH_ETH_POOL_ID,
             CONVEX_STETH_ETH_REWARD,
-            CONVEX_BOOSTER
+            CONVEX_BOOSTER,
+            1 days
         );
     }
 
@@ -99,23 +100,29 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             1 ether
         );
         _prepareUSDC(address(this), 1 ether);
-        marketManagerIsolated.listToken(address(cSTETH));
         SafeTransferLib.safeApprove(_USDC_ADDRESS, address(eUSDC), 1 ether);
-        marketManagerIsolated.listToken(address(eUSDC));
+        marketManagerIsolated.listTokens(address(cSTETH), address(eUSDC));
         marketManagerIsolated.updatePositionToken(
-            address(cSTETH),
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            1000
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            1000     // baseCFactor 20%
         );
         address[] memory tokens = new address[](1);
         tokens[0] = address(cSTETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
+
+        tokens[0] = address(eUSDC);
+        caps[0] = 100_000e6;
+        marketManagerIsolated.setDebtCaps(tokens, caps);
 
         // User mints cSTETH with cvxStethEth LP tokens and then uses the cSTETH as collateral to borrow 10,000 eUSDC
         _prepareUSDC(address(eUSDC), 100_000e6);
@@ -172,7 +179,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         vm.startPrank(user1);
         usdc.approve(address(eUSDC), type(uint256).max);
         vm.expectRevert(
-            marketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
+            MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
         eUSDC.repay(0);
 

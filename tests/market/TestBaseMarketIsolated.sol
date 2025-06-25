@@ -13,9 +13,9 @@ import { FeeManager } from "contracts/architecture/FeeManager.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
-import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
+import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { PendleZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/PendleZapperCalldataChecker.sol";
@@ -27,12 +27,14 @@ import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/B
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { MockMessageTransmitter } from "contracts/mocks/MockMessageTransmitter.sol";
 import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.sol";
-import { MockAuraPTokenWithExitFee } from "contracts/mocks/MockAuraPTokenWithExitFee.sol";
+import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { QueryTest } from "tests/utils/QueryTest.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
+import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract TestBaseMarketIsolated is TestBase {
     struct PerChainData {
@@ -79,6 +81,7 @@ contract TestBaseMarketIsolated is TestBase {
 
     function _deployBaseContracts() internal {
         _deployCentralRegistry();
+        _deployDAOTimelock();
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
@@ -86,6 +89,8 @@ contract TestBaseMarketIsolated is TestBase {
         _deployMessagingHub();
         _deployVotingHub();
         _deployFeeManager();
+        _deployAuxiliaryData();
+
 
         vm.warp(centralRegistry.genesisEpoch());
         rewardManager.startRewardManager();
@@ -95,7 +100,6 @@ contract TestBaseMarketIsolated is TestBase {
         centralRegistry = centralRegistries[
             block.chainid
         ] = new CentralRegistry(
-            _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             block.timestamp + 1,
@@ -116,6 +120,14 @@ contract TestBaseMarketIsolated is TestBase {
             address(centralRegistry.messageTransmitter()),
             1_000_000e6
         );
+    }
+
+    function _deployDAOTimelock() internal initMainVariables {
+        daoTimelock = daoTimelocks[block.chainid] = new DAOTimelock(
+            ICentralRegistry(address(centralRegistry))
+        );
+
+        centralRegistry.transferTimelockPermissions(address(daoTimelock));
     }
 
     function _deployCVE() internal virtual initMainVariables {
@@ -419,22 +431,22 @@ contract TestBaseMarketIsolated is TestBase {
         return address(interestRateModels[block.chainid][underlyingToken]);
     }
 
-    function _deployEUSDC() internal initMainVariables returns (EToken) {
+    function _deployEUSDC() internal initMainVariables returns (BorrowableCToken) {
         eUSDC = eUSDCs[block.chainid] = _deployEToken(_USDC_ADDRESS);
         return eUSDC;
     }
 
-    function _deployEDAI() internal initMainVariables returns (EToken) {
+    function _deployEDAI() internal initMainVariables returns (BorrowableCToken) {
         eDAI = eDAIs[block.chainid] = _deployEToken(_DAI_ADDRESS);
         return eDAI;
     }
 
     function _deployEToken(
         address token
-    ) internal virtual initMainVariables returns (EToken) {
-        EToken eToken = new EToken(
+    ) internal virtual initMainVariables returns (BorrowableCToken) {
+        BorrowableCToken eToken = new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
-            token,
+            IERC20(token),
             address(marketManagerIsolated),
             _deployDynamicInterestRateModel(token)
         );
@@ -449,8 +461,8 @@ contract TestBaseMarketIsolated is TestBase {
     function _deployPUSDC()
         internal
         initMainVariables
-        returns (SimplePToken) {
-        pUSDC = new SimplePToken(
+        returns (SimpleCToken) {
+        pUSDC = new SimpleCToken(
             ICentralRegistry(address(centralRegistry)),
             usdc,
             address(marketManagerIsolated)
@@ -461,15 +473,16 @@ contract TestBaseMarketIsolated is TestBase {
     function _deployPBALRETH()
         internal
         initMainVariables
-        returns (AuraPToken)
+        returns (AuraCToken)
     {
-        pBALRETH = pBALRETHs[block.chainid] = new AuraPToken(
+        pBALRETH = pBALRETHs[block.chainid] = new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManagerIsolated),
             109,
             _REWARDER,
-            _AURA_BOOSTER
+            _AURA_BOOSTER,
+            1 days
         );
         return pBALRETH;
     }
@@ -477,18 +490,19 @@ contract TestBaseMarketIsolated is TestBase {
     function _deployPBALRETHWithExitFee()
         internal
         initMainVariables
-        returns (MockAuraPTokenWithExitFee)
+        returns (MockAuraCTokenWithExitFee)
     {
         pBALRETHWithExitFee = pBALRETHWithExitFees[
             block.chainid
-        ] = new MockAuraPTokenWithExitFee(
+        ] = new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManagerIsolated),
             109,
             _REWARDER,
             _AURA_BOOSTER,
-            200
+            200,
+            1 days
         );
         return pBALRETHWithExitFee;
     }

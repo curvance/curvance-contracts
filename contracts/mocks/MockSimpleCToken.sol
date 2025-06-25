@@ -2,12 +2,12 @@
 pragma solidity ^0.8.19;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { SimplePToken, IERC20 } from "contracts/market/token/SimplePToken.sol";
+import { SimpleCToken, IERC20 } from "contracts/market/token/SimpleCToken.sol";
 
-contract MockSimplePToken is SimplePToken {
+contract MockSimpleCToken is SimpleCToken {
     constructor(
         ICentralRegistry centralRegistry_,
         address asset_,
         address marketManager_
-    ) SimplePToken(centralRegistry_, IERC20(asset_), marketManager_) {}
+    ) SimpleCToken(centralRegistry_, IERC20(asset_), marketManager_) {}
 }

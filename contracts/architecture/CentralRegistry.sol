@@ -9,7 +9,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { ActionRegistry } from "contracts/libraries/ActionRegistry.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
@@ -359,26 +359,26 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Withdraws all protocol reserve fees from a eToken
     ///         from interest generated and liquidations.
-    /// @param eTokens Array of eToken addresses to withdraw fees from.
-    function withdrawReservesMulti(address[] calldata eTokens) external {
+    /// @param borrowableCTokens Array of eToken addresses to withdraw fees from.
+    function withdrawReservesMulti(address[] calldata borrowableCTokens) external {
         // Match permissioning check to normal withdrawReserves().
         _checkDaoPermissions();
 
-        uint256 numTokens = eTokens.length;
+        uint256 numTokens = borrowableCTokens.length;
         if (numTokens == 0) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
-        IEToken eToken;
+        IBorrowableCToken borrowableCToken;
 
         for (uint256 i; i < numTokens; ) {
-            eToken = IEToken(eTokens[i++]);
+            borrowableCToken = IBorrowableCToken(borrowableCTokens[i++]);
             // Revert if somehow a misconfigured token made it in here.
-            if (eToken.isPToken()) {
+            if (!borrowableCToken.isBorrowable()) {
                 _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
             }
 
-            eToken.processWithdrawReserves();
+            borrowableCToken.processWithdrawReserves();
         }
     }
 
@@ -840,7 +840,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
                     type(ITimelock).interfaceId
                 )
             ) {
-                ITimelock(timelock).updateDaoAddress();
+                ITimelock(timelock).updateRoles();
             }
         }
     }
@@ -1085,7 +1085,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate `newAddress` is not currently supported.
         if (hasAuctionPermissions[newAddress]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
         hasAuctionPermissions[newAddress] = true;
@@ -1103,7 +1103,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate `addressApproved` is currently supported.
         if (!hasAuctionPermissions[addressApproved]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
         delete hasAuctionPermissions[addressApproved];

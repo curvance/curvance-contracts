@@ -286,9 +286,9 @@
 //             .statusOf(address(this));
 //         require(accountDebt != 0);
 //         amount = clampBetween(amount, 1, accountCollateral);
-//         bool pToken = IMToken(mtoken).isPToken();
+//         bool cToken = IMToken(mtoken).isPToken();
 
-//         if (pToken) {
+//         if (cToken) {
 //             try
 //                 marketManager.canTransferPToken(mtoken, address(this), amount)
 //             {} catch {
@@ -321,9 +321,9 @@
 //         require(marketManager.redeemPaused() != 2);
 //         require(marketManager.isListed(mtoken));
 
-//         bool pToken = IMToken(mtoken).isPToken();
+//         bool cToken = IMToken(mtoken).isPToken();
 
-//         if (pToken) {
+//         if (cToken) {
 //             try
 //                 marketManager.canTransferPToken(mtoken, address(this), amount)
 //             {} catch (bytes memory revertData) {
@@ -362,9 +362,9 @@
 //         require(marketManager.redeemPaused() != 2);
 //         require(!marketManager.isListed(mtoken));
 
-//         bool pToken = IMToken(mtoken).isPToken();
+//         bool cToken = IMToken(mtoken).isPToken();
 
-//         if (pToken) {
+//         if (cToken) {
 //             try
 //                 marketManager.canTransferPToken(mtoken, address(this), amount)
 //             {} catch (bytes memory revertData) {
@@ -403,9 +403,9 @@
 //         require(marketManager.redeemPaused() == 2);
 //         require(marketManager.isListed(mtoken));
 
-//         bool pToken = IMToken(mtoken).isPToken();
+//         bool cToken = IMToken(mtoken).isPToken();
 
-//         if (pToken) {
+//         if (cToken) {
 //             try
 //                 marketManager.canTransferPToken(mtoken, address(this), amount)
 //             {} catch (bytes memory revertData) {

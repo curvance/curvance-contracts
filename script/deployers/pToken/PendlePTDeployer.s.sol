@@ -5,7 +5,7 @@ import "forge-std/console.sol";
 
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendlePrincipalTokenAdaptor.sol";
 
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
@@ -175,7 +175,7 @@ contract PendlePTDeployer is DeployConfiguration {
         address pToken = _getDeployedContract(name);
         if (pToken == address(0)) {
             pToken = address(
-                new SimplePToken(
+                new SimpleCToken(
                     ICentralRegistry(address(centralRegistry)),
                     IERC20(param.asset),
                     marketManager

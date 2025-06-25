@@ -3,11 +3,12 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { VelodromeStablePToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeStablePToken.sol";
+import { VelodromeStableCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeStableCToken.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract TestVelodromeStablePToken is TestBaseMarketIsolated {
     address internal _VELO_ADDRESS =
@@ -21,7 +22,7 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
         IVeloRouter(0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858);
     address public optiSwap = 0x6108FeAA628155b073150F408D0b390eC3121834;
 
-    VelodromeStablePToken public pUSDCDAI;
+    VelodromeStableCToken public pUSDCDAI;
     MockV3Aggregator public chainlinkVELO;
     MockV3Aggregator public chainlinkUSDC;
 
@@ -36,13 +37,14 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
 
     function setUp() public override {
         _fork("ETH_NODE_URI_OPTIMISM", 109095500);
-
+        
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
         _deployGaugeManager();
         _deployMarketManager();
+        _deployEDAI();
 
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
@@ -51,13 +53,14 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(veloRouter)))
         );
 
-        pUSDCDAI = new VelodromeStablePToken(
+        pUSDCDAI = new VelodromeStableCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_USDC_DAI),
             address(marketManagerIsolated),
             gauge,
             veloPairFactory,
-            veloRouter
+            veloRouter,
+            1 days
         );
 
         vm.warp(veCVE.nextEpochStartTime());
@@ -100,9 +103,10 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
         uint256 assets = 100e18;
         deal(_USDC_DAI, user1, assets);
         deal(_USDC_DAI, address(this), 77777);
-
+        _prepareDAI(address(this), 1e18);
         IERC20(_USDC_DAI).approve(address(pUSDCDAI), 77777);
-        marketManagerIsolated.listToken(address(pUSDCDAI));
+        dai.approve(address(eDAI), 77777);
+        marketManagerIsolated.listTokens(address(pUSDCDAI), address(eDAI));
 
         vm.prank(user1);
         IERC20(_USDC_DAI).approve(address(pUSDCDAI), assets);
@@ -115,6 +119,8 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
             assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
+
+        console2.log("total assets before harvest", pUSDCDAI.totalAssets());
 
         vm.startPrank(gauge.voter());
         IERC20(_VELO_ADDRESS).approve(address(gauge), 10e18);
@@ -151,6 +157,8 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
 
         pUSDCDAI.harvest(abi.encode(swapData, 1e14));
 
+        console2.log("total assets after first harvest:", pUSDCDAI.totalAssets());
+
         assertEq(
             pUSDCDAI.totalAssets(),
             assets + 77777,
@@ -175,9 +183,14 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
         );
         pUSDCDAI.harvest(abi.encode(swapData, 1e14));
 
+        console2.log("total assets after second harvest", pUSDCDAI.totalAssets());
+
         vm.warp(block.timestamp + 7 days);
         chainlinkVELO.updateAnswer(chainlinkVELO.latestAnswer());
         chainlinkUSDC.updateAnswer(chainlinkUSDC.latestAnswer());
+
+        console2.log("Total Assets", pUSDCDAI.totalAssets());
+        console2.log("Assets", assets);
 
         assertGt(
             pUSDCDAI.totalAssets(),

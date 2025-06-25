@@ -224,10 +224,10 @@ contract OracleManager is IOracleManager {
         }
 
         // We call a Curvance specific MToken function as a sanity check.
-        IMToken(newMToken).isPToken();
+        IMToken(newMToken).isCollateralizable();
 
         mTokenAssets[newMToken].isMToken = true;
-        mTokenAssets[newMToken].underlying = IMToken(newMToken).underlying();
+        mTokenAssets[newMToken].underlying = IMToken(newMToken).asset();
     }
 
     /// @notice Removes a mToken's support in the Oracle Manager.
@@ -455,7 +455,7 @@ contract OracleManager is IOracleManager {
         // Query the exchange rate between mToken and its underlying token
         // and convert the price into WAD form.
         if (mAsset != address(0)) {
-            price = (price * IMToken(mAsset).exchangeRateCached()) / WAD;
+            price = (price * IMToken(mAsset).exchangeRate()) / WAD;
         }
 
         // If somehow a feed returns a price of 0,
@@ -568,7 +568,7 @@ contract OracleManager is IOracleManager {
         for (uint256 i; i < numAssets; ++i) {
             snapshots[i] = assets[i].getSnapshot(account);
             (underlyingPrices[i], errorCode) = getPrice(
-                assets[i].underlying(),
+                assets[i].asset(),
                 true,
                 snapshots[i].isPToken
             );

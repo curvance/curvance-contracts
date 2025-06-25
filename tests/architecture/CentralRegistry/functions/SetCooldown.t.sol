@@ -17,7 +17,9 @@ contract SetCooldownTest is TestBaseMarketIsolated {
         centralRegistry.setCooldown(maximumCooldown + 1);
     }
 
-    function test_setCooldown_success() public {
+    // Will pass because it's being set in the same block
+    // It will enable the protection locks.
+    function test_setCooldown_success_protectionActivatesWhenDecreasingInSameBlock() public {
         vm.startPrank(user1);
 
         assertFalse(centralRegistry.checkTransfersDisabled(user1));
@@ -34,6 +36,7 @@ contract SetCooldownTest is TestBaseMarketIsolated {
 
         centralRegistry.setCooldown(5 days);
 
+        // protection mechanism activates, transfers disabled for 10 days despite same block
         assertTrue(centralRegistry.checkTransfersDisabled(user1));
 
         skip(10 days);
@@ -42,4 +45,165 @@ contract SetCooldownTest is TestBaseMarketIsolated {
 
         vm.stopPrank();
     }
+
+    // User tries to decrease cooldown when there's an active lock,
+    // Triggering new later transfer and delegation lock
+    function test_setCooldown_success_protectionAppliesWhenDecreasing() public {
+        vm.startPrank(user1);
+
+        vm.expectEmit(true, true, true, true);
+        emit CooldownSet(user1, 10 days);
+        centralRegistry.setCooldown(10 days);
+        
+        skip(1 hours);
+
+        // set cooldown to 0, triggering 
+        vm.expectEmit(true, true, true, true);
+        emit CooldownSet(user1, 0);
+        centralRegistry.setCooldown(0 minutes);
+
+        vm.stopPrank();
+
+        skip(9 days);
+
+        // transfer lock and delegation lock should still be active
+        assertTrue(centralRegistry.checkTransfersDisabled(user1));
+        assertTrue(centralRegistry.checkDelegationDisabled(user1));
+
+        skip(1 days);
+
+        // locks should expire
+        assertFalse(centralRegistry.checkTransfersDisabled(user1));
+        assertFalse(centralRegistry.checkDelegationDisabled(user1));
+
+    }
+
+    // Increasing locks should always work
+    function test_setCooldown_success_whenIncreasingCooldown() public {
+        vm.startPrank(user1);
+
+        vm.expectEmit(true, true, true, true);
+        emit CooldownSet(user1, 10 days);
+        centralRegistry.setCooldown(10 days);
+
+        skip(1 days);
+
+        vm.expectEmit(true, true, true, true);
+        emit CooldownSet(user1, 20 days);
+        centralRegistry.setCooldown(20 days);
+
+    }
+
+    // Edge case: manually enabling transfer lock in the same block
+    function test_setCooldown_fail_whenTransferLockCooldownIsActive() public {
+        vm.startPrank(user1);
+        
+        centralRegistry.setCooldown(15 days);
+        
+        // use transfer lock to trigger cooldown
+        centralRegistry.setTransferableStatus(true);  // enable transfer lock
+        centralRegistry.setTransferableStatus(false); // unlock triggers cooldown
+        
+        assertTrue(centralRegistry.checkTransfersDisabled(user1));
+        
+        // try to decrease cooldown while transfer cooldown is active
+        vm.expectRevert(ActionRegistry.ActionRegistry__CooldownActive.selector);
+        centralRegistry.setCooldown(5 days);
+        
+        vm.stopPrank();
+    }
+
+    // Edge case: manually enabling delegation lock in the same block
+    function test_setCooldown_fail_whenDelegationLockCooldownIsActive() public {
+        vm.startPrank(user1);
+        
+        centralRegistry.setCooldown(15 days);
+        
+        // use delegation lock to trigger cooldown
+        centralRegistry.setDelegableStatus(true);  // enable delegation lock
+        centralRegistry.setDelegableStatus(false); // unlock triggers cooldown
+        
+        assertTrue(centralRegistry.checkDelegationDisabled(user1));
+        
+        // try to decrease cooldown while delegation cooldown is active
+        vm.expectRevert(ActionRegistry.ActionRegistry__CooldownActive.selector);
+        centralRegistry.setCooldown(5 days);
+        
+        vm.stopPrank();
+    }
+
+    // Tests protection locks by setting and lowering the locks twice consecutively
+    // enables protection locks on the second setCooldown, preventing the third
+    // to execute.
+    function test_setCooldown_fail_whenDecreasingMultipleTimesWithActiveProtection() public {
+        vm.startPrank(user1);
+
+        centralRegistry.setCooldown(10 days);
+
+        skip(1 days);
+
+        // trigger protection locks
+        centralRegistry.setCooldown(5 days);
+
+        // verify protection is active
+        assertTrue(centralRegistry.checkTransfersDisabled(user1));
+        assertTrue(centralRegistry.checkDelegationDisabled(user1));
+
+        skip(1 days);
+
+        // try to decrease cooldown while delegation cooldown is active
+        vm.expectRevert(ActionRegistry.ActionRegistry__CooldownActive.selector);
+        centralRegistry.setCooldown(2 days);
+    }
+
+    // Tests that cooldowns work with the maximum time allowed.
+    function test_setCooldown_success_atMaximumRestraint() public {
+        uint256 maxCooldown = centralRegistry.COOLDOWN_MAXIMUM();
+        
+        vm.expectEmit(true, true, true, true);
+        emit CooldownSet(address(this), maxCooldown);
+        centralRegistry.setCooldown(maxCooldown);
+    }
+
+    // Ensures the user cannot set the cooldown to zero while there are locks
+    // in place.
+    function test_setCooldown_fail_toZeroWithActiveLock() public {
+        vm.startPrank(user1);
+        
+        centralRegistry.setCooldown(10 days);
+        centralRegistry.setTransferableStatus(true);
+        centralRegistry.setTransferableStatus(false);
+        
+        // try to set cooldown to 0 while lock is active
+        vm.expectRevert(ActionRegistry.ActionRegistry__CooldownActive.selector);
+        centralRegistry.setCooldown(0);
+        
+        vm.stopPrank();
+    }
+
+    function test_setCooldown_success_afterAllCooldownsExpire() public {
+        vm.startPrank(user1);
+        
+        centralRegistry.setCooldown(10 days);
+        
+        // trigger both locks
+        centralRegistry.setTransferableStatus(true);
+        centralRegistry.setDelegableStatus(true);
+        centralRegistry.setTransferableStatus(false);
+        centralRegistry.setDelegableStatus(false);
+        
+        // wait for all cooldowns to expire
+        skip(11 days);
+        
+        assertFalse(centralRegistry.checkTransfersDisabled(user1));
+        assertFalse(centralRegistry.checkDelegationDisabled(user1));
+        
+        // now should be able set new cooldown
+        vm.expectEmit(true, true, true, true);
+        emit CooldownSet(user1, 5 days);
+        centralRegistry.setCooldown(5 days);
+        
+        vm.stopPrank();
+    }
+
 }

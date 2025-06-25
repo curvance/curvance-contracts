@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
+import { FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/StrategyCToken.sol";
 import { StrategyCTokenWithExitFee } from "contracts/market/token/StrategyCTokenWithExitFee.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -43,7 +43,7 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
 
     /// EVENTS ///
 
-    event Harvest(uint256 yield);
+    // event Harvest(uint256 yield);
 
     /// ERRORS ///
 
@@ -58,13 +58,15 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
         uint256 pid_,
         address rewarder_,
         address booster_,
-        uint256 exitFee_
+        uint256 exitFee_,
+        uint256 vestPeriod_
     )
         StrategyCTokenWithExitFee(
             centralRegistry_,
             asset_,
             marketManager_,
-            exitFee_
+            exitFee_,
+            vestPeriod_
         )
     {
         strategyData.pid = pid_;
@@ -188,10 +190,10 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
         _canCompound();
 
         // Vest pending rewards if there are any
-        _vestIfNeeded();
+        accrueIfNeeded();
 
         // can only harvest once previous reward period is done
-        if (_checkVestStatus(_vaultData)) {
+        if (_checkVestingFinished(_vestingData)) {
             _updateVestingPeriodIfNeeded();
 
             // cache strategy data
@@ -295,7 +297,7 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
             _afterDeposit(yield, 0);
 
             // Update vesting info, query `vestPeriod` here to cache it.
-            _setNewVaultData(yield, vestPeriod);
+            _setVestingData(yield);
 
             emit Harvest(yield);
         }

@@ -74,11 +74,15 @@ contract TestBaseStrategyCTokenWithExitFee is TestBaseMarketIsolated {
         _prepareBALRETH(user1, _ONE);
         _prepareBALRETH(address(this), _ONE);
 
+        _prepareDAI(address(this), _ONE);
+
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,
             address(pBALRETHWithExitFee),
             _ONE
         );
-        marketManagerIsolated.listToken(address(pBALRETHWithExitFee));
+
+        dai.approve(address(eDAI), _ONE);
+        marketManagerIsolated.listTokens(address(pBALRETHWithExitFee), address(eDAI));
     }
 }

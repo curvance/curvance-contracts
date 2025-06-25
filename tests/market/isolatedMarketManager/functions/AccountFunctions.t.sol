@@ -39,7 +39,7 @@ contract AccountFunctionsIsolatedMarketManager is TestBaseMarketManagerIsolated 
         // // Create a dapp control user
         // dappControlUser = makeAddr("dappControlUser");
         // vm.startPrank(centralRegistry.daoAddress());
-        // centralRegistry.addAuthorizedAtlasDAppControl(dappControlUser);
+        // centralRegistry.addAuctionPermissions(dappControlUser);
         // vm.stopPrank();
 
         // address[] memory tokens = new address[](1);
@@ -61,7 +61,7 @@ contract AccountFunctionsIsolatedMarketManager is TestBaseMarketManagerIsolated 
 
     function test_tokenDataOf() public {
 
-        (bool hasPosition, uint256 balanceOf, uint256 collateralPostedOf) = marketManagerIsolated.tokenDataOf(user1, address(pBALRETH));
+        (bool hasPosition, uint256 balanceOf, uint256 collateralPostedOf) = auxiliaryData.tokenDataOf(user1, address(pBALRETH));
         assertEq(hasPosition, true);
         assertEq(balanceOf, _ONE, "balance of mismatch");
         assertEq(collateralPostedOf, _ONE - 1, "collateral posted mismatch");

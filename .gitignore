@@ -44,3 +44,4 @@ src/types/factories/*
 cache/
 out/
 broadcast/
+.vscode/tasks.json

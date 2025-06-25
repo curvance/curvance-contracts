@@ -4,11 +4,11 @@ pragma solidity 0.8.26;
 import { TestBaseMarketManagerIsolated } from "tests/market/isolatedMarketManager/TestBaseMarketManagerIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 
-// ## Scenario 3: No Users Liquidated
+// ## Scenario 3: No Users Liquidated, all using liquidate() function
 // - Setup: 3 users with healthy positions
 // - User 1: 1.5 pBALRETH ($2,400), 1,000 USDC debt
 // - User 2: 1.4 pBALRETH ($2,240), 1,000 USDC debt
@@ -63,13 +63,11 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-        eUSDC.depositReserves(1000e6);
-
         // Update position token parameters
         marketManagerIsolated.updatePositionToken(
             8000,    // collRatio 80% 
             2500,    // collReqSoft 25%
-            2200,    // collReqHard 22% (increased to be > liqIncMax + 1%)
+            2200,    // collReqHard 22% 
             1000,    // liqIncBase 10%
             1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
@@ -83,7 +81,11 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManagerIsolated.setPTokenCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
+
+        tokens[0] = address(eUSDC);
+        caps[0] = 100_000e6;
+        marketManagerIsolated.setDebtCaps(tokens, caps);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
@@ -91,7 +93,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);
@@ -109,7 +111,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
 
         // Cache original debt balances for verification
         uint256[] memory debtBalancesPreLiquidation = _getDebtBalancePreLiquidation();
-        uint256 totalBorrowsBefore = eUSDC.totalBorrows();
+        uint256 totalBorrowsBefore = eUSDC.marketOutstandingDebt();
 
         // Attempt to liquidate
         eUSDC.approve(address(marketManagerIsolated), 100000e6);
@@ -121,9 +123,9 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         );
 
         // Verify all healthy accounts are not liquidated
-        assertEq(eUSDC.debtBalanceCached(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
-        assertEq(eUSDC.debtBalanceCached(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
-        assertEq(eUSDC.debtBalanceCached(borrowers[2]), debtBalancesPreLiquidation[2], "Healthy account 3 shouldn't be liquidated");
+        assertEq(eUSDC.debtBalance(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
+        assertEq(eUSDC.debtBalance(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
+        assertEq(eUSDC.debtBalance(borrowers[2]), debtBalancesPreLiquidation[2], "Healthy account 3 shouldn't be liquidated");
 
         // Verify all users have the same collateral
         assertEq(pBALRETH.balanceOf(borrowers[0]), collateralAmounts[0], "Healthy account 1 should have the same collateral");
@@ -131,7 +133,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         assertEq(pBALRETH.balanceOf(borrowers[2]), collateralAmounts[2], "Healthy account 3 should have the same collateral");
     
         // Verify the same amount of borrows is still owed
-        assertEq(eUSDC.totalBorrows(), totalBorrowsBefore, "Total borrows should be the same");
+        assertEq(eUSDC.marketOutstandingDebt(), totalBorrowsBefore, "Total borrows should be the same");
 
         // Verify liquidator received no collateral
         assertEq(pBALRETH.balanceOf(address(this)), 0, "Liquidator should have received no collateral");
@@ -178,7 +180,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
     function _getDebtBalancePreLiquidation() internal view returns (uint256[] memory debtBalances) {
         debtBalances = new uint256[](3);
         for(uint i; i < 3; i++) {
-            debtBalances[i] = eUSDC.debtBalanceCached(borrowers[i]);
+            debtBalances[i] = eUSDC.debtBalance(borrowers[i]);
         }
         return debtBalances;
     }

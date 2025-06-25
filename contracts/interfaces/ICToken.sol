@@ -7,6 +7,7 @@ import { IPositionManager } from "./IPositionManager.sol";
 
 struct AccountSnapshot {
     address asset;
+    bool isPToken;
     uint8 decimals;
     uint256 exchangeRate;
     uint256 collateralPosted;
@@ -42,6 +43,10 @@ interface ICToken {
     /// @dev Account address => account token balance.
     /// @param user User to query token balance for.
     function balanceOf(address user) external view returns (uint256);
+
+    /// @notice Returns the address of the underlying asset.
+    /// @return The address of the underlying asset.
+    function asset() external view returns (address);
 
     /// @notice Returns a snapshot of the pToken and `account` data.
     /// @dev Used by MarketManager to efficiently perform liquidity checks.

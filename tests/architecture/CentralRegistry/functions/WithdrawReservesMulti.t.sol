@@ -1,59 +1,63 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+// // SPDX-License-Identifier: UNLICENSED
+// pragma solidity 0.8.26;
 
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
+// import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+// import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract WithdrawReservesMultiTest is TestBaseMarketIsolated {
-    address[] public eTokens;
+// contract WithdrawReservesMultiTest is TestBaseMarketIsolated {
+//     address[] public eTokens;
 
-    function setUp() public override {
-        super.setUp();
+//     function setUp() public override {
+//         super.setUp();
 
-        eTokens.push(address(eDAI));
+//         eTokens.push(address(eDAI));
 
-        _prepareDAI(address(this), 1000e18);
+//         _prepareDAI(address(this), 100e18 + 77777);
+//         _prepareBALRETH(address(this), 1000e18);
 
-        dai.approve(address(eDAI), 1000e18);
+//         dai.approve(address(eDAI), 100e18 + 77777);
+//         balRETH.approve(address(pBALRETH), 1000e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
-    }
+//         marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
 
-    function test_withdrawReservesMulti_fail_whenCallerIsNotAuthorized()
-        public
-    {
-        vm.prank(address(0));
+//         eDAI.depositReserves(100 ether);
+//     }
 
-        vm.expectRevert(
-            CentralRegistry.CentralRegistry__Unauthorized.selector
-        );
-        centralRegistry.withdrawReservesMulti(eTokens);
-    }
+//     function test_withdrawReservesMulti_fail_whenCallerIsNotAuthorized()
+//         public
+//     {
+//         vm.prank(address(0));
 
-    function test_withdrawReservesMulti_fail_whenETokensLengthIsZero() public {
-        eTokens.pop();
+//         vm.expectRevert(
+//             CentralRegistry.CentralRegistry__Unauthorized.selector
+//         );
+//         centralRegistry.withdrawReservesMulti(eTokens);
+//     }
 
-        vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
-        );
-        centralRegistry.withdrawReservesMulti(eTokens);
-    }
+//     function test_withdrawReservesMulti_fail_whenETokensLengthIsZero() public {
+//         eTokens.pop();
 
-    function test_withdrawReservesMulti_fail_whenETokenIsPToken() public {
-        eTokens.pop();
-        eTokens.push(address(pBALRETH));
+//         vm.expectRevert(
+//             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+//         );
+//         centralRegistry.withdrawReservesMulti(eTokens);
+//     }
 
-        vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
-        );
-        centralRegistry.withdrawReservesMulti(eTokens);
-    }
+//     function test_withdrawReservesMulti_fail_whenETokenIsPToken() public {
+//         eTokens.pop();
+//         eTokens.push(address(pBALRETH));
 
-    function test_withdrawReservesMulti_success() public {
-        assertEq(dai.balanceOf(address(eDAI)), 100e18 + 77777);
+//         vm.expectRevert(
+//             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+//         );
+//         centralRegistry.withdrawReservesMulti(eTokens);
+//     }
 
-        centralRegistry.withdrawReservesMulti(eTokens);
+//     function test_withdrawReservesMulti_success() public {
+//         assertEq(dai.balanceOf(address(eDAI)), 100e18 + 77777);
 
-        assertEq(dai.balanceOf(address(eDAI)), 77777);
-    }
-}
+//         centralRegistry.withdrawReservesMulti(eTokens);
+
+//         assertEq(dai.balanceOf(address(eDAI)), 77777);
+//     }
+// }

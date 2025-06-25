@@ -258,7 +258,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
             uint256 incentive = liqBaseIncentive + liqCurve;
             uint256 debtToCollateralRatio = (incentive *
                 earnTokenPrice *
-                WAD) / (data.price * pBALRETH.exchangeRateCached());
+                WAD) / (data.price * pBALRETH.exchangeRate());
             uint256 amountAdjusted = (debtAmount *
                 (10 ** pBALRETH.decimals())) / (10 ** eUSDC.decimals());
             uint256 expectedLiquidatedTokens = (amountAdjusted *

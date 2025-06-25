@@ -329,6 +329,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         return (
             AccountSnapshot({
                 asset: address(this),
+                isPToken: false,
                 decimals: decimals(),
                 collateralPosted: collateralPosted[account],
                 debtOutstanding: debtBalance(account),
@@ -667,11 +668,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
             amounts,
             IMarketManager.LiqInstructions({
                 eToken: address(this),
-                pToken: collateralToken,
+                cToken: collateralToken,
                 numAccounts: numAccounts,
                 liquidateExact: exactAmount,
                 eTokenRepaid: 0,
-                pTokenLiquidated: 0,
+                cTokenLiquidated: 0,
                 badDebt: 0
             })
         );

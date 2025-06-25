@@ -57,8 +57,7 @@ contract SetMigrationConfigTest is TestBasePredeposit {
         usdc.approve(address(eUSDC), 1000e6);
         balRETH.approve(address(pBALRETH), 1000e18);
 
-        marketManagerIsolated.listToken(address(eUSDC));
-        marketManagerIsolated.listToken(address(pBALRETH));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         (, address mTokenAddress, bool isPToken) = predeposit.tokenData(
             _USDC_ADDRESS

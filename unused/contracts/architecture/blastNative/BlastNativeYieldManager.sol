@@ -381,7 +381,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             revert BlastNativeYieldManager__MarketManagerMismatch();
         }
 
-        if (!IMToken(pToken).isPToken() || IMToken(eToken).isPToken()) {
+        if (!IMToken(pToken).isCollateralizable() || IMToken(eToken).isCollateralizable()) {
             revert BlastNativeYieldManager__InvalidTokenTypes();
         }
 

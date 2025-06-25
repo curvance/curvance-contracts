@@ -10,7 +10,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IStakedGMX } from "contracts/interfaces/external/gmx/IStakedGMX.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
-import { StakedGMXPToken, IERC20 } from "contracts/market/token/StakedGMXPToken.sol";
+import { StakedGMXCToken, IERC20 } from "contracts/market/token/StakedGMXCToken.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -27,7 +27,7 @@ contract TestStakedGMXPToken is TestBaseMarketIsolated {
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     IERC20 public gmx = IERC20(_GMX_ADDRESS);
-    StakedGMXPToken public cStakedGMX;
+    StakedGMXCToken public cStakedGMX;
     MockV3Aggregator public chainlinkWETH;
     MockV3Aggregator public chainlinkGMX;
 
@@ -48,12 +48,13 @@ contract TestStakedGMXPToken is TestBaseMarketIsolated {
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
 
-        cStakedGMX = new StakedGMXPToken(
+        cStakedGMX = new StakedGMXCToken(
             ICentralRegistry(address(centralRegistry)),
             gmx,
             address(marketManagerIsolated),
             _GMX_REWARD_ROUTER,
-            _WETH_ADDRESS
+            _WETH_ADDRESS,
+            1 days
         );
 
         _deployOracleManager();

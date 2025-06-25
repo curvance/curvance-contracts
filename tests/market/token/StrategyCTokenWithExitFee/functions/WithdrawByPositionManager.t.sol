@@ -2,15 +2,15 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
-import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
+import { StrategyCToken } from "contracts/market/token/StrategyCToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
@@ -80,9 +80,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         // list eUSDC
         _prepareUSDC(address(this), _ONE);
         usdc.approve(address(eUSDC), _ONE);
-        marketManagerIsolated.listToken(address(eUSDC));
-        // deposit reserves
-        eUSDC.depositReserves(1000e6);
+
 
         // list pBALRETHWithExitFee
         _prepareBALRETH(address(this), 77777);
@@ -92,16 +90,20 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
             address(pBALRETHWithExitFee),
             77777
         );
-        marketManagerIsolated.listToken(address(pBALRETHWithExitFee));
+
+        marketManagerIsolated.listTokens(address(pBALRETHWithExitFee), address(eUSDC));
 
         marketManagerIsolated.updatePositionToken(
-            address(pBALRETHWithExitFee),
-            7000,
-            4000, // liquidate at 71%
-            3000,
-            200, // 2% liq incentive
-            400,
-            1000
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            1000     // baseCFactor 20%
         );
 
         address[] memory tokens = new address[](1);
@@ -110,7 +112,15 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
 
+        tokens[0] = address(eUSDC);
+        caps[0] = 1_000_000e6;
+
+        marketManagerIsolated.setDebtCaps(tokens, caps);
+
         addPositionManagement();
+
+        // deposit reserves
+        eUSDC.depositReserves(1000e6);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
@@ -142,9 +152,9 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         
         // we aren't using this struct, only for required arguments
         DeleverageStruct memory deleverageData = DeleverageStruct({
-            positionToken: IPToken(address(pBALRETHWithExitFee)),
+            positionToken: ICToken(address(pBALRETHWithExitFee)),
             collateralAmount: 0,
-            borrowToken: IEToken(address(eUSDC)),
+            borrowToken: IBorrowableCToken(address(eUSDC)),
             swapData: swapData,
             repayAmount: 0,
             auxData: ""
@@ -159,7 +169,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         uint256 collateralReceivedWithExitFee = _removeExitFeeFromAssets(collateralRemoveAmount);
 
 
-        pBALRETHWithExitFee.withdrawByPositionManager(user1, collateralRemoveAmount, deleverageData);
+        pBALRETHWithExitFee.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageData);
 
         // a usual workflow would swap the collateral for the borrowToken, repay the borrowToken
         // we are checking that the exit fee is applied

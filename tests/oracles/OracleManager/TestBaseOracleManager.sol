@@ -7,13 +7,16 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 contract TestBaseOracleManager is TestBaseMarketIsolated {
     MockDataFeed public sequencer;
 
     function setUp() public virtual override {
         _fork(18031848);
-
+        
         _deployCentralRegistry();
+        _deployDAOTimelock();
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
@@ -66,7 +69,6 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
         centralRegistry = centralRegistries[
             block.chainid
         ] = new CentralRegistry(
-            _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             block.timestamp + 1,

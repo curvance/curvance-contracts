@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "tests/market/TestBaseMarketIsolated.sol";
-import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
+import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
 import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -46,29 +46,29 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         for (uint256 i = 0; i < _noOfTokens; i++) {
             EToken eToken = _deployEarnToken();
             eTokens[i] = eToken;
-            eTokensAgg[i] = _deployOracleManagerForToken(eToken.underlying());
+            eTokensAgg[i] = _deployOracleManagerForToken(eToken.asset());
         }
         return (eTokens, eTokensAgg);
     }
 
-    function _deployCollaterToken() internal returns (MockSimplePToken) {
+    function _deployCollaterToken() internal returns (MockSimpleCToken) {
         // deploy collateral token and pToken
         MockERC20Token mockUnderlying = new MockERC20Token();
         vm.label(address(mockUnderlying), "tokenCollateral");
-        MockSimplePToken SimplePToken = new MockSimplePToken(
+        MockSimpleCToken SimpleCToken = new MockSimpleCToken(
             ICentralRegistry(address(centralRegistry)),
             address(mockUnderlying),
             address(marketManager)
         );
-        vm.label(address(SimplePToken), "pToken");
+        vm.label(address(SimpleCToken), "pToken");
 
         // start market for pToken
         uint256 startAmount = 77777;
         mockUnderlying.mint(address(this), startAmount);
-        mockUnderlying.approve(address(SimplePToken), startAmount);
-        marketManager.listToken(address(SimplePToken));
+        mockUnderlying.approve(address(SimpleCToken), startAmount);
+        marketManager.listToken(address(SimpleCToken));
         vm.label(address(marketManager), "marketManager");
-        return SimplePToken;
+        return SimpleCToken;
     }
 
     function _deployEarnToken() internal returns (EToken) {
@@ -113,10 +113,10 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
 
     function _genCollateral(
         address _user,
-        MockSimplePToken _pToken,
+        MockSimpleCToken _pToken,
         uint256 _amount
     ) internal {
-        MockERC20Token tokenCollateral = MockERC20Token(_pToken.underlying());
+        MockERC20Token tokenCollateral = MockERC20Token(_pToken.asset());
         vm.startPrank(_user);
         tokenCollateral.mint(address(_user), _amount);
         tokenCollateral.approve(address(_pToken), _amount);
@@ -126,7 +126,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
 
     function _postCollateral(
         address _user,
-        MockSimplePToken _pToken,
+        MockSimpleCToken _pToken,
         uint256 _amount
     ) internal {
         vm.prank(_user);
@@ -138,7 +138,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         EToken _eToken,
         uint256 _amount
     ) internal {
-        MockERC20Token tokenDebt = MockERC20Token(_eToken.underlying());
+        MockERC20Token tokenDebt = MockERC20Token(_eToken.asset());
         vm.startPrank(_user);
         tokenDebt.mint(address(_user), _amount);
         tokenDebt.approve(address(_eToken), _amount);
@@ -154,7 +154,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
     function _checkLiquidation(
         address _user,
         EToken _eToken,
-        MockSimplePToken _pToken,
+        MockSimpleCToken _pToken,
         uint256 _amount,
         bool _exact
     ) internal view returns (uint256 liqAmount, uint256 liquidatedTokens) {
@@ -180,7 +180,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
     ) internal {
         vm.startPrank(_liquidator);
         console2.log("\n prep liq");
-        MockERC20Token tokenDebt = MockERC20Token(_eToken.underlying());
+        MockERC20Token tokenDebt = MockERC20Token(_eToken.asset());
         console2.log(
             "eToken %s underlying %s",
             address(_eToken),
@@ -199,7 +199,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         vm.startPrank(_liquidator);
         for (uint256 i = 0; i < _eTokens.length; i++) {
             MockERC20Token tokenDebt = MockERC20Token(
-                _eTokens[i].underlying()
+                _eTokens[i].asset()
             );
             tokenDebt.approve(address(_eTokens[i]), 1e26);
             tokenDebt.mint(_liquidator, 1e26);
@@ -211,7 +211,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         uint256 _collateralAvailable,
         address _user,
         EToken _eToken,
-        MockSimplePToken _pToken,
+        MockSimpleCToken _pToken,
         bool _exact
     ) internal view returns (uint256, uint256) {
         (, , , , , , uint256 baseCFactor, uint256 cFactorCurve) = marketManager
@@ -222,7 +222,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
             WAD;
 
         PriceReturnData memory data = chainlinkAdaptor.getPrice(
-            _pToken.underlying(),
+            _pToken.asset(),
             true,
             true
         );
@@ -241,7 +241,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
     function _calcExpected(
         uint256 _collateralAvailable,
         EToken _eToken,
-        MockSimplePToken _pToken,
+        MockSimpleCToken _pToken,
         uint256 /* cFactor */,
         uint256 debtAmount,
         uint256 price,
@@ -264,7 +264,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         ) = marketManager.tokenData(address(_pToken));
 
         PriceReturnData memory earnTokenData = chainlinkAdaptor.getPrice(
-            _eToken.underlying(),
+            _eToken.asset(),
             true,
             true
         );
@@ -274,7 +274,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
 
         uint256 incentive = liqBaseIncentive + liqCurve;
         uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
-            (price * _pToken.exchangeRateCached());
+            (price * _pToken.exchangeRate());
         uint256 amountAdjusted = (debtAmount * (10 ** _pToken.decimals())) /
             (10 ** _eToken.decimals());
         uint256 expectedLiquidatedTokens = (amountAdjusted *
@@ -317,7 +317,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
 
     function _liquidateAllExact(
         EToken[] memory eTokens,
-        MockSimplePToken[] memory pTokens,
+        MockSimpleCToken[] memory pTokens,
         address[] memory users
     ) internal {
         console2.log("_liquidateExact");
@@ -335,7 +335,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
                 }
                 for (uint256 k = 0; k < noOfEarnTokens; k++) {
                     if (
-                        IERC20(eTokens[k].underlying()).balanceOf(users[i]) ==
+                        IERC20(eTokens[k].asset()).balanceOf(users[i]) ==
                         0
                     ) {
                         continue;
@@ -354,7 +354,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
 
     function _liquidateAllByEToken(
         EToken[] memory eTokens,
-        MockSimplePToken[] memory pTokens,
+        MockSimpleCToken[] memory pTokens,
         address[] memory users
     ) internal {
         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
@@ -372,7 +372,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
                 }
                 for (uint256 k = 0; k < noOfEarnTokens; k++) {
                     if (
-                        IERC20(eTokens[k].underlying()).balanceOf(users[i]) ==
+                        IERC20(eTokens[k].asset()).balanceOf(users[i]) ==
                         0
                     ) {
                         continue;
@@ -391,7 +391,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
 
     function _liquidate(
         EToken _eToken,
-        MockSimplePToken _pToken,
+        MockSimpleCToken _pToken,
         address _user,
         bool _exact
     ) internal {
@@ -436,7 +436,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
 
     function _eTokenLiquidateExact(
         EToken _eToken,
-        MockSimplePToken _collateral,
+        MockSimpleCToken _collateral,
         uint256 _expectedLiqAmount,
         address _account,
         address _liquidator
@@ -455,7 +455,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
 
     function _eTokenLiquidate(
         EToken _eToken,
-        MockSimplePToken _collateral,
+        MockSimpleCToken _collateral,
         address _account,
         address _liquidator
     ) internal {

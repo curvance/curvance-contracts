@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import { TestBaseMarketManagerIsolated } from "tests/market/isolatedMarketManager/TestBaseMarketManagerIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 
 contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     address dappControlUser = makeAddr("dappControlUser");
@@ -15,7 +15,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
     }
 
-    function testSetAtlasParameters() public {
+    function testsetAuctionParameters() public {
         _setUpMarketNonLiquidation();
         // Only dapp control can set penalty
         vm.startPrank(dappControlUser);
@@ -23,28 +23,28 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         // Set a valid penalty (WAD + 15%)
         uint256 validPenalty = 1.15e18;
         uint256 closeFactor = 0.30e18;
-        marketManagerIsolated.setAtlasParameters(validPenalty, closeFactor);
+        marketManagerIsolated.setAuctionParameters(validPenalty, closeFactor);
 
         // Verify the penalty was set correctly
-        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
+        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAuctionParameters();
         assertEq(currentPenalty, validPenalty);
         assertEq(currentCloseFactor, closeFactor);
         vm.stopPrank();
     }
     
-    function testSetAtlasParametersUnauthorized() public {
+    function testsetAuctionParametersUnauthorized() public {
         _setUpMarketNonLiquidation();
 
         // // Non-dapp control user should not be able to set penalty
         vm.startPrank(user1);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManagerIsolated.setAtlasParameters(1.15e18, 0.30e18);
+        marketManagerIsolated.setAuctionParameters(1.15e18, 0.30e18);
         
         vm.stopPrank();
     }
     
-    function testSetAtlasParametersInvalidValue() public {
+    function testsetAuctionParametersInvalidValue() public {
         _setUpMarketNonLiquidation();
         
         vm.startPrank(dappControlUser);
@@ -57,50 +57,50 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         uint256 validCloseFactor = 0.30e18;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAtlasParameters(tooLowPenalty, validCloseFactor);
+        marketManagerIsolated.setAuctionParameters(tooLowPenalty, validCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAtlasParameters(tooHighPenalty, validCloseFactor);
+        marketManagerIsolated.setAuctionParameters(tooHighPenalty, validCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAtlasParameters(validPenalty, tooHighCloseFactor);
+        marketManagerIsolated.setAuctionParameters(validPenalty, tooHighCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAtlasParameters(validPenalty, tooLowCloseFactor);
+        marketManagerIsolated.setAuctionParameters(validPenalty, tooLowCloseFactor);
 
         vm.stopPrank();
     }
     
-    function testResetAtlasParameters() public {
+    function testResetAuctionParameters() public {
         _setUpMarketNonLiquidation();
 
         vm.startPrank(dappControlUser);
         
         uint256 validPenalty = 1.15e18;
         uint256 validCloseFactor = 0.30e18;
-        marketManagerIsolated.setAtlasParameters(validPenalty, validCloseFactor);
+        marketManagerIsolated.setAuctionParameters(validPenalty, validCloseFactor);
 
-        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
+        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAuctionParameters();
         assertEq(currentPenalty, validPenalty);
         assertEq(currentCloseFactor, validCloseFactor);
         
-        marketManagerIsolated.resetAtlasParameters();
+        marketManagerIsolated.resetAuctionParameters();
         
-        // uint256 defaultPenalty = 1.10e18; // Not used anymore because getLatestAtlasParameters does not return default penalties anymore.
-        (currentPenalty, currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
+        // uint256 defaultPenalty = 1.10e18; // Not used anymore because getLatestAuctionParameters does not return default penalties anymore.
+        (currentPenalty, currentCloseFactor) = marketManagerIsolated.getLatestAuctionParameters();
         assertEq(currentPenalty, 0);
         assertEq(currentCloseFactor, 0);
         
         vm.stopPrank();
     }
 
-    function testResetAtlasParametersUnauthorized() public {
+    function testResetAuctionParametersUnauthorized() public {
         _setUpMarketNonLiquidation();
 
         vm.startPrank(user1);
         
         vm.expectRevert();
-        marketManagerIsolated.resetAtlasParameters();
+        marketManagerIsolated.resetAuctionParameters();
         
         vm.stopPrank();
     }
@@ -122,11 +122,11 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
         uint256 incentive = 1.15e18; 
         uint256 earnTokenPrice = 2e18; 
-        uint256 pTokenPrice = 1677420866257185401796; 
+        uint256 cTokenPrice = 1677420866257185401796; 
         uint256 exchangeRate = 1e18;  
         
         uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
-            (pTokenPrice * exchangeRate);
+            (cTokenPrice * exchangeRate);
         
         uint256 amountAdjusted = (250000000 * 10**18) / 10**6;
         
@@ -138,7 +138,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     // function testLiquidationWithDynamicPenalty() public {
     //     _prepareLiquidationIsolated();
 
-    //     testSetAtlasParameters();
+    //     testsetAuctionParameters();
 
     //     _prepareUSDC(user3, 250e6);
     //     vm.startPrank(user3);
@@ -152,8 +152,8 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     //     eUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETH));
     //     vm.stopPrank();
 
-    //     uint256 liquidatorpTokenBalance = pBALRETH.balanceOf(user3);
-    //     assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenalty());
+    //     uint256 liquidatorcTokenBalance = pBALRETH.balanceOf(user3);
+    //     assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenalty());
 
     //     uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
     //     assertEq(liquidatorUSDCBalance, 0);
@@ -165,11 +165,11 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
         uint256 incentive = 1.10e18; // Default 10% penalty
         uint256 earnTokenPrice = 2e18; 
-        uint256 pTokenPrice = 1677420866257185401796; 
+        uint256 cTokenPrice = 1677420866257185401796; 
         uint256 exchangeRate = 1e18;  
         
         uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
-            (pTokenPrice * exchangeRate);
+            (cTokenPrice * exchangeRate);
         
         uint256 amountAdjusted = (250000000 * 10**18) / 10**6;
         
@@ -194,8 +194,8 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     //     eUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETH));
     //     vm.stopPrank();
 
-    //     uint256 liquidatorpTokenBalance = pBALRETH.balanceOf(user3);
-    //     assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDefaultPenalty());
+    //     uint256 liquidatorcTokenBalance = pBALRETH.balanceOf(user3);
+    //     assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDefaultPenalty());
 
     //     uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
     //     assertEq(liquidatorUSDCBalance, 0);
@@ -209,11 +209,11 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         // Create a dapp control user
         dappControlUser = makeAddr("dappControlUser");
         vm.startPrank(centralRegistry.daoAddress());
-        centralRegistry.addAuthorizedAtlasDAppControl(dappControlUser);
+        centralRegistry.addAuctionPermissions(dappControlUser);
         vm.stopPrank();
 
         vm.prank(dappControlUser);
-        marketManagerIsolated.unlockAtlasCollateral(address(1));
+        marketManagerIsolated.unlockAuctionCollateral(address(1));
 
         address[] memory usersToLiquidate = new address[](1);   
         usersToLiquidate[0] = user1;
@@ -234,19 +234,19 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         // Create a dapp control user
         dappControlUser = makeAddr("dappControlUser");
         vm.startPrank(centralRegistry.daoAddress());
-        centralRegistry.addAuthorizedAtlasDAppControl(dappControlUser);
+        centralRegistry.addAuctionPermissions(dappControlUser);
         vm.stopPrank();
 
         // Set a valid penalty (WAD + 15%)
         vm.startPrank(dappControlUser);
-        marketManagerIsolated.unlockAtlasCollateral(address(eUSDC));
+        marketManagerIsolated.unlockAuctionCollateral(address(eUSDC));
         uint256 validPenalty = 1.15e18; //15%
         uint256 closeFactor = 0.30e18; // 30%
-        marketManagerIsolated.setAtlasParameters(validPenalty, closeFactor);
+        marketManagerIsolated.setAuctionParameters(validPenalty, closeFactor);
         vm.stopPrank();
 
         eUSDC.accrueInterest(); // pull interest forward
-        uint256 debtBalance = IEToken(address(eUSDC)).debtBalanceCached(user1);
+        uint256 debtBalance = IBorrowableCToken(address(eUSDC)).debtBalanceCached(user1);
 
         uint256 closeBalance = (debtBalance * 0.30e18) / 1e18;
 
@@ -262,8 +262,8 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         eUSDC.liquidate(usersToLiquidate, address(pBALRETH));
         vm.stopPrank();
 
-        // uint256 liquidatorpTokenBalance = pBALRETH.balanceOf(user3);
-        // assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(debtBalance));
+        // uint256 liquidatorcTokenBalance = pBALRETH.balanceOf(user3);
+        // assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(debtBalance));
 
         // uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
         // assertEq(liquidatorUSDCBalance, debtBalance - closeBalance);
@@ -274,12 +274,12 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
         uint256 incentive = 1.15e18; 
         uint256 earnTokenPrice = 2e18; 
-        uint256 pTokenPrice = 1677420866257185401796; 
+        uint256 cTokenPrice = 1677420866257185401796; 
         uint256 exchangeRate = 1e18;
         uint256 closeFactor = 1e18;
         
         uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
-            (pTokenPrice * exchangeRate);
+            (cTokenPrice * exchangeRate);
         
         uint256 maxAmount = (closeFactor * debtBalance) / WAD;
         uint256 amountAdjusted = (maxAmount * 10**18) / 10**6;
@@ -317,7 +317,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         // Create a dapp control user
         dappControlUser = makeAddr("dappControlUser");
         vm.startPrank(centralRegistry.daoAddress());
-        centralRegistry.addAuthorizedAtlasDAppControl(dappControlUser);
+        centralRegistry.addAuctionPermissions(dappControlUser);
         vm.stopPrank();
 
         address[] memory tokens = new address[](1);

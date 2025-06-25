@@ -11,7 +11,7 @@ import { RescueLib } from "contracts/libraries/RescueLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
@@ -57,7 +57,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// CONSTANTS ///
 
     /// @notice The address of the token linked to this contract.
-    IEToken public immutable linkedToken;
+    IBorrowableCToken public immutable linkedToken;
 
     /// @notice The address of Universal Balance underlying token.
     address public immutable underlying;
@@ -107,12 +107,12 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address eToken
     ) PluginDelegable(centralRegistry_) {
         // Validate inputted eToken is actually an eToken.
-        if (IMToken(eToken).isPToken()) {
+        if (!IMToken(eToken).isBorrowable()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        linkedToken = IEToken(eToken);
-        address underlying_ = IMToken(eToken).underlying();
+        linkedToken = IBorrowableCToken(eToken);
+        address underlying_ = IMToken(eToken).asset();
         underlying = underlying_;
 
         IERC20(underlying_).approve(eToken, type(uint256).max);
@@ -467,7 +467,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         if (willLend) {
             // Will natively fail if amount == 0 on gaugeManager call.
             // Records balance in tokens (shares).
-            uint256 tokensReceived = linkedToken.mint(amount);
+            uint256 tokensReceived = linkedToken.deposit(amount, recipient);
             userBalances[recipient].lentBalance += tokensReceived;
 
             emit Deposit(msg.sender, recipient, amount, willLend);
@@ -601,7 +601,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             // Decrement user lent balance.
             userBalances[owner].lentBalance -= pointerAmount;
 
-            pointerAmount = linkedToken.redeem(pointerAmount, address(this));
+            pointerAmount = linkedToken.redeem(pointerAmount, address(this), owner);
 
             // Make sure enough was redeemed.
             if (pointerAmount < remainingAmount) {

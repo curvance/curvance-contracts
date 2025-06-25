@@ -439,6 +439,7 @@ abstract contract BaseCToken is
         return (
             AccountSnapshot({
                 asset: address(this),
+                isPToken: true,
                 decimals: decimals(),
                 collateralPosted: collateralPosted[account],
                 debtOutstanding: 0, // Defaults to zero, only overridden in BorrowableCToken
@@ -1360,7 +1361,7 @@ abstract contract BaseCToken is
         _checkZeroAmount(shares);
         
         // Fails if transfer not allowed.
-        uint256 collateralToRemove = marketManager.canTransferPToken(
+        uint256 collateralToRemove = marketManager.canTransferCToken(
             address(this),
             msg.sender,
             balanceOf(from),

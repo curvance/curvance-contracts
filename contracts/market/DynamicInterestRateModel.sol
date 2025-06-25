@@ -310,7 +310,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     /// @dev Once this function is properly it can never be called again.
     /// @param cTokenAddress The address of the token to be linked
     ///                      to this interest rate model contract.
-    function setlinkedToken(address cTokenAddress) external {
+    function setLinkedToken(address cTokenAddress) external {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
@@ -324,7 +324,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         // Validate that the token being linked is actually a borrowable token
         // if the token is not a Curvance token this will also natively fail,
         // which is fine too.
-        if (IBorrowableCToken(cTokenAddress).isBorrowable()) {
+        if (!IBorrowableCToken(cTokenAddress).isBorrowable()) {
             _revert(_INVALID_TOKEN_SELECTOR);
         }
 

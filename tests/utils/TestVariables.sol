@@ -13,9 +13,9 @@ import { FeeManager } from "contracts/architecture/FeeManager.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
-import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
+import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
@@ -23,9 +23,10 @@ import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
-import { MockAuraPTokenWithExitFee } from "contracts/mocks/MockAuraPTokenWithExitFee.sol";
+import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
+import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 
 import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
 
@@ -104,12 +105,13 @@ contract TestVariables {
     MarketManagerIsolated public marketManagerIsolated;
     OracleManager public oracleManager;
     AuxiliaryData public auxiliaryData;
-    EToken public eUSDC;
-    EToken public eDAI;
+    DAOTimelock public daoTimelock;
+    BorrowableCToken public eUSDC;
+    BorrowableCToken public eDAI;
 
-    SimplePToken public pUSDC;
-    AuraPToken public pBALRETH;
-    MockAuraPTokenWithExitFee public pBALRETHWithExitFee;
+    SimpleCToken public pUSDC;
+    AuraCToken public pBALRETH;
+    MockAuraCTokenWithExitFee public pBALRETHWithExitFee;
  
     IERC20 public usdc;
     IERC20 public dai;
@@ -146,12 +148,13 @@ contract TestVariables {
     mapping(uint256 => ChainlinkAdaptor) public dualChainlinkAdaptors;
     mapping(uint256 => MarketManagerIsolated) public marketManagersIsolated;
     mapping(uint256 => AuxiliaryData) public auxiliaryDatas;
+    mapping(uint256 => DAOTimelock) public daoTimelocks;
     mapping(uint256 => OracleManager) public oracleManagers;
-    mapping(uint256 => EToken) public eUSDCs;
-    mapping(uint256 => EToken) public eDAIs;
+    mapping(uint256 => BorrowableCToken) public eUSDCs;
+    mapping(uint256 => BorrowableCToken) public eDAIs;
 
-    mapping(uint256 => AuraPToken) public pBALRETHs;
-    mapping(uint256 => MockAuraPTokenWithExitFee) public pBALRETHWithExitFees;
+    mapping(uint256 => AuraCToken) public pBALRETHs;
+    mapping(uint256 => MockAuraCTokenWithExitFee) public pBALRETHWithExitFees;
 
 
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcUsds;

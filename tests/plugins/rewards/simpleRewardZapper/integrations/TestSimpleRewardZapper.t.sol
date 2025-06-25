@@ -7,19 +7,17 @@ import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { SimplePToken, IERC20 } from "contracts/market/token/SimplePToken.sol";
+import { SimpleCToken, IERC20 } from "contracts/market/token/SimpleCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract User {}
-
 contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
 
-    SimplePToken public pWETH;
+    SimpleCToken public pWETH;
 
     function setUp() public override {
         super.setUp();
@@ -74,7 +72,6 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             // support market
             _prepareUSDC(owner, 200000e6);
             usdc.approve(address(eUSDC), 200000e6);
-            marketManagerIsolated.listToken(address(eUSDC));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(eUSDC));
             address[] memory markets = new address[](1);
@@ -88,7 +85,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         // deploy pWETH
         {
             // deploy aura position vault
-            pWETH = new SimplePToken(
+            pWETH = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
                 weth,
                 address(marketManagerIsolated)
@@ -97,25 +94,10 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             // support market
             _prepareWETH(owner, 1 ether);
             weth.approve(address(pWETH), 1 ether);
-            marketManagerIsolated.listToken(address(pWETH));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(pWETH));
             // set position token configuration
-            marketManagerIsolated.updatePositionToken(
-                address(pWETH),
-                7000,
-                4000, // liquidate at 71%
-                3000,
-                200, // 2% liq incentive
-                400,
-                1000
-            );
 
-            address[] memory mTokens = new address[](1);
-            mTokens[0] = address(pWETH);
-            uint256[] memory caps = new uint256[](1);
-            caps[0] = 100 ether;
-            marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
             // address[] memory markets = new address[](1);
             // markets[0] = address(pWETH);
@@ -125,11 +107,37 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             // marketManager.enterMarkets(markets);
         }
 
+        // list tokens
+        marketManagerIsolated.listTokens(address(pWETH), address(eUSDC));
+
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            1000     // baseCFactor 20%
+        );
+
+        address[] memory mTokens = new address[](1);
+        mTokens[0] = address(pWETH);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100 ether;
+        marketManagerIsolated.setCollateralCaps(mTokens, caps);
+
+        mTokens[0] = address(eUSDC);
+        caps[0] = 1_000_000e6;
+        marketManagerIsolated.setDebtCaps(mTokens, caps);
+
         provideEnoughLiquidityForLeverage();
     }
 
     function provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = address(new User());
+        address liquidityProvider = makeAddr("Liquidity_provider");
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareWETH(liquidityProvider, 10 ether);
         // mint eUSDC

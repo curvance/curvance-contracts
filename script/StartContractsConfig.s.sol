@@ -14,11 +14,11 @@ import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
 import { TestnetToken } from "contracts/mocks/TestnetToken.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
@@ -410,9 +410,9 @@ contract StartContractsConfig is
             );
 
         address eToken = address(
-            new EToken(
+            new BorrowableCToken(
                 cr,
-                tokenAddress,
+                IERC20(tokenAddress),
                 address(market),
                 address(interestRateModel)
             )
@@ -453,7 +453,7 @@ contract StartContractsConfig is
     ) internal returns (address) {
         IERC20 underlying = IERC20(tokenAddress);
         address pToken = address(
-            new SimplePToken(cr, underlying, address(market))
+            new SimpleCToken(cr, underlying, address(market))
         );
         _saveDeployedContracts(name, pToken);
 
@@ -499,7 +499,7 @@ contract StartContractsConfig is
     ) internal {
         address oracleManager = _getDeployedContract("oracleManager");
         address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
-        address underlying = IMToken(mToken).underlying();
+        address underlying = IMToken(mToken).asset();
 
         if (chainlinkEth == address(0) && chainlinkUsd == address(0)) {
             return;

@@ -6,10 +6,12 @@ import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { CompoundingPToken} from "contracts/market/token/CompoundingPToken.sol";
+import { StrategyCToken} from "contracts/market/token/StrategyCToken.sol";
 import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestAuraPToken is TestBaseMarketIsolated {
+// NOTES: testHarvestAuraCToken fails because the amount of underlying assets is not enough to redeem
+
+contract TestAuraCToken is TestBaseMarketIsolated {
     address internal _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;
     address internal _AURA_ADDRESS =
         0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
@@ -129,10 +131,15 @@ contract TestAuraPToken is TestBaseMarketIsolated {
             address(pBALRETH),
             _ONE
         );
-        marketManagerIsolated.listToken(address(pBALRETH));
+
+        _prepareUSDC(address(this), 1000e6);
+
+        usdc.approve(address(eUSDC), type(uint256).max);
+
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
     }
 
-    function testHarvestAuraPToken() public {
+    function testHarvestAuraCToken() public {
         uint256 assets = 100e18;
         _prepareBALRETH(user1, assets);
 
@@ -187,11 +194,9 @@ contract TestAuraPToken is TestBaseMarketIsolated {
         pBALRETH.harvest(abi.encode(swaps, 1e8));
 
         // check vault data without modification to vesting period
-
-        CompoundingPToken.VaultData memory vaultData = pBALRETH.getVaultYieldStatus();
-        uint256 rewardRate = vaultData.rewardRate;
-        uint256 vestingPeriodEnd = vaultData.vestingPeriodEnd;
-        uint256 lastVestClaim = vaultData.lastVestClaim;
+        (uint256 rewardRate, 
+        uint256 vestingPeriodEnd, 
+        uint256 lastVestClaim) = pBALRETH.getVestingYieldData();
 
         assert(lastVestClaim == block.timestamp);
         assert(vestingPeriodEnd == block.timestamp + 1 days);
@@ -205,6 +210,7 @@ contract TestAuraPToken is TestBaseMarketIsolated {
         );
 
         vm.startPrank(user1);
+        
         pBALRETH.withdraw(pBALRETH.balanceOf(user1), user1, user1);
         vm.stopPrank();
 
@@ -212,7 +218,7 @@ contract TestAuraPToken is TestBaseMarketIsolated {
 
         // increase vesting period to 2 days
 
-        (bool updateNeeded, uint256 newVestPeriod) = pBALRETH.pendingVestUpdate();
+        (bool updateNeeded, uint256 newVestPeriod) = pBALRETH.pendingVestingPeriodUpdate();
         assert(updateNeeded == true);
         assert(newVestPeriod == 2 days);
 
@@ -249,10 +255,7 @@ contract TestAuraPToken is TestBaseMarketIsolated {
 
         pBALRETH.harvest(abi.encode(swaps, 1e8));
 
-        vaultData = pBALRETH.getVaultYieldStatus();
-        rewardRate = vaultData.rewardRate;
-        vestingPeriodEnd = vaultData.vestingPeriodEnd;
-        lastVestClaim = vaultData.lastVestClaim;
+        (rewardRate, vestingPeriodEnd, lastVestClaim) = pBALRETH.getVestingYieldData();
 
         assert(lastVestClaim == block.timestamp);
         assert(vestingPeriodEnd == block.timestamp + 2 days);
@@ -260,7 +263,7 @@ contract TestAuraPToken is TestBaseMarketIsolated {
         // setCompoundingPaused
         pBALRETH.setCompoundingPaused(true);
 
-        vm.expectRevert(CompoundingPToken.CompoundingPToken__CompoundingPaused.selector);
+        vm.expectRevert(StrategyCToken.StrategyCToken__CompoundingPaused.selector);
         pBALRETH.harvest(bytes("0"));
 
     }

@@ -4,7 +4,8 @@ pragma solidity ^0.8.19;
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 
 contract CanBorrowTest is TestBaseMarketManagerIsolated {
     function setUp() public override {
@@ -69,6 +70,30 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            2000     // baseCFactor 20%
+        );
+
+        address[] memory mTokens = new address[](1);
+        uint256[] memory caps = new uint256[](1);
+        mTokens[0] = address(pBALRETH);
+        caps[0] = 100e6 - 1;
+
+        marketManagerIsolated.setCollateralCaps(mTokens, caps);
+
+        mTokens[0] = address(eUSDC);
+        caps[0] = 200e6;
+        marketManagerIsolated.setDebtCaps(mTokens, caps);
+
         vm.prank(address(eUSDC));
 
         vm.expectRevert(
@@ -115,6 +140,10 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
+
+        tokens[0] = address(eUSDC);
+        caps[0] = 200e6;
+        marketManagerIsolated.setDebtCaps(tokens, caps);
 
         // Need some PTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 1_000e18);
@@ -171,6 +200,10 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
 
+        tokens[0] = address(eUSDC);
+        caps[0] = 10_000_000e6;
+        marketManagerIsolated.setDebtCaps(tokens, caps);
+
         // Need some PTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
@@ -210,6 +243,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.canBorrow(
             address(eUSDC),
             user1,
+            borrowInUSDC + 1e6,
             borrowInUSDC + 1e6
         );
     }
@@ -275,6 +309,10 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
 
+        tokens[0] = address(eUSDC);
+        caps[0] = 1_000_000e6;
+        marketManagerIsolated.setDebtCaps(tokens, caps);
+
         // Need some PTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
@@ -284,7 +322,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         bool hasPosition;
-        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(user1, address(eUSDC));
+        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(eUSDC));
 
         assertFalse(hasPosition);
         IMToken[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
@@ -293,7 +331,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         vm.prank(address(eUSDC));
         marketManagerIsolated.canBorrow(address(eUSDC), user1, 1_000e6, 1_000e6);
 
-        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(user1, address(eUSDC));
+        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(eUSDC));
 
         assertTrue(hasPosition);
 
@@ -303,56 +341,95 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         assertEq(address(accountAssets[1]), address(eUSDC));
     }
 
-    // function test_canBorrow_fail_whenExceedsBorrowCap() external {
-    //     chainlinkUsdcUsd.updateRoundData(
-    //         0,
-    //         1e8,
-    //         block.timestamp,
-    //         block.timestamp
-    //     );
-    //     chainlinkUsdcEth.updateRoundData(
-    //         0,
-    //         1e18,
-    //         block.timestamp,
-    //         block.timestamp
-    //     );
+    function test_canBorrow_fail_whenExceedsBorrowCap() external {
+        chainlinkUsdcUsd.updateRoundData(
+            0,
+            1e8,
+            block.timestamp,
+            block.timestamp
+        );
+        chainlinkUsdcEth.updateRoundData(
+            0,
+            1e18,
+            block.timestamp,
+            block.timestamp
+        );
 
-    //     address[] memory mTokens = new address[](1);
-    //     uint256[] memory borrowCaps = new uint256[](1);
-    //     mTokens[0] = address(pBALRETH);
-    //     borrowCaps[0] = 100e6 - 1;
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            2000     // baseCFactor 20%
+        );
 
-    //     marketManager.listTokens(address(pBALRETH), address(eUSDC));
-    //     marketManager.setCollateralCaps(mTokens, borrowCaps);
+        address[] memory mTokens = new address[](1);
+        uint256[] memory caps = new uint256[](1);
+        mTokens[0] = address(pBALRETH);
+        caps[0] = 100e6 - 1;
 
-    //     vm.expectRevert();
-    //     vm.prank(address(pBALRETH));
-    //     marketManager.canBorrow(address(pBALRETH), user1, 100e6, 100e6);
-    // }
+        marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
-    // function test_canBorrow_success_whenCapNotExceeded() external {
-    //     chainlinkUsdcUsd.updateRoundData(
-    //         0,
-    //         1e8,
-    //         block.timestamp,
-    //         block.timestamp
-    //     );
-    //     chainlinkUsdcEth.updateRoundData(
-    //         0,
-    //         1e18,
-    //         block.timestamp,
-    //         block.timestamp
-    //     );
+        mTokens[0] = address(eUSDC);
+        caps[0] = 50e6;
+        marketManagerIsolated.setDebtCaps(mTokens, caps);
 
-    //     address[] memory mTokens = new address[](1);
-    //     uint256[] memory borrowCaps = new uint256[](1);
-    //     mTokens[0] = address(pBALRETH);
-    //     borrowCaps[0] = 100e6;
+        vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
+        vm.prank(address(pBALRETH));
+        marketManagerIsolated.canBorrow(address(pBALRETH), user1, 100e6, 100e6);
+    }
 
-    //     marketManager.listTokens(address(pBALRETH), address(eUSDC));
-    //     marketManager.setCollateralCaps(mTokens, borrowCaps);
+    function test_canBorrow_success_whenCapNotExceeded() external {
+        chainlinkUsdcUsd.updateRoundData(
+            0,
+            1e8,
+            block.timestamp,
+            block.timestamp
+        );
+        chainlinkUsdcEth.updateRoundData(
+            0,
+            1e18,
+            block.timestamp,
+            block.timestamp
+        );
 
-    //     vm.prank(address(pBALRETH));
-    //     marketManager.canBorrow(address(pBALRETH), user1, borrowCaps[0] - 1, borrowCaps[0] - 1);
-    // }
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            2000     // baseCFactor 20%
+        );
+
+        address[] memory mTokens = new address[](1);
+        uint256[] memory caps = new uint256[](1);
+        mTokens[0] = address(pBALRETH);
+        caps[0] = 100e18;
+
+        marketManagerIsolated.setCollateralCaps(mTokens, caps);
+
+        mTokens[0] = address(eUSDC);
+        caps[0] = 10_000e6;
+        marketManagerIsolated.setDebtCaps(mTokens, caps);
+
+        _prepareBALRETH(user1, 1_000e18);
+        vm.startPrank(user1);
+        balRETH.approve(address(pBALRETH), 10e18);
+        pBALRETH.deposit(10e18, user1);
+        pBALRETH.postCollateral(10e18);
+        vm.stopPrank();
+
+        vm.prank(address(eUSDC));
+        marketManagerIsolated.canBorrow(address(eUSDC), user1, caps[0] - 1, caps[0] - 1);
+    }
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
@@ -18,8 +18,8 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
@@ -82,8 +82,8 @@ abstract contract BasePositionManager is
         IMToken[] memory mTokens = marketManager.assetsOf(account);
         uint256 numTokens = mTokens.length;
         for (uint256 i; i < numTokens; ++i) {
-            if (!mTokens[i].isPToken()) {
-                IEToken(address(mTokens[i])).accrueInterest();
+            if (mTokens[i].isBorrowable()) {
+                IBorrowableCToken(address(mTokens[i])).accrueInterest();
             }
         }
 
@@ -164,8 +164,8 @@ abstract contract BasePositionManager is
         LeverageStruct calldata leverageData,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
-        IPToken pToken = leverageData.positionToken;
-        address pTokenUnderlying = pToken.underlying();
+        ICToken pToken = leverageData.positionToken;
+        address pTokenUnderlying = pToken.asset();
         // Transfer the underlying tokens to deposit.
         SafeTransferLib.safeTransferFrom(
             pTokenUnderlying,
@@ -337,7 +337,7 @@ abstract contract BasePositionManager is
         LeverageStruct memory leverageData
     ) external override {
         // We cast to a generic mToken but this will always be an eToken.
-        address borrowUnderlying = IMToken(borrowToken).underlying();
+        address borrowUnderlying = IMToken(borrowToken).asset();
         // Take protocol fee, if any.
         uint256 fee = _getFee(
             borrowToken,
@@ -359,10 +359,10 @@ abstract contract BasePositionManager is
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        IPToken positionToken = leverageData.positionToken;
+        ICToken positionToken = leverageData.positionToken;
 
         // Unwrap leverage instructions for collateral deposit.
-        address collateralUnderlying = positionToken.underlying();
+        address collateralUnderlying = positionToken.asset();
 
         _swapBorrowUnderlyingToCollateral(leverageData, borrower);
 
@@ -428,7 +428,7 @@ abstract contract BasePositionManager is
         DeleverageStruct memory deleverageData
     ) external override {
         // Take protocol fee, if any.
-        address collateralUnderlying = IPToken(positionToken).underlying();
+        address collateralUnderlying = ICToken(positionToken).asset();
         uint256 fee = _getFee(
             positionToken,
             collateralAmount,
@@ -451,10 +451,10 @@ abstract contract BasePositionManager is
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        IEToken borrowToken = deleverageData.borrowToken;
+        IBorrowableCToken borrowToken = deleverageData.borrowToken;
 
         // Unwrap deleverage instructions for debt repayment.
-        address borrowUnderlying = borrowToken.underlying();
+        address borrowUnderlying = borrowToken.asset();
         uint256 repayAmount = deleverageData.repayAmount;
         uint256 borrowUnderlyingBalance = IERC20(borrowUnderlying).balanceOf(
             address(this)
@@ -560,9 +560,9 @@ abstract contract BasePositionManager is
         ) = marketManager.statusOf(account);
 
         uint256 newCollateral = FixedPointMathLib.mulDiv(
-            IPToken(positionToken).previewDeposit(collateralAmount),
+            ICToken(positionToken).previewDeposit(collateralAmount),
             price,
-            10 ** IPToken(positionToken).decimals()
+            10 ** ICToken(positionToken).decimals()
         );
 
         uint256 collRatio = marketManager.collateralizationRatio(
@@ -585,7 +585,7 @@ abstract contract BasePositionManager is
             borrowToken
         );
 
-        uint256 liquidityAvailable = IERC20(IMToken(borrowToken).underlying())
+        uint256 liquidityAvailable = IERC20(IMToken(borrowToken).asset())
             .balanceOf(borrowToken);
 
         if (liquidityAvailable < maxDebtBorrowable) {
@@ -686,7 +686,7 @@ abstract contract BasePositionManager is
         LeverageStruct memory leverageData,
         address account
     ) internal {
-        IEToken borrowToken = leverageData.borrowToken;
+        IBorrowableCToken borrowToken = leverageData.borrowToken;
         uint256 borrowAmount = leverageData.borrowAmount;
         uint256 maxBorrowAmount = maxRemainingLeverageOf(
             account,

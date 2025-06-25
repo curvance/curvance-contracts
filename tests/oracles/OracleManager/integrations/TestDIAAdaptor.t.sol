@@ -14,6 +14,7 @@ contract TestDIAAdaptor is TestBaseOracleManager {
     function setUp() public override {
         _fork(19422728);
 
+        
         _deployCentralRegistry();
         _deployOracleManager();
 

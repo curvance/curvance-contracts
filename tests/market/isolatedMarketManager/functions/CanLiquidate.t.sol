@@ -24,13 +24,15 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
     function test_canLiquidate_fail_whenETokenNotListed() public {
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             eToken: address(eUSDC),
-            pToken: address(pBALRETH),
+            cToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             eTokenRepaid: 0,
-            pTokenLiquidated: 0,
+            cTokenLiquidated: 0,
             badDebt: 0
         });
+
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.canLiquidate(
@@ -44,13 +46,15 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         // marketManager.listToken(address(eUSDC));
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             eToken: address(eUSDC),
-            pToken: address(pBALRETH),
+            cToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             eTokenRepaid: 0,
-            pTokenLiquidated: 0,
+            cTokenLiquidated: 0,
             badDebt: 0
         });
+
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.canLiquidate(
@@ -71,14 +75,15 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             eToken: address(eUSDC),
-            pToken: address(pBALRETH),
+            cToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             eTokenRepaid: 0,
-            pTokenLiquidated: 0,
+            cTokenLiquidated: 0,
             badDebt: 0
         });
 
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InvalidParameter.selector
@@ -113,14 +118,15 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             eToken: address(eUSDC),
-            pToken: address(pBALRETH),
+            cToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             eTokenRepaid: 0,
-            pTokenLiquidated: 0,
+            cTokenLiquidated: 0,
             badDebt: 0
         });
 
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
@@ -157,14 +163,15 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             eToken: address(eUSDC),
-            pToken: address(pBALRETH),
+            cToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             eTokenRepaid: 0,
-            pTokenLiquidated: 0,
+            cTokenLiquidated: 0,
             badDebt: 0
         });
 
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
@@ -234,13 +241,15 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             eToken: address(eUSDC),
-            pToken: address(pBALRETH),
+            cToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             eTokenRepaid: 0,
-            pTokenLiquidated: 0,
+            cTokenLiquidated: 0,
             badDebt: 0
         });
+
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
@@ -280,16 +289,20 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
+        
+        caps[0] = 100_000e6;
+        tokens[0] = address(eUSDC);
+        marketManagerIsolated.setDebtCaps(tokens, caps);
 
         _setupUserPositionAndOracles();
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             eToken: address(eUSDC),
-            pToken: address(pBALRETH),
+            cToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             eTokenRepaid: 0,
-            pTokenLiquidated: 0,
+            cTokenLiquidated: 0,
             badDebt: 0
         });
 
@@ -297,7 +310,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         mockWethFeed.setMockAnswer(1000e8);
         mockRethFeed.setMockAnswer(1000e8);
 
-
+        vm.prank(address(eUSDC));
 
         // =================== RESULTS ==================
         (

@@ -60,11 +60,11 @@ contract VelodromePositionManager is BasePositionManager {
         LeverageStruct memory leverageData,
         address recipient
     ) internal virtual override {
-        address pool = leverageData.positionToken.underlying();
+        address pool = leverageData.positionToken.asset();
 
         address token0 = IVeloPool(pool).token0();
         address token1 = IVeloPool(pool).token1();
-        address borrowUnderlying = leverageData.borrowToken.underlying();
+        address borrowUnderlying = leverageData.borrowToken.asset();
 
         // If the token being borrowed isn't token0 or token1 we will need to swap
         // into it.
@@ -145,9 +145,9 @@ contract VelodromePositionManager is BasePositionManager {
     function _swapCollateralToBorrowUnderlying(
         DeleverageStruct memory deleverageData
     ) internal virtual override {
-        address pool = deleverageData.positionToken.underlying();
+        address pool = deleverageData.positionToken.asset();
 
-        address borrowUnderlying = deleverageData.borrowToken.underlying();
+        address borrowUnderlying = deleverageData.borrowToken.asset();
 
         VelodromeLib._exitVelodrome(
             router,

@@ -22,7 +22,7 @@ interface IMToken {
     function startMarket(address by) external returns (bool);
 
     /// @notice Returns the address of the underlying asset.
-    function underlying() external view returns (address);
+    function asset() external view returns (address);
 
     /// @notice Returns the decimals of the mToken.
     /// @dev We pull directly from underlying incase its a proxy contract,
@@ -34,7 +34,7 @@ interface IMToken {
     /// @notice Returns the type of Curvance token.
     /// @dev true = Collateral token; false = Debt token.
     /// @return Whether this token is a pToken or not.
-    function isPToken() external view returns (bool);
+    function isCollateralizable() external view returns (bool);
 
     /// @notice Returns whether the underlying token can be borrowed.
     /// @dev true = Borrowable; false = Not Borrowable.
@@ -71,6 +71,8 @@ interface IMToken {
 
     /// @notice Returns share -> asset exchange rate, in `WAD`.
     /// @dev Oracle Manager calculates mToken value from this exchange rate.
+    function exchangeRate() external view returns (uint256);
+
     function exchangeRateCached() external view returns (uint256);
 
     /// @notice Executes multiple calls in a single transaction.

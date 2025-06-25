@@ -11,7 +11,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 abstract contract ZapperBase is ReentrancyGuard {
@@ -74,7 +74,7 @@ abstract contract ZapperBase is ReentrancyGuard {
     ///         Either as a pToken position or eToken position.
     /// @param mToken The Curvance pToken address.
     /// @param underlying The input token address, should match
-    ///                   mToken.underlying().
+    ///                   mToken.asset().
     /// @param isPToken Whether `mToken` is a pToken or not.
     /// @param assets The amount of `underlying` to deposit into mToken
     ///               position.
@@ -102,7 +102,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         }
 
         // Validate `underlying` matches underlying token of mToken contract.
-        if (IMToken(mToken).underlying() != underlying) {
+        if (IMToken(mToken).asset() != underlying) {
             revert ZapperBase__UnderlyingTokenIsNotInputToken();
         }
 
@@ -142,7 +142,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         } else {
             // Depositing into a lending position is permissionless so we can
             // just directly mint for the recipient.
-            shares = IEToken(mToken).mintFor(assets, recipient);
+            shares = IBorrowableCToken(mToken).mint(assets, recipient);
         }
 
         // Make sure `recipient` got sufficient shares.
@@ -175,7 +175,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         address recipient
     ) internal {
         // Validate `underlying` matches underlying token of mToken contract.
-        if (IMToken(mToken).underlying() != underlying) {
+        if (IMToken(mToken).asset() != underlying) {
             revert ZapperBase__ExecutionError();
         }
 
@@ -192,7 +192,7 @@ abstract contract ZapperBase is ReentrancyGuard {
                 msg.sender
             );
         } else {
-            assets = IEToken(mToken).redeemFor(
+            assets = IBorrowableCToken(mToken).redeemFor(
                 shares,
                 address(this),
                 msg.sender
@@ -243,7 +243,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         );
 
         // Execute repayment of eToken debt.
-        IEToken(eToken).repayFor(recipient, repayAmount);
+        IBorrowableCToken(eToken).repayFor(recipient, repayAmount);
 
         // Remove any excess approval.
         SwapperLib._removeApprovalIfNeeded(eTokenUnderlying, eToken);

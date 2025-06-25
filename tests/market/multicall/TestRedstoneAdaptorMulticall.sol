@@ -5,21 +5,19 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
 import { BaseMulticallChecker } from "contracts/calldata-checker/multicall-checker/BaseMulticallChecker.sol";
 import { RedstoneAdaptorMulticallChecker } from "contracts/calldata-checker/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
 
 import "tests/market/TestBaseMarketIsolated.sol";
-
-contract User {}
 
 contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
@@ -34,7 +32,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
-    SimplePToken public pWBTC;
+    SimpleCToken public pWBTC;
     SimplePositionManager public positionManagement;
 
     receive() external payable {}
@@ -84,10 +82,12 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         adapter = new MockRedstoneCoreAdaptor(
             ICentralRegistry(address(centralRegistry)),
             redstoneSigners,
-            3
+            3,
+            "ETH"
         );
-        adapter.addAsset(_WBTC_ADDRESS, true, 8, 12 hours);
-        adapter.addAsset(_WBTC_ADDRESS, false, 18, 12 hours);
+
+        adapter.addAsset(_WBTC_ADDRESS, true, 8, 10 minutes);
+        adapter.addAsset(_WBTC_ADDRESS, false, 18, 10 minutes);
 
         multicallChecker = new RedstoneAdaptorMulticallChecker(
             address(centralRegistry)
@@ -137,7 +137,6 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             // support market
             _prepareUSDC(owner, 200000e6);
             usdc.approve(address(eUSDC), 200000e6);
-            marketManagerIsolated.listToken(address(eUSDC));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(eUSDC));
             address[] memory markets = new address[](1);
@@ -151,7 +150,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         // deploy pWBTC
         {
             // deploy aura position vault
-            pWBTC = new SimplePToken(
+            pWBTC = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
                 address(marketManagerIsolated)
@@ -160,25 +159,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             // support market
             _prepareWBTC(owner, 1e8);
             wbtc.approve(address(pWBTC), 1e8);
-            marketManagerIsolated.listToken(address(pWBTC));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(pWBTC));
             // set position token configuration
-            marketManagerIsolated.updatePositionToken(
-                address(pWBTC),
-                7000,
-                4000, // liquidate at 71%
-                3000,
-                200, // 2% liq incentive
-                400,
-                1000
-            );
 
-            address[] memory mTokens = new address[](1);
-            mTokens[0] = address(pWBTC);
-            uint256[] memory caps = new uint256[](1);
-            caps[0] = 100e8;
-            marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
             // address[] memory markets = new address[](1);
             // markets[0] = address(pWBTC);
@@ -187,6 +171,27 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             // vm.prank(user2);
             // marketManager.enterMarkets(markets);
         }
+
+        marketManagerIsolated.listTokens(address(pWBTC),address(eUSDC));
+
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            3000,    // maxEffectiveCFactor 30%
+            1000     // baseCFactor 10%
+        );
+
+        address[] memory mTokens = new address[](1);
+        mTokens[0] = address(pWBTC);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100e8;
+        marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();
@@ -205,25 +210,31 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             _UNISWAP_V3_SWAP_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
+
+        address[] memory multicallProviders = new address[](3);
+        multicallProviders[0] = address(pWBTC);
+        multicallProviders[1] = address(positionManagement);
+        multicallProviders[2] = address(eUSDC);
+        centralRegistry.setMulticallProviders(multicallProviders, true);
     }
 
     function provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = address(new User());
+        address liquidityProvider = address(user2);
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareWBTC(liquidityProvider, 10 ether);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         wbtc.approve(address(pWBTC), 10 ether);
-        pWBTC.mint(10 ether, liquidityProvider);
+        pWBTC.deposit(10 ether, liquidityProvider);
         vm.stopPrank();
     }
 
     function testInitialize() public {
-        assertTrue(pWBTC.isPToken());
-        assertFalse(eUSDC.isPToken());
+        assertTrue(pWBTC.isCollateralizable());
+        assertTrue(eUSDC.isBorrowable());
     }
 
     function testPTokenMintMulticall() public {
@@ -254,7 +265,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
         calls[1].target = address(pWBTC);
         calls[1].data = abi.encodeWithSelector(
-            pWBTC.mint.selector,
+            pWBTC.deposit.selector,
             1e8,
             user1
         );
@@ -299,7 +310,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         calls[0].isPriceUpdate = true;
 
         calls[1].target = address(eUSDC);
-        calls[1].data = abi.encodeWithSelector(eUSDC.mint.selector, 1e6);
+        calls[1].data = abi.encodeWithSelector(eUSDC.deposit.selector, 1e6, user1);
 
         // try mint()
         vm.prank(user1);
@@ -334,9 +345,9 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         ) * 50) / 100;
 
         SimplePositionManager.LeverageStruct memory leverageData;
-        leverageData.borrowToken = IEToken(address(eUSDC));
+        leverageData.borrowToken = IBorrowableCToken(address(eUSDC));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = IPToken(address(pWBTC));
+        leverageData.positionToken = ICToken(address(pWBTC));
         leverageData.swapData.inputToken = _USDC_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WBTC_ADDRESS;

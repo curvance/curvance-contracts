@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 contract ETokenRescueTokenTest is TestBaseEToken {
@@ -16,7 +16,7 @@ contract ETokenRescueTokenTest is TestBaseEToken {
     function test_eTokenRescueToken_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(1));
 
-        vm.expectRevert(EToken.EToken__Unauthorized.selector);
+        vm.expectRevert(BorrowableCToken.BorrowableCToken__Unauthorized.selector);
         eUSDC.rescueToken(_USDC_ADDRESS, 100);
     }
 
@@ -28,7 +28,7 @@ contract ETokenRescueTokenTest is TestBaseEToken {
     }
 
     function test_eTokenRescueToken_fail_whenTokenIsUnderlyingToken() public {
-        vm.expectRevert(EToken.EToken__TransferError.selector);
+        vm.expectRevert(BorrowableCToken.BorrowableCToken__TransferError.selector);
         eUSDC.rescueToken(_USDC_ADDRESS, 100);
     }
 

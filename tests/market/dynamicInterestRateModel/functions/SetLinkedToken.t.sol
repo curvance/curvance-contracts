@@ -2,13 +2,14 @@ pragma solidity ^0.8.19;
 
 import { TestBaseDynamicInterestRateModel } from "../TestBaseDynamicInterestRateModel.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract SetLinkedTokenTest is TestBaseDynamicInterestRateModel {
     event TokenLinked(address eTokenAddress);
 
-    EToken public eToken;
+    BorrowableCToken public eToken;
 
     function setUp() public override {
         super.setUp();
@@ -23,9 +24,9 @@ contract SetLinkedTokenTest is TestBaseDynamicInterestRateModel {
             100000000, // 1000x maximum vertex multiplier
             100 // decayRate
         );
-        eToken = new EToken(
+        eToken = new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS,
+            IERC20(_USDC_ADDRESS),
             address(marketManagerIsolated),
             address(interestRateModel)
         );

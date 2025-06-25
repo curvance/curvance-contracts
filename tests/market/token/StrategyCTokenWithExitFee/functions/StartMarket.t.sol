@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
-import { BasePToken } from "contracts/market/token/BasePToken.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 contract StrategyCTokenWithExitFeeStartMarketTest is
@@ -11,7 +11,7 @@ contract StrategyCTokenWithExitFeeStartMarketTest is
     function test_strategyCTokenWithExitFeeStartMarket_fail_whenCallerIsNotMarketManager()
         public
     {
-        vm.expectRevert(BasePToken.BasePToken__Unauthorized.selector);
+        vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
 
         pBALRETHWithExitFee.startMarket(address(0));
     }

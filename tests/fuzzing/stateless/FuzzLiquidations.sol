@@ -1,8 +1,8 @@
 // pragma solidity 0.8.26;
 
 // import { WAD } from "contracts/libraries/Constants.sol";
-// import { IEToken } from "contracts/interfaces/IEToken.sol";
-// import { IPToken } from "contracts/interfaces/IPToken.sol";
+// import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
+// import { ICToken } from "contracts/interfaces/ICToken.sol";
 // import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 
 // contract FuzzLiquidations is StatefulBaseMarket {
@@ -128,10 +128,10 @@
 //                 earnToken,
 //                 positionToken
 //             );
-//         uint256 debtBalanceCached = IEToken(earnToken).debtBalanceCached(
+//         uint256 debtBalanceCached = IBorrowableCToken(earnToken).debtBalanceCached(
 //             address(this)
 //         );
-//         uint256 exchangeRateCached = IEToken(earnToken).exchangeRateCached();
+//         uint256 exchangeRateCached = IBorrowableCToken(earnToken).exchangeRateCached();
 
 //         data = LiquidationData(
 //             isListed,
@@ -276,8 +276,8 @@
 //     /// @custom:property liq-11 if position token decimals < earnTokenDecimals, amountAdjusted < debtBalanceCached
 //     function _calculateAmountAdjusted() private {
 //         // Saves state
-//         uint256 positionTokenDecimals = IPToken(positionToken).decimals();
-//         uint256 earnTokenDecimals = IEToken(earnToken).decimals();
+//         uint256 positionTokenDecimals = ICToken(positionToken).decimals();
+//         uint256 earnTokenDecimals = IBorrowableCToken(earnToken).decimals();
 
 //         uint256 amountAdjusted = (data.debtBalanceCached *
 //             10 ** positionTokenDecimals) / (10 ** earnTokenDecimals);

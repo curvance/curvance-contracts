@@ -2,6 +2,8 @@
 pragma solidity 0.8.26;
 
 import { TestBaseNativeUniversalBalance } from "../TestBaseNativeUniversalBalance.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
+import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 
 contract WithdrawNativeForTest is TestBaseNativeUniversalBalance {
     event Withdraw(
@@ -26,7 +28,7 @@ contract WithdrawNativeForTest is TestBaseNativeUniversalBalance {
 
         nativeUniversalBalance.depositNative{ value: _ONE }(true);
         // reverts with PluginDelegable__Unauthorized.selector
-        vm.expectRevert(0xcfdc5602);
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
         nativeUniversalBalance.withdrawNativeFor(
             _ONE,
             true,
@@ -83,7 +85,7 @@ contract WithdrawNativeForTest is TestBaseNativeUniversalBalance {
         vm.prank(user2);
 
         // `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
-        vm.expectRevert(0xc75f2a32);
+        vm.expectRevert(UniversalBalance.UniversalBalance__InvalidParameter.selector);
         nativeUniversalBalance.withdrawNativeFor(0, false, user2, user1);
     }
 

@@ -2,7 +2,8 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
 contract ETokenRedeemTest is TestBaseEToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
@@ -11,18 +12,18 @@ contract ETokenRedeemTest is TestBaseEToken {
         vm.prank(address(1));
 
         vm.expectRevert();
-        eUSDC.redeem(100e6, address(this));
+        eUSDC.redeem(100e6, address(this), address(1));
     }
 
     function test_eTokenRedeem_fail_whenAmountIsZero() public {
-        eUSDC.mint(100e6);
+        eUSDC.mint(100e6, address(this));
 
-        vm.expectRevert(EToken.EToken__EmptyAction.selector);
-        eUSDC.redeem(0, address(this));
+        vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
+        eUSDC.redeem(0, address(this), address(this));
     }
 
     function test_eTokenRedeem_success() public {
-        eUSDC.mint(100e6);
+        eUSDC.mint(100e6, address(this));
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = eUSDC.balanceOf(address(this));
@@ -31,7 +32,7 @@ contract ETokenRedeemTest is TestBaseEToken {
         vm.expectEmit(true, true, true, true, address(eUSDC));
         emit Transfer(address(this), address(0), 100e6);
 
-        eUSDC.redeem(100e6, address(this));
+        eUSDC.redeem(100e6, address(this), address(this));
 
         assertEq(usdc.balanceOf(address(this)), underlyingBalance + 100e6);
         assertEq(eUSDC.balanceOf(address(this)), balance - 100e6);
@@ -39,7 +40,7 @@ contract ETokenRedeemTest is TestBaseEToken {
     }
 
     function test_eTokenRedeemFor_success() public {
-        eUSDC.mint(100e6);
+        eUSDC.mint(100e6, address(this));
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = eUSDC.balanceOf(address(this));

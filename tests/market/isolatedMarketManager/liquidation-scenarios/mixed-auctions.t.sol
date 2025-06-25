@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import { TestBaseMarketManagerIsolated } from "tests/market/isolatedMarketManager/TestBaseMarketManagerIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -12,7 +12,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 
 import "forge-std/console2.sol";
 
-// ## Scenario 4: Mixed Auction and Regular Liquidations
+// ## Scenario 4: Mixed Auction and Regular Liquidations, all using liquidate() function
 // - Setup: 4 users with varying positions
 // - User 1: 1.9 pBALRETH ($2,850), 2500 USDC debt (for Auction)
 // - User 2: 1.9 pBALRETH ($2,850), 2500 USDC debt (for Auction)
@@ -95,8 +95,6 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-        eUSDC.depositReserves(1000e6);
-
         // Update position token parameters
         marketManagerIsolated.updatePositionToken(
             9200,    // collRatio 92%
@@ -118,13 +116,17 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
 
+        tokens[0] = address(eUSDC);
+        caps[0] = 100_000e6;
+        marketManagerIsolated.setDebtCaps(tokens, caps);
+
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareBALRETH(liquidityProvider, 10e18);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);
@@ -155,7 +157,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     uint256[] lFactorsPreLiquidation_auction;
     uint256[] lFactorsPreLiquidation_regular;
     uint256 eTokenPrice;
-    uint256 pTokenPrice;
+    uint256 cTokenPrice;
     uint256[] maxAmount_auction;
     uint256[] liquidatedPTokens_auction;
     uint256[] collateralRequired_auction;
@@ -176,9 +178,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         // ===== Cache liquidation values =====
 
-        uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
 
-        totalBorrowsBefore = eUSDC.totalBorrows();
+        totalBorrowsBefore = eUSDC.marketOutstandingDebt();
 
         debtBalancesPreLiquidation_auction = _getDebtBalancePreLiquidation(auctionBorrowers);
         debtBalancesPreLiquidation_regular = _getDebtBalancePreLiquidation(regularBorrowers);
@@ -186,17 +188,17 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         lFactorsPreLiquidation_auction = _getLFactorsPreLiquidation(auctionBorrowers);
         lFactorsPreLiquidation_regular = _getLFactorsPreLiquidation(regularBorrowers);
 
-        (,eTokenPrice, pTokenPrice) = 
+        (,eTokenPrice, cTokenPrice) = 
             marketManagerIsolated.liquidationStatusOf(auctionBorrowers[0], address(eUSDC), address(pBALRETH));
 
         (maxAmount_auction, liquidatedPTokens_auction, collateralRequired_auction) = 
             _getLiquidationValuesWithHigherPrecision_Auction(
-                eTokenPrice, pTokenPrice, lFactorsPreLiquidation_auction, closeFactor, validPenalty
+                eTokenPrice, cTokenPrice, lFactorsPreLiquidation_auction, closeFactor, validPenalty
             );
 
         (maxAmount_regular, liquidatedPTokens_regular, collateralRequired_regular) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction(
-                eTokenPrice, pTokenPrice, lFactorsPreLiquidation_regular
+                eTokenPrice, cTokenPrice, lFactorsPreLiquidation_regular
             );
 
         console2.log("CHECKPOINT 1");
@@ -208,9 +210,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
                 collateralAmounts[i],
                 collateralRequired_auction[i],
                 liquidatedPTokens_auction[i],
-                pTokenPrice,
+                cTokenPrice,
                 eTokenPrice,
-                pTokenExchangeRate
+                cTokenExchangeRate
             );
             totalBadDebtAuction += badDebt_auction[i];
             console2.log("badDebt_auction", badDebt_auction[i]);
@@ -223,9 +225,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
                 collateralAmounts[i],
                 collateralRequired_regular[i],
                 liquidatedPTokens_regular[i],
-                pTokenPrice,
+                cTokenPrice,
                 eTokenPrice,
-                pTokenExchangeRate
+                cTokenExchangeRate
             );
             totalBadDebtRegular += badDebt_regular[i];
             console2.log("badDebt_regular", badDebt_regular[i]);
@@ -269,10 +271,10 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         // ===== Validate =====
 
         // Verify debt balances
-        assertEq(eUSDC.debtBalanceCached(auctionBorrowers[0]), debtBalancesPreLiquidation_auction[0] - (maxAmount_auction[0] + badDebt_auction[0]), "Auction borrower 1 debt balance mismatch");
-        assertEq(eUSDC.debtBalanceCached(auctionBorrowers[1]), debtBalancesPreLiquidation_auction[1] - (maxAmount_auction[1] + badDebt_auction[1]), "Auction borrower 2 debt balance mismatch");
-        assertEq(eUSDC.debtBalanceCached(regularBorrowers[0]), debtBalancesPreLiquidation_regular[0] - (maxAmount_regular[0] + badDebt_regular[0]), "Regular borrower 1 debt balance mismatch");
-        assertEq(eUSDC.debtBalanceCached(regularBorrowers[1]), debtBalancesPreLiquidation_regular[1] - (maxAmount_regular[1] + badDebt_regular[1]), "Regular borrower 2 debt balance mismatch");
+        assertEq(eUSDC.debtBalance(auctionBorrowers[0]), debtBalancesPreLiquidation_auction[0] - (maxAmount_auction[0] + badDebt_auction[0]), "Auction borrower 1 debt balance mismatch");
+        assertEq(eUSDC.debtBalance(auctionBorrowers[1]), debtBalancesPreLiquidation_auction[1] - (maxAmount_auction[1] + badDebt_auction[1]), "Auction borrower 2 debt balance mismatch");
+        assertEq(eUSDC.debtBalance(regularBorrowers[0]), debtBalancesPreLiquidation_regular[0] - (maxAmount_regular[0] + badDebt_regular[0]), "Regular borrower 1 debt balance mismatch");
+        assertEq(eUSDC.debtBalance(regularBorrowers[1]), debtBalancesPreLiquidation_regular[1] - (maxAmount_regular[1] + badDebt_regular[1]), "Regular borrower 2 debt balance mismatch");
 
         // Verify collateral is reduced by liquidatedPTokens
         assertApproxEqAbs(
@@ -315,7 +317,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         badDebt_regular[1];
 
         assertApproxEqAbs(
-            eUSDC.totalBorrows(),
+            eUSDC.marketOutstandingDebt(),
             totalBorrowsBefore - totalDebtRepaid,
             100, // Small tolerance
             "Incorrect totalBorrows after liquidation"
@@ -428,21 +430,21 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     function _getDebtBalancePreLiquidation(address[] memory borrowers) internal view returns (uint256[] memory debtBalances) {
         debtBalances = new uint256[](borrowers.length);
         for(uint i; i < borrowers.length; i++) {
-            debtBalances[i] = eUSDC.debtBalanceCached(borrowers[i]);
+            debtBalances[i] = eUSDC.debtBalance(borrowers[i]);
         }
         return debtBalances;
     }
 
     function _getLiquidationValuesWithHigherPrecision_NonAuction(
-        uint256 eTokenPrice,
-        uint256 pTokenPrice,
+        uint256 _eTokenPrice,
+        uint256 _cTokenPrice,
         uint256[] memory lFactors
     ) internal view returns (
         uint256[] memory maxAmount, 
         uint256[] memory liquidatedPTokens,
         uint256[] memory collateralRequired
     ) {
-        uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
@@ -459,8 +461,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors[i]) / WAD);
             
             // Calculate with extra precision
-            uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
-                (pTokenPrice * pTokenExchangeRate)) * 1e18) / 1e6;
+            uint256 highPrecisionD2C = (((auctionLiqIncentive * _eTokenPrice * WAD * PRECISION_FACTOR) /
+                (_cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
             maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
             
@@ -485,8 +487,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     }
 
     function _getLiquidationValuesWithHigherPrecision_Auction(
-        uint256 eTokenPrice,
-        uint256 pTokenPrice,
+        uint256 _eTokenPrice,
+        uint256 _cTokenPrice,
         uint256[] memory lFactors,
         uint256 auctionCFactor,
         uint256 auctionLiqIncentive
@@ -495,7 +497,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256[] memory liquidatedPTokens,
         uint256[] memory collateralRequired
     ) {
-        uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
@@ -508,8 +510,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             if (lFactors[i] == 0) continue;
             
             // Calculate with extra precision
-            uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
-                (pTokenPrice * pTokenExchangeRate)) * 1e18) / 1e6;
+            uint256 highPrecisionD2C = (((auctionLiqIncentive * _eTokenPrice * WAD * PRECISION_FACTOR) /
+                (_cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
             maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
             
@@ -539,17 +541,17 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256 _collateralAvailable,
         uint256 _collateralRequired,
         uint256 _liquidatedPTokens,
-        uint256 _pTokenUnderlyingPrice,
+        uint256 _cTokenUnderlyingPrice,
         uint256 _eTokenUnderlyingPrice,
-        uint256 _pTokenExchangeRate
+        uint256 _cTokenExchangeRate
     ) internal pure returns (uint256 badDebt) {
 
         if(_collateralRequired > _collateralAvailable) {
     
         badDebt = (_debtBalance - _debtAmount) -
         FixedPointMathLib.mulDivUp(
-            ((_collateralAvailable - _liquidatedPTokens) * _pTokenExchangeRate) / WAD,
-            _pTokenUnderlyingPrice,
+            ((_collateralAvailable - _liquidatedPTokens) * _cTokenExchangeRate) / WAD,
+            _cTokenUnderlyingPrice,
             (_eTokenUnderlyingPrice * WAD) / 1e6
         );
 

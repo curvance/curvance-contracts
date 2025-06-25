@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import "forge-std/console.sol";
 
-import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
+import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
@@ -194,13 +194,14 @@ contract AuraMarketDeployer is DeployConfiguration {
         address pToken = _getDeployedContract(name);
         if (pToken == address(0)) {
             pToken = address(
-                new AuraPToken(
+                new AuraCToken(
                     ICentralRegistry(centralRegistry),
                     IERC20(param.asset),
                     marketManager,
                     param.pid,
                     param.rewarder,
-                    param.booster
+                    param.booster,
+                    1 days
                 )
             );
 

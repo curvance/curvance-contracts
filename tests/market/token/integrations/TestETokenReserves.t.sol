@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { ETokenWithGauge } from "contracts/market/token/withGauge/ETokenWithGauge.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
@@ -77,7 +77,6 @@ contract TestETokenReserves is TestBaseMarketIsolated {
             // support market
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManagerIsolated.listToken(address(eDAI));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(eDAI));
         }
@@ -87,23 +86,32 @@ contract TestETokenReserves is TestBaseMarketIsolated {
             // support market
             _prepareBALRETH(owner, 1 ether);
             balRETH.approve(address(pBALRETH), 1 ether);
-            marketManagerIsolated.listToken(address(pBALRETH));
-            // set collateral factor
-            marketManagerIsolated.updatePositionToken(
-                address(pBALRETH),
-                5000,
-                1500,
-                1200,
-                200,
-                400,
-                1000
-            );
-            address[] memory tokens = new address[](1);
-            tokens[0] = address(pBALRETH);
-            uint256[] memory caps = new uint256[](1);
-            caps[0] = 100_000e18;
-            marketManagerIsolated.setCollateralCaps(tokens, caps);
         }
+
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
+
+            // set collateral factor
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            1000     // baseCFactor 20%
+        );
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(pBALRETH);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100_000e18;
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
+
+        tokens[0] = address(eDAI);
+        caps[0] = 100_000e18;
+        marketManagerIsolated.setDebtCaps(tokens, caps);
     }
 
     function testInitialize() public {
@@ -139,7 +147,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
 
         {
             // check accrue interest after 1 day
-            uint256 exchangeRateBefore = eDAI.exchangeRateCached();
+            uint256 exchangeRateBefore = eDAI.exchangeRate();
             uint256 totalReserves = eDAI.totalReserves();
             assertEq(totalReserves, 0);
             uint256 totalBorrowsBefore = eDAI.totalBorrows();
@@ -169,7 +177,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
             // check borrower debt increased
             assertEq(eDAI.balanceOf(user1), 0);
             assertEq(eDAI.debtBalanceCached(user1), debtBalanceBefore + debt);
-            assertGt(eDAI.exchangeRateCached(), exchangeRateBefore);
+            assertGt(eDAI.exchangeRate(), exchangeRateBefore);
 
             // dao eDAI balance doesn't increase
             assertEq(eDAI.balanceOf(dao), daoBalanceBefore);
@@ -183,7 +191,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
 
         {
             // check accrue interest after another day
-            uint256 exchangeRateBefore = eDAI.exchangeRateCached();
+            uint256 exchangeRateBefore = eDAI.exchangeRate();
             uint256 totalReserves = eDAI.totalReserves();
             uint256 totalBorrowsBefore = eDAI.totalBorrows();
             uint256 daoBalanceBefore = eDAI.balanceOf(dao);
@@ -215,7 +223,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
                 debtBalanceBefore + debt,
                 1 ether
             );
-            assertGt(eDAI.exchangeRateCached(), exchangeRateBefore);
+            assertGt(eDAI.exchangeRate(), exchangeRateBefore);
 
             // dao eDAI balance doesn't increase
             assertEq(eDAI.balanceOf(dao), daoBalanceBefore);
@@ -231,7 +239,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
     function testDaoDepositReserves() public {
         testDaoInterestFromEToken();
 
-        uint256 exchangeRate = eDAI.exchangeRateCached();
+        uint256 exchangeRate = eDAI.exchangeRate();
         uint256 totalReservesBefore = eDAI.totalReserves();
         uint256 gaugeBalanceBefore = gaugeManager.balanceOf(
             address(eDAI),
@@ -260,7 +268,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
 
         {
             // withdraw half
-            uint256 exchangeRate = eDAI.exchangeRateCached();
+            uint256 exchangeRate = eDAI.exchangeRate();
             uint256 totalReservesBefore = eDAI.totalReserves();
             uint256 daiBalanceBefore = dai.balanceOf(dao);
             uint256 gaugeBalanceBefore = gaugeManager.balanceOf(
@@ -286,7 +294,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
 
         {
             // withdraw half
-            uint256 exchangeRate = eDAI.exchangeRateCached();
+            uint256 exchangeRate = eDAI.exchangeRate();
             uint256 totalReservesBefore = eDAI.totalReserves();
             uint256 daiBalanceBefore = dai.balanceOf(dao);
 
@@ -307,8 +315,8 @@ contract TestETokenReserves is TestBaseMarketIsolated {
     // Deploy ETokenWithGauge
     function _deployEToken(
         address token
-    ) internal override initMainVariables returns (EToken) {
-        EToken eToken = EToken(
+    ) internal override initMainVariables returns (BorrowableCToken) {
+        BorrowableCToken eToken = BorrowableCToken(
             address(
                 new ETokenWithGauge(
                     ICentralRegistry(address(centralRegistry)),

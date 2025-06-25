@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { VelodromeVolatilePToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeVolatilePToken.sol";
+import { VelodromeVolatileCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeVolatileCToken.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -23,7 +23,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
     IVeloGauge public gauge =
         IVeloGauge(0xE7630c9560C59CCBf5EEd8f33dd0ccA2E67a3981);
 
-    VelodromeVolatilePToken public pWETHUSDC;
+    VelodromeVolatileCToken public pWETHUSDC;
     MockV3Aggregator public chainlinkVELO;
     MockV3Aggregator public chainlinkWETH;
 
@@ -39,12 +39,14 @@ contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
     function setUp() public override {
         _fork("ETH_NODE_URI_OPTIMISM", 109095500);
 
+        
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
         _deployGaugeManager();
         _deployMarketManager();
+        _deployEDAI();
 
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
@@ -53,13 +55,14 @@ contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(veloRouter)))
         );
 
-        pWETHUSDC = new VelodromeVolatilePToken(
+        pWETHUSDC = new VelodromeVolatileCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_WETH_USDC),
             address(marketManagerIsolated),
             gauge,
             veloPairFactory,
-            veloRouter
+            veloRouter,
+            1 days
         );
 
         vm.warp(veCVE.nextEpochStartTime());
@@ -103,8 +106,11 @@ contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
         deal(_WETH_USDC, user1, assets);
         deal(_WETH_USDC, address(this), 77777);
 
+        _prepareDAI(address(this), 77777);
+        dai.approve(address(eDAI), 77777);
+
         IERC20(_WETH_USDC).approve(address(pWETHUSDC), 77777);
-        marketManagerIsolated.listToken(address(pWETHUSDC));
+        marketManagerIsolated.listTokens(address(pWETHUSDC), address(eDAI));
 
         vm.prank(user1);
         IERC20(_WETH_USDC).approve(address(pWETHUSDC), assets);

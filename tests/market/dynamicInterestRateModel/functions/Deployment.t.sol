@@ -30,8 +30,7 @@ contract DynamicInterestRateModelDeploymentTest is
     function test_dynamicInterestRateModelDeployment_fail_whenAdjustmentVelocityExceedsMaximum()
         public
     {
-        uint256 maxVertexAdjustmentVelocity = interestRateModel
-            .MAX_VERTEX_ADJUSTMENT_VELOCITY();
+        uint256 maxVertexAdjustmentVelocity = 1e18; // Value from the contract
 
         vm.expectRevert(
             DynamicInterestRateModel
@@ -53,8 +52,7 @@ contract DynamicInterestRateModelDeploymentTest is
     function test_dynamicInterestRateModelDeployment_fail_whenAdjustmentVelocityIsBelowMinimum()
         public
     {
-        uint256 minVertexAdjustmentVelocity = interestRateModel
-            .MIN_VERTEX_ADJUSTMENT_VELOCITY();
+        uint256 minVertexAdjustmentVelocity = 0.1e18;
 
         vm.expectRevert(
             DynamicInterestRateModel
@@ -76,8 +74,7 @@ contract DynamicInterestRateModelDeploymentTest is
     function test_dynamicInterestRateModelDeployment_fail_whenAdjustmentRateExceedsMaximum()
         public
     {
-        uint256 maxVertexAdjustmentRate = interestRateModel
-            .MAX_VERTEX_ADJUSTMENT_RATE();
+        uint256 maxVertexAdjustmentRate = 4 hours;
 
         vm.expectRevert(
             DynamicInterestRateModel
@@ -99,8 +96,7 @@ contract DynamicInterestRateModelDeploymentTest is
     function test_dynamicInterestRateModelDeployment_fail_whenAdjustmentRateIsBelowMinimum()
         public
     {
-        uint256 minVertexAdjustmentRate = interestRateModel
-            .MIN_VERTEX_ADJUSTMENT_RATE();
+        uint256 minVertexAdjustmentRate = 20 minutes;
 
         vm.expectRevert(
             DynamicInterestRateModel
@@ -122,7 +118,7 @@ contract DynamicInterestRateModelDeploymentTest is
     function test_dynamicInterestRateModelDeployment_fail_whenDecayRateExceedsMaximum()
         public
     {
-        uint256 maxVertexDecayRate = interestRateModel.MAX_VERTEX_DECAY_RATE();
+        uint256 maxVertexDecayRate = 0.05e18;
 
         vm.expectRevert(
             DynamicInterestRateModel

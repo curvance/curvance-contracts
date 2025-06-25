@@ -17,7 +17,7 @@
 // import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 // import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 // import { IERC20 } from "contracts/interfaces/IERC20.sol";
-// import { IEToken } from "contracts/interfaces/IEToken.sol";
+// import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 // import { IPToken } from "contracts/interfaces/IPToken.sol";
 // /// @title Curvance DAO Market Manager.
 // /// @notice Manages risk within the Curvance DAO markets.

@@ -5,7 +5,12 @@ import { TestERC4626 } from "tests/market/token/4626/TestERC4626.sol";
 import { TestBaseMarketIsolated, ICentralRegistry } from "tests/market/TestBaseMarketIsolated.sol";
 
 import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
-import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
+import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
+
+import { console2 } from "forge-std/console2.sol";
+
+// NOTES:
+// 1. test_RevertWhen_Redeem fails because of insufficient liquidity
 
 contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
     // @todo check the failing tests: test_maxWithdraw! which reverts
@@ -15,6 +20,7 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
         vm.warp(1640926800);
 
         _USDC_ADDRESSES[1] = address(new MockERC20Token());
+        _DAI_ADDRESSES[1] = address(new MockERC20Token());
 
         _deployCentralRegistry();
         _deployCVE();
@@ -22,6 +28,7 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
         _deployVeCVE();
         _deployGaugeManager();
         _deployMarketManager();
+        _deployEDAI();
 
         vm.warp(centralRegistry.genesisEpoch());
         rewardManager.startRewardManager();
@@ -32,7 +39,7 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
         // deploy position token and pToken
         MockERC20Token mockUnderlying = new MockERC20Token();
         vm.label(address(mockUnderlying), "tokenCollateral");
-        MockSimplePToken mockPToken = new MockSimplePToken(
+        MockSimpleCToken mockPToken = new MockSimpleCToken(
             ICentralRegistry(address(centralRegistry)),
             address(mockUnderlying),
             address(marketManagerIsolated)
@@ -43,7 +50,15 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
         uint256 startAmount = 77777;
         mockUnderlying.mint(address(this), startAmount);
         mockUnderlying.approve(address(mockPToken), startAmount);
-        marketManagerIsolated.listToken(address(mockPToken));
+
+        console2.log("checkpoint 1");
+
+        _prepareDAI(address(this), 20000000e18);
+        console2.log("checkpoint 2");
+        dai.approve(address(eDAI), 20000000e18);
+        console2.log("checkpoint 3");
+        marketManagerIsolated.listTokens(address(mockPToken), address(eDAI));
+        console2.log("checkpoint 4");
 
         _underlying_ = address(mockUnderlying);
         _vault_ = address(mockPToken);

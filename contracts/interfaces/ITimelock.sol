@@ -10,7 +10,7 @@ interface ITimelock {
 
     /// @notice Permissionlessly update DAO address if it has been changed.
     ///         through the Protocol Central Registry.
-    function updateDaoAddress() external;
+    function updateRoles() external;
 
     /// @notice Updates the minimum delay between an action queue and
     ///         execution.

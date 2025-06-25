@@ -5,10 +5,11 @@ import "forge-std/console.sol";
 
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import { DeployConfiguration } from "../../utils/DeployConfiguration.sol";
 
@@ -113,9 +114,9 @@ contract ETokenDeployer is DeployConfiguration {
             console.log("interestRateModel: ", interestRateModel);
 
             eToken = address(
-                new EToken(
+                new BorrowableCToken(
                     ICentralRegistry(address(centralRegistry)),
-                    param.asset,
+                    IERC20(param.asset),
                     marketManager,
                     interestRateModel
                 )

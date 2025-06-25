@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 
 contract SetInterestFactorTest is TestBaseEToken {
     event NewInterestFactor(
@@ -13,12 +13,12 @@ contract SetInterestFactorTest is TestBaseEToken {
     function test_setInterestFactor_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(1));
 
-        vm.expectRevert(EToken.EToken__Unauthorized.selector);
+        vm.expectRevert(BorrowableCToken.BorrowableCToken__Unauthorized.selector);
         eUSDC.setInterestFactor(5000);
     }
 
     function test_setInterestFactor_fail_whenInvalidInterestFactor() public {
-        vm.expectRevert(EToken.EToken__ExcessiveValue.selector);
+        vm.expectRevert(BorrowableCToken.BorrowableCToken__ExcessiveValue.selector);
         eUSDC.setInterestFactor(5001);
     }
 

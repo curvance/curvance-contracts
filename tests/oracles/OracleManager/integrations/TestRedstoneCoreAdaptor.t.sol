@@ -31,6 +31,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
     function setUp() public override {
         _fork(18031848);
 
+        
         _deployCentralRegistry();
         _deployOracleManager();
         _setRedstoneSigners();
@@ -42,7 +43,8 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         adaptor = new MockRedstoneCoreAdaptor(
             ICentralRegistry(address(centralRegistry)),
             redstoneSigners,
-            3
+            3,
+            "ETH"
         );
         adaptor.addAsset(_WBTC_ADDRESS, true, 8, 12 hours);
         adaptor.addAsset(_WBTC_ADDRESS, false, 18, 12 hours);
@@ -58,7 +60,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             redstoneSignerKeys
         );
 
-        (, bytes32 symbolHash, , , ) = adaptor.adaptorDataUSD(_WBTC_ADDRESS);
+        (, bytes32 symbolHash, , , ) = adaptor.adaptorData(_WBTC_ADDRESS, true);
         assertEq(symbolHash, bytes32("WBTC"));
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool)",
@@ -95,7 +97,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             redstoneSignerKeys
         );
 
-        (, bytes32 symbolHash, , , ) = adaptor.adaptorDataUSD(_WETH_ADDRESS);
+        (, bytes32 symbolHash, , , ) = adaptor.adaptorData(_WETH_ADDRESS, true);
         assertEq(symbolHash, bytes32("WETH"));
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool)",

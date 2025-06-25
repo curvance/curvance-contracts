@@ -3,9 +3,9 @@ pragma solidity ^0.8.19;
 
 import "forge-std/StdStorage.sol";
 import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
-import { BasePToken } from "contracts/market/token/BasePToken.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
-import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
+import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
@@ -20,27 +20,29 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
         vm.expectRevert(
             PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
         );
-        new AuraPToken(
+        new AuraCToken(
             ICentralRegistry(address(0)),
             balRETH,
             address(marketManagerIsolated),
             109,
             _REWARDER,
-            _AURA_BOOSTER
+            _AURA_BOOSTER,
+            1 days
         );
     }
 
     function test_strategyCTokenDeployment_fail_whenMarketManagerIsNotSet()
         public
     {
-        vm.expectRevert(BasePToken.BasePToken__InvalidMarketManager.selector);
-        new AuraPToken(
+        vm.expectRevert(BaseCToken.BaseCToken__InvalidMarketManager.selector);
+        new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(1),
             109,
             _REWARDER,
-            _AURA_BOOSTER
+            _AURA_BOOSTER,
+            1 days
         );
     }
 
@@ -53,35 +55,37 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
             .checked_write(type(uint232).max);
 
         vm.expectRevert(
-            BasePToken
-                .BasePToken__UnderlyingAssetTotalSupplyExceedsMaximum
+            BaseCToken
+                .BaseCToken__UnsupportedAsset
                 .selector
         );
-        new AuraPToken(
+        new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManagerIsolated),
             109,
             _REWARDER,
-            _AURA_BOOSTER
+            _AURA_BOOSTER,
+            1 days
         );
     }
 
     function test_strategyCTokenDeployment_success() public {
-        pBALRETH = new AuraPToken(
+        pBALRETH = new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManagerIsolated),
             109,
             _REWARDER,
-            _AURA_BOOSTER
+            _AURA_BOOSTER,
+            1 days
         );
 
         assertEq(
             address(pBALRETH.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(pBALRETH.underlying(), _BAL_WETH_RETH_ADDRESS);
+        assertEq(pBALRETH.asset(), _BAL_WETH_RETH_ADDRESS);
         assertEq(address(pBALRETH.marketManager()), address(marketManagerIsolated));
         assertEq(pBALRETH.name(), "Curvance Balancer rETH Stable Pool");
     }

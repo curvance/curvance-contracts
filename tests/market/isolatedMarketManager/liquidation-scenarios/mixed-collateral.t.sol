@@ -4,15 +4,16 @@ pragma solidity 0.8.26;
 import { TestBaseMarketManagerIsolated } from "tests/market/isolatedMarketManager/TestBaseMarketManagerIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 
 import "forge-std/console2.sol";
 
-// ## Scenario 2: Mixed Collateral Results w/ 92% LTV
+// ## Scenario 2: Mixed Collateral Results w/ 92% LTV, all using liquidate() function
 // - Setup: 4 users with different positions
 // - User 1: 2.5 pBALRETH ($4,000), 2,500 USDC debt (very healthy)
 // - User 2: 2.0 pBALRETH ($3,200), 2,500 USDC debt (healthy)
@@ -40,6 +41,8 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
     uint256 liqCurve;
     uint256 baseCFactor;
     uint256 cFactorCurve;
+
+    uint256[] badDebt = [0,0,0,0];
 
     event BadDebtRecognized(address liquidator, uint256 amount);
     event Repay(address liquidator, address account, uint256 amount);
@@ -81,8 +84,6 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-        eUSDC.depositReserves(1000e6);
-
         // Update position token parameters
         marketManagerIsolated.updatePositionToken(
             9200,    // collRatio 92%
@@ -104,13 +105,17 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
 
+        tokens[0] = address(eUSDC);
+        caps[0] = 100_000e6;
+        marketManagerIsolated.setDebtCaps(tokens, caps);
+
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareBALRETH(liquidityProvider, 10e18);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);
@@ -137,11 +142,11 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         IMarketManager.LiqInstructions memory liqInstructions;
         liqInstructions = IMarketManager.LiqInstructions({
             eToken: address(eUSDC),
-            pToken: address(pBALRETH),
+            cToken: address(pBALRETH),
             numAccounts: 4,
             liquidateExact: false,
             eTokenRepaid: 0,
-            pTokenLiquidated: 0,
+            cTokenLiquidated: 0,
             badDebt: 0
         });
 
@@ -157,34 +162,35 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         console2.log("Borrower 3 lFactor", lFactorsPreLiquidation[2]);
         console2.log("Borrower 4 lFactor", lFactorsPreLiquidation[3]);
 
-        (,uint256 eTokenPrice, uint256 pTokenPrice) = 
+        (,uint256 eTokenPrice, uint256 cTokenPrice) = 
             marketManagerIsolated.liquidationStatusOf(borrowers[0], address(eUSDC), address(pBALRETH));
 
         console2.log("eTokenPrice", eTokenPrice);
-        console2.log("pTokenPrice", pTokenPrice);
+        console2.log("cTokenPrice", cTokenPrice);
 
         (uint256[] memory maxAmount, uint256[] memory liquidatedPTokens, uint256[] memory collateralRequired) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction(
-                eTokenPrice, pTokenPrice, lFactorsPreLiquidation
+                eTokenPrice, cTokenPrice, lFactorsPreLiquidation
             );
 
         uint256 expectedTotalBadDebt;
-        uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
 
         for(uint i; i < 4; i++) {
-            expectedTotalBadDebt += _calculateBadDebt(
+            badDebt[i] = _calculateBadDebt(
                 debtBalancesPreLiquidation[i],
                 maxAmount[i],
                 collateralAmounts[i],
                 collateralRequired[i],
                 liquidatedPTokens[i],
-                pTokenPrice,
+                cTokenPrice,
                 eTokenPrice,
-                pTokenExchangeRate
+                cTokenExchangeRate
             );
+            expectedTotalBadDebt += badDebt[i];
         }
 
-        uint256 totalBorrowsBefore = eUSDC.totalBorrows();
+        uint256 totalBorrowsBefore = eUSDC.marketOutstandingDebt();
 
         // ===== Liquidate =====
 
@@ -204,14 +210,14 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         // ===== Validate =====
 
         // Verify healthy accounts (1 and 2) are not liquidated
-        assertEq(eUSDC.debtBalanceCached(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
-        assertEq(eUSDC.debtBalanceCached(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
+        assertEq(eUSDC.debtBalance(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
+        assertEq(eUSDC.debtBalance(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
 
         // Verify account 4 is hard liquidated
-        assertEq(eUSDC.debtBalanceCached(borrowers[3]), 0, "Borrower 4 should be hard liquidated");
+        assertEq(eUSDC.debtBalance(borrowers[3]), 0, "Borrower 4 should be hard liquidated");
 
         // Verify account 3 is soft liquidated
-        assertEq(eUSDC.debtBalanceCached(borrowers[2]), debtBalancesPreLiquidation[2] - maxAmount[2], "Borrower 3 should be soft liquidated");
+        assertEq(eUSDC.debtBalance(borrowers[2]), debtBalancesPreLiquidation[2] - maxAmount[2], "Borrower 3 should be soft liquidated");
         
         // Assert collateral is reduced by liquidatedPTokens
         assertApproxEqAbs(
@@ -233,7 +239,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         uint256 totalDebtRepaid = borrowAmount + maxAmount[2]; // User 3 is soft liquidated, using borrowAmount as user 4 who is hard liquidated
 
         assertApproxEqAbs(
-            eUSDC.totalBorrows(),
+            eUSDC.marketOutstandingDebt(),
             totalBorrowsBefore - totalDebtRepaid,
             100, // Small tolerance
             "Incorrect totalBorrows after liquidation"
@@ -256,7 +262,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
                 address(pBALRETH)
             );
 
-            if(eUSDC.debtBalanceCached(borrowers[i]) > 0) {
+            if(eUSDC.debtBalance(borrowers[i]) > 0) {
                 assertTrue(lFactorAfter < lFactorsPreLiquidation[i], "Health factor should improve after partial liquidation");
             } else {
                 assertEq(lFactorAfter, 0, "Fully liquidated account should have 0 lFactor");
@@ -313,21 +319,21 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
     function _getDebtBalancePreLiquidation() internal view returns (uint256[] memory debtBalances) {
         debtBalances = new uint256[](4);
         for(uint i; i < 4; i++) {
-            debtBalances[i] = eUSDC.debtBalanceCached(borrowers[i]);
+            debtBalances[i] = eUSDC.debtBalance(borrowers[i]);
         }
         return debtBalances;
     }
 
     function _getLiquidationValuesWithHigherPrecision_NonAuction(
         uint256 eTokenPrice,
-        uint256 pTokenPrice,
+        uint256 cTokenPrice,
         uint256[] memory lFactors
     ) internal view returns (
         uint256[] memory maxAmount, 
         uint256[] memory liquidatedPTokens,
         uint256[] memory collateralRequired
     ) {
-        uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
@@ -345,7 +351,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
             
             // Calculate with extra precision
             uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
-                (pTokenPrice * pTokenExchangeRate)) * 1e18) / 1e6;
+                (cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
             maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
             
@@ -375,17 +381,17 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         uint256 _collateralAvailable,
         uint256 _collateralRequired,
         uint256 _liquidatedPTokens,
-        uint256 _pTokenUnderlyingPrice,
+        uint256 _cTokenUnderlyingPrice,
         uint256 _eTokenUnderlyingPrice,
-        uint256 _pTokenExchangeRate
-    ) internal pure returns (uint256 badDebt) {
+        uint256 _cTokenExchangeRate
+    ) internal pure returns (uint256 expectedBadDebt) {
 
         if(_collateralRequired > _collateralAvailable) {
     
-        badDebt = (_debtBalance - _debtAmount) -
+        expectedBadDebt = (_debtBalance - _debtAmount) -
         FixedPointMathLib.mulDivUp(
-            ((_collateralAvailable - _liquidatedPTokens) * _pTokenExchangeRate) / WAD,
-            _pTokenUnderlyingPrice,
+            ((_collateralAvailable - _liquidatedPTokens) * _cTokenExchangeRate) / WAD,
+            _cTokenUnderlyingPrice,
             (_eTokenUnderlyingPrice * WAD) / 1e6
         );
 

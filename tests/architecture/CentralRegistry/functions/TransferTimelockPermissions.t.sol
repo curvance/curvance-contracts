@@ -3,14 +3,20 @@ pragma solidity 0.8.26;
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { Timelock } from "contracts/architecture/DAOTimelock.sol";
+import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract TransferTimelockPermissionsTest is TestBaseMarketIsolated {
     event PermissionsTransferred(
         string indexed permissionsType,
-        address indexed previousTimelock,
-        address indexed newTimelock
+        address previousAddress,
+        address newAddress
+    );
+
+    event PermissionsUpdated(
+        string indexed permissionsType,
+        address addressUpdated,
+        bool isAdded
     );
 
     function test_transferTimelockPermissions_fail_whenCallerIsNotAuthorized()
@@ -25,19 +31,28 @@ contract TransferTimelockPermissionsTest is TestBaseMarketIsolated {
     }
 
     function test_transferTimelockPermissions_success() public {
-        Timelock newTimelock1 = new Timelock(
+        DAOTimelock newTimelock1 = new DAOTimelock(
             ICentralRegistry(address(centralRegistry))
         );
 
         assertTrue(centralRegistry.hasDaoPermissions(address(this)));
         assertTrue(centralRegistry.hasElevatedPermissions(address(this)));
 
+        // Expect the PermissionsUpdated event for Market permission removal first
+        vm.expectEmit(true, true, true, true);
+        emit PermissionsUpdated("Market", address(daoTimelock), false);
+        
+        // Then expect the main PermissionsTransferred event
         vm.expectEmit(true, true, true, true);
         emit PermissionsTransferred(
             "Timelock",
-            address(this),
+            address(daoTimelock),
             address(newTimelock1)
         );
+        
+        // Then expect the PermissionsUpdated event for Market permission addition
+        vm.expectEmit(true, true, true, true);
+        emit PermissionsUpdated("Market", address(newTimelock1), true);
 
         centralRegistry.transferTimelockPermissions(address(newTimelock1));
 
@@ -55,24 +70,14 @@ contract TransferTimelockPermissionsTest is TestBaseMarketIsolated {
         vm.prank(address(newTimelock1));
         centralRegistry.transferDaoPermissions(address(1));
 
-        // Before calling updateDaoAddress, check if old dao still has roles
-        // and new dao doesn't have roles yet
-        assertTrue(newTimelock1.hasRole(newTimelock1.PROPOSER_ROLE(), initialDaoAddress));
-        assertTrue(newTimelock1.hasRole(newTimelock1.EXECUTOR_ROLE(), initialDaoAddress));
-        assertFalse(newTimelock1.hasRole(newTimelock1.PROPOSER_ROLE(), address(1)));
-        assertFalse(newTimelock1.hasRole(newTimelock1.EXECUTOR_ROLE(), address(1)));
-
-        // Call updateDAOAddress explicitly
-        newTimelock1.updateDaoAddress();
-        
-        // After updateDaoAddress, check if old dao no longer has roles
-        // and new dao now has roles
+        // After transferDaoPermissions (which now calls updateRoles automatically),
+        // check if old dao no longer has roles and new dao now has roles
         assertFalse(newTimelock1.hasRole(newTimelock1.PROPOSER_ROLE(), initialDaoAddress));
         assertFalse(newTimelock1.hasRole(newTimelock1.EXECUTOR_ROLE(), initialDaoAddress));
         assertTrue(newTimelock1.hasRole(newTimelock1.PROPOSER_ROLE(), address(1)));
         assertTrue(newTimelock1.hasRole(newTimelock1.EXECUTOR_ROLE(), address(1)));
 
-        Timelock newTimelock2 = new Timelock(
+        DAOTimelock newTimelock2 = new DAOTimelock(
             ICentralRegistry(address(centralRegistry))
         );
 

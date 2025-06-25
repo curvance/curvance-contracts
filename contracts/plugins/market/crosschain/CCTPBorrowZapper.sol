@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -69,9 +69,9 @@ contract CCTPBorrowZapper is ReentrancyGuard {
         uint256 balancePrior = IERC20(feeToken).balanceOf(address(this));
 
         // Borrow on behalf of caller.
-        EToken(eToken).borrowFor(msg.sender, address(this), borrowAmount);
+        BorrowableCToken(eToken).borrowFor(msg.sender, address(this), borrowAmount);
 
-        address underlying = EToken(eToken).underlying();
+        address underlying = BorrowableCToken(eToken).asset();
 
         // Check if swapping is necessary.
         if (underlying != feeToken) {

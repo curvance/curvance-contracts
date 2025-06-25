@@ -6,6 +6,8 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
+import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
+import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
 
 contract TestOracleManager is TestBaseOracleManager {
     address internal _VELODROME_WETH_USDC =
@@ -16,6 +18,7 @@ contract TestOracleManager is TestBaseOracleManager {
     function setUp() public override {
         _fork("ETH_NODE_URI_OPTIMISM", 110333246);
 
+        
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();
@@ -105,11 +108,25 @@ contract TestOracleManager is TestBaseOracleManager {
 
     function testReturnsCorrectPriceForMTokens() public {
         _deployEUSDC();
+        
+        // Create a mock collateral token
+        MockERC20Token underlying = new MockERC20Token();
+        MockSimpleCToken mockPToken = new MockSimpleCToken(
+            ICentralRegistry(address(centralRegistry)),
+            address(underlying),
+            address(marketManagerIsolated)
+        );
+        
+        // Mint some underlying for deposit
+        underlying.mint(address(this), 77777);
+        underlying.approve(address(mockPToken), 77777);
 
-        // support market
+        // Support market
         _prepareUSDC(address(this), 200000e6);
         usdc.approve(address(eUSDC), 200000e6);
-        marketManagerIsolated.listToken(address(eUSDC));
+        
+        // Use mock collateral token
+        marketManagerIsolated.listTokens(address(mockPToken), address(eUSDC));
 
         oracleManager.addMTokenSupport(address(eUSDC));
 

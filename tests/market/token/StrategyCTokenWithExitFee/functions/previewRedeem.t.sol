@@ -2,7 +2,10 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
-import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
+import { StrategyCToken } from "contracts/market/token/StrategyCToken.sol";
+
+// NOTES:
+// [FAIL: assertion failed: 76319 != 41325] expected redeem quote to be 41325, but got 76319
 
 contract StrategyCTokenWithExitFeePreviewRedeemTest is
     TestBaseStrategyCTokenWithExitFee

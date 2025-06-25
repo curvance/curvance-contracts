@@ -78,7 +78,7 @@ contract NativeUniversalBalanceDepositTest is TestBaseNativeUniversalBalance {
         vm.prank(user1);
 
         // `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
-        vm.expectRevert(0xc75f2a32);
+        vm.expectRevert(bytes4(0xc75f2a32));
         nativeUniversalBalance.deposit(0, false);
     }
 

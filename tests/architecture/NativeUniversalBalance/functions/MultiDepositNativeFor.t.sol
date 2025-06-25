@@ -7,6 +7,7 @@ import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBa
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract MultiDepositNativeForTest is TestBaseNativeUniversalBalance {
     event Deposit(
@@ -78,7 +79,7 @@ contract MultiDepositNativeForTest is TestBaseNativeUniversalBalance {
 
         vm.prank(user1);
         // reverts with PluginDelegable__Unauthorized.selector
-        vm.expectRevert(0xcfdc5602);
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
         nativeUniversalBalance.multiDepositNativeFor{ value: depositSum }(
             amounts,
             willLend,
@@ -145,7 +146,7 @@ contract MultiDepositNativeForTest is TestBaseNativeUniversalBalance {
         vm.prank(user1);
 
         // `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
-        vm.expectRevert(0xc75f2a32);
+        vm.expectRevert(UniversalBalance.UniversalBalance__InvalidParameter.selector);
         nativeUniversalBalance.multiDepositNativeFor{ value: depositSum }(
             amounts,
             willLend,

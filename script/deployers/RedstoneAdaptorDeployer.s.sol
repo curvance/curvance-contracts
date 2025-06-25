@@ -26,7 +26,8 @@ contract RedstoneAdaptorDeployer is DeployConfiguration {
         RedstoneCoreAdaptor adaptor = new RedstoneCoreAdaptor(
             icr,
             redstoneSigners,
-            3
+            3,
+            "ETH"
         );
 
         redstoneAdaptor = address(adaptor);

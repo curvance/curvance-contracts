@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
     event Withdraw(
@@ -30,7 +31,7 @@ contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
 
         vm.prank(user2);
         // reverts with PluginDelegable__Unauthorized.selector
-        vm.expectRevert(0xcfdc5602);
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
         universalBalance.withdrawFor(1e6, true, user2, address(1));
     }
 

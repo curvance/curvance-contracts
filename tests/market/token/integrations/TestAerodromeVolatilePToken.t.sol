@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { AerodromeVolatilePToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/AerodromeVolatilePToken.sol";
+import { AerodromeVolatileCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/AerodromeVolatileCToken.sol";
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
@@ -22,7 +22,7 @@ contract TestAerodromeVolatilePToken is TestBaseMarketIsolated {
     IVeloRouter public aeroRouter =
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
-    AerodromeVolatilePToken public pWETHUSDC;
+    AerodromeVolatileCToken public pWETHUSDC;
     VelodromeVolatileLPAdaptor public adaptor;
     MockV3Aggregator public chainlinkAERO;
     MockV3Aggregator public chainlinkWETH;
@@ -40,6 +40,7 @@ contract TestAerodromeVolatilePToken is TestBaseMarketIsolated {
     function setUp() public override {
         _fork("ETH_NODE_URI_BASE", 19000000);
 
+        
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();
@@ -54,13 +55,14 @@ contract TestAerodromeVolatilePToken is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(aeroRouter)))
         );
 
-        pWETHUSDC = new AerodromeVolatilePToken(
+        pWETHUSDC = new AerodromeVolatileCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_AERODROME_WETH_USDC),
             address(marketManagerIsolated),
             gauge,
             aeroPairFactory,
-            aeroRouter
+            aeroRouter,
+            1 days
         );
 
         vm.warp(veCVE.nextEpochStartTime());
@@ -191,7 +193,7 @@ contract TestAerodromeVolatilePToken is TestBaseMarketIsolated {
         deal(_AERODROME_WETH_USDC, address(this), 77777);
 
         IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 77777);
-        marketManagerIsolated.listToken(address(pWETHUSDC));
+        marketManagerIsolated.listTokens(address(pWETHUSDC),address(eUSDC));
 
         vm.prank(user1);
         IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), assets);

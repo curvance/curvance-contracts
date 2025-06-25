@@ -12,7 +12,6 @@ contract TestBaseEToken is TestBaseMarketIsolated {
     function setUp() public virtual override {
         super.setUp();
 
-        // use mock pricing for testing
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
@@ -61,35 +60,40 @@ contract TestBaseEToken is TestBaseMarketIsolated {
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
-        _prepareUSDC(user1, _ONE);
-        _prepareUSDC(address(this), _ONE);
+        _prepareUSDC(address(this), _ONE + 77777);
+        _prepareBALRETH(address(this), 10e18 + 77777);
+        
+        usdc.approve(address(eUSDC), _ONE + 77777);
+        balRETH.approve(address(pBALRETH), 10e18 + 77777);
 
-        vm.prank(user1);
-        usdc.approve(address(eUSDC), _ONE);
-
-        usdc.approve(address(eUSDC), _ONE);
-        marketManagerIsolated.listToken(address(eUSDC));
-
-        eUSDC.depositReserves(1000e6);
-        _prepareBALRETH(address(this), 10e18);
-        balRETH.approve(address(pBALRETH), 10e18);
-
-        marketManagerIsolated.listToken(address(pBALRETH));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        
+        
+        // Configure position token
         marketManagerIsolated.updatePositionToken(
-            address(pBALRETH),
-            7000,
-            4000, // liquidate at 71%
-            3000,
-            200, // 2% liq incentive
-            400,
-            1000
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            3000,    // maxEffectiveCFactor 30%
+            1000     // baseCFactor 10%
         );
 
+        // Set collateral caps
         address[] memory tokens = new address[](1);
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
+
+        tokens[0] = address(eUSDC);
+        caps[0] = 100_000e6;
+        marketManagerIsolated.setDebtCaps(tokens, caps);
+        
 
         pBALRETH.mint(_ONE, address(this));
     }
@@ -101,7 +105,7 @@ contract TestBaseEToken is TestBaseMarketIsolated {
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);

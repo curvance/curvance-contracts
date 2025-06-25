@@ -5,7 +5,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { IPendleRouter, ApproxParams, LimitOrderData } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
-import { PendleLPPToken, IERC20 } from "contracts/market/token/PendleLPPToken.sol";
+import { PendleLPCToken, IERC20 } from "contracts/market/token/PendleLPCToken.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
@@ -21,7 +21,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
     address internal _PENDLE = 0x808507121B80c02388fAd14726482e061B8da827;
     address internal _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market
 
-    PendleLPPToken public cSTETH;
+    PendleLPCToken public cSTETH;
     MockV3Aggregator public chainlinkPendleUsd;
 
     receive() external payable {}
@@ -36,6 +36,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
     function setUp() public override {
         _fork(20287400);
 
+        
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();
@@ -44,6 +45,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         _deployOracleManager();
         _deployChainlinkAdaptors();
         _deployMarketManager();
+        _deployEDAI();
 
         chainlinkPendleUsd = new MockV3Aggregator(18, 3.6e18, 3.6e24, 3.6e13);
         chainlinkAdaptor.addAsset(
@@ -57,11 +59,12 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
 
-        cSTETH = new PendleLPPToken(
+        cSTETH = new PendleLPCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_LP_STETH),
             address(marketManagerIsolated),
-            _ROUTER
+            _ROUTER,
+            1 days
         );
 
         centralRegistry.setExternalCalldataChecker(
@@ -77,8 +80,11 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         deal(_LP_STETH, user1, assets);
         deal(_LP_STETH, address(this), 77777);
 
+        _prepareDAI(address(this), 77777);
+        dai.approve(address(eDAI), 77777);
+
         IERC20(_LP_STETH).approve(address(cSTETH), 77777);
-        marketManagerIsolated.listToken(address(cSTETH));
+        marketManagerIsolated.listTokens(address(cSTETH), address(eDAI));
 
         vm.prank(user1);
         IERC20(_LP_STETH).approve(address(cSTETH), assets);
@@ -155,8 +161,11 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         deal(_LP_STETH, user1, assets);
         deal(_LP_STETH, address(this), 77777);
 
+        _prepareDAI(address(this), 77777);
+        dai.approve(address(eDAI), 77777);
+
         IERC20(_LP_STETH).approve(address(cSTETH), 77777);
-        marketManagerIsolated.listToken(address(cSTETH));
+        marketManagerIsolated.listTokens(address(cSTETH), address(eDAI));
 
         vm.prank(user1);
         IERC20(_LP_STETH).approve(address(cSTETH), assets);

@@ -27,6 +27,7 @@ contract TestPendleLPTokenAdaptor is TestBaseOracleManager {
     function setUp() public override {
         _fork(18031848);
 
+        
         _deployCentralRegistry();
         _deployOracleManager();
 
