@@ -4,10 +4,11 @@ pragma solidity ^0.8.19;
 import "forge-std/StdStorage.sol";
 import { TestBaseEToken } from "../TestBaseEToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
 contract ETokenDeploymentTest is TestBaseEToken {
     using stdStorage for StdStorage;
@@ -28,9 +29,9 @@ contract ETokenDeploymentTest is TestBaseEToken {
         vm.expectRevert(
             PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
         );
-        new EToken(
+        new BorrowableCToken(
             ICentralRegistry(address(0)),
-            _USDC_ADDRESS,
+            IERC20(_USDC_ADDRESS),
             address(marketManagerIsolated),
             address(interestRateModel)
         );
@@ -38,11 +39,11 @@ contract ETokenDeploymentTest is TestBaseEToken {
 
     function test_eTokenDeployment_fail_whenMarketManagerIsNotSet() public {
         vm.expectRevert(
-            EToken.EToken__MarketManagerIsNotLendingMarket.selector
+            BaseCToken.BaseCToken__InvalidMarketManager.selector
         );
-        new EToken(
+        new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS,
+            IERC20(_USDC_ADDRESS),
             address(1),
             address(interestRateModel)
         );
@@ -52,9 +53,9 @@ contract ETokenDeploymentTest is TestBaseEToken {
         public
     {
         vm.expectRevert();
-        new EToken(
+        new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS,
+            IERC20(_USDC_ADDRESS),
             address(marketManagerIsolated),
             address(0)
         );
@@ -68,11 +69,11 @@ contract ETokenDeploymentTest is TestBaseEToken {
             .sig(IERC20.totalSupply.selector)
             .checked_write(type(uint232).max);
         vm.expectRevert(
-           EToken.EToken__ValidationFailed.selector
+           BaseCToken.BaseCToken__UnsupportedAsset.selector
         );
-        new EToken(
+        new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS,
+            IERC20(_USDC_ADDRESS),
             address(marketManagerIsolated),
             address(interestRateModel)
         );
@@ -85,15 +86,15 @@ contract ETokenDeploymentTest is TestBaseEToken {
         );
         emit NewInterestFactor(0, newInterestFactor);
 
-        eUSDC = new EToken(
+        eUSDC = new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS,
+            IERC20(_USDC_ADDRESS),
             address(marketManagerIsolated),
             address(interestRateModel)
         );
 
         assertEq(address(eUSDC.centralRegistry()), address(centralRegistry));
-        assertEq(eUSDC.asset(), _USDC_ADDRESS);
+        assertEq(address(eUSDC.asset()), _USDC_ADDRESS);
         assertEq(
             address(eUSDC.interestRateModel()),
             address(interestRateModel)

@@ -84,8 +84,6 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-        eUSDC.depositReserves(1000e6);
-
         // Update position token parameters
         marketManagerIsolated.updatePositionToken(
             9200,    // collRatio 92%
@@ -117,7 +115,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);
@@ -192,7 +190,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
             expectedTotalBadDebt += badDebt[i];
         }
 
-        uint256 totalBorrowsBefore = eUSDC.totalBorrows();
+        uint256 totalBorrowsBefore = eUSDC.marketOutstandingDebt();
 
         // ===== Liquidate =====
 
@@ -212,14 +210,14 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         // ===== Validate =====
 
         // Verify healthy accounts (1 and 2) are not liquidated
-        assertEq(eUSDC.debtBalanceCached(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
-        assertEq(eUSDC.debtBalanceCached(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
+        assertEq(eUSDC.debtBalance(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
+        assertEq(eUSDC.debtBalance(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
 
         // Verify account 4 is hard liquidated
-        assertEq(eUSDC.debtBalanceCached(borrowers[3]), 0, "Borrower 4 should be hard liquidated");
+        assertEq(eUSDC.debtBalance(borrowers[3]), 0, "Borrower 4 should be hard liquidated");
 
         // Verify account 3 is soft liquidated
-        assertEq(eUSDC.debtBalanceCached(borrowers[2]), debtBalancesPreLiquidation[2] - maxAmount[2], "Borrower 3 should be soft liquidated");
+        assertEq(eUSDC.debtBalance(borrowers[2]), debtBalancesPreLiquidation[2] - maxAmount[2], "Borrower 3 should be soft liquidated");
         
         // Assert collateral is reduced by liquidatedPTokens
         assertApproxEqAbs(
@@ -241,7 +239,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         uint256 totalDebtRepaid = borrowAmount + maxAmount[2]; // User 3 is soft liquidated, using borrowAmount as user 4 who is hard liquidated
 
         assertApproxEqAbs(
-            eUSDC.totalBorrows(),
+            eUSDC.marketOutstandingDebt(),
             totalBorrowsBefore - totalDebtRepaid,
             100, // Small tolerance
             "Incorrect totalBorrows after liquidation"
@@ -264,7 +262,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
                 address(pBALRETH)
             );
 
-            if(eUSDC.debtBalanceCached(borrowers[i]) > 0) {
+            if(eUSDC.debtBalance(borrowers[i]) > 0) {
                 assertTrue(lFactorAfter < lFactorsPreLiquidation[i], "Health factor should improve after partial liquidation");
             } else {
                 assertEq(lFactorAfter, 0, "Fully liquidated account should have 0 lFactor");
@@ -321,7 +319,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
     function _getDebtBalancePreLiquidation() internal view returns (uint256[] memory debtBalances) {
         debtBalances = new uint256[](4);
         for(uint i; i < 4; i++) {
-            debtBalances[i] = eUSDC.debtBalanceCached(borrowers[i]);
+            debtBalances[i] = eUSDC.debtBalance(borrowers[i]);
         }
         return debtBalances;
     }

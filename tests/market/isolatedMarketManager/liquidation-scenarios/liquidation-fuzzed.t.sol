@@ -77,7 +77,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         balRETH.approve(address(pBALRETH), _ONE + 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
-        eUSDC.depositReserves(1000e6);
+        // eUSDC.depositReserves(1000e6);
 
         marketManagerIsolated.updatePositionToken(
             9750,    // collRatio 97.5% (max borrowing power)
@@ -105,7 +105,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.deposit(200000e6, liquidityProvider);
         balRETH.approve(address(pBALRETH), 100e18);
         pBALRETH.deposit(100e18, liquidityProvider);
         vm.stopPrank();
@@ -168,7 +168,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
 
         collateralAmounts = pBALRETH.collateralPosted(borrower);
 
-        debtBalancesPreLiquidation = eUSDC.debtBalanceWithUpdateSafe(borrower);
+        debtBalancesPreLiquidation = eUSDC.debtBalanceUpdated(borrower);
 
         expectedBadDebt = _calculateBadDebt(
                 debtBalancesPreLiquidation,

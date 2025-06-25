@@ -59,7 +59,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         );
         vm.stopPrank();
 
-        console2.log("eUSDC.debtBalanceCached(user1)", eUSDC.debtBalanceCached(user1));
+        console2.log("eUSDC.debtBalance(user1)", eUSDC.debtBalance(user1));
         console2.log("eUSDC.exchangeRate()", eUSDC.exchangeRate());
         console2.log("Debt amount returned", debtAmountReturned[0]);
         console2.log("LiqResults.liquidatedAmounts[0]", results.liquidatedAmounts[0]);
@@ -74,7 +74,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
 
         assertEq(expectedRepayAmount, results.debtRepaid, "Debt repaid mismatch");
 
-        assertEq(eUSDC.debtBalanceCached(user1), 0, "eUSDC debt balance mismatch");
+        assertEq(eUSDC.debtBalance(user1), 0, "eUSDC debt balance mismatch");
         assertEq(pBALRETH.exchangeRate(), _ONE, "pBALRETH exchange rate mismatch");
         assertLt(eUSDC.exchangeRate(), _ONE, "eUSDC exchange rate mismatch, there should be bad debt");
         assertEq(pBALRETH.balanceOf(user2), _ONE - 1, "Liquidator pBALRETH balance mismatch");
@@ -89,7 +89,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);
@@ -157,7 +157,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
             positionTokenPrice
         );
         
-        uint256 maxAmount = (auctionCFactor * eUSDC.debtBalanceCached(user)) / WAD;
+        uint256 maxAmount = (auctionCFactor * eUSDC.debtBalance(user)) / WAD;
         
         uint256 debtAmount = calculateDebtAmount(user, maxAmount, debtToCollateralMultiplier);
         

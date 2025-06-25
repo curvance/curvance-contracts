@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 
 contract ETokenRepayTest is TestBaseEToken {
     event Repay(address payer, address borrower, uint256 repayAmount);
@@ -38,9 +38,9 @@ contract ETokenRepayTest is TestBaseEToken {
     function test_eTokenRepay_fail_whenBorrowAmountExceedsCash() public {
         eUSDC.accrueInterest();
 
-        uint256 debtBalanceCached = eUSDC.debtBalanceCached(address(this));
+        uint256 debtBalanceCached = eUSDC.debtBalance(address(this));
 
-        vm.expectRevert(EToken.EToken__ExcessiveValue.selector);
+        vm.expectRevert(BorrowableCToken.BorrowableCToken__ExcessiveValue.selector);
         eUSDC.repay(debtBalanceCached + 1);
     }
 

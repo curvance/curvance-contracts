@@ -14,7 +14,7 @@ import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
 import { TestnetToken } from "contracts/mocks/TestnetToken.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
@@ -410,9 +410,9 @@ contract StartContractsConfig is
             );
 
         address eToken = address(
-            new EToken(
+            new BorrowableCToken(
                 cr,
-                tokenAddress,
+                IERC20(tokenAddress),
                 address(market),
                 address(interestRateModel)
             )

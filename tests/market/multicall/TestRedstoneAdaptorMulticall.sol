@@ -225,10 +225,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         wbtc.approve(address(pWBTC), 10 ether);
-        pWBTC.mint(10 ether, liquidityProvider);
+        pWBTC.deposit(10 ether, liquidityProvider);
         vm.stopPrank();
     }
 
@@ -265,7 +265,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
         calls[1].target = address(pWBTC);
         calls[1].data = abi.encodeWithSelector(
-            pWBTC.mint.selector,
+            pWBTC.deposit.selector,
             1e8,
             user1
         );
@@ -310,7 +310,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         calls[0].isPriceUpdate = true;
 
         calls[1].target = address(eUSDC);
-        calls[1].data = abi.encodeWithSelector(eUSDC.mint.selector, 1e6);
+        calls[1].data = abi.encodeWithSelector(eUSDC.deposit.selector, 1e6, user1);
 
         // try mint()
         vm.prank(user1);

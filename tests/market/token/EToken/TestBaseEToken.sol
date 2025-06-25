@@ -93,8 +93,6 @@ contract TestBaseEToken is TestBaseMarketIsolated {
         tokens[0] = address(eUSDC);
         caps[0] = 100_000e6;
         marketManagerIsolated.setDebtCaps(tokens, caps);
-
-        eUSDC.depositReserves(1000e6);
         
 
         pBALRETH.mint(_ONE, address(this));
@@ -107,7 +105,7 @@ contract TestBaseEToken is TestBaseMarketIsolated {
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);

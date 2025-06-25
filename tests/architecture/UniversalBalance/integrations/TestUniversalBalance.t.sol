@@ -523,7 +523,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
 
         _prepareUSDC(owner, 100e6);
         usdc.approve(address(eUSDC), 100e6);
-        eUSDC.mint(100e6);
+        eUSDC.deposit(100e6, address(this));
 
         vm.prank(user1);
         universalBalance.withdraw(50e6, true, address(this));

@@ -83,7 +83,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         _prepareDAI(liquidityProvider, INITIAL_DEPOSIT - 100e18);
         vm.startPrank(liquidityProvider);
         dai.approve(address(eDAI), INITIAL_DEPOSIT - 100e18);
-        eDAI.mint(INITIAL_DEPOSIT - 100e18);
+        eDAI.deposit(INITIAL_DEPOSIT - 100e18, liquidityProvider);
         vm.stopPrank();
     }
 
@@ -118,14 +118,14 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
 
         // Initial state checks
         uint256 initialUtilization = interestRateModel.utilizationRate(
-            eDAI.marketUnderlyingHeld(),
-            eDAI.totalBorrows(),
-            eDAI.convertToAssets(eDAI.totalReserves())
+            eDAI.assetsHeld(),
+            eDAI.marketOutstandingDebt(),
+            eDAI.convertToAssets(eDAI.assetsHeld())
         );
         uint256 initialBorrowRate = interestRateModel.getBorrowRatePerYear(
-            eDAI.marketUnderlyingHeld(),
-            eDAI.totalBorrows(),
-            eDAI.convertToAssets(eDAI.totalReserves())
+            eDAI.assetsHeld(),
+            eDAI.marketOutstandingDebt(),
+            eDAI.convertToAssets(eDAI.assetsHeld())
         );
 
         // when
@@ -134,14 +134,14 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
 
         // then
         uint256 newUtilization = interestRateModel.utilizationRate(
-            eDAI.marketUnderlyingHeld(),
-            eDAI.totalBorrows(),
-            eDAI.convertToAssets(eDAI.totalReserves())
+            eDAI.assetsHeld(),
+            eDAI.marketOutstandingDebt(),
+            eDAI.convertToAssets(eDAI.assetsHeld())
         );
         uint256 newBorrowRate = interestRateModel.getBorrowRatePerYear(
-            eDAI.marketUnderlyingHeld(),
-            eDAI.totalBorrows(),
-            eDAI.convertToAssets(eDAI.totalReserves())
+            eDAI.assetsHeld(),
+            eDAI.marketOutstandingDebt(),
+            eDAI.convertToAssets(eDAI.assetsHeld())
         );
         (, , uint256 vertexPoint, , , , , , , , ) = interestRateModel
             .ratesConfig();
@@ -195,14 +195,14 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
 
         // Initial state checks
         uint256 initialUtilization = interestRateModel.utilizationRate(
-            eDAI.marketUnderlyingHeld(),
-            eDAI.totalBorrows(),
-            eDAI.convertToAssets(eDAI.totalReserves())
+            eDAI.assetsHeld(),
+            eDAI.marketOutstandingDebt(),
+            eDAI.convertToAssets(eDAI.assetsHeld())
         );
         uint256 initialBorrowRate = interestRateModel.getBorrowRatePerYear(
-            eDAI.marketUnderlyingHeld(),
-            eDAI.totalBorrows(),
-            eDAI.convertToAssets(eDAI.totalReserves())
+            eDAI.assetsHeld(),
+            eDAI.marketOutstandingDebt(),
+            eDAI.convertToAssets(eDAI.assetsHeld())
         );
 
         // when
@@ -211,14 +211,14 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
 
         // then
         uint256 newUtilization = interestRateModel.utilizationRate(
-            eDAI.marketUnderlyingHeld(),
-            eDAI.totalBorrows(),
-            eDAI.convertToAssets(eDAI.totalReserves())
+            eDAI.assetsHeld(),
+            eDAI.marketOutstandingDebt(),
+            eDAI.convertToAssets(eDAI.assetsHeld())
         );
         uint256 newBorrowRate = interestRateModel.getBorrowRatePerYear(
-            eDAI.marketUnderlyingHeld(),
-            eDAI.totalBorrows(),
-            eDAI.convertToAssets(eDAI.totalReserves())
+            eDAI.assetsHeld(),
+            eDAI.marketOutstandingDebt(),
+            eDAI.convertToAssets(eDAI.assetsHeld())
         );
         (, , uint256 vertexPoint, , , , , , , , ) = interestRateModel
             .ratesConfig();
@@ -314,9 +314,9 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         // then
         uint256 newMultiplier = interestRateModel.vertexMultiplier();
         uint256 utilization = interestRateModel.utilizationRate(
-            eDAI.marketUnderlyingHeld(),
-            eDAI.totalBorrows(),
-            eDAI.convertToAssets(eDAI.totalReserves())
+            eDAI.assetsHeld(),
+            eDAI.marketOutstandingDebt(),
+            eDAI.convertToAssets(eDAI.assetsHeld())
         );
 
         assertGt(
@@ -339,7 +339,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         uint256 highMultiplier = interestRateModel.vertexMultiplier();
 
         // Repay most of the debt to drop utilization
-        uint256 currentDebt = eDAI.debtBalanceCached(address(user));
+        uint256 currentDebt = eDAI.debtBalance(address(user));
         uint256 repayAmount = (currentDebt * 90) / 100; // Repay 90%
 
         _prepareDAI(user, repayAmount);
@@ -368,9 +368,9 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
 
         uint256 newMultiplier = interestRateModel.vertexMultiplier();
         uint256 utilization = interestRateModel.utilizationRate(
-            eDAI.marketUnderlyingHeld(),
-            eDAI.totalBorrows(),
-            eDAI.convertToAssets(eDAI.totalReserves())
+            eDAI.assetsHeld(),
+            eDAI.marketOutstandingDebt(),
+            eDAI.convertToAssets(eDAI.assetsHeld())
         );
 
         assertLt(
@@ -433,7 +433,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
 
         vm.startPrank(user);
         // Repay almost all debt
-        uint256 currentDebt = eDAI.debtBalanceCached(address(user));
+        uint256 currentDebt = eDAI.debtBalance(address(user));
         _prepareDAI(user, currentDebt);
         dai.approve(address(eDAI), currentDebt);
         eDAI.repay(currentDebt);

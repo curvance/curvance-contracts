@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -475,7 +475,7 @@ contract AuxiliaryData {
         );
         for (uint256 i; i < numTokens; ++i) {
             MarketETokenData memory eTokenData;
-            EToken marketToken = EToken(eTokens[i]);
+            BorrowableCToken marketToken = BorrowableCToken(eTokens[i]);
             IERC20 token = IERC20(marketToken.asset());
 
             if (account != address(0)) {

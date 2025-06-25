@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -32,7 +33,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      facilitating the distribution of native tokens both liquid and
 ///      locked to users based on their contributions to the protocol over
 ///      time.
-contract ETokenWithGauge is EToken {
+contract ETokenWithGauge is BorrowableCToken {
     /// CONSTANTS ///
 
     /// @notice Address of the Gauge Manager.
@@ -55,9 +56,9 @@ contract ETokenWithGauge is EToken {
         address marketManager_,
         address interestRateModel_
     )
-        EToken(
+        BorrowableCToken(
             centralRegistry_,
-            underlying_,
+            IERC20(underlying_),
             marketManager_,
             interestRateModel_
         )

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -29,7 +29,7 @@ contract SetInterestRateModelTest is TestBaseEToken {
     {
         vm.prank(address(1));
 
-        vm.expectRevert(EToken.EToken__Unauthorized.selector);
+        vm.expectRevert(BorrowableCToken.BorrowableCToken__Unauthorized.selector);
         eUSDC.setInterestRateModel(address(newDynamicInterestRateModel));
     }
 

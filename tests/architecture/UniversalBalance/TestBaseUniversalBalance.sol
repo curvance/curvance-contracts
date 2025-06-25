@@ -25,7 +25,7 @@ contract TestBaseUniversalBalance is TestBaseMarketIsolated {
         balRETH.approve(address(pBALRETH), 1000e18);
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-        eUSDC.depositReserves(100e6);
+        eUSDC.deposit(1000e6, address(this));
 
         vm.prank(user1);
         usdc.approve(address(universalBalance), type(uint256).max);

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract ETokenTransferFromTest is TestBaseEToken {
@@ -11,12 +11,12 @@ contract ETokenTransferFromTest is TestBaseEToken {
     function test_eTokenTransferFrom_fail_whenSenderAndReceiverAreSame()
         public
     {
-        vm.expectRevert(EToken.EToken__TransferError.selector);
+        vm.expectRevert(BorrowableCToken.BorrowableCToken__TransferError.selector);
         eUSDC.transferFrom(address(this), address(this), 100e6);
     }
 
     function test_eTokenTransferFrom_fail_whenTransferZeroAmount() public {
-        vm.expectRevert(EToken.EToken__EmptyAction.selector);
+        vm.expectRevert(BorrowableCToken.BorrowableCToken__EmptyAction.selector);
         eUSDC.transferFrom(address(this), user1, 0);
     }
 

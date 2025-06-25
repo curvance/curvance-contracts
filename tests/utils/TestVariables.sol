@@ -13,7 +13,7 @@ import { FeeManager } from "contracts/architecture/FeeManager.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
@@ -106,8 +106,8 @@ contract TestVariables {
     OracleManager public oracleManager;
     AuxiliaryData public auxiliaryData;
     DAOTimelock public daoTimelock;
-    EToken public eUSDC;
-    EToken public eDAI;
+    BorrowableCToken public eUSDC;
+    BorrowableCToken public eDAI;
 
     SimpleCToken public pUSDC;
     AuraCToken public pBALRETH;
@@ -150,8 +150,8 @@ contract TestVariables {
     mapping(uint256 => AuxiliaryData) public auxiliaryDatas;
     mapping(uint256 => DAOTimelock) public daoTimelocks;
     mapping(uint256 => OracleManager) public oracleManagers;
-    mapping(uint256 => EToken) public eUSDCs;
-    mapping(uint256 => EToken) public eDAIs;
+    mapping(uint256 => BorrowableCToken) public eUSDCs;
+    mapping(uint256 => BorrowableCToken) public eDAIs;
 
     mapping(uint256 => AuraCToken) public pBALRETHs;
     mapping(uint256 => MockAuraCTokenWithExitFee) public pBALRETHWithExitFees;

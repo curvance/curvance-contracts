@@ -15,7 +15,7 @@ contract ETokenBorrowTest is TestBaseEToken {
     }
 
     function test_eTokenBorrow_fail_whenBorrowAmountExceedsCash() public {
-        uint256 cash = eUSDC.marketUnderlyingHeld();
+        uint256 cash = eUSDC.assetsHeld();
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
@@ -26,34 +26,34 @@ contract ETokenBorrowTest is TestBaseEToken {
     function test_eTokenBorrow_success() public {
         _setPBALRETHCollateralCaps(100_000e18);
 
-        eUSDC.mint(200e6);
+        eUSDC.deposit(200e6, address(this));
 
         pBALRETH.postCollateral(1e18 - 1);
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = eUSDC.balanceOf(address(this));
         uint256 totalSupply = eUSDC.totalSupply();
-        uint256 totalBorrows = eUSDC.totalBorrows();
+        uint256 totalBorrows = eUSDC.marketOutstandingDebt();
 
         eUSDC.borrow(100e6);
 
         assertEq(usdc.balanceOf(address(this)), underlyingBalance + 100e6);
         assertEq(eUSDC.balanceOf(address(this)), balance);
         assertEq(eUSDC.totalSupply(), totalSupply);
-        assertEq(eUSDC.totalBorrows(), totalBorrows + 100e6);
+        assertEq(eUSDC.marketOutstandingDebt(), totalBorrows + 100e6);
     }
 
     function test_eTokenBorrowFor_success() public {
         _setPBALRETHCollateralCaps(100_000e18);
 
-        eUSDC.mint(200e6);
+        eUSDC.deposit(200e6, address(this));
 
         pBALRETH.postCollateral(1e18 - 1);
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = eUSDC.balanceOf(address(this));
         uint256 totalSupply = eUSDC.totalSupply();
-        uint256 totalBorrows = eUSDC.totalBorrows();
+        uint256 totalBorrows = eUSDC.marketOutstandingDebt();
 
         eUSDC.setDelegateApproval(user1, true);
 
@@ -63,6 +63,6 @@ contract ETokenBorrowTest is TestBaseEToken {
         assertEq(usdc.balanceOf(address(this)), underlyingBalance + 100e6);
         assertEq(eUSDC.balanceOf(address(this)), balance);
         assertEq(eUSDC.totalSupply(), totalSupply);
-        assertEq(eUSDC.totalBorrows(), totalBorrows + 100e6);
+        assertEq(eUSDC.marketOutstandingDebt(), totalBorrows + 100e6);
     }
 }

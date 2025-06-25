@@ -13,7 +13,7 @@ import { FeeManager } from "contracts/architecture/FeeManager.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
@@ -34,6 +34,7 @@ import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol"
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
 import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract TestBaseMarketIsolated is TestBase {
     struct PerChainData {
@@ -430,22 +431,22 @@ contract TestBaseMarketIsolated is TestBase {
         return address(interestRateModels[block.chainid][underlyingToken]);
     }
 
-    function _deployEUSDC() internal initMainVariables returns (EToken) {
+    function _deployEUSDC() internal initMainVariables returns (BorrowableCToken) {
         eUSDC = eUSDCs[block.chainid] = _deployEToken(_USDC_ADDRESS);
         return eUSDC;
     }
 
-    function _deployEDAI() internal initMainVariables returns (EToken) {
+    function _deployEDAI() internal initMainVariables returns (BorrowableCToken) {
         eDAI = eDAIs[block.chainid] = _deployEToken(_DAI_ADDRESS);
         return eDAI;
     }
 
     function _deployEToken(
         address token
-    ) internal virtual initMainVariables returns (EToken) {
-        EToken eToken = new EToken(
+    ) internal virtual initMainVariables returns (BorrowableCToken) {
+        BorrowableCToken eToken = new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
-            token,
+            IERC20(token),
             address(marketManagerIsolated),
             _deployDynamicInterestRateModel(token)
         );

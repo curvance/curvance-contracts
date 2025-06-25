@@ -7,7 +7,7 @@ import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswap
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBalance.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
@@ -39,7 +39,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
     address internal _PYTH_ADDRESS =
         0x4305FB66699C3B2702D4d05CF36551390A4c69C6;
 
-    EToken public eWETH;
+    BorrowableCToken public eWETH;
     SimplePositionManager public positionManagement;
 
     receive() external payable {}
@@ -235,10 +235,10 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         // eUSDC.mint(200000e6);
         // mint eWETH
         weth.approve(address(eWETH), 200000e6);
-        eWETH.mint(200000e6);
+        eWETH.deposit(200000e6, liquidityProvider);
         // mint pWBTC
         wbtc.approve(address(pWBTC), 10 ether);
-        pWBTC.mint(10 ether, liquidityProvider);
+        pWBTC.deposit(10 ether, liquidityProvider);
         vm.stopPrank();
     }
 
@@ -311,7 +311,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         calls[0].isPriceUpdate = true;
 
         calls[1].target = address(eWETH);
-        calls[1].data = abi.encodeWithSelector(eWETH.mint.selector, 1 ether);
+        calls[1].data = abi.encodeWithSelector(eWETH.deposit.selector, 1 ether, user1);
 
         // try mint()
         vm.prank(user1);

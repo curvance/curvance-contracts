@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 
-import { EToken } from "contracts/market/token/EToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBalance.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
@@ -22,7 +22,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
 
     SimpleCToken public cWBTC;
     NativeUniversalBalance public nativeUniversalBalance;
-    EToken public eWETH;
+    BorrowableCToken public eWETH;
 
     address[] public owners;
     address[] public recipients;
@@ -799,7 +799,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         _prepareWBTC(user2, 100e8);
         vm.startPrank(user2);
         wbtc.approve(address(cWBTC), 100e8);
-        cWBTC.mint(100e8, user2);
+        cWBTC.deposit(100e8, user2);
         cWBTC.postCollateral(100e8);
         eWETH.borrow(50e18);
 
@@ -809,7 +809,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
 
         _prepareWETH(owner, 100e18);
         weth.approve(address(eWETH), 100e18);
-        eWETH.mint(100e18);
+        eWETH.deposit(100e18, address(this));
 
         vm.prank(user1);
         nativeUniversalBalance.withdrawNative(50e18, true, address(this));

@@ -98,10 +98,6 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-        eUSDC.depositReserves(1000e6);
-        // _prepareBALRETH(address(this), 10e18);
-        // balRETH.approve(address(pBALRETH), 10e18);
-
         marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
@@ -128,15 +124,13 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         debtCaps_[0] = 1_000_000e6;
         marketManagerIsolated.setDebtCaps(eTokens, debtCaps_);
 
-        // pBALRETH.mint(_ONE, address(this));
-
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareBALRETH(liquidityProvider, 10e18);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);

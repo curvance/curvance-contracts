@@ -95,8 +95,6 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-        eUSDC.depositReserves(1000e6);
-
         // Update position token parameters
         marketManagerIsolated.updatePositionToken(
             9200,    // collRatio 92%
@@ -128,7 +126,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);
@@ -182,7 +180,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
 
-        totalBorrowsBefore = eUSDC.totalBorrows();
+        totalBorrowsBefore = eUSDC.marketOutstandingDebt();
 
         debtBalancesPreLiquidation_auction = _getDebtBalancePreLiquidation(auctionBorrowers);
         debtBalancesPreLiquidation_regular = _getDebtBalancePreLiquidation(regularBorrowers);
@@ -273,10 +271,10 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         // ===== Validate =====
 
         // Verify debt balances
-        assertEq(eUSDC.debtBalanceCached(auctionBorrowers[0]), debtBalancesPreLiquidation_auction[0] - (maxAmount_auction[0] + badDebt_auction[0]), "Auction borrower 1 debt balance mismatch");
-        assertEq(eUSDC.debtBalanceCached(auctionBorrowers[1]), debtBalancesPreLiquidation_auction[1] - (maxAmount_auction[1] + badDebt_auction[1]), "Auction borrower 2 debt balance mismatch");
-        assertEq(eUSDC.debtBalanceCached(regularBorrowers[0]), debtBalancesPreLiquidation_regular[0] - (maxAmount_regular[0] + badDebt_regular[0]), "Regular borrower 1 debt balance mismatch");
-        assertEq(eUSDC.debtBalanceCached(regularBorrowers[1]), debtBalancesPreLiquidation_regular[1] - (maxAmount_regular[1] + badDebt_regular[1]), "Regular borrower 2 debt balance mismatch");
+        assertEq(eUSDC.debtBalance(auctionBorrowers[0]), debtBalancesPreLiquidation_auction[0] - (maxAmount_auction[0] + badDebt_auction[0]), "Auction borrower 1 debt balance mismatch");
+        assertEq(eUSDC.debtBalance(auctionBorrowers[1]), debtBalancesPreLiquidation_auction[1] - (maxAmount_auction[1] + badDebt_auction[1]), "Auction borrower 2 debt balance mismatch");
+        assertEq(eUSDC.debtBalance(regularBorrowers[0]), debtBalancesPreLiquidation_regular[0] - (maxAmount_regular[0] + badDebt_regular[0]), "Regular borrower 1 debt balance mismatch");
+        assertEq(eUSDC.debtBalance(regularBorrowers[1]), debtBalancesPreLiquidation_regular[1] - (maxAmount_regular[1] + badDebt_regular[1]), "Regular borrower 2 debt balance mismatch");
 
         // Verify collateral is reduced by liquidatedPTokens
         assertApproxEqAbs(
@@ -319,7 +317,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         badDebt_regular[1];
 
         assertApproxEqAbs(
-            eUSDC.totalBorrows(),
+            eUSDC.marketOutstandingDebt(),
             totalBorrowsBefore - totalDebtRepaid,
             100, // Small tolerance
             "Incorrect totalBorrows after liquidation"
@@ -432,7 +430,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     function _getDebtBalancePreLiquidation(address[] memory borrowers) internal view returns (uint256[] memory debtBalances) {
         debtBalances = new uint256[](borrowers.length);
         for(uint i; i < borrowers.length; i++) {
-            debtBalances[i] = eUSDC.debtBalanceCached(borrowers[i]);
+            debtBalances[i] = eUSDC.debtBalance(borrowers[i]);
         }
         return debtBalances;
     }
