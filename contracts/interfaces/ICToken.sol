@@ -58,6 +58,10 @@ interface ICToken {
     /// @notice Total number of mTokens in circulation.
     function totalSupply() external view returns (uint256);
 
+    /// @notice Returns the total amount of assets held by the market.
+    /// @return The total amount of assets held by the market.
+    function totalAssets() external view returns (uint256);
+
     /// @notice Address of the Market Manager linked to this contract.
     function marketManager() external view returns (IMarketManager);
 

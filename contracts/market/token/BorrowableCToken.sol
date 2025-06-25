@@ -303,7 +303,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Get a snapshot of the cToken and `account` data.
     /// @dev Used by marketManager to more efficiently perform
     ///      liquidity checks.
-    ///      NOTE: Does not accrue pending interest as part of the call.
+    ///      NOTE: Does not accrue new pending interest as part of the call.
     /// @param account The address of the account to snapshot.
     /// @return The account snapshot of `account`.
     function getSnapshot(
