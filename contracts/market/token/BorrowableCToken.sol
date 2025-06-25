@@ -11,23 +11,6 @@ import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
 
 contract BorrowableCToken is BaseCTokenWithYield {
-    /// TYPES ///
-
-    /// @notice Struct form of `_vestingData`, a bitshifted packed variable.
-    ///         With data related to lenders vesting data from outstanding
-    ///         debt.
-    /// @param vestingRate The rate that the vault vests lending interest.
-    /// @param vestingPeriodEnd When the current interest vesting period ends.
-    /// @param lastVestingClaim Last time vesting interest was claimed.
-    /// @param marketDebtIndex The market debt index, used for calculating
-    ///                        account outstanding debt.
-    struct VestingData {
-        uint96 vestingRate;
-        uint40 vestingPeriodEnd;
-        uint40 lastVestingClaim;
-        uint80 marketDebtIndex;
-    }
-
     /// CONSTANTS ///
 
     /// @notice Maximum percentage fee that can be taken from interest accrued
