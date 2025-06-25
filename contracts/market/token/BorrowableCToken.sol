@@ -667,8 +667,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // Calculate the borrow rate to new the new interest vesting rate per second.
             vestingRate = interestRateModel.getBorrowRateWithUpdate(
                 assetsHeld(),
-                outstandingDebt,
-                0
+                outstandingDebt
             );
 
             // Check whether the DAO takes a cut of interest, and whether new
