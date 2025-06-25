@@ -138,7 +138,7 @@ contract VelodromeStableCToken is StrategyCToken {
     function harvest(
         bytes calldata data
     ) external override returns (uint256 yield) {
-        // Checks whether the caller can compound the vault yield.
+        // Checks whether the caller can harvest strategy yield.
         _canHarvest();
 
         // Vest pending yield if there are any.
