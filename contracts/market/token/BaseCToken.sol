@@ -189,10 +189,10 @@ abstract contract BaseCToken is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        accrueIfNeeded();
+        _accrueIfNeeded();
 
         // We can pull _totalAssets directly here since any pending
-        // yield are already vested via accrueIfNeeded().
+        // yield are already vested via _accrueIfNeeded().
         uint256 ta = _totalAssets;
         uint256 ownerBalance = _checkRedemption(
             assets,
@@ -712,8 +712,12 @@ abstract contract BaseCToken is
         return _previewRedeem(shares, _getTotalAssets());
     }
 
-    /// @notice Accrues pending yield, and updates vesting data.
-    function accrueIfNeeded() public virtual {}
+    /// @notice Can accrue pending yield, configure next vesting
+    ///         period, and updates vesting data, if needed.
+    /// @dev May emit a {InterestAccrualUpdate} event.
+    function accrueIfNeeded() external nonReentrant {
+        _accrueIfNeeded();
+    }
 
     /// INTERNAL FUNCTIONS ///
 
@@ -725,7 +729,7 @@ abstract contract BaseCToken is
         uint256 assets,
         address receiver
     ) internal virtual returns (uint256 shares) {
-        accrueIfNeeded();
+        _accrueIfNeeded();
 
         // Check for rounding error by converting assets to shares,
         // since we round down in previewDeposit.
@@ -750,7 +754,7 @@ abstract contract BaseCToken is
         uint256 shares,
         address receiver
     ) internal virtual returns (uint256 assets) {
-        accrueIfNeeded();
+        _accrueIfNeeded();
         _checkZeroAmount(shares);
         _checkDeposit(receiver);
 
@@ -761,7 +765,7 @@ abstract contract BaseCToken is
         // Execute deposit.
         // No need to check for rounding error, previewMint rounds up.
         // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via accrueIfNeeded().
+        // rewards are already vested via _accrueIfNeeded().
         _processDeposit(
             msg.sender,
             receiver,
@@ -788,10 +792,10 @@ abstract contract BaseCToken is
         address owner,
         bool forceRedeemCollateral
     ) internal virtual returns (uint256 shares) {
-        accrueIfNeeded();
+        _accrueIfNeeded();
 
         // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via accrueIfNeeded().
+        // rewards are already vested via _accrueIfNeeded().
         uint256 ta = _totalAssets;
         uint256 ownerBalance = _checkRedemption(
             assets,
@@ -849,10 +853,10 @@ abstract contract BaseCToken is
         bool delegatedAction,
         bool forceRedeemCollateral
     ) internal virtual returns (uint256 assets) {
-        accrueIfNeeded();
+        _accrueIfNeeded();
 
         // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via accrueIfNeeded().
+        // rewards are already vested via _accrueIfNeeded().
         uint256 ta = _totalAssets;
         uint256 ownerBalance = _checkRedemption(
             assets = _previewRedeem(shares, ta),
@@ -926,6 +930,10 @@ abstract contract BaseCToken is
         marketCollateralPosted = marketCollateralPosted - shares;
         emit CollateralUpdated(account, shares, false);
     }
+
+    /// @notice Can accrue yield, configure next vesting
+    ///         period, and updates vesting data, if needed.
+    function _accrueIfNeeded() internal virtual {}
 
     /// @notice Processes a deposit of `assets` from the market and mints
     ///         shares to `owner`, then increases `ta` by `assets`,

@@ -114,7 +114,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _checkElevatedPermissions();
 
         // Accrue interest if needed.
-        accrueIfNeeded();
+        _accrueIfNeeded();
 
         _setInterestRateModel(IInterestRateModel(newInterestRateModel));
     }
@@ -127,7 +127,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _checkElevatedPermissions();
 
         // Accrue interest if needed.
-        accrueIfNeeded();
+        _accrueIfNeeded();
 
         _setInterestFee(newInterestFee);
     }
@@ -138,7 +138,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param amount The amount of the underlying asset to borrow.
     function borrow(uint256 amount) external nonReentrant {
         // Accrue interest if needed.
-        accrueIfNeeded();
+        _accrueIfNeeded();
 
         // Reverts if borrow not allowed.
         // Notifies the Market Manager that a user is taking on more debt,
@@ -172,7 +172,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _checkDelegate(account, msg.sender);
 
         // Accrue interest if needed.
-        accrueIfNeeded();
+        _accrueIfNeeded();
 
         // Reverts if borrow not allowed.
         // Notifies the Market Manager that a user is taking on more debt,
@@ -210,7 +210,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // implementations, but we keep this check in for invariant
         // protection in the case of a incorrectly implemented position
         // management contract.
-        accrueIfNeeded();
+        _accrueIfNeeded();
 
         // Notifies the Market Manager that a user is taking on more debt,
         // and to pause user redemptions for 20 minutes.
@@ -303,7 +303,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Get a snapshot of the cToken and `account` data.
     /// @dev Used by marketManager to more efficiently perform
     ///      liquidity checks.
-    ///      NOTE: Does not accrue new pending interest as part of the call.
+    ///      NOTE: Does not accrue pending interest as part of the call.
     /// @param account The address of the account to snapshot.
     /// @return The account snapshot of `account`.
     function getSnapshot(
@@ -332,7 +332,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         returns (uint256 result)
     {
         // Accrue interest if needed.
-        accrueIfNeeded();
+        _accrueIfNeeded();
 
         result = marketOutstandingDebt;
     }
@@ -347,7 +347,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         address account
     ) external nonReentrant returns (uint256 result) {
         // Accrue interest if needed.
-        accrueIfNeeded();
+        _accrueIfNeeded();
 
         result = debtBalance(account);
     }
@@ -380,10 +380,241 @@ contract BorrowableCToken is BaseCTokenWithYield {
             );
     }
 
+    /// @notice Gets balance of this contract, in terms of the underlying.
+    /// @dev This excludes changes in underlying token balance by the
+    ///      current transaction, if any.
+    /// @return The quantity of underlying tokens held by the market.
+    function assetsHeld() public view returns (uint256) {
+        return _asset.balanceOf(address(this));
+    }
+
+    /// INTERNAL FUNCTIONS ///
+
+    /// @notice Executes borrowing of assets for `account` from lenders.
+    /// @dev Emits a {Borrow} event.
+    /// @param account The account borrowing assets.
+    /// @param amount The amount of the underlying asset to borrow.
+    /// @param recipient The account receiving the borrowed assets.
+    function _borrow(
+        address account,
+        uint256 amount,
+        address recipient
+    ) internal {
+        _checkZeroAmount(amount);
+        _checkAssetsHeld(amount);
+
+        // Calculate current account debt then add `amount`.
+        // Then update account exchange rate, and total borrow balances.
+        _setDebtOf(account, uint176(debtBalance(account) + amount));
+        marketOutstandingDebt = marketOutstandingDebt + amount;
+
+        // Transfer underlying to `recipient`.
+        SafeTransferLib.safeTransfer(asset(), recipient, amount);
+
+        emit Borrow(account, amount);
+    }
+
+    /// @notice Repays an outstanding loan of `account` through repayment
+    ///         by `payer`, who usually is themselves.
+    /// @dev Emits a {Repay} event.
+    /// @param payer The address paying down the account debt.
+    /// @param account The account with the debt being paid down.
+    /// @param amount The amount the payer wishes to repay,
+    ///               or 0 for the full outstanding amount.
+    /// @return The amount of underlying token debt repaid for `account`.
+    function _repay(
+        address payer,
+        address account,
+        uint256 amount
+    ) internal returns (uint256) {
+        // Accrue interest if needed.
+        _accrueIfNeeded();
+
+        // Validate that the payer is allowed to repay the loan.
+        marketManager.canRepay(address(this), account);
+
+        // Cache how much the account has to save gas.
+        uint256 accountDebt = debtBalance(account);
+
+        // If amount == 0, repay max; amount = accountDebt.
+        amount = amount == 0 ? accountDebt : amount;
+        _checkZeroAmount(amount);
+
+        // Validate repayment amount is not excessive.
+        if (amount > accountDebt) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        SafeTransferLib.safeTransferFrom(
+            asset(),
+            payer,
+            address(this),
+            amount
+        );
+
+        // Update the account and market outstanding debt balance data.
+        _setDebtOf(account, uint176(accountDebt - amount));
+
+        // We round user debt in favor of the protocol to prevent exchange
+        // rate manipulation, as a result in some cases the last user cannot
+        // fully repay their debt.
+        if (marketOutstandingDebt < amount) {
+            marketOutstandingDebt = 0;
+        } else {
+            marketOutstandingDebt -= amount;
+        }
+
+        emit Repay(payer, account, amount);
+        return amount;
+    }
+
+    /// @notice Facilitates a liquidator liquidating the borrowers collateral
+    ///         by repaying a portion of their debt. The collateral seized
+    ///         is transferred to the liquidator.
+    /// @dev Emits {Repay} and {Liquidated} events.
+    /// @param liquidator The address repaying the borrow and seizing
+    ///                   collateral.
+    /// @param accounts The accounts to be liquidated.
+    /// @param amounts The amounts of the underlying borrowed asset to repay,
+    ///                if exact liquidation, otherwise an empty array to
+    ///                populate real liquidation amounts after calculations.
+    /// @param collateralToken The market in which to seize collateral from
+    ///                        the account.
+    /// @param numAccounts The number of accounts to be potentially
+    ///                    liquidated.
+    /// @param exactAmount Whether a specific amount of debt token assets
+    ///                    should be liquidated inputting false will attempt
+    ///                    to liquidate the maximum amount possible.
+    function _liquidate(
+        address liquidator,
+        address[] memory accounts,
+        uint256[] memory amounts,
+        address collateralToken,
+        uint256 numAccounts,
+        bool exactAmount
+    ) internal {
+        if (collateralToken == address(this)) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        if (!ICToken(collateralToken).isCollateralizable()) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        // Validate that the token is listed inside the market (token has
+        // been enabled).
+        if (!marketManager.isListed(address(this))) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        // Accrue interest if needed.
+        _accrueIfNeeded();
+
+        IMarketManager.LiqResults memory liqResults;
+
+        // Fail if liquidate not allowed,
+        // trying to pay too much debt with excessive `amount` will revert.
+        (
+            liqResults,
+            amounts
+        ) = marketManager.canLiquidate(
+            liquidator,
+            accounts,
+            amounts,
+            IMarketManager.LiqInstructions({
+                eToken: address(this),
+                cToken: collateralToken,
+                numAccounts: numAccounts,
+                liquidateExact: exactAmount,
+                eTokenRepaid: 0,
+                cTokenLiquidated: 0,
+                badDebt: 0
+            })
+        );
+
+        SafeTransferLib.safeTransferFrom(
+            asset(),
+            liquidator,
+            address(this),
+            liqResults.debtRepaid
+        );
+
+        uint256 cachedDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
+        uint256 cachedAmount;
+        address cachedAccount;
+        uint256 newDebtOf;
+        // Self liquidation check moved to Market Manager
+
+        for (uint256 i; i < numAccounts; ++i) {
+            // Cache the repayment amount.
+            cachedAmount = amounts[i];
+            // If theres no debt to repay for this user can
+            // skip them.
+            if (cachedAmount == 0) {
+                continue;
+            }
+
+            // Calculate the new `account` outstanding debt, then update the
+            // account's debt exchange rate index.
+            // NOTE: We dont use _getDebtOf because we already cached market's
+            // debt exchange rate index and we do not want to repeatedly load
+            // that storage slot.
+            newDebtOf = debtBalance(
+                cachedAccount = accounts[i]
+            ) - cachedAmount;
+            /// @solidity memory-safe-assembly
+            assembly {
+                // Mask `newDebtOf` to the lower 176 bits,
+                // in case the upper bits somehow aren't clean.
+                // Then create the new debtOf variable with:
+                // `newDebtOf | cachedDebtIndex`.
+                newDebtOf := or(
+                    and(newDebtOf, _BITMASK_DEBT_INDEX_COMPLEMENT),
+                    shl(_BITPOS_DEBT_INDEX, cachedDebtIndex)
+                )
+            }
+
+            // Update `account`'s new debt balance and update their account
+            // specific exchange rate index.
+            _debtOf[cachedAccount] = newDebtOf;
+            emit Repay(liquidator, cachedAccount, cachedAmount);
+        }
+
+        // We need to update marketOutstandingDebt for the total debt repaid
+        // by the liquidator, plus the bad debt being realized. We can reuse
+        // debtRepaid variable since the original debt repayment value
+        // was already used earlier.
+        liqResults.debtRepaid += liqResults.badDebtRealized;
+        if (marketOutstandingDebt < liqResults.debtRepaid) {
+            // We round user debt in favor of the protocol to prevent exchange
+            // rate manipulation, as a result in some cases the last user
+            // cannot fully repay their debt.
+            marketOutstandingDebt = 0;
+        } else {
+            marketOutstandingDebt -= liqResults.debtRepaid;
+        }
+
+        // Update total assets to recognize that lenders wont be getting
+        // those assets back due to bad debt. Emit event recognizing bad debt.
+        if (liqResults.badDebtRealized > 0) {
+            _totalAssets = _totalAssets - liqResults.badDebtRealized;
+            emit BadDebtRecognized(liquidator, liqResults.badDebtRealized);
+        }
+
+        // We check above that the mToken must be a position token,
+        // so we cant seize this mToken as it is a debt token,
+        // so there is no reEntry risk.
+        ICToken(collateralToken).seize(
+            liquidator,
+            accounts,
+            liqResults.liquidatedAmounts
+        );
+    }
+
     /// @notice Can accrue interest yield, configure next interest accrual
     ///         period, and updates vesting data, if needed.
     /// @dev May emit a {InterestAccrualUpdate} event.
-    function accrueIfNeeded() public override {
+    function _accrueIfNeeded() internal override {
         uint256 vestingData = _vestingData;
         uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_VEST_END);
         // If no time has passed since the last accrual can exit.
@@ -506,237 +737,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 )  
             )
         }
-    }
-
-    /// @notice Gets balance of this contract, in terms of the underlying.
-    /// @dev This excludes changes in underlying token balance by the
-    ///      current transaction, if any.
-    /// @return The quantity of underlying tokens held by the market.
-    function assetsHeld() public view returns (uint256) {
-        return _asset.balanceOf(address(this));
-    }
-
-    /// INTERNAL FUNCTIONS ///
-
-    /// @notice Executes borrowing of assets for `account` from lenders.
-    /// @dev Emits a {Borrow} event.
-    /// @param account The account borrowing assets.
-    /// @param amount The amount of the underlying asset to borrow.
-    /// @param recipient The account receiving the borrowed assets.
-    function _borrow(
-        address account,
-        uint256 amount,
-        address recipient
-    ) internal {
-        _checkZeroAmount(amount);
-        _checkAssetsHeld(amount);
-
-        // Calculate current account debt then add `amount`.
-        // Then update account exchange rate, and total borrow balances.
-        _setDebtOf(account, uint176(debtBalance(account) + amount));
-        marketOutstandingDebt = marketOutstandingDebt + amount;
-
-        // Transfer underlying to `recipient`.
-        SafeTransferLib.safeTransfer(asset(), recipient, amount);
-
-        emit Borrow(account, amount);
-    }
-
-    /// @notice Repays an outstanding loan of `account` through repayment
-    ///         by `payer`, who usually is themselves.
-    /// @dev Emits a {Repay} event.
-    /// @param payer The address paying down the account debt.
-    /// @param account The account with the debt being paid down.
-    /// @param amount The amount the payer wishes to repay,
-    ///               or 0 for the full outstanding amount.
-    /// @return The amount of underlying token debt repaid for `account`.
-    function _repay(
-        address payer,
-        address account,
-        uint256 amount
-    ) internal returns (uint256) {
-        // Accrue interest if needed.
-        accrueIfNeeded();
-
-        // Validate that the payer is allowed to repay the loan.
-        marketManager.canRepay(address(this), account);
-
-        // Cache how much the account has to save gas.
-        uint256 accountDebt = debtBalance(account);
-
-        // If amount == 0, repay max; amount = accountDebt.
-        amount = amount == 0 ? accountDebt : amount;
-        _checkZeroAmount(amount);
-
-        // Validate repayment amount is not excessive.
-        if (amount > accountDebt) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        SafeTransferLib.safeTransferFrom(
-            asset(),
-            payer,
-            address(this),
-            amount
-        );
-
-        // Update the account and market outstanding debt balance data.
-        _setDebtOf(account, uint176(accountDebt - amount));
-
-        // We round user debt in favor of the protocol to prevent exchange
-        // rate manipulation, as a result in some cases the last user cannot
-        // fully repay their debt.
-        if (marketOutstandingDebt < amount) {
-            marketOutstandingDebt = 0;
-        } else {
-            marketOutstandingDebt -= amount;
-        }
-
-        emit Repay(payer, account, amount);
-        return amount;
-    }
-
-    /// @notice Facilitates a liquidator liquidating the borrowers collateral
-    ///         by repaying a portion of their debt. The collateral seized
-    ///         is transferred to the liquidator.
-    /// @dev Emits {Repay} and {Liquidated} events.
-    /// @param liquidator The address repaying the borrow and seizing
-    ///                   collateral.
-    /// @param accounts The accounts to be liquidated.
-    /// @param amounts The amounts of the underlying borrowed asset to repay,
-    ///                if exact liquidation, otherwise an empty array to
-    ///                populate real liquidation amounts after calculations.
-    /// @param collateralToken The market in which to seize collateral from
-    ///                        the account.
-    /// @param numAccounts The number of accounts to be potentially
-    ///                    liquidated.
-    /// @param exactAmount Whether a specific amount of debt token assets
-    ///                    should be liquidated inputting false will attempt
-    ///                    to liquidate the maximum amount possible.
-    function _liquidate(
-        address liquidator,
-        address[] memory accounts,
-        uint256[] memory amounts,
-        address collateralToken,
-        uint256 numAccounts,
-        bool exactAmount
-    ) internal {
-        if (collateralToken == address(this)) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        if (!ICToken(collateralToken).isCollateralizable()) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Validate that the token is listed inside the market (token has
-        // been enabled).
-        if (!marketManager.isListed(address(this))) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Accrue interest if needed.
-        accrueIfNeeded();
-
-        IMarketManager.LiqResults memory liqResults;
-
-        // Fail if liquidate not allowed,
-        // trying to pay too much debt with excessive `amount` will revert.
-        (
-            liqResults,
-            amounts
-        ) = marketManager.canLiquidate(
-            liquidator,
-            accounts,
-            amounts,
-            IMarketManager.LiqInstructions({
-                eToken: address(this),
-                cToken: collateralToken,
-                numAccounts: numAccounts,
-                liquidateExact: exactAmount,
-                eTokenRepaid: 0,
-                cTokenLiquidated: 0,
-                badDebt: 0
-            })
-        );
-
-        SafeTransferLib.safeTransferFrom(
-            asset(),
-            liquidator,
-            address(this),
-            liqResults.debtRepaid
-        );
-
-        uint256 cachedDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
-        uint256 cachedAmount;
-        address cachedAccount;
-        uint256 newDebtOf;
-        // Self liquidation check moved to Market Manager
-
-        for (uint256 i; i < numAccounts; ++i) {
-            // Cache the repayment amount.
-            cachedAmount = amounts[i];
-            // If theres no debt to repay for this user can
-            // skip them.
-            if (cachedAmount == 0) {
-                continue;
-            }
-
-            // Calculate the new `account` outstanding debt, then update the
-            // account's debt exchange rate index.
-            // NOTE: We dont use _getDebtOf because we already cached market's
-            // debt exchange rate index and we do not want to repeatedly load
-            // that storage slot.
-            newDebtOf = debtBalance(
-                cachedAccount = accounts[i]
-            ) - cachedAmount;
-            /// @solidity memory-safe-assembly
-            assembly {
-                // Mask `newDebtOf` to the lower 176 bits,
-                // in case the upper bits somehow aren't clean.
-                // Then create the new debtOf variable with:
-                // `newDebtOf | cachedDebtIndex`.
-                newDebtOf := or(
-                    and(newDebtOf, _BITMASK_DEBT_INDEX_COMPLEMENT),
-                    shl(_BITPOS_DEBT_INDEX, cachedDebtIndex)
-                )
-            }
-
-            // Update `account`'s new debt balance and update their account
-            // specific exchange rate index.
-            _debtOf[cachedAccount] = newDebtOf;
-            emit Repay(liquidator, cachedAccount, cachedAmount);
-        }
-
-        // We need to update marketOutstandingDebt for the total debt repaid
-        // by the liquidator, plus the bad debt being realized. We can reuse
-        // debtRepaid variable since the original debt repayment value
-        // was already used earlier.
-        liqResults.debtRepaid += liqResults.badDebtRealized;
-        if (marketOutstandingDebt < liqResults.debtRepaid) {
-            // We round user debt in favor of the protocol to prevent exchange
-            // rate manipulation, as a result in some cases the last user
-            // cannot fully repay their debt.
-            marketOutstandingDebt = 0;
-        } else {
-            marketOutstandingDebt -= liqResults.debtRepaid;
-        }
-
-        // Update total assets to recognize that lenders wont be getting
-        // those assets back due to bad debt. Emit event recognizing bad debt.
-        if (liqResults.badDebtRealized > 0) {
-            _totalAssets = _totalAssets - liqResults.badDebtRealized;
-            emit BadDebtRecognized(liquidator, liqResults.badDebtRealized);
-        }
-
-        // We check above that the mToken must be a position token,
-        // so we cant seize this mToken as it is a debt token,
-        // so there is no reEntry risk.
-        ICToken(collateralToken).seize(
-            liquidator,
-            accounts,
-            liqResults.liquidatedAmounts
-        );
     }
 
     /// @notice Updates the interest rate model.

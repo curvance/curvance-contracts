@@ -101,10 +101,10 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     /// @return yield The yield harvested from the vault.
     function harvest(bytes calldata) external virtual returns (uint256 yield);
 
-    /// PUBLIC FUNCTIONS ///
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Vests pending rewards, and updates vesting data.
-    function accrueIfNeeded() public override {
+    function _accrueIfNeeded() internal override {
         uint256 pendingYieldToVest = _getPendingYield();
         
         // Vest pending yield, if there is any.
@@ -116,8 +116,6 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
             _totalAssets = _totalAssets + pendingYieldToVest;
         }
     }
-
-    /// INTERNAL FUNCTIONS ///
 
     /// @notice Calculates pending yield that have been vested.
     /// @dev If there are no pending yield or the vesting period has ended,
