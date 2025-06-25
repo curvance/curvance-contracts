@@ -683,14 +683,14 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 );
                 vestingRate = vestingRate - protocolFees;
                 // We can now convert the per second assets value to the
-                // amount of shares to be minted by the end of the new
+                // amount of assets to be minted by the end of the new
                 // `vestingPeriodEnd`. Next we need to discount the amount of
-                // shares minted by the future interest to be vested so that
-                // the protocol is not overpaid. The discount share amount can
+                // assets minted by the future interest to be vested so that
+                // the protocol is not overpaid. The discount asset amount can
                 // be calculated with:
-                // shares * (current assets / current assets + future assets)
+                // assets * (current assets / current assets + future assets)
                 protocolFees = FixedPointMathLib.mulDiv(
-                    convertToShares(protocolFees * accrualPeriod * outstandingDebt),
+                    protocolFees * accrualPeriod * outstandingDebt,
                     cachedTa,
                     cachedTa + (pendingYieldToVest + 
                         (vestingRate * accrualPeriod / WAD)) * outstandingDebt
@@ -711,6 +711,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // If theres fees we need to mint new shares for the protocol.
         if (protocolFees > 0) {
+            cachedTa = cachedTa + protocolFees;
+            // Convert assets to shares and mint to protocol address. This
+            // ensures that user share value is identical to before hand,
+            // excluding `pendingYieldToVest`.
+            protocolFees = convertToShares(protocolFees);
             // Cache the current dao address then mint shares to the dao.
             address daoAddress = centralRegistry.daoAddress();
             _mint(daoAddress, protocolFees);
@@ -725,11 +730,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 (pendingYieldToVest * marketDebtIndex) + marketDebtIndex;
             // Convert pendingYieldToVest to a numerical value of new debt.
             pendingYieldToVest = pendingYieldToVest * outstandingDebt;
-            // Update _totalAssets and marketOutstandingDebt invariants
-            // with pending yield added.
-            _totalAssets = cachedTa + pendingYieldToVest;
+            // Update marketOutstandingDebt invariant with vested yield.
             marketOutstandingDebt = outstandingDebt + pendingYieldToVest;
+            cachedTa = cachedTa + pendingYieldToVest;
         }
+
+        // Update _totalAssets based on new assets recognized by protocol.
+        _totalAssets = cachedTa;
 
         assembly {
             // Mask vestingRate to the lower 176 bits,
