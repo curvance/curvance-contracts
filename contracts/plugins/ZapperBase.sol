@@ -142,7 +142,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         } else {
             // Depositing into a lending position is permissionless so we can
             // just directly mint for the recipient.
-            shares = IBorrowableCToken(mToken).mintFor(assets, recipient);
+            shares = IBorrowableCToken(mToken).mint(assets, recipient);
         }
 
         // Make sure `recipient` got sufficient shares.

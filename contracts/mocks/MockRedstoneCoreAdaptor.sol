@@ -9,8 +9,9 @@ contract MockRedstoneCoreAdaptor is RedstoneCoreAdaptor {
     constructor(
         ICentralRegistry centralRegistry_,
         address[] memory signers,
-        uint256 _uniqueSignersThreshold
-    ) RedstoneCoreAdaptor(centralRegistry_, signers, _uniqueSignersThreshold) {}
+        uint256 _uniqueSignersThreshold,
+        string memory nativeTokenSymbol
+    ) RedstoneCoreAdaptor(centralRegistry_, signers, _uniqueSignersThreshold, nativeTokenSymbol) {}
 
     function validateTimestamp(
         uint256 receivedTimestampMilliseconds

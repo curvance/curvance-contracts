@@ -82,7 +82,8 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         adapter = new MockRedstoneCoreAdaptor(
             ICentralRegistry(address(centralRegistry)),
             redstoneSigners,
-            3
+            3,
+            "ETH"
         );
 
         adapter.addAsset(_WBTC_ADDRESS, true, 8, 10 minutes);

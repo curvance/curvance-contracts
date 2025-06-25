@@ -359,26 +359,26 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Withdraws all protocol reserve fees from a eToken
     ///         from interest generated and liquidations.
-    /// @param eTokens Array of eToken addresses to withdraw fees from.
-    function withdrawReservesMulti(address[] calldata eTokens) external {
+    /// @param borrowableCTokens Array of eToken addresses to withdraw fees from.
+    function withdrawReservesMulti(address[] calldata borrowableCTokens) external {
         // Match permissioning check to normal withdrawReserves().
         _checkDaoPermissions();
 
-        uint256 numTokens = eTokens.length;
+        uint256 numTokens = borrowableCTokens.length;
         if (numTokens == 0) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
-        IBorrowableCToken eToken;
+        IBorrowableCToken borrowableCToken;
 
         for (uint256 i; i < numTokens; ) {
-            eToken = IBorrowableCToken(eTokens[i++]);
+            borrowableCToken = IBorrowableCToken(borrowableCTokens[i++]);
             // Revert if somehow a misconfigured token made it in here.
-            if (!eToken.isBorrowable()) {
+            if (!borrowableCToken.isBorrowable()) {
                 _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
             }
 
-            eToken.processWithdrawReserves();
+            borrowableCToken.processWithdrawReserves();
         }
     }
 

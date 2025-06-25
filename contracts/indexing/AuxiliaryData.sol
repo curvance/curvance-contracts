@@ -281,9 +281,9 @@ contract AuxiliaryData {
         IBorrowableCToken ieToken = IBorrowableCToken(eToken);
         return
             ieToken.interestRateModel().utilizationRate(
-                ieToken.marketUnderlyingHeld(),
+                ieToken.totalAssets(),
                 ieToken.totalBorrows(),
-                ieToken.convertToAssets(ieToken.totalReserves())
+                ieToken.totalAssets()
             );
     }
 

@@ -194,11 +194,9 @@ contract TestAuraCToken is TestBaseMarketIsolated {
         pBALRETH.harvest(abi.encode(swaps, 1e8));
 
         // check vault data without modification to vesting period
-
-        StrategyCToken.VestingData memory vaultData = pBALRETH.getVestingYieldData();
-        uint256 rewardRate = vaultData.vestingRate;
-        uint256 vestingPeriodEnd = vaultData.vestingPeriodEnd;
-        uint256 lastVestClaim = vaultData.lastVestingClaim;
+        (uint256 rewardRate, 
+        uint256 vestingPeriodEnd, 
+        uint256 lastVestClaim) = pBALRETH.getVestingYieldData();
 
         assert(lastVestClaim == block.timestamp);
         assert(vestingPeriodEnd == block.timestamp + 1 days);
@@ -257,10 +255,7 @@ contract TestAuraCToken is TestBaseMarketIsolated {
 
         pBALRETH.harvest(abi.encode(swaps, 1e8));
 
-        vaultData = pBALRETH.getVestingYieldData();
-        rewardRate = vaultData.vestingRate;
-        vestingPeriodEnd = vaultData.vestingPeriodEnd;
-        lastVestClaim = vaultData.lastVestingClaim;
+        (rewardRate, vestingPeriodEnd, lastVestClaim) = pBALRETH.getVestingYieldData();
 
         assert(lastVestClaim == block.timestamp);
         assert(vestingPeriodEnd == block.timestamp + 2 days);

@@ -43,7 +43,8 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         adaptor = new MockRedstoneCoreAdaptor(
             ICentralRegistry(address(centralRegistry)),
             redstoneSigners,
-            3
+            3,
+            "ETH"
         );
         adaptor.addAsset(_WBTC_ADDRESS, true, 8, 12 hours);
         adaptor.addAsset(_WBTC_ADDRESS, false, 18, 12 hours);

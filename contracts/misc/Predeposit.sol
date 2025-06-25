@@ -291,7 +291,7 @@ contract Predeposit {
             }
         } else {
             // Migrate a debt token to be lent to users.
-            IBorrowableCToken(mToken).mintFor(amount, msg.sender);
+            IBorrowableCToken(mToken).mint(amount, msg.sender);
         }
 
         // Remove any excess approval.

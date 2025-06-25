@@ -190,10 +190,10 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
         _canCompound();
 
         // Vest pending rewards if there are any
-        _vestIfNeeded();
+        accrueIfNeeded();
 
         // can only harvest once previous reward period is done
-        if (_checkVestStatus(_vestingData)) {
+        if (_checkVestingFinished(_vestingData)) {
             _updateVestingPeriodIfNeeded();
 
             // cache strategy data
