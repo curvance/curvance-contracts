@@ -55,7 +55,11 @@ contract NativeUniversalBalance is UniversalBalance {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Allows contract to receive native gas tokens.
+    /// @notice Deposits native gas token into user's Universal Balance
+    ///         account, either to be held.
+    /// @dev The amount of native token to be deposited is attached to the
+    ///      transaction, in assets.
+    ///      Emits { Deposit } event. 
     receive() external payable {
         if (msg.sender != underlying) {
             IWETH(underlying).deposit{ value: msg.value }();
@@ -67,8 +71,9 @@ contract NativeUniversalBalance is UniversalBalance {
 
     /// @notice Deposits native gas token into user's Universal Balance
     ///         account, either to be held or lent out.
-    /// @dev Emits { Deposit } event. The amount of native token to be
-    ///      deposited is attached to the transaction.
+    /// @dev The amount of native token to be deposited is attached to the
+    ///      transaction, in assets.
+    ///      Emits { Deposit } event. 
     /// @param isLent Whether the deposited native tokens should be lent
     ///               out inside Curvance Protocol (as wrapped native).
     function depositNative(bool isLent) external payable {
@@ -80,7 +85,7 @@ contract NativeUniversalBalance is UniversalBalance {
     ///         account, either to be held or lent out.
     /// @dev Requires that `recipient` has approved the caller previously to
     ///      access their Universal Balance. The amount of native token to be
-    ///      deposited is attached to the transaction.
+    ///      deposited is attached to the transaction, in assets.
     ///      Emits { Deposit } event.
     /// @param isLent Whether the deposited native tokens should be lent
     ///               out inside Curvance Protocol (as wrapped native).
@@ -99,10 +104,11 @@ contract NativeUniversalBalance is UniversalBalance {
     ///         account, either to be held or lent out.
     /// @dev Requires that all `recipients` has approved the caller previously
     ///      to access their Universal Balance. The amount of native token to be
-    ///      deposited is attached to the transaction.
+    ///      deposited is attached to the transaction, in assets.
+    ///      Sends any unused attached native tokens back to the caller.
     ///      Emits one or more { Deposit } event(s).
     /// @param amounts An array containing the amount of native token to
-    ///                be deposited to each account.
+    ///                be deposited to each account, in assets.
     /// @param willLend An array containing whether the deposited native
     ///                 tokens should be lent out inside Curvance Protocol for
     ///                 each account.
@@ -133,7 +139,8 @@ contract NativeUniversalBalance is UniversalBalance {
     ///         account, either currently held or lent out and transfers it
     ///         to the user in native form.
     /// @dev Emits { Withdraw } event.
-    /// @param amount The amount of native token to be withdrawn.
+    /// @param amount The amount of native tokens to be withdrawn,
+    ///               in assets.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
@@ -173,7 +180,8 @@ contract NativeUniversalBalance is UniversalBalance {
     /// @dev Requires that `owner` has approved the caller previously to
     ///      access their Universal Balance.
     ///      Emits { Withdraw } event.
-    /// @param amount The amount of native token to be withdrawn.
+    /// @param amount The amount of native tokens to be withdrawn,
+    ///               in assets.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
@@ -217,7 +225,7 @@ contract NativeUniversalBalance is UniversalBalance {
     ///      access their Universal Balance.
     ///      Emits one or more { Withdraw } event(s).
     /// @param amounts An array containing the amount of native token to
-    ///                be withdrawn from each account.
+    ///                be withdrawn from each account, in assets.
     /// @param forceLentRedemption An array containing whether the withdrawn
     ///                            underlying tokens should be pulled only
     ///                            from an `owners` lent position or the full
@@ -249,7 +257,7 @@ contract NativeUniversalBalance is UniversalBalance {
     /// @param owner Which user is funding the oracle update from their
     ///              Universal Balance account.
     /// @param amount The amount of underlying token to be earmarked for
-    ///               oracle update.
+    ///               oracle update, in assets.
     function useBalanceForOracleUpdate(
         address owner,
         uint256 amount

@@ -27,9 +27,9 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
 
     /// STORAGE ///
 
-    /// @notice Whether compounding is currently paused.
+    /// @notice Whether harvesting is currently paused.
     /// @dev Starts paused until market started, 1 = unpaused; 2 = paused.
-    uint256 public compoundingPaused = 2;
+    uint256 public harvestingPaused = 2;
 
     /// @notice Whether a particular token is an approved asset for swapping.
     /// @dev Token => Is approved swap token.
@@ -42,11 +42,11 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     /// EVENTS ///
 
     event Harvest(uint256 yield);
-    event CompoundingPaused(bool pauseState);
+    event HarvestingPaused(bool pauseState);
 
     /// ERRORS ///
 
-    error StrategyCToken__CompoundingPaused();
+    error StrategyCToken__HarvestingPaused();
     error StrategyCToken__UnapprovedAssetSwap();
 
     /// CONSTRUCTOR ///
@@ -60,12 +60,12 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Permissioned function to set compounding paused.
+    /// @notice Permissioned function to set harvesting paused.
     /// @dev Requires elevated authority if unpausing.
     /// @param state Whether compounded should be paused or unpaused.
-    function setCompoundingPaused(bool state) external {
+    function setHarvestingPaused(bool state) external {
         // If the market has not been started,
-        // do not allow compounding changes.
+        // do not allow harvesting changes.
         if ((_vestingData >> _BITPOS_LAST_VEST) == 0) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
@@ -77,8 +77,8 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
         }
 
         // Pause state is stored as a uint256 to minimize gas overhead.
-        compoundingPaused = state ? 2 : 1;
-        emit CompoundingPaused(state);
+        harvestingPaused = state ? 2 : 1;
+        emit HarvestingPaused(state);
     }
 
     /// @notice Returns the current cToken yield status information.
@@ -229,18 +229,18 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
         _afterDeposit(_BASE_UNDERLYING_RESERVE, 0);
 
         _setlastVestingClaim(uint40(block.timestamp));
-        compoundingPaused = 1;
+        harvestingPaused = 1;
 
     }
 
-    /// @notice Checks if the caller can compound pending vaults rewards.
-    function _canCompound() internal view {
+    /// @notice Checks if the caller can harvest pending strategy yield.
+    function _canHarvest() internal view {
         if (!centralRegistry.hasHarvestPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        if (compoundingPaused == 2) {
-            revert StrategyCToken__CompoundingPaused();
+        if (harvestingPaused == 2) {
+            revert StrategyCToken__HarvestingPaused();
         }
     }
 

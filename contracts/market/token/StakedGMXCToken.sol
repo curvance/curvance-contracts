@@ -64,13 +64,13 @@ contract StakedGMXCToken is StrategyCToken {
     /// @dev Only callable by Offchain bots.
     ///      Emits a {Harvest} event.
     /// @param data Byte array for aggregator swap data.
-    /// @return yield The amount of new assets acquired from compounding
+    /// @return yield The amount of new assets acquired from harvesting
     ///               vault yield.
     function harvest(
         bytes calldata data
     ) external override returns (uint256 yield) {
         // Checks whether the caller can compound the vault yield.
-        _canCompound();
+        _canHarvest();
 
         // Vest pending yield if there are any.
         accrueIfNeeded();

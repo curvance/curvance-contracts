@@ -406,13 +406,31 @@ contract BorrowableCToken is BaseCTokenWithYield {
             );
     }
 
-    /// @notice Applies pending interest to all holders, updating
-    ///         `totalBorrows` and `totalReserves`.
-    /// @dev This calculates interest accrued from the last checkpoint
-    ///      up to the latest available checkpoint, if `accrualPeriod`
-    ///      seconds has passed.
-    ///      Emits a {InterestAccrued} event.
-    function accrueInterest() public {}
+    /// @notice Vests pending rewards, and updates vesting data.
+    function accrueIfNeeded() public override {
+        uint256 vestingData = _vestingData;
+        uint256 vestingRate = uint176(vestingData);
+        uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_VEST_END);
+        uint256 vestingPeriodEnd = uint40(vestingData >> _BITPOS_LAST_VEST);
+        uint256 pendingYieldToVest = _getPendingYield(
+            vestingRate,
+            lastVestingClaim,
+            vestingPeriodEnd
+        );
+
+        // Update last claim timestamp 
+        lastVestingClaim = block.timestamp > vestingPeriodEnd
+            ? vestingPeriodEnd : block.timestamp;
+        
+        // Vest pending yield, if there is any.
+        if (pendingYieldToVest > 0) {
+            // Update the lastVestingClaim timestamp.
+            // _setlastVestingClaim(uint40(block.timestamp));
+            
+            // Update _totalAssets invariant with pending yield added.
+            _totalAssets = _totalAssets + pendingYieldToVest;
+        }
+    }
 
     /// @notice Gets balance of this contract, in terms of the underlying.
     /// @dev This excludes changes in underlying token balance by the

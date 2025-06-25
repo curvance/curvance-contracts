@@ -123,7 +123,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @notice Deposits underlying token into user's Universal Balance
     ///         account, either to be held or lent out.
     /// @dev Emits { Deposit } event.
-    /// @param amount The amount of underlying token to be deposited.
+    /// @param amount The amount of underlying tokens to be deposited,
+    ///               in assets.
     /// @param willLend Whether the deposited underlying tokens should be lent
     ///                 out inside Curvance Protocol.
     function deposit(uint256 amount, bool willLend) external {
@@ -142,7 +143,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @dev Requires that `recipient` has approved the caller previously to
     ///      access their Universal Balance.
     ///      Emits { Deposit } event.
-    /// @param amount The amount of underlying token to be deposited.
+    /// @param amount The amount of underlying tokens to be deposited,
+    ///               in assets.
     /// @param willLend Whether the deposited underlying tokens should be lent
     ///                 out inside Curvance Protocol.
     /// @param recipient The account who will receive the deposit.
@@ -167,8 +169,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @dev Requires that all `recipients` has approved the caller previously
     ///      to access their Universal Balance.
     ///      Emits one or more { Deposit } event(s).
-    /// @param amounts An array containing the amount of underlying token to
-    ///                be deposited to each account.
+    /// @param amounts An array containing the amount of underlying tokens to
+    ///                be deposited to each account, in assets.
     /// @param willLend An array containing whether the deposited underlying
     ///                 tokens should be lent out inside Curvance Protocol for
     ///                 each account.
@@ -207,7 +209,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @notice Withdraws underlying token from user's Universal Balance
     ///         account, currently held or lent out.
     /// @dev Emits { Withdraw } event.
-    /// @param amount The amount of underlying token to be withdrawn.
+    //// @param amount The amount of underlying tokens to be withdrawn,
+    ///                in assets.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
@@ -243,7 +246,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @dev Requires that `owner` has approved the caller previously to
     ///      access their Universal Balance.
     ///      Emits { Withdraw } event.
-    /// @param amount The amount of underlying token to be withdrawn.
+    /// @param amount The amount of underlying tokens to be withdrawn,
+    ///               in assets.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
@@ -313,7 +317,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @notice Moves a user's Universal Balance between lent and sitting
     ///         mode.
     /// @dev Emits a { Withdraw } and { Deposit } event.
-    /// @param amount The amount of underlying token to be shifted.
+    /// @param amount The amount of underlying tokens to be shifted, in assets.
     /// @param fromLent Whether the shifted underlying tokens should be pulled
     ///                 from the user's lent balance or the full balance.
     /// @return amountWithdrawn The amount of underlying token withdrawn.
@@ -450,7 +454,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @notice Deposits underlying token into user's Universal Balance
     ///         account, either to be held or lent out.
     /// @dev Emits { Deposit } event.
-    /// @param amount The amount of underlying token to be deposited.
+    /// @param amount The amount of underlying tokens to be deposited,
+    ///               in assets.
     /// @param willLend Whether the deposited underlying tokens should be lent
     ///                 out inside Curvance Protocol.
     /// @param recipient The account that should receive the deposit.
@@ -516,7 +521,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
     /// @notice Withdraws underlying token from user's Universal Balance
     ///         account, either currently held or lent out.
-    /// @param amount The amount of underlying token to be withdrawn.
+    /// @param amount The amount of underlying tokens to be withdrawn,
+    ///               in assets.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
@@ -613,8 +619,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @dev Requires that each `owners` has approved the caller previously to
     ///      access their Universal Balance.
     ///      Emits one or more { Withdraw } event(s).
-    /// @param amounts An array containing the amount of underlying token to
-    ///                be withdrawn from each account.
+    /// @param amounts An array containing the amount of underlying tokens to
+    ///                be withdrawn from each account, in assets.
     /// @param forceLentRedemption An array containing whether the withdrawn
     ///                            underlying tokens should be pulled only
     ///                            from an `owners` lent position or the full
@@ -674,7 +680,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @dev Requires that `owner` has approved the caller previously to
     ///      access their universal balance.
     ///      Emits { Withdraw } and { Deposit } events.
-    /// @param amount The amount of underlying token to be withdrawn.
+    /// @param amount The amount of underlying tokens to be transferred,
+    ///               in assets.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
