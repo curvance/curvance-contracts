@@ -165,7 +165,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     address public crosschainRelayer;
     /// @notice Address of Token Messenger contract on this chain.
     address public tokenMessager;
-    /// @notice Address of Token Messenger contract on this chain.
+    /// @notice Address of Message Transmitter contract on this chain.
     address public messageTransmitter;
     /// @notice Domain value on this chain.
     uint32 public domain;

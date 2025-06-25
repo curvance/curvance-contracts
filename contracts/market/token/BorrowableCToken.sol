@@ -739,8 +739,10 @@ contract BorrowableCToken is BaseCTokenWithYield {
             marketOutstandingDebt -= liqResults.debtRepaid;
         }
 
-        // Emit event recognizing any bad debt. 
+        // Update total assets to recognize that lenders wont be getting
+        // those assets back due to bad debt. Emit event recognizing bad debt.
         if (liqResults.badDebtRealized > 0) {
+            _totalAssets = _totalAssets - liqResults.badDebtRealized;
             emit BadDebtRecognized(liquidator, liqResults.badDebtRealized);
         }
 

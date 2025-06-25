@@ -77,7 +77,6 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         balRETH.approve(address(pBALRETH), _ONE + 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
-        // eUSDC.depositReserves(1000e6);
 
         marketManagerIsolated.updatePositionToken(
             9750,    // collRatio 97.5% (max borrowing power)
