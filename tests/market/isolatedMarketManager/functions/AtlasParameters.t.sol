@@ -245,8 +245,8 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.setAuctionParameters(validPenalty, closeFactor);
         vm.stopPrank();
 
-        eUSDC.accrueInterest(); // pull interest forward
-        uint256 debtBalance = IBorrowableCToken(address(eUSDC)).debtBalanceCached(user1);
+        eUSDC.accrueIfNeeded(); // pull interest forward
+        uint256 debtBalance = IBorrowableCToken(address(eUSDC)).debtBalance(user1);
 
         uint256 closeBalance = (debtBalance * 0.30e18) / 1e18;
 

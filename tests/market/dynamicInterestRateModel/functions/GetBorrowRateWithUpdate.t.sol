@@ -20,18 +20,16 @@ contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
                 .DynamicInterestRateModel__Unauthorized
                 .selector
         );
-        interestRateModel.getBorrowRateWithUpdate(0, 0, 0);
+        interestRateModel.getBorrowRateWithUpdate(0, 0);
     }
 
     function test_getBorrowRateWithUpdate_success_fuzzed(
         uint256 cash,
         uint256 borrows,
-        uint256 reserves,
         uint256 interestFee,
         uint256 timestamp
     ) public {
         vm.assume(cash < 1e30 && borrows < 1e30);
-        vm.assume(cash + borrows > reserves);
         vm.assume(interestFee < WAD);
         vm.assume(timestamp < 2000000000);
 
@@ -49,30 +47,26 @@ contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
                 increaseThreshold,
                 ,
                 ,
-
             ) = interestRateModel.ratesConfig();
-            util = interestRateModel.utilizationRate(cash, borrows, reserves);
+            util = interestRateModel.utilizationRate(cash, borrows);
             vertexMultiplier = interestRateModel.vertexMultiplier();
 
             uint256 borrowRate = interestRateModel.getBorrowRate(
                 cash,
-                borrows,
-                reserves
+                borrows
             );
             uint256 supplyRate = interestRateModel.getSupplyRate(
                 cash,
                 borrows,
-                reserves,
                 interestFee
             );
             uint256 predictedBorrowRate = interestRateModel
-                .getPredictedBorrowRate(cash, borrows, reserves);
+                .getPredictedBorrowRate(cash, borrows);
 
             assertEq(
                 interestRateModel.getBorrowRatePerYear(
                     cash,
-                    borrows,
-                    reserves
+                    borrows
                 ),
                 31_536_000 * (borrowRate / interestRateModel.accrualPeriod())
             );
@@ -84,7 +78,6 @@ contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
                 interestRateModel.getSupplyRatePerYear(
                     cash,
                     borrows,
-                    reserves,
                     interestFee
                 ),
                 31_536_000 * (supplyRate / interestRateModel.accrualPeriod())
@@ -92,8 +85,7 @@ contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
             assertEq(
                 interestRateModel.getPredictedBorrowRatePerYear(
                     cash,
-                    borrows,
-                    reserves
+                    borrows
                 ),
                 31_536_000 *
                     (predictedBorrowRate / interestRateModel.accrualPeriod())
@@ -103,8 +95,7 @@ contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
             assertEq(
                 interestRateModel.getBorrowRateWithUpdate(
                     cash,
-                    borrows,
-                    reserves
+                    borrows
                 ),
                 borrowRate
             );
