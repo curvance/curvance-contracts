@@ -20,7 +20,7 @@ contract RemoveMTokenSupportTest is TestBaseOracleManager {
     }
 
     function test_removeMTokenSupport_success() public {
-        oracleManager.addMTokenSupport(address(eUSDC));
+        oracleManager.addCTokenSupport(address(eUSDC));
 
         (bool isMToken, address underlying) = oracleManager.mTokenAssets(
             address(eUSDC)

@@ -197,7 +197,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         eUSDC.borrow(500e6);
 
         assertEq(eUSDC.balanceOf(user1), 0);
-        assertEq(eUSDC.debtBalanceCached(user1), 500e6);
+        assertEq(eUSDC.debtBalance(user1), 500e6);
         assertEq(eUSDC.exchangeRate(), 1 ether);
 
         // try borrow()
@@ -205,28 +205,28 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         eUSDC.borrow(100e6);
 
         assertEq(eUSDC.balanceOf(user1), 0);
-        assertGt(eUSDC.debtBalanceCached(user1), 600e6);
+        assertGt(eUSDC.debtBalance(user1), 600e6);
         assertGt(eUSDC.exchangeRate(), 1 ether);
 
         // skip min hold period
         skip(20 minutes);
 
         // try partial repay
-        uint256 borrowBalanceBefore = eUSDC.debtBalanceCached(user1);
+        uint256 borrowBalanceBefore = eUSDC.debtBalance(user1);
         uint256 exchangeRateBefore = eUSDC.exchangeRate();
         _prepareUSDC(user1, 200e6);
         usdc.approve(address(eUSDC), 200e6);
         eUSDC.repay(200e6);
 
         assertEq(eUSDC.balanceOf(user1), 0);
-        assertGt(eUSDC.debtBalanceCached(user1), borrowBalanceBefore - 200e6);
+        assertGt(eUSDC.debtBalance(user1), borrowBalanceBefore - 200e6);
         assertGt(eUSDC.exchangeRate(), exchangeRateBefore);
 
         // skip some period
         skip(20 minutes);
 
         // try repay full
-        borrowBalanceBefore = eUSDC.debtBalanceCached(user1);
+        borrowBalanceBefore = eUSDC.debtBalance(user1);
         exchangeRateBefore = eUSDC.exchangeRate();
         _prepareUSDC(user1, borrowBalanceBefore);
         usdc.approve(address(eUSDC), borrowBalanceBefore);
@@ -234,7 +234,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(eUSDC.balanceOf(user1), 0);
-        assertGt(eUSDC.debtBalanceCached(user1), 0);
+        assertGt(eUSDC.debtBalance(user1), 0);
         assertGt(eUSDC.exchangeRate(), exchangeRateBefore);
     }
 
@@ -300,7 +300,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(pBALRETH.exchangeRate(), 1 ether);
 
         assertEq(eUSDC.balanceOf(user1), 0);
-        assertGt(eUSDC.debtBalanceCached(user1), 500e6);
+        assertGt(eUSDC.debtBalance(user1), 500e6);
         assertGt(eUSDC.exchangeRate(), 1 ether);
     }
 
@@ -361,11 +361,11 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(pBALRETH.exchangeRate(), 1 ether);
 
         assertEq(eUSDC.balanceOf(user1), 0);
-        assertEq(eUSDC.debtBalanceCached(user1), 500e6);
+        assertEq(eUSDC.debtBalance(user1), 500e6);
         assertEq(eUSDC.exchangeRate(), 1 ether);
 
         assertEq(eUSDC.balanceOf(user2), 1000e6);
-        assertEq(eUSDC.debtBalanceCached(user2), 0);
+        assertEq(eUSDC.debtBalance(user2), 0);
         assertEq(eUSDC.exchangeRate(), 1 ether);
     }
 
@@ -417,7 +417,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(pBALRETH.exchangeRate(), 1 ether);
 
         assertEq(eUSDC.balanceOf(user1), 0);
-        assertApproxEqRel(eUSDC.debtBalanceCached(user1), 750e6, 0.01e18);
+        assertApproxEqRel(eUSDC.debtBalance(user1), 750e6, 0.01e18);
         assertApproxEqRel(eUSDC.exchangeRate(), 1 ether, 0.01e18);
     }
 
@@ -466,7 +466,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(pBALRETH.exchangeRate(), 1 ether);
 
         assertEq(eUSDC.balanceOf(user1), 0);
-        assertEq(eUSDC.debtBalanceCached(user1), 0);
+        assertEq(eUSDC.debtBalance(user1), 0);
         assertApproxEqRel(eUSDC.exchangeRate(), 1 ether, 0.01e18);
     }
 }

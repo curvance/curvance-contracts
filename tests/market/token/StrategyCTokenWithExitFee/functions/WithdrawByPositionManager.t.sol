@@ -120,7 +120,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         addPositionManagement();
 
         // deposit reserves
-        eUSDC.depositReserves(1000e6);
+        eUSDC.deposit(1000e6, address(this));
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
@@ -129,7 +129,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         balRETH.approve(address(pBALRETHWithExitFee), 10e18);
         pBALRETHWithExitFee.mint(10e18, liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.mint(200000e6, liquidityProvider);
 
         vm.stopPrank();
     }

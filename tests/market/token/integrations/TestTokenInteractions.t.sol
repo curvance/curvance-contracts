@@ -74,7 +74,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             _prepareDAI(owner, 200_000e18);
             dai.approve(address(eDAI), 200_000e18);
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(eDAI));
+            oracleManager.addCTokenSupport(address(eDAI));
         }
 
         // setup pBALRETH
@@ -120,7 +120,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // mint eDAI
         vm.startPrank(liquidityProvider);
         dai.approve(address(eDAI), 200_000e18);
-        eDAI.mint(200_000e18);
+        eDAI.deposit(200_000e18, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);
@@ -138,12 +138,12 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // try mint()
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), _ONE);
-        pBALRETH.deposit(_ONE, user1);
+        pBALRETH.mint(_ONE, user1);
         assertEq(pBALRETH.balanceOf(user1), _ONE);
 
-        // try mintFor()
+        // try mint to another user
         balRETH.approve(address(pBALRETH), _ONE);
-        pBALRETH.deposit(_ONE, user2);
+        pBALRETH.mint(_ONE, user2);
         assertEq(pBALRETH.balanceOf(user1), _ONE);
         assertEq(pBALRETH.balanceOf(user2), _ONE);
 
@@ -159,17 +159,17 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // try mint()
         vm.startPrank(user1);
         dai.approve(address(eDAI), _ONE);
-        eDAI.mint(_ONE);
+        eDAI.mint(_ONE, user1);
         assertEq(eDAI.balanceOf(user1), _ONE);
 
-        // try mintFor()
+        // try mint to another user
         dai.approve(address(eDAI), _ONE);
-        eDAI.mintFor(_ONE, user2);
+        eDAI.mint(_ONE, user2);
         assertEq(eDAI.balanceOf(user1), _ONE);
         assertEq(eDAI.balanceOf(user2), _ONE);
 
         // try redeem()
-        eDAI.redeem(_ONE, address(this));
+        eDAI.redeem(_ONE, address(this), address(this));
         vm.stopPrank();
         assertEq(eDAI.balanceOf(user1), 0);
     }
@@ -202,7 +202,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         eDAI.borrow(minimumBorrowAmount);
 
         assertEq(eDAI.balanceOf(user1), 0);
-        assertEq(eDAI.debtBalanceCached(user1), minimumBorrowAmount);
+        assertEq(eDAI.debtBalance(user1), minimumBorrowAmount);
         assertEq(eDAI.exchangeRate(), _ONE);
 
         // try borrow()
@@ -210,28 +210,28 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         eDAI.borrow(100e18);
 
         assertEq(eDAI.balanceOf(user1), 0);
-        assertGt(eDAI.debtBalanceCached(user1), minimumBorrowAmount + 100e18);
+        assertGt(eDAI.debtBalance(user1), minimumBorrowAmount + 100e18);
         assertGt(eDAI.exchangeRate(), _ONE);
 
         // skip min hold period
         skip(20 minutes);
 
         // try partial repay
-        uint256 borrowBalanceBefore = eDAI.debtBalanceCached(user1);
+        uint256 borrowBalanceBefore = eDAI.debtBalance(user1);
         uint256 exchangeRateBefore = eDAI.exchangeRate();
         _prepareDAI(user1, 20e18);
         dai.approve(address(eDAI), 20e18);
         eDAI.repay(20e18);
 
         assertEq(eDAI.balanceOf(user1), 0);
-        assertGt(eDAI.debtBalanceCached(user1), borrowBalanceBefore - 20e18);
+        assertGt(eDAI.debtBalance(user1), borrowBalanceBefore - 20e18);
         assertGt(eDAI.exchangeRate(), exchangeRateBefore);
 
         // skip some period
         skip(1200);
 
         // try repay full
-        borrowBalanceBefore = eDAI.debtBalanceCached(user1);
+        borrowBalanceBefore = eDAI.debtBalance(user1);
         exchangeRateBefore = eDAI.exchangeRate();
         _prepareDAI(user1, borrowBalanceBefore);
         dai.approve(address(eDAI), borrowBalanceBefore);
@@ -239,7 +239,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(eDAI.balanceOf(user1), 0);
-        assertGt(eDAI.debtBalanceCached(user1), 0);
+        assertGt(eDAI.debtBalance(user1), 0);
         assertGt(eDAI.exchangeRate(), exchangeRateBefore);
     }
 
@@ -283,7 +283,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // try mint()
         _prepareDAI(user1, 1000e18);
         dai.approve(address(eDAI), 1000e18);
-        eDAI.mint(1000e18);
+        eDAI.mint(1000e18, user1);
 
         // try borrow()
         eDAI.borrow(500e18);
@@ -292,20 +292,20 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
-        eDAI.redeem(1000e18, address(this));
+        eDAI.redeem(1000e18, address(this), address(this));
 
         // skip min hold period
         skip(20 minutes);
 
         // can redeem fully
-        eDAI.redeem(1000e18, address(this));
+        eDAI.redeem(1000e18, address(this), address(this));
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), _ONE);
         assertEq(pBALRETH.exchangeRate(), _ONE);
 
         assertEq(eDAI.balanceOf(user1), 0);
-        assertGt(eDAI.debtBalanceCached(user1), 500e18);
+        assertGt(eDAI.debtBalance(user1), 500e18);
         assertGt(eDAI.exchangeRate(), _ONE);
     }
 
@@ -350,7 +350,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // try mint()
         _prepareDAI(user1, 1000e18);
         dai.approve(address(eDAI), 1000e18);
-        eDAI.mint(1000e18);
+        eDAI.mint(1000e18, user1);
 
         // try borrow()
         eDAI.borrow(500e18);
@@ -359,17 +359,17 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         skip(20 minutes);
 
         // try full transfer
-        eDAI.transfer(user2, 1000e18);
+        eDAI.transfer(user1, user2, 1000e18);
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), _ONE);
         assertEq(pBALRETH.exchangeRate(), _ONE);
 
         assertEq(eDAI.balanceOf(user1), 0);
-        assertEq(eDAI.debtBalanceCached(user1), 500e18);
+        assertEq(eDAI.debtBalance(user1), 500e18);
 
         assertEq(eDAI.balanceOf(user2), 1000e18);
-        assertEq(eDAI.debtBalanceCached(user2), 0e18);
+        assertEq(eDAI.debtBalance(user2), 0e18);
         assertEq(eDAI.exchangeRate(), _ONE);
     }
 
@@ -419,7 +419,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(pBALRETH.exchangeRate(), _ONE);
 
         assertEq(eDAI.balanceOf(user1), 0);
-        assertApproxEqRel(eDAI.debtBalanceCached(user1), 750e18, 0.01e18);
+        assertApproxEqRel(eDAI.debtBalance(user1), 750e18, 0.01e18);
         assertApproxEqRel(eDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
@@ -468,7 +468,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(pBALRETH.exchangeRate(), _ONE);
 
         assertEq(eDAI.balanceOf(user1), 0);
-        assertEq(eDAI.debtBalanceCached(user1), 0);
+        assertEq(eDAI.debtBalance(user1), 0);
         assertApproxEqRel(eDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
@@ -505,7 +505,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(pBALRETH.exchangeRate(), _ONE);
 
         assertEq(eDAI.balanceOf(user1), 0);
-        assertApproxEqRel(eDAI.debtBalanceCached(user1), 830e18, 0.01e18);
+        assertApproxEqRel(eDAI.debtBalance(user1), 830e18, 0.01e18);
         assertApproxEqRel(eDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
@@ -531,7 +531,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             true
         );
 
-        uint256 debtBalance = eDAI.debtBalanceWithUpdateSafe(user1);
+        uint256 debtBalance = eDAI.debtBalanceUpdated(user1);
 
         uint256 daiPrice = ((balRETHPrice * 1e8 * 1e18) / debtBalance) /
             1.4e18 +
@@ -560,7 +560,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(pBALRETH.exchangeRate(), _ONE);
 
         assertEq(eDAI.balanceOf(user1), 0);
-        assertApproxEqRel(eDAI.debtBalanceCached(user1), 900e18, 0.01e18);
+        assertApproxEqRel(eDAI.debtBalance(user1), 900e18, 0.01e18);
         assertApproxEqRel(eDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
@@ -570,7 +570,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         balRETH.approve(address(pBALRETH), _ONE);
         marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
 
-        oracleManager.addMTokenSupport(address(pBALRETH));
+        oracleManager.addCTokenSupport(address(pBALRETH));
 
         // set collateral factor
         marketManagerIsolated.updatePositionToken(

@@ -117,7 +117,7 @@
 //         {
 //             _deployEDAI();
 //             // add MToken support on price router
-//             oracleManager.addMTokenSupport(address(eDAI));
+//             oracleManager.addCTokenSupport(address(eDAI));
 
 //             _prepareDAI(owner, 200000e18);
 //             dai.approve(address(eDAI), 200000e18);
@@ -136,7 +136,7 @@
 //                 1 days
 //             );
 //             // add MToken support on price router
-//             oracleManager.addMTokenSupport(address(pWETHUSDC));
+//             oracleManager.addCTokenSupport(address(pWETHUSDC));
 
 //             deal(_AERODROME_WETH_USDC, owner, 1 ether);
 //             IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 1 ether);

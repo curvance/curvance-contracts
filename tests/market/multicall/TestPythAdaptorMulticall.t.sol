@@ -136,7 +136,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         //     usdc.approve(address(eUSDC), 200000e6);
         //     marketManagerIsolated.listToken(address(eUSDC));
         //     // add MToken support on oracle manager
-        //     oracleManager.addMTokenSupport(address(eUSDC));
+        //     oracleManager.addCTokenSupport(address(eUSDC));
         //     address[] memory markets = new address[](1);
         //     markets[0] = address(eUSDC);
         //     // vm.prank(user1);

@@ -128,7 +128,7 @@ contract TestOracleManager is TestBaseOracleManager {
         // Use mock collateral token
         marketManagerIsolated.listTokens(address(mockPToken), address(eUSDC));
 
-        oracleManager.addMTokenSupport(address(eUSDC));
+        oracleManager.addCTokenSupport(address(eUSDC));
 
         uint256 eUSDCPrice;
         uint256 usdcPrice;

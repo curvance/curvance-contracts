@@ -104,7 +104,7 @@ contract TestComplexZapperVelodrome is TestBaseMarketIsolated {
             IVeloPairFactory(_VELODROME_FACTORY),
             IVeloRouter(_VELODROME_ROUTER)
         );
-        oracleManager.addMTokenSupport(address(pToken));
+        oracleManager.addCTokenSupport(address(pToken));
 
         deal(_VELODROME_WETH_USDC, address(this), 1 ether);
         IERC20(_VELODROME_WETH_USDC).approve(address(pToken), 1 ether);

@@ -62,7 +62,7 @@
 //             IPendleRouter(_PENDLE_ROUTER),
 //             1 days
 //         );
-//         oracleManager.addMTokenSupport(address(pSTETH));
+//         oracleManager.addCTokenSupport(address(pSTETH));
 
 //         deal(_LP_STETH, address(this), 1 ether);
 //         IERC20(_LP_STETH).approve(address(pSTETH), 1 ether);

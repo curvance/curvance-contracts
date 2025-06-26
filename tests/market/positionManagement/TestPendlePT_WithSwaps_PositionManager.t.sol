@@ -102,7 +102,7 @@
 //         {
 //             _deployEDAI();
 //             // add MToken support on price router
-//             oracleManager.addMTokenSupport(address(eDAI));
+//             oracleManager.addCTokenSupport(address(eDAI));
 
 //             _prepareDAI(owner, 200000e18);
 //             dai.approve(address(eDAI), 200000e18);
@@ -120,7 +120,7 @@
 //             _preparePT(owner, 1 ether);
 //             pendlePT.approve(address(pPendlePT), 1 ether);
 //             // add MToken support on oracle manager
-//             oracleManager.addMTokenSupport(address(pPendlePT));
+//             oracleManager.addCTokenSupport(address(pPendlePT));
 
 //         }
 

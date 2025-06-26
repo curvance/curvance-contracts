@@ -97,7 +97,7 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         // deposit reserves
-        eUSDC.depositReserves(1000e6);
+        eUSDC.deposit(1000e6, address(this));
 
         marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
@@ -131,7 +131,7 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.mint(10e18, liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.mint(200000e6, liquidityProvider);
 
         vm.stopPrank();
     }

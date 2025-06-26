@@ -65,7 +65,7 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
 
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPriceFeed(_CURVE_STETH_LP, address(adaptor));
-        oracleManager.addMTokenSupport(address(pToken));
+        oracleManager.addCTokenSupport(address(pToken));
 
         deal(_CURVE_STETH_LP, address(this), 1 ether);
         IERC20(_CURVE_STETH_LP).approve(address(pToken), 1 ether);

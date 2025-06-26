@@ -561,11 +561,11 @@
 //             block.timestamp
 //         );
 //         emit LogString("DEPLOYED: Adding pDAI to router");
-//         oracleManager.addMTokenSupport(address(pDAI));
+//         oracleManager.addCTokenSupport(address(pDAI));
 //         emit LogString("DEPLOYED: Adding pUSDC to router");
-//         oracleManager.addMTokenSupport(address(pUSDC));
-//         oracleManager.addMTokenSupport(address(eDAI));
-//         oracleManager.addMTokenSupport(address(eUSDC));
+//         oracleManager.addCTokenSupport(address(pUSDC));
+//         oracleManager.addCTokenSupport(address(eDAI));
+//         oracleManager.addCTokenSupport(address(eUSDC));
 //         feedsSetup = true;
 //         lastRoundUpdate = block.timestamp;
 //     }

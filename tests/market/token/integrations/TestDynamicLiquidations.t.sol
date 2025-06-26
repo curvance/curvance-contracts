@@ -72,7 +72,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(eDAI));
+            oracleManager.addCTokenSupport(address(eDAI));
         }
 
         // deploy PBALRETH
@@ -115,7 +115,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         // mint eDAI
         vm.startPrank(liquidityProvider);
         dai.approve(address(eDAI), 200000 ether);
-        eDAI.mint(200000 ether);
+        eDAI.mint(200000 ether, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10 ether);
         pBALRETH.deposit(10 ether, liquidityProvider);
@@ -216,7 +216,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
     //     assertEq(pBALRETH.exchangeRateCached(), 1 ether);
 
     //     assertEq(eDAI.balanceOf(user1), 0);
-    //     assertApproxEqRel(eDAI.debtBalanceCached(user1), 750 ether, 0.01e18);
+    //     assertApproxEqRel(eDAI.debtBalance(user1), 750 ether, 0.01e18);
     //     assertApproxEqRel(eDAI.exchangeRateCached(), 1 ether, 0.01e18);
     // }
 }

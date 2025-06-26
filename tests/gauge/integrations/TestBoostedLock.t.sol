@@ -54,7 +54,7 @@
 //             marketManagerIsolated.listToken(tokens[i]);
 
 //             // add MToken support on oracle manager
-//             oracleManager.addMTokenSupport(tokens[i]);
+//             oracleManager.addCTokenSupport(tokens[i]);
 
 //             for (uint256 j = 0; j < 10; j++) {
 //                 address user = users[j];

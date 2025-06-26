@@ -38,10 +38,10 @@ contract ETokenRepayTest is TestBaseEToken {
     function test_eTokenRepay_fail_whenBorrowAmountExceedsCash() public {
         eUSDC.accrueIfNeeded();
 
-        uint256 debtBalanceCached = eUSDC.debtBalance(address(this));
+        uint256 debtBalance = eUSDC.debtBalance(address(this));
 
         vm.expectRevert(BorrowableCToken.BorrowableCToken__InvalidParameter.selector);
-        eUSDC.repay(debtBalanceCached + 1);
+        eUSDC.repay(debtBalance + 1);
     }
 
     function test_eTokenRepay_success() public {
@@ -66,7 +66,7 @@ contract ETokenRepayTest is TestBaseEToken {
     function test_eTokenRepay_success_whenRepayAll() public {
         eUSDC.accrueIfNeeded();
 
-        uint256 debtBalanceCached = eUSDC.debtBalance(address(this));
+        uint256 debtBalance = eUSDC.debtBalance(address(this));
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = eUSDC.balanceOf(address(this));
         uint256 totalSupply = eUSDC.totalSupply();
@@ -76,18 +76,18 @@ contract ETokenRepayTest is TestBaseEToken {
         // If the totalBorrows adjustment won't be rounded down then we
         // pre-compute expected totalBorrows versus expecting a value
         // of 0.
-        if (totalBorrows >= debtBalanceCached) {
-            expectedTotalBorrows = totalBorrows - debtBalanceCached;
+        if (totalBorrows >= debtBalance) {
+            expectedTotalBorrows = totalBorrows - debtBalance;
         }
 
         vm.expectEmit(true, true, true, true, address(eUSDC));
-        emit Repay(address(this), address(this), debtBalanceCached);
+        emit Repay(address(this), address(this), debtBalance);
 
         eUSDC.repay(0);
         
         assertEq(
             usdc.balanceOf(address(this)),
-            underlyingBalance - debtBalanceCached
+            underlyingBalance - debtBalance
         );
         assertEq(eUSDC.balanceOf(address(this)), balance);
         assertEq(eUSDC.totalSupply(), totalSupply);

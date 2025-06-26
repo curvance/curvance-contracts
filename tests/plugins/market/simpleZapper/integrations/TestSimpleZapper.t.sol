@@ -44,7 +44,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(eDAI));
+            oracleManager.addCTokenSupport(address(eDAI));
         }
 
         // deploy simple pToken
@@ -56,7 +56,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         }
 
         marketManagerIsolated.listTokens(address(pUSDC), address(eDAI));
-        oracleManager.addMTokenSupport(address(pUSDC));
+        oracleManager.addCTokenSupport(address(pUSDC));
         marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
@@ -142,7 +142,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(dai.balanceOf(user1), 500 ether);
-        assertApproxEqAbs(eDAI.debtBalanceCached(user1), 500 ether, 1 ether);
+        assertApproxEqAbs(eDAI.debtBalance(user1), 500 ether, 1 ether);
 
         // skip min hold period
         skip(20 minutes);
@@ -179,7 +179,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertApproxEqAbs(dai.balanceOf(user1), 550 ether, 1 ether);
-        assertApproxEqAbs(eDAI.debtBalanceCached(user1), 50 ether, 1 ether);
+        assertApproxEqAbs(eDAI.debtBalance(user1), 50 ether, 1 ether);
     }
 
     function testRedeemAndSwapPToken() public {
