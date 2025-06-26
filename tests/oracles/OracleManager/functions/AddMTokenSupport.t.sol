@@ -18,7 +18,7 @@ contract AddMTokenSupportTest is TestBaseOracleManager {
         oracleManager.addCTokenSupport(address(eUSDC));
     }
 
-    function test_addCTokenSupport_fail_whenMTokenIsAlreadyConfigured()
+    function test_addCTokenSupport_fail_whenCTokenIsAlreadyConfigured()
         public
     {
         oracleManager.addCTokenSupport(address(eUSDC));
@@ -29,24 +29,24 @@ contract AddMTokenSupportTest is TestBaseOracleManager {
         oracleManager.addCTokenSupport(address(eUSDC));
     }
 
-    function test_addCTokenSupport_fail_whenMTokenIsInvalid() public {
+    function test_addCTokenSupport_fail_whenCTokenIsInvalid() public {
         vm.expectRevert();
         oracleManager.addCTokenSupport(address(1));
     }
 
     function test_addCTokenSupport_success() public {
-        (bool isMToken, address underlying) = oracleManager.mTokenAssets(
+        (bool isCToken, address underlying) = oracleManager.cTokenAssets(
             address(eUSDC)
         );
 
-        assertFalse(isMToken);
+        assertFalse(isCToken);
         assertEq(underlying, address(0));
 
         oracleManager.addCTokenSupport(address(eUSDC));
 
-        (isMToken, underlying) = oracleManager.mTokenAssets(address(eUSDC));
+        (isCToken, underlying) = oracleManager.cTokenAssets(address(eUSDC));
 
-        assertTrue(isMToken);
+        assertTrue(isCToken);
         assertEq(underlying, _USDC_ADDRESS);
 
         _addSinglePriceFeed();

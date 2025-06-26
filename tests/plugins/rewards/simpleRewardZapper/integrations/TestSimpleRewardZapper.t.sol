@@ -143,7 +143,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         weth.approve(address(pWETH), 10 ether);
         pWETH.mint(10 ether, liquidityProvider);

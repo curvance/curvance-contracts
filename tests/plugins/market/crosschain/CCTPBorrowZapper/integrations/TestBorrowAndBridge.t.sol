@@ -198,7 +198,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         // mint eDAI
         vm.startPrank(liquidityProvider);
         dai.approve(address(eDAI), 200000e18);
-        eDAI.mint(200000e18);
+        eDAI.deposit(200000e18, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);

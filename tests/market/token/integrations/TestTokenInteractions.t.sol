@@ -350,7 +350,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // try mint()
         _prepareDAI(user1, 1000e18);
         dai.approve(address(eDAI), 1000e18);
-        eDAI.mint(1000e18, user1);
+        eDAI.deposit(1000e18, user1);
 
         // try borrow()
         eDAI.borrow(500e18);
@@ -359,7 +359,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         skip(20 minutes);
 
         // try full transfer
-        eDAI.transfer(user1, user2, 1000e18);
+        eDAI.transfer(user2, 1000e18);
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), _ONE);

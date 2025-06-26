@@ -206,7 +206,7 @@ contract TestPredeposit is TestBasePredeposit {
 
         skip(1 weeks);
 
-        uint256 marketUnderlyingHeld = eUSDC.marketUnderlyingHeld();
+        uint256 marketUnderlyingHeld = eUSDC.assetsHeld();
 
         assertEq(predeposit.balanceOf(user1, _USDC_ADDRESS), 100e6);
         assertEq(usdc.balanceOf(address(predeposit)), 100e6);
@@ -217,7 +217,7 @@ contract TestPredeposit is TestBasePredeposit {
 
         assertEq(predeposit.balanceOf(user1, _USDC_ADDRESS), 0);
         assertEq(usdc.balanceOf(address(predeposit)), 0);
-        assertEq(eUSDC.marketUnderlyingHeld(), marketUnderlyingHeld + 100e6);
+        assertEq(eUSDC.assetsHeld(), marketUnderlyingHeld + 100e6);
         assertEq(eUSDC.balanceOf(user1), 100e6);
     }
 }

@@ -86,7 +86,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         vm.startPrank(liquidityProvider);
         // mint eDAI
         dai.approve(address(eDAI), 1000 ether);
-        eDAI.mint(1000 ether);
+        eDAI.deposit(1000 ether, liquidityProvider);
         // mint pUSDC
         usdc.approve(address(pUSDC), 100e6);
         pUSDC.mint(100e6, liquidityProvider);
@@ -227,7 +227,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         // mint eDAI
         _prepareDAI(user1, 10 ether);
         dai.approve(address(eDAI), 10 ether);
-        eDAI.mint(10 ether);
+        eDAI.deposit(10 ether, user1);
 
         eDAI.setDelegateApproval(address(simpleZapper), true);
 
@@ -267,7 +267,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
 
         _prepareDAI(user1, 100 ether);
         dai.approve(address(eDAI), 100 ether);
-        eDAI.mint(100 ether);
+        eDAI.deposit(100 ether, user1);
 
         eDAI.setDelegateApproval(address(simpleZapper), true);
 
