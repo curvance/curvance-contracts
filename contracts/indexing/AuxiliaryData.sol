@@ -6,8 +6,8 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
-import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
@@ -84,7 +84,7 @@ contract AuxiliaryData {
         AccountAssetPosition userTokenPosition;
     }
 
-    struct MarketPTokenData {
+    struct MarketcTokenData {
         address assetAddress;
         address marketAddress;
         address underlyingAddress;
@@ -104,7 +104,7 @@ contract AuxiliaryData {
     struct AllMarketData {
         MarketData marketData;
         MarketETokenData[] eTokenData;
-        MarketPTokenData[] pTokenData;
+        MarketcTokenData[] cTokenData;
     }
 
     /// CONSTANTS ///
@@ -194,10 +194,10 @@ contract AuxiliaryData {
     /// @notice Returns if an account has an active position in `token`,
     ///         and any user balances or collateral posted in `token`.
     /// @param account The address of the account to check token data of.
-    /// @param token The address of the market token.
+    /// @param cToken The address of the Curvance token.
     function getAccountTokenData(
         address account,
-        address token
+        address cToken
     )
         public
         view
@@ -207,25 +207,26 @@ contract AuxiliaryData {
             uint256 collateralOrDebtAmount
         )
     {
+        ICToken token = ICToken(cToken);
         ILiquidityManager liquidityManager = ILiquidityManager(
-            address(IMToken(token).marketManager()) 
+            address(token.marketManager()) 
         );
 
         hasPosition = liquidityManager.accountPositions(
-            token, account
+            cToken, account
         ) == 2 ? true : false;
-        balanceOf = IMToken(token).balanceOf(account);
-        collateralOrDebtAmount = IMToken(token).isCollateralizable()
-            ? IPToken(token).collateralPosted(account)
-            : IBorrowableCToken(token).debtBalanceCached(account);
+        balanceOf = token.balanceOf(account);
+        collateralOrDebtAmount = !token.isBorrowable()
+            ? token.collateralPosted(account)
+            : IBorrowableCToken(cToken).debtBalance(account);
     }
 
-    /// @notice Returns if an account has an active position in `mToken`.
+    /// @notice Returns if an account has an active position in `cToken`.
     /// @param account The address of the account to check a position of.
-    /// @param mToken The address of the market token.
+    /// @param cToken The address of the Curvance token.
     function tokenDataOf(
         address account,
-        address mToken
+        address cToken
     )
         external
         view
@@ -235,98 +236,96 @@ contract AuxiliaryData {
             uint256 collateralPostedOf
         )
     {
-        IMToken mToken_ = IMToken(mToken);
-        IMarketManager marketManager = IMToken(mToken).marketManager();
-        uint256 hasPosition_ = ILiquidityManager(address(marketManager)).accountPositions(mToken, account);
+        ICToken token = ICToken(cToken);
+        IMarketManager marketManager = token.marketManager();
+        uint256 hasPosition_ = ILiquidityManager(address(marketManager)).accountPositions(cToken, account);
         if (hasPosition_ == 2) {
             hasPosition = true;
         }
-        balanceOf = mToken_.balanceOf(account);
-        if (mToken_.isCollateralizable()) {
-            collateralPostedOf = IPToken(mToken).collateralPosted(account);
+        balanceOf = token.balanceOf(account);
+        if (token.isCollateralizable()) {
+            collateralPostedOf = token.collateralPosted(account);
         }
     }
 
-    /// @notice Returns the `mToken` underlying balance of the `account`.
+    /// @notice Returns the `cToken` underlying balance of the `account`.
     /// @param account The address of the account to query.
-    /// @param mToken The address of the token to query underlying balance of.
-    /// @return The amount of `mToken` underlying owned by `account`.
+    /// @param cToken The address of the token to query underlying balance of.
+    /// @return The amount of `cToken` underlying owned by `account`.
     function getAccountBalanceOfUnderlying(
         address account,
-        address mToken
+        address cToken
     ) public view returns (uint256) {
-        return (IMToken(mToken).convertToAssets(
-            IMToken(mToken).balanceOf(account)
+        return (ICToken(cToken).convertToAssets(
+            ICToken(cToken).balanceOf(account)
         ) / WAD);
     }
 
     /// @notice Return the debt balance of `account` based on stored data.
     /// @param account The address whose debt balance should be calculated.
-    /// @return `account`'s cached balance index for `token`.
+    /// @param cToken The token to query outstanding debt balance of.
+    /// @return `account`'s outstanding debt balance for `cToken`.
     function getAccountDebtData(
         address account,
-        address token
+        address cToken
     ) public view returns (uint256) {
-        return IBorrowableCToken(token).debtBalanceCached(account);
+        return IBorrowableCToken(cToken).debtBalance(account);
     }
 
     /// @notice Calculates the current eToken utilization rate.
-    /// @param eToken The earning token to pull interest rate data for.
+    /// @param cToken The Curvance token to pull utilization rate data for.
     /// @return The utilization rate, in `WAD`.
-    function getUtilizationRate(address eToken) public view returns (uint256) {
-        IBorrowableCToken ieToken = IBorrowableCToken(eToken);
+    function getUtilizationRate(address cToken) public view returns (uint256) {
+        IBorrowableCToken token = IBorrowableCToken(cToken);
         return
-            ieToken.interestRateModel().utilizationRate(
-                ieToken.totalAssets(),
-                ieToken.totalBorrows(),
-                ieToken.totalAssets()
+            token.interestRateModel().utilizationRate(
+                token.assetsHeld(),
+                token.marketOutstandingDebt()
             );
     }
 
-    /// @notice Returns the current eToken borrow interest rate per year.
-    /// @param eToken The earning token to pull interest rate data for.
+    /// @notice Returns the current borrow interest rate per year for `cToken`.
+    /// @param cToken The Curvance token to pull borrow rate data for.
     /// @return The borrow interest rate per year, in `WAD`.
     function getBorrowRatePerYear(
-        address eToken
+        address cToken
     ) public view returns (uint256) {
-        IBorrowableCToken ieToken = IBorrowableCToken(eToken);
+        IBorrowableCToken token = IBorrowableCToken(cToken);
         return
-            ieToken.interestRateModel().getBorrowRatePerYear(
-                ieToken.marketUnderlyingHeld(),
-                ieToken.totalBorrows(),
-                ieToken.convertToAssets(ieToken.totalReserves())
+            token.interestRateModel().getBorrowRatePerYear(
+                token.assetsHeld(),
+                token.marketOutstandingDebt()
             );
     }
 
-    /// @notice Returns predicted upcoming eToken borrow interest rate
-    ///         per year.
-    /// @param eToken The earning token to pull interest rate data for.
+    /// @notice Returns predicted upcoming borrow interest rate per year
+    ///         for `cToken`.
+    /// @param cToken The Curvance token to pull predicted borrow rate
+    ///               data for.
     /// @return The predicted borrow interest rate per year, in `WAD`.
     function getPredictedBorrowRatePerYear(
-        address eToken
+        address cToken
     ) public view returns (uint256) {
-        IBorrowableCToken ieToken = IBorrowableCToken(eToken);
+        IBorrowableCToken token = IBorrowableCToken(cToken);
         return
-            ieToken.interestRateModel().getPredictedBorrowRatePerYear(
-                ieToken.marketUnderlyingHeld(),
-                ieToken.totalBorrows(),
-                ieToken.convertToAssets(ieToken.totalReserves())
+            token.interestRateModel().getPredictedBorrowRatePerYear(
+                token.assetsHeld(),
+                token.marketOutstandingDebt()
             );
     }
 
-    /// @notice Returns the current eToken supply interest rate per year.
-    /// @param eToken The earning token to pull interest rate data for.
+    /// @notice Returns the current supply interest rate per year for `cToken`.
+    /// @param cToken The Curvance token to pull supply rate data for.
     /// @return The supply interest rate per year, in `WAD`.
     function getSupplyRatePerYear(
-        address eToken
+        address cToken
     ) public view returns (uint256) {
-        IBorrowableCToken ieToken = IBorrowableCToken(eToken);
+        IBorrowableCToken token = IBorrowableCToken(cToken);
         return
-            ieToken.interestRateModel().getSupplyRatePerYear(
-                ieToken.assetsHeld(),
-                ieToken.totalBorrows(),
-                ieToken.convertToAssets(ieToken.totalReserves()),
-                ieToken.interestFactor()
+            token.interestRateModel().getSupplyRatePerYear(
+                token.assetsHeld(),
+                token.marketOutstandingDebt(),
+                token.interestFee()
             );
     }
 
@@ -362,12 +361,12 @@ contract AuxiliaryData {
         for (uint256 i; i < numMarkets; i++) {
             (
                 MarketETokenData[] memory eTokenData,
-                MarketPTokenData[] memory pTokenData
+                MarketcTokenData[] memory cTokenData
             ) = this.getMarketAssetData(markets[i], account);
             results[i] = AllMarketData(
                 this.getMarketData(markets[i], account),
                 eTokenData,
-                pTokenData
+                cTokenData
             );
         }
 
@@ -413,55 +412,55 @@ contract AuxiliaryData {
     /// @param market The market to get asset data for.
     /// @param account The account to get asset data for.
     /// @return eTokenData An array of MarketETokenData structs containing asset data for all eTokens.
-    /// @return pTokenData An array of MarketPTokenData structs containing asset data for all pTokens.
+    /// @return cTokenData An array of MarketcTokenData structs containing asset data for all pTokens.
     function getMarketAssetData(
         address market,
         address account
     )
         public
         view
-        returns (MarketETokenData[] memory, MarketPTokenData[] memory)
+        returns (MarketETokenData[] memory, MarketcTokenData[] memory)
     {
         IMarketManager mm = IMarketManager(market);
         address[] memory pTokens = getMarketCollateralAssets(market);
         uint256 numTokens = pTokens.length;
-        MarketPTokenData[] memory pTokenMarketData = new MarketPTokenData[](
+        MarketcTokenData[] memory pTokenMarketData = new MarketcTokenData[](
             numTokens
         );
         for (uint256 i; i < numTokens; i++) {
             ICToken marketToken = ICToken(pTokens[i]);
             IERC20 token = IERC20(marketToken.asset());
-            MarketPTokenData memory pTokenData;
+            MarketcTokenData memory cTokenData;
 
             if (account != address(0)) {
-                pTokenData.underlyingBalance = token.balanceOf(account);
+                cTokenData.underlyingBalance = token.balanceOf(account);
 
                 (
-                    pTokenData.userTokenPosition.hasPosition,
-                    pTokenData.userTokenPosition.shareAmount,
-                    pTokenData.userTokenPosition.collateralOrDebtAmount
+                    cTokenData.userTokenPosition.hasPosition,
+                    cTokenData.userTokenPosition.shareAmount,
+                    cTokenData.userTokenPosition.collateralOrDebtAmount
                 ) = getAccountTokenData(account, pTokens[i]);
 
-                pTokenData.userTokenPosition.tokenAmount = marketToken
-                    .convertToAssets(pTokenData.userTokenPosition.shareAmount);
+                cTokenData.userTokenPosition.tokenAmount = marketToken
+                    .convertToAssets(cTokenData.userTokenPosition.shareAmount);
             }
 
-            pTokenData.assetAddress = pTokens[i];
-            pTokenData.marketAddress = market;
-            pTokenData.underlyingAddress = address(token);
-            pTokenData.underlyingName = token.name();
-            pTokenData.underlyingSymbol = token.symbol();
-            pTokenData.underlyingDecimal = token.decimals();
-            pTokenData.totalPositionTokens =
+            cTokenData.assetAddress = pTokens[i];
+            cTokenData.marketAddress = market;
+            cTokenData.underlyingAddress = address(token);
+            cTokenData.underlyingName = token.name();
+            cTokenData.underlyingSymbol = token.symbol();
+            cTokenData.underlyingDecimal = token.decimals();
+            cTokenData.totalPositionTokens =
                 marketToken.totalSupply() -
                 MARKET_ASSET_RESERVE;
-            pTokenData.totalCollateralPosted = IPToken(pTokens[i]).marketCollateralPosted();
-            pTokenData.collateralCap = mm.collateralCaps(pTokens[i]);
-            pTokenData.sharePrice = _getTokenPrice(pTokens[i], true);
-            pTokenData.tokenPrice = _getTokenPrice(address(token), true);
-            pTokenData.config = _getTokenConfig(pTokens[i], ILiquidityManager(address(mm)));
+            cTokenData.totalCollateralPosted = ICToken(pTokens[i]).marketCollateralPosted();
+            cTokenData.collateralCap = mm.collateralCaps(pTokens[i]);
+            cTokenData.sharePrice = _getTokenPrice(pTokens[i], true);
+            cTokenData.tokenPrice = _getTokenPrice(address(token), true);
+            cTokenData.config = _getTokenConfig(pTokens[i], ILiquidityManager(address(mm)));
 
-            pTokenMarketData[i] = pTokenData;
+            pTokenMarketData[i] = cTokenData;
         }
 
         address[] memory eTokens = getMarketDebtAssets(market);
@@ -554,7 +553,7 @@ contract AuxiliaryData {
 
         for (uint256 i; i < numAssets; ) {
             token = assets[i++];
-            getLower = IMToken(token).isBorrowable() ? true : false;
+            getLower = ICToken(token).isBorrowable() ? true : false;
             result += getTokenTVL(token, getLower);
         }
     }
@@ -579,13 +578,13 @@ contract AuxiliaryData {
         address[] memory assets = getMarketCollateralAssets(market);
         uint256 numAssets = assets.length;
 
+        address asset;
         for (uint256 i; i < numAssets; ) {
-            address assetAddress = assets[i++];
-            uint256 price = _getTokenPrice(assetAddress, true);
+            asset = assets[i++];
             result +=
-                (price *
-                    IPToken(assetAddress).marketCollateralPosted()) /
-                10 ** IMToken(assetAddress).decimals();
+                (_getTokenPrice(asset, true) *
+                    ICToken(asset).marketCollateralPosted()) /
+                10 ** ICToken(asset).decimals();
         }
     }
 
@@ -630,7 +629,7 @@ contract AuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (IMToken(asset).isBorrowable()) {
+            if (ICToken(asset).isCollateralizable()) {
                 ++numCollateralAssets;
             }
         }
@@ -640,7 +639,7 @@ contract AuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (IMToken(asset).isBorrowable()) {
+            if (ICToken(asset).isCollateralizable()) {
                 collateralAssets[collateralAssetsIndex++] = asset;
             }
         }
@@ -661,7 +660,7 @@ contract AuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (!IMToken(asset).isBorrowable()) {
+            if (!ICToken(asset).isBorrowable()) {
                 ++numDebtAssets;
             }
         }
@@ -671,7 +670,7 @@ contract AuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (!IMToken(asset).isBorrowable()) {
+            if (!ICToken(asset).isBorrowable()) {
                 debtAssets[debtAssetsIndex++] = asset;
             }
         }
@@ -719,27 +718,27 @@ contract AuxiliaryData {
         // Get current shares total supply then query price and return.
         result =
             (_getTokenPrice(token, getLower) *
-                (IMToken(token).totalSupply() - MARKET_ASSET_RESERVE)) /
-            10 ** IMToken(token).decimals();
+                (ICToken(token).totalSupply() - MARKET_ASSET_RESERVE)) /
+            10 ** ICToken(token).decimals();
     }
 
-    /// @notice Returns the outstanding underlying tokens borrowed from a EToken market.
-    /// @param token The token to query outstanding borrows for.
-    /// @return result The outstanding underlying tokens, in `WAD`.
+    /// @notice Returns the outstanding underlying debt for `cToken`.
+    /// @param cToken The Curvance token to query outstanding debt for.
+    /// @return result The outstanding underlying debt, in `WAD`.
     function getTokenBorrows(
-        address token
+        address cToken
     ) public view returns (uint256 result) {
-        IBorrowableCToken eToken = IBorrowableCToken(token);
+        IBorrowableCToken token = IBorrowableCToken(cToken);
 
-        // Get outstanding borrows then query price and return.
+        // Get outstanding debt then query price and return.
         result =
-            (_getTokenPrice(eToken.asset(), false) *
-                eToken.totalBorrows()) /
-            10 ** eToken.decimals();
+            (_getTokenPrice(token.asset(), false) *
+                token.marketOutstandingDebt()) /
+            10 ** token.decimals();
     }
 
     function getTokenPrice(address token) public view returns (uint256) {
-        return _getTokenPrice(token, IMToken(token).isCollateralizable() ? true : false);
+        return _getTokenPrice(token, ICToken(token).isCollateralizable() ? true : false);
     }
 
     /// INTERNAL FUNCTIONS ///
