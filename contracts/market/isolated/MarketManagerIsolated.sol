@@ -586,6 +586,8 @@ contract MarketManagerIsolated is
         results.liquidatedAmounts = new uint256[](instructions.numAccounts);
         for (uint256 i; i < instructions.numAccounts; ++i) {
             cachedAccount = accounts[i];
+            
+            // Do not let an account liquidate themselves.
             if (liquidator == cachedAccount) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
