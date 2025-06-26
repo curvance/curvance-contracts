@@ -346,8 +346,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Withdraw fee token from central registry.
-    function withdrawFee() external {
+    /// @notice Withdraw fees in `feeToken` from this central registry.
+    function withdrawFees() external {
         _checkDaoPermissions();
 
         SafeTransferLib.safeTransfer(
@@ -355,31 +355,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
             daoAddress,
             IERC20(feeToken).balanceOf(address(this))
         );
-    }
-
-    /// @notice Withdraws all protocol reserve fees from a eToken
-    ///         from interest generated and liquidations.
-    /// @param borrowableCTokens Array of eToken addresses to withdraw fees from.
-    function withdrawReservesMulti(address[] calldata borrowableCTokens) external {
-        // Match permissioning check to normal withdrawReserves().
-        _checkDaoPermissions();
-
-        uint256 numTokens = borrowableCTokens.length;
-        if (numTokens == 0) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        IBorrowableCToken borrowableCToken;
-
-        for (uint256 i; i < numTokens; ) {
-            borrowableCToken = IBorrowableCToken(borrowableCTokens[i++]);
-            // Revert if somehow a misconfigured token made it in here.
-            if (!borrowableCToken.isBorrowable()) {
-                _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-            }
-
-            borrowableCToken.processWithdrawReserves();
-        }
     }
 
     /// @notice Sets a new genesis epoch.

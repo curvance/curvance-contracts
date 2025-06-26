@@ -8,6 +8,7 @@ import { IMessagingHub, EmissionData } from "contracts/interfaces/IMessagingHub.
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
+
 /// @title Curvance Protocol Cross-Chain Voting and Emissions Hub
 /// @notice Coordinates protocol-wide token emission allocation based on governance decisions
 /// @dev VotingHub serves as the central coordinator for the Curvance tokenomics system by:

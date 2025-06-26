@@ -1,14 +1,13 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+import { UniversalBalance, IBorrowableCToken } from "contracts/architecture/UniversalBalance.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 /// @title Curvance Universal Balance for Native Gas Tokens
 /// @notice A specialized system for managing native gas tokens within the Curvance Protocol
@@ -43,12 +42,12 @@ contract NativeUniversalBalance is UniversalBalance {
 
     constructor(
         ICentralRegistry centralRegistry_,
-        address eToken,
+        address borrowableCToken,
         address nativeWrappedToken
-    ) UniversalBalance(centralRegistry_, eToken) {
-        // Validate that eToken underlying and native wrapped token
-        // contract match addresses.
-        if (IMToken(eToken).asset() != nativeWrappedToken) {
+    ) UniversalBalance(centralRegistry_, borrowableCToken) {
+        // Validate that `borrowableCToken` and native wrapped token
+        // are the same token.
+        if (IBorrowableCToken(borrowableCToken).asset() != nativeWrappedToken) {
             revert NativeUniversalBalance__UnderlyingTokenMismatch();
         }
     }
