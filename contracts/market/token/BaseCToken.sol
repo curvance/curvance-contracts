@@ -916,7 +916,10 @@ abstract contract BaseCToken is
     ///      May emit {PositionUpdated} event inside Market Manager.
     /// @param account The account posting collateral.
     /// @param shares The amount of shares to post as collateral.
-    function _postCollateral(address account, uint256 shares) internal {
+    function _postCollateral(
+        address account,
+        uint256 shares
+    ) internal virtual {
         uint256 newNetCollateral = marketCollateralPosted + shares;
         marketManager.canCollateralize(
             address(this),

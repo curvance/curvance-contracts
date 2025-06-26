@@ -324,7 +324,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 decimals: decimals(),
                 exchangeRate: _convertToAssets(WAD, _getTotalAssets()),
                 collateralPosted: collateralPosted[account],
-                debtOutstanding: debtBalance(account),
+                debtOutstanding: debtBalance(account)
             })
         );
     }
@@ -431,6 +431,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ) internal {
         _checkZeroAmount(amount);
         _checkAssetsHeld(amount);
+        // Cannot borrow if `account` already has posted collateral in this
+        // market.
+        if (collateralPosted[account] > 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
 
         // Calculate current account debt then add `amount`.
         // Then update account exchange rate, and total borrow balances.
@@ -626,6 +631,27 @@ contract BorrowableCToken is BaseCTokenWithYield {
             accounts,
             liqResults.liquidatedAmounts
         );
+    }
+
+    /// @notice Helper function for posting `shares` as collateral
+    ///         for `account` inside this market.
+    /// @dev Cannot post collateral if `account` already has outstanding
+    ///      debt in this token.
+    ///      Emits {CollateralUpdated} event.
+    ///      May emit {PositionUpdated} event inside Market Manager.
+    /// @param account The account posting collateral.
+    /// @param shares The amount of shares to post as collateral.
+    function _postCollateral(
+        address account,
+        uint256 shares
+    ) internal override {
+        // Cannot post collateral if `account` already has outstanding debt
+        // in this token.
+        if (uint176(_debtOf[account]) > 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        super._postCollateral(account, shares);
     }
 
     /// @notice Can accrue interest yield, configure next interest accrual
