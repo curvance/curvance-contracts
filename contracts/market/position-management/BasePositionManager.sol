@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -17,18 +15,17 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
-import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
-/// @dev The Curvance Position Folding contract enshrines actions that
-///      usually would require multiple looped actions to facilitate,
+/// @dev Curvance Position Manager contracts enshrine actions that
+///      usually would require multiple sequential actions to facilitate,
 ///      namely leveraging a position up or deleveraging it for withdrawal.
 ///
-///      PToken and EToken contracts facilitate these operations through
-///      integration with Position Foldings callback functions.
+///      Curvance token contracts facilitate these operations through
+///      enshrined integrations with Position Manager callback functions.
 abstract contract BasePositionManager is
     IPositionManager,
     PluginDelegable,
@@ -79,11 +76,16 @@ abstract contract BasePositionManager is
     /// @param slippage Slippage accepted by the user for execution of
     ///                 `leverageData` leverage action, in WAD (1e18).
     modifier checkSlippage(address account, uint256 slippage) {
-        IMToken[] memory mTokens = marketManager.assetsOf(account);
-        uint256 numTokens = mTokens.length;
-        for (uint256 i; i < numTokens; ++i) {
-            if (mTokens[i].isBorrowable()) {
-                IBorrowableCToken(address(mTokens[i])).accrueInterest();
+        // Scoping to avoid stack too deep.
+        {
+            address[] memory assets = marketManager.assetsOf(account);
+            uint256 numAssets = assets.length;
+            IBorrowableCToken asset;
+            for (uint256 i; i < numAssets; ++i) {
+                asset = IBorrowableCToken(assets[i]);
+                if (asset.isBorrowable()) {
+                    asset.accrueIfNeeded();
+                }
             }
         }
 
@@ -141,20 +143,21 @@ abstract contract BasePositionManager is
     /// @dev Measures slippage through pre/post conditional slippage check
     ///      in `checkSlippage` modifier.
     ///      NOTE: The caller MUST have approved this smart contract to have
-    ///      delegated actions inside `leverageData.positionToken` or
+    ///      delegated actions inside `leverageData.collateralToken` or
     ///      depositAsCollateralFor will only deposit and the leverage
     ///      operation will fail.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param leverageData Struct containing information on the desired
     ///                     leverage action to execute. Containing values:
-    ///                     1. Address of eToken that will be borrowed from.
-    ///                     2. The amount of underlying tokens from eToken
-    ///                        that will be borrowed.
-    ///                     3. Address of pToken that borrowed funds
-    ///                        will be swapped into.
-    ///                     4. Struct containing instructions
-    ///                        on how to handle the necessary eToken swap
-    ///                        to facilitate leveraging.
+    ///                     1. Address of `debtToken` that will be borrowed
+    ///                        and swapped.
+    ///                     2. The amount of underlying tokens from
+    ///                        `debtToken` that will be borrowed.
+    ///                     3. Curvance token that borrowed funds will be
+    ///                        swapped into.
+    ///                     4. Struct containing instructions on how
+    ///                        to handle the necessary swap to 
+    ///                        facilitate leveraging.
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
     /// @param slippage Slippage accepted by the user for execution of
@@ -164,7 +167,7 @@ abstract contract BasePositionManager is
         LeverageStruct calldata leverageData,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
-        ICToken pToken = leverageData.positionToken;
+        ICToken pToken = leverageData.collateralToken;
         address pTokenUnderlying = pToken.asset();
         // Transfer the underlying tokens to deposit.
         SafeTransferLib.safeTransferFrom(
@@ -195,14 +198,15 @@ abstract contract BasePositionManager is
     ///      in `checkSlippage` modifier.
     /// @param leverageData Struct containing information on the desired
     ///                     leverage action to execute. Containing values:
-    ///                     1. Address of eToken that will be borrowed from.
-    ///                     2. The amount of underlying tokens from eToken
-    ///                        that will be borrowed.
-    ///                     3. Address of pToken that borrowed funds
-    ///                        will be swapped into.
-    ///                     4. Struct containing instructions
-    ///                        on how to handle the necessary eToken swap
-    ///                        to facilitate leveraging.
+    ///                     1. Address of `debtToken` that will be borrowed
+    ///                        and swapped.
+    ///                     2. The amount of underlying tokens from
+    ///                        `debtToken` that will be borrowed.
+    ///                     3. Curvance token that borrowed funds will be
+    ///                        swapped into.
+    ///                     4. Struct containing instructions on how
+    ///                        to handle the necessary swap to 
+    ///                        facilitate leveraging.
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
     /// @param slippage Slippage accepted by the user for execution of
@@ -223,14 +227,15 @@ abstract contract BasePositionManager is
     ///      if delegation is provided to a malicious party.
     /// @param leverageData Struct containing information on the desired
     ///                     leverage action to execute. Containing values:
-    ///                     1. Address of eToken that will be borrowed from.
-    ///                     2. The amount of underlying tokens from eToken
-    ///                        that will be borrowed.
-    ///                     3. Address of pToken that borrowed funds
-    ///                        will be swapped into.
-    ///                     4. Struct containing instructions
-    ///                        on how to handle the necessary eToken swap
-    ///                        to facilitate leveraging.
+    ///                     1. Address of `debtToken` that will be borrowed
+    ///                        and swapped.
+    ///                     2. The amount of underlying tokens from
+    ///                        `debtToken` that will be borrowed.
+    ///                     3. Curvance token that borrowed funds will be
+    ///                        swapped into.
+    ///                     4. Struct containing instructions on how
+    ///                        to handle the necessary swap to 
+    ///                        facilitate leveraging.
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
     /// @param account The account to leverage an active Curvance position
@@ -255,17 +260,18 @@ abstract contract BasePositionManager is
     ///      if delegation is provided to a malicious party.
     /// @param deleverageData Struct containing information on the desired
     ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of pToken that will be routed into
-    ///                          eToken underlying to repay outstanding debt.
-    ///                       2. The amount of pTokens that will be
+    ///                       1. Address of the Curvance token that will be 
+    ///                          routed into debt token underlying to repay
+    ///                          outstanding debt.
+    ///                       2. The amount of `collateralToken` that will be
     ///                          deleveraged.
-    ///                       3. Address of eToken that will have its underlying
-    ///                          token debt repaid.
-    ///                       4. Optional struct containing instructions on how
-    ///                          to handle swapping into eToken underlying to
+    ///                       3. Address of Curvance token that will have its
+    ///                          outstanding debt repaid.
+    ///                       4. Optional struct containing instructions on
+    ///                          how to handle swapping into debt token to
     ///                          facilitate deleveraging.
     ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to the eToken lenders.
+    ///                          repaid to lenders.
     ///                       6. Optional auxiliary data for execution of a
     ///                          deleverage action.
     /// @param slippage Slippage accepted by the user for execution of
@@ -283,17 +289,18 @@ abstract contract BasePositionManager is
     ///      in `checkSlippage` modifier.
     /// @param deleverageData Struct containing information on the desired
     ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of pToken that will be routed into
-    ///                          eToken underlying to repay outstanding debt.
-    ///                       2. The amount of pTokens that will be
+    ///                       1. Address of the Curvance token that will be 
+    ///                          routed into debt token underlying to repay
+    ///                          outstanding debt.
+    ///                       2. The amount of `collateralToken` that will be
     ///                          deleveraged.
-    ///                       3. Address of eToken that will have its underlying
-    ///                          token debt repaid.
-    ///                       4. Optional struct containing instructions on how
-    ///                          to handle swapping into eToken underlying to
+    ///                       3. Address of Curvance token that will have its
+    ///                          outstanding debt repaid.
+    ///                       4. Optional struct containing instructions on
+    ///                          how to handle swapping into debt token to
     ///                          facilitate deleveraging.
     ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to the eToken lenders.
+    ///                          repaid to lenders.
     ///                       6. Optional auxiliary data for execution of a
     ///                          deleverage action.
     /// @param account The account to deleverage an active Curvance position
@@ -310,39 +317,39 @@ abstract contract BasePositionManager is
     }
 
     /// @notice Callback function to execute post borrow of
-    ///         `borrowToken`'s underlying and swap it to deposit
+    ///         `debtToken`'s underlying and swap it to deposit
     ///         new collateral for `borrower`.
     /// @dev Measures slippage after this callback validating that `borrower`
     ///      is still within acceptable liquidity requirements.
-    /// @param borrowToken The borrow token borrowed from.
+    /// @param debtToken The borrow token borrowed from.
     /// @param borrower The account borrowing that will be swapped into
     ///                 collateral assets deposited into Curvance.
-    /// @param borrowAmount The amount of `borrowToken`'s underlying borrowed.
+    /// @param borrowAmount The amount of `debtToken`'s underlying borrowed.
     /// @param leverageData Struct containing information on the desired
     ///                     leverage action to execute. Containing values:
-    ///                     1. Address of eToken that will be borrowed from.
-    ///                     2. The amount of underlying tokens from eToken
-    ///                        that will be borrowed.
-    ///                     3. Address of pToken that borrowed funds
-    ///                        will be swapped into.
-    ///                     4. Struct containing instructions
-    ///                        on how to handle the necessary eToken swap
-    ///                        to facilitate leveraging.
+    ///                     1. Address of `debtToken` that will be borrowed
+    ///                        and swapped.
+    ///                     2. The amount of underlying tokens from
+    ///                        `debtToken` that will be borrowed.
+    ///                     3. Curvance token that borrowed funds will be
+    ///                        swapped into.
+    ///                     4. Struct containing instructions on how
+    ///                        to handle the necessary swap to 
+    ///                        facilitate leveraging.
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
     function onBorrow(
-        address borrowToken,
+        address debtToken,
         address borrower,
         uint256 borrowAmount,
         LeverageStruct memory leverageData
     ) external override {
-        // We cast to a generic mToken but this will always be an eToken.
-        address borrowUnderlying = IMToken(borrowToken).asset();
+        address borrowUnderlying = IBorrowableCToken(debtToken).asset();
         // Take protocol fee, if any.
         uint256 fee = _getFee(
-            borrowToken,
+            debtToken,
             borrowAmount,
-            address(leverageData.borrowToken),
+            address(leverageData.debtToken),
             leverageData.borrowAmount,
             borrowUnderlying
         );
@@ -355,28 +362,28 @@ abstract contract BasePositionManager is
             );
         }
 
-        // We do not need to check whether positionToken is listed
+        // We do not need to check whether collateralToken is listed
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        ICToken positionToken = leverageData.positionToken;
+        ICToken collateralToken = leverageData.collateralToken;
 
         // Unwrap leverage instructions for collateral deposit.
-        address collateralUnderlying = positionToken.asset();
+        address collateralUnderlying = collateralToken.asset();
 
         _swapBorrowUnderlyingToCollateral(leverageData, borrower);
 
         uint256 amount = IERC20(collateralUnderlying).balanceOf(address(this));
 
-        // Approve `amount` of `collateralUnderlying` to pToken contract.
+        // Approve `amount` of `collateralUnderlying` to `collateralToken` contract.
         SwapperLib._approveTokenIfNeeded(
             collateralUnderlying,
-            address(positionToken),
+            address(collateralToken),
             amount
         );
 
         // Enter Curvance.
-        positionToken.depositAsCollateral(amount, borrower);
+        collateralToken.depositAsCollateral(amount, borrower);
 
         uint256 remaining = IERC20(borrowUnderlying).balanceOf(address(this));
 
@@ -392,47 +399,48 @@ abstract contract BasePositionManager is
         // Remove any excess approval.
         SwapperLib._removeApprovalIfNeeded(
             borrowUnderlying,
-            address(borrowToken)
+            address(debtToken)
         );
     }
 
     /// @notice Callback function to execute post redemption of
-    ///         `positionToken`'s underlying and swap it to repay
+    ///         `collateralToken`'s underlying and swap it to repay
     ///         active debt for `redeemer`.
     /// @dev Measures slippage after this callback validating that `redeemer`
     ///      is still within acceptable liquidity requirements.
-    /// @param positionToken The pToken redeemed for its underlying.
+    /// @param collateralToken The pToken redeemed for its underlying.
     /// @param redeemer The account redeeming collateral that will be used to
     ///                 repay their active debt.
-    /// @param collateralAmount The amount of `positionToken` underlying
+    /// @param collateralAmount The amount of `collateralToken` underlying
     ///                         redeemed.
     /// @param deleverageData Struct containing information on the desired
     ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of pToken that will be routed into
-    ///                          eToken underlying to repay outstanding debt.
-    ///                       2. The amount of pTokens that will be
+    ///                       1. Address of the Curvance token that will be 
+    ///                          routed into debt token underlying to repay
+    ///                          outstanding debt.
+    ///                       2. The amount of `collateralToken` that will be
     ///                          deleveraged.
-    ///                       3. Address of eToken that will have its underlying
-    ///                          token debt repaid.
-    ///                       4. Optional struct containing instructions on how
-    ///                          to handle swapping into eToken underlying to
+    ///                       3. Address of Curvance token that will have its
+    ///                          outstanding debt repaid.
+    ///                       4. Optional struct containing instructions on
+    ///                          how to handle swapping into debt token to
     ///                          facilitate deleveraging.
     ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to the eToken lenders.
+    ///                          repaid to lenders.
     ///                       6. Optional auxiliary data for execution of a
     ///                          deleverage action.
     function onRedeem(
-        address positionToken,
+        address collateralToken,
         address redeemer,
         uint256 collateralAmount,
         DeleverageStruct memory deleverageData
     ) external override {
         // Take protocol fee, if any.
-        address collateralUnderlying = ICToken(positionToken).asset();
+        address collateralUnderlying = ICToken(collateralToken).asset();
         uint256 fee = _getFee(
-            positionToken,
+            collateralToken,
             collateralAmount,
-            address(deleverageData.positionToken),
+            address(deleverageData.collateralToken),
             deleverageData.collateralAmount,
             collateralUnderlying
         );
@@ -447,14 +455,14 @@ abstract contract BasePositionManager is
 
         _swapCollateralToBorrowUnderlying(deleverageData);
 
-        // We do not need to check whether borrowToken is listed
+        // We do not need to check whether debtToken is listed
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        IBorrowableCToken borrowToken = deleverageData.borrowToken;
+        IBorrowableCToken debtToken = deleverageData.debtToken;
 
         // Unwrap deleverage instructions for debt repayment.
-        address borrowUnderlying = borrowToken.asset();
+        address borrowUnderlying = debtToken.asset();
         uint256 repayAmount = deleverageData.repayAmount;
         uint256 borrowUnderlyingBalance = IERC20(borrowUnderlying).balanceOf(
             address(this)
@@ -467,15 +475,15 @@ abstract contract BasePositionManager is
         }
         uint256 remaining = borrowUnderlyingBalance - repayAmount;
 
-        // Approve `repayAmount` of `borrowUnderlying` to eToken contract.
+        // Approve `repayAmount` of `borrowUnderlying` to `debtToken` contract.
         SwapperLib._approveTokenIfNeeded(
             borrowUnderlying,
-            address(borrowToken),
+            address(debtToken),
             repayAmount
         );
 
         // Repay debt.
-        borrowToken.repayFor(redeemer, repayAmount);
+        debtToken.repayFor(redeemer, repayAmount);
 
         // Transfer remaining borrow underlying back to user.
         if (remaining > 0) {
@@ -515,40 +523,40 @@ abstract contract BasePositionManager is
         // Remove any excess approval.
         SwapperLib._removeApprovalIfNeeded(
             borrowUnderlying,
-            address(borrowToken)
+            address(debtToken)
         );
     }
 
-    /// @notice Calculates the hypothetical maximum amount of `borrowToken`
+    /// @notice Calculates the hypothetical maximum amount of `debtToken`
     ///         `account` can borrow for maximum leverage based on a new
     ///         position token deposit and collateralized.
     /// @dev Applies a minor dampening effect to calculated maximum leverage
     ///      via `MAX_LEVERAGE`. Offsets maximum borrowable debt amount if
     ///      there is insufficient liquidity to borrow in the target market.
     /// @param account The account to query maximum borrow amount for.
-    /// @param borrowToken The eToken that `account` will borrow from
-    ///                    to achieve leverage.
-    /// @param positionToken The pToken that `account` will deposit to
-    ///                      leverage against.
-    /// @param collateralAmount The amount of underlying pToken that `account`
-    ///                         will deposit to leverage against.
+    /// @param debtToken The token that `account` will borrow from
+    ///                  to achieve leverage.
+    /// @param collateralToken The token that `account` will deposit to
+    ///                        leverage against.
+    /// @param collateralAmount The amount of `collateralToken` underlying
+    ///                         that `account` will deposit to leverage against.
     /// @return maxDebtBorrowable Returns the maximum remaining borrow amount
-    ///                           allowed from `borrowToken`, measured in
+    ///                           allowed from `debtToken`, measured in
     ///                           underlying token amount, after the new
     ///                           hypothetical deposit.
     /// @return isOffset Whether the maximum borrowable debt amount returned
     ///                  has been offset due to available liquidity or not.
     function hypotheticalMaxRemainingLeverageOf(
         address account,
-        address borrowToken,
-        address positionToken,
+        address debtToken,
+        address collateralToken,
         uint256 collateralAmount
     ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
         (uint256 price, uint256 errorCode) = IOracleManager(
             ICentralRegistry(centralRegistry).oracleManager()
-        ).getPrice(address(positionToken), true, true);
+        ).getPrice(address(collateralToken), true, true);
 
-        // Validate we got a price for `positionToken`.
+        // Validate we got a price for `collateralToken`.
         if (errorCode != 0) {
             revert BasePositionManager__InvalidTokenPrice();
         }
@@ -560,13 +568,13 @@ abstract contract BasePositionManager is
         ) = marketManager.statusOf(account);
 
         uint256 newCollateral = FixedPointMathLib.mulDiv(
-            ICToken(positionToken).previewDeposit(collateralAmount),
+            ICToken(collateralToken).previewDeposit(collateralAmount),
             price,
-            10 ** ICToken(positionToken).decimals()
+            10 ** ICToken(collateralToken).decimals()
         );
 
         uint256 collRatio = marketManager.collateralizationRatio(
-            positionToken
+            collateralToken
         );
         // If the position token cannot be borrowed against the hypothetical
         // leverage check will result in 0 meaning nothing new to leverage
@@ -582,11 +590,11 @@ abstract contract BasePositionManager is
             sumCollateral,
             maxDebt,
             sumDebt,
-            borrowToken
+            debtToken
         );
 
-        uint256 liquidityAvailable = IERC20(IMToken(borrowToken).asset())
-            .balanceOf(borrowToken);
+        uint256 liquidityAvailable = IERC20(ICToken(debtToken).asset())
+            .balanceOf(debtToken);
 
         if (liquidityAvailable < maxDebtBorrowable) {
             maxDebtBorrowable = liquidityAvailable;
@@ -596,18 +604,18 @@ abstract contract BasePositionManager is
 
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice Calculates the maximum amount of `borrowToken` `account` can
+    /// @notice Calculates the maximum amount of `debtToken` `account` can
     ///         borrow for maximum leverage.
     /// @dev Applies a minor dampening effect to calculated maximum leverage
     ///      via `MAX_LEVERAGE`.
     /// @param account The account to query maximum borrow amount for.
-    /// @param borrowToken The eToken that `account` will borrow from
-    ///                    to achieve leverage.
+    /// @param debtToken The token that `account` will borrow from
+    ///                  to achieve leverage.
     /// @return Returns the maximum remaining borrow amount allowed from
-    ///         `borrowToken`, measured in underlying token amount.
+    ///         `debtToken`, measured in underlying token amount.
     function maxRemainingLeverageOf(
         address account,
-        address borrowToken
+        address debtToken
     ) public view returns (uint256) {
         (
             uint256 sumCollateral,
@@ -620,7 +628,7 @@ abstract contract BasePositionManager is
                 sumCollateral,
                 maxDebt,
                 sumDebt,
-                borrowToken
+                debtToken
             );
     }
 
@@ -648,7 +656,7 @@ abstract contract BasePositionManager is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Validate the token is actually listed to this Market Manager.
+        // Validate the token is actually listed in this Market Manager.
         if (!marketManager.isListed(token)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
@@ -670,14 +678,15 @@ abstract contract BasePositionManager is
     ///         both collateral and debt inside the system.
     /// @param leverageData Struct containing information on the desired
     ///                     leverage action to execute. Containing values:
-    ///                     1. Address of eToken that will be borrowed from.
-    ///                     2. The amount of underlying tokens from eToken
-    ///                        that will be borrowed.
-    ///                     3. Address of pToken that borrowed funds
-    ///                        will be swapped into.
-    ///                     4. Struct containing instructions
-    ///                        on how to handle the necessary eToken swap
-    ///                        to facilitate leveraging.
+    ///                     1. Address of `debtToken` that will be borrowed
+    ///                        and swapped.
+    ///                     2. The amount of underlying tokens from
+    ///                        `debtToken` that will be borrowed.
+    ///                     3. Curvance token that borrowed funds will be
+    ///                        swapped into.
+    ///                     4. Struct containing instructions on how
+    ///                        to handle the necessary swap to 
+    ///                        facilitate leveraging.
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
     /// @param account The account to leverage an active Curvance position
@@ -686,11 +695,11 @@ abstract contract BasePositionManager is
         LeverageStruct memory leverageData,
         address account
     ) internal {
-        IBorrowableCToken borrowToken = leverageData.borrowToken;
+        IBorrowableCToken debtToken = leverageData.debtToken;
         uint256 borrowAmount = leverageData.borrowAmount;
         uint256 maxBorrowAmount = maxRemainingLeverageOf(
             account,
-            address(borrowToken)
+            address(debtToken)
         );
 
         // Validate that the desired borrow amount is within bounds of what
@@ -702,7 +711,7 @@ abstract contract BasePositionManager is
             );
         }
 
-        borrowToken.borrowForPositionManager(
+        debtToken.borrowForPositionManager(
             account,
             borrowAmount,
             leverageData
@@ -713,17 +722,18 @@ abstract contract BasePositionManager is
     ///         both collateral and debt inside the system.
     /// @param deleverageData Struct containing information on the desired
     ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of pToken that will be routed into
-    ///                          eToken underlying to repay outstanding debt.
-    ///                       2. The amount of pTokens that will be
+    ///                       1. Address of the Curvance token that will be 
+    ///                          routed into debt token underlying to repay
+    ///                          outstanding debt.
+    ///                       2. The amount of `collateralToken` that will be
     ///                          deleveraged.
-    ///                       3. Address of eToken that will have its underlying
-    ///                          token debt repaid.
-    ///                       4. Optional struct containing instructions on how
-    ///                          to handle swapping into eToken underlying to
+    ///                       3. Address of Curvance token that will have its
+    ///                          outstanding debt repaid.
+    ///                       4. Optional struct containing instructions on
+    ///                          how to handle swapping into debt token to
     ///                          facilitate deleveraging.
     ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to the eToken lenders.
+    ///                          repaid to lenders.
     ///                       6. Optional auxiliary data for execution of a
     ///                          deleverage action.
     /// @param account The account to deleverage an active Curvance position
@@ -732,29 +742,29 @@ abstract contract BasePositionManager is
         DeleverageStruct memory deleverageData,
         address account
     ) internal {
-        deleverageData.positionToken.withdrawByPositionManager(
+        deleverageData.collateralToken.withdrawByPositionManager(
             account,
             deleverageData.collateralAmount,
             deleverageData
         );
     }
 
-    /// @notice Calculates the maximum amount of `borrowToken` `account` can
+    /// @notice Calculates the maximum amount of `debtToken` `account` can
     ///         borrow for maximum leverage.
     /// @dev Applies a minor dampening effect to calculated maximum leverage
     ///      via `MAX_LEVERAGE`.
-    /// @param sumCollateral total collateral amount of account.
-    /// @param maxDebt max borrow amount of account.
-    /// @param sumDebt total borrow amount of account.
-    /// @param borrowToken The eToken that `account` will borrow from
-    ///                    to achieve leverage.
-    /// @return Returns the maximum remaining borrow amount allowed from
-    ///         `borrowToken`, measured in underlying token amount.
+    /// @param sumCollateral Current total collateral amount of the account.
+    /// @param maxDebt Max allowed debt amount of account.
+    /// @param sumDebt Current outstanding debt amount of the account.
+    /// @param debtToken The token that `account` will borrow from
+    ///                  to achieve leverage.
+    /// @return Returns the maximum remaining debt amount allowed from
+    ///         `debtToken`, measured in underlying token amount.
     function _maxRemainingLeverageOf(
         uint256 sumCollateral,
         uint256 maxDebt,
         uint256 sumDebt,
-        address borrowToken
+        address debtToken
     ) internal view returns (uint256) {
         // We can calculate terminal leverage by calculating the infinite
         // series of swapping to maximum LTV over and over, which results
@@ -776,16 +786,16 @@ abstract contract BasePositionManager is
 
         (uint256 price, uint256 errorCode) = IOracleManager(
             ICentralRegistry(centralRegistry).oracleManager()
-        ).getPrice(address(borrowToken), true, false);
+        ).getPrice(address(debtToken), true, false);
 
-        // Validate we got a price for `borrowToken`.
+        // Validate we got a price for `debtToken`.
         if (errorCode != 0) {
             revert BasePositionManager__InvalidTokenPrice();
         }
 
         return
             (((maxLeverage * WAD) / price) *
-                (10 ** IERC20(borrowToken).decimals())) / WAD;
+                (10 ** IERC20(debtToken).decimals())) / WAD;
     }
 
     /// @notice Helper function for efficiently transferring tokens
@@ -818,8 +828,7 @@ abstract contract BasePositionManager is
         }
     }
 
-    /// @notice Returns the Protocol Central Registry contract in interface
-    ///         form.
+    /// @notice Returns the Central Registry contract in interface form.
     function _getCentralRegistry()
         internal
         view
@@ -831,25 +840,23 @@ abstract contract BasePositionManager is
 
     /// FUNCTIONS TO OVERRIDE ///
 
-    /// @notice Callback function on borrowing tokens from an eToken contract
-    ///         providing instant liquidity in the eToken underlying which is
-    ///         then swapped into the underlying of a pToken that a user is
-    ///         currently putting up as collateral against the eToken debt
-    ///         position, creating a leveraged spot position.
-    /// @dev MUST be overridden in every position management contract's
-    ///      implementation.
+    /// @notice Callback function on borrowing tokens from a Curvance token
+    ///         providing instant liquidity in the debt token underlying which
+    ///         is then swapped into the underlying of a collateral token that
+    ///         a user currently has collateralized against the debt position,
+    ///         creating/increasing a leveraged spot position.
+    /// @dev MUST be overridden in every Position Manager implementation.
     function _swapBorrowUnderlyingToCollateral(
         LeverageStruct memory leverageData,
         address /* recipient */
     ) internal virtual;
 
-    /// @notice Callback function on redemption of tokens from a pToken vault
-    ///         providing instant liquidity in the pToken underlying which is
-    ///         then swapped into the underlying of an eToken that a user is
-    ///         currently borrowing from, partially or fully closing a
-    ///         leveraged spot position.
-    /// @dev MUST be overridden in every position management contract's
-    ///      implementation.
+    /// @notice Callback function on redemption of tokens from a Curvance token
+    ///         providing instant liquidity in the collateral token underlying
+    ///         which is then swapped into the underlying of a debt token that
+    ///         a user is currently borrowing from, partially or fully closing
+    ///         a leveraged spot position.
+    /// @dev MUST be overridden in every Position Manager implementation.
     function _swapCollateralToBorrowUnderlying(
         DeleverageStruct memory deleverageData
     ) internal virtual;

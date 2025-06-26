@@ -364,6 +364,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
         result = debtBalance(account);
     }
 
+    /// PUBLIC FUNCTIONS ///
+
     /// @notice Returns the current debt balance for `account`.
     /// @dev Note: Pending interest is not applied in this calculation.
     /// @param account The address whose debt balance should be calculated.
@@ -398,6 +400,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @return The quantity of underlying tokens held by the market.
     function assetsHeld() public view returns (uint256) {
         return _asset.balanceOf(address(this));
+    }
+
+    /// @notice Returns whether the underlying token can be borrowed.
+    /// @dev true = Borrowable; false = Not Borrowable.
+    /// @return Whether this token is borrowable or not.
+    function isBorrowable() public pure override returns (bool) {
+        return true;
     }
 
     /// INTERNAL FUNCTIONS ///
