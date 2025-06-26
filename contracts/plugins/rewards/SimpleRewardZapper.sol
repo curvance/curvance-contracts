@@ -8,7 +8,7 @@ import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 contract SimpleRewardZapper is ZapperBase {
     /// CONSTANTS ///
@@ -200,7 +200,7 @@ contract SimpleRewardZapper is ZapperBase {
         }
 
         // Cache underlying to minimize external calls.
-        address eTokenUnderlying = IMToken(eToken).asset();
+        address eTokenUnderlying = ICToken(eToken).asset();
 
         if (rewardToken != eTokenUnderlying) {
             // Validate that if we are swapping that the output token

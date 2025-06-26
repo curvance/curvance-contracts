@@ -9,7 +9,7 @@ import { VeCVE } from "contracts/token/VeCVE.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
@@ -488,7 +488,7 @@ contract StartContractsConfig is
         OracleManager router = OracleManager(oracleManager);
 
         if (!router.isSupportedAsset(mToken)) {
-            router.addMTokenSupport(mToken);
+            router.addCTokenSupport(mToken);
         }
     }
 
@@ -499,7 +499,7 @@ contract StartContractsConfig is
     ) internal {
         address oracleManager = _getDeployedContract("oracleManager");
         address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
-        address underlying = IMToken(mToken).asset();
+        address underlying = ICToken(mToken).asset();
 
         if (chainlinkEth == address(0) && chainlinkUsd == address(0)) {
             return;
@@ -540,9 +540,9 @@ contract StartContractsConfig is
             );
         }
 
-        // Link mToken
+        // Link cToken
         if (!OracleManager(oracleManager).isSupportedAsset(mToken)) {
-            OracleManager(oracleManager).addMTokenSupport(mToken);
+            OracleManager(oracleManager).addCTokenSupport(mToken);
         }
     }
 

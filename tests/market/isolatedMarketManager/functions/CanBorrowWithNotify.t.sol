@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 
 contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
     function setUp() public override {
@@ -370,7 +370,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(eUSDC));
 
         assertFalse(hasPosition);
-        IMToken[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
+        ICToken[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
         assertEq(accountAssets.length, 1);
 
         vm.prank(address(eUSDC));

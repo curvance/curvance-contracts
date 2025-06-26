@@ -8,7 +8,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 /// @title Curvance Universal Balance for Native Gas Tokens
 /// @notice A specialized system for managing native gas tokens within the Curvance Protocol
@@ -48,7 +48,7 @@ contract NativeUniversalBalance is UniversalBalance {
     ) UniversalBalance(centralRegistry_, eToken) {
         // Validate that eToken underlying and native wrapped token
         // contract match addresses.
-        if (IMToken(eToken).asset() != nativeWrappedToken) {
+        if (ICToken(eToken).asset() != nativeWrappedToken) {
             revert NativeUniversalBalance__UnderlyingTokenMismatch();
         }
     }

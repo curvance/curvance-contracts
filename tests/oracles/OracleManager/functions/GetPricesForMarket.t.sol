@@ -3,16 +3,16 @@ pragma solidity ^0.8.19;
 
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
 contract GetPricesForMarketTest is TestBaseOracleManager {
-    IMToken[] public assets;
+    ICToken[] public assets;
 
     function setUp() public override {
         super.setUp();
 
-        assets.push(IMToken(address(eUSDC)));
+        assets.push(ICToken(address(eUSDC)));
 
         _deployPBALRETH();
 

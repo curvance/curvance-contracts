@@ -7,7 +7,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 contract SimpleZapper is ZapperBase {
     /// CONSTRUCTOR ///
@@ -114,7 +114,7 @@ contract SimpleZapper is ZapperBase {
         }
 
         // Cache underlying to minimize external calls.
-        address eTokenUnderlying = IMToken(eToken).asset();
+        address eTokenUnderlying = ICToken(eToken).asset();
         uint256 outAmount;
 
         // Make sure if we are swapping that we are swapping into the proper
@@ -233,7 +233,7 @@ contract SimpleZapper is ZapperBase {
             _enterCurvance(
                 mToken,
                 swapData.outputToken,
-                IMToken(mToken).isCollateralizable(), // Check whether new deposit is for a PToken or EToken.
+                ICToken(mToken).isCollateralizable(), // Check whether new deposit is for a PToken or EToken.
                 outAmount,
                 expectedShares,
                 collateralize,

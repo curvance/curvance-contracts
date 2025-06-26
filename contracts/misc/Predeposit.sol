@@ -6,8 +6,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 
 contract Predeposit {
@@ -284,14 +283,14 @@ contract Predeposit {
             if (collateralize) {
                 // Migrate to a position token and immediately
                 // collateralize it.
-                IPToken(mToken).depositAsCollateralFor(amount, msg.sender);
+                ICToken(mToken).depositAsCollateralFor(amount, msg.sender);
             } else {
                 // Migrate to a position token and just deposit it.
-                IPToken(mToken).deposit(amount, msg.sender);
+                ICToken(mToken).deposit(amount, msg.sender);
             }
         } else {
             // Migrate a debt token to be lent to users.
-            IBorrowableCToken(mToken).mint(amount, msg.sender);
+            IBorrowableCToken(mToken).deposit(amount, msg.sender);
         }
 
         // Remove any excess approval.
@@ -346,18 +345,18 @@ contract Predeposit {
 
         // Validate the protocol token has the predeposit token as its
         // underlying.
-        if (IMToken(protocolToken).asset() != predepositToken) {
+        if (ICToken(protocolToken).asset() != predepositToken) {
             revert Predeposit__InvalidParameters();
         }
 
         // Validate the protocol token has a market manager and is listed.
-        if (!IMToken(protocolToken).marketManager().isListed(protocolToken)) {
+        if (!ICToken(protocolToken).marketManager().isListed(protocolToken)) {
             revert Predeposit__InvalidParameters();
         }
 
         // Pull the data directly from the contract rather than from parameter
         // input.
-        tokenData[predepositToken].isPToken = IMToken(protocolToken).isCollateralizable();
+        tokenData[predepositToken].isPToken = ICToken(protocolToken).isCollateralizable();
         tokenData[predepositToken].mTokenAddress = protocolToken;
 
         emit MigrationTokenConfigured(predepositToken, protocolToken);

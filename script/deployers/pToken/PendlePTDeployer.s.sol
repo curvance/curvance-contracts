@@ -186,7 +186,7 @@ contract PendlePTDeployer is DeployConfiguration {
             _saveDeployedContracts(name, pToken);
 
             if (!OracleManager(oracleManager).isSupportedAsset(pToken)) {
-                OracleManager(oracleManager).addMTokenSupport(pToken);
+                OracleManager(oracleManager).addCTokenSupport(pToken);
             }
         }
 

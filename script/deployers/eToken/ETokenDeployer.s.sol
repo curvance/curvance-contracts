@@ -126,7 +126,7 @@ contract ETokenDeployer is DeployConfiguration {
             _saveDeployedContracts(name, eToken);
 
             if (!OracleManager(oracleManager).isSupportedAsset(eToken)) {
-                OracleManager(oracleManager).addMTokenSupport(eToken);
+                OracleManager(oracleManager).addCTokenSupport(eToken);
             }
         }
 

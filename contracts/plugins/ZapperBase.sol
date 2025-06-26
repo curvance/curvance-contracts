@@ -9,8 +9,7 @@ import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.so
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
@@ -102,7 +101,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         }
 
         // Validate `underlying` matches underlying token of mToken contract.
-        if (IMToken(mToken).asset() != underlying) {
+        if (ICToken(mToken).asset() != underlying) {
             revert ZapperBase__UnderlyingTokenIsNotInputToken();
         }
 
@@ -127,7 +126,7 @@ abstract contract ZapperBase is ReentrancyGuard {
                         msg.sender
                     )
                 ) {
-                    shares = IPToken(mToken).depositAsCollateralFor(
+                    shares = ICToken(mToken).depositAsCollateralFor(
                         assets,
                         recipient
                     );
@@ -137,12 +136,12 @@ abstract contract ZapperBase is ReentrancyGuard {
             } else {
                 // User wants to enter an uncollateralized a position so we dont
                 // care if they are zapping for themselves or someone else.
-                shares = IPToken(mToken).deposit(assets, recipient);
+                shares = ICToken(mToken).deposit(assets, recipient);
             }
         } else {
             // Depositing into a lending position is permissionless so we can
             // just directly mint for the recipient.
-            shares = IBorrowableCToken(mToken).mint(assets, recipient);
+            shares = ICToken(mToken).deposit(assets, recipient);
         }
 
         // Make sure `recipient` got sufficient shares.
@@ -175,7 +174,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         address recipient
     ) internal {
         // Validate `underlying` matches underlying token of mToken contract.
-        if (IMToken(mToken).asset() != underlying) {
+        if (ICToken(mToken).asset() != underlying) {
             revert ZapperBase__ExecutionError();
         }
 
@@ -186,7 +185,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         // uncollateralized redemption looks the same for both tokens, whereas
         // only pTokens would ever use "forceRedeemCollateral".
         if (forceRedeemCollateral) {
-            assets = IPToken(mToken).redeemCollateralFor(
+            assets = ICToken(mToken).redeemCollateralFor(
                 shares,
                 address(this),
                 msg.sender

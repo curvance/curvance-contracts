@@ -17,7 +17,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
@@ -79,11 +79,11 @@ abstract contract BasePositionManager is
     /// @param slippage Slippage accepted by the user for execution of
     ///                 `leverageData` leverage action, in WAD (1e18).
     modifier checkSlippage(address account, uint256 slippage) {
-        IMToken[] memory mTokens = marketManager.assetsOf(account);
-        uint256 numTokens = mTokens.length;
+        address[] memory cTokens = marketManager.assetsOf(account);
+        uint256 numTokens = cTokens.length;
         for (uint256 i; i < numTokens; ++i) {
-            if (mTokens[i].isBorrowable()) {
-                IBorrowableCToken(address(mTokens[i])).accrueInterest();
+            if (ICToken(cTokens[i]).isBorrowable()) {
+                IBorrowableCToken(address(cTokens[i])).accrueIfNeeded();
             }
         }
 
@@ -337,7 +337,7 @@ abstract contract BasePositionManager is
         LeverageStruct memory leverageData
     ) external override {
         // We cast to a generic mToken but this will always be an eToken.
-        address borrowUnderlying = IMToken(borrowToken).asset();
+        address borrowUnderlying = ICToken(borrowToken).asset();
         // Take protocol fee, if any.
         uint256 fee = _getFee(
             borrowToken,
@@ -585,7 +585,7 @@ abstract contract BasePositionManager is
             borrowToken
         );
 
-        uint256 liquidityAvailable = IERC20(IMToken(borrowToken).asset())
+        uint256 liquidityAvailable = IERC20(ICToken(borrowToken).asset())
             .balanceOf(borrowToken);
 
         if (liquidityAvailable < maxDebtBorrowable) {

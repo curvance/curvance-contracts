@@ -11,7 +11,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
@@ -787,7 +787,7 @@ contract GaugeManager is
 
         // Make sure the token is listed inside this market,
         // and that the token is executing the deposit call.
-        IMarketManager marketManager = IMToken(token).marketManager();
+        IMarketManager marketManager = ICToken(token).marketManager();
         if (
             msg.sender != token ||
             !marketManager.isListed(token) ||

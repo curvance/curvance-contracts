@@ -106,7 +106,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         _prepareWETH(owner, 200000 ether);
         weth.approve(address(eWETH), 200000e18);
 
-        oracleManager.addMTokenSupport(address(eWETH));
+        oracleManager.addCTokenSupport(address(eWETH));
         address[] memory markets = new address[](1);
         markets[0] = address(eWETH);
 
@@ -121,7 +121,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(cWBTC), address(eWETH));
 
-        oracleManager.addMTokenSupport(address(cWBTC));
+        oracleManager.addCTokenSupport(address(cWBTC));
 
         marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%

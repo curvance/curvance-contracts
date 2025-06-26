@@ -125,7 +125,7 @@ contract PendleLPCToken is StrategyCToken {
         _canHarvest();
 
         // Vest pending yield if there are any.
-        accrueIfNeeded();
+        _accrueIfNeeded();
 
         // Can only harvest once previous vesting period is done.
         if (_checkVestingFinished(_vestingData)) {

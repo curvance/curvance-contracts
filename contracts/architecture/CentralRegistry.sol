@@ -357,30 +357,30 @@ contract CentralRegistry is ERC165, ActionRegistry {
         );
     }
 
-    /// @notice Withdraws all protocol reserve fees from a eToken
-    ///         from interest generated and liquidations.
-    /// @param borrowableCTokens Array of eToken addresses to withdraw fees from.
-    function withdrawReservesMulti(address[] calldata borrowableCTokens) external {
-        // Match permissioning check to normal withdrawReserves().
-        _checkDaoPermissions();
+    // /// @notice Withdraws all protocol reserve fees from a eToken
+    // ///         from interest generated and liquidations.
+    // /// @param borrowableCTokens Array of eToken addresses to withdraw fees from.
+    // function withdrawReservesMulti(address[] calldata borrowableCTokens) external {
+    //     // Match permissioning check to normal withdrawReserves().
+    //     _checkDaoPermissions();
 
-        uint256 numTokens = borrowableCTokens.length;
-        if (numTokens == 0) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
+    //     uint256 numTokens = borrowableCTokens.length;
+    //     if (numTokens == 0) {
+    //         _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+    //     }
 
-        IBorrowableCToken borrowableCToken;
+    //     IBorrowableCToken borrowableCToken;
 
-        for (uint256 i; i < numTokens; ) {
-            borrowableCToken = IBorrowableCToken(borrowableCTokens[i++]);
-            // Revert if somehow a misconfigured token made it in here.
-            if (!borrowableCToken.isBorrowable()) {
-                _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-            }
+    //     for (uint256 i; i < numTokens; ) {
+    //         borrowableCToken = IBorrowableCToken(borrowableCTokens[i++]);
+    //         // Revert if somehow a misconfigured token made it in here.
+    //         if (!borrowableCToken.isBorrowable()) {
+    //             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+    //         }
 
-            borrowableCToken.processWithdrawReserves();
-        }
-    }
+    //         borrowableCToken.processWithdrawReserves();
+    //     }
+    // }
 
     /// @notice Sets a new genesis epoch.
     /// @dev Only callable by the Emergency Council.

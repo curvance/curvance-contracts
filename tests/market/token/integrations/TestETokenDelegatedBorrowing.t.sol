@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-import { ETokenWithGauge } from "contracts/market/token/withGauge/ETokenWithGauge.sol";
+import { BorrowableCTokenWithGauge } from "contracts/market/token/withGauge/BorrowableCTokenWithGauge.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
@@ -251,7 +251,7 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
     ) internal override initMainVariables returns (BorrowableCToken) {
         BorrowableCToken eToken = BorrowableCToken(
             address(
-                new ETokenWithGauge(
+                new BorrowableCTokenWithGauge(
                     ICentralRegistry(address(centralRegistry)),
                     token,
                     address(marketManagerIsolated),

@@ -47,11 +47,11 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         interestRateModel = interestRateModels[block.chainid][_DAI_ADDRESS];
 
         // Setup eToken (eDAI)
-        oracleManager.addMTokenSupport(address(eDAI));
+        oracleManager.addCTokenSupport(address(eDAI));
         _prepareDAI(owner, 100e18);
         dai.approve(address(eDAI), 100e18);
         // Setup cToken (pUSDC)
-        oracleManager.addMTokenSupport(address(pUSDC));
+        oracleManager.addCTokenSupport(address(pUSDC));
         _prepareUSDC(owner, 100e6);
         usdc.approve(address(pUSDC), 100e6);
         marketManagerIsolated.listTokens(address(pUSDC),address(eDAI));
@@ -309,7 +309,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         vm.warp(block.timestamp + adjustmentRate);
 
         // Force an interest rate update
-        eDAI.accrueInterest();
+        eDAI.accrueIfNeeded();
 
         // then
         uint256 newMultiplier = interestRateModel.vertexMultiplier();
