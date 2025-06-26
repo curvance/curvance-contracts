@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
@@ -17,7 +16,7 @@ import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol"
 contract CCTPBorrowZapper is ReentrancyGuard {
     /// CONSTANTS ///
 
-    /// @notice Gas limit with which to call `targetAddress` via wormhole.
+    /// @notice Gas limit with which to call `targetAddress` crosschain.
     uint256 internal constant _DEFAULT_GAS_LIMIT = 300_000;
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
@@ -48,18 +47,20 @@ contract CCTPBorrowZapper is ReentrancyGuard {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Borrows on behalf of the caller from `eToken` then bridge
-    ///         funds to desired destination chain.
+    /// @notice Borrows on behalf of the caller from `borrowableCToken` then
+    ///         bridge funds to desired destination chain.
     /// @dev Requires that caller delegated borrowing functionality to this
     ///      contract prior.
-    /// @param eToken The eToken contract to borrow from.
-    /// @param borrowAmount The amount of eToken underlying to borrow.
+    /// @param borrowableCToken The Curvance token contract address to borrow
+    ///                         from.
+    /// @param borrowAmount The amount of `borrowableCToken` underlying to
+    ///                     borrow.
     /// @param swapData Swap instruction data to route from borrowed token
     ///                 to `feeToken`.
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @param dstChainId Chain ID of the target blockchain.
     function borrowAndBridge(
-        address eToken,
+        address borrowableCToken,
         uint256 borrowAmount,
         SwapperLib.Swap memory swapData,
         uint256 dstChainId,
@@ -69,9 +70,13 @@ contract CCTPBorrowZapper is ReentrancyGuard {
         uint256 balancePrior = IERC20(feeToken).balanceOf(address(this));
 
         // Borrow on behalf of caller.
-        BorrowableCToken(eToken).borrowFor(msg.sender, address(this), borrowAmount);
+        IBorrowableCToken(borrowableCToken).borrowFor(
+            msg.sender,
+            address(this),
+            borrowAmount
+        );
 
-        address underlying = BorrowableCToken(eToken).asset();
+        address underlying = IBorrowableCToken(borrowableCToken).asset();
 
         // Check if swapping is necessary.
         if (underlying != feeToken) {
@@ -161,7 +166,7 @@ contract CCTPBorrowZapper is ReentrancyGuard {
             revert CCTPBorrowZapper__InsufficientGasToken();
         }
 
-        IWormholeRelayer crosschainRelayer = _getWormholeRelayer();
+        IWormholeRelayer crosschainRelayer = _getCrosschainRelayer();
         ChainData memory chainData = centralRegistry.supportedChainData(
             dstChainId
         );
@@ -221,19 +226,19 @@ contract CCTPBorrowZapper is ReentrancyGuard {
         uint256 dstChainId,
         uint256 gasLimit
     ) internal view returns (uint256 nativeFee) {
-        (nativeFee, ) = _getWormholeRelayer().quoteEVMDeliveryPrice(
+        (nativeFee, ) = _getCrosschainRelayer().quoteEVMDeliveryPrice(
             centralRegistry.supportedChainData(dstChainId).messagingChainId,
             0,
             gasLimit > _DEFAULT_GAS_LIMIT ? gasLimit : _DEFAULT_GAS_LIMIT
         );
 
-        // Add cost of publishing the 'sending token' wormhole message.
+        // Add cost of publishing the 'sending token' crosschain message.
         nativeFee += IWormhole(centralRegistry.crosschainCore()).messageFee();
     }
 
-    /// @dev Returns the current Wormhole Relayer address to call.
-    /// @return The current Wormhole Relayer contract.
-    function _getWormholeRelayer() internal view returns (IWormholeRelayer) {
+    /// @dev Returns the current Crosschain Relayer address to call.
+    /// @return The current Crosschain Relayer contract.
+    function _getCrosschainRelayer() internal view returns (IWormholeRelayer) {
         return IWormholeRelayer(centralRegistry.crosschainRelayer());
     }
 }
