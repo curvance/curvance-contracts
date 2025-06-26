@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
+import { RescueLib } from "contracts/libraries/RescueLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -417,6 +418,19 @@ abstract contract BaseCToken is
         // Update market collateral posted invariant for all the accounts
         // liquidated.
         marketCollateralPosted = marketCollateralPosted - totalAmount;
+    }
+
+    /// @notice Rescue any token sent by mistake.
+    /// @param token token to rescue.
+    /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
+    function rescueToken(address token, uint256 amount) external {
+        _checkDaoPermissions();
+
+        if (token == asset()) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        RescueLib._rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Returns share -> asset exchange rate, in `WAD`.
