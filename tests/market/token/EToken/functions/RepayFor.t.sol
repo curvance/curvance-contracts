@@ -20,7 +20,7 @@ contract ETokenRepayForTest is TestBaseEToken {
 
         vm.startPrank(user1);
         usdc.approve(address(eUSDC), type(uint256).max);
-        eUSDC.mintFor(100e6, address(this));
+        eUSDC.mint(100e6, address(this));
         vm.stopPrank();
 
         eUSDC.borrow(100e6);
@@ -31,9 +31,9 @@ contract ETokenRepayForTest is TestBaseEToken {
 
     function test_eTokenRepayFor_success() public {
 
-        eUSDC.accrueInterest();
+        eUSDC.accrueIfNeeded();
 
-       uint256 currentDebt = eUSDC.debtBalanceCached(address(this));
+       uint256 currentDebt = eUSDC.debtBalance(address(this));
 
        uint256 underlyingBalance = usdc.balanceOf(address(eUSDC));
 
@@ -43,7 +43,7 @@ contract ETokenRepayForTest is TestBaseEToken {
         
         eUSDC.repayFor(address(this), currentDebt);
 
-        uint256 newDebt = eUSDC.debtBalanceCached(address(this));
+        uint256 newDebt = eUSDC.debtBalance(address(this));
         
         assertEq(newDebt, 0);
         assertEq(usdc.balanceOf(user2), 0);

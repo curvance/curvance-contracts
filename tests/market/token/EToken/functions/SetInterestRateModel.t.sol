@@ -5,6 +5,7 @@ import { TestBaseEToken } from "../TestBaseEToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
 contract SetInterestRateModelTest is TestBaseEToken {
     DynamicInterestRateModel public newDynamicInterestRateModel;
@@ -29,7 +30,7 @@ contract SetInterestRateModelTest is TestBaseEToken {
     {
         vm.prank(address(1));
 
-        vm.expectRevert(BorrowableCToken.BorrowableCToken__Unauthorized.selector);
+        vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
         eUSDC.setInterestRateModel(address(newDynamicInterestRateModel));
     }
 

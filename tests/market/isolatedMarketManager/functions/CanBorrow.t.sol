@@ -325,7 +325,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(eUSDC));
 
         assertFalse(hasPosition);
-        ICToken[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
+        address[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
         assertEq(accountAssets.length, 1);
 
         vm.prank(address(eUSDC));

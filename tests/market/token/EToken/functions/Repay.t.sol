@@ -20,7 +20,7 @@ contract ETokenRepayTest is TestBaseEToken {
 
         vm.startPrank(user1);
         usdc.approve(address(eUSDC), type(uint256).max);
-        eUSDC.mintFor(100e6, address(this));
+        eUSDC.mint(100e6, address(this));
         vm.stopPrank();
 
         eUSDC.borrow(100e6);
@@ -36,23 +36,23 @@ contract ETokenRepayTest is TestBaseEToken {
     }
 
     function test_eTokenRepay_fail_whenBorrowAmountExceedsCash() public {
-        eUSDC.accrueInterest();
+        eUSDC.accrueIfNeeded();
 
         uint256 debtBalanceCached = eUSDC.debtBalance(address(this));
 
-        vm.expectRevert(BorrowableCToken.BorrowableCToken__ExcessiveValue.selector);
+        vm.expectRevert(BorrowableCToken.BorrowableCToken__InvalidParameter.selector);
         eUSDC.repay(debtBalanceCached + 1);
     }
 
     function test_eTokenRepay_success() public {
-        eUSDC.accrueInterest();
+        eUSDC.accrueIfNeeded();
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = eUSDC.balanceOf(address(this));
         uint256 totalSupply = eUSDC.totalSupply();
-        uint256 totalBorrows = eUSDC.totalBorrows();
+        uint256 totalBorrows = eUSDC.marketOutstandingDebt();
 
-        vm.expectEmit(true, true, true, true, address(eUSDC));
+        vm.expectEmit(true, true, true, true, address(eUSDC)    );
         emit Repay(address(this), address(this), 100e6);
 
         eUSDC.repay(100e6);
@@ -60,17 +60,17 @@ contract ETokenRepayTest is TestBaseEToken {
         assertEq(usdc.balanceOf(address(this)), underlyingBalance - 100e6);
         assertEq(eUSDC.balanceOf(address(this)), balance);
         assertEq(eUSDC.totalSupply(), totalSupply);
-        assertEq(eUSDC.totalBorrows(), totalBorrows - 100e6);
+        assertEq(eUSDC.marketOutstandingDebt(), totalBorrows - 100e6);
     }
 
     function test_eTokenRepay_success_whenRepayAll() public {
-        eUSDC.accrueInterest();
+        eUSDC.accrueIfNeeded();
 
-        uint256 debtBalanceCached = eUSDC.debtBalanceCached(address(this));
+        uint256 debtBalanceCached = eUSDC.debtBalance(address(this));
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = eUSDC.balanceOf(address(this));
         uint256 totalSupply = eUSDC.totalSupply();
-        uint256 totalBorrows = eUSDC.totalBorrows();
+        uint256 totalBorrows = eUSDC.marketOutstandingDebt();
         uint256 expectedTotalBorrows;
 
         // If the totalBorrows adjustment won't be rounded down then we
@@ -91,7 +91,7 @@ contract ETokenRepayTest is TestBaseEToken {
         );
         assertEq(eUSDC.balanceOf(address(this)), balance);
         assertEq(eUSDC.totalSupply(), totalSupply);
-        assertEq(eUSDC.totalBorrows(), expectedTotalBorrows);
+        assertEq(eUSDC.marketOutstandingDebt(), expectedTotalBorrows);
     }
 
     function test_borrowers_repayAllDebts() public {
@@ -101,7 +101,8 @@ contract ETokenRepayTest is TestBaseEToken {
 
         uint256 addUsdcAmount = 1500e6;
         eUSDC.mint(
-            _BASE_UNDERLYING_RESERVE + initialUsdcReserves + addUsdcAmount
+            _BASE_UNDERLYING_RESERVE + initialUsdcReserves + addUsdcAmount,
+            address(this)
         );
 
         address user101 = address(101);
@@ -137,7 +138,7 @@ contract ETokenRepayTest is TestBaseEToken {
         // can be called by malicious users
         for (uint i; i < 2; ++i) {
             skip(1 days);
-            eUSDC.accrueInterest();
+            eUSDC.accrueIfNeeded();
         }
 
         _prepareUSDC(users[2], 1000e6);

@@ -4,12 +4,13 @@ pragma solidity ^0.8.19;
 import { TestBaseEToken } from "../TestBaseEToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
 contract ETokenStartMarketTest is TestBaseEToken {
     function test_eTokenStartMarket_fail_whenCallerIsNotMarketManager()
         public
     {
-        vm.expectRevert(BorrowableCToken.BorrowableCToken__Unauthorized.selector);
+        vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
         eUSDC.startMarket(address(0));
     }
 
@@ -22,7 +23,7 @@ contract ETokenStartMarketTest is TestBaseEToken {
 
         vm.prank(address(marketManagerIsolated));
 
-        vm.expectRevert(BorrowableCToken.BorrowableCToken__Unauthorized.selector);
+        vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
         eUSDC.startMarket(user1);
     }
 
