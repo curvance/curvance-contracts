@@ -454,9 +454,10 @@ abstract contract BaseCToken is
             AccountSnapshot({
                 asset: address(this),
                 decimals: decimals(),
+                isCollateral: 1,
                 exchangeRate: _convertToAssets(WAD, _getTotalAssets()),
                 collateralPosted: collateralPosted[account],
-                debtOutstanding: 0, // Defaults to zero, only overridden in BorrowableCToken
+                debtOutstanding: 0 // Defaults to zero, only overridden in BorrowableCToken
             })
         );
     }

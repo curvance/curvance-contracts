@@ -309,7 +309,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         );
     }
 
-    /// @notice Get a snapshot of the cToken and `account` data.
+    /// @notice Get a snapshot of `account` data in this Curvance token.
     /// @dev Used by marketManager to more efficiently perform
     ///      liquidity checks.
     ///      NOTE: Does not accrue pending interest as part of the call.
@@ -318,13 +318,15 @@ contract BorrowableCToken is BaseCTokenWithYield {
     function getSnapshot(
         address account
     ) external view override returns (AccountSnapshot memory) {
+        uint256 outstandingDebt = debtBalance(account);
         return (
             AccountSnapshot({
                 asset: address(this),
                 decimals: decimals(),
+                isCollateral: outstandingDebt > 0 ? 0 : 1,
                 exchangeRate: _convertToAssets(WAD, _getTotalAssets()),
                 collateralPosted: collateralPosted[account],
-                debtOutstanding: debtBalance(account)
+                debtOutstanding: outstandingDebt
             })
         );
     }
