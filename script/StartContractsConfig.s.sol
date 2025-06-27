@@ -359,22 +359,39 @@ contract StartContractsConfig is
         );
         market.listTokens(pTokenToList, eTokenToList);
 
-        MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = pTokenToList;
-        tokenConfig.collRatio = 9200;
-        tokenConfig.collReqSoft = 830;
-        tokenConfig.collReqHard = 650;
-        tokenConfig.liqIncBase = 500;
-        tokenConfig.liqIncHard = 550;
-        tokenConfig.liqIncMin = 300;
-        tokenConfig.liqIncMax = 550;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
-        tokenConfig.collateralCap = collateralCap;
-        tokenConfig.debtCap = debtCap;
+        MarketManagerIsolated.TokenConfig memory token0Config;
+        token0Config.cToken = pTokenToList;
+        token0Config.collRatio = 9200;
+        token0Config.collReqSoft = 830;
+        token0Config.collReqHard = 650;
+        token0Config.liqIncBase = 500;
+        token0Config.liqIncHard = 550;
+        token0Config.liqIncMin = 300;
+        token0Config.liqIncMax = 550;
+        token0Config.minEffectiveCloseFactor = 2000;
+        token0Config.maxEffectiveCloseFactor = 5000;
+        token0Config.baseCFactor = 2000;
+        token0Config.collateralCap = collateralCap; // add individual collateral cap later
+        token0Config.debtCap = debtCap; // add individual debt cap later
 
-        market.updateTokenConfig(tokenConfig);
+        MarketManagerIsolated.TokenConfig memory token1Config;
+        token1Config.cToken = eTokenToList;
+        token1Config.collRatio = 9200;
+        token1Config.collReqSoft = 830;
+        token1Config.collReqHard = 650;
+        token1Config.liqIncBase = 500;
+        token1Config.liqIncHard = 550;
+        token1Config.liqIncMin = 300;
+        token1Config.liqIncMax = 550;
+        token1Config.minEffectiveCloseFactor = 2000;
+        token1Config.maxEffectiveCloseFactor = 5000;
+        token1Config.baseCFactor = 2000;
+        // add individual collateral cap later
+        token1Config.collateralCap = collateralCap * 10 ** IERC20(pTokenToList).decimals(); 
+        token1Config.debtCap = debtCap * 10 ** IERC20(pTokenToList).decimals(); // add individual debt cap later
+
+        market.updateTokenConfig(token0Config);
+        market.updateTokenConfig(token1Config);
     }
 
     function _deployEToken(
