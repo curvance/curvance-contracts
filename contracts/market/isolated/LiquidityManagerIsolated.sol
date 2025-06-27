@@ -558,7 +558,8 @@ abstract contract LiquidityManagerIsolated {
     ///                              multiplied against, 10 bps, or 0 if not
     ///                              an auction liquidation.
     ///  @return lFactor The liquidation factor for `account`.
-    ///  @return debt The current debt position in `eToken` for `account`.
+    ///  @return debt The current debt position in `liqData.debtToken` for
+    ///               `account`.
     function _liquidationValuesOfCached(
         address account,
         CachedLiqData memory liqData
@@ -574,7 +575,7 @@ abstract contract LiquidityManagerIsolated {
             address asset;
             // We cannot cache assets.length as we'd run into a
             // stack too deep compiler error here.
-            for (uint256 i; i < assets.length;) {
+            for (uint256 i; i < assets.length; ) {
                 asset = assets[i++];
                 if (asset == liqData.collateralToken) {
                     (
@@ -599,6 +600,7 @@ abstract contract LiquidityManagerIsolated {
                     debt = IBorrowableCToken(liqData.debtToken).debtBalance(
                         account
                     );
+
                     // If they have a debt balance, document additional
                     // collateral requirements.
                     if (debt > 0) {
@@ -637,7 +639,7 @@ abstract contract LiquidityManagerIsolated {
     ///                        (collateral adjusted by soft requirements).
     ///  @param collateralHard The account's hard collateral value
     ///                        (collateral adjusted by hard requirements).
-    ///  @param debt The account's total debt value.
+    ///  @param debt The account's total outstanding debt value.
     ///  @return result The liquidation factor where:
     ///          - 0: No liquidation (account is healthy).
     ///          - 1 to WAD-1: Soft liquidation (partial liquidation allowed).
