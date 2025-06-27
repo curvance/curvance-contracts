@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { ZapperBase, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 
@@ -62,7 +61,7 @@ contract SimpleRewardZapper is ZapperBase {
         // Normally in swappers we check whether the input is a network's gas
         // token, but the Reward Manager is built with non gas token
         // stablecoins as reward tokens. Thus we do not need to check
-        // CommonLib._isETH here.
+        // CommonLib._isNative here.
 
         // Swap input token must match the reward token from the Reward Manager,
         // rather than hardcoding input here this also acts as check that
@@ -99,21 +98,19 @@ contract SimpleRewardZapper is ZapperBase {
     }
 
     /// @notice Claims Reward Manager rewards, then Zaps, then deposits
-    ///         `zapperCall.inputToken`, a mToken underlying, and enters
+    ///         `zapperCall.inputToken`, a cToken underlying, and enters
     ///         into Curvance collateral position.
-    /// @param mToken The Curvance mToken address.
-    /// @param isPToken Whether `mToken` is a pToken or not.
+    /// @param cToken The Curvance cToken address to deposit into.
     /// @param swapData Swap instruction data to execute the swap.
     /// @param expectedShares The minimum expected amount of shares received
-    ///                       from depositing `amount` of `swapData.outputToken`
-    ///                       into `mToken` position.
+    ///                       from depositing `amount` of
+    ///                       `swapData.outputToken` into `cToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
-    /// @return The output amount of mToken shares received from Zapping.
+    /// @return The output amount of cToken shares received from Zapping.
     function claimSwapAndDeposit(
-        address mToken,
-        bool isPToken,
+        address cToken,
         SwapperLib.Swap memory swapData,
         uint256 expectedShares,
         bool collateralize,
@@ -124,15 +121,15 @@ contract SimpleRewardZapper is ZapperBase {
         // stablecoins as reward tokens. Thus we do not need to check
         // CommonLib._isETH here.
 
-        // Swap input token must match the reward token from the Reward Manager,
-        // rather than hardcoding input here this also acts as check that
-        // solver API call instructions have been configured properly.
+        // Swap input token must match the fee token from the Reward
+        // Manager, rather than hardcoding input here this also acts as check
+        // that solver API call instructions have been configured properly.
         if (swapData.inputToken != _getFeeToken()) {
             revert SimpleRewardZapper__ExecutionError();
         }
 
         // We do not need to check for an output token approval here since all
-        // pTokens are natively authorized.
+        // cTokens are natively authorized.
 
         // Claim caller rewards and cache reward amount.
         uint256 rewards = _processRewards(msg.sender);
@@ -144,16 +141,15 @@ contract SimpleRewardZapper is ZapperBase {
         if (swapData.inputToken == swapData.outputToken) {
             rewards = swapData.inputAmount;
         } else {
-            // Execute swap into mToken underlying.
+            // Execute swap into cToken underlying.
             rewards = SwapperLib._swapUnsafe(centralRegistry, swapData);
         }
 
-        // Enter Curvance mToken position.
+        // Enter Curvance cToken position.
         return
             _enterCurvance(
-                mToken,
+                cToken,
                 swapData.outputToken,
-                isPToken,
                 rewards,
                 expectedShares,
                 collateralize,
@@ -162,18 +158,19 @@ contract SimpleRewardZapper is ZapperBase {
     }
 
     /// @notice Claims Reward Manager rewards, then may swap, then repays
-    ///         eToken debt inside Curvance.
-    /// @dev Sends any excess eToken underlying to `recipient`.
-    ///      Only needs to swap if `rewardToken` != eToken underlying.
-    /// @param swapData Optional swap instruction data to execute the repayment.
-    /// @param eToken The Curvance eToken address.
-    /// @param repayAmount The amount of eToken underlying to be repaid.
+    ///         outstanding debt inside Curvance.
+    /// @dev Sends any excess debt token to `recipient`. Only needs to
+    ///      swap if `rewardToken` != `borrowableCToken` underlying.
+    /// @param swapData Optional swap instruction data to execute the
+    ///                 repayment.
+    /// @param borrowableCToken The Curvance token address to repay debt to.
+    /// @param repayAmount The amount of debt to be repaid.
     /// @param recipient Address that should have its outstanding debt repaid.
-    /// @return The excess amount of eToken underlying that was returned
-    ///         to `recipient`.
+    /// @return The excess amount of debt token that was returned to
+    ///         `recipient`.
     function claimSwapAndRepay(
         SwapperLib.Swap memory swapData,
-        address eToken,
+        address borrowableCToken,
         uint256 repayAmount,
         address recipient
     ) external nonReentrant returns (uint256) {
@@ -184,9 +181,9 @@ contract SimpleRewardZapper is ZapperBase {
 
         address rewardToken = _getFeeToken();
 
-        // Swap input token must match the reward token from the Reward Manager,
-        // rather than hardcoding input here this also acts as check that
-        // solver API call instructions have been configured properly.
+        // Swap input token must match the reward token from the Reward
+        // Manager, rather than hardcoding input here this also acts as check
+        // that solver API call instructions have been configured properly.
         if (swapData.inputToken != rewardToken) {
             revert SimpleRewardZapper__ExecutionError();
         }
@@ -198,29 +195,29 @@ contract SimpleRewardZapper is ZapperBase {
         if (swapData.inputAmount != rewards) {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
+        
+        // Cache `borrowableCToken` underlying to minimize external calls.
+        address debtToken = ICToken(borrowableCToken).asset();
 
-        // Cache underlying to minimize external calls.
-        address eTokenUnderlying = ICToken(eToken).asset();
-
-        if (rewardToken != eTokenUnderlying) {
+        if (rewardToken != debtToken) {
             // Validate that if we are swapping that the output token
             // matches the underlying needed.
-            if (swapData.outputToken != eTokenUnderlying) {
+            if (swapData.outputToken != debtToken) {
                 revert SimpleRewardZapper__ExecutionError();
             }
 
-            // Swap from reward token into `eTokenUnderlying`.
+            // Swap from reward token into `debtToken`.
             swapData.inputAmount = SwapperLib._swapUnsafe(
                 centralRegistry,
                 swapData
             );
         }
 
-        // Repay Curvance eToken debt.
+        // Repay `repayAmount` outstanding debt.
         return
             _repayDebt(
-                eToken,
-                eTokenUnderlying,
+                borrowableCToken,
+                debtToken,
                 swapData.inputAmount,
                 repayAmount,
                 recipient

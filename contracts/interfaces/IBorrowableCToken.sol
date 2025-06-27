@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
-import { ICToken } from "./ICToken.sol";
-import { IPositionManager } from "./IPositionManager.sol";
+import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
 interface IBorrowableCToken is ICToken {
     /// @notice Address of the current Interest Rate Model.
@@ -34,6 +34,23 @@ interface IBorrowableCToken is ICToken {
     ///         rate from the underlying to the eToken.
     /// @return Calculated exchange rate, in `WAD`.
     function exchangeRateWithUpdate() external returns (uint256);
+
+    /// @notice Used by a delegated user to borrow underlying tokens
+    ///         from lenders, based on collateral posted inside this market
+    ///         by `account`.
+    /// @dev Updates pending interest before executing the borrow.
+    ///      NOTE: Be careful who you approve here!
+    ///      Not only can they take borrowed funds, but, they can delay
+    ///      repayment through repeated borrows preventing withdrawal.
+    /// @param account The account who will have their assets borrowed
+    ///                against.
+    /// @param recipient The account who will receive the borrowed assets.
+    /// @param amount The amount of the underlying asset to borrow.
+    function borrowFor(
+        address account,
+        address recipient,
+        uint256 amount
+    ) external;
 
     /// @notice Helper function for Position Manager contract to
     ///         borrow assets.

@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { ZapperBase, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
 
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract PendleZapper is ZapperBase {
     /// TYPES ///
@@ -19,10 +17,9 @@ contract PendleZapper is ZapperBase {
     /// @param outputToken Address of token Zapped into.
     /// @param minimumOut The minimum amount of `outputToken` acceptable
     ///                   from the Zap.
-    /// @param depositAsWrappedNative Used only if `inputToken` is a chain's
-    ///                               native token, dictates whether native
-    ///                               should be deposited as native or wrapped
-    ///                               native.
+    /// @param depositAsWrappedNative Used when `inputToken` is the native gas
+    ///                               token, indicates depositing native token
+    ///                               into wrapped version or not.
     struct ZapperData {
         address inputToken;
         uint256 inputAmount;
@@ -47,7 +44,8 @@ contract PendleZapper is ZapperBase {
     /// @notice Swaps then deposits `zapData.inputToken` into Pendle
     ///         market, and enters into Curvance position.
     /// @dev Requires plugin approval for collateralization.
-    /// @param pToken The Curvance pToken address.
+    /// @param strategyCToken The Curvance token address to enter into a
+    ///                       position.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param router The Pendle router address.
@@ -56,13 +54,13 @@ contract PendleZapper is ZapperBase {
     ///             and limit order data.
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of `swapData.outputToken`
-    ///                       into `pToken` position.
+    ///                       into `strategyCToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
     /// @return outAmount The output amount received from Zapping.
     function enterPendle(
-        address pToken,
+        address strategyCToken,
         ZapperData calldata zapData,
         SwapperLib.Swap[] calldata swapData,
         address router,
@@ -89,11 +87,10 @@ contract PendleZapper is ZapperBase {
             zapData.minimumOut
         );
 
-        // Enter Curvance pToken position.
+        // Enter Curvance position.
         outAmount = _enterCurvance(
-            pToken,
+            strategyCToken,
             zapData.outputToken,
-            true,
             outAmount,
             expectedShares,
             collateralize,
@@ -105,7 +102,7 @@ contract PendleZapper is ZapperBase {
     ///         token (zapData.outputToken).
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
-    /// @param token The underlying token address of the SY.
+    /// @param underlyingToken The underlying token address of the SY.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
     /// @param zapData Zap instruction data to execute the Zap.
@@ -115,7 +112,7 @@ contract PendleZapper is ZapperBase {
     function exitPendle(
         address router,
         bool isPt,
-        address token,
+        address underlyingToken,
         PendleLib.PendleData calldata data,
         ZapperData calldata zapData,
         SwapperLib.Swap[] calldata swapData,
@@ -129,11 +126,11 @@ contract PendleZapper is ZapperBase {
             zapData.inputAmount
         );
 
-        // Exit Pendle lp position.
+        // Exit Pendle position.
         outAmount = _exitPendle(
             router,
             isPt,
-            token,
+            underlyingToken,
             data,
             zapData,
             swapData,
@@ -141,12 +138,12 @@ contract PendleZapper is ZapperBase {
         );
     }
 
-    /// @notice Withdraws a Curvance Pendle market position, and zaps it
+    /// @notice Withdraws from a Curvance Pendle position, and zaps it
     ///         into desired token (zapData.outputToken).
     /// @param redemptionData Struct containing information on the desired
     ///                       redemption action to execute. Containing values:
-    ///                       1. The address of the pToken corresponding to
-    ///                          Pendle lp token to be exited.
+    ///                       1. The address of the strategyCToken corresponding
+    ///                          to Pendle lp token to be exited.
     ///                       2. The amount of shares to redeemed.
     ///                       3. Whether the collateral should be always
     ///                          reduced from callers collateralPosted.
@@ -171,7 +168,7 @@ contract PendleZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            redemptionData.mToken,
+            redemptionData.cToken,
             zapData.inputToken,
             redemptionData.shares,
             zapData.inputAmount,
@@ -179,7 +176,7 @@ contract PendleZapper is ZapperBase {
             recipient
         );
 
-        // Exit Pendle lp position.
+        // Exit Pendle position.
         outAmount = _exitPendle(
             router,
             isPt,
@@ -193,11 +190,11 @@ contract PendleZapper is ZapperBase {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Withdraws a Curvance Pendle market position, and zaps it
+    /// @notice Withdraws from a Curvance Pendle position, and zaps it
     ///         into desired token (zapData.outputToken).
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
-    /// @param token The underlying token address of the SY.
+    /// @param underlyingToken The underlying token address of the SY.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
@@ -205,17 +202,17 @@ contract PendleZapper is ZapperBase {
     function _exitPendle(
         address router,
         bool isPt,
-        address token,
+        address underlyingToken,
         PendleLib.PendleData calldata data,
         ZapperData calldata zapData,
         SwapperLib.Swap[] calldata swapData,
         address recipient
     ) internal returns (uint256 outAmount) {
-        // Exit Pendle market position.
+        // Exit Pendle position.
         PendleLib._exitPendle(
             router,
             isPt,
-            token,
+            underlyingToken,
             data,
             zapData.inputToken,
             zapData.inputAmount,
@@ -239,14 +236,14 @@ contract PendleZapper is ZapperBase {
         _transferToRecipient(zapData.outputToken, recipient, outAmount);
     }
 
-    /// @notice Swap `inputToken` into desired pToken underlying tokens.
+    /// @notice Swap `inputToken` into desired underlying tokens.
     /// @param inputToken The input token address.
     /// @param inputAmount The amount of `inputToken` to swap for underlying
     ///                    tokens.
     /// @param swapData Array of swap instruction data
-    /// @param depositAsWrappedNative Used when `inputToken` is chain gas token,
-    ///                           indicates depositing gas token into wrapper
-    ///                           contract.
+    /// @param depositAsWrappedNative Used when `inputToken` is the native gas
+    ///                               token, indicates depositing native token
+    ///                               into wrapped version or not.
     function _swapForUnderlyings(
         address inputToken,
         uint256 inputAmount,
@@ -256,7 +253,7 @@ contract PendleZapper is ZapperBase {
         _prepareSwap(inputToken, inputAmount, depositAsWrappedNative);
 
         uint256 numTokenSwaps = swapData.length;
-        // Swap `inputToken` into desired pToken underlying tokens.
+        // Swap `inputToken` into desired underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
             if (
                 CommonLib._isETH(swapData[i].inputToken) &&

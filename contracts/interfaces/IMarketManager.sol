@@ -6,30 +6,30 @@ interface IMarketManager {
 
     /// @notice Data structure passed communicating the intended liquidation
     ///         scenario to review based on current liquidity levels.
-    /// @param eToken Token to potentially repay which is borrowed by
-    ///               `account`.
-    /// @param cToken Token which was used as collateral by `account` and may
-    ///               be seized.
+    /// @param collateralToken The token which was used as collateral
+    ///                        by `account` and may be seized.
+    /// @param debtToken The token to potentially repay which has 
+    ///                  outstanding debt by `account`.
     /// @param numAccounts The number of accounts to be, potentially,
     ///                    liquidated.
     /// @param liquidateExact Whether the liquidator desires a specific
     ///                       liquidation amount.
-    /// @param eTokenRepaid Empty variable slot to store how much `eToken`
-    ///                     will be repaid as part of a particular
-    ///                     liquidation.
-    /// @param cTokenLiquidated Empty variable slot to store how much
-    ///                         `cToken` will be seized as part of a
-    ///                         particular liquidation.
+    /// @param collateralLiquidated Empty variable slot to store how much
+    ///                             `collateralToken` will be seized as
+    ///                             part of a particular liquidation.
+    /// @param debtRepaid Empty variable slot to store how much
+    ///                   `debtToken` will be repaid as part of a
+    ///                   particular liquidation.
     /// @param badDebt Empty variable slot to store how much bad debt will
     ///                be realized by lenders as part of a particular
     ///                liquidation.
     struct LiqInstructions {
-        address eToken;
-        address cToken;
+        address collateralToken;
+        address debtToken;
         uint256 numAccounts;
         bool liquidateExact;
-        uint256 eTokenRepaid;
-        uint256 cTokenLiquidated;
+        uint256 collateralLiquidated;
+        uint256 debtRepaid;
         uint256 badDebt;
     }
 
@@ -46,20 +46,20 @@ interface IMarketManager {
         uint256 badDebtRealized;
     }
 
-    /// @notice Whether mToken minting is paused.
+    /// @notice Whether cToken minting is paused.
     /// @dev Token => 0 or 1 = unpaused; 2 = paused.
-    function mintPaused(address mToken) external view returns (uint256);
+    function mintPaused(address cToken) external view returns (uint256);
 
-    /// @notice Whether mToken collateralization is paused.
+    /// @notice Whether cToken collateralization is paused.
     /// @dev Token => 0 or 1 = unpaused; 2 = paused.
     function collateralizationPaused(
-        address mToken
+        address cToken
     ) external view returns (uint256);
 
     /// @notice Checks if the account should be allowed to mint tokens
     ///         in the given market.
-    /// @param mToken The token to verify mints against.
-    function canMint(address mToken) external;
+    /// @param cToken The token to verify mints against.
+    function canMint(address cToken) external;
 
     /// @notice Checks if the account should be allowed to collateralize
     ///         their shares of the given market.
@@ -77,31 +77,31 @@ interface IMarketManager {
 
     /// @notice Checks if the account should be allowed to redeem tokens
     ///         in the given market.
-    /// @param mToken The market to verify the redeem against.
+    /// @param cToken The market to verify the redeem against.
     /// @param account The account which would redeem the tokens.
-    /// @param amount The number of mTokens to exchange
+    /// @param amount The number of cTokens to exchange
     ///               for the underlying asset in the market.
     function canRedeem(
-        address mToken,
+        address cToken,
         address account,
         uint256 amount
     ) external;
 
     /// @notice Checks if the account should be allowed to redeem tokens
     ///         in the given market, and then redeems.
-    /// @dev This can only be called by the mToken itself
+    /// @dev This can only be called by the cToken itself
     ///      (specifically pTokens, because eTokens are never collateral).
-    /// @param mToken The market to verify the redeem against.
+    /// @param cToken The market to verify the redeem against.
     /// @param account The account which would redeem the tokens.
-    /// @param balanceOf The current mToken share balance of `account`.
-    /// @param collateralPosted The current mToken shares posted as
+    /// @param balanceOf The current cToken share balance of `account`.
+    /// @param collateralPosted The current cToken shares posted as
     ///                         collateral by `account`.
     /// @param amount The number of pToken shares to redeem for the
     ///               underlying asset in the market.
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced.
     function canRedeemWithCollateralRemoval(
-        address mToken,
+        address cToken,
         address account,
         uint256 balanceOf,
         uint256 collateralPosted,
@@ -128,13 +128,13 @@ interface IMarketManager {
     ///         the underlying asset of the given market,
     ///         and notifies the market of the borrow.
     /// @dev This can only be called by the market itself.
-    /// @param mToken The market to verify the borrow against.
+    /// @param cToken The market to verify the borrow against.
     /// @param account The account which would borrow the asset.
     /// @param newNetDebt The amount of assets that would be
     ///                   outstanding debt in total if allowed.
     /// @param amount The amount of underlying the account would borrow.
     function canBorrowWithNotify(
-        address mToken,
+        address cToken,
         address account,
         uint256 newNetDebt,
         uint256 amount
@@ -142,9 +142,9 @@ interface IMarketManager {
 
     /// @notice Checks if the account should be allowed to repay a borrow
     ///         in the given market.
-    /// @param mToken The market to verify the repay against.
+    /// @param cToken The market to verify the repay against.
     /// @param account The account who will have their loan repaid.
-    function canRepay(address mToken, address account) external;
+    function canRepay(address cToken, address account) external;
 
     /// @notice Checks if the liquidation should be allowed to occur,
     ///         and returns how many position tokens should be seized
@@ -175,60 +175,52 @@ interface IMarketManager {
 
     /// @notice Checks if the account should be allowed to transfer collateral
     ///         tokens in the given market.
-    /// @param mToken The market token to verify the transfer of.
+    /// @param cToken The market token to verify the transfer of.
     /// @param from The account which will transfer the tokens.
     /// @param balanceOf The current balance that `from` has of `cToken`
     ///                  shares.
-    /// @param collateralPosted The amount of `mToken` shares posted as
+    /// @param collateralPosted The amount of `cToken` shares posted as
     ///                         collateral by `from`.
-    /// @param amount The amount of `mToken` to transfer.
-    function canTransferCToken(
-        address mToken,
+    /// @param amount The amount of `cToken` to transfer.
+    /// @param isCollateral Boolean indicating whether the token is currently
+    ///                     being used as collateral.
+    function canTransfer(
+        address cToken,
         address from,
         uint256 balanceOf,
         uint256 collateralPosted,
-        uint256 amount
+        uint256 amount,
+        bool isCollateral
     ) external returns (uint256);
-
-    /// @notice Checks if the account should be allowed to transfer debt
-    ///         tokens in the given market.
-    /// @param mToken The market token to verify the transfer of.
-    /// @param from The account which the tokens will be transferred from.
-    /// @param amount The amount of `mToken` to transfer.
-    function canTransferEToken(
-        address mToken,
-        address from,
-        uint256 amount
-    ) external;
 
     /// @notice Updates `account` cooldownTimestamp to the current block
     ///         timestamp.
-    /// @dev The caller must be a listed MToken in the `markets` mapping.
-    /// @param mToken The address of the eToken that the account is borrowing.
+    /// @dev The caller must be a listed cToken in the `markets` mapping.
+    /// @param cToken The address of the token that the account is borrowing.
     /// @param account The address of the account that has just borrowed.
-    function notifyBorrow(address mToken, address account) external;
+    function notifyBorrow(address cToken, address account) external;
 
     /// @notice A list of all tokens inside this market for
     ///         offchain querying.
     function queryTokensListed() external view returns (address[] memory);
 
-    /// @notice Returns whether `mToken` is listed in the lending market.
-    /// @param mToken market token address.
-    function isListed(address mToken) external view returns (bool);
+    /// @notice Returns whether `cToken` is listed in the lending market.
+    /// @param cToken market token address.
+    function isListed(address cToken) external view returns (bool);
 
-    /// @notice Returns the ratio at which `mToken` can be collateralized.
+    /// @notice Returns the ratio at which `cToken` can be collateralized.
     /// @return Ratio returned in `WAD`, e.g. 0.8e18 = 80% collateral value.
     function collateralizationRatio(
-        address mToken
+        address cToken
     ) external view returns (uint256);
 
-    /// @notice The total amount of `mToken` that can be posted as collateral,
+    /// @notice The total amount of `cToken` that can be posted as collateral,
     ///         in shares.
-    function collateralCaps(address mToken) external view returns (uint256);
+    function collateralCaps(address cToken) external view returns (uint256);
 
-    /// @notice The total amount of `mToken` underlying that can be borrowed,
+    /// @notice The total amount of `cToken` underlying that can be borrowed,
     ///         in assets.
-    function debtCaps(address mToken) external view returns (uint256);
+    function debtCaps(address cToken) external view returns (uint256);
 
     /// @notice Returns the assets an account has entered.
     /// @param account The address of the account to pull assets for.

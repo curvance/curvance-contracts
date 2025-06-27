@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
+import { RescueLib } from "contracts/libraries/RescueLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -420,6 +421,19 @@ abstract contract BaseCToken is
         marketCollateralPosted = marketCollateralPosted - totalAmount;
     }
 
+    /// @notice Rescue any token sent by mistake.
+    /// @param token token to rescue.
+    /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
+    function rescueToken(address token, uint256 amount) external {
+        _checkDaoPermissions();
+
+        if (token == asset()) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        RescueLib._rescueToken(centralRegistry, token, amount);
+    }
+
     /// @notice Returns share -> asset exchange rate, in `WAD`.
     /// @dev Oracle Manager calculates cToken value from this exchange rate.
     /// @return result The share -> asset exchange rate, in `WAD`.
@@ -440,11 +454,11 @@ abstract contract BaseCToken is
         return (
             AccountSnapshot({
                 asset: address(this),
-                isPToken: true,
                 decimals: decimals(),
+                isCollateral: 1,
+                exchangeRate: _convertToAssets(WAD, _getTotalAssets()),
                 collateralPosted: collateralPosted[account],
-                debtOutstanding: 0, // Defaults to zero, only overridden in BorrowableCToken
-                exchangeRate: _convertToAssets(WAD, _getTotalAssets())
+                debtOutstanding: 0 // Defaults to zero, only overridden in BorrowableCToken
             })
         );
     }
@@ -904,7 +918,10 @@ abstract contract BaseCToken is
     ///      May emit {PositionUpdated} event inside Market Manager.
     /// @param account The account posting collateral.
     /// @param shares The amount of shares to post as collateral.
-    function _postCollateral(address account, uint256 shares) internal {
+    function _postCollateral(
+        address account,
+        uint256 shares
+    ) internal virtual {
         uint256 newNetCollateral = marketCollateralPosted + shares;
         marketManager.canCollateralize(
             address(this),
@@ -1368,18 +1385,20 @@ abstract contract BaseCToken is
         uint256 shares
     ) internal {
         _checkZeroAmount(shares);
-
         if (from == to) {
             revert BaseCToken__TransferError();
         }
         
+        uint256 collateral = collateralPosted[from];
+        
         // Fails if transfer not allowed.
-        uint256 collateralToRemove = marketManager.canTransferCToken(
+        uint256 collateralToRemove = marketManager.canTransfer(
             address(this),
             msg.sender,
             balanceOf(from),
-            collateralPosted[from],
-            shares
+            collateral,
+            shares,
+            collateral > 0 ? true : false
         );
 
         if (collateralToRemove > 0) {

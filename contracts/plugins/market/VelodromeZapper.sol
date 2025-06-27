@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { ZapperBase, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
 
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 
 contract VelodromeZapper is ZapperBase {
@@ -20,10 +19,9 @@ contract VelodromeZapper is ZapperBase {
     /// @param outputToken Address of token Zapped into.
     /// @param minimumOut The minimum amount of `outputToken` acceptable
     ///                   from the Zap.
-    /// @param depositAsWrappedNative Used only if `inputToken` is a chain's
-    ///                               native token, dictates whether native
-    ///                               should be deposited as native or wrapped
-    ///                               native.
+    /// @param depositAsWrappedNative Used when `inputToken` is the native gas
+    ///                               token, indicates depositing native token
+    ///                               into wrapped version or not.
     struct ZapperData {
         address inputToken;
         uint256 inputAmount;
@@ -45,23 +43,25 @@ contract VelodromeZapper is ZapperBase {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Swaps then deposits `zapData.inputToken` into Velodrome
-    ///         sAMM/vAMM, and enters into Curvance position.
+    /// @notice Swaps then deposits `zapData.inputToken`, into Velodrome,
+    ///         and enters into a Curvance position.
     /// @dev Requires plugin approval for collateralization.
-    /// @param pToken The Curvance pToken address.
+    /// @param strategyCToken The Curvance token address to enter a
+    ///                       position in.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param router The Velodrome router address.
     /// @param factory The Velodrome factory address.
     /// @param expectedShares The minimum expected amount of shares received
-    ///                       from depositing `amount` of `swapData.outputToken`
-    ///                       into `pToken` position.
+    ///                       from depositing `amount` of
+    ///                       `swapData.outputToken` into `strategyCToken`
+    ///                       position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
     /// @return outAmount The output amount received from Zapping.
     function enterVelodrome(
-        address pToken,
+        address strategyCToken,
         ZapperData calldata zapData,
         SwapperLib.Swap[] calldata swapData,
         address router,
@@ -78,7 +78,7 @@ contract VelodromeZapper is ZapperBase {
             zapData.depositAsWrappedNative
         );
 
-        // Enter Velodrome sAMM/vAMM position.
+        // Enter Velodrome position.
         outAmount = VelodromeLib._enterVelodrome(
             router,
             factory,
@@ -88,11 +88,10 @@ contract VelodromeZapper is ZapperBase {
             zapData.minimumOut
         );
 
-        // Enter Curvance pToken position.
+        // Enter Curvance position.
         outAmount = _enterCurvance(
-            pToken,
+            strategyCToken,
             zapData.outputToken,
-            true,
             outAmount,
             expectedShares,
             collateralize,
@@ -100,7 +99,7 @@ contract VelodromeZapper is ZapperBase {
         );
     }
 
-    /// @notice Exits a Velodrome sAMM/vAMM, and zaps it into desired
+    /// @notice Exits a Velodrome position, and zaps it into desired
     ///         token (zapData.outputToken).
     /// @param router The Velodrome router address.
     /// @param zapData Zap instruction data to execute the Zap.
@@ -121,16 +120,17 @@ contract VelodromeZapper is ZapperBase {
             zapData.inputAmount
         );
 
-        // Exit Velodrome lp position.
+        // Exit Velodrome position.
         outAmount = _exitVelodrome(router, zapData, swapData, recipient);
     }
 
-    /// @notice Withdraws a Curvance Velodrome sAMM/vAMM position, and zaps it
+    /// @notice Withdraws from a Curvance Velodrome position, and zaps it
     ///         into desired token (zapData.outputToken).
     /// @param redemptionData Struct containing information on the desired
     ///                       redemption action to execute. Containing values:
-    ///                       1. The address of the pToken corresponding to
-    ///                          Velodrome lp token to be exited.
+    ///                       1. The address of the strategyCToken
+    ///                          corresponding to Velodrome token to be
+    ///                          exited.
     ///                       2. The amount of shares to redeemed.
     ///                       3. Whether the collateral should be always
     ///                          reduced from callers collateralPosted.
@@ -148,7 +148,7 @@ contract VelodromeZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            redemptionData.mToken,
+            redemptionData.cToken,
             zapData.inputToken,
             redemptionData.shares,
             zapData.inputAmount,
@@ -156,13 +156,13 @@ contract VelodromeZapper is ZapperBase {
             recipient
         );
 
-        // Exit Velodrome lp position.
+        // Exit Velodrome position.
         outAmount = _exitVelodrome(router, zapData, swapData, recipient);
     }
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Withdraws a Curvance Velodrome sAMM/vAMM position, and zaps it
+    /// @notice Withdraws from a Curvance Velodrome position, and zaps it
     ///         into desired token (zapData.outputToken).
     /// @param router The Velodrome router address.
     /// @param zapData Zap instruction data to execute the Zap.
@@ -175,7 +175,7 @@ contract VelodromeZapper is ZapperBase {
         SwapperLib.Swap[] calldata swapData,
         address recipient
     ) internal returns (uint256 outAmount) {
-        // Exit Velodrome sAMM/vAMM position.
+        // Exit Velodrome position.
         VelodromeLib._exitVelodrome(
             router,
             zapData.inputToken,
@@ -199,14 +199,14 @@ contract VelodromeZapper is ZapperBase {
         _transferToRecipient(zapData.outputToken, recipient, outAmount);
     }
 
-    /// @notice Swap `inputToken` into desired pToken underlying tokens.
+    /// @notice Swap `inputToken` into desired underlying tokens.
     /// @param inputToken The input token address.
     /// @param inputAmount The amount of `inputToken` to swap for underlying
     ///                    tokens.
     /// @param swapData Array of swap instruction data
-    /// @param depositAsWrappedNative Used when `inputToken` is chain gas token,
-    ///                           indicates depositing gas token into wrapper
-    ///                           contract.
+    /// @param depositAsWrappedNative Used when `inputToken` is the native gas
+    ///                               token, indicates depositing native token
+    ///                               into wrapped version or not.
     function _swapForUnderlyings(
         address inputToken,
         uint256 inputAmount,
@@ -216,7 +216,7 @@ contract VelodromeZapper is ZapperBase {
         _prepareSwap(inputToken, inputAmount, depositAsWrappedNative);
 
         uint256 numTokenSwaps = swapData.length;
-        // Swap `inputToken` into desired pToken underlying tokens.
+        // Swap `inputToken` into desired underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
             if (
                 CommonLib._isETH(swapData[i].inputToken) &&

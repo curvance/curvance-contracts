@@ -7,25 +7,25 @@ import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
 struct AccountSnapshot {
     address asset;
-    bool isPToken;
     uint8 decimals;
+    uint8 isCollateral;
     uint256 exchangeRate;
     uint256 collateralPosted;
     uint256 debtOutstanding;
 }
 
 interface ICToken {
-    /// @notice Starts a mToken market, executed via marketManager.
+    /// @notice Starts a cToken market, executed via marketManager.
     /// @dev This initial mint is a failsafe against rounding exploits,
     ///      although, we protect against them in many ways,
     ///      better safe than sorry.
     /// @param by The account initializing the market.
     function startMarket(address by) external returns (bool);
 
-    /// @notice Returns the decimals of the mToken.
+    /// @notice Returns the decimals of the cToken.
     /// @dev We pull directly from underlying incase its a proxy contract,
     ///      and changes decimals on us.
-    /// @return The number of decimals for this mToken,
+    /// @return The number of decimals for this cToken,
     ///         matching the underlying token.
     function decimals() external view returns (uint8);
 
@@ -48,14 +48,17 @@ interface ICToken {
     /// @return The address of the underlying asset.
     function asset() external view returns (address);
 
-    /// @notice Returns a snapshot of the pToken and `account` data.
-    /// @dev Used by MarketManager to efficiently perform liquidity checks.
-    /// @return Snapshot struct containing packed information.
+    /// @notice Get a snapshot of `account` data in this Curvance token.
+    /// @dev Used by marketManager to more efficiently perform
+    ///      liquidity checks.
+    ///      NOTE: Does not accrue pending interest as part of the call.
+    /// @param account The address of the account to snapshot.
+    /// @return The account snapshot of `account`.
     function getSnapshot(
         address account
     ) external view returns (AccountSnapshot memory);
 
-    /// @notice Total number of mTokens in circulation.
+    /// @notice Total number of cTokens in circulation.
     function totalSupply() external view returns (uint256);
 
     /// @notice Returns the total amount of assets held by the market.
@@ -76,7 +79,7 @@ interface ICToken {
     ) external view returns (uint256);
 
     /// @notice Returns share -> asset exchange rate, in `WAD`.
-    /// @dev Oracle Manager calculates mToken value from this exchange rate.
+    /// @dev Oracle Manager calculates cToken value from this exchange rate.
     function exchangeRate() external view returns (uint256);
 
     /// @notice Executes multiple calls in a single transaction.
@@ -88,8 +91,8 @@ interface ICToken {
 
     /// @notice Caller deposits assets into the market and receives shares.
     /// @param assets The amount of the underlying assets to deposit.
-    /// @param receiver The account that should receive the pToken shares.
-    /// @return shares The amount of pToken shares received by `receiver`.
+    /// @param receiver The account that should receive the shares.
+    /// @return shares The amount of shares received by `receiver`.
     function deposit(
         uint256 assets,
         address receiver
@@ -102,8 +105,8 @@ interface ICToken {
     ///      If the caller is not approved to collateralize the function will
     ///      simply deposit assets on behalf of `receiver`.
     /// @param assets The amount of the underlying assets to deposit.
-    /// @param receiver The account that should receive the pToken shares.
-    /// @return shares The amount of pToken shares received by `receiver`.
+    /// @param receiver The account that should receive the shares.
+    /// @return shares The amount of shares received by `receiver`.
     function depositAsCollateral(
         uint256 assets,
         address receiver
@@ -119,8 +122,8 @@ interface ICToken {
     ///      If the caller is not approved to collateralize the function will
     ///      simply deposit assets on behalf of `receiver`.
     /// @param assets The amount of the underlying assets to deposit.
-    /// @param receiver The account that should receive the pToken shares.
-    /// @return shares The amount of pToken shares received by `receiver`.
+    /// @param receiver The account that should receive the shares.
+    /// @return shares The amount of shares received by `receiver`.
     function depositAsCollateralFor(
         uint256 assets,
         address receiver

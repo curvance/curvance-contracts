@@ -255,35 +255,44 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _repay(msg.sender, account, amount);
     }
 
-    /// @notice Liquidates `account`'s collateral by repaying `amount` debt
+    /// @notice Liquidates `accounts`' collateral by repaying `amount` debt
     ///         and transferring the liquidated collateral to the liquidator.
     /// @dev Updates pending interest before executing the liquidation.
     /// @param accounts The addresses of the accounts to be liquidated.
     /// @param amounts The amounts of underlying asset the liquidator
     ///                wishes to repay.
-    /// @param pToken The market in which to seize collateral from `account`.
+    /// @param collateralToken The market in which to seize collateral
+    ///                        from `accounts`.
     function liquidateExact(
         address[] calldata accounts,
         uint256[] calldata amounts,
-        address pToken
+        address collateralToken
     ) external nonReentrant {
         uint256 numAccounts = accounts.length;
         if (numAccounts != amounts.length) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        _liquidate(msg.sender, accounts, amounts, pToken, numAccounts, true);
+        _liquidate(
+            msg.sender,
+            accounts,
+            amounts,
+            collateralToken,
+            numAccounts,
+            true
+        );
     }
 
-    /// @notice Liquidates `account`'s as much collateral as possible by
+    /// @notice Liquidates `accounts` for as much collateral as possible by
     ///         repaying debt and transferring the liquidated collateral
     ///         to the liquidator.
     /// @dev Updates pending interest before executing the liquidation.
     /// @param accounts The addresses of the accounts to be liquidated.
-    /// @param pToken The market in which to seize collateral from `account`.
+    /// @param collateralToken The market in which to seize collateral
+    ///                        from `accounts`.
     function liquidate(
         address[] calldata accounts,
-        address pToken
+        address collateralToken
     ) external nonReentrant {
         uint256 numAccounts = accounts.length;
         // Amounts array is empty since the max amount possible
@@ -294,7 +303,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             msg.sender,
             accounts,
             amounts,
-            pToken,
+            collateralToken,
             numAccounts,
             false
         );
@@ -309,14 +318,15 @@ contract BorrowableCToken is BaseCTokenWithYield {
     function getSnapshot(
         address account
     ) external view override returns (AccountSnapshot memory) {
+        uint256 outstandingDebt = debtBalance(account);
         return (
             AccountSnapshot({
                 asset: address(this),
-                isPToken: false,
                 decimals: decimals(),
+                isCollateral: outstandingDebt > 0 ? 0 : 1,
+                exchangeRate: _convertToAssets(WAD, _getTotalAssets()),
                 collateralPosted: collateralPosted[account],
-                debtOutstanding: debtBalance(account),
-                exchangeRate: _convertToAssets(WAD, _getTotalAssets())
+                debtOutstanding: outstandingDebt
             })
         );
     }
@@ -364,6 +374,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
         result = debtBalance(account);
     }
 
+    /// PUBLIC FUNCTIONS ///
+
     /// @notice Returns the current debt balance for `account`.
     /// @dev Note: Pending interest is not applied in this calculation.
     /// @param account The address whose debt balance should be calculated.
@@ -400,6 +412,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
         return _asset.balanceOf(address(this));
     }
 
+    /// @notice Returns whether the underlying token can be borrowed.
+    /// @dev true = Borrowable; false = Not Borrowable.
+    /// @return Whether this token is borrowable or not.
+    function isBorrowable() public pure override returns (bool) {
+        return true;
+    }
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Executes borrowing of assets for `account` from lenders.
@@ -414,10 +433,19 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ) internal {
         _checkZeroAmount(amount);
         _checkAssetsHeld(amount);
+        // Cannot borrow if `account` already has posted collateral in this
+        // market.
+        if (collateralPosted[account] > 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
 
         // Calculate current account debt then add `amount`.
         // Then update account exchange rate, and total borrow balances.
-        _setDebtOf(account, uint176(debtBalance(account) + amount));
+        _setDebtOf(
+            account,
+            uint176(debtBalance(account) + amount),
+            uint80(_vestingData >> _BITPOS_DEBT_INDEX)
+        );
         marketOutstandingDebt = marketOutstandingDebt + amount;
 
         // Transfer underlying to `recipient`.
@@ -465,7 +493,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
         );
 
         // Update the account and market outstanding debt balance data.
-        _setDebtOf(account, uint176(accountDebt - amount));
+        _setDebtOf(
+            account,
+            uint176(accountDebt - amount),
+            uint80(_vestingData >> _BITPOS_DEBT_INDEX)
+        );
 
         // We round user debt in favor of the protocol to prevent exchange
         // rate manipulation, as a result in some cases the last user cannot
@@ -505,17 +537,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
         uint256 numAccounts,
         bool exactAmount
     ) internal {
+        // Cannot have debt and collateral in the same token, so can revert
+        // immediately if someone tries.
         if (collateralToken == address(this)) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        if (!ICToken(collateralToken).isCollateralizable()) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Validate that the token is listed inside the market (token has
-        // been enabled).
-        if (!marketManager.isListed(address(this))) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -524,8 +548,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         IMarketManager.LiqResults memory liqResults;
 
-        // Fail if liquidate not allowed,
-        // trying to pay too much debt with excessive `amount` will revert.
+        // Fails if liquidation not allowed, trying to repay too much debt
+        // will revert.
         (
             liqResults,
             amounts
@@ -534,12 +558,12 @@ contract BorrowableCToken is BaseCTokenWithYield {
             accounts,
             amounts,
             IMarketManager.LiqInstructions({
-                eToken: address(this),
-                cToken: collateralToken,
+                collateralToken: collateralToken,
+                debtToken: address(this),
                 numAccounts: numAccounts,
                 liquidateExact: exactAmount,
-                eTokenRepaid: 0,
-                cTokenLiquidated: 0,
+                collateralLiquidated: 0,
+                debtRepaid: 0,
                 badDebt: 0
             })
         );
@@ -551,11 +575,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
             liqResults.debtRepaid
         );
 
-        uint256 cachedDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
+        uint80 cachedDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
         uint256 cachedAmount;
         address cachedAccount;
-        uint256 newDebtOf;
-        // Self liquidation check moved to Market Manager
 
         for (uint256 i; i < numAccounts; ++i) {
             // Cache the repayment amount.
@@ -566,29 +588,16 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 continue;
             }
 
-            // Calculate the new `account` outstanding debt, then update the
-            // account's debt exchange rate index.
-            // NOTE: We dont use _getDebtOf because we already cached market's
-            // debt exchange rate index and we do not want to repeatedly load
-            // that storage slot.
-            newDebtOf = debtBalance(
-                cachedAccount = accounts[i]
-            ) - cachedAmount;
-            /// @solidity memory-safe-assembly
-            assembly {
-                // Mask `newDebtOf` to the lower 176 bits,
-                // in case the upper bits somehow aren't clean.
-                // Then create the new debtOf variable with:
-                // `newDebtOf | cachedDebtIndex`.
-                newDebtOf := or(
-                    and(newDebtOf, _BITMASK_DEBT_INDEX_COMPLEMENT),
-                    shl(_BITPOS_DEBT_INDEX, cachedDebtIndex)
-                )
-            }
+            cachedAccount = accounts[i];
 
-            // Update `account`'s new debt balance and update their account
-            // specific exchange rate index.
-            _debtOf[cachedAccount] = newDebtOf;
+            // Calculate the new `cachedAccount` outstanding debt, then update the
+            // account's debt balance and debt index value.
+            // Update the account and market outstanding debt balance data.
+            _setDebtOf(
+                cachedAccount,
+                uint176(debtBalance(cachedAccount) - cachedAmount),
+                cachedDebtIndex
+            );
             emit Repay(liquidator, cachedAccount, cachedAmount);
         }
 
@@ -613,14 +622,32 @@ contract BorrowableCToken is BaseCTokenWithYield {
             emit BadDebtRecognized(liquidator, liqResults.badDebtRealized);
         }
 
-        // We check above that the mToken must be a position token,
-        // so we cant seize this mToken as it is a debt token,
-        // so there is no reEntry risk.
         ICToken(collateralToken).seize(
             liquidator,
             accounts,
             liqResults.liquidatedAmounts
         );
+    }
+
+    /// @notice Helper function for posting `shares` as collateral
+    ///         for `account` inside this market.
+    /// @dev Cannot post collateral if `account` already has outstanding
+    ///      debt in this token.
+    ///      Emits {CollateralUpdated} event.
+    ///      May emit {PositionUpdated} event inside Market Manager.
+    /// @param account The account posting collateral.
+    /// @param shares The amount of shares to post as collateral.
+    function _postCollateral(
+        address account,
+        uint256 shares
+    ) internal override {
+        // Cannot post collateral if `account` already has outstanding debt
+        // in this token.
+        if (uint176(_debtOf[account]) > 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        super._postCollateral(account, shares);
     }
 
     /// @notice Can accrue interest yield, configure next interest accrual
@@ -810,37 +837,16 @@ contract BorrowableCToken is BaseCTokenWithYield {
         emit NewInterestFee(oldInterestFee, interestFee);
     }
 
-    /// @notice Starts a cToken market, executed via marketManager.
-    /// @dev This initial mint is a failsafe against rounding exploits,
-    ///      although, we protect against them in many ways,
-    ///      better safe than sorry.
-    /// @dev Emits a {Deposit} event.
-    /// @param by The account initializing the cToken market.
-    function _startMarket(address by) internal override {
-        // Validate that the interest rate model has been properly linked
-        // to this earn token contract.
-        if (interestRateModel.linkedToken() != address(this)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        super._startMarket(by);
-
-        // Calculate `_vestingData` invariant to intended start values.
-        _vestingData = (_vestingData & _BITMASK_VESTING_RATE) |
-            (block.timestamp << _BITPOS_VEST_END) |
-            (block.timestamp << _BITPOS_LAST_VEST) |
-            (WAD << _BITPOS_DEBT_INDEX);
-    }
-
     /// @notice Packs `newOutstandingDebt` with current `marketDebtIndex` to
     ///         create new packed `_debtOf` for `account`.
     /// @param account The account to set `_debtOf` value for.
     /// @param newOutstandingDebt The new outstanding debt of `account`.
+    /// @param marketDebtIndex The current market debt index value.
     function _setDebtOf(
         address account,
-        uint176 newOutstandingDebt
+        uint176 newOutstandingDebt,
+        uint80 marketDebtIndex
     ) internal {
-        uint256 marketDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
         uint256 newDebtOf;
         // Cast `newDebtOf` with assembly to avoid redundant masking.
         /// @solidity memory-safe-assembly
@@ -855,6 +861,27 @@ contract BorrowableCToken is BaseCTokenWithYield {
         }
 
         _debtOf[account] = newDebtOf;
+    }
+
+    /// @notice Starts a cToken market, executed via marketManager.
+    /// @dev This initial mint is a failsafe against rounding exploits,
+    ///      although, we protect against them in many ways,
+    ///      better safe than sorry.
+    /// @dev Emits a {Deposit} event.
+    /// @param by The account initializing the cToken market.
+    function _startMarket(address by) internal override {
+        // Validate that the interest rate model is linked to this token.
+        if (interestRateModel.linkedToken() != address(this)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        super._startMarket(by);
+
+        // Calculate `_vestingData` invariant to intended start values.
+        _vestingData = (_vestingData & _BITMASK_VESTING_RATE) |
+            (block.timestamp << _BITPOS_VEST_END) |
+            (block.timestamp << _BITPOS_LAST_VEST) |
+            (WAD << _BITPOS_DEBT_INDEX);
     }
 
     /// @notice Calculates pending yield that have been vested.

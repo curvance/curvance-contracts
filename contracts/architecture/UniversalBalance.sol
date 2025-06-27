@@ -10,7 +10,6 @@ import { RescueLib } from "contracts/libraries/RescueLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
@@ -104,18 +103,18 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
     constructor(
         ICentralRegistry centralRegistry_,
-        address eToken
+        address borrowableCToken
     ) PluginDelegable(centralRegistry_) {
-        // Validate inputted eToken is actually an eToken.
-        if (!ICToken(eToken).isBorrowable()) {
+        // Validate `borrowableCToken` is actually lendable.
+        if (!IBorrowableCToken(borrowableCToken).isBorrowable()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        linkedToken = IBorrowableCToken(eToken);
-        address underlying_ = ICToken(eToken).asset();
+        linkedToken = IBorrowableCToken(borrowableCToken);
+        address underlying_ = IBorrowableCToken(borrowableCToken).asset();
         underlying = underlying_;
 
-        IERC20(underlying_).approve(eToken, type(uint256).max);
+        IERC20(underlying_).approve(borrowableCToken, type(uint256).max);
     }
 
     /// EXTERNAL FUNCTIONS ///
