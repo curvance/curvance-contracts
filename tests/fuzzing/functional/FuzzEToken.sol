@@ -295,7 +295,7 @@
 //         uint256 amount
 //     ) public {
 //         _isSupportedEToken(eToken);
-//         uint256 accountDebt = EToken(eToken).debtBalanceCached(address(this));
+//         uint256 accountDebt = EToken(eToken).debtBalance(address(this));
 //         emit LogUint256("account debt", accountDebt);
 //         address underlying = EToken(eToken).underlying();
 //         require(_mintAndApprove(underlying, eToken, amount));
@@ -355,7 +355,7 @@
 //     ) public {
 //         _isSupportedEToken(eToken);
 //         address underlying = EToken(eToken).underlying();
-//         uint256 accountDebt = EToken(eToken).debtBalanceCached(address(this));
+//         uint256 accountDebt = EToken(eToken).debtBalance(address(this));
 //         emit LogUint256("acct debt", accountDebt);
 //         amount = clampBetween(amount, 0, accountDebt);
 //         require(_mintAndApprove(underlying, eToken, accountDebt));
@@ -483,7 +483,7 @@
 //             uint256 collateralBalanceBefore = ICToken(positionToken).balanceOf(
 //                 address(this)
 //             );
-//             uint256 priorDebt = EToken(eToken).debtBalanceCached(
+//             uint256 priorDebt = EToken(eToken).debtBalance(
 //                 address(this)
 //             );
 //             uint256 preSenderCollateral = IERC20(positionToken).balanceOf(
@@ -508,7 +508,7 @@
 //                 // The debt of the account should decrease by debtToLiquidate
 //                 assertEq(
 //                     priorDebt -
-//                         EToken(eToken).debtBalanceCached(address(this)),
+//                         EToken(eToken).debtBalance(address(this)),
 //                     debtToLiquidate,
 //                     "DTOK-22 soft liquidate entire account should zero out debt balance for user"
 //                 );
@@ -615,7 +615,7 @@
 //         address account = address(this);
 //         uint256 priorCollateral = _collateralPostedFor(address(positionToken));
 //         EToken(eToken).accrueInterest();
-//         uint256 priorDebt = EToken(eToken).debtBalanceCached(address(this));
+//         uint256 priorDebt = EToken(eToken).debtBalance(address(this));
 //         amount = _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
 
 //         (uint256 debtToLiquidate, uint256 seizedForLiquidation) = marketManager
@@ -650,7 +650,7 @@
 //                 // The user's previous debt balance - current debt balance must equal the total amount of debt that was liquidated
 //                 assertEq(
 //                     priorDebt -
-//                         EToken(eToken).debtBalanceCached(address(this)),
+//                         EToken(eToken).debtBalance(address(this)),
 //                     debtToLiquidate,
 //                     "DTOK-27 soft liquidate exact acct debt should decrease by debtToLiquidate"
 //                 );

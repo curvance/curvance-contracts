@@ -218,7 +218,7 @@
 //             .tokenData(address(_cToken));
 
 //         uint256 cFactor = baseCFactor + ((cFactorCurve * 1e18) / WAD);
-//         uint256 debtAmount = (cFactor * _eToken.debtBalanceCached(_user)) /
+//         uint256 debtAmount = (cFactor * _eToken.debtBalance(_user)) /
 //             WAD;
 
 //         PriceReturnData memory data = chainlinkAdaptor.getPrice(

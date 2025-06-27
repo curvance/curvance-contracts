@@ -187,10 +187,10 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
         bytes calldata data
     ) external override returns (uint256 yield) {
         // Checks whether the caller can compound the vault yield
-        _canCompound();
+        _canHarvest();
 
         // Vest pending rewards if there are any
-        accrueIfNeeded();
+        _accrueIfNeeded();
 
         // can only harvest once previous reward period is done
         if (_checkVestingFinished(_vestingData)) {

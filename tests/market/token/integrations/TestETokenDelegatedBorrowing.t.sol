@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-import { ETokenWithGauge } from "contracts/market/token/withGauge/ETokenWithGauge.sol";
+import { BorrowableCTokenWithGauge } from "contracts/market/token/withGauge/BorrowableCTokenWithGauge.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
@@ -78,7 +78,7 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(eDAI));
+            oracleManager.addCTokenSupport(address(eDAI));
         }
 
         // deploy pBALRETH
@@ -118,9 +118,9 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
 
     function testInitialize() public {
         assertEq(centralRegistry.daoAddress(), dao);
-        assertEq(eDAI.interestFactor(), (marketInterestFactor * 1e18) / 10000);
+        assertEq(eDAI.interestFee(), (marketInterestFactor * 1e18) / 10000);
         assertEq(
-            eDAI.interestFactor(),
+            eDAI.interestFee(),
             centralRegistry.protocolInterestFee(address(marketManagerIsolated))
         );
     }
@@ -132,7 +132,7 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
         // mint eDAI
         vm.startPrank(liquidityProvider);
         dai.approve(address(eDAI), 1000 ether);
-        eDAI.mint(1000 ether);
+        eDAI.mint(1000 ether, liquidityProvider);
         vm.stopPrank();
 
         _prepareBALRETH(user1, 1 ether);
@@ -157,35 +157,27 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
         {
             // check accrue interest after 1 day
             uint256 exchangeRateBefore = eDAI.exchangeRate();
-            uint256 totalReserves = eDAI.totalReserves();
-            assertEq(totalReserves, 0);
-            uint256 totalBorrowsBefore = eDAI.totalBorrows();
+            uint256 totalBorrowsBefore = eDAI.marketOutstandingDebt();
             assertEq(totalBorrowsBefore, 500 ether);
             uint256 daoBalanceBefore = eDAI.balanceOf(dao);
             uint256 daoGaugeBalanceBefore = gaugeManager.balanceOf(
                 address(eDAI),
                 dao
             );
-            uint256 debtBalanceBefore = eDAI.debtBalanceCached(user1);
+            uint256 debtBalanceBefore = eDAI.debtBalance(user1);
             uint256 rateBefore = eDAI.convertToShares(1e18);
 
             // skip 1 day
             skip(24 hours);
 
-            eDAI.accrueInterest();
+            eDAI.accrueIfNeeded();
 
-            uint256 debt = ((eDAI.totalBorrows() - totalBorrowsBefore) *
+            uint256 debt = ((eDAI.marketOutstandingDebt() - totalBorrowsBefore) *
                 rateBefore) / 1e18;
-
-            // check interest calculation from debt accrued
-            assertEq(
-                eDAI.totalReserves(),
-                totalReserves + (debt * marketInterestFactor) / 10000
-            );
 
             // check borrower debt increased
             assertEq(eDAI.balanceOf(user1), 0);
-            assertEq(eDAI.debtBalanceCached(user1), debtBalanceBefore + debt);
+            assertEq(eDAI.debtBalance(user1), debtBalanceBefore + debt);
             assertGt(eDAI.exchangeRate(), exchangeRateBefore);
 
             // dao eDAI balance doesn't increase
@@ -201,34 +193,27 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
         {
             // check accrue interest after another day
             uint256 exchangeRateBefore = eDAI.exchangeRate();
-            uint256 totalReserves = eDAI.totalReserves();
-            uint256 totalBorrowsBefore = eDAI.totalBorrows();
+            uint256 totalBorrowsBefore = eDAI.marketOutstandingDebt();
             uint256 daoBalanceBefore = eDAI.balanceOf(dao);
             uint256 daoGaugeBalanceBefore = gaugeManager.balanceOf(
                 address(eDAI),
                 dao
             );
-            uint256 debtBalanceBefore = eDAI.debtBalanceCached(user1);
+            uint256 debtBalanceBefore = eDAI.debtBalance(user1);
             uint256 rateBefore = eDAI.convertToShares(1e18);
 
             // skip 1 day
             skip(24 hours);
 
-            eDAI.accrueInterest();
+            eDAI.accrueIfNeeded();
 
-            uint256 debt = ((eDAI.totalBorrows() - totalBorrowsBefore) *
+            uint256 debt = ((eDAI.marketOutstandingDebt() - totalBorrowsBefore) *
                 rateBefore) / 1e18;
-
-            // check interest calculation from debt accrued
-            assertEq(
-                eDAI.totalReserves(),
-                totalReserves + (debt * marketInterestFactor) / 10000
-            );
 
             // check borrower debt increased
             assertEq(eDAI.balanceOf(user1), 0);
             assertApproxEqRel(
-                eDAI.debtBalanceCached(user1),
+                eDAI.debtBalance(user1),
                 debtBalanceBefore + debt,
                 1 ether
             );
@@ -251,7 +236,7 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
     ) internal override initMainVariables returns (BorrowableCToken) {
         BorrowableCToken eToken = BorrowableCToken(
             address(
-                new ETokenWithGauge(
+                new BorrowableCTokenWithGauge(
                     ICentralRegistry(address(centralRegistry)),
                     token,
                     address(marketManagerIsolated),

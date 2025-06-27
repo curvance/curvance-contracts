@@ -74,9 +74,9 @@ contract TestBaseMarketIsolated is TestBase {
 
         _setRedstoneSigners();
 
-        oracleManagers[chainId].addMTokenSupport(address(eUSDC));
-        oracleManagers[chainId].addMTokenSupport(address(pBALRETH));
-        oracleManagers[chainId].addMTokenSupport(address(pBALRETHWithExitFee));
+        oracleManagers[chainId].addCTokenSupport(address(eUSDC));
+        oracleManagers[chainId].addCTokenSupport(address(pBALRETH));
+        oracleManagers[chainId].addCTokenSupport(address(pBALRETHWithExitFee));
     }
 
     function _deployBaseContracts() internal {

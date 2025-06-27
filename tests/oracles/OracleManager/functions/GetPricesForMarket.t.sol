@@ -3,16 +3,16 @@ pragma solidity ^0.8.19;
 
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
 contract GetPricesForMarketTest is TestBaseOracleManager {
-    IMToken[] public assets;
+    address[] public assets;
 
     function setUp() public override {
         super.setUp();
 
-        assets.push(IMToken(address(eUSDC)));
+        assets.push(address(eUSDC));
 
         _deployPBALRETH();
 
@@ -103,10 +103,10 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
             assertFalse(snapshots[i].isPToken);
             assertEq(snapshots[i].decimals, usdc.decimals());
             assertEq(
-                assets[i].balanceOf(address(this)),
+                ICToken(assets[i]).balanceOf(address(this)),
                 eUSDC.balanceOf(address(this))
             );
-            assertEq(snapshots[i].debtBalance, 0);
+            assertEq(snapshots[i].debtOutstanding, 0);
             assertEq(snapshots[i].exchangeRate, 0);
         }
     }

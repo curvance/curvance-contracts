@@ -51,7 +51,7 @@
 //             marketManagerIsolated.listToken(tokens[i]);
 
 //             // add MToken support on oracle manager
-//             oracleManager.addMTokenSupport(tokens[i]);
+//             oracleManager.addCTokenSupport(tokens[i]);
 
 //             for (uint256 j = 0; j < 10; j++) {
 //                 address user = users[j];
@@ -930,7 +930,7 @@
 //         balRETH.approve(address(pBALRETH), 1 ether);
 //         marketManagerIsolated.listToken(address(pBALRETH));
 
-//         oracleManager.addMTokenSupport(address(pBALRETH));
+//         oracleManager.addCTokenSupport(address(pBALRETH));
 
 //         // set collateral factor
 //         marketManagerIsolated.updatePositionToken(

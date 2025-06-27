@@ -73,7 +73,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             _prepareUSDC(owner, 200000e6);
             usdc.approve(address(eUSDC), 200000e6);
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(eUSDC));
+            oracleManager.addCTokenSupport(address(eUSDC));
             address[] memory markets = new address[](1);
             markets[0] = address(eUSDC);
             // vm.prank(user1);
@@ -95,7 +95,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             _prepareWETH(owner, 1 ether);
             weth.approve(address(pWETH), 1 ether);
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(pWETH));
+            oracleManager.addCTokenSupport(address(pWETH));
             // set position token configuration
 
 
@@ -143,7 +143,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        eUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         weth.approve(address(pWETH), 10 ether);
         pWETH.mint(10 ether, liquidityProvider);
@@ -359,7 +359,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         );
 
         uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
-        uint256 desiredTokenBalance = eUSDC.debtBalanceCached(user1);
+        uint256 desiredTokenBalance = eUSDC.debtBalance(user1);
 
         vm.prank(user1);
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
@@ -377,7 +377,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             baseRewardBalance - 100e6
         );
         assertApproxEqAbs(
-            eUSDC.debtBalanceCached(user1),
+            eUSDC.debtBalance(user1),
             desiredTokenBalance - 100e6,
             10000
         );

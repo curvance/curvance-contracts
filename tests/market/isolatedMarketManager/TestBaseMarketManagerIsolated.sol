@@ -5,7 +5,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import "forge-std/console.sol";
 
 contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
@@ -20,7 +20,7 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         _prepareDAI(address(this), _ONE);
         _prepareBALRETH(address(this), _ONE);
 
-        oracleManager.addMTokenSupport(address(eDAI));
+        oracleManager.addCTokenSupport(address(eDAI));
 
         SafeTransferLib.safeApprove(_USDC_ADDRESS, address(eUSDC), _ONE);
         SafeTransferLib.safeApprove(_DAI_ADDRESS, address(eDAI), _ONE);

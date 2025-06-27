@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
 contract ETokenWithdrawReservesTest is TestBaseEToken {
     function test_eTokenWithdrawReserves_fail_whenCallIsNotAuthorized()
@@ -10,7 +11,7 @@ contract ETokenWithdrawReservesTest is TestBaseEToken {
     {
         vm.prank(address(1));
 
-        vm.expectRevert(BorrowableCToken.BorrowableCToken__Unauthorized.selector);
+        vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
         eUSDC.withdrawReserves(100e6);
     }
 

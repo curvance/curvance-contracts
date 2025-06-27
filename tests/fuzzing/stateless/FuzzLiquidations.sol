@@ -23,7 +23,7 @@
 //         uint256 lFactor;
 //         uint256 earnTokenPrice;
 //         uint256 positionTokenPrice;
-//         uint256 debtBalanceCached;
+//         uint256 debtBalance;
 //         uint256 exchangeRateCached;
 //     }
 //     LiquidationData data;
@@ -128,7 +128,7 @@
 //                 earnToken,
 //                 positionToken
 //             );
-//         uint256 debtBalanceCached = IBorrowableCToken(earnToken).debtBalanceCached(
+//         uint256 debtBalance = IBorrowableCToken(earnToken).debtBalance(
 //             address(this)
 //         );
 //         uint256 exchangeRateCached = IBorrowableCToken(earnToken).exchangeRateCached();
@@ -145,7 +145,7 @@
 //             lFactor,
 //             earnTokenPrice,
 //             positionTokenPrice,
-//             debtBalanceCached,
+//             debtBalance,
 //             exchangeRateCached
 //         );
 //     }
@@ -227,12 +227,12 @@
 //     }
 
 //     /// @custom:property liq-6 if cfactor == 0, maxAmount to be liquidated = 0
-//     /// @custom:property liq-7 if cFactor == WAD, maxAmount to be liquidated = debtBalanceCached
-//     /// @custom:property liq-8 if cFactor is between [0, WAD], maxAmount to be liquidated must be bound between [0, debtBalanceCached]
+//     /// @custom:property liq-7 if cFactor == WAD, maxAmount to be liquidated = debtBalance
+//     /// @custom:property liq-8 if cFactor is between [0, WAD], maxAmount to be liquidated must be bound between [0, debtBalance]
 //     function _calculateMaxAmount() private {
 //         // Preconditions
 
-//         uint256 maxAmount = (calculated.cFactor * data.debtBalanceCached) /
+//         uint256 maxAmount = (calculated.cFactor * data.debtBalance) /
 //             WAD;
 
 //         // Postconditions
@@ -242,14 +242,14 @@
 //                 "LIQ-6 - maxAmount = 0 when calculated.cFactor = 0"
 //             );
 //         } else if (calculated.cFactor == WAD) {
-//             if (maxAmount != data.debtBalanceCached) {
+//             if (maxAmount != data.debtBalance) {
 //                 errors[7] = HasError(
 //                     true,
-//                     "LIQ-7 - maxAmount = data.debtBalanceCached when calculated.cFactor = WAD"
+//                     "LIQ-7 - maxAmount = data.debtBalance when calculated.cFactor = WAD"
 //                 );
 //             }
 //         } else {
-//             if (maxAmount == 0 || maxAmount > data.debtBalanceCached) {
+//             if (maxAmount == 0 || maxAmount > data.debtBalance) {
 //                 errors[8] = HasError(
 //                     true,
 //                     "LIQ-8 - maxAmount must be >0 and <= debt balance cached"
@@ -271,37 +271,37 @@
 //         calculated.debtToCollateralRatio = debtToCollateralRatio;
 //     }
 
-//     /// @custom:property liq-9 if position token and debt token have the same number of decimals, amountAdjusted = debtBalanceCached
-//     /// @custom:property liq-10 if position token decimals > earnTokenDecimals, amountAdjusted > debtBalanceCached
-//     /// @custom:property liq-11 if position token decimals < earnTokenDecimals, amountAdjusted < debtBalanceCached
+//     /// @custom:property liq-9 if position token and debt token have the same number of decimals, amountAdjusted = debtBalance
+//     /// @custom:property liq-10 if position token decimals > earnTokenDecimals, amountAdjusted > debtBalance
+//     /// @custom:property liq-11 if position token decimals < earnTokenDecimals, amountAdjusted < debtBalance
 //     function _calculateAmountAdjusted() private {
 //         // Saves state
 //         uint256 positionTokenDecimals = ICToken(positionToken).decimals();
 //         uint256 earnTokenDecimals = IBorrowableCToken(earnToken).decimals();
 
-//         uint256 amountAdjusted = (data.debtBalanceCached *
+//         uint256 amountAdjusted = (data.debtBalance *
 //             10 ** positionTokenDecimals) / (10 ** earnTokenDecimals);
 
 //         // Postconditions
 //         if (positionTokenDecimals == earnTokenDecimals) {
-//             if (amountAdjusted != data.debtBalanceCached) {
+//             if (amountAdjusted != data.debtBalance) {
 //                 errors[9] = HasError(
 //                     true,
 //                     "LIQ-9 - when collat token dec == debt token dec, amountAdjusted = debtAmount"
 //                 );
 //             }
 //         } else if (positionTokenDecimals > earnTokenDecimals) {
-//             if (amountAdjusted <= data.debtBalanceCached) {
+//             if (amountAdjusted <= data.debtBalance) {
 //                 errors[10] = HasError(
 //                     true,
-//                     "LIQ-10 - amountAdjusted > debtBalanceCached when position token < debt token decimals"
+//                     "LIQ-10 - amountAdjusted > debtBalance when position token < debt token decimals"
 //                 );
 //             }
 //         } else if (positionTokenDecimals < earnTokenDecimals) {
-//             if (amountAdjusted >= data.debtBalanceCached) {
+//             if (amountAdjusted >= data.debtBalance) {
 //                 errors[11] = HasError(
 //                     true,
-//                     "LIQ-11 - amountAdjusted < debtBalanceCached when position token < debt token decimals"
+//                     "LIQ-11 - amountAdjusted < debtBalance when position token < debt token decimals"
 //                 );
 //             }
 //         }

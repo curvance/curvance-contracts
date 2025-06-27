@@ -232,7 +232,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
             .tokenData(address(pBALRETH));
 
         uint256 cFactor = baseCFactor + ((cFactorCurve * 1e18) / WAD);
-        uint256 debtAmount = (cFactor * eUSDC.debtBalanceCached(user1)) / WAD;
+        uint256 debtAmount = (cFactor * eUSDC.debtBalance(user1)) / WAD;
 
         PriceReturnData memory data = balRETHAdapter.getPrice(
             _BAL_WETH_RETH_ADDRESS,

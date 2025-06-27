@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { TestBaseMarketManagerIsolated } from "tests/market/isolatedMarketManager/TestBaseMarketManagerIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 contract AccountFunctionsIsolatedMarketManager is TestBaseMarketManagerIsolated {
     address dappControlUser = makeAddr("dappControlUser");
@@ -53,7 +53,7 @@ contract AccountFunctionsIsolatedMarketManager is TestBaseMarketManagerIsolated 
     }
 
     function test_assetsOf() public {
-        IMToken[] memory assets = marketManagerIsolated.assetsOf(user1);
+        address[] memory assets = marketManagerIsolated.assetsOf(user1);
         assertEq(assets.length, 2);
         assertEq(address(assets[0]), address(pBALRETH));
         assertEq(address(assets[1]), address(eUSDC));

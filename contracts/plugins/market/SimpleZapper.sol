@@ -5,7 +5,6 @@ import { ZapperBase, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
-
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 contract SimpleZapper is ZapperBase {

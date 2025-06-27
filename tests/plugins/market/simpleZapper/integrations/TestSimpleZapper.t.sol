@@ -44,7 +44,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(eDAI));
+            oracleManager.addCTokenSupport(address(eDAI));
         }
 
         // deploy simple pToken
@@ -56,7 +56,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         }
 
         marketManagerIsolated.listTokens(address(pUSDC), address(eDAI));
-        oracleManager.addMTokenSupport(address(pUSDC));
+        oracleManager.addCTokenSupport(address(pUSDC));
         marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
@@ -86,7 +86,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         vm.startPrank(liquidityProvider);
         // mint eDAI
         dai.approve(address(eDAI), 1000 ether);
-        eDAI.mint(1000 ether);
+        eDAI.deposit(1000 ether, liquidityProvider);
         // mint pUSDC
         usdc.approve(address(pUSDC), 100e6);
         pUSDC.mint(100e6, liquidityProvider);
@@ -142,7 +142,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(dai.balanceOf(user1), 500 ether);
-        assertApproxEqAbs(eDAI.debtBalanceCached(user1), 500 ether, 1 ether);
+        assertApproxEqAbs(eDAI.debtBalance(user1), 500 ether, 1 ether);
 
         // skip min hold period
         skip(20 minutes);
@@ -179,7 +179,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertApproxEqAbs(dai.balanceOf(user1), 550 ether, 1 ether);
-        assertApproxEqAbs(eDAI.debtBalanceCached(user1), 50 ether, 1 ether);
+        assertApproxEqAbs(eDAI.debtBalance(user1), 50 ether, 1 ether);
     }
 
     function testRedeemAndSwapPToken() public {
@@ -227,7 +227,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         // mint eDAI
         _prepareDAI(user1, 10 ether);
         dai.approve(address(eDAI), 10 ether);
-        eDAI.mint(10 ether);
+        eDAI.deposit(10 ether, user1);
 
         eDAI.setDelegateApproval(address(simpleZapper), true);
 
@@ -267,7 +267,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
 
         _prepareDAI(user1, 100 ether);
         dai.approve(address(eDAI), 100 ether);
-        eDAI.mint(100 ether);
+        eDAI.deposit(100 ether, user1);
 
         eDAI.setDelegateApproval(address(simpleZapper), true);
 

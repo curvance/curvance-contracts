@@ -60,7 +60,7 @@ contract TestComplexZapperPendle is TestBaseMarketIsolated {
             address(marketManager),
             IPendleRouter(_PENDLE_ROUTER)
         );
-        oracleManager.addMTokenSupport(address(pSTETH));
+        oracleManager.addCTokenSupport(address(pSTETH));
 
         deal(_LP_STETH, address(this), 1 ether);
         IERC20(_LP_STETH).approve(address(pSTETH), 1 ether);

@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-import { ETokenWithGauge } from "contracts/market/token/withGauge/ETokenWithGauge.sol";
+import { BorrowableCTokenWithGauge } from "contracts/market/token/withGauge/BorrowableCTokenWithGauge.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
@@ -78,7 +78,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(eDAI));
+            oracleManager.addCTokenSupport(address(eDAI));
         }
 
         // deploy pBALRETH
@@ -157,7 +157,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
                 address(eDAI),
                 dao
             );
-            uint256 debtBalanceBefore = eDAI.debtBalanceCached(user1);
+            uint256 debtBalanceBefore = eDAI.debtBalance(user1);
             uint256 rateBefore = eDAI.convertToShares(1e18);
 
             // skip 1 day
@@ -176,7 +176,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
 
             // check borrower debt increased
             assertEq(eDAI.balanceOf(user1), 0);
-            assertEq(eDAI.debtBalanceCached(user1), debtBalanceBefore + debt);
+            assertEq(eDAI.debtBalance(user1), debtBalanceBefore + debt);
             assertGt(eDAI.exchangeRate(), exchangeRateBefore);
 
             // dao eDAI balance doesn't increase
@@ -199,7 +199,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
                 address(eDAI),
                 dao
             );
-            uint256 debtBalanceBefore = eDAI.debtBalanceCached(user1);
+            uint256 debtBalanceBefore = eDAI.debtBalance(user1);
             uint256 rateBefore = eDAI.convertToShares(1e18);
 
             // skip 1 day
@@ -219,7 +219,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
             // check borrower debt increased
             assertEq(eDAI.balanceOf(user1), 0);
             assertApproxEqRel(
-                eDAI.debtBalanceCached(user1),
+                eDAI.debtBalance(user1),
                 debtBalanceBefore + debt,
                 1 ether
             );
@@ -318,7 +318,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
     ) internal override initMainVariables returns (BorrowableCToken) {
         BorrowableCToken eToken = BorrowableCToken(
             address(
-                new ETokenWithGauge(
+                new BorrowableCTokenWithGauge(
                     ICentralRegistry(address(centralRegistry)),
                     token,
                     address(marketManagerIsolated),

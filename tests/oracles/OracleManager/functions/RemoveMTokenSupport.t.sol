@@ -5,35 +5,35 @@ import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
 contract RemoveMTokenSupportTest is TestBaseOracleManager {
-    function test_removeMTokenSupport_fail_whenCallerIsNotAuthorized() public {
+    function test_removeCTokenSupport_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(1));
 
         vm.expectRevert(OracleManager.OracleManager__Unauthorized.selector);
-        oracleManager.removeMTokenSupport(address(eUSDC));
+        oracleManager.removeCTokenSupport(address(eUSDC));
     }
 
-    function test_removeMTokenSupport_fail_whenMTokenIsNotConfigured() public {
+    function test_removeCTokenSupport_fail_whenCTokenIsNotConfigured() public {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.removeMTokenSupport(address(eUSDC));
+        oracleManager.removeCTokenSupport(address(eUSDC));
     }
 
-    function test_removeMTokenSupport_success() public {
-        oracleManager.addMTokenSupport(address(eUSDC));
+    function test_removeCTokenSupport_success() public {
+        oracleManager.addCTokenSupport(address(eUSDC));
 
-        (bool isMToken, address underlying) = oracleManager.mTokenAssets(
+        (bool isCToken, address underlying) = oracleManager.cTokenAssets(
             address(eUSDC)
         );
 
-        assertTrue(isMToken);
+        assertTrue(isCToken);
         assertEq(underlying, _USDC_ADDRESS);
 
-        oracleManager.removeMTokenSupport(address(eUSDC));
+        oracleManager.removeCTokenSupport(address(eUSDC));
 
-        (isMToken, underlying) = oracleManager.mTokenAssets(address(eUSDC));
+        (isCToken, underlying) = oracleManager.cTokenAssets(address(eUSDC));
 
-        assertFalse(isMToken);
+        assertFalse(isCToken);
         assertEq(underlying, address(0));
     }
 }

@@ -136,7 +136,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         //     usdc.approve(address(eUSDC), 200000e6);
         //     marketManagerIsolated.listToken(address(eUSDC));
         //     // add MToken support on oracle manager
-        //     oracleManager.addMTokenSupport(address(eUSDC));
+        //     oracleManager.addCTokenSupport(address(eUSDC));
         //     address[] memory markets = new address[](1);
         //     markets[0] = address(eUSDC);
         //     // vm.prank(user1);
@@ -151,7 +151,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             _prepareWETH(owner, 200000 ether);
             weth.approve(address(eWETH), 200000e6);
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(eWETH));
+            oracleManager.addCTokenSupport(address(eWETH));
             address[] memory markets = new address[](1);
             markets[0] = address(eWETH);
             // vm.prank(user1);
@@ -173,7 +173,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             _prepareWBTC(owner, 1e8);
             wbtc.approve(address(pWBTC), 1e8);
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(pWBTC));
+            oracleManager.addCTokenSupport(address(pWBTC));
             // set position token configuration
         }
 

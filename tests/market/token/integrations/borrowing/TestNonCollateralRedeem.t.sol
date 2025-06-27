@@ -54,7 +54,7 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
         // Deposit & Collateralize 1 pBALRETH
         pBALRETH.depositAsCollateral(1e18, address(this));
         // Lend so there is something to borrow
-        eUSDC.mint(100_000e6);
+        eUSDC.deposit(100_000e6, address(this));
         // Do a partial borrow
         eUSDC.borrow(750e6);
         // Fast forward to get past minimum hold

@@ -325,7 +325,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         // ===== Final Assertions =====
 
         // Verify borrower1's debt is fully liquidated
-        assertEq(eUSDC.debtBalanceCached(borrower1), 0, "Borrower1 should have zero debt remaining");
+        assertEq(eUSDC.debtBalance(borrower1), 0, "Borrower1 should have zero debt remaining");
 
         // Verify borrower1's collateral is fully liquidated
         assertEq(pBALRETH.balanceOf(borrower1), 0, "Borrower1 should have zero collateral remaining");
@@ -372,7 +372,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
     function _getDebtBalancePreLiquidation(address _borrower) internal view returns (uint256 debtBalance) {
 
-        debtBalance = eUSDC.debtBalanceCached(_borrower);
+        debtBalance = eUSDC.debtBalance(_borrower);
 
     }
 

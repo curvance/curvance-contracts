@@ -36,7 +36,7 @@
 //         {
 //             _deployEDAI();
 //             // add MToken support on price router
-//             oracleManager.addMTokenSupport(address(eDAI));
+//             oracleManager.addCTokenSupport(address(eDAI));
 //             _prepareDAI(owner, 200000e18);
 //             dai.approve(address(eDAI), 200000e18);
 //         }
@@ -44,7 +44,7 @@
 //         // deploy simple cToken
 //         {
 //             _deployPUSDC();
-//             oracleManager.addMTokenSupport(address(pUSDC));
+//             oracleManager.addCTokenSupport(address(pUSDC));
 //             _prepareUSDC(owner, 100e6);
 //             usdc.approve(address(pUSDC), 100e6);
 

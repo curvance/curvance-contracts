@@ -260,10 +260,10 @@ contract TestAuraCToken is TestBaseMarketIsolated {
         assert(lastVestClaim == block.timestamp);
         assert(vestingPeriodEnd == block.timestamp + 2 days);
 
-        // setCompoundingPaused
-        pBALRETH.setCompoundingPaused(true);
+        // setHarvestingPaused
+        pBALRETH.setHarvestingPaused(true);
 
-        vm.expectRevert(StrategyCToken.StrategyCToken__CompoundingPaused.selector);
+        vm.expectRevert(StrategyCToken.StrategyCToken__HarvestingPaused.selector);
         pBALRETH.harvest(bytes("0"));
 
     }

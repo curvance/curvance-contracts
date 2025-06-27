@@ -57,7 +57,7 @@
 //         assertEq(pBALRETH.exchangeRateCached(), _ONE);
 
 //         assertEq(eUSDC.balanceOf(user1), 0);
-//         assertEq(eUSDC.debtBalanceCached(user1), 0);
+//         assertEq(eUSDC.debtBalance(user1), 0);
 //         assertApproxEqRel(eUSDC.exchangeRateCached(), _ONE, 0.01e18);
 //     }
 // }

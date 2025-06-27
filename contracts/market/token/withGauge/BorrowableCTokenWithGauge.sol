@@ -33,7 +33,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      facilitating the distribution of native tokens both liquid and
 ///      locked to users based on their contributions to the protocol over
 ///      time.
-contract ETokenWithGauge is BorrowableCToken {
+contract BorrowableCTokenWithGauge is BorrowableCToken {
     /// CONSTANTS ///
 
     /// @notice Address of the Gauge Manager.

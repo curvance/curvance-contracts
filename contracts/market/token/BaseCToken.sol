@@ -111,6 +111,7 @@ abstract contract BaseCToken is
     /// ERRORS ///
 
     error BaseCToken__ZeroAmount();
+    error BaseCToken__TransferError();
     error BaseCToken__InsufficientLiquidity();
     error BaseCToken__Unauthorized();
     error BaseCToken__UnsupportedChain();
@@ -1384,7 +1385,10 @@ abstract contract BaseCToken is
         uint256 shares
     ) internal {
         _checkZeroAmount(shares);
-
+        if (from == to) {
+            revert BaseCToken__TransferError();
+        }
+        
         uint256 collateral = collateralPosted[from];
         
         // Fails if transfer not allowed.

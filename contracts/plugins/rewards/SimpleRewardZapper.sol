@@ -195,7 +195,7 @@ contract SimpleRewardZapper is ZapperBase {
         if (swapData.inputAmount != rewards) {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
-
+        
         // Cache `borrowableCToken` underlying to minimize external calls.
         address debtToken = ICToken(borrowableCToken).asset();
 

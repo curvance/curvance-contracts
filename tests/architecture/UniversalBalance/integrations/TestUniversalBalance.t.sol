@@ -126,7 +126,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
             usdc.approve(address(eUSDC), 1000e6);
             marketManagerIsolated.listTokens(address(pWBTC), address(eUSDC));
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(pWBTC));
+            oracleManager.addCTokenSupport(address(pWBTC));
             // set position token configuration
         marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%

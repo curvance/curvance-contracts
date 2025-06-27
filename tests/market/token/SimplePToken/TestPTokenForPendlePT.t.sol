@@ -106,7 +106,7 @@
 //             _prepareUSDC(owner, 200000e6);
 //             usdc.approve(address(eUSDC), 200000e6);
 //             // add MToken support on oracle manager
-//             oracleManager.addMTokenSupport(address(eUSDC));
+//             oracleManager.addCTokenSupport(address(eUSDC));
 //             address[] memory markets = new address[](1);
 //             markets[0] = address(eUSDC);
 //             // vm.prank(user1);
@@ -128,7 +128,7 @@
 //             _preparePT(owner, 1 ether);
 //             pendlePT.approve(address(cPendlePT), 1 ether);
 //             // add MToken support on oracle manager
-//             oracleManager.addMTokenSupport(address(cPendlePT));
+//             oracleManager.addCTokenSupport(address(cPendlePT));
             
 
 
@@ -254,7 +254,7 @@
 //         eUSDC.borrow(500e6);
 
 //         assertEq(eUSDC.balanceOf(user1), 0);
-//         assertEq(eUSDC.debtBalanceCached(user1), 500e6);
+//         assertEq(eUSDC.debtBalance(user1), 500e6);
 //         assertEq(eUSDC.exchangeRateCached(), 1 ether);
 
 //         // try borrow()
@@ -262,7 +262,7 @@
 
 //         eUSDC.borrow(100e6);
 //         assertEq(eUSDC.balanceOf(user1), 0);
-//         assertGt(eUSDC.debtBalanceCached(user1), 600e6);
+//         assertGt(eUSDC.debtBalance(user1), 600e6);
 //         assertGt(eUSDC.exchangeRateCached(), 1 ether);
 
 //         // skip min hold period
@@ -275,7 +275,7 @@
 //         usdc.approve(address(eUSDC), 200e6);
 //         eUSDC.repay(200e6);
 //         assertEq(eUSDC.balanceOf(user1), 0);
-//         assertGt(eUSDC.debtBalanceCached(user1), borrowBalanceBefore - 200e6);
+//         assertGt(eUSDC.debtBalance(user1), borrowBalanceBefore - 200e6);
 //         assertGt(eUSDC.exchangeRateCached(), exchangeRateBefore);
 
 //         // skip some period
@@ -288,7 +288,7 @@
 //         eUSDC.repay(borrowBalanceBefore);
 //         vm.stopPrank();
 //         assertEq(eUSDC.balanceOf(user1), 0);
-//         assertGt(eUSDC.debtBalanceCached(user1), 0);
+//         assertGt(eUSDC.debtBalance(user1), 0);
 //         assertGt(eUSDC.exchangeRateCached(), exchangeRateBefore);
 //     }
 
@@ -355,7 +355,7 @@
 //         assertEq(cPendlePT.exchangeRate(), 1 ether);
 
 //         assertEq(eUSDC.balanceOf(user1), 0);
-//         assertGt(eUSDC.debtBalanceCached(user1), 500e6);
+//         assertGt(eUSDC.debtBalance(user1), 500e6);
 //         assertGt(eUSDC.exchangeRateCached(), 1 ether);
 //     }
 
@@ -418,10 +418,10 @@
 //         assertEq(cPendlePT.exchangeRate(), 1 ether);
 
 //         assertEq(eUSDC.balanceOf(user1), 0);
-//         assertEq(eUSDC.debtBalanceCached(user1), 500e6);
+//         assertEq(eUSDC.debtBalance(user1), 500e6);
 
 //         assertEq(eUSDC.balanceOf(user2), 1000e6);
-//         assertEq(eUSDC.debtBalanceCached(user2), 0);
+//         assertEq(eUSDC.debtBalance(user2), 0);
 //         assertEq(eUSDC.exchangeRateCached(), 1 ether);
 //     }
 
@@ -476,7 +476,7 @@
 //     //     assertEq(cPendlePT.exchangeRateCached(), 1 ether);
 
 //     //     assertEq(eUSDC.balanceOf(user1), 0);
-//     //     assertApproxEqRel(eUSDC.debtBalanceCached(user1), 750e6, 0.01e18);
+//     //     assertApproxEqRel(eUSDC.debtBalance(user1), 750e6, 0.01e18);
 //     //     assertApproxEqRel(eUSDC.exchangeRateCached(), 1 ether, 0.01e18);
 //     // }
 
@@ -531,7 +531,7 @@
 
 //     //     assertEq(eUSDC.balanceOf(user1), 0);
 //     //     assertApproxEqRel(
-//     //         eUSDC.debtBalanceCached(user1),
+//     //         eUSDC.debtBalance(user1),
 //     //         1000e6 - liquidatedAmount,
 //     //         0.01e18
 //     //     );

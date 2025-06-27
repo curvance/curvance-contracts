@@ -69,7 +69,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             address(CONVEX_STETH_ETH_POOL),
             address(crvAdaptor)
         );
-        oracleManager.addMTokenSupport(address(cSTETH));
+        oracleManager.addCTokenSupport(address(cSTETH));
 
         // Ensure STETH/USD, ETH/USD, and USDC/USD feeds are not stale
         skip(gaugeManager.gaugeStartTime() - block.timestamp);
@@ -159,12 +159,12 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             "User must have borrowed 10,000 USDC"
         );
         assertEq(
-            eUSDC.debtBalanceCached(user1),
+            eUSDC.debtBalance(user1),
             10_000e6,
             "User must have a debt balance of 10,000 USDC"
         );
         assertEq(
-            eUSDC.totalBorrows(),
+            eUSDC.marketOutstandingDebt(),
             10_000e6,
             "There must be a total amount of 10,000 USDC borrowed"
         );
@@ -186,16 +186,16 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         // Must hold for a minimum of 20 minutes before debt can be repaid
         skip(20 minutes);
         // Pay off full debt including interest
-        eUSDC.accrueInterest();
-        uint256 debtWithInterest = eUSDC.debtBalanceCached(user1);
+        eUSDC.accrueIfNeeded();
+        uint256 debtWithInterest = eUSDC.debtBalance(user1);
         vm.expectEmit(true, true, true, true, address(eUSDC));
         emit Repay(user1, user1, debtWithInterest);
         eUSDC.repay(0);
         vm.stopPrank();
 
-        assertEq(eUSDC.totalBorrows(), 0, "No borrows must be left");
+        assertEq(eUSDC.marketOutstandingDebt(), 0, "No borrows must be left");
         assertEq(
-            eUSDC.debtBalanceCached(user1),
+            eUSDC.debtBalance(user1),
             0,
             "User must have settled debt"
         );
