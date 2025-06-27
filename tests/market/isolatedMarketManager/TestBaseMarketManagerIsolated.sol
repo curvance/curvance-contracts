@@ -98,31 +98,8 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            3000,    // maxEffectiveCFactor 30%
-            2000     // baseCFactor 20%
-        );
-
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
-
-
-        address[] memory eTokens = new address[](1);
-        eTokens[0] = address(eUSDC);
-        uint256[] memory debtCaps_ = new uint256[](1);
-        debtCaps_[0] = 1_000_000e6;
-        marketManagerIsolated.setDebtCaps(eTokens, debtCaps_);
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(eUSDC), 0, 1_000_000e6);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);

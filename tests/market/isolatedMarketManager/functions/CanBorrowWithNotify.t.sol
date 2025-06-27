@@ -62,25 +62,8 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
         chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
 
-        address[] memory mTokens = new address[](1);
-        uint256[] memory borrowCaps = new uint256[](1);
-        mTokens[0] = address(pBALRETH);
-        borrowCaps[0] = 100e6 - 1;
-
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
-
-        marketManagerIsolated.setCollateralCaps(mTokens, borrowCaps);
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(eUSDC), 0, 100e6 - 1);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
         vm.prank(address(pBALRETH));
@@ -92,28 +75,8 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
         chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
 
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
-
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
-
-        tokens[0] = address(eUSDC);
-        caps[0] = 100e6;
-        marketManagerIsolated.setDebtCaps(tokens, caps);
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(eUSDC), 0, 100e6);
 
         _prepareBALRETH(user1, 1_000e18);
         vm.startPrank(user1);
@@ -123,7 +86,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         vm.prank(address(eUSDC));
-        marketManagerIsolated.canBorrowWithNotify(address(eUSDC), user1, caps[0] - 1, caps[0] - 1);
+        marketManagerIsolated.canBorrowWithNotify(address(eUSDC), user1, 100e6 - 1, 100e6 - 1);
     }
 
     function test_canBorrowWithNotify_fail_whenInsufficientLiquidity() public {
@@ -141,28 +104,8 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
-
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
-
-        tokens[0] = address(eUSDC);
-        caps[0] = 10_000_000e6;
-        marketManagerIsolated.setDebtCaps(tokens, caps);
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(eUSDC), 0, 10_000_000e6);
 
         vm.prank(address(eUSDC));
 
@@ -197,28 +140,8 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
-
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
-
-        tokens[0] = address(eUSDC);
-        caps[0] = 10_000_000e6;
-        marketManagerIsolated.setDebtCaps(tokens, caps);
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(eUSDC), 0, 10_000_000e6);
 
         _prepareBALRETH(user1, 1_000e18);
 
@@ -260,28 +183,8 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
-
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
-
-        tokens[0] = address(eUSDC);
-        caps[0] = 10_000_000e6;
-        marketManagerIsolated.setDebtCaps(tokens, caps);
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(eUSDC), 0, 10_000_000e6);
 
         _prepareBALRETH(user1, 1_000e18);
 
@@ -334,29 +237,8 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        // marketManager.listToken(address(pBALRETH));
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
-
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
-
-        tokens[0] = address(eUSDC);
-        caps[0] = 10_000_000e6;
-        marketManagerIsolated.setDebtCaps(tokens, caps);
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(eUSDC), 0, 10_000_000e6);
 
         // Need some PTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 10_000e18);

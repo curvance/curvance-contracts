@@ -358,36 +358,23 @@ contract StartContractsConfig is
             market
         );
         market.listTokens(pTokenToList, eTokenToList);
-        market.updatePositionToken(
-            9200, // collRatio 92%
-            830,  // collReqSoft 8.3%
-            650,  // collReqHard 6.5%
-            500,  // liqIncBase 5%
-            550,  // liqIncHard 5.5%
-            300,  // liqIncMin 3%
-            550,  // liqIncMax 5.5% 
-            2000, // minEffectiveCFactor 20%
-            5000, // maxEffectiveCFactor 50%
-            2000  // baseCFactor 20%
-        );
 
-        address[] memory mTokens = new address[](1);
-        uint256[] memory newCollateralCaps = new uint256[](1);
-        uint256[] memory newDebtCaps = new uint256[](1);
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = pTokenToList;
+        tokenConfig.collRatio = 9200;
+        tokenConfig.collReqSoft = 830;
+        tokenConfig.collReqHard = 650;
+        tokenConfig.liqIncBase = 500;
+        tokenConfig.liqIncHard = 550;
+        tokenConfig.liqIncMin = 300;
+        tokenConfig.liqIncMax = 550;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = collateralCap;
+        tokenConfig.debtCap = debtCap;
 
-        // Set Collateral Caps
-        mTokens[0] = pTokenToList;
-        // mTokens have same decimals as underlying token.
-        newCollateralCaps[0]
-            = collateralCap * 10 ** IERC20(mTokens[0]).decimals(); //1m tokens
-        market.setCollateralCaps(mTokens, newCollateralCaps);
-        
-        // Set Debt Caps
-        mTokens[0] = eTokenToList;
-        // mTokens have same decimals as underlying token.
-        newDebtCaps[0]
-            = debtCap * 10 ** IERC20(mTokens[0]).decimals(); //700k tokens
-        market.setDebtCaps(mTokens, newDebtCaps);
+        market.updateTokenConfig(tokenConfig);
     }
 
     function _deployEToken(

@@ -123,30 +123,9 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
 
         oracleManager.addCTokenSupport(address(cWBTC));
 
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
+        _setCTokenConfigBasic(address(cWBTC), 100e8, 1000e18);
 
-        address[] memory mTokens = new address[](1);
-        mTokens[0] = address(cWBTC);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100e8;
-        marketManagerIsolated.setCollateralCaps(mTokens, caps);
-
-        address[] memory eTokens = new address[](1);
-        eTokens[0] = address(eWETH);
-        uint256[] memory debtCaps = new uint256[](1);
-        debtCaps[0] = 1000e18;  
-        marketManagerIsolated.setDebtCaps(eTokens, debtCaps);
+        _setCTokenConfigBasic(address(eWETH), 1000e18, 1000e18);
 
         owners.push(user2);
         owners.push(user3);

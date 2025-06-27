@@ -23,7 +23,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         // Set a valid penalty (WAD + 15%)
         uint256 validPenalty = 1.15e18;
         uint256 closeFactor = 0.30e18;
-        marketManagerIsolated.setAuctionParameters(validPenalty, closeFactor);
+        marketManagerIsolated.setAuctionParameters(address(pBALRETH), validPenalty, closeFactor);
 
         // Verify the penalty was set correctly
         (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAuctionParameters();
@@ -39,7 +39,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         vm.startPrank(user1);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManagerIsolated.setAuctionParameters(1.15e18, 0.30e18);
+        marketManagerIsolated.setAuctionParameters(address(pBALRETH), 1.15e18, 0.30e18);
         
         vm.stopPrank();
     }
@@ -57,16 +57,16 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         uint256 validCloseFactor = 0.30e18;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAuctionParameters(tooLowPenalty, validCloseFactor);
+        marketManagerIsolated.setAuctionParameters(address(pBALRETH), tooLowPenalty, validCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAuctionParameters(tooHighPenalty, validCloseFactor);
+        marketManagerIsolated.setAuctionParameters(address(pBALRETH), tooHighPenalty, validCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAuctionParameters(validPenalty, tooHighCloseFactor);
+        marketManagerIsolated.setAuctionParameters(address(pBALRETH), validPenalty, tooHighCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAuctionParameters(validPenalty, tooLowCloseFactor);
+        marketManagerIsolated.setAuctionParameters(address(pBALRETH), validPenalty, tooLowCloseFactor);
 
         vm.stopPrank();
     }
@@ -78,7 +78,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         
         uint256 validPenalty = 1.15e18;
         uint256 validCloseFactor = 0.30e18;
-        marketManagerIsolated.setAuctionParameters(validPenalty, validCloseFactor);
+        marketManagerIsolated.setAuctionParameters(address(pBALRETH), validPenalty, validCloseFactor);
 
         (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAuctionParameters();
         assertEq(currentPenalty, validPenalty);
@@ -242,7 +242,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.unlockAuctionCollateral(address(eUSDC));
         uint256 validPenalty = 1.15e18; //15%
         uint256 closeFactor = 0.30e18; // 30%
-        marketManagerIsolated.setAuctionParameters(validPenalty, closeFactor);
+        marketManagerIsolated.setAuctionParameters(address(pBALRETH), validPenalty, closeFactor);
         vm.stopPrank();
 
         eUSDC.accrueIfNeeded(); // pull interest forward
@@ -299,31 +299,14 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         
         // List tokens in the market
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
-        
-        // Set position token parameters
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
 
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(eUSDC), 0, 1_000_000e6);
+        
         // Create a dapp control user
         dappControlUser = makeAddr("dappControlUser");
         vm.startPrank(centralRegistry.daoAddress());
         centralRegistry.addAuctionPermissions(dappControlUser);
         vm.stopPrank();
-
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
     }
 }
