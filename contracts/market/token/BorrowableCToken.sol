@@ -309,7 +309,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         );
     }
 
-    /// @notice Get a snapshot of `account` data in this Curvance token.
+    /// @notice Get a snapshot of the cToken and `account` data.
     /// @dev Used by marketManager to more efficiently perform
     ///      liquidity checks.
     ///      NOTE: Does not accrue pending interest as part of the call.
@@ -543,12 +543,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Validate that the token is listed inside the market (token has
-        // been enabled).
-        if (!marketManager.isListed(address(this))) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
         // Accrue interest if needed.
         _accrueIfNeeded();
 
@@ -564,12 +558,12 @@ contract BorrowableCToken is BaseCTokenWithYield {
             accounts,
             amounts,
             IMarketManager.LiqInstructions({
-                eToken: address(this),
-                cToken: collateralToken,
+                collateralToken: collateralToken,
+                debtToken: address(this),
                 numAccounts: numAccounts,
                 liquidateExact: exactAmount,
-                eTokenRepaid: 0,
-                cTokenLiquidated: 0,
+                collateralLiquidated: 0,
+                debtRepaid: 0,
                 badDebt: 0
             })
         );
