@@ -507,37 +507,39 @@ contract OracleManager is IOracleManager {
         return (prices, hadError);
     }
 
-    /// @notice Retrieves the prices of a eToken underlying and pToken.
-    /// @param eToken The earning token to price the underlying of.
-    /// @param pToken The position token to price.
+    /// @notice Retrieves the prices of a collateral token and debt token
+    ///         underlyings.
+    /// @param collateralToken The cToken currently collateralized to price.
+    /// @param debtToken The cToken borrowed from to price.
     /// @param errorCodeBreakpoint The error code that will cause liquidity
     ///                            operations to revert.
-    /// @return eTokenUnderlyingPrice Contains the price of `eToken` underlying.
-    /// @return pTokenPrice Contains the price of `pToken`.
+    /// @return collateralUnderlyingPrice The current price of
+    ///                                   `collateralToken` underlying.
+    /// @return debtUnderlyingPrice The current price of `debtToken`
+    ///                             underlying.
     function getPriceIsolatedPair(
-        address eToken,
-        address pToken,
+        address collateralToken,
+        address debtToken,
         uint256 errorCodeBreakpoint
-    )
-        external
-        view
-        returns (uint256 eTokenUnderlyingPrice, uint256 pTokenPrice)
-    {
+    ) external view returns (
+        uint256 collateralUnderlyingPrice,
+        uint256 debtUnderlyingPrice
+    ) {
         uint256 errorCode;
-
-        // We get the eToken's underlying price here as getPriceIsolatedPair
-        // is for getting prices needed for an isolated market which is a
-        // pToken and eToken debt.
-        (eTokenUnderlyingPrice, errorCode) = getPrice(
-            cTokenAssets[eToken].underlying,
+        (collateralUnderlyingPrice, errorCode) = getPrice(
+            cTokenAssets[collateralToken].underlying,
             true,
-            false
+            true
         );
         if (errorCode >= errorCodeBreakpoint) {
             _revert(_ERROR_CODE_FLAGGED_SELECTOR);
         }
 
-        (pTokenPrice, errorCode) = getPrice(pToken, true, true);
+        (debtUnderlyingPrice, errorCode) = getPrice(
+            cTokenAssets[debtToken].underlying,
+            true,
+            false
+        );
         if (errorCode >= errorCodeBreakpoint) {
             _revert(_ERROR_CODE_FLAGGED_SELECTOR);
         }
@@ -566,14 +568,15 @@ contract OracleManager is IOracleManager {
         uint256[] memory underlyingPrices = new uint256[](numAssets);
         uint256 errorCode;
 
-        ICToken asset;
+        address asset;
         for (uint256 i; i < numAssets; ++i) {
-            asset = ICToken(assets[i]);
-            snapshots[i] = asset.getSnapshot(account);
+            asset = assets[i];
+            snapshots[i] = ICToken(asset).getSnapshot(account);
+
             (underlyingPrices[i], errorCode) = getPrice(
-                asset.asset(),
+                cTokenAssets[asset].underlying,
                 true,
-                snapshots[i].isPToken
+                snapshots[i].isCollateral
             );
 
             if (errorCode >= errorCodeBreakpoint) {

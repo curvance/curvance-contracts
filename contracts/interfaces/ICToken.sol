@@ -8,7 +8,7 @@ import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 struct AccountSnapshot {
     address asset;
     uint8 decimals;
-    uint8 isCollateral;
+    bool isCollateral;
     uint256 exchangeRate;
     uint256 collateralPosted;
     uint256 debtOutstanding;

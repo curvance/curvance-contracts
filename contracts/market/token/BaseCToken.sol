@@ -447,18 +447,18 @@ abstract contract BaseCToken is
     /// @dev Used by MarketManager to efficiently perform liquidity checks.
     /// NOTE: debtBalance always return 0 to runtime gas in MarketManager
     ///       since it is unused.
-    /// @return The snapshot of the cToken and `account` data.
+    /// @return result The snapshot of the cToken and `account` data.
     function getSnapshot(
         address account
-    ) external view virtual returns (AccountSnapshot memory) {
-        return (
+    ) external view virtual returns (AccountSnapshot memory result) {
+        result = (
             AccountSnapshot({
                 asset: address(this),
                 decimals: decimals(),
-                isCollateral: 1,
+                isCollateral: true, // Defaults to true, only overridden in BorrowableCToken.
                 exchangeRate: _convertToAssets(WAD, _getTotalAssets()),
                 collateralPosted: collateralPosted[account],
-                debtOutstanding: 0 // Defaults to zero, only overridden in BorrowableCToken
+                debtOutstanding: 0 // Defaults to zero, only overridden in BorrowableCToken.
             })
         );
     }

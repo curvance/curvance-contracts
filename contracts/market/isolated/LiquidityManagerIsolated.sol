@@ -257,7 +257,7 @@ abstract contract LiquidityManagerIsolated {
         for (uint256 i; i < numAssets; ++i) {
             snapshot = snapshots[i];
 
-            if (snapshot.isCollateral > 0) {
+            if (snapshot.isCollateral) {
                 uint256 collateralValue = _assetValue(
                     ((snapshot.collateralPosted * snapshot.exchangeRate
                     ) / WAD),
@@ -326,7 +326,7 @@ abstract contract LiquidityManagerIsolated {
         for (uint256 i; i < numAssets; ++i) {
             snapshot = snapshots[i];
 
-            if (snapshot.isCollateral > 0) {
+            if (snapshot.isCollateral) {
                 // If there is no collateral posted and its not a
                 // position to be modified, clean up the position
                 // entry as the user was liquidated.
@@ -378,7 +378,7 @@ abstract contract LiquidityManagerIsolated {
             if (action.cTokenModified == snapshot.asset) {
                 // If its being used as collateral it cannot be a debt position
                 // too.
-                if (snapshot.isCollateral > 0) {
+                if (snapshot.isCollateral) {
                     // If they are trying to redeem more tokens than
                     // they have, the transaction will fail before it
                     // gets to this point, so no special case needed.
@@ -487,7 +487,7 @@ abstract contract LiquidityManagerIsolated {
         for (uint256 i; i < numAssets; ++i) {
             snapshot = snapshots[i];
 
-            if (snapshot.isCollateral > 0) {
+            if (snapshot.isCollateral) {
                 if (snapshot.asset == collateralToken) {
                     collateralTokenPrice = underlyingPrices[i];
                 }

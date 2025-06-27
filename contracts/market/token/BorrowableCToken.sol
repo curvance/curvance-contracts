@@ -314,16 +314,16 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///      liquidity checks.
     ///      NOTE: Does not accrue pending interest as part of the call.
     /// @param account The address of the account to snapshot.
-    /// @return The account snapshot of `account`.
+    /// @return result The account snapshot of `account`.
     function getSnapshot(
         address account
-    ) external view override returns (AccountSnapshot memory) {
+    ) external view override returns (AccountSnapshot memory result) {
         uint256 outstandingDebt = debtBalance(account);
-        return (
+        result = (
             AccountSnapshot({
                 asset: address(this),
                 decimals: decimals(),
-                isCollateral: outstandingDebt > 0 ? 0 : 1,
+                isCollateral: outstandingDebt > 0 ? false : true,
                 exchangeRate: _convertToAssets(WAD, _getTotalAssets()),
                 collateralPosted: collateralPosted[account],
                 debtOutstanding: outstandingDebt
