@@ -47,30 +47,23 @@ contract UpdatePTokenConfig is Script, DeployConfiguration {
         console.log("pToken =", pToken);
         require(pToken != address(0), "Set the pToken!");
 
-        MarketManagerIsolated(marketManager).updatePositionToken(
-            _readConfigUint256(string.concat(pathName, ".collRatio")),
-            _readConfigUint256(string.concat(pathName, ".collReqSoft")),
-            _readConfigUint256(string.concat(pathName, ".collReqHard")),
-            _readConfigUint256(string.concat(pathName, ".liqIncBase")),
-            _readConfigUint256(string.concat(pathName, ".liqIncHard")),
-            _readConfigUint256(string.concat(pathName, ".liqIncMin")),
-            _readConfigUint256(string.concat(pathName, ".liqIncMax")),
-            _readConfigUint256(string.concat(pathName, ".minEffectiveCFactor")),
-            _readConfigUint256(string.concat(pathName, ".maxEffectiveCFactor")),
-            _readConfigUint256(string.concat(pathName, ".baseCFactor"))
-        );
-        console.log("updatePositionToken");
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = pToken;
+        tokenConfig.collRatio = _readConfigUint256(string.concat(pathName, ".collRatio"));
+        tokenConfig.collReqSoft = _readConfigUint256(string.concat(pathName, ".collReqSoft"));
+        tokenConfig.collReqHard = _readConfigUint256(string.concat(pathName, ".collReqHard"));
+        tokenConfig.liqIncBase = _readConfigUint256(string.concat(pathName, ".liqIncBase"));
+        tokenConfig.liqIncHard = _readConfigUint256(string.concat(pathName, ".liqIncHard"));
+        tokenConfig.liqIncMin = _readConfigUint256(string.concat(pathName, ".liqIncMin"));
+        tokenConfig.liqIncMax = _readConfigUint256(string.concat(pathName, ".liqIncMax"));
+        tokenConfig.minEffectiveCloseFactor = _readConfigUint256(string.concat(pathName, ".minEffectiveCloseFactor"));
+        tokenConfig.maxEffectiveCloseFactor = _readConfigUint256(string.concat(pathName, ".maxEffectiveCloseFactor"));
+        tokenConfig.baseCFactor = _readConfigUint256(string.concat(pathName, ".baseCFactor"));
+        tokenConfig.collateralCap = _readConfigUint256(string.concat(pathName, ".collateralCap"));
+        tokenConfig.debtCap = _readConfigUint256(string.concat(pathName, ".debtCap"));
 
-        address[] memory mTokens = new address[](1);
-        mTokens[0] = pToken;
-        uint256[] memory newCollateralCaps = new uint256[](1);
-        newCollateralCaps[0] = _readConfigUint256(
-            string.concat(pathName, ".collateralCaps")
-        );
-        MarketManagerIsolated(marketManager).setCollateralCaps(
-            mTokens,
-            newCollateralCaps
-        );
-        console.log("setCollateralCaps");
+        MarketManagerIsolated(marketManager).updateTokenConfig(tokenConfig);
+        console.log("updateTokenConfig");
+
     }
 }

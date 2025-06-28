@@ -57,28 +57,28 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(pUSDC), address(eDAI));
         oracleManager.addCTokenSupport(address(pUSDC));
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            1000     // baseCFactor 20%
-        );
 
-        address[] memory mTokens = new address[](1);
-        mTokens[0] = address(pUSDC);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100 ether;
-        marketManagerIsolated.setCollateralCaps(mTokens, caps);
+        MarketManagerIsolated.TokenConfig memory configToken0;
+        configToken0.cToken = address(pUSDC);
+        configToken0.collRatio = 7000;
+        configToken0.collReqSoft = 4000;
+        configToken0.collReqHard = 3000;
+        configToken0.liqIncBase = 1000;
+        configToken0.liqIncHard = 1500;
+        configToken0.liqIncMin = 500;
+        configToken0.liqIncMax = 2000;
+        configToken0.minEffectiveCloseFactor = 2000;
+        configToken0.maxEffectiveCloseFactor = 5000;
+        configToken0.baseCFactor = 1000;
+        configToken0.collateralCap = 100 ether;
+        configToken0.debtCap = 100_000e6;
 
-        caps[0] = 100_000e18;
-        mTokens[0] = address(eDAI);
-        marketManagerIsolated.setDebtCaps(mTokens, caps);
+        marketManagerIsolated.updateTokenConfig(configToken0);
+
+        MarketManagerIsolated.TokenConfig memory configToken1;
+        configToken1.cToken = address(eDAI);
+        configToken1.debtCap = 100_000e18;
+        marketManagerIsolated.updateTokenConfig(configToken1);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 1000 ether);
@@ -120,8 +120,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         vm.prank(user1);
         simpleZapper.swapAndDeposit{ value: ethAmount }(
             address(pUSDC),
-            true,
-            false,
+            false, // was false before contract refactor
             swapData,
             0,
             false,
@@ -191,7 +190,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         uint256 shares = pUSDC.balanceOf(user1);
 
         ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.mToken = address(pUSDC);
+        redemptionData.cToken = address(pUSDC);
         redemptionData.shares = shares;
         redemptionData.forceRedeemCollateral = false;
 
@@ -232,7 +231,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         eDAI.setDelegateApproval(address(simpleZapper), true);
 
         ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.mToken = address(eDAI);
+        redemptionData.cToken = address(eDAI);
         redemptionData.shares = 10 ether;
         redemptionData.forceRedeemCollateral = false;
 
@@ -272,7 +271,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         eDAI.setDelegateApproval(address(simpleZapper), true);
 
         ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.mToken = address(eDAI);
+        redemptionData.cToken = address(eDAI);
         redemptionData.shares = 100 ether;
         redemptionData.forceRedeemCollateral = false;
 

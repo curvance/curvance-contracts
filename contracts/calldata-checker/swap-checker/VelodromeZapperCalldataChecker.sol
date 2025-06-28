@@ -99,7 +99,7 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
                     )
                 );
             recipient = _recipient;
-            inputToken = redemptionData.mToken;
+            inputToken = redemptionData.cToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else {

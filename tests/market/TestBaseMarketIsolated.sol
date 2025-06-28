@@ -623,26 +623,28 @@ contract TestBaseMarketIsolated is TestBase {
         deal(address(cve), user, amount);
     }
 
-    function _setPBALRETHCollateralCaps(
-        uint256 cap
+    function _setCTokenConfigBasic(
+        address cToken,
+        uint256 collateralCap,
+        uint256 debtCap
     ) internal initMainVariables {
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = cap;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = cToken;
+        tokenConfig.collRatio = 7000;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = collateralCap;
+        tokenConfig.debtCap = debtCap;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
     function _skipRestrictionDuration() internal {

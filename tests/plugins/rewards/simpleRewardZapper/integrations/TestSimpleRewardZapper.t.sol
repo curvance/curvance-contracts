@@ -12,6 +12,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
     MockDataFeed public mockUsdcFeed;
@@ -110,28 +111,27 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         // list tokens
         marketManagerIsolated.listTokens(address(pWETH), address(eUSDC));
 
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            1000     // baseCFactor 20%
-        );
+        MarketManagerIsolated.TokenConfig memory configToken0;
+        configToken0.cToken = address(pWETH);
+        configToken0.collRatio = 7000;
+        configToken0.collReqSoft = 4000;
+        configToken0.collReqHard = 3000;
+        configToken0.liqIncBase = 1000;
+        configToken0.liqIncHard = 1500;
+        configToken0.liqIncMin = 500;
+        configToken0.liqIncMax = 2000;
+        configToken0.minEffectiveCloseFactor = 2000;
+        configToken0.maxEffectiveCloseFactor = 5000;
+        configToken0.baseCFactor = 1000;
+        configToken0.collateralCap = 100_000e18;
+        configToken0.debtCap = 0;
 
-        address[] memory mTokens = new address[](1);
-        mTokens[0] = address(pWETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100 ether;
-        marketManagerIsolated.setCollateralCaps(mTokens, caps);
+        marketManagerIsolated.updateTokenConfig(configToken0);
 
-        mTokens[0] = address(eUSDC);
-        caps[0] = 1_000_000e6;
-        marketManagerIsolated.setDebtCaps(mTokens, caps);
+        MarketManagerIsolated.TokenConfig memory configToken1;
+        configToken1.cToken = address(eUSDC);
+        configToken1.debtCap = 1_000_000e18;
+        marketManagerIsolated.updateTokenConfig(configToken1);
 
         provideEnoughLiquidityForLeverage();
     }
@@ -286,7 +286,6 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         vm.prank(user1);
         simpleRewardZapper.claimSwapAndDeposit(
             address(pWETH),
-            true,
             swapData,
             0,
             false,

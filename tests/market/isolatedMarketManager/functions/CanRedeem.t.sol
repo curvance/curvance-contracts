@@ -76,7 +76,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
         // marketManager.listToken(address(pBALRETH));
-        _setPBALRETHCollateralCaps(100_000e18);
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
 
         assertTrue(pBALRETH.isCollateralizable());
         _prepareBALRETH(user1, 10_000e18);

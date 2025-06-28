@@ -6,6 +6,7 @@ import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateMo
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import "forge-std/console2.sol";
 
 // new DynamicInterestRateModel(
@@ -56,28 +57,38 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         usdc.approve(address(pUSDC), 100e6);
         marketManagerIsolated.listTokens(address(pUSDC),address(eDAI));
 
+        MarketManagerIsolated.TokenConfig memory usdcTokenConfig;
+        usdcTokenConfig.cToken = address(pUSDC);
+        usdcTokenConfig.collRatio = 7000;
+        usdcTokenConfig.collReqSoft = 4000;
+        usdcTokenConfig.collReqHard = 3000;
+        usdcTokenConfig.liqIncBase = 1000;
+        usdcTokenConfig.liqIncHard = 1500;
+        usdcTokenConfig.liqIncMin = 500;
+        usdcTokenConfig.liqIncMax = 2000;
+        usdcTokenConfig.minEffectiveCloseFactor = 2000;
+        usdcTokenConfig.maxEffectiveCloseFactor = 3000;
+        usdcTokenConfig.baseCFactor = 1000;
+        usdcTokenConfig.collateralCap = 200_000e18;
+        usdcTokenConfig.debtCap = 200_000e18;
 
-        marketManagerIsolated.updatePositionToken(
-            7000, // collRatio
-            4000, // collReqSoft
-            3000, // collReqHard
-            1000, // liqIncBase
-            1500, // liqIncHard
-            500, // liqIncMin
-            2000, // liqIncMax
-            2000, // minEffectiveCFactor
-            3000, // maxEffectiveCFactor
-            1000 // baseCFactor
-        );
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pUSDC);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 200_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
+        MarketManagerIsolated.TokenConfig memory daiTokenConfig;
+        daiTokenConfig.cToken = address(eDAI);
+        daiTokenConfig.collRatio = 7000;
+        daiTokenConfig.collReqSoft = 4000;
+        daiTokenConfig.collReqHard = 3000;
+        daiTokenConfig.liqIncBase = 1000;
+        daiTokenConfig.liqIncHard = 1500;
+        daiTokenConfig.liqIncMin = 500;
+        daiTokenConfig.liqIncMax = 2000;
+        daiTokenConfig.minEffectiveCloseFactor = 2000;
+        daiTokenConfig.maxEffectiveCloseFactor = 3000;
+        daiTokenConfig.baseCFactor = 1000;
+        daiTokenConfig.collateralCap = 200_000e18;
+        daiTokenConfig.debtCap = 200_000e18;
 
-        tokens[0] = address(eDAI);
-        caps[0] = 200_000e18;
-        marketManagerIsolated.setDebtCaps(tokens, caps);
+        marketManagerIsolated.updateTokenConfig(usdcTokenConfig);
+        marketManagerIsolated.updateTokenConfig(daiTokenConfig);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, INITIAL_DEPOSIT - 100e18);

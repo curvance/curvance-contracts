@@ -23,12 +23,12 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
     
     function test_canLiquidate_fail_whenETokenNotListed() public {
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            eToken: address(eUSDC),
-            cToken: address(pBALRETH),
+            collateralToken: address(eUSDC),
+            debtToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
-            eTokenRepaid: 0,
-            cTokenLiquidated: 0,
+            collateralLiquidated: 0,
+            debtRepaid: 0,
             badDebt: 0
         });
 
@@ -45,12 +45,12 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
     function test_canLiquidate_fail_whenPTokenNotListed() public {
         // marketManager.listToken(address(eUSDC));
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            eToken: address(eUSDC),
-            cToken: address(pBALRETH),
+            collateralToken: address(eUSDC),
+            debtToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
-            eTokenRepaid: 0,
-            cTokenLiquidated: 0,
+            collateralLiquidated: 0,
+            debtRepaid: 0,
             badDebt: 0
         });
 
@@ -74,12 +74,12 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            eToken: address(eUSDC),
-            cToken: address(pBALRETH),
+            collateralToken: address(eUSDC),
+            debtToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
-            eTokenRepaid: 0,
-            cTokenLiquidated: 0,
+            collateralLiquidated: 0,
+            debtRepaid: 0,
             badDebt: 0
         });
 
@@ -103,26 +103,16 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         usdc.approve(address(eUSDC), 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(eUSDC), 0, 1_000_000e6);
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            eToken: address(eUSDC),
-            cToken: address(pBALRETH),
+            collateralToken: address(eUSDC),
+            debtToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
-            eTokenRepaid: 0,
-            cTokenLiquidated: 0,
+            collateralLiquidated: 0,
+            debtRepaid: 0,
             badDebt: 0
         });
 
@@ -148,26 +138,16 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         usdc.approve(address(eUSDC), 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(eUSDC), 0, 1_000_000e6);
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            eToken: address(eUSDC),
-            cToken: address(pBALRETH),
+            collateralToken: address(eUSDC),
+            debtToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
-            eTokenRepaid: 0,
-            cTokenLiquidated: 0,
+            collateralLiquidated: 0,
+            debtRepaid: 0,
             badDebt: 0
         });
 
@@ -213,24 +193,9 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         usdc.approve(address(eUSDC), 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(eUSDC), 0, 1_000_000e6);
 
         _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
@@ -240,12 +205,12 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            eToken: address(eUSDC),
-            cToken: address(pBALRETH),
+            collateralToken: address(eUSDC),
+            debtToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
-            eTokenRepaid: 0,
-            cTokenLiquidated: 0,
+            collateralLiquidated: 0,
+            debtRepaid: 0,
             badDebt: 0
         });
 
@@ -271,38 +236,19 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         usdc.approve(address(eUSDC), 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%,
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
-        
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
-        
-        caps[0] = 100_000e6;
-        tokens[0] = address(eUSDC);
-        marketManagerIsolated.setDebtCaps(tokens, caps);
+
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(eUSDC), 0, 100_000e6);
 
         _setupUserPositionAndOracles();
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            eToken: address(eUSDC),
-            cToken: address(pBALRETH),
+            collateralToken: address(eUSDC),
+            debtToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
-            eTokenRepaid: 0,
-            cTokenLiquidated: 0,
+            collateralLiquidated: 0,
+            debtRepaid: 0,
             badDebt: 0
         });
 

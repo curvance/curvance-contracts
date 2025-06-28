@@ -128,29 +128,9 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
             // add MToken support on oracle manager
             oracleManager.addCTokenSupport(address(pWBTC));
             // set position token configuration
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
+            _setCTokenConfigBasic(address(pWBTC), 100e8, 100e8);
+            _setCTokenConfigBasic(address(eUSDC), 1_000_000e6, 1_000_000e6);
 
-            address[] memory mTokens = new address[](1);
-            mTokens[0] = address(pWBTC);
-            uint256[] memory caps = new uint256[](1);
-            caps[0] = 100e8;
-            marketManagerIsolated.setCollateralCaps(mTokens, caps);
-
-            mTokens[0] = address(eUSDC);
-            uint256[] memory debtCaps = new uint256[](1);
-            debtCaps[0] = 1_000_000e6;
-            marketManagerIsolated.setDebtCaps(mTokens, debtCaps);
         }
 
         owners.push(user2);

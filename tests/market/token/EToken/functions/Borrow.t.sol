@@ -24,7 +24,7 @@ contract ETokenBorrowTest is TestBaseEToken {
     }
 
     function test_eTokenBorrow_success() public {
-        _setPBALRETHCollateralCaps(100_000e18);
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 100_000e18);
 
         eUSDC.deposit(200e6, address(this));
 
@@ -44,7 +44,7 @@ contract ETokenBorrowTest is TestBaseEToken {
     }
 
     function test_eTokenBorrowFor_success() public {
-        _setPBALRETHCollateralCaps(100_000e18);
+        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
 
         eUSDC.deposit(200e6, address(this));
 

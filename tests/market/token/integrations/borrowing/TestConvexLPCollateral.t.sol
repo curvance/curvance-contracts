@@ -6,6 +6,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
 import "tests/market/TestBaseMarketIsolated.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract TestConvexLPCollateral is TestBaseMarketIsolated {
     event Repay(address payer, address borrower, uint256 repayAmount);
@@ -102,27 +103,28 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         _prepareUSDC(address(this), 1 ether);
         SafeTransferLib.safeApprove(_USDC_ADDRESS, address(eUSDC), 1 ether);
         marketManagerIsolated.listTokens(address(cSTETH), address(eUSDC));
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            1000     // baseCFactor 20%
-        );
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(cSTETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
-        tokens[0] = address(eUSDC);
-        caps[0] = 100_000e6;
-        marketManagerIsolated.setDebtCaps(tokens, caps);
+        MarketManagerIsolated.TokenConfig memory configToken0;
+        configToken0.cToken = address(cSTETH);
+        configToken0.collRatio = 7000;
+        configToken0.collReqSoft = 4000;
+        configToken0.collReqHard = 3000;
+        configToken0.liqIncBase = 1000;
+        configToken0.liqIncHard = 1500;
+        configToken0.liqIncMin = 500;
+        configToken0.liqIncMax = 2000;
+        configToken0.minEffectiveCloseFactor = 2000;
+        configToken0.maxEffectiveCloseFactor = 5000;
+        configToken0.baseCFactor = 1000;
+        configToken0.collateralCap = 100_000e18;
+        configToken0.debtCap = 0;
+
+        marketManagerIsolated.updateTokenConfig(configToken0);
+
+        MarketManagerIsolated.TokenConfig memory configToken1;
+        configToken1.cToken = address(eUSDC);
+        configToken1.debtCap = 100_000e6;
+        marketManagerIsolated.updateTokenConfig(configToken1);
 
         // User mints cSTETH with cvxStethEth LP tokens and then uses the cSTETH as collateral to borrow 10,000 eUSDC
         _prepareUSDC(address(eUSDC), 100_000e6);

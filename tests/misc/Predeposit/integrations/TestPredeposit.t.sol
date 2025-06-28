@@ -5,6 +5,7 @@ import { TestBasePredeposit } from "../TestBasePredeposit.sol";
 import { Predeposit } from "contracts/misc/Predeposit.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract TestPredeposit is TestBasePredeposit {
     SwapperLib.Swap public swapData;
@@ -85,23 +86,27 @@ contract TestPredeposit is TestBasePredeposit {
 
         vm.stopPrank();
 
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            3000,    // maxEffectiveCFactor 30%
-            1000     // baseCFactor 10%
-        );
-        address[] memory mTokens = new address[](1);
-        mTokens[0] = address(pBALRETH);
-        uint256[] memory newCollateralCaps = new uint256[](1);
-        newCollateralCaps[0] = 1000000 * 10 ** 18;
-        marketManagerIsolated.setCollateralCaps(mTokens, newCollateralCaps);
+        MarketManagerIsolated.TokenConfig memory configToken0;
+        configToken0.cToken = address(pBALRETH);
+        configToken0.collRatio = 7000;
+        configToken0.collReqSoft = 4000;
+        configToken0.collReqHard = 3000;
+        configToken0.liqIncBase = 1000;
+        configToken0.liqIncHard = 1500;
+        configToken0.liqIncMin = 500;
+        configToken0.liqIncMax = 2000;
+        configToken0.minEffectiveCloseFactor = 2000;
+        configToken0.maxEffectiveCloseFactor = 5000;
+        configToken0.baseCFactor = 1000;
+        configToken0.collateralCap = 100_000e18;
+        configToken0.debtCap = 0;
+
+        marketManagerIsolated.updateTokenConfig(configToken0);
+
+        MarketManagerIsolated.TokenConfig memory configToken1;
+        configToken1.cToken = address(eUSDC);
+        configToken1.debtCap = 100_000e6;
+        marketManagerIsolated.updateTokenConfig(configToken1);
     }
 
     function test_swapAndDeposit_migrate_withPToken_withCollateralize_success()

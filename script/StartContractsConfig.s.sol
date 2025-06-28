@@ -358,36 +358,40 @@ contract StartContractsConfig is
             market
         );
         market.listTokens(pTokenToList, eTokenToList);
-        market.updatePositionToken(
-            9200, // collRatio 92%
-            830,  // collReqSoft 8.3%
-            650,  // collReqHard 6.5%
-            500,  // liqIncBase 5%
-            550,  // liqIncHard 5.5%
-            300,  // liqIncMin 3%
-            550,  // liqIncMax 5.5% 
-            2000, // minEffectiveCFactor 20%
-            5000, // maxEffectiveCFactor 50%
-            2000  // baseCFactor 20%
-        );
 
-        address[] memory mTokens = new address[](1);
-        uint256[] memory newCollateralCaps = new uint256[](1);
-        uint256[] memory newDebtCaps = new uint256[](1);
+        MarketManagerIsolated.TokenConfig memory token0Config;
+        token0Config.cToken = pTokenToList;
+        token0Config.collRatio = 9200;
+        token0Config.collReqSoft = 830;
+        token0Config.collReqHard = 650;
+        token0Config.liqIncBase = 500;
+        token0Config.liqIncHard = 550;
+        token0Config.liqIncMin = 300;
+        token0Config.liqIncMax = 550;
+        token0Config.minEffectiveCloseFactor = 2000;
+        token0Config.maxEffectiveCloseFactor = 5000;
+        token0Config.baseCFactor = 2000;
+        token0Config.collateralCap = collateralCap; // add individual collateral cap later
+        token0Config.debtCap = debtCap; // add individual debt cap later
 
-        // Set Collateral Caps
-        mTokens[0] = pTokenToList;
-        // mTokens have same decimals as underlying token.
-        newCollateralCaps[0]
-            = collateralCap * 10 ** IERC20(mTokens[0]).decimals(); //1m tokens
-        market.setCollateralCaps(mTokens, newCollateralCaps);
-        
-        // Set Debt Caps
-        mTokens[0] = eTokenToList;
-        // mTokens have same decimals as underlying token.
-        newDebtCaps[0]
-            = debtCap * 10 ** IERC20(mTokens[0]).decimals(); //700k tokens
-        market.setDebtCaps(mTokens, newDebtCaps);
+        MarketManagerIsolated.TokenConfig memory token1Config;
+        token1Config.cToken = eTokenToList;
+        token1Config.collRatio = 9200;
+        token1Config.collReqSoft = 830;
+        token1Config.collReqHard = 650;
+        token1Config.liqIncBase = 500;
+        token1Config.liqIncHard = 550;
+        token1Config.liqIncMin = 300;
+        token1Config.liqIncMax = 550;
+        token1Config.minEffectiveCloseFactor = 2000;
+        token1Config.maxEffectiveCloseFactor = 5000;
+        token1Config.baseCFactor = 2000;
+        // add individual collateral cap later
+        token1Config.collateralCap = collateralCap * 10 ** IERC20(pTokenToList).decimals(); 
+        token1Config.debtCap = debtCap * 10 ** IERC20(pTokenToList).decimals(); // add individual debt cap later
+
+        market.updateTokenConfig(token0Config);
+        market.updateTokenConfig(token1Config);
     }
 
     function _deployEToken(

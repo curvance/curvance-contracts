@@ -85,24 +85,27 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
 
-        // set collateral factor
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            1000     // baseCFactor 10%
-        );
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
+        MarketManagerIsolated.TokenConfig memory configToken0;
+        configToken0.cToken = address(pBALRETH);
+        configToken0.collRatio = 7000;
+        configToken0.collReqSoft = 4000;
+        configToken0.collReqHard = 3000;
+        configToken0.liqIncBase = 1000;
+        configToken0.liqIncHard = 1500;
+        configToken0.liqIncMin = 500;
+        configToken0.liqIncMax = 2000;
+        configToken0.minEffectiveCloseFactor = 2000;
+        configToken0.maxEffectiveCloseFactor = 5000;
+        configToken0.baseCFactor = 2000;
+        configToken0.collateralCap = 100_000e18;
+        configToken0.debtCap = 0;
+
+        marketManagerIsolated.updateTokenConfig(configToken0);
+
+        MarketManagerIsolated.TokenConfig memory configToken1;
+        configToken1.cToken = address(eDAI);
+        configToken1.debtCap = 100_000e18;
+        marketManagerIsolated.updateTokenConfig(configToken1);
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();
