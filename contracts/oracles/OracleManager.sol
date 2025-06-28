@@ -225,7 +225,7 @@ contract OracleManager is IOracleManager {
         }
 
         // We call a Curvance-specific token function as a sanity check.
-        ICToken(newCToken).isCollateralizable();
+        ICToken(newCToken).isBorrowable();
 
         cTokenAssets[newCToken].isCToken = true;
         cTokenAssets[newCToken].underlying = ICToken(newCToken).asset();

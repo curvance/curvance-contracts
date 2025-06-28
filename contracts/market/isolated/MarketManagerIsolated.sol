@@ -722,6 +722,15 @@ contract MarketManagerIsolated is
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
 
+        // At least one of the two tokens has to be borrowable or the
+        // market does not make any sense to create.
+        if (
+            !ICToken(token0).isBorrowable() &&
+            !ICToken(token1).isBorrowable()
+            ) {
+            _revert(_INVARIANT_ERROR_SELECTOR);
+        }
+
         // No need to check whether tokens were listed before since this
         // function can only be called once due to numTokens == 0 check.
 

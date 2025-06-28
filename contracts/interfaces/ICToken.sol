@@ -29,11 +29,6 @@ interface ICToken {
     ///         matching the underlying token.
     function decimals() external view returns (uint8);
 
-    /// @notice Returns whether the underlying token can be collateralized.
-    /// @dev true = Collateralizable; false = Not Collateralizable.
-    /// @return Whether this token is collateralizable or not.
-    function isCollateralizable() external view returns (bool);
-
     /// @notice Returns whether the underlying token can be borrowed.
     /// @dev true = Borrowable; false = Not Borrowable.
     /// @return Whether this token is borrowable or not.

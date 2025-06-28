@@ -31,11 +31,6 @@ interface IMToken {
     ///         matching the underlying token.
     function decimals() external view returns (uint8);
 
-    /// @notice Returns the type of Curvance token.
-    /// @dev true = Collateral token; false = Debt token.
-    /// @return Whether this token is a pToken or not.
-    function isCollateralizable() external view returns (bool);
-
     /// @notice Returns whether the underlying token can be borrowed.
     /// @dev true = Borrowable; false = Not Borrowable.
     /// @return Whether this token is borrowable or not.

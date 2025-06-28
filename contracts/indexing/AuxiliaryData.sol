@@ -242,10 +242,9 @@ contract AuxiliaryData {
         if (hasPosition_ == 2) {
             hasPosition = true;
         }
+
         balanceOf = token.balanceOf(account);
-        if (token.isCollateralizable()) {
-            collateralPostedOf = token.collateralPosted(account);
-        }
+        collateralPostedOf = token.collateralPosted(account);
     }
 
     /// @notice Returns the `cToken` underlying balance of the `account`.
@@ -629,9 +628,7 @@ contract AuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (ICToken(asset).isCollateralizable()) {
-                ++numCollateralAssets;
-            }
+            ++numCollateralAssets;
         }
 
         address[] memory collateralAssets = new address[](numCollateralAssets);
@@ -639,9 +636,7 @@ contract AuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (ICToken(asset).isCollateralizable()) {
-                collateralAssets[collateralAssetsIndex++] = asset;
-            }
+            collateralAssets[collateralAssetsIndex++] = asset;
         }
 
         return collateralAssets;
@@ -738,7 +733,7 @@ contract AuxiliaryData {
     }
 
     function getTokenPrice(address token) public view returns (uint256) {
-        return _getTokenPrice(token, ICToken(token).isCollateralizable() ? true : false);
+        return _getTokenPrice(token, !ICToken(token).isBorrowable() ? true : false);
     }
 
     /// INTERNAL FUNCTIONS ///

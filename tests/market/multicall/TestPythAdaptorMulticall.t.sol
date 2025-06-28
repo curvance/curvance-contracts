@@ -244,11 +244,6 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testInitialize() public {
-        assertTrue(pWBTC.isCollateralizable());
-        // assertFalse(eUSDC.isPToken());
-    }
-
     function testPTokenMintMulticall() public {
         // provide fee to universal balance
         vm.deal(user1, 1 ether);

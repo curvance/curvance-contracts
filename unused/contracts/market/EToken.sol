@@ -196,10 +196,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
     /// EXTERNAL FUNCTIONS ///
 
-    function isCollateralizable() external pure returns (bool) {
-        return false;
-    }
-
     /// @notice Rescue any token sent by mistake.
     /// @dev Restricts the ability to rescue underlying tokens inside the
     ///      market since Curvance is non-custodial.
@@ -1277,7 +1273,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         accrueInterest();
 
         // The MToken must be a position token.
-        if (!IMToken(pToken).isCollateralizable()) {
+        if (!IMToken(pToken).isBorrowable()) {
             _revert(_VALIDATION_FAILED_SELECTOR);
         }
 
@@ -1452,7 +1448,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         }
 
         // The MToken must be a position token.
-        if (!IPToken(token).isCollateralizable()) {
+        if (!IPToken(token).isBorrowable()) {
             _revert(_VALIDATION_FAILED_SELECTOR);
         }
     }

@@ -126,11 +126,6 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testInitialize() public {
-        assertTrue(pBALRETH.isCollateralizable());
-        assertTrue(eDAI.isBorrowable());
-    }
-
     function testPTokenMintRedeem() public {
         _prepareBALRETH(user1, 2e18);
 

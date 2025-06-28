@@ -19,12 +19,9 @@ contract Predeposit {
     /// @param mTokenAddress The protocol linked mToken address for a token
     ///                      deposited inside the predeposit, configured on
     ///                      protocol deployment.
-    /// @param isPToken Whether protocol linked mToken address is a pToken or
-    ///                 not, configured on protocol deployment.
     struct TokenData {
         bool isApproved;
         address mTokenAddress;
-        bool isPToken;
     }
 
     /// CONSTANTS ///
@@ -278,19 +275,12 @@ contract Predeposit {
         SwapperLib._approveTokenIfNeeded(token, mToken, amount);
 
         // Migrate predeposit asset into Curvance protocol.
-        if (migrationToken.isPToken) {
-            // Migrate a position token.
-            if (collateralize) {
-                // Migrate to a position token and immediately
-                // collateralize it.
-                ICToken(mToken).depositAsCollateralFor(amount, msg.sender);
-            } else {
-                // Migrate to a position token and just deposit it.
-                ICToken(mToken).deposit(amount, msg.sender);
-            }
+        if (collateralize) {
+            // Migrate, deposit, and collateralize.
+            ICToken(mToken).depositAsCollateralFor(amount, msg.sender);
         } else {
-            // Migrate a debt token to be lent to users.
-            IBorrowableCToken(mToken).deposit(amount, msg.sender);
+            // Migrate then deposit.
+            ICToken(mToken).deposit(amount, msg.sender);
         }
 
         // Remove any excess approval.
@@ -356,7 +346,6 @@ contract Predeposit {
 
         // Pull the data directly from the contract rather than from parameter
         // input.
-        tokenData[predepositToken].isPToken = ICToken(protocolToken).isCollateralizable();
         tokenData[predepositToken].mTokenAddress = protocolToken;
 
         emit MigrationTokenConfigured(predepositToken, protocolToken);

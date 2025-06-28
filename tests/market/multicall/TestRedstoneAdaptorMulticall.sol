@@ -235,11 +235,6 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testInitialize() public {
-        assertTrue(pWBTC.isCollateralizable());
-        assertTrue(eUSDC.isBorrowable());
-    }
-
     function testPTokenMintMulticall() public {
         _prepareWBTC(user1, 2 ether);
 

@@ -88,7 +88,7 @@ contract BlastCentralRegistry is CentralRegistry {
 
             // Try to call isPToken as if the address was an mToken.
             (bool success, ) = nonMToken.staticcall(
-                abi.encodePacked(IMToken(nonMToken).isCollateralizable.selector)
+                abi.encodePacked(IMToken(nonMToken).isBorrowable.selector)
             );
             // If the call was successful we called a Curvance mToken which
             // DAO should not be able to claim rewards for.

@@ -184,11 +184,6 @@
 //         vm.stopPrank();
 //     }
 
-//     function testInitialize() public {
-//         assertTrue(cPendlePT.isCollateralizable());
-//         assertTrue(eUSDC.isBorrowable());
-//     }
-
 //     function testPTokenMintRedeem() public {
 //         _preparePT(user1, 2 ether);
 

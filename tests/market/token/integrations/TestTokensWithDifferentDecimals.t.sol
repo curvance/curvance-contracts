@@ -129,11 +129,6 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testInitialize() public {
-        assertTrue(pBALRETH.isCollateralizable());
-        assertTrue(eUSDC.isBorrowable());
-    }
-
     function testPTokenMintRedeem() public {
         _prepareBALRETH(user1, 2 ether);
 

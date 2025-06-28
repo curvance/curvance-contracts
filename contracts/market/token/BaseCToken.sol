@@ -627,13 +627,6 @@ abstract contract BaseCToken is
         return true;
     }
 
-    /// @notice Returns whether the underlying token can be collateralized.
-    /// @dev true = Collateralizable; false = Not Collateralizable.
-    /// @return Whether this token is collateralizable or not.
-    function isCollateralizable() public pure virtual returns (bool) {
-        return true;
-    }
-
     /// @notice Returns whether the underlying token can be borrowed.
     /// @dev true = Borrowable; false = Not Borrowable.
     /// @return Whether this token is borrowable or not.
