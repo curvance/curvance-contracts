@@ -32,7 +32,7 @@ contract PredepositDeploymentTest is TestBasePredeposit {
         predeposit.addPredepositTokens(predepositTokens);
         vm.stopPrank();
 
-        (bool isApproved, , ) = predeposit.tokenData(_WETH_ADDRESS);
+        (bool isApproved, ) = predeposit.tokenData(_WETH_ADDRESS);
 
         assertEq(
             address(predeposit.centralRegistry()),

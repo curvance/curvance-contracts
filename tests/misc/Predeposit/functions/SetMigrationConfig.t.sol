@@ -59,26 +59,23 @@ contract SetMigrationConfigTest is TestBasePredeposit {
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-        (, address mTokenAddress, bool isPToken) = predeposit.tokenData(
+        (, address mTokenAddress) = predeposit.tokenData(
             _USDC_ADDRESS
         );
 
-        assertFalse(isPToken);
         assertEq(mTokenAddress, _ZERO_ADDRESS);
 
         vm.prank(manager);
         predeposit.setMigrationConfig(_USDC_ADDRESS, address(eUSDC));
 
-        (, mTokenAddress, isPToken) = predeposit.tokenData(_USDC_ADDRESS);
+        (, mTokenAddress) = predeposit.tokenData(_USDC_ADDRESS);
 
-        assertFalse(isPToken);
         assertEq(mTokenAddress, address(eUSDC));
 
-        (, mTokenAddress, isPToken) = predeposit.tokenData(
+        (, mTokenAddress) = predeposit.tokenData(
             _BAL_WETH_RETH_ADDRESS
         );
 
-        assertFalse(isPToken);
         assertEq(mTokenAddress, _ZERO_ADDRESS);
 
         address[] memory newPredepositTokens = new address[](1);
@@ -93,11 +90,10 @@ contract SetMigrationConfigTest is TestBasePredeposit {
             address(pBALRETH)
         );
 
-        (, mTokenAddress, isPToken) = predeposit.tokenData(
+        (, mTokenAddress) = predeposit.tokenData(
             _BAL_WETH_RETH_ADDRESS
         );
 
-        assertTrue(isPToken);
         assertEq(mTokenAddress, address(pBALRETH));
     }
 }
