@@ -9,6 +9,7 @@ import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
+import { IFlashLoan } from "contracts/interfaces/IFlashLoan.sol";
 
 contract BorrowableCToken is BaseCTokenWithYield {
     /// CONSTANTS ///
@@ -17,6 +18,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///         from outstanding debt, in `basis points`.
     /// @dev 5000 = 50%.
     uint256 public constant MAX_INTEREST_ACCRUAL_FEE = 5000;
+
+    /// @notice Percentage fee on loan sized borrowed during a flashloan,
+    ///         in `WAD`.
+    /// @dev .0005e18 = 0.05%.
+    uint256 public constant FLASHLOAN_FEE = .0005e18;
 
     /// @dev Mask of vesting rate entry in `_vestingData`.
     uint256 internal constant _BITMASK_VESTING_RATE = (1 << 96) - 1;
@@ -44,8 +50,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Fee that goes to protocol for interested generated for
     ///         lenders, in `WAD`.
     uint256 public interestFee;
-    /// @notice The amount of tokens that has been borrowed as debt,
-    ///         in assets.
+    /// @notice The amount of `asset` that has been borrowed as outstanding
+    ///         debt, in assets.
     uint256 public marketOutstandingDebt;
 
     /// @notice Outstanding debt information associated with an account.
@@ -60,6 +66,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     event InterestAccrualUpdate(uint256 debtPerSecond, uint256 vestingPeriod);
     event Borrow(address account, uint256 amount);
     event Repay(address payer, address account, uint256 amount);
+    event Flashloan(address account, uint256 assets, uint256 assetsReturned);
     event BadDebtRecognized(address liquidator, uint256 amount);
     event NewMarketInterestRateModel(
         address oldInterestRateModel,
@@ -309,6 +316,34 @@ contract BorrowableCToken is BaseCTokenWithYield {
         );
     }
 
+    /// @notice Lends a caller `assets` for a transaction to execute
+    ///         desired programmatic logic, full return of lent
+    ///         assets + a fee by the end of the transaction is
+    ///         required.
+    /// @param assets The amount of `asset()` loaned during the flashloan.
+    /// @param data Arbitrary calldata passed to flashloan callback to execute
+    ///             desired action during the flashloan.
+    function flashLoan(uint256 assets, bytes calldata data) external {
+        _checkZeroAmount(assets);
+        _checkAssetsHeld(assets);
+
+        address token = address(_asset);
+        uint256 assetsReturned = assets + flashFee(assets);
+        
+        SafeTransferLib.safeTransfer(token, msg.sender, assets);
+
+        IFlashLoan(msg.sender).onFlashLoan(assets, assetsReturned, data);
+
+        SafeTransferLib.safeTransferFrom(
+            token,
+            msg.sender,
+            address(this),
+            assetsReturned
+        );
+
+        emit Flashloan(msg.sender, assets, assetsReturned);
+    }
+
     /// @notice Get a snapshot of the cToken and `account` data.
     /// @dev Used by marketManager to more efficiently perform
     ///      liquidity checks.
@@ -402,6 +437,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 uint80(_vestingData >> _BITPOS_DEBT_INDEX), // pull the last 80 bits of vesting data to grab the market debt index
                 uint80(debtOf >> _BITPOS_DEBT_INDEX) // pull the last 80 bits of debtOf to grab the account debt index
             );
+    }
+
+    /// @notice The fee to be charged for a given flashloan.
+    /// @param assets The amount of `asset()` lent during the flashloan.
+    /// return The assets of `asset()` to be charged for the flashloan.
+    function flashFee(uint256 assets) public pure returns (uint256 fee) {
+        fee = FixedPointMathLib.mulDivUp(assets, FLASHLOAN_FEE, WAD);
     }
 
     /// @notice Gets balance of this contract, in terms of the underlying.
@@ -531,7 +573,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///                    to liquidate the maximum amount possible.
     function _liquidate(
         address liquidator,
-        address[] memory accounts,
+        address[] calldata accounts,
         uint256[] memory amounts,
         address collateralToken,
         uint256 numAccounts,
