@@ -95,30 +95,28 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-        // Update position token parameters
-        marketManagerIsolated.updatePositionToken(
-            9200,    // collRatio 92%
-            830,     // collReqSoft 8.3%
-            650,     // collReqHard 6.5%
-            500,     // liqIncBase 5%
-            550,     // liqIncHard 5.5%
-            300,     // liqIncMin 3%
-            550,     // liqIncMax 5.5% 
-            1000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
+        MarketManagerIsolated.TokenConfig memory configToken0;
+        configToken0.cToken = address(pBALRETH);
+        configToken0.collRatio = 9200;
+        configToken0.collReqSoft = 830;
+        configToken0.collReqHard = 650;
+        configToken0.liqIncBase = 500;
+        configToken0.liqIncHard = 550;
+        configToken0.liqIncMin = 300;
+        configToken0.liqIncMax = 550;
+        configToken0.minEffectiveCloseFactor = 1000;
+        configToken0.maxEffectiveCloseFactor = 5000;
+        configToken0.baseCFactor = 2000;
+        configToken0.collateralCap = 100_000e18;
+        configToken0.debtCap = 0;
 
+        marketManagerIsolated.updateTokenConfig(configToken0);
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
+        MarketManagerIsolated.TokenConfig memory configToken1;
+        configToken1.cToken = address(eUSDC);
+        configToken1.debtCap = 100_000e6;
 
-        tokens[0] = address(eUSDC);
-        caps[0] = 100_000e6;
-        marketManagerIsolated.setDebtCaps(tokens, caps);
+        marketManagerIsolated.updateTokenConfig(configToken1);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
@@ -238,7 +236,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         vm.startPrank(dappControlUser);
         usdc.approve(address(eUSDC), 100000e6);
 
-        marketManagerIsolated.setAuctionParameters(validPenalty, closeFactor);
+        marketManagerIsolated.setAuctionParameters(address(eUSDC), validPenalty, closeFactor);
         marketManagerIsolated.unlockAuctionCollateral(address(eUSDC));
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt

@@ -33,12 +33,12 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         usdc.approve(address(eUSDC), 1000e6);
 
         IMarketManager.LiqInstructions memory instructions = IMarketManager.LiqInstructions({
-            eToken: address(eUSDC),
-            cToken: address(pBALRETH),
+            debtToken: address(eUSDC),
+            collateralToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
-            eTokenRepaid: 0,
-            cTokenLiquidated: 0,
+            debtRepaid: 0,
+            collateralLiquidated: 0,
             badDebt: 0
         });
 

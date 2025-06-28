@@ -88,30 +88,27 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-        // Update position token parameters
-        marketManagerIsolated.updatePositionToken(
-            8000,    // collRatio 80% 
-            2500,    // collReqSoft 25%
-            2200,    // collReqHard 22% (increased to be > liqIncMax + 1%)
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
+        MarketManagerIsolated.TokenConfig memory configToken0;
+        configToken0.cToken = address(pBALRETH);
+        configToken0.collRatio = 8000;
+        configToken0.collReqSoft = 2500;
+        configToken0.collReqHard = 2200;
+        configToken0.liqIncBase = 1000;
+        configToken0.liqIncHard = 1500;
+        configToken0.liqIncMin = 500;
+        configToken0.liqIncMax = 2000;
+        configToken0.minEffectiveCloseFactor = 2000;
+        configToken0.maxEffectiveCloseFactor = 5000;
+        configToken0.baseCFactor = 2000;
+        configToken0.collateralCap = 100_000e18;
+        configToken0.debtCap = 0;
 
+        marketManagerIsolated.updateTokenConfig(configToken0);
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
-
-        tokens[0] = address(eUSDC);
-        caps[0] = 100_000e6;
-        marketManagerIsolated.setDebtCaps(tokens, caps);
+        MarketManagerIsolated.TokenConfig memory configToken1;
+        configToken1.cToken = address(eUSDC);
+        configToken1.debtCap = 100_000e6;
+        marketManagerIsolated.updateTokenConfig(configToken1);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
@@ -146,12 +143,12 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
 
         IMarketManager.LiqInstructions memory liqInstructions;
         liqInstructions = IMarketManager.LiqInstructions({
-            eToken: address(eUSDC),
-            cToken: address(pBALRETH),
+            debtToken: address(eUSDC),
+            collateralToken: address(pBALRETH),
             numAccounts: 5,
             liquidateExact: false,
-            eTokenRepaid: 0,
-            cTokenLiquidated: 0,
+            debtRepaid: 0,
+            collateralLiquidated: 0,
             badDebt: 0
         });
 
