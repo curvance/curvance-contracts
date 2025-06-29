@@ -25,14 +25,14 @@ import "forge-std/console2.sol";
 // Clean up testing of Maximum/minimum vertex rates
 // Clean up testing of Decay rate being applied
 //
-contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
+contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
     DynamicInterestRateModel public interestRateModel;
 
     address public owner;
     address public user;
     uint256 constant INITIAL_DEPOSIT = 200000e18;
-    uint256 constant BORROW_AMOUNT_BELOW_VERTEX = 40000e18; // 20% utilization
-    uint256 constant BORROW_AMOUNT_ABOVE_VERTEX = 160000e18; // 80% utilization
+    uint256 constant BORROW_AMOUNT_BELOW_VERTEX = 40_000e18; // 20% utilization
+    uint256 constant BORROW_AMOUNT_ABOVE_VERTEX = 160_000e18; // 80% utilization
     uint256 internal constant SECONDS_PER_YEAR = 31_536_000;
     uint256 public constant INTEREST_ACCRUAL_PERIOD = 10 minutes;
     
@@ -70,7 +70,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         usdcTokenConfig.maxEffectiveCloseFactor = 3000;
         usdcTokenConfig.baseCFactor = 1000;
         usdcTokenConfig.collateralCap = 200_000e18;
-        usdcTokenConfig.debtCap = 200_000e18;
+        usdcTokenConfig.debtCap = 0;
 
         MarketManagerIsolated.TokenConfig memory daiTokenConfig;
         daiTokenConfig.cToken = address(eDAI);
@@ -84,7 +84,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         daiTokenConfig.minEffectiveCloseFactor = 2000;
         daiTokenConfig.maxEffectiveCloseFactor = 3000;
         daiTokenConfig.baseCFactor = 1000;
-        daiTokenConfig.collateralCap = 200_000e18;
+        daiTokenConfig.collateralCap = 0;
         daiTokenConfig.debtCap = 200_000e18;
 
         marketManagerIsolated.updateTokenConfig(usdcTokenConfig);
@@ -180,8 +180,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
             .ratesConfig();
         uint256 expectedRate = (SECONDS_PER_YEAR *
             (newUtilization * baseInterestRate)) /
-            WAD /
-            INTEREST_ACCRUAL_PERIOD;
+            WAD;
         assertApproxEqRel(
             newBorrowRate,
             expectedRate,
@@ -194,11 +193,14 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
 
     function testWhenUtilizationIsAboveVertexStartingPoint() public {
         vm.startPrank(user);
+
         // given
         // Set up collateral for borrowing
         _prepareUSDC(user, 1000000e6);
         usdc.approve(address(pUSDC), 1000000e6);
         pUSDC.depositAsCollateral(1000000e6, user);
+
+        skip(1);
 
         // Initial state checks
         uint256 initialUtilization = interestRateModel.utilizationRate(
@@ -209,6 +211,8 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
             eDAI.assetsHeld(),
             eDAI.marketOutstandingDebt()
         );
+
+        skip(1);
 
         // when
         // Borrow amount that pushes utilization above vertex point
@@ -268,7 +272,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
             vertexInterestRate *
             vertexMultiplier) / (WAD * WAD);
         uint256 expectedRate = (SECONDS_PER_YEAR *
-            (baseComponent + vertexComponent)) / INTEREST_ACCRUAL_PERIOD;
+            (baseComponent + vertexComponent));
 
         assertApproxEqRel(
             newBorrowRate,
@@ -363,7 +367,10 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         ) = interestRateModel.ratesConfig();
 
         // Move time forward to trigger multiplier update
-        vm.warp(block.timestamp + adjustmentRate);
+        skip(adjustmentRate);
+
+        vm.stopPrank();
+        vm.startPrank(user);
 
         // Force an interest rate update
         eDAI.accrueIfNeeded();

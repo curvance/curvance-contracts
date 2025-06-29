@@ -871,15 +871,12 @@ contract MarketManagerIsolated is
         }
 
         // Make sure the debt cap can not cause variable overflow.
-        if (
-            config.debtCap > _MAX_DEBT_CAP ||
-            ICToken(config.cToken).isBorrowable()
-            ) {
+        if (config.debtCap > _MAX_DEBT_CAP) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Do not let people borrow assets if they are not intended to be.
-        if (config.debtCap > 0 && ICToken(config.cToken).isBorrowable()) {
+        if (config.debtCap > 0 && !ICToken(config.cToken).isBorrowable()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -930,6 +927,12 @@ contract MarketManagerIsolated is
         // Assign the min and max effective closeFactor
         curvanceToken.minEffectiveCloseFactor = config.minEffectiveCloseFactor;
         curvanceToken.maxEffectiveCloseFactor = config.maxEffectiveCloseFactor;
+
+        // Assign the collateral cap
+        collateralCaps[config.cToken] = config.collateralCap;
+
+        // Assign the debt cap
+        debtCaps[config.cToken] = config.debtCap;
 
         emit TokenConfigUpdated(config);
     }
