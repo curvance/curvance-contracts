@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.4;
 
 /// @notice Reentrancy guard mixin.
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/utils/ReentrancyGuard.sol)
-/// @dev Edited to always use transient storage.
 abstract contract ReentrancyGuard {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CUSTOM ERRORS                        */
@@ -16,10 +15,10 @@ abstract contract ReentrancyGuard {
     /*                          STORAGE                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    /// @dev Equivalent to: `uint32(bytes4(keccak256("Reentrancy()"))) | 1 << 71`.
-    /// 9 bytes is large enough to avoid collisions in practice,
+    /// @dev Equivalent to: `uint72(bytes9(keccak256("_REENTRANCY_GUARD_SLOT")))`.
+    /// 9 bytes is large enough to avoid collisions with lower slots,
     /// but not too large to result in excessive bytecode bloat.
-    uint256 private constant _REENTRANCY_GUARD_SLOT = 0x8000000000ab143c06;
+    uint256 private constant _REENTRANCY_GUARD_SLOT = 0x929eee149b4bd21268;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                      REENTRANCY GUARD                      */
@@ -29,16 +28,16 @@ abstract contract ReentrancyGuard {
     modifier nonReentrant() virtual {
         /// @solidity memory-safe-assembly
         assembly {
-            if tload(_REENTRANCY_GUARD_SLOT) {
+            if eq(sload(_REENTRANCY_GUARD_SLOT), address()) {
                 mstore(0x00, 0xab143c06) // `Reentrancy()`.
                 revert(0x1c, 0x04)
             }
-            tstore(_REENTRANCY_GUARD_SLOT, address())
+            sstore(_REENTRANCY_GUARD_SLOT, address())
         }
         _;
         /// @solidity memory-safe-assembly
         assembly {
-            tstore(_REENTRANCY_GUARD_SLOT, 0)
+            sstore(_REENTRANCY_GUARD_SLOT, codesize())
         }
     }
 
@@ -46,7 +45,7 @@ abstract contract ReentrancyGuard {
     modifier nonReadReentrant() virtual {
         /// @solidity memory-safe-assembly
         assembly {
-            if tload(_REENTRANCY_GUARD_SLOT) {
+            if eq(sload(_REENTRANCY_GUARD_SLOT), address()) {
                 mstore(0x00, 0xab143c06) // `Reentrancy()`.
                 revert(0x1c, 0x04)
             }
