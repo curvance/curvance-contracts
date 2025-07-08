@@ -551,7 +551,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         UserBalance memory ownerBalance = userBalances[owner];
-        uint256 exchangeRate = linkedToken.exchangeRateWithUpdate();
+        uint256 exchangeRate = linkedToken.exchangeRateUpdated();
 
         // If it's a forced lending redemption only check their lent balance,
         // otherwise look at both sitting and lent balances.

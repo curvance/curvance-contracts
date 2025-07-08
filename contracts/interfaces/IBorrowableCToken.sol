@@ -33,7 +33,7 @@ interface IBorrowableCToken is ICToken {
     /// @notice Updates pending interest and returns the up-to-date exchange
     ///         rate from the underlying to the eToken.
     /// @return Calculated exchange rate, in `WAD`.
-    function exchangeRateWithUpdate() external returns (uint256);
+    function exchangeRateUpdated() external returns (uint256);
 
     /// @notice Used by a delegated user to borrow underlying tokens
     ///         from lenders, based on collateral posted inside this market

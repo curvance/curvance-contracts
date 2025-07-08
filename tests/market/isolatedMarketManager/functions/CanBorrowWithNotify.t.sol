@@ -89,7 +89,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.canBorrowWithNotify(address(eUSDC), user1, 100e6 - 1, 100e6 - 1);
     }
 
-    function test_canBorrowWithNotify_fail_whenInsufficientLiquidity() public {
+    function test_canBorrowWithNotify_fail_whenInsufficientCollateral() public {
         vm.warp(gaugeManager.gaugeStartTime());
         chainlinkUsdcUsd.updateRoundData(
             0,
