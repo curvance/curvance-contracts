@@ -129,7 +129,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testPTokenMintRedeem() public {
+    function testCTokenMintRedeem() public {
         _prepareBALRETH(user1, 2 ether);
 
         // try mint()
@@ -232,7 +232,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertGt(eUSDC.exchangeRate(), exchangeRateBefore);
     }
 
-    function testPTokenRedeemOnBorrow() public {
+    function testCTokenRedeemOnBorrow() public {
         _prepareBALRETH(user1, 1 ether);
 
         // try mint()
@@ -298,7 +298,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertGt(eUSDC.exchangeRate(), 1 ether);
     }
 
-    function testPTokenTransferOnBorrow() public {
+    function testCTokenTransferOnBorrow() public {
         _prepareBALRETH(user1, 1 ether);
 
         // try mint()

@@ -80,7 +80,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             true
         );
 
-        eWETH = _deployEToken(_WETH_ADDRESS);
+        eWETH = _deployBorrowableCToken(_WETH_ADDRESS);
 
         nativeUniversalBalance = new NativeUniversalBalance(
             ICentralRegistry(address(centralRegistry)),
@@ -130,12 +130,12 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
 
         // // deploy eUSDC
         // {
-        //     _deployEUSDC();
+        //     _deployBorrowableCUSDC();
         //     // support market
         //     _prepareUSDC(owner, 200000e6);
         //     usdc.approve(address(eUSDC), 200000e6);
         //     marketManagerIsolated.listToken(address(eUSDC));
-        //     // add MToken support on oracle manager
+        //     Add cToken support on Oracle Manager.
         //     oracleManager.addCTokenSupport(address(eUSDC));
         //     address[] memory markets = new address[](1);
         //     markets[0] = address(eUSDC);
@@ -150,7 +150,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             // support market
             _prepareWETH(owner, 200000 ether);
             weth.approve(address(eWETH), 200000e6);
-            // add MToken support on oracle manager
+            // add CToken support on oracle manager
             oracleManager.addCTokenSupport(address(eWETH));
             address[] memory markets = new address[](1);
             markets[0] = address(eWETH);
@@ -172,7 +172,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             // support market
             _prepareWBTC(owner, 1e8);
             wbtc.approve(address(pWBTC), 1e8);
-            // add MToken support on oracle manager
+            // add CToken support on oracle manager
             oracleManager.addCTokenSupport(address(pWBTC));
             // set position token configuration
         }

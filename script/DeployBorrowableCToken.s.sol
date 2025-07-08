@@ -4,9 +4,9 @@ pragma solidity ^0.8.19;
 import "forge-std/Script.sol";
 
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
-import { ETokenDeployer } from "./deployers/eToken/ETokenDeployer.s.sol";
+import { BorrowableCTokenDeployer } from "./deployers/borrowableCToken/BorrowableCTokenDeployer.s.sol";
 
-contract DeployEToken is Script, DeployConfiguration, ETokenDeployer {
+contract DeployBorrowableCToken is Script, DeployConfiguration, BorrowableCTokenDeployer {
     using stdJson for string;
 
     function run(string memory name) external {
@@ -29,13 +29,13 @@ contract DeployEToken is Script, DeployConfiguration, ETokenDeployer {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        _deployEToken(
-            string.concat("E-", name),
+        _deployBorrowableCToken(
+            string.concat("c", name),
             abi.decode(
                 configurationJson.parseRaw(
                     string.concat(".markets.dTokens.", name)
                 ),
-                (ETokenDeployer.ETokenParam)
+                (BorrowableCTokenDeployer.BorrowableCTokenParam)
             )
         );
 

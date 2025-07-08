@@ -49,7 +49,7 @@
 //             dai.approve(address(tokens[i]), 200000e18);
 //             marketManagerIsolated.listToken(tokens[i]);
 
-//             // add MToken support on oracle manager
+//             // add CToken support on oracle manager
 //             oracleManager.addCTokenSupport(tokens[i]);
 
 //             for (uint256 j = 0; j < 10; j++) {

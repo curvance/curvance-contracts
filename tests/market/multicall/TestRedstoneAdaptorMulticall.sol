@@ -133,11 +133,11 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
         // deploy eUSDC
         {
-            _deployEUSDC();
+            _deployBorrowableCUSDC();
             // support market
             _prepareUSDC(owner, 200000e6);
             usdc.approve(address(eUSDC), 200000e6);
-            // add MToken support on oracle manager
+            // Add cToken support on Oracle Manager.
             oracleManager.addCTokenSupport(address(eUSDC));
             address[] memory markets = new address[](1);
             markets[0] = address(eUSDC);
@@ -159,7 +159,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             // support market
             _prepareWBTC(owner, 1e8);
             wbtc.approve(address(pWBTC), 1e8);
-            // add MToken support on oracle manager
+            // add CToken support on oracle manager
             oracleManager.addCTokenSupport(address(pWBTC));
             // set position token configuration
 

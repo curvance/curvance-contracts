@@ -349,7 +349,7 @@ contract StartContractsConfig is
                 cr,
                 market
         );
-        address eTokenToList = _deployEToken(
+        address eTokenToList = _deployBorrowableCToken(
             earnToken.name,
             earnToken.token,
             earnToken.chainlinkEthAggregator,
@@ -394,7 +394,7 @@ contract StartContractsConfig is
         market.updateTokenConfig(token1Config);
     }
 
-    function _deployEToken(
+    function _deployBorrowableCToken(
         string memory name,
         address tokenAddress,
         address chainlinkEthAggregator,
@@ -482,28 +482,28 @@ contract StartContractsConfig is
         return pToken;
     }
 
-    function _addRedstoneOracleSupport(address mToken) internal {
+    function _addRedstoneOracleSupport(address cToken) internal {
         address oracleManager = _getDeployedContract("oracleManager");
         // address redstoneAdaptor = _getDeployedContract("redstoneAdaptor");
-        // address underlying = IMToken(mToken).underlying();
+        // address underlying = ICToken(cToken).underlying();
 
         // IERC20 underlyingToken = IERC20(underlying);
         // RedstoneCoreAdaptor adaptor = RedstoneCoreAdaptor(redstoneAdaptor);
         OracleManager router = OracleManager(oracleManager);
 
-        if (!router.isSupportedAsset(mToken)) {
-            router.addCTokenSupport(mToken);
+        if (!router.isSupportedAsset(cToken)) {
+            router.addCTokenSupport(cToken);
         }
     }
 
     function _addChainlinkOracleSupport(
         address chainlinkEth,
         address chainlinkUsd,
-        address mToken
+        address cToken
     ) internal {
         address oracleManager = _getDeployedContract("oracleManager");
         address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
-        address underlying = ICToken(mToken).asset();
+        address underlying = ICToken(cToken).asset();
 
         if (chainlinkEth == address(0) && chainlinkUsd == address(0)) {
             return;
@@ -545,8 +545,8 @@ contract StartContractsConfig is
         }
 
         // Link cToken
-        if (!OracleManager(oracleManager).isSupportedAsset(mToken)) {
-            OracleManager(oracleManager).addCTokenSupport(mToken);
+        if (!OracleManager(oracleManager).isSupportedAsset(cToken)) {
+            OracleManager(oracleManager).addCTokenSupport(cToken);
         }
     }
 

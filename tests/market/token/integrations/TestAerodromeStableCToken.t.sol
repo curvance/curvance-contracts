@@ -13,7 +13,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 // NOTE: This test fails when input amount is very small.
 // Fails when amount0 is 3.584e18. Probably due to precision loss.
 // Issues arise with getAmountOut execution.
-contract TestAerodromeStablePToken is TestBaseMarketIsolated {
+contract TestAerodromeStableCToken is TestBaseMarketIsolated {
     address internal _AERO_ADDRESS =
         0x940181a94A35A4569E4529A3CDfB74e38FD98631;
     address internal _AERODROME_DAI_USDC =
@@ -34,11 +34,6 @@ contract TestAerodromeStablePToken is TestBaseMarketIsolated {
     receive() external payable {}
 
     fallback() external payable {}
-
-    // this is to use address(this) as mock pToken address
-    function tokenType() external pure returns (uint256) {
-        return 1;
-    }
 
     function setUp() public override {
         _fork("ETH_NODE_URI_BASE", 19000000);

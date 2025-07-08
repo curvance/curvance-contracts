@@ -101,11 +101,11 @@
 
 //         // deploy eUSDC
 //         {
-//             _deployEUSDC();
+//             _deployBorrowableCUSDC();
 //             // support market
 //             _prepareUSDC(owner, 200000e6);
 //             usdc.approve(address(eUSDC), 200000e6);
-//             // add MToken support on oracle manager
+//             // Add cToken support on Oracle Manager.
 //             oracleManager.addCTokenSupport(address(eUSDC));
 //             address[] memory markets = new address[](1);
 //             markets[0] = address(eUSDC);
@@ -127,7 +127,7 @@
 //             // support market
 //             _preparePT(owner, 1 ether);
 //             pendlePT.approve(address(cPendlePT), 1 ether);
-//             // add MToken support on oracle manager
+//             // Add cToken support on Oracle Manager
 //             oracleManager.addCTokenSupport(address(cPendlePT));
             
 

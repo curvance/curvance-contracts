@@ -69,11 +69,11 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         // deploy eUSDC
         {
-            _deployEUSDC();
+            _deployBorrowableCUSDC();
             // support market
             _prepareUSDC(owner, 200000e6);
             usdc.approve(address(eUSDC), 200000e6);
-            // add MToken support on oracle manager
+            // add CToken support on oracle manager
             oracleManager.addCTokenSupport(address(eUSDC));
             address[] memory markets = new address[](1);
             markets[0] = address(eUSDC);
@@ -95,7 +95,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             // support market
             _prepareWETH(owner, 1 ether);
             weth.approve(address(pWETH), 1 ether);
-            // add MToken support on oracle manager
+            // add CToken support on oracle manager
             oracleManager.addCTokenSupport(address(pWETH));
             // set position token configuration
 

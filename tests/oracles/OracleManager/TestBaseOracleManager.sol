@@ -23,7 +23,7 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
         _deployOracleManager();
         _deployGaugeManager();
         _deployMarketManager();
-        _deployEUSDC();
+        _deployBorrowableCUSDC();
 
         chainlinkAdaptor = chainlinkAdaptors[
             block.chainid

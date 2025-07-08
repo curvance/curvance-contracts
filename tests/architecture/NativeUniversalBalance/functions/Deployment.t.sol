@@ -17,7 +17,7 @@ contract NativeUniversalBalanceDeploymentTest is
         );
         new NativeUniversalBalance(
             ICentralRegistry(address(1)),
-            address(eWETH),
+            address(borrowableCWETH),
             _WETH_ADDRESS
         );
     }
@@ -44,7 +44,7 @@ contract NativeUniversalBalanceDeploymentTest is
         );
         new NativeUniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eWETH),
+            address(borrowableCWETH),
             _USDC_ADDRESS
         );
     }
@@ -52,7 +52,7 @@ contract NativeUniversalBalanceDeploymentTest is
     function test_nativeUniversalBalanceDeployment_success() public {
         nativeUniversalBalance = new NativeUniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eWETH),
+            address(borrowableCWETH),
             _WETH_ADDRESS
         );
 
@@ -62,11 +62,11 @@ contract NativeUniversalBalanceDeploymentTest is
         );
         assertEq(
             address(nativeUniversalBalance.linkedToken()),
-            address(eWETH)
+            address(borrowableCWETH)
         );
         assertEq(nativeUniversalBalance.underlying(), _WETH_ADDRESS);
         assertEq(
-            weth.allowance(address(nativeUniversalBalance), address(eWETH)),
+            weth.allowance(address(nativeUniversalBalance), address(borrowableCWETH)),
             type(uint256).max
         );
     }

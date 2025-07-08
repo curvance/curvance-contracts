@@ -382,7 +382,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
         result = marketOutstandingDebt;
     }
 
-    /// @notice Returns share -> asset exchange rate, in `WAD`.
+    /// @notice Updates pending interest and returns the up-to-date exchange
+    ///         rate from the underlying to the BorrowableCToken.
     /// @dev Oracle Manager calculates cToken value from this exchange rate.
     /// @return result The share -> asset exchange rate, in `WAD`.
     function exchangeRateUpdated() external nonReentrant returns (

@@ -106,8 +106,8 @@ contract TestOracleManager is TestBaseOracleManager {
         oracleManager.getPrice(_VELODROME_WETH_USDC, true, false);
     }
 
-    function testReturnsCorrectPriceForMTokens() public {
-        _deployEUSDC();
+    function testReturnsCorrectPriceForCTokens() public {
+        _deployBorrowableCUSDC();
         
         // Create a mock collateral token
         MockERC20Token underlying = new MockERC20Token();

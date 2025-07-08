@@ -18,12 +18,12 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
     }
 
-    function test_canBorrowWithNotify_fail_whenCallerIsNotMToken() public {
+    function test_canBorrowWithNotify_fail_whenCallerIsNotCToken() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManagerIsolated.canBorrowWithNotify(address(eUSDC), user1, 100e6, 100e6);
     }
 
-    function test_canBorrowWithNotify_fail_whenCallerMTokenIsNotListed()
+    function test_canBorrowWithNotify_fail_whenCallerCTokenIsNotListed()
         public
     {
         vm.prank(address(eDAI));
@@ -41,14 +41,14 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.canBorrowWithNotify(address(eUSDC), user1, 100e6, 100e6);
     }
 
-    function test_canBorrowWithNotify_fail_whenMTokenIsNotListed() public {
+    function test_canBorrowWithNotify_fail_whenCTokenIsNotListed() public {
         vm.prank(address(eUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManagerIsolated.canBorrowWithNotify(address(eDAI), user1, 100e6, 100e6);
     }
 
-    function test_canBorrowWithNotify_fail_whenCallerIsNotMTokenAndBorrowerNotInMarket()
+    function test_canBorrowWithNotify_fail_whenCallerIsNotCTokenAndBorrowerNotInMarket()
         public
     {
         vm.prank(address(eUSDC));

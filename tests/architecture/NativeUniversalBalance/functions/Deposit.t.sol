@@ -54,11 +54,11 @@ contract NativeUniversalBalanceDepositTest is TestBaseNativeUniversalBalance {
     {
         _prepareWETH(user1, _ONE);
 
-        eWETH = _deployEToken(_WETH_ADDRESS);
+        borrowableCWETH = _deployBorrowableCToken(_WETH_ADDRESS);
 
         nativeUniversalBalance = new NativeUniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eWETH),
+            address(borrowableCWETH),
             _WETH_ADDRESS
         );
 
@@ -89,9 +89,9 @@ contract NativeUniversalBalanceDepositTest is TestBaseNativeUniversalBalance {
 
         _prepareWETH(user1, amount);
 
-        uint256 receiveAmount = eWETH.convertToShares(amount);
+        uint256 receiveAmount = borrowableCWETH.convertToShares(amount);
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userWETHBalance = weth.balanceOf(user1);
@@ -114,8 +114,8 @@ contract NativeUniversalBalanceDepositTest is TestBaseNativeUniversalBalance {
         assertEq(lentBalance, receiveAmount);
         assertEq(weth.balanceOf(address(nativeUniversalBalance)), wethBalance);
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance + receiveAmount
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance + receiveAmount
         );
         assertEq(weth.balanceOf(user1), userWETHBalance - amount);
     }
@@ -128,7 +128,7 @@ contract NativeUniversalBalanceDepositTest is TestBaseNativeUniversalBalance {
         _prepareWETH(user1, amount);
 
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userWETHBalance = weth.balanceOf(user1);
@@ -154,8 +154,8 @@ contract NativeUniversalBalanceDepositTest is TestBaseNativeUniversalBalance {
             wethBalance + amount
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance
         );
         assertEq(weth.balanceOf(user1), userWETHBalance - amount);
     }

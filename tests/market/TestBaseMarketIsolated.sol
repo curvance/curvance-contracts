@@ -61,7 +61,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         _deployMarketManager();
 
-        _deployEUSDC();
+        _deployBorrowableCUSDC();
         _deployEDAI();
 
         _deployPUSDC();
@@ -431,17 +431,17 @@ contract TestBaseMarketIsolated is TestBase {
         return address(interestRateModels[block.chainid][underlyingToken]);
     }
 
-    function _deployEUSDC() internal initMainVariables returns (BorrowableCToken) {
-        eUSDC = eUSDCs[block.chainid] = _deployEToken(_USDC_ADDRESS);
+    function _deployBorrowableCUSDC() internal initMainVariables returns (BorrowableCToken) {
+        eUSDC = eUSDCs[block.chainid] = _deployBorrowableCToken(_USDC_ADDRESS);
         return eUSDC;
     }
 
     function _deployEDAI() internal initMainVariables returns (BorrowableCToken) {
-        eDAI = eDAIs[block.chainid] = _deployEToken(_DAI_ADDRESS);
+        eDAI = eDAIs[block.chainid] = _deployBorrowableCToken(_DAI_ADDRESS);
         return eDAI;
     }
 
-    function _deployEToken(
+    function _deployBorrowableCToken(
         address token
     ) internal virtual initMainVariables returns (BorrowableCToken) {
         BorrowableCToken eToken = new BorrowableCToken(

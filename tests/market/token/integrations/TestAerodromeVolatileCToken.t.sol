@@ -10,7 +10,7 @@ import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestAerodromeVolatilePToken is TestBaseMarketIsolated {
+contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
     address internal _AERO_ADDRESS =
         0x940181a94A35A4569E4529A3CDfB74e38FD98631;
     address internal _AERODROME_WETH_USDC =
@@ -31,11 +31,6 @@ contract TestAerodromeVolatilePToken is TestBaseMarketIsolated {
     receive() external payable {}
 
     fallback() external payable {}
-
-    // this is to use address(this) as mock pToken address
-    function tokenType() external pure returns (uint256) {
-        return 1;
-    }
 
     function setUp() public override {
         _fork("ETH_NODE_URI_BASE", 19000000);

@@ -130,10 +130,10 @@ contract NativeUniversalBalanceWithdrawForTest is
 
         vm.stopPrank();
 
-        uint256 redeemAmount = eWETH.convertToShares(withdrawAmount);
+        uint256 redeemAmount = borrowableCWETH.convertToShares(withdrawAmount);
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userWETHBalance = weth.balanceOf(user2);
@@ -152,8 +152,8 @@ contract NativeUniversalBalanceWithdrawForTest is
         assertEq(address(nativeUniversalBalance).balance, ethBalance);
         assertEq(weth.balanceOf(address(nativeUniversalBalance)), wethBalance);
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance - redeemAmount
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance - redeemAmount
         );
         assertEq(weth.balanceOf(user2), userWETHBalance + withdrawAmount);
     }
@@ -178,7 +178,7 @@ contract NativeUniversalBalanceWithdrawForTest is
 
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userWETHBalance = weth.balanceOf(user1);
@@ -205,8 +205,8 @@ contract NativeUniversalBalanceWithdrawForTest is
             wethBalance - withdrawAmount
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance
         );
         assertEq(weth.balanceOf(user2), userWETHBalance + withdrawAmount);
     }

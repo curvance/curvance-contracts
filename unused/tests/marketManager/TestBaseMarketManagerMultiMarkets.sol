@@ -75,7 +75,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         // start market for eToken
         MockERC20Token mockUnderlying = new MockERC20Token();
         vm.label(address(mockUnderlying), "tokenDebt");
-        EToken earnToken = _deployEToken(address(mockUnderlying));
+        EToken earnToken = _deployBorrowableCToken(address(mockUnderlying));
         vm.label(address(earnToken), "eToken");
         uint256 startAmount = 77777;
         mockUnderlying.mint(address(this), startAmount);

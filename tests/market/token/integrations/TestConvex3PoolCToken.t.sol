@@ -5,11 +5,11 @@ pragma solidity ^0.8.19;
 
 // import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 // import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-// import { Convex3PoolPToken, IERC20 } from "contracts/market/token/Convex3PoolPToken.sol";
+// import { Convex3PoolCToken, IERC20 } from "contracts/market/token/Convex3PoolCToken.sol";
 
 // import "tests/market/TestBaseMarketIsolated.sol";
 
-// contract TestConvex3PoolPToken is TestBaseMarketIsolated {
+// contract TestConvex3PoolCToken is TestBaseMarketIsolated {
 //     address internal constant _UNISWAP_V2_ROUTER =
 //         0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
@@ -26,7 +26,7 @@ pragma solidity ^0.8.19;
 //         0xb05262D4aaAA38D0Af4AaB244D446ebDb5afd4A7;
 //     address public CONVEX_BOOSTER = 0xF403C135812408BFbE8713b5A23a04b3D48AAE31;
 
-//     Convex3PoolPToken public pToken;
+//     Convex3PoolCToken public cToken;
 
 //     /*
 //     LP token address	0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4
@@ -50,7 +50,7 @@ pragma solidity ^0.8.19;
 //         // vm.warp(gaugeManager.gaugeStartTime());
 //         vm.roll(block.number + 1000);
 
-//         pToken = new Convex3PoolPToken(
+//         cToken = new Convex3PoolCToken(
 //             ICentralRegistry(address(centralRegistry)),
 //             CONVEX_USDT_WBTC_WETH_POOL,
 //             address(marketManager),
@@ -61,8 +61,8 @@ pragma solidity ^0.8.19;
 
 //         address owner = address(this);
 //         deal(address(CONVEX_USDT_WBTC_WETH_POOL), owner, 1 ether);
-//         CONVEX_USDT_WBTC_WETH_POOL.approve(address(pToken), 1 ether);
-//         marketManager.listToken(address(pToken));
+//         CONVEX_USDT_WBTC_WETH_POOL.approve(address(cToken), 1 ether);
+//         marketManager.listToken(address(cToken));
 //     }
 
 //     function testConvexUsdtWbtcWethPool() public {
@@ -70,13 +70,13 @@ pragma solidity ^0.8.19;
 //         deal(address(CONVEX_USDT_WBTC_WETH_POOL), user1, assets);
 
 //         vm.prank(user1);
-//         CONVEX_USDT_WBTC_WETH_POOL.approve(address(pToken), assets);
+//         CONVEX_USDT_WBTC_WETH_POOL.approve(address(cToken), assets);
 
 //         vm.prank(user1);
-//         pToken.deposit(assets, user1);
+//         cToken.deposit(assets, user1);
 
 //         assertEq(
-//             pToken.totalAssets(),
+//             cToken.totalAssets(),
 //             assets + 77777,
 //             "Total Assets should equal user deposit."
 //         );
@@ -85,14 +85,14 @@ pragma solidity ^0.8.19;
 //         vm.warp(block.timestamp + 3 days);
 
 //         // Mint some extra rewards for Vault.
-//         deal(address(CRV), address(pToken), 100e18);
-//         deal(address(CVX), address(pToken), 100e18);
-//         deal(address(WETH), address(pToken), 1 ether);
+//         deal(address(CRV), address(cToken), 100e18);
+//         deal(address(CVX), address(cToken), 100e18);
+//         deal(address(WETH), address(cToken), 1 ether);
 
-//         pToken.harvest(abi.encode(new SwapperLib.Swap[](0), 1e8));
+//         cToken.harvest(abi.encode(new SwapperLib.Swap[](0), 1e8));
 
 //         assertEq(
-//             pToken.totalAssets(),
+//             cToken.totalAssets(),
 //             assets + 77777,
 //             "Total Assets should equal user deposit."
 //         );
@@ -100,13 +100,13 @@ pragma solidity ^0.8.19;
 //         vm.warp(block.timestamp + 8 days);
 
 //         // Mint some extra rewards for Vault.
-//         deal(address(CRV), address(pToken), 100e18);
-//         deal(address(CVX), address(pToken), 100e18);
-//         deal(address(WETH), address(pToken), 1 ether);
-//         pToken.harvest(abi.encode(new SwapperLib.Swap[](0), 1e8));
+//         deal(address(CRV), address(cToken), 100e18);
+//         deal(address(CVX), address(cToken), 100e18);
+//         deal(address(WETH), address(cToken), 1 ether);
+//         cToken.harvest(abi.encode(new SwapperLib.Swap[](0), 1e8));
 //         vm.warp(block.timestamp + 7 days);
 
-//         uint256 totalAssets = pToken.totalAssets();
+//         uint256 totalAssets = cToken.totalAssets();
 
 //         assertGt(
 //             totalAssets,
@@ -115,7 +115,7 @@ pragma solidity ^0.8.19;
 //         );
 
 //         vm.startPrank(user1);
-//         pToken.withdraw(pToken.balanceOf(user1), user1, user1);
+//         cToken.withdraw(cToken.balanceOf(user1), user1, user1);
 //         vm.stopPrank();
 //     }
 // }

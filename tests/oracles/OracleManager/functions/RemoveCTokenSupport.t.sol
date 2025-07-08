@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
-contract RemoveMTokenSupportTest is TestBaseOracleManager {
+contract RemoveCTokenSupportTest is TestBaseOracleManager {
     function test_removeCTokenSupport_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(1));
 

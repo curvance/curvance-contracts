@@ -4,11 +4,11 @@ pragma solidity ^0.8.19;
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
-contract AddMTokenSupportTest is TestBaseOracleManager {
+contract AddCTokenSupportTest is TestBaseOracleManager {
     function setUp() public override {
         super.setUp();
 
-        _deployEUSDC();
+        _deployBorrowableCUSDC();
     }
 
     function test_addCTokenSupport_fail_whenCallerIsNotAuthorized() public {

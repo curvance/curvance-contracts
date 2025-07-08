@@ -13,8 +13,8 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import { DeployConfiguration } from "../../utils/DeployConfiguration.sol";
 
-contract ETokenDeployer is DeployConfiguration {
-    struct ETokenInterestRateParam {
+contract BorrowableCTokenDeployer is DeployConfiguration {
+    struct BorrowableCTokenInterestRateParam {
         uint256 adjustmentRate;
         uint256 adjustmentVelocity;
         uint256 baseRatePerYear;
@@ -23,16 +23,16 @@ contract ETokenDeployer is DeployConfiguration {
         uint256 vertexRatePerYear;
         uint256 vertexUtilizationStart;
     }
-    struct ETokenParam {
+    struct BorrowableCTokenParam {
         address asset;
         address chainlinkEth;
         address chainlinkUsd;
-        ETokenInterestRateParam interestRateParam;
+        BorrowableCTokenInterestRateParam interestRateParam;
     }
 
-    function _deployEToken(
+    function _deployBorrowableCToken(
         string memory name,
-        ETokenParam memory param
+        BorrowableCTokenParam memory param
     ) internal {
         address centralRegistry = _getDeployedContract("centralRegistry");
         console.log("centralRegistry =", centralRegistry);
@@ -96,9 +96,9 @@ contract ETokenDeployer is DeployConfiguration {
             console.log("oracleManager.addAssetPriceFeed: ", param.asset);
         }
 
-        // Deploy EToken
-        address eToken = _getDeployedContract(name);
-        if (eToken == address(0)) {
+        // Deploy BorrowableCToken
+        address borrowableCToken = _getDeployedContract(name);
+        if (borrowableCToken == address(0)) {
             address interestRateModel = address(
                 new DynamicInterestRateModel(
                     ICentralRegistry(centralRegistry),
@@ -113,7 +113,7 @@ contract ETokenDeployer is DeployConfiguration {
             );
             console.log("interestRateModel: ", interestRateModel);
 
-            eToken = address(
+            borrowableCToken = address(
                 new BorrowableCToken(
                     ICentralRegistry(address(centralRegistry)),
                     IERC20(param.asset),
@@ -122,15 +122,15 @@ contract ETokenDeployer is DeployConfiguration {
                 )
             );
 
-            console.log("eToken: ", eToken);
-            _saveDeployedContracts(name, eToken);
+            console.log("borrowableCToken: ", borrowableCToken);
+            _saveDeployedContracts(name, borrowableCToken);
 
-            if (!OracleManager(oracleManager).isSupportedAsset(eToken)) {
-                OracleManager(oracleManager).addCTokenSupport(eToken);
+            if (!OracleManager(oracleManager).isSupportedAsset(borrowableCToken)) {
+                OracleManager(oracleManager).addCTokenSupport(borrowableCToken);
             }
         }
 
-        // followings should be done separate because it requires dust amount deposits
+        // Should be done separate because it requires dust amount deposits
         // marketManager.listToken;
     }
 }

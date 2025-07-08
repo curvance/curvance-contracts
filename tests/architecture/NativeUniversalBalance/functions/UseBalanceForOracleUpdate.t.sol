@@ -58,14 +58,14 @@ contract UseBalanceForOracleUpdateTest is TestBaseNativeUniversalBalance {
 
         vm.stopPrank();
 
-        uint256 redeemAmount = eWETH.convertToShares(
+        uint256 redeemAmount = borrowableCWETH.convertToShares(
             withdrawAmount > depositAmount2
                 ? withdrawAmount - depositAmount2
                 : 0
         );
         uint256 adaptorWETHBalance = weth.balanceOf(address(chainlinkAdaptor));
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         (uint256 sittingBalance, uint256 lentBalance) = nativeUniversalBalance
@@ -101,8 +101,8 @@ contract UseBalanceForOracleUpdateTest is TestBaseNativeUniversalBalance {
                 )
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance - redeemAmount
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance - redeemAmount
         );
         assertEq(
             weth.balanceOf(address(chainlinkAdaptor)),

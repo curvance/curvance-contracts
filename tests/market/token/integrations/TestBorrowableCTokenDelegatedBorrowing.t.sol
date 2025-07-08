@@ -8,7 +8,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
+contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
     address public owner;
     address public dao;
 
@@ -78,7 +78,7 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
             // support market
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            // add MToken support on oracle manager
+            // Add cToken support on Oracle Manager.
             oracleManager.addCTokenSupport(address(eDAI));
         }
 
@@ -229,11 +229,11 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
         }
     }
 
-    // Deploy ETokenWithGauge
-    function _deployEToken(
+    // Deploy BorrowableCToken
+    function _deployBorrowableCToken(
         address token
     ) internal override initMainVariables returns (BorrowableCToken) {
-        BorrowableCToken eToken = BorrowableCToken(
+        BorrowableCToken borrowableCToken = BorrowableCToken(
             address(
                 new BorrowableCTokenWithGauge(
                     ICentralRegistry(address(centralRegistry)),
@@ -245,9 +245,9 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
         );
 
         interestRateModels[block.chainid][token].setLinkedToken(
-            address(eToken)
+            address(borrowableCToken)
         );
 
-        return eToken;
+        return borrowableCToken;
     }
 }

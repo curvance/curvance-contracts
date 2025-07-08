@@ -53,11 +53,11 @@ contract DepositNativeForTest is TestBaseNativeUniversalBalance {
     }
 
     function test_depositNativeFor_fail_whenTokenIsNotListed() public {
-        eWETH = _deployEToken(_WETH_ADDRESS);
+        borrowableCWETH = _deployBorrowableCToken(_WETH_ADDRESS);
 
         nativeUniversalBalance = new NativeUniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eWETH),
+            address(borrowableCWETH),
             _WETH_ADDRESS
         );
 
@@ -85,10 +85,10 @@ contract DepositNativeForTest is TestBaseNativeUniversalBalance {
 
         deal(user1, amount);
 
-        uint256 receiveAmount = eWETH.convertToShares(amount);
+        uint256 receiveAmount = borrowableCWETH.convertToShares(amount);
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userETHBalance = user1.balance;
@@ -107,8 +107,8 @@ contract DepositNativeForTest is TestBaseNativeUniversalBalance {
         assertEq(address(nativeUniversalBalance).balance, ethBalance);
         assertEq(weth.balanceOf(address(nativeUniversalBalance)), wethBalance);
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance + receiveAmount
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance + receiveAmount
         );
         assertEq(user1.balance, userETHBalance - amount);
     }
@@ -122,7 +122,7 @@ contract DepositNativeForTest is TestBaseNativeUniversalBalance {
 
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userETHBalance = user1.balance;
@@ -144,8 +144,8 @@ contract DepositNativeForTest is TestBaseNativeUniversalBalance {
             wethBalance + amount
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance
         );
         assertEq(user1.balance, userETHBalance - amount);
     }

@@ -5,7 +5,7 @@ import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract SetBorrowPausedTest is TestBaseMarketManagerIsolated {
-    event TokenActionPaused(address mToken, string action, bool pauseState);
+    event TokenActionPaused(address cToken, string action, bool pauseState);
 
     function test_setBorrowPaused_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(1));
@@ -14,7 +14,7 @@ contract SetBorrowPausedTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.setBorrowPaused(address(eUSDC), true);
     }
 
-    function test_setBorrowPaused_fail_whenMTokenIsNotListed() public {
+    function test_setBorrowPaused_fail_whenCTokenIsNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.setBorrowPaused(address(eUSDC), true);
     }

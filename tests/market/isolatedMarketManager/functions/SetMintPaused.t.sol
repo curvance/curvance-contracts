@@ -5,7 +5,7 @@ import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract SetMintPausedTest is TestBaseMarketManagerIsolated {
-    event TokenActionPaused(address mToken, string action, bool pauseState);
+    event TokenActionPaused(address cToken, string action, bool pauseState);
 
     function test_setMintPaused_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(1));
@@ -14,7 +14,7 @@ contract SetMintPausedTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.setMintPaused(address(eUSDC), true);
     }
 
-    function test_setMintPaused_fail_whenMTokenIsNotListed() public {
+    function test_setMintPaused_fail_whenCTokenIsNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.canMint(address(eUSDC));
 

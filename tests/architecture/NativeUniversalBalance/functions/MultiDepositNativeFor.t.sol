@@ -109,11 +109,11 @@ contract MultiDepositNativeForTest is TestBaseNativeUniversalBalance {
     ) public setupVariables(amounts_, willLend_) {
         deal(user1, depositSum);
 
-        eWETH = _deployEToken(_WETH_ADDRESS);
+        borrowableCWETH = _deployBorrowableCToken(_WETH_ADDRESS);
 
         nativeUniversalBalance = new NativeUniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eWETH),
+            address(borrowableCWETH),
             _WETH_ADDRESS
         );
 
@@ -182,11 +182,11 @@ contract MultiDepositNativeForTest is TestBaseNativeUniversalBalance {
         uint256[] memory receiveAmounts = new uint256[](3);
 
         for (uint256 i; i < 3; i++) {
-            receiveAmounts[i] = eWETH.convertToShares(amounts[i]);
+            receiveAmounts[i] = borrowableCWETH.convertToShares(amounts[i]);
         }
 
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userETHBalance = user1.balance;
@@ -226,8 +226,8 @@ contract MultiDepositNativeForTest is TestBaseNativeUniversalBalance {
             wethBalance + sittingAmount
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance + lentAmount
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance + lentAmount
         );
         assertEq(user1.balance, userETHBalance - depositSum);
     }

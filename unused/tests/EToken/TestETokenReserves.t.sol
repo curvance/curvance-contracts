@@ -77,7 +77,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
             // support market
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            // add MToken support on oracle manager
+            // add CToken support on oracle manager
             oracleManager.addCTokenSupport(address(eDAI));
         }
 
@@ -312,8 +312,8 @@ contract TestETokenReserves is TestBaseMarketIsolated {
         }
     }
 
-    // Deploy ETokenWithGauge
-    function _deployEToken(
+    // Deploy BorrowableCToken
+    function _deployBorrowableCToken(
         address token
     ) internal override initMainVariables returns (BorrowableCToken) {
         BorrowableCToken eToken = BorrowableCToken(

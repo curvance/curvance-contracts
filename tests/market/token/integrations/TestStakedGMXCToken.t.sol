@@ -15,7 +15,7 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
-contract TestStakedGMXPToken is TestBaseMarketIsolated {
+contract TestStakedGMXCToken is TestBaseMarketIsolated {
     address internal _GMX_REWARD_ROUTER =
         0x159854e14A862Df9E39E1D128b8e5F70B4A3cE9B;
     address internal _GMX_FEE_GMX_TRACKER =

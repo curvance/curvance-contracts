@@ -13,7 +13,7 @@ contract TestBaseUniversalBalance is TestBaseMarketIsolated {
 
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eUSDC)
+            address(borrowableCUSDC)
         );
 
         _prepareUSDC(address(this), 1000e6);
@@ -21,11 +21,11 @@ contract TestBaseUniversalBalance is TestBaseMarketIsolated {
 
         _prepareBALRETH(address(this), 1000e18);
 
-        usdc.approve(address(eUSDC), 1000e6);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
         balRETH.approve(address(pBALRETH), 1000e18);
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
-        eUSDC.deposit(1000e6, address(this));
+        borrowableCUSDC.deposit(1000e6, address(this));
 
         vm.prank(user1);
         usdc.approve(address(universalBalance), type(uint256).max);

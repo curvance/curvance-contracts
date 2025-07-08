@@ -17,7 +17,7 @@ contract NotifyBorrowTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
     }
 
-    function test_notifyBorrow_fail_whenCallerIsNotMToken() public {
+    function test_notifyBorrow_fail_whenCallerIsNotCToken() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManagerIsolated.notifyBorrow(address(eUSDC), user1);
     }

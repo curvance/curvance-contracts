@@ -22,7 +22,8 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 ///      1. Asset Management:
 ///         - Front-facing contract for users to deposit and withdraw tokens (e.g., USDC)
 ///         - Maintains two balance types per user: sitting (held) and lent (deployed)
-///         - Token-specific implementation linked to corresponding EToken contract
+///         - Token-specific implementation linked to corresponding
+///           BorrowableCToken contract.
 ///      
 ///      2. Position Flexibility:
 ///         - Users can freely shift balances between sitting and lent states
@@ -36,7 +37,8 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 ///      
 ///      Implementation uses a non-custodial design where users maintain full control
 ///      of their assets while benefiting from integrated position management.
-///      Lent balances are represented as shares/tokens of the underlying EToken.
+///      Lent balances are represented as shares/tokens of the underlying
+///      BorrowableCToken.
 ///
 contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// TYPES ///

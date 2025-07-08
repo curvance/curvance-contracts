@@ -11,7 +11,7 @@ import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestPendleLPPToken is TestBaseMarketIsolated {
+contract TestPendleLPCToken is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
     IPendleRouter internal _ROUTER =
@@ -27,11 +27,6 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
     receive() external payable {}
 
     fallback() external payable {}
-
-    // this is to use address(this) as mock pToken address
-    function tokenType() external pure returns (uint256) {
-        return 1;
-    }
 
     function setUp() public override {
         _fork(20287400);

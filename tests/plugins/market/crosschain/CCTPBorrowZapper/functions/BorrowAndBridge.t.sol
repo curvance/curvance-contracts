@@ -81,7 +81,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
             _prepareDAI(address(this), 200000e18);
             dai.approve(address(eDAI), 200000e18);
 
-            // add MToken support on oracle manager
+            // Add cToken support on Oracle Manager.
             oracleManager.addCTokenSupport(address(eDAI));
         }
 

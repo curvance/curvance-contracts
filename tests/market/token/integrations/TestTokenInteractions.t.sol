@@ -73,7 +73,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         {
             _prepareDAI(owner, 200_000e18);
             dai.approve(address(eDAI), 200_000e18);
-            // add MToken support on oracle manager
+            // Add cToken support on Oracle Manager.
             oracleManager.addCTokenSupport(address(eDAI));
         }
 
@@ -126,7 +126,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testPTokenMintRedeem() public {
+    function testCTokenMintRedeem() public {
         _prepareBALRETH(user1, 2e18);
 
         // try mint()
@@ -237,7 +237,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertGt(eDAI.exchangeRate(), exchangeRateBefore);
     }
 
-    function testPTokenRedeemOnBorrow() public {
+    function testCTokenRedeemOnBorrow() public {
         _prepareBALRETH(user1, _ONE);
 
         // try mint()
@@ -303,7 +303,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertGt(eDAI.exchangeRate(), _ONE);
     }
 
-    function testPTokenTransferOnBorrow() public {
+    function testCTokenTransferOnBorrow() public {
         _prepareBALRETH(user1, _ONE);
 
         // try mint()

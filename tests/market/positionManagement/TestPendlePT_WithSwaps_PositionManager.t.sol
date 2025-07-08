@@ -119,7 +119,7 @@
 //             // support market
 //             _preparePT(owner, 1 ether);
 //             pendlePT.approve(address(pPendlePT), 1 ether);
-//             // add MToken support on oracle manager
+//             // Add cToken support on Oracle Manager.
 //             oracleManager.addCTokenSupport(address(pPendlePT));
 
 //         }

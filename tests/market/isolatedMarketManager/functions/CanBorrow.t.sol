@@ -35,7 +35,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.canBorrow(address(eUSDC), user1, 100e6, 100e6);
     }
 
-    function test_canBorrow_fail_whenMTokenIsNotListed() public {
+    function test_canBorrow_fail_whenCTokenIsNotListed() public {
         // marketManager.listToken(address(eDAI));
 
         vm.prank(address(eDAI));
@@ -45,7 +45,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.canBorrow(address(eUSDC), user1, 100e6, 100e6);
     }
 
-    function test_canBorrow_fail_whenCallerIsNotMTokenAndBorrowerNotInMarket()
+    function test_canBorrow_fail_whenCallerIsNotCTokenAndBorrowerNotInMarket()
         public
     {
         // marketManager.listToken(address(eDAI));
