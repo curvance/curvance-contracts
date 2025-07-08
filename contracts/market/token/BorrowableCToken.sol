@@ -706,7 +706,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         uint256 vestingRate = uint96(vestingData);
         uint256 vestingPeriodEnd = uint40(vestingData >> _BITPOS_LAST_VEST);
-        uint256 marketDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
+        uint256 marketDebtIndex = uint80(vestingData >> _BITPOS_DEBT_INDEX);
         uint256 outstandingDebt = marketOutstandingDebt;
         uint256 cachedTa = _totalAssets;
         uint256 pendingYieldToVest = _getPendingYield(
@@ -828,6 +828,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 )  
             )
         }
+
+        // Set the new vesting data.
+        _vestingData = vestingData;
     }
 
     /// @notice Updates the interest rate model.
