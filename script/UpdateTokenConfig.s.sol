@@ -6,7 +6,7 @@ import "forge-std/Script.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 
-contract UpdatePTokenConfig is Script, DeployConfiguration {
+contract UpdateTokenConfig is Script, DeployConfiguration {
     using stdJson for string;
 
     function run(string memory name) external {
@@ -28,8 +28,8 @@ contract UpdatePTokenConfig is Script, DeployConfiguration {
         vm.startBroadcast(deployerPrivateKey);
 
         _updateConfig(
-            string.concat("P-", name),
-            string.concat(".markets.pTokens.", name)
+            string.concat("c", name),
+            string.concat(".markets.cTokens.", name)
         );
 
         vm.stopBroadcast();
@@ -43,12 +43,12 @@ contract UpdatePTokenConfig is Script, DeployConfiguration {
         console.log("marketManager =", marketManager);
         require(marketManager != address(0), "Set the marketManager!");
 
-        address pToken = _getDeployedContract(deploymentName);
-        console.log("pToken =", pToken);
-        require(pToken != address(0), "Set the pToken!");
+        address cToken = _getDeployedContract(deploymentName);
+        console.log("cToken =", cToken);
+        require(cToken != address(0), "Set the cToken!");
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = pToken;
+        tokenConfig.cToken = cToken;
         tokenConfig.collRatio = _readConfigUint256(string.concat(pathName, ".collRatio"));
         tokenConfig.collReqSoft = _readConfigUint256(string.concat(pathName, ".collReqSoft"));
         tokenConfig.collReqHard = _readConfigUint256(string.concat(pathName, ".collReqHard"));

@@ -15,7 +15,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import { DeployConfiguration } from "../../utils/DeployConfiguration.sol";
 
-contract PendlePTDeployer is DeployConfiguration {
+contract PendlePTCTokenDeployer is DeployConfiguration {
     struct PendlePtUnderlyingParam {
         address asset;
         address chainlinkEth;
@@ -171,7 +171,7 @@ contract PendlePTDeployer is DeployConfiguration {
             }
         }
 
-        // Deploy PToken
+        // Deploy SimpleCToken for a Pendle PT underlying.
         address pToken = _getDeployedContract(name);
         if (pToken == address(0)) {
             pToken = address(

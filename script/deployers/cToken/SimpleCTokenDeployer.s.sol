@@ -19,7 +19,7 @@ contract PTokenDeployer is DeployConfiguration {
         address chainlinkUsd;
     }
 
-    function _deployPToken(
+    function _deploySimpleCToken(
         string memory name,
         PTokenParam memory param
     ) internal {
