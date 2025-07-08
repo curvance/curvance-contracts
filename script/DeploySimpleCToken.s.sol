@@ -4,9 +4,9 @@ pragma solidity ^0.8.19;
 import "forge-std/Script.sol";
 
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
-import { PTokenDeployer } from "./deployers/pToken/PTokenDeployer.s.sol";
+import { SimpleCTokenDeployer } from "./deployers/cToken/SimpleCTokenDeployer.s.sol";
 
-contract DeploySimplePToken is Script, DeployConfiguration, PTokenDeployer {
+contract DeploySimpleCToken is Script, DeployConfiguration, SimpleCTokenDeployer {
     using stdJson for string;
 
     function run(string memory name) external {
@@ -30,12 +30,12 @@ contract DeploySimplePToken is Script, DeployConfiguration, PTokenDeployer {
         vm.startBroadcast(deployerPrivateKey);
 
         _deploySimpleCToken(
-            string.concat("P-", name),
+            string.concat("c", name),
             abi.decode(
                 configurationJson.parseRaw(
-                    string.concat(".markets.pTokens.", name)
+                    string.concat(".markets.cTokens.", name)
                 ),
-                (PTokenDeployer.PTokenParam)
+                (SimpleCTokenDeployer.CTokenParam)
             )
         );
 

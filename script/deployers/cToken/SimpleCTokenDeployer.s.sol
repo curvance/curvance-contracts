@@ -12,8 +12,8 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import { DeployConfiguration } from "../../utils/DeployConfiguration.sol";
 
-contract PTokenDeployer is DeployConfiguration {
-    struct PTokenParam {
+contract SimpleCTokenDeployer is DeployConfiguration {
+    struct CTokenParam {
         address asset;
         address chainlinkEth;
         address chainlinkUsd;
@@ -21,7 +21,7 @@ contract PTokenDeployer is DeployConfiguration {
 
     function _deploySimpleCToken(
         string memory name,
-        PTokenParam memory param
+        CTokenParam memory param
     ) internal {
         address centralRegistry = _getDeployedContract("centralRegistry");
         console.log("centralRegistry =", centralRegistry);
@@ -89,10 +89,10 @@ contract PTokenDeployer is DeployConfiguration {
             console.log("oracleManager.addAssetPriceFeed: ", param.asset);
         }
 
-        // Deploy PToken
-        address pToken = _getDeployedContract(name);
-        if (pToken == address(0)) {
-            pToken = address(
+        // Deploy cToken
+        address cToken = _getDeployedContract(name);
+        if (cToken == address(0)) {
+            cToken = address(
                 new SimpleCToken(
                     ICentralRegistry(address(centralRegistry)),
                     IERC20(param.asset),
@@ -100,11 +100,11 @@ contract PTokenDeployer is DeployConfiguration {
                 )
             );
 
-            console.log("pToken: ", pToken);
-            _saveDeployedContracts(name, pToken);
+            console.log("cToken: ", cToken);
+            _saveDeployedContracts(name, cToken);
 
-            if (!OracleManager(oracleManager).isSupportedAsset(pToken)) {
-                OracleManager(oracleManager).addCTokenSupport(pToken);
+            if (!OracleManager(oracleManager).isSupportedAsset(cToken)) {
+                OracleManager(oracleManager).addCTokenSupport(cToken);
             }
         }
 

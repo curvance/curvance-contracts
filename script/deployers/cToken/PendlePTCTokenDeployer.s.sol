@@ -172,9 +172,9 @@ contract PendlePTCTokenDeployer is DeployConfiguration {
         }
 
         // Deploy SimpleCToken for a Pendle PT underlying.
-        address pToken = _getDeployedContract(name);
-        if (pToken == address(0)) {
-            pToken = address(
+        address cToken = _getDeployedContract(name);
+        if (cToken == address(0)) {
+            cToken = address(
                 new SimpleCToken(
                     ICentralRegistry(address(centralRegistry)),
                     IERC20(param.asset),
@@ -182,11 +182,11 @@ contract PendlePTCTokenDeployer is DeployConfiguration {
                 )
             );
 
-            console.log("pToken: ", pToken);
-            _saveDeployedContracts(name, pToken);
+            console.log("cToken: ", cToken);
+            _saveDeployedContracts(name, cToken);
 
-            if (!OracleManager(oracleManager).isSupportedAsset(pToken)) {
-                OracleManager(oracleManager).addCTokenSupport(pToken);
+            if (!OracleManager(oracleManager).isSupportedAsset(cToken)) {
+                OracleManager(oracleManager).addCTokenSupport(cToken);
             }
         }
 
