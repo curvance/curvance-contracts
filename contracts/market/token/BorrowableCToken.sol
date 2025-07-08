@@ -784,7 +784,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // Convert assets to shares and mint to protocol address. This
             // ensures that user share value is identical to before hand,
             // excluding `pendingYieldToVest`.
-            protocolFees = convertToShares(protocolFees);
+            protocolFees = _convertToShares(protocolFees, _getTotalAssets());
             // Cache the current dao address then mint shares to the dao.
             address daoAddress = centralRegistry.daoAddress();
             _mint(daoAddress, protocolFees);
