@@ -699,12 +699,12 @@ contract BorrowableCToken is BaseCTokenWithYield {
     function _accrueIfNeeded() internal override {
         uint256 vestingData = _vestingData;
         uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_VEST_END);
-        // If no time has passed since the last accrual can exit.
+        // If no time has passed since the last accrual can exit immediately.
         if (block.timestamp == lastVestingClaim) {
             return;
         }
 
-        uint256 vestingRate = uint176(vestingData);
+        uint256 vestingRate = uint96(vestingData);
         uint256 vestingPeriodEnd = uint40(vestingData >> _BITPOS_LAST_VEST);
         uint256 marketDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
         uint256 outstandingDebt = marketOutstandingDebt;
@@ -734,7 +734,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             accrualPeriod = ((block.timestamp - lastVestingClaim) /
                 accrualPeriod) * accrualPeriod;
             vestingPeriodEnd = lastVestingClaim + accrualPeriod;
-            // Calculate the borrow rate to new the new interest vesting rate per second.
+            // Calculate the new in interest rate for borrowers, in seconds.
             vestingRate = interestRateModel.getBorrowRateWithUpdate(
                 assetsHeld(),
                 outstandingDebt
@@ -759,11 +759,14 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 // the protocol is not overpaid. The discount asset amount can
                 // be calculated with:
                 // assets * (current assets / current assets + future assets)
+                // `vestingRate` is in WAD which means we need to divide the
+                // output by WAD to get protocolFees in `assets`.
                 protocolFees = FixedPointMathLib.mulDiv(
                     protocolFees * accrualPeriod * outstandingDebt,
                     cachedTa,
-                    cachedTa + (pendingYieldToVest + 
-                        (vestingRate * accrualPeriod / WAD)) * outstandingDebt
+                    (cachedTa + (pendingYieldToVest + 
+                        (vestingRate * accrualPeriod / WAD)) * outstandingDebt)
+                            * WAD
                 );
             }
 
@@ -809,8 +812,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _totalAssets = cachedTa;
 
         assembly {
-            // Mask vestingRate to the lower 176 bits,
-            // in case the upper bits somehow aren't clean.
+            // Mask vestingRate to the lower 96 bits, in case
+            // the upper bits somehow aren't clean.
             vestingRate := and(vestingRate, _BITMASK_VESTING_RATE)
             // Equals vestingRate | (vestingPeriodEnd << _BITPOS_VEST_END) |
             //        block.timestamp << _BITPOS_LAST_VEST | marketDebtIndex.
