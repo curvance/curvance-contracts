@@ -870,14 +870,14 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Make sure the debt cap can not cause variable overflow.
-        if (config.debtCap > _MAX_DEBT_CAP) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
         // Do not let people borrow assets if they are not intended to be.
-        if (config.debtCap > 0 && !ICToken(config.cToken).isBorrowable()) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+        if (config.debtCap > 0) {
+            if (
+                config.debtCap > _MAX_DEBT_CAP ||
+                !ICToken(config.cToken).isBorrowable()
+                ) {
+                    _revert(_INVALID_PARAMETER_SELECTOR);
+            }
         }
 
         CurvanceToken storage curvanceToken = tokenData[config.cToken];
