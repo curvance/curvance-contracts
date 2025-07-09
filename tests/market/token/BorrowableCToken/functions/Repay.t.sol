@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseEToken } from "../TestBaseEToken.sol";
+import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 
-contract ETokenRepayTest is TestBaseEToken {
+contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
     event Repay(address payer, address borrower, uint256 repayAmount);
 
     function setUp() public override {
@@ -28,14 +28,14 @@ contract ETokenRepayTest is TestBaseEToken {
         skip(20 minutes);
     }
 
-    function test_eTokenRepay_fail_whenRepayIsNotAllowed() public {
+    function test_borrowableCTokenRepay_fail_whenRepayIsNotAllowed() public {
         rewind(1);
 
         vm.expectRevert();
         borrowableCUSDC.repay(100e6);
     }
 
-    function test_eTokenRepay_fail_whenBorrowAmountExceedsCash() public {
+    function test_borrowableCTokenRepay_fail_whenBorrowAmountExceedsCash() public {
         borrowableCUSDC.accrueIfNeeded();
 
         uint256 debtBalance = borrowableCUSDC.debtBalance(address(this));
@@ -44,7 +44,7 @@ contract ETokenRepayTest is TestBaseEToken {
         borrowableCUSDC.repay(debtBalance + 1);
     }
 
-    function test_eTokenRepay_success() public {
+    function test_borrowableCTokenRepay_success() public {
         borrowableCUSDC.accrueIfNeeded();
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
@@ -63,7 +63,7 @@ contract ETokenRepayTest is TestBaseEToken {
         assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrows - 100e6);
     }
 
-    function test_eTokenRepay_success_whenRepayAll() public {
+    function test_borrowableCTokenRepay_success_whenRepayAll() public {
         borrowableCUSDC.accrueIfNeeded();
 
         uint256 debtBalance = borrowableCUSDC.debtBalance(address(this));

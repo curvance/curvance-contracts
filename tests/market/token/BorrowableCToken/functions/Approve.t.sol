@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseEToken } from "../TestBaseEToken.sol";
+import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 
-contract ETokenApproveTest is TestBaseEToken {
+contract BorrowableCTokenApproveTest is TestBaseBorrowableCToken {
     event Approval(
         address indexed owner,
         address indexed spender,
         uint256 amount
     );
 
-    function test_eTokenApprove_success() public {
+    function test_borrowableCTokenApprove_success() public {
         uint256 allowance = borrowableCUSDC.allowance(address(this), user1);
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));

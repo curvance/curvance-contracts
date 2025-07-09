@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseEToken } from "../TestBaseEToken.sol";
+import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-contract ETokenRescueTokenTest is TestBaseEToken {
+contract BorrowableCTokenRescueTokenTest is TestBaseBorrowableCToken {
     function setUp() public override {
         super.setUp();
 
@@ -14,26 +14,26 @@ contract ETokenRescueTokenTest is TestBaseEToken {
         _prepareDAI(address(borrowableCUSDC), _ONE);
     }
 
-    function test_eTokenRescueToken_fail_whenCallerIsNotAuthorized() public {
+    function test_borrowableCTokenRescueToken_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(1));
 
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
         borrowableCUSDC.rescueToken(_USDC_ADDRESS, 100);
     }
 
-    function test_eTokenRescueToken_fail_whenETHAmountExceedsBalance() public {
+    function test_borrowableCTokenRescueToken_fail_whenETHAmountExceedsBalance() public {
         uint256 balance = address(borrowableCUSDC).balance;
 
         vm.expectRevert(SafeTransferLib.ETHTransferFailed.selector);
         borrowableCUSDC.rescueToken(address(0), balance + 1);
     }
 
-    function test_eTokenRescueToken_fail_whenTokenIsUnderlyingToken() public {
+    function test_borrowableCTokenRescueToken_fail_whenTokenIsUnderlyingToken() public {
         vm.expectRevert(BaseCToken.BaseCToken__TransferError.selector);
         borrowableCUSDC.rescueToken(_USDC_ADDRESS, 100);
     }
 
-    function test_eTokenRescueToken_fail_whenTokenAmountExceedsBalance()
+    function test_borrowableCTokenRescueToken_fail_whenTokenAmountExceedsBalance()
         public
     {
         uint256 balance = dai.balanceOf(address(borrowableCUSDC));
@@ -42,7 +42,7 @@ contract ETokenRescueTokenTest is TestBaseEToken {
         borrowableCUSDC.rescueToken(_DAI_ADDRESS, balance + 1);
     }
 
-    function test_eTokenRescueToken_success() public {
+    function test_borrowableCTokenRescueToken_success() public {
         address daoOperator = centralRegistry.daoAddress();
 
         uint256 ethBalance = address(borrowableCUSDC).balance;

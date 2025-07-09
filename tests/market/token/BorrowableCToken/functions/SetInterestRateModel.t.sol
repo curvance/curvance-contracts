@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseEToken } from "../TestBaseEToken.sol";
+import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
-contract SetInterestRateModelTest is TestBaseEToken {
+contract SetInterestRateModelTest is TestBaseBorrowableCToken {
     DynamicInterestRateModel public newDynamicInterestRateModel;
 
     function setUp() public override {

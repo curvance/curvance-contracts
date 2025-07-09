@@ -808,9 +808,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
             cachedTa = cachedTa + pendingYieldToVest;
         }
 
-        // Update _totalAssets based on new assets recognized by protocol.
-        _totalAssets = cachedTa;
-
         assembly {
             // Mask vestingRate to the lower 96 bits, in case
             // the upper bits somehow aren't clean.
@@ -829,7 +826,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
             )
         }
 
-        // Set the new vesting data.
+        // Update _totalAssets based on new assets recognized by protocol.
+        _totalAssets = cachedTa;
+        // Update packed vesting data based on new vesting configuration.
         _vestingData = vestingData;
     }
 

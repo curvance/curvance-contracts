@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseEToken } from "../TestBaseEToken.sol";
+import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
-contract ETokenStartMarketTest is TestBaseEToken {
-    function test_eTokenStartMarket_fail_whenCallerIsNotMarketManager()
+contract BorrowableCTokenStartMarketTest is TestBaseBorrowableCToken {
+    function test_borrowableCTokenStartMarket_fail_whenCallerIsNotMarketManager()
         public
     {
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
         borrowableCUSDC.startMarket(address(0));
     }
 
-    function test_eTokenStartMarket_fail_whenInterestRateModelLinkedToWrongToken()
+    function test_borrowableCTokenStartMarket_fail_whenInterestRateModelLinkedToWrongToken()
         public
     {
         borrowableCUSDC.setInterestRateModel(
@@ -27,7 +27,7 @@ contract ETokenStartMarketTest is TestBaseEToken {
         borrowableCUSDC.startMarket(user1);
     }
 
-    function test_eTokenStartMarket_fail_whenInitializerIsZeroAddress()
+    function test_borrowableCTokenStartMarket_fail_whenInitializerIsZeroAddress()
         public
     {
         vm.prank(address(marketManagerIsolated));
@@ -36,7 +36,7 @@ contract ETokenStartMarketTest is TestBaseEToken {
         borrowableCUSDC.startMarket(address(0));
     }
 
-    function test_eTokenStartMarket_success() public {
+    function test_borrowableCTokenStartMarket_success() public {
         _prepareUSDC(address(user1), 1000e6);
 
         vm.startPrank(user1);

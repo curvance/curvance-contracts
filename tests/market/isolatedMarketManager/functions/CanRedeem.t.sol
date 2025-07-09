@@ -52,7 +52,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.canRedeem(address(borrowableCUSDC), user1, 100e6);
     }
 
-    function test_canRedeem_fail_whenPTokenInsufficientLiquidity() public {
+    function test_canRedeem_fail_whenCInsufficientLiquidity() public {
         skip(gaugeManager.gaugeStartTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);

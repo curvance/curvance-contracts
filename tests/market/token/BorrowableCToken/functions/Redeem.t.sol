@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseEToken } from "../TestBaseEToken.sol";
+import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
-contract ETokenRedeemTest is TestBaseEToken {
+contract BorrowableCTokenRedeemTest is TestBaseBorrowableCToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    function test_eTokenRedeem_fail_whenNoEnoughToRedeem() public {
+    function test_borrowableCTokenRedeem_fail_whenNoEnoughToRedeem() public {
         vm.prank(address(1));
 
         vm.expectRevert();
         borrowableCUSDC.redeem(100e6, address(this), address(1));
     }
 
-    function test_eTokenRedeem_fail_whenAmountIsZero() public {
+    function test_borrowableCTokenRedeem_fail_whenAmountIsZero() public {
         borrowableCUSDC.mint(100e6, address(this));
 
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
         borrowableCUSDC.redeem(0, address(this), address(this));
     }
 
-    function test_eTokenRedeem_success() public {
+    function test_borrowableCTokenRedeem_success() public {
         borrowableCUSDC.mint(100e6, address(this));
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
@@ -39,7 +39,7 @@ contract ETokenRedeemTest is TestBaseEToken {
         assertEq(borrowableCUSDC.totalSupply(), totalSupply - 100e6);
     }
 
-    function test_eTokenRedeemFor_success() public {
+    function test_borrowableCTokenRedeemFor_success() public {
         borrowableCUSDC.mint(100e6, address(this));
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));

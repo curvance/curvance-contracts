@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "forge-std/StdStorage.sol";
-import { TestBaseEToken } from "../TestBaseEToken.sol";
+import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -10,7 +10,7 @@ import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
-contract ETokenDeploymentTest is TestBaseEToken {
+contract BorrowableCTokenDeploymentTest is TestBaseBorrowableCToken {
     using stdStorage for StdStorage;
 
     event NewInterestFactor(
@@ -25,7 +25,7 @@ contract ETokenDeploymentTest is TestBaseEToken {
         interestRateModel = interestRateModels[block.chainid][_USDC_ADDRESS];
     }
 
-    function test_eTokenDeployment_fail_whenCentralRegistryIsInvalid() public {
+    function test_borrowableCTokenDeployment_fail_whenCentralRegistryIsInvalid() public {
         vm.expectRevert(
             PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
         );
@@ -37,7 +37,7 @@ contract ETokenDeploymentTest is TestBaseEToken {
         );
     }
 
-    function test_eTokenDeployment_fail_whenMarketManagerIsNotSet() public {
+    function test_borrowableCTokenDeployment_fail_whenMarketManagerIsNotSet() public {
         vm.expectRevert(
             BaseCToken.BaseCToken__InvalidMarketManager.selector
         );
@@ -49,7 +49,7 @@ contract ETokenDeploymentTest is TestBaseEToken {
         );
     }
 
-    function test_eTokenDeployment_fail_whenInterestRateModelIsInvalid()
+    function test_borrowableCTokenDeployment_fail_whenInterestRateModelIsInvalid()
         public
     {
         vm.expectRevert();
@@ -61,7 +61,7 @@ contract ETokenDeploymentTest is TestBaseEToken {
         );
     }
 
-    function test_eTokenDeployment_fail_whenUnderlyingTotalSupplyExceedsMaximum()
+    function test_borrowableCTokenDeployment_fail_whenUnderlyingTotalSupplyExceedsMaximum()
         public
     {
         stdstore
@@ -79,7 +79,7 @@ contract ETokenDeploymentTest is TestBaseEToken {
         );
     }
 
-    function test_eTokenDeployment_success() public {
+    function test_borrowableCTokenDeployment_success() public {
         vm.expectEmit(true, true, true, true);
         uint256 newInterestFactor = centralRegistry.protocolInterestFee(
             address(marketManagerIsolated)

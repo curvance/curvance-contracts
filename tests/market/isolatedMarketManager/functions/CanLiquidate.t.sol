@@ -42,7 +42,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             liqInstructions);
     }
 
-    function test_canLiquidate_fail_whenPTokenNotListed() public {
+    function test_canLiquidate_fail_whenCTokenNotListed() public {
         // marketManager.listToken(address(borrowableCUSDC));
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             collateralToken: address(borrowableCUSDC),
@@ -278,13 +278,13 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         console2.log("debtAmounts", debtAmountsReturned[0]);
 
         uint256 collateralAvailable = 1e18 - 1;
-        (uint256 expectedRepayAmount, uint256 expectedCollateralSeized, uint256 pTokenPrice) = _calculateExpectedRepayAndLiquidated(collateralAvailable);
+        (uint256 expectedRepayAmount, uint256 expectedCollateralSeized, uint256 cTokenPrice) = _calculateExpectedRepayAndLiquidated(collateralAvailable);
 
         uint256 expectedBadDebt = _calculateBadDebt(
             expectedRepayAmount,
             collateralAvailable,
             expectedCollateralSeized,
-            pTokenPrice
+            cTokenPrice
         );
 
         // validate liqResults.liquidatedAmounts[0]
@@ -341,7 +341,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         assertEq(usdc.balanceOf(user1), 1000e6);
     }
 
-    function _calculateExpectedRepayAndLiquidated(uint256 collateralAvailable) internal view returns (uint256 maxAmount, uint256 liquidatedPTokens, uint256) {
+    function _calculateExpectedRepayAndLiquidated(uint256 collateralAvailable) internal view returns (uint256 maxAmount, uint256 liquidatedCTokens, uint256) {
         // Get price data
         PriceReturnData memory priceData = balRETHAdapter.getPrice(
             _BAL_WETH_RETH_ADDRESS,
@@ -363,7 +363,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         uint256 auctionLiqIncentive = liqBaseIncentive +
                 ((liqCurve * lFactor) / WAD);
 
-        // uint256 pTokenDecimals = 1e18;
+        // uint256 cTokenDecimals = 1e18;
         // uint256 eTokenDecimals = 1e6;
 
         uint256 debtToCollateralMultiplier = 
@@ -373,34 +373,34 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
 
         maxAmount = (auctionCFactor * 1000e6) / WAD;
 
-        liquidatedPTokens = (maxAmount * debtToCollateralMultiplier) / WAD;
+        liquidatedCTokens = (maxAmount * debtToCollateralMultiplier) / WAD;
 
-        console2.log("liquidatedPTokens 000", liquidatedPTokens);
+        console2.log("liquidatedCTokens 000", liquidatedCTokens);
 
         maxAmount = FixedPointMathLib.mulDivUp(
             maxAmount,
             collateralAvailable,
-            liquidatedPTokens
+            liquidatedCTokens
         );
 
-        liquidatedPTokens = collateralAvailable;
+        liquidatedCTokens = collateralAvailable;
 
 
-        return (maxAmount, liquidatedPTokens, priceData.price);
+        return (maxAmount, liquidatedCTokens, priceData.price);
     }
 
     function _calculateBadDebt(
         uint256 debtAmount,
         uint256 collateralAvailable, 
-        uint256 liquidatedPTokens, 
-        uint256 pTokenUnderlyingPrice) internal view returns (uint256 badDebt) {
+        uint256 liquidatedCTokens, 
+        uint256 cTokenUnderlyingPrice) internal view returns (uint256 badDebt) {
 
             uint256 debtBalance = 1e9;
 
             badDebt = (debtBalance - debtAmount) -
             FixedPointMathLib.mulDivUp(
-                ((collateralAvailable - liquidatedPTokens) * 1e18) / WAD,
-                pTokenUnderlyingPrice,
+                ((collateralAvailable - liquidatedCTokens) * 1e18) / WAD,
+                cTokenUnderlyingPrice,
                 (eTokenUnderlyingPrice * WAD) / 1e6
             );
     }

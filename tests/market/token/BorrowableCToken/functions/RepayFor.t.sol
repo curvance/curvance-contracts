@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseEToken } from "../TestBaseEToken.sol";
+import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 
-contract ETokenRepayForTest is TestBaseEToken {
+contract BorrowableCTokenRepayForTest is TestBaseBorrowableCToken {
     event Repay(address payer, address borrower, uint256 repayAmount);
 
     function setUp() public override {
@@ -29,7 +29,7 @@ contract ETokenRepayForTest is TestBaseEToken {
     }
 
 
-    function test_eTokenRepayFor_success() public {
+    function test_borrowableCTokenRepayFor_success() public {
 
         borrowableCUSDC.accrueIfNeeded();
 

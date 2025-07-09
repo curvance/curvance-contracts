@@ -42,15 +42,15 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
+//         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
-//         MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfPositionTokens
 //         );
 //         MockV3Aggregator[]
-//             memory pTokensUnderlyingAgg = new MockV3Aggregator[](
+//             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfPositionTokens
 //             );
 //         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
@@ -58,20 +58,20 @@
 //         );
 
 //         (
-//             pTokens,
-//             pTokensAgg,
-//             pTokensUnderlyingAgg
+//             cTokens,
+//             cTokensAgg,
+//             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfPositionTokens, 0);
 //         (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
 
-//         _genCollateral(users[0], pTokens[0], 100e18);
-//         _postCollateral(users[0], pTokens[0], 100e18);
+//         _genCollateral(users[0], cTokens[0], 100e18);
+//         _postCollateral(users[0], cTokens[0], 100e18);
 
-//         _genCollateral(users[1], pTokens[1], 100e18);
-//         _postCollateral(users[1], pTokens[1], 100e18);
+//         _genCollateral(users[1], cTokens[1], 100e18);
+//         _postCollateral(users[1], cTokens[1], 100e18);
 
-//         _genCollateral(users[2], pTokens[1], 100e18);
-//         _postCollateral(users[2], pTokens[1], 100e18);
+//         _genCollateral(users[2], cTokens[1], 100e18);
+//         _postCollateral(users[2], cTokens[1], 100e18);
 
 //         _supplyEToken(users[2], eTokens[0], 300e18);
 
@@ -81,7 +81,7 @@
 
 //         for (uint256 i = 0; i < noOfPositionTokens; i++) {
 //             skip(20 minutes);
-//             _updateRoundData(pTokensAgg[i], 0, 1e7);
+//             _updateRoundData(cTokensAgg[i], 0, 1e7);
 //         }
 
 //         vm.expectRevert(
@@ -89,13 +89,13 @@
 //         );
 //         marketManagerIsolated.hypotheticalLiquidityOf(
 //             users[0],
-//             address(pTokens[0]),
+//             address(cTokens[0]),
 //             0,
 //             1
 //         );
 
 //         (uint256 liquidity, uint256 debt, ) = marketManagerIsolated
-//             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
+//             .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
 
 //         assertEq(liquidity, 0);
 //         assertGt(debt, 0);
@@ -110,15 +110,15 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
+//         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
-//         MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfPositionTokens
 //         );
 //         MockV3Aggregator[]
-//             memory pTokensUnderlyingAgg = new MockV3Aggregator[](
+//             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfPositionTokens
 //             );
 //         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
@@ -126,19 +126,19 @@
 //         );
 
 //         (
-//             pTokens,
-//             pTokensAgg,
-//             pTokensUnderlyingAgg
+//             cTokens,
+//             cTokensAgg,
+//             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfPositionTokens, 0);
 //         (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
 
-//         _genCollateral(users[0], pTokens[0], 1 ether);
+//         _genCollateral(users[0], cTokens[0], 1 ether);
 
 //         vm.expectRevert(
 //             MarketManagerIsolated.MarketManager__InvalidParameter.selector
 //         );
 //         vm.prank(users[0]);
-//         pTokens[0].postCollateral(
+//         cTokens[0].postCollateral(
 //             0
 //         );
 
@@ -146,12 +146,12 @@
 //             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
 //         );
 //         vm.prank(users[0]);
-//         pTokens[0].postCollateral(
+//         cTokens[0].postCollateral(
 //             2 ether
 //         );
 
 //         vm.prank(users[0]);
-//         pTokens[0].postCollateral(
+//         cTokens[0].postCollateral(
 //             1 ether
 //         );
 //     }
@@ -165,15 +165,15 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
+//         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
-//         MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfPositionTokens
 //         );
 //         MockV3Aggregator[]
-//             memory pTokensUnderlyingAgg = new MockV3Aggregator[](
+//             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfPositionTokens
 //             );
 //         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
@@ -181,33 +181,33 @@
 //         );
 
 //         (
-//             pTokens,
-//             pTokensAgg,
-//             pTokensUnderlyingAgg
+//             cTokens,
+//             cTokensAgg,
+//             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfPositionTokens, 0);
 //         (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
 
-//         _genCollateral(users[0], pTokens[0], 1 ether);
-//         _postCollateral(users[0], pTokens[0], 1 ether);
+//         _genCollateral(users[0], cTokens[0], 1 ether);
+//         _postCollateral(users[0], cTokens[0], 1 ether);
 
 //         skip(30 minutes);
 
 //         vm.expectRevert(
 //             MarketManagerIsolated.MarketManager__InvalidParameter.selector
 //         );
-//         pTokens[0].removeCollateral(0);
+//         cTokens[0].removeCollateral(0);
 
 //         vm.expectRevert(MarketManagerIsolated.MarketManager__InvariantError.selector);
-//         pTokens[0].removeCollateral(1 ether);
+//         cTokens[0].removeCollateral(1 ether);
 
 //         vm.expectRevert(
 //             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
 //         );
 //         vm.prank(users[0]);
-//         pTokens[0].removeCollateral(2 ether);
+//         cTokens[0].removeCollateral(2 ether);
 
 //         vm.prank(users[0]);
-//         pTokens[0].removeCollateral(1 ether);
+//         cTokens[0].removeCollateral(1 ether);
 //     }
 
 //     function testRemoveCollateralAfterRedeemPaused() public {
@@ -219,15 +219,15 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
+//         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
-//         MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfPositionTokens
 //         );
 //         MockV3Aggregator[]
-//             memory pTokensUnderlyingAgg = new MockV3Aggregator[](
+//             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfPositionTokens
 //             );
 //         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
@@ -235,14 +235,14 @@
 //         );
 
 //         (
-//             pTokens,
-//             pTokensAgg,
-//             pTokensUnderlyingAgg
+//             cTokens,
+//             cTokensAgg,
+//             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfPositionTokens, 0);
 //         (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
 
-//         _genCollateral(users[0], pTokens[0], 1 ether);
-//         _postCollateral(users[0], pTokens[0], 1 ether);
+//         _genCollateral(users[0], cTokens[0], 1 ether);
+//         _postCollateral(users[0], cTokens[0], 1 ether);
 
 //         skip(30 minutes);
 
@@ -250,11 +250,11 @@
 
 //         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
 //         vm.prank(users[0]);
-//         pTokens[0].removeCollateral(1 ether);
+//         cTokens[0].removeCollateral(1 ether);
 
 //         marketManagerIsolated.setRedeemPaused(false);
 //         vm.prank(users[0]);
-//         pTokens[0].removeCollateral(1 ether);
+//         cTokens[0].removeCollateral(1 ether);
 //     }
 
 //     function testPositionCloseAfterRemoveCollateral() public {
@@ -266,15 +266,15 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
+//         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
-//         MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfPositionTokens
 //         );
 //         MockV3Aggregator[]
-//             memory pTokensUnderlyingAgg = new MockV3Aggregator[](
+//             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfPositionTokens
 //             );
 //         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
@@ -282,14 +282,14 @@
 //         );
 
 //         (
-//             pTokens,
-//             pTokensAgg,
-//             pTokensUnderlyingAgg
+//             cTokens,
+//             cTokensAgg,
+//             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfPositionTokens, 0);
 //         (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
 
-//         _genCollateral(users[0], pTokens[0], 1 ether);
-//         _postCollateral(users[0], pTokens[0], 1 ether);
+//         _genCollateral(users[0], cTokens[0], 1 ether);
+//         _postCollateral(users[0], cTokens[0], 1 ether);
 
 //         skip(30 minutes);
 
@@ -297,27 +297,27 @@
 //         uint256 liquidityDeficit;
 //         bool[] memory positionsToClose;
 //         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
-//             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
+//             .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
 
 //         assertEq(positionsToClose.length, 1);
 //         assertFalse(positionsToClose[0]);
 //         (bool hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
 //             users[0],
-//             address(pTokens[0])
+//             address(cTokens[0])
 //         );
 //         assertTrue(hasPosition);
 
 //         vm.prank(users[0]);
-//         pTokens[0].removeCollateral(1 ether);
+//         cTokens[0].removeCollateral(1 ether);
 
 //         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
 //             users[0],
-//             address(pTokens[0])
+//             address(cTokens[0])
 //         );
 //         assertFalse(hasPosition);
 
 //         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
-//             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
+//             .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
 //         assertEq(collateralSurplus, 0);
 //         assertEq(liquidityDeficit, 0);
 //     }
@@ -331,15 +331,15 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
+//         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
-//         MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfPositionTokens
 //         );
 //         MockV3Aggregator[]
-//             memory pTokensUnderlyingAgg = new MockV3Aggregator[](
+//             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfPositionTokens
 //             );
 //         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
@@ -347,14 +347,14 @@
 //         );
 
 //         (
-//             pTokens,
-//             pTokensAgg,
-//             pTokensUnderlyingAgg
+//             cTokens,
+//             cTokensAgg,
+//             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfPositionTokens, 0);
 //         (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
 
-//         _genCollateral(users[0], pTokens[0], 1 ether);
-//         _postCollateral(users[0], pTokens[0], 1 ether);
+//         _genCollateral(users[0], cTokens[0], 1 ether);
+//         _postCollateral(users[0], cTokens[0], 1 ether);
 
 //         skip(30 minutes);
 
@@ -362,27 +362,27 @@
 //         uint256 liquidityDeficit;
 //         bool[] memory positionsToClose;
 //         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
-//             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
+//             .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
 
 //         assertEq(positionsToClose.length, 1);
 //         assertFalse(positionsToClose[0]);
 //         (bool hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
 //             users[0],
-//             address(pTokens[0])
+//             address(cTokens[0])
 //         );
 //         assertTrue(hasPosition);
 
 //         vm.prank(users[0]);
-//         pTokens[0].withdrawCollateral(1 ether, users[0], users[0]);
+//         cTokens[0].withdrawCollateral(1 ether, users[0], users[0]);
 
 //         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
 //             users[0],
-//             address(pTokens[0])
+//             address(cTokens[0])
 //         );
 //         assertFalse(hasPosition);
 
 //         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
-//             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
+//             .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
 //         assertEq(collateralSurplus, 0);
 //         assertEq(liquidityDeficit, 0);
 //     }
@@ -396,15 +396,15 @@
 //         noOfPositionTokens = 2;
 //         noOfEarnTokens = 2;
 
-//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
+//         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
 //         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
-//         MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfPositionTokens
 //         );
 //         MockV3Aggregator[]
-//             memory pTokensUnderlyingAgg = new MockV3Aggregator[](
+//             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfPositionTokens
 //             );
 //         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
@@ -412,14 +412,14 @@
 //         );
 
 //         (
-//             pTokens,
-//             pTokensAgg,
-//             pTokensUnderlyingAgg
+//             cTokens,
+//             cTokensAgg,
+//             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfPositionTokens, 0);
 //         (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
 
-//         _genCollateral(users[0], pTokens[0], 500e18);
-//         _postCollateral(users[0], pTokens[0], 500e18);
+//         _genCollateral(users[0], cTokens[0], 500e18);
+//         _postCollateral(users[0], cTokens[0], 500e18);
 
 //         _supplyEToken(users[2], eTokens[0], 1_500e18);
 //         _borrow(users[0], eTokens[0], 300e18);
@@ -428,13 +428,13 @@
 //         _borrow(users[0], eTokens[1], 50e18);
 
 //         skip(20 minutes);
-//         _updateRoundData(pTokensAgg[0], 0, 0.9e8);
+//         _updateRoundData(cTokensAgg[0], 0, 0.9e8);
 
 //         uint256 collateralSurplus;
 //         uint256 liquidityDeficit;
 //         bool[] memory positionsToClose;
 //         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
-//             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
+//             .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
 
 //         bool hasPosition;
 //         assertEq(positionsToClose.length, 3);
@@ -443,7 +443,7 @@
 //         assertFalse(positionsToClose[2]);
 //         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
 //             users[0],
-//             address(pTokens[0])
+//             address(cTokens[0])
 //         );
 //         assertTrue(hasPosition);
 //         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
@@ -457,10 +457,10 @@
 //         );
 //         assertTrue(hasPosition);
 
-//         _liquidate(eTokens[0], pTokens[0], users[0], true);
+//         _liquidate(eTokens[0], cTokens[0], users[0], true);
 
 //         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
-//             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
+//             .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
 
 //         assertEq(positionsToClose.length, 3);
 //         assertFalse(positionsToClose[0]);
@@ -468,7 +468,7 @@
 //         assertFalse(positionsToClose[2]);
 //         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
 //             users[0],
-//             address(pTokens[0])
+//             address(cTokens[0])
 //         );
 //         assertTrue(hasPosition);
 //         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
@@ -486,14 +486,14 @@
 //         vm.prank(users[0]);
 
 //         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
-//             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
+//             .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
 
 //         assertEq(positionsToClose.length, 2);
 //         assertFalse(positionsToClose[0]);
 //         assertFalse(positionsToClose[1]);
 //         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
 //             users[0],
-//             address(pTokens[0])
+//             address(cTokens[0])
 //         );
 //         assertTrue(hasPosition);
 //         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(

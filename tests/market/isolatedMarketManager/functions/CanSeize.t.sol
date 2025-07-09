@@ -13,7 +13,7 @@ contract CanSeizeTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.canSeize(address(strategyCBALRETH), address(borrowableCUSDC));
     }
 
-    function test_canSeize_fail_whenPTokenNotListed() public {
+    function test_canSeize_fail_whenCTokenNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.canSeize(address(strategyCBALRETH), address(borrowableCUSDC));
     }

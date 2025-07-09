@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseETokenIsolated } from "tests/market/token/EToken/TestBaseETokenIsolated.t.sol";
+import { TestBaseBorrowableCToken } from "tests/market/token/BorrowableCToken/TestBaseBorrowableCToken.t.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -10,9 +10,9 @@ import "forge-std/console2.sol";
 
 // TODO: canLiquidate is no longer callable by anyone!
 
-contract LiquidateSingleTest is TestBaseETokenIsolated {
+contract LiquidateSingleTest is TestBaseBorrowableCToken {
 
-    uint256 eTokenUnderlyingPrice = 1e18;
+    uint256 borrowableCTokenUnderlyingPrice = 1e18;
 
     function setUp() public override {
         super.setUp();

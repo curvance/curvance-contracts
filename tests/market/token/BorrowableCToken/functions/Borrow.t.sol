@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseEToken } from "../TestBaseEToken.sol";
+import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract ETokenBorrowTest is TestBaseEToken {
+contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     event Borrow(address borrower, uint256 borrowAmount);
 
-    function test_eTokenBorrow_fail_whenBorrowIsNotAllowed() public {
+    function test_borrowableCTokenBorrow_fail_whenBorrowIsNotAllowed() public {
         marketManagerIsolated.setBorrowPaused(address(borrowableCUSDC), true);
 
         vm.expectRevert();
         borrowableCUSDC.borrow(100e6);
     }
 
-    function test_eTokenBorrow_fail_whenBorrowAmountExceedsCash() public {
+    function test_borrowableCTokenBorrow_fail_whenBorrowAmountExceedsCash() public {
         uint256 cash = borrowableCUSDC.assetsHeld();
 
         vm.expectRevert(
@@ -23,7 +23,7 @@ contract ETokenBorrowTest is TestBaseEToken {
         borrowableCUSDC.borrow(cash + 1);
     }
 
-    function test_eTokenBorrow_success() public {
+    function test_borrowableCTokenBorrow_success() public {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 100_000e18);
 
         borrowableCUSDC.deposit(200e6, address(this));
@@ -43,7 +43,7 @@ contract ETokenBorrowTest is TestBaseEToken {
         assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrows + 100e6);
     }
 
-    function test_eTokenBorrowFor_success() public {
+    function test_borrowableCTokenBorrowFor_success() public {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
 
         borrowableCUSDC.deposit(200e6, address(this));

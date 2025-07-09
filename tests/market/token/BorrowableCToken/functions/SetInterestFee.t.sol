@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseEToken } from "../TestBaseEToken.sol";
+import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
-contract SetInteresFeeTest is TestBaseEToken {
+contract SetInterestFeeTest is TestBaseBorrowableCToken {
     event NewInterestFee(
         uint256 oldInterestFee,
         uint256 newInterestFee

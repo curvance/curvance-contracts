@@ -240,7 +240,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000_000e6);
 
-        // Need some PTokens/collateral to have enough liquidity for borrowing
+        // Need some cTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
         balRETH.approve(address(strategyCBALRETH), 1_000e18);

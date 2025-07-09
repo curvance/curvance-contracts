@@ -5,7 +5,7 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract TestBaseETokenIsolated is TestBaseMarketIsolated {
+contract TestBaseBorrowableCToken is TestBaseMarketIsolated {
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
@@ -13,7 +13,6 @@ contract TestBaseETokenIsolated is TestBaseMarketIsolated {
     function setUp() public virtual override {
         super.setUp();
 
-        // use mock pricing for testing
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
@@ -62,18 +61,13 @@ contract TestBaseETokenIsolated is TestBaseMarketIsolated {
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
-        _prepareUSDC(user1, _ONE);
-        _prepareUSDC(address(this), _ONE);
-        _prepareBALRETH(address(this), 10e18);
-        balRETH.approve(address(strategyCBALRETH), 10e18);
-        usdc.approve(address(borrowableCUSDC), _ONE);
+        _prepareUSDC(address(this), _ONE + 77777);
+        _prepareBALRETH(address(this), 10e18 + 77777);
+        
+        usdc.approve(address(borrowableCUSDC), _ONE + 77777);
+        balRETH.approve(address(strategyCBALRETH), 10e18 + 77777);
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
-
-
-        vm.prank(user1);
-
-        usdc.approve(address(borrowableCUSDC), _ONE);
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(strategyCBALRETH);
@@ -96,6 +90,7 @@ contract TestBaseETokenIsolated is TestBaseMarketIsolated {
         configToken1.cToken = address(borrowableCUSDC);
         configToken1.debtCap = 100_000e6;
         marketManagerIsolated.updateTokenConfig(configToken1);
+        
 
         strategyCBALRETH.mint(_ONE, address(this));
     }
