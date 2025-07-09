@@ -26,8 +26,8 @@ contract TestBaseNativeUniversalBalance is TestBaseMarketIsolated {
         deal(user1, _ONE);
 
         weth.approve(address(borrowableCWETH), 10e18);
-        balRETH.approve(address(pBALRETH), 1000e18);
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCWETH));
+        balRETH.approve(address(simpleCBALRETH), 1000e18);
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCWETH));
         oracleManager.addCTokenSupport(address(borrowableCWETH));
 
         borrowableCWETH.deposit(_ONE + 1, address(this));

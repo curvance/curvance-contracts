@@ -82,18 +82,18 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
             oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
-        // deploy pBALRETH
+        // deploy simpleCBALRETH
         {
             // support market
             _prepareBALRETH(owner, 1 ether);
-            balRETH.approve(address(pBALRETH), 1 ether);
+            balRETH.approve(address(simpleCBALRETH), 1 ether);
         }
 
         // First, list the tokens before updating position token parameters
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCDAI));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pBALRETH);
+        configToken0.cToken = address(simpleCBALRETH);
         configToken0.collRatio = 7000;
         configToken0.collReqSoft = 4000;
         configToken0.collReqHard = 3000;
@@ -138,9 +138,9 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(pBALRETH), 1 ether);
-        pBALRETH.deposit(1 ether, user1);
-        pBALRETH.postCollateral(1 ether - 1);
+        balRETH.approve(address(simpleCBALRETH), 1 ether);
+        simpleCBALRETH.deposit(1 ether, user1);
+        simpleCBALRETH.postCollateral(1 ether - 1);
 
         // delegate borrow
         borrowableCDAI.setDelegateApproval(user2, true);

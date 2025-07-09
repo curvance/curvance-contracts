@@ -10,30 +10,30 @@ contract CanSeizeTest is TestBaseMarketManager {
         marketManager.setSeizePaused(true);
 
         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
-        marketManager.canSeize(address(pBALRETH), address(borrowableCUSDC));
+        marketManager.canSeize(address(simpleCBALRETH), address(borrowableCUSDC));
     }
 
     function test_canSeize_fail_whenPTokenNotListed() public {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        marketManager.canSeize(address(pBALRETH), address(borrowableCUSDC));
+        marketManager.canSeize(address(simpleCBALRETH), address(borrowableCUSDC));
     }
 
     function test_canSeize_fail_whenETokenNotListed() public {
-        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(simpleCBALRETH));
 
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        marketManager.canSeize(address(pBALRETH), address(borrowableCUSDC));
+        marketManager.canSeize(address(simpleCBALRETH), address(borrowableCUSDC));
     }
 
     function test_canSeize_success() public {
-        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(simpleCBALRETH));
         marketManager.listToken(address(borrowableCUSDC));
 
-        marketManager.canSeize(address(pBALRETH), address(borrowableCUSDC));
+        marketManager.canSeize(address(simpleCBALRETH), address(borrowableCUSDC));
     }
 
     // function test_canSeize_fail_whenMarketManagersMismatch() public {
-    //     marketManager.listToken(address(pBALRETH));
+    //     marketManager.listToken(address(simpleCBALRETH));
     //     marketManager.listToken(address(borrowableCUSDC));
 
     //     MarketManager newMarketManager = new MarketManager(
@@ -44,6 +44,6 @@ contract CanSeizeTest is TestBaseMarketManager {
     //     borrowableCUSDC.setMarketManager(address(newMarketManager));
 
     //     vm.expectRevert(MarketManager.MarketManager__MarketManagerMismatch.selector);
-    //     marketManager.canSeize(address(pBALRETH), address(borrowableCUSDC));
+    //     marketManager.canSeize(address(simpleCBALRETH), address(borrowableCUSDC));
     // }
 }

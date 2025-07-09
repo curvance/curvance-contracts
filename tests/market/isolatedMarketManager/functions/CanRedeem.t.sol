@@ -9,12 +9,12 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
         super.setUp();
 
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(pBALRETH), 77777);
+        balRETH.approve(address(simpleCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
     }
 
     function test_canRedeem_fail_whenTokenNotListed() public {
@@ -75,20 +75,20 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
             block.timestamp,
             block.timestamp
         );
-        // marketManager.listToken(address(pBALRETH));
-        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        // marketManager.listToken(address(simpleCBALRETH));
+        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
 
         _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(pBALRETH), 1_000e18);
-        pBALRETH.deposit(1e18, user1);
-        pBALRETH.postCollateral(9e17);
+        balRETH.approve(address(simpleCBALRETH), 1_000e18);
+        simpleCBALRETH.deposit(1e18, user1);
+        simpleCBALRETH.postCollateral(9e17);
         vm.stopPrank();
 
         bool hasPosition;
         (hasPosition, , ) = auxiliaryData.tokenDataOf(
             user1,
-            address(pBALRETH)
+            address(simpleCBALRETH)
         );
 
         assertTrue(hasPosition);
@@ -97,7 +97,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
-        marketManagerIsolated.canRedeem(address(pBALRETH), user1, 100e18);
+        marketManagerIsolated.canRedeem(address(simpleCBALRETH), user1, 100e18);
     }
 
     function test_canRedeem_success_whenPastMinimumHoldPeriod() public {

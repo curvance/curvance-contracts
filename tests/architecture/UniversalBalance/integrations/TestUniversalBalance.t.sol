@@ -103,8 +103,8 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         //     _prepareUSDC(owner, 200_000e6);
         //     _prepareBALRETH(owner, 1000e18);
         //     usdc.approve(address(borrowableCUSDC), 200_000e6);
-        //     balRETH.approve(address(pBALRETH), 1000e18);
-        //     marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        //     balRETH.approve(address(simpleCBALRETH), 1000e18);
+        //     marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
         //     address[] memory markets = new address[](1);
         //     markets[0] = address(borrowableCUSDC);

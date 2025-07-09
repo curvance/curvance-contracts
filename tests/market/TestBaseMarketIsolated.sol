@@ -75,8 +75,8 @@ contract TestBaseMarketIsolated is TestBase {
         _setRedstoneSigners();
 
         oracleManagers[chainId].addCTokenSupport(address(borrowableCUSDC));
-        oracleManagers[chainId].addCTokenSupport(address(pBALRETH));
-        oracleManagers[chainId].addCTokenSupport(address(pBALRETHWithExitFee));
+        oracleManagers[chainId].addCTokenSupport(address(simpleCBALRETH));
+        oracleManagers[chainId].addCTokenSupport(address(simpleCBALRETHWithExitFee));
     }
 
     function _deployBaseContracts() internal {
@@ -475,7 +475,7 @@ contract TestBaseMarketIsolated is TestBase {
         initMainVariables
         returns (AuraCToken)
     {
-        pBALRETH = pBALRETHs[block.chainid] = new AuraCToken(
+        simpleCBALRETH = simpleCBALRETHs[block.chainid] = new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManagerIsolated),
@@ -484,7 +484,7 @@ contract TestBaseMarketIsolated is TestBase {
             _AURA_BOOSTER,
             1 days
         );
-        return pBALRETH;
+        return simpleCBALRETH;
     }
 
     function _deploySimpleCBALRETHWithExitFee()
@@ -492,7 +492,7 @@ contract TestBaseMarketIsolated is TestBase {
         initMainVariables
         returns (MockAuraCTokenWithExitFee)
     {
-        pBALRETHWithExitFee = pBALRETHWithExitFees[
+        simpleCBALRETHWithExitFee = simpleCBALRETHWithExitFees[
             block.chainid
         ] = new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
@@ -504,7 +504,7 @@ contract TestBaseMarketIsolated is TestBase {
             200,
             1 days
         );
-        return pBALRETHWithExitFee;
+        return simpleCBALRETHWithExitFee;
     }
 
     function _deployPendleZapper()

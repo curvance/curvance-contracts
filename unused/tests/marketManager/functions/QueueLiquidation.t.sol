@@ -17,7 +17,7 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
         marketManager.queueLiquidation(
             address(borrowableCUSDC),
-            address(pBALRETH),
+            address(simpleCBALRETH),
             user2,
             user1
         );
@@ -31,7 +31,7 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
         marketManager.queueLiquidation(
             address(borrowableCUSDC),
-            address(pBALRETH),
+            address(simpleCBALRETH),
             user2,
             user1
         );
@@ -47,7 +47,7 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
         marketManager.queueLiquidation(
             address(borrowableCUSDC),
-            address(pBALRETH),
+            address(simpleCBALRETH),
             user2,
             user1
         );
@@ -57,7 +57,7 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
         public
     {
         marketManager.listToken(address(borrowableCUSDC));
-        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(simpleCBALRETH));
 
         vm.prank(address(borrowableCUSDC));
 
@@ -66,7 +66,7 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
         );
         marketManager.queueLiquidation(
             address(borrowableCUSDC),
-            address(pBALRETH),
+            address(simpleCBALRETH),
             user2,
             user1
         );
@@ -76,10 +76,10 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
         public
     {
         marketManager.listToken(address(borrowableCUSDC));
-        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(simpleCBALRETH));
 
         marketManager.updatePositionToken(
-            address(pBALRETH),
+            address(simpleCBALRETH),
             7000,
             4000, // liquidate at 71%
             3000,
@@ -95,7 +95,7 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
         );
         marketManager.queueLiquidation(
             address(borrowableCUSDC),
-            address(pBALRETH),
+            address(simpleCBALRETH),
             user2,
             user1
         );
@@ -137,7 +137,7 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
 
         marketManager.queueLiquidation(
             address(borrowableCUSDC),
-            address(pBALRETH),
+            address(simpleCBALRETH),
             user2,
             user1
         );
@@ -147,7 +147,7 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
 
         marketManager.queueLiquidation(
             address(borrowableCUSDC),
-            address(pBALRETH),
+            address(simpleCBALRETH),
             user3,
             user1
         );
@@ -176,7 +176,7 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
 
         marketManager.queueLiquidation(
             address(borrowableCUSDC),
-            address(pBALRETH),
+            address(simpleCBALRETH),
             user4,
             user1
         );

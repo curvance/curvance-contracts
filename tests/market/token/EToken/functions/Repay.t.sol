@@ -10,11 +10,11 @@ contract ETokenRepayTest is TestBaseEToken {
     function setUp() public override {
         super.setUp();
 
-        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
 
         _prepareUSDC(address(borrowableCUSDC), 2000e6);
 
-        pBALRETH.postCollateral(1e18 - 1);
+        simpleCBALRETH.postCollateral(1e18 - 1);
 
         _prepareUSDC(address(user1), 1000e6);
 
@@ -97,7 +97,7 @@ contract ETokenRepayTest is TestBaseEToken {
     function test_borrowers_repayAllDebts() public {
         uint256 _BASE_UNDERLYING_RESERVE = 77777;
         uint256 initialUsdcReserves = 1000e6;
-        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
 
         uint256 addUsdcAmount = 1500e6;
         borrowableCUSDC.mint(
@@ -116,9 +116,9 @@ contract ETokenRepayTest is TestBaseEToken {
         // 1. users post collateral and borrow 100 usdc
         for (uint i; i < 3; ++i) {
             address user = users[i];
-            deal(address(pBALRETH), user, 1e18);
+            deal(address(simpleCBALRETH), user, 1e18);
             vm.startPrank(user);
-            pBALRETH.postCollateral(1e18 - 1);
+            simpleCBALRETH.postCollateral(1e18 - 1);
             borrowableCUSDC.borrow(100e6);
             vm.stopPrank();
         }

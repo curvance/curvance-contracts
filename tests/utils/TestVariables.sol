@@ -110,8 +110,8 @@ contract TestVariables {
     BorrowableCToken public borrowableCDAI;
 
     SimpleCToken public pUSDC;
-    AuraCToken public pBALRETH;
-    MockAuraCTokenWithExitFee public pBALRETHWithExitFee;
+    AuraCToken public simpleCBALRETH;
+    MockAuraCTokenWithExitFee public simpleCBALRETHWithExitFee;
  
     IERC20 public usdc;
     IERC20 public dai;
@@ -153,8 +153,8 @@ contract TestVariables {
     mapping(uint256 => BorrowableCToken) public borrowableCUSDCs;
     mapping(uint256 => BorrowableCToken) public borrowableCDAIs;
 
-    mapping(uint256 => AuraCToken) public pBALRETHs;
-    mapping(uint256 => MockAuraCTokenWithExitFee) public pBALRETHWithExitFees;
+    mapping(uint256 => AuraCToken) public simpleCBALRETHs;
+    mapping(uint256 => MockAuraCTokenWithExitFee) public simpleCBALRETHWithExitFees;
 
 
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcUsds;
@@ -386,8 +386,8 @@ contract TestVariables {
         borrowableCUSDC = borrowableCUSDCs[chainId];
         borrowableCDAI = borrowableCDAIs[chainId];
 
-        pBALRETH = pBALRETHs[chainId];
-        pBALRETHWithExitFee = pBALRETHWithExitFees[chainId];
+        simpleCBALRETH = simpleCBALRETHs[chainId];
+        simpleCBALRETHWithExitFee = simpleCBALRETHWithExitFees[chainId];
 
 
         chainlinkUsdcUsd = chainlinkUsdcUsds[chainId];

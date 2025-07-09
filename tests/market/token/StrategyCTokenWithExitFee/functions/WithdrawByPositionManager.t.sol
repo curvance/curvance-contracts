@@ -83,19 +83,19 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         usdc.approve(address(borrowableCUSDC), _ONE);
 
 
-        // list pBALRETHWithExitFee
+        // list simpleCBALRETHWithExitFee
         _prepareBALRETH(address(this), 77777);
         
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,
-            address(pBALRETHWithExitFee),
+            address(simpleCBALRETHWithExitFee),
             77777
         );
 
-        marketManagerIsolated.listTokens(address(pBALRETHWithExitFee), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETHWithExitFee), address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pBALRETHWithExitFee);
+        configToken0.cToken = address(simpleCBALRETHWithExitFee);
         configToken0.collRatio = 7000;
         configToken0.collReqSoft = 4000;
         configToken0.collReqHard = 3000;
@@ -125,8 +125,8 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareBALRETH(liquidityProvider, 10e18);
         vm.startPrank(liquidityProvider);
-        balRETH.approve(address(pBALRETHWithExitFee), 10e18);
-        pBALRETHWithExitFee.mint(10e18, liquidityProvider);
+        balRETH.approve(address(simpleCBALRETHWithExitFee), 10e18);
+        simpleCBALRETHWithExitFee.mint(10e18, liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.mint(200000e6, liquidityProvider);
 
@@ -139,11 +139,11 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
 
         vm.startPrank(user1);
 
-        balRETH.approve(address(pBALRETHWithExitFee), 1000e18);
+        balRETH.approve(address(simpleCBALRETHWithExitFee), 1000e18);
 
-        pBALRETHWithExitFee.deposit(100e18, user1);
+        simpleCBALRETHWithExitFee.deposit(100e18, user1);
 
-        pBALRETHWithExitFee.postCollateral(100e18);
+        simpleCBALRETHWithExitFee.postCollateral(100e18);
 
         borrowableCUSDC.borrow(100e6);
 
@@ -151,7 +151,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         
         // we aren't using this struct, only for required arguments
         DeleverageStruct memory deleverageData = DeleverageStruct({
-            collateralToken: ICToken(address(pBALRETHWithExitFee)),
+            collateralToken: ICToken(address(simpleCBALRETHWithExitFee)),
             collateralAmount: 0,
             debtToken: IBorrowableCToken(address(borrowableCUSDC)),
             swapData: swapData,
@@ -168,7 +168,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         uint256 collateralReceivedWithExitFee = _removeExitFeeFromAssets(collateralRemoveAmount);
 
 
-        pBALRETHWithExitFee.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageData);
+        simpleCBALRETHWithExitFee.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageData);
 
         // a usual workflow would swap the collateral for the borrowToken, repay the borrowToken
         // we are checking that the exit fee is applied

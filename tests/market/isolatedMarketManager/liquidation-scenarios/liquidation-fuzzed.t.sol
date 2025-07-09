@@ -74,9 +74,9 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
 
         vm.prank(user1);
         usdc.approve(address(borrowableCUSDC), _ONE);
-        balRETH.approve(address(pBALRETH), _ONE + 77777);
+        balRETH.approve(address(simpleCBALRETH), _ONE + 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
         // marketManagerIsolated.updatePositionToken(
         //     9750,    // collRatio 97.5% (max borrowing power)
@@ -92,7 +92,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         // );
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pBALRETH);
+        configToken0.cToken = address(simpleCBALRETH);
         configToken0.collRatio = 9750;
         configToken0.collReqSoft = 250;
         configToken0.collReqHard = 200;
@@ -122,12 +122,12 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
-        balRETH.approve(address(pBALRETH), 100e18);
-        pBALRETH.deposit(100e18, liquidityProvider);
+        balRETH.approve(address(simpleCBALRETH), 100e18);
+        simpleCBALRETH.deposit(100e18, liquidityProvider);
         vm.stopPrank();
 
         (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
-            marketManagerIsolated.tokenData(address(pBALRETH));
+            marketManagerIsolated.tokenData(address(simpleCBALRETH));
 
         liqBaseIncentive = liqBaseIncentive_;
         liqCurve = liqCurve_;
@@ -147,8 +147,8 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         _prepareBALRETH(borrower, _collateralAmount);
 
         vm.startPrank(borrower);
-        balRETH.approve(address(pBALRETH), _collateralAmount);
-        pBALRETH.depositAsCollateral(_collateralAmount,borrower);
+        balRETH.approve(address(simpleCBALRETH), _collateralAmount);
+        simpleCBALRETH.depositAsCollateral(_collateralAmount,borrower);
 
         // get maximum borrow amount
         (, uint256 maxBorrowAmount,) = marketManagerIsolated.statusOf(borrower);
@@ -174,15 +174,15 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         uint256 lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower);
 
         (,uint256 eTokenPrice, uint256 cTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(borrower, address(borrowableCUSDC), address(pBALRETH));
+            marketManagerIsolated.liquidationStatusOf(borrower, address(borrowableCUSDC), address(simpleCBALRETH));
 
         (maxAmount, liquidatedPTokens, collateralRequired) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
                 eTokenPrice, cTokenPrice, lFactorsPreLiquidation, _collateralAmount, _borrowAmount
             );
-        cTokenExchangeRate = pBALRETH.exchangeRate();
+        cTokenExchangeRate = simpleCBALRETH.exchangeRate();
 
-        collateralAmounts = pBALRETH.collateralPosted(borrower);
+        collateralAmounts = simpleCBALRETH.collateralPosted(borrower);
 
         debtBalancesPreLiquidation = borrowableCUSDC.debtBalanceUpdated(borrower);
 
@@ -203,7 +203,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         (uint256 lFactor,,) = marketManagerIsolated.liquidationStatusOf(
             borrower,
             address(borrowableCUSDC),
-            address(pBALRETH)
+            address(simpleCBALRETH)
         );
         usdc.approve(address(borrowableCUSDC), 1_000_000e6);
         if (lFactor == 0) {
@@ -214,7 +214,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         emit BadDebtRecognized(borrower, expectedBadDebt);
         emit Repay(liquidator, borrower , maxAmount + expectedBadDebt);
 
-        borrowableCUSDC.liquidate(borrowerArray, address(pBALRETH));
+        borrowableCUSDC.liquidate(borrowerArray, address(simpleCBALRETH));
 
         // TODO ADD ASSERTIONS!!!!!
 
@@ -272,7 +272,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
             (lFactors,,) = marketManagerIsolated.liquidationStatusOf(
                 _borrowers,
                 address(borrowableCUSDC),
-                address(pBALRETH)
+                address(simpleCBALRETH)
             );
 
         return lFactors;

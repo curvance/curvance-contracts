@@ -8,17 +8,17 @@ contract StrategyCTokenDelegateTest is TestBaseStrategyCToken {
 
     function test_strategyCTokenDelegateDeposit_success() public {
         uint256 underlyingBalance = balRETH.balanceOf(address(this));
-        uint256 balance = pBALRETH.balanceOf(address(this));
-        uint256 totalSupply = pBALRETH.totalSupply();
+        uint256 balance = simpleCBALRETH.balanceOf(address(this));
+        uint256 totalSupply = simpleCBALRETH.totalSupply();
 
         vm.prank(user1);
-        pBALRETH.setDelegateApproval(address(this), true);
+        simpleCBALRETH.setDelegateApproval(address(this), true);
 
-        vm.expectEmit(true, true, true, true, address(pBALRETH));
+        vm.expectEmit(true, true, true, true, address(simpleCBALRETH));
         emit Transfer(address(0), user1, 100);
-        pBALRETH.depositAsCollateralFor(100, user1);
+        simpleCBALRETH.depositAsCollateralFor(100, user1);
 
-        assertEq(pBALRETH.balanceOf(user1), balance + 100);
-        assertEq(pBALRETH.totalSupply(), totalSupply + 100);
+        assertEq(simpleCBALRETH.balanceOf(user1), balance + 100);
+        assertEq(simpleCBALRETH.totalSupply(), totalSupply + 100);
     }
 }

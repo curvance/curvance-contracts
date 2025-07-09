@@ -13,18 +13,18 @@ contract StrategyCTokenWithExitFeeApproveTest is
     );
 
     function test_strategyCTokenWithExitFeeApprove_success() public {
-        uint256 allowance = pBALRETHWithExitFee.allowance(
+        uint256 allowance = simpleCBALRETHWithExitFee.allowance(
             address(this),
             user1
         );
 
-        vm.expectEmit(true, true, true, true, address(pBALRETHWithExitFee));
+        vm.expectEmit(true, true, true, true, address(simpleCBALRETHWithExitFee));
         emit Approval(address(this), user1, 100);
 
-        pBALRETHWithExitFee.approve(user1, 100);
+        simpleCBALRETHWithExitFee.approve(user1, 100);
 
         assertEq(
-            pBALRETHWithExitFee.allowance(address(this), user1),
+            simpleCBALRETHWithExitFee.allowance(address(this), user1),
             allowance + 100
         );
     }

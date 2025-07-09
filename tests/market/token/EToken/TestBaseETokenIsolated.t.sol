@@ -65,10 +65,10 @@ contract TestBaseETokenIsolated is TestBaseMarketIsolated {
         _prepareUSDC(user1, _ONE);
         _prepareUSDC(address(this), _ONE);
         _prepareBALRETH(address(this), 10e18);
-        balRETH.approve(address(pBALRETH), 10e18);
+        balRETH.approve(address(simpleCBALRETH), 10e18);
         usdc.approve(address(borrowableCUSDC), _ONE);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
 
         vm.prank(user1);
@@ -76,7 +76,7 @@ contract TestBaseETokenIsolated is TestBaseMarketIsolated {
         usdc.approve(address(borrowableCUSDC), _ONE);
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pBALRETH);
+        configToken0.cToken = address(simpleCBALRETH);
         configToken0.collRatio = 7000;
         configToken0.collReqSoft = 4000;
         configToken0.collReqHard = 3000;
@@ -97,7 +97,7 @@ contract TestBaseETokenIsolated is TestBaseMarketIsolated {
         configToken1.debtCap = 100_000e6;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
-        pBALRETH.mint(_ONE, address(this));
+        simpleCBALRETH.mint(_ONE, address(this));
     }
 
     function _prepareLiquidation() internal {
@@ -109,16 +109,16 @@ contract TestBaseETokenIsolated is TestBaseMarketIsolated {
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
-        balRETH.approve(address(pBALRETH), 10e18);
-        pBALRETH.deposit(10e18, liquidityProvider);
+        balRETH.approve(address(simpleCBALRETH), 10e18);
+        simpleCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
 
         _prepareBALRETH(user1, _ONE);
 
         vm.startPrank(user1);
-        balRETH.approve(address(pBALRETH), _ONE);
-        pBALRETH.deposit(_ONE, user1);
-        pBALRETH.postCollateral(_ONE - 1);
+        balRETH.approve(address(simpleCBALRETH), _ONE);
+        simpleCBALRETH.deposit(_ONE, user1);
+        simpleCBALRETH.postCollateral(_ONE - 1);
 
         borrowableCUSDC.borrow(1000e6);
         vm.stopPrank();

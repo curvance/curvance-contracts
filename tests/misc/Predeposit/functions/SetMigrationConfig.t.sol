@@ -55,9 +55,9 @@ contract SetMigrationConfigTest is TestBasePredeposit {
         _prepareBALRETH(address(this), 1000e18);
 
         usdc.approve(address(borrowableCUSDC), 1000e6);
-        balRETH.approve(address(pBALRETH), 1000e18);
+        balRETH.approve(address(simpleCBALRETH), 1000e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
         (, address mTokenAddress) = predeposit.tokenData(
             _USDC_ADDRESS
@@ -87,13 +87,13 @@ contract SetMigrationConfigTest is TestBasePredeposit {
         vm.prank(manager);
         predeposit.setMigrationConfig(
             _BAL_WETH_RETH_ADDRESS,
-            address(pBALRETH)
+            address(simpleCBALRETH)
         );
 
         (, mTokenAddress) = predeposit.tokenData(
             _BAL_WETH_RETH_ADDRESS
         );
 
-        assertEq(mTokenAddress, address(pBALRETH));
+        assertEq(mTokenAddress, address(simpleCBALRETH));
     }
 }

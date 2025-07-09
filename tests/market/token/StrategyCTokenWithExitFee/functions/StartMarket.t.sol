@@ -13,7 +13,7 @@ contract StrategyCTokenWithExitFeeStartMarketTest is
     {
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
 
-        pBALRETHWithExitFee.startMarket(address(0));
+        simpleCBALRETHWithExitFee.startMarket(address(0));
     }
 
     function test_strategyCTokenWithExitFeeStartMarket_fail_whenInitializerIsZeroAddress()
@@ -22,22 +22,22 @@ contract StrategyCTokenWithExitFeeStartMarketTest is
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
 
         vm.prank(address(marketManagerIsolated));
-        pBALRETHWithExitFee.startMarket(address(0));
+        simpleCBALRETHWithExitFee.startMarket(address(0));
     }
 
     function test_strategyCTokenWithExitFeeStartMarket_success() public {
         vm.prank(user1);
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,
-            address(pBALRETHWithExitFee),
+            address(simpleCBALRETHWithExitFee),
             1e18
         );
 
-        uint256 totalSupply = pBALRETHWithExitFee.totalSupply();
+        uint256 totalSupply = simpleCBALRETHWithExitFee.totalSupply();
 
         vm.prank(address(marketManagerIsolated));
-        pBALRETHWithExitFee.startMarket(user1);
+        simpleCBALRETHWithExitFee.startMarket(user1);
 
-        assertEq(pBALRETHWithExitFee.totalSupply(), totalSupply + 77777);
+        assertEq(simpleCBALRETHWithExitFee.totalSupply(), totalSupply + 77777);
     }
 }

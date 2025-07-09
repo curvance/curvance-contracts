@@ -23,7 +23,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         // Set a valid penalty (WAD + 15%)
         uint256 validPenalty = 1.15e18;
         uint256 closeFactor = 0.30e18;
-        marketManagerIsolated.setAuctionParameters(address(pBALRETH), validPenalty, closeFactor);
+        marketManagerIsolated.setAuctionParameters(address(simpleCBALRETH), validPenalty, closeFactor);
 
         // Verify the penalty was set correctly
         (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAuctionParameters();
@@ -39,7 +39,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         vm.startPrank(user1);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManagerIsolated.setAuctionParameters(address(pBALRETH), 1.15e18, 0.30e18);
+        marketManagerIsolated.setAuctionParameters(address(simpleCBALRETH), 1.15e18, 0.30e18);
         
         vm.stopPrank();
     }
@@ -57,16 +57,16 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         uint256 validCloseFactor = 0.30e18;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAuctionParameters(address(pBALRETH), tooLowPenalty, validCloseFactor);
+        marketManagerIsolated.setAuctionParameters(address(simpleCBALRETH), tooLowPenalty, validCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAuctionParameters(address(pBALRETH), tooHighPenalty, validCloseFactor);
+        marketManagerIsolated.setAuctionParameters(address(simpleCBALRETH), tooHighPenalty, validCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAuctionParameters(address(pBALRETH), validPenalty, tooHighCloseFactor);
+        marketManagerIsolated.setAuctionParameters(address(simpleCBALRETH), validPenalty, tooHighCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAuctionParameters(address(pBALRETH), validPenalty, tooLowCloseFactor);
+        marketManagerIsolated.setAuctionParameters(address(simpleCBALRETH), validPenalty, tooLowCloseFactor);
 
         vm.stopPrank();
     }
@@ -78,7 +78,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         
         uint256 validPenalty = 1.15e18;
         uint256 validCloseFactor = 0.30e18;
-        marketManagerIsolated.setAuctionParameters(address(pBALRETH), validPenalty, validCloseFactor);
+        marketManagerIsolated.setAuctionParameters(address(simpleCBALRETH), validPenalty, validCloseFactor);
 
         (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAuctionParameters();
         assertEq(currentPenalty, validPenalty);
@@ -149,10 +149,10 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     //     amountsToLiquidate[0] = 250e6;
 
     //     usdc.approve(address(borrowableCUSDC), 250e6);
-    //     borrowableCUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETH));
+    //     borrowableCUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(simpleCBALRETH));
     //     vm.stopPrank();
 
-    //     uint256 liquidatorcTokenBalance = pBALRETH.balanceOf(user3);
+    //     uint256 liquidatorcTokenBalance = simpleCBALRETH.balanceOf(user3);
     //     assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenalty());
 
     //     uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
@@ -191,10 +191,10 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     //     amountsToLiquidate[0] = 250e6;
 
     //     usdc.approve(address(borrowableCUSDC), 250e6);
-    //     borrowableCUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETH));
+    //     borrowableCUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(simpleCBALRETH));
     //     vm.stopPrank();
 
-    //     uint256 liquidatorcTokenBalance = pBALRETH.balanceOf(user3);
+    //     uint256 liquidatorcTokenBalance = simpleCBALRETH.balanceOf(user3);
     //     assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDefaultPenalty());
 
     //     uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
@@ -224,7 +224,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
         usdc.approve(address(borrowableCUSDC), 250e6);
         vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedCollateral.selector);
-        borrowableCUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETH));
+        borrowableCUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(simpleCBALRETH));
         vm.stopPrank();
     }
 
@@ -242,7 +242,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.unlockAuctionCollateral(address(borrowableCUSDC));
         uint256 validPenalty = 1.15e18; //15%
         uint256 closeFactor = 0.30e18; // 30%
-        marketManagerIsolated.setAuctionParameters(address(pBALRETH), validPenalty, closeFactor);
+        marketManagerIsolated.setAuctionParameters(address(simpleCBALRETH), validPenalty, closeFactor);
         vm.stopPrank();
 
         borrowableCUSDC.accrueIfNeeded(); // pull interest forward
@@ -259,10 +259,10 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         amountsToLiquidate[0] = debtBalance;
 
         usdc.approve(address(borrowableCUSDC), debtBalance);
-        borrowableCUSDC.liquidate(usersToLiquidate, address(pBALRETH));
+        borrowableCUSDC.liquidate(usersToLiquidate, address(simpleCBALRETH));
         vm.stopPrank();
 
-        // uint256 liquidatorcTokenBalance = pBALRETH.balanceOf(user3);
+        // uint256 liquidatorcTokenBalance = simpleCBALRETH.balanceOf(user3);
         // assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(debtBalance));
 
         // uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
@@ -292,15 +292,15 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     function _setUpMarketNonLiquidation() internal {
         // Setup market with tokens
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(pBALRETH), 77777);
+        balRETH.approve(address(simpleCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
         
         // List tokens in the market
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
         
         // Create a dapp control user

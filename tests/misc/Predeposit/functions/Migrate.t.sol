@@ -24,9 +24,9 @@ contract MigrateTest is TestBasePredeposit {
         vm.stopPrank();
 
         usdc.approve(address(borrowableCUSDC), 1000e6);
-        balRETH.approve(address(pBALRETH), 1000e18);
+        balRETH.approve(address(simpleCBALRETH), 1000e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
         vm.startPrank(user1);
 
@@ -43,13 +43,13 @@ contract MigrateTest is TestBasePredeposit {
         predeposit.setMigrationConfig(_USDC_ADDRESS, address(borrowableCUSDC));
         predeposit.setMigrationConfig(
             _BAL_WETH_RETH_ADDRESS,
-            address(pBALRETH)
+            address(simpleCBALRETH)
         );
 
         vm.stopPrank();
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pBALRETH);
+        configToken0.cToken = address(simpleCBALRETH);
         configToken0.collRatio = 7000;
         configToken0.collReqSoft = 4000;
         configToken0.collReqHard = 3000;
@@ -111,7 +111,7 @@ contract MigrateTest is TestBasePredeposit {
     function test_migrate_success_withPToken_withCollateralize() public {
         skip(1 weeks);
 
-        uint256 underlyingBalance = balRETH.balanceOf(address(pBALRETH));
+        uint256 underlyingBalance = balRETH.balanceOf(address(simpleCBALRETH));
 
         assertEq(
             predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS),
@@ -120,7 +120,7 @@ contract MigrateTest is TestBasePredeposit {
         assertEq(balRETH.balanceOf(address(predeposit)), 100e18);
 
         vm.prank(user1);
-        pBALRETH.setDelegateApproval(address(predeposit), true);
+        simpleCBALRETH.setDelegateApproval(address(predeposit), true);
 
         vm.prank(user1);
 
@@ -131,14 +131,14 @@ contract MigrateTest is TestBasePredeposit {
 
         assertEq(predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS), 0);
         assertEq(balRETH.balanceOf(address(predeposit)), 0);
-        assertEq(balRETH.balanceOf(address(pBALRETH)), underlyingBalance);
-        assertEq(pBALRETH.balanceOf(user1), 100e18);
+        assertEq(balRETH.balanceOf(address(simpleCBALRETH)), underlyingBalance);
+        assertEq(simpleCBALRETH.balanceOf(user1), 100e18);
     }
 
     function test_migrate_success_withPToken_withoutCollateralize() public {
         skip(1 weeks);
 
-        uint256 underlyingBalance = balRETH.balanceOf(address(pBALRETH));
+        uint256 underlyingBalance = balRETH.balanceOf(address(simpleCBALRETH));
 
         assertEq(
             predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS),
@@ -155,8 +155,8 @@ contract MigrateTest is TestBasePredeposit {
 
         assertEq(predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS), 0);
         assertEq(balRETH.balanceOf(address(predeposit)), 0);
-        assertEq(balRETH.balanceOf(address(pBALRETH)), underlyingBalance);
-        assertEq(pBALRETH.balanceOf(user1), 100e18);
+        assertEq(balRETH.balanceOf(address(simpleCBALRETH)), underlyingBalance);
+        assertEq(simpleCBALRETH.balanceOf(user1), 100e18);
     }
 
     function test_migrate_success_withEToken() public {

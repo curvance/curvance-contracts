@@ -16,7 +16,7 @@ contract StrategyCTokenWithExitFeeSetExitFeeTest is
         vm.prank(user1);
 
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
-        pBALRETHWithExitFee.setExitFee(100);
+        simpleCBALRETHWithExitFee.setExitFee(100);
     }
 
     function test_strategyCTokenWithExitFeeSetExitFee_fail_whenExitFeeExceedsMaximum()
@@ -27,17 +27,17 @@ contract StrategyCTokenWithExitFeeSetExitFeeTest is
                 .StrategyCTokenWithExitFee__InvalidExitFee
                 .selector
         );
-        pBALRETHWithExitFee.setExitFee(201);
+        simpleCBALRETHWithExitFee.setExitFee(201);
     }
 
     function test_strategyCTokenWithExitFeeSetExitFee_success() public {
-        uint256 exitFee = pBALRETHWithExitFee.exitFee();
+        uint256 exitFee = simpleCBALRETHWithExitFee.exitFee();
 
-        vm.expectEmit(true, true, true, true, address(pBALRETHWithExitFee));
+        vm.expectEmit(true, true, true, true, address(simpleCBALRETHWithExitFee));
         emit ExitFeeSet(exitFee, 0.01e18);
 
-        pBALRETHWithExitFee.setExitFee(100);
+        simpleCBALRETHWithExitFee.setExitFee(100);
 
-        assertEq(pBALRETHWithExitFee.exitFee(), 0.01e18);
+        assertEq(simpleCBALRETHWithExitFee.exitFee(), 0.01e18);
     }
 }

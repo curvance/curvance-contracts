@@ -128,7 +128,7 @@ contract TestAuraCToken is TestBaseMarketIsolated {
 
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,
-            address(pBALRETH),
+            address(simpleCBALRETH),
             _ONE
         );
 
@@ -136,7 +136,7 @@ contract TestAuraCToken is TestBaseMarketIsolated {
 
         usdc.approve(address(borrowableCUSDC), type(uint256).max);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
     }
 
     function testHarvestAuraCToken() public {
@@ -144,13 +144,13 @@ contract TestAuraCToken is TestBaseMarketIsolated {
         _prepareBALRETH(user1, assets);
 
         vm.prank(user1);
-        balRETH.approve(address(pBALRETH), assets);
+        balRETH.approve(address(simpleCBALRETH), assets);
 
         vm.prank(user1);
-        pBALRETH.deposit(assets, user1);
+        simpleCBALRETH.deposit(assets, user1);
 
         assertEq(
-            pBALRETH.totalAssets(),
+            simpleCBALRETH.totalAssets(),
             assets + 77777,
             "Total Assets should equal user deposit."
         );
@@ -187,16 +187,16 @@ contract TestAuraCToken is TestBaseMarketIsolated {
             balAmount,
             0,
             path,
-            address(pBALRETH),
+            address(simpleCBALRETH),
             block.timestamp
         );
 
-        pBALRETH.harvest(abi.encode(swaps, 1e8));
+        simpleCBALRETH.harvest(abi.encode(swaps, 1e8));
 
         // check vault data without modification to vesting period
         (uint256 rewardRate, 
         uint256 vestingPeriodEnd, 
-        uint256 lastVestClaim) = pBALRETH.getVestingYieldData();
+        uint256 lastVestClaim) = simpleCBALRETH.getVestingYieldData();
 
         assert(lastVestClaim == block.timestamp);
         assert(vestingPeriodEnd == block.timestamp + 1 days);
@@ -204,21 +204,21 @@ contract TestAuraCToken is TestBaseMarketIsolated {
         vm.warp(block.timestamp + 8 days);
 
         assertGt(
-            pBALRETH.totalAssets(),
+            simpleCBALRETH.totalAssets(),
             assets + 77777,
             "Total Assets should equal user deposit."
         );
 
         vm.startPrank(user1);
         
-        pBALRETH.withdraw(pBALRETH.balanceOf(user1), user1, user1);
+        simpleCBALRETH.withdraw(simpleCBALRETH.balanceOf(user1), user1, user1);
         vm.stopPrank();
 
-        pBALRETH.setVestingPeriod(2 days);
+        simpleCBALRETH.setVestingPeriod(2 days);
 
         // increase vesting period to 2 days
 
-        (bool updateNeeded, uint256 newVestPeriod) = pBALRETH.pendingVestingPeriodUpdate();
+        (bool updateNeeded, uint256 newVestPeriod) = simpleCBALRETH.pendingVestingPeriodUpdate();
         assert(updateNeeded == true);
         assert(newVestPeriod == 2 days);
 
@@ -227,10 +227,10 @@ contract TestAuraCToken is TestBaseMarketIsolated {
         _prepareBALRETH(user2, assets);
 
         vm.prank(user2);
-        balRETH.approve(address(pBALRETH), assets);
+        balRETH.approve(address(simpleCBALRETH), assets);
 
         vm.prank(user2);
-        pBALRETH.deposit(assets, user2);
+        simpleCBALRETH.deposit(assets, user2);
 
         IBooster(_AURA_BOOSTER).earmarkRewards(109);
 
@@ -249,29 +249,29 @@ contract TestAuraCToken is TestBaseMarketIsolated {
             balAmount,
             0,
             path,
-            address(pBALRETH),
+            address(simpleCBALRETH),
             block.timestamp
         );
 
-        pBALRETH.harvest(abi.encode(swaps, 1e8));
+        simpleCBALRETH.harvest(abi.encode(swaps, 1e8));
 
-        (rewardRate, vestingPeriodEnd, lastVestClaim) = pBALRETH.getVestingYieldData();
+        (rewardRate, vestingPeriodEnd, lastVestClaim) = simpleCBALRETH.getVestingYieldData();
 
         assert(lastVestClaim == block.timestamp);
         assert(vestingPeriodEnd == block.timestamp + 2 days);
 
         // setHarvestingPaused
-        pBALRETH.setHarvestingPaused(true);
+        simpleCBALRETH.setHarvestingPaused(true);
 
         vm.expectRevert(StrategyCToken.StrategyCToken__HarvestingPaused.selector);
-        pBALRETH.harvest(bytes("0"));
+        simpleCBALRETH.harvest(bytes("0"));
 
     }
 
     function testReQueryTokens() external {
-        pBALRETH.reQueryTokens();
+        simpleCBALRETH.reQueryTokens();
 
-        assertEq(pBALRETH.rewardTokens().length, 3);
-        assertEq(pBALRETH.underlyingTokens().length, 2);
+        assertEq(simpleCBALRETH.rewardTokens().length, 3);
+        assertEq(simpleCBALRETH.underlyingTokens().length, 2);
     }
 }

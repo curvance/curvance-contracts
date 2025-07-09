@@ -82,18 +82,18 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
             oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
-        // setup pBALRETH
+        // setup simpleCBALRETH
         {
             // support market
             _prepareBALRETH(address(this), _ONE);
-            balRETH.approve(address(pBALRETH), _ONE);
+            balRETH.approve(address(simpleCBALRETH), _ONE);
 
         }
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCDAI));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pBALRETH);
+        configToken0.cToken = address(simpleCBALRETH);
         configToken0.collRatio = 7000;
         configToken0.collReqSoft = 4000;
         configToken0.collReqHard = 3000;
@@ -140,13 +140,13 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(pBALRETH), _ONE);
-        pBALRETH.deposit(_ONE, user1);
-        pBALRETH.postCollateral(_ONE);
+        balRETH.approve(address(simpleCBALRETH), _ONE);
+        simpleCBALRETH.deposit(_ONE, user1);
+        simpleCBALRETH.postCollateral(_ONE);
         vm.stopPrank();
 
-        assertEq(pBALRETH.balanceOf(user1), _ONE);
-        assertEq(pBALRETH.exchangeRate(), _ONE);
+        assertEq(simpleCBALRETH.balanceOf(user1), _ONE);
+        assertEq(simpleCBALRETH.exchangeRate(), _ONE);
 
         centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
@@ -199,8 +199,8 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         dai.approve(address(borrowableCDAI), 200000e18);
         borrowableCDAI.deposit(200000e18, liquidityProvider);
         // mint cBALETH
-        balRETH.approve(address(pBALRETH), 10e18);
-        pBALRETH.deposit(10e18, liquidityProvider);
+        balRETH.approve(address(simpleCBALRETH), 10e18);
+        simpleCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
     }
 }

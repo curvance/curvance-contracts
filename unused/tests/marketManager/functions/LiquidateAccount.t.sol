@@ -53,8 +53,8 @@
 //     }
 
 //     function _checkLiquidationResult() internal {
-//         assertApproxEqAbs(pBALRETH.balanceOf(user1), 0, 1);
-//         assertEq(pBALRETH.exchangeRateCached(), _ONE);
+//         assertApproxEqAbs(simpleCBALRETH.balanceOf(user1), 0, 1);
+//         assertEq(simpleCBALRETH.exchangeRateCached(), _ONE);
 
 //         assertEq(borrowableCUSDC.balanceOf(user1), 0);
 //         assertEq(borrowableCUSDC.debtBalance(user1), 0);

@@ -55,7 +55,7 @@
 //     MarketManager public marketManager;
 //     OracleManager public oracleManager;
 
-//     AuraCToken public pBALRETH;
+//     AuraCToken public simpleCBALRETH;
 
 //     EToken public eUSDC;
 //     EToken public eDAI;

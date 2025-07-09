@@ -22,8 +22,8 @@ contract TestBaseUniversalBalance is TestBaseMarketIsolated {
         _prepareBALRETH(address(this), 1000e18);
 
         usdc.approve(address(borrowableCUSDC), 1000e6);
-        balRETH.approve(address(pBALRETH), 1000e18);
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        balRETH.approve(address(simpleCBALRETH), 1000e18);
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
         borrowableCUSDC.deposit(1000e6, address(this));
 

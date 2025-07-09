@@ -927,14 +927,14 @@
 //         _deployPBALRETH();
 //         _prepareBALRETH(address(this), 1 ether);
 
-//         balRETH.approve(address(pBALRETH), 1 ether);
-//         marketManagerIsolated.listToken(address(pBALRETH));
+//         balRETH.approve(address(simpleCBALRETH), 1 ether);
+//         marketManagerIsolated.listToken(address(simpleCBALRETH));
 
-//         oracleManager.addCTokenSupport(address(pBALRETH));
+//         oracleManager.addCTokenSupport(address(simpleCBALRETH));
 
 //         // set collateral factor
 //         marketManagerIsolated.updatePositionToken(
-//             address(pBALRETH),
+//             address(simpleCBALRETH),
 //             0,
 //             4000,
 //             3000,
@@ -945,29 +945,29 @@
 
 //         // set up emission rates and fund the gauge pool with cve
 //         address[] memory tokensParam = new address[](1);
-//         tokensParam[0] = address(pBALRETH);
+//         tokensParam[0] = address(simpleCBALRETH);
 //         uint256[] memory poolWeights = new uint256[](1);
 //         poolWeights[0] = 1e18;
 //         vm.prank(address(messagingHub));
 //         gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
 //         _prepareCVE(address(gaugeManager), 1e18);
 
-//         vm.startPrank(address(pBALRETH));
+//         vm.startPrank(address(simpleCBALRETH));
 
 //         // make a deposit before start time
-//         gaugeManager.deposit(address(pBALRETH), address(this), 1 ether);
+//         gaugeManager.deposit(address(simpleCBALRETH), address(this), 1 ether);
 
 //         // make a withdrawal before start time
-//         gaugeManager.withdraw(address(pBALRETH), address(this), 1 ether);
+//         gaugeManager.withdraw(address(simpleCBALRETH), address(this), 1 ether);
 
 //         // fast forward to after start time
 //         vm.warp(gaugeManager.gaugeStartTime() + 2 weeks);
 
 //         // make a deposit after start time
-//         gaugeManager.deposit(address(pBALRETH), address(this), 1 ether);
+//         gaugeManager.deposit(address(simpleCBALRETH), address(this), 1 ether);
 
 //         // make a withdrawal after start time
-//         gaugeManager.withdraw(address(pBALRETH), address(this), 1 ether);
+//         gaugeManager.withdraw(address(simpleCBALRETH), address(this), 1 ether);
 
 //         vm.stopPrank();
 //     }

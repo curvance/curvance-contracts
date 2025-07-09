@@ -12,21 +12,21 @@ contract StrategyCTokenTransferFromTest is TestBaseStrategyCToken {
     function setUp() public override {
         super.setUp();
 
-        pBALRETH.mint(100, address(this));
+        simpleCBALRETH.mint(100, address(this));
     }
 
     function test_strategyCTokenTransferFrom_fail_whenTransferZeroAmount()
         public
     {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-        pBALRETH.transferFrom(address(this), user1, 0);
+        simpleCBALRETH.transferFrom(address(this), user1, 0);
     }
 
     function test_strategyCTokenTransferFrom_fail_whenAllowanceIsInvalid()
         public
     {
         vm.expectRevert();
-        pBALRETH.transferFrom(user1, address(this), 100);
+        simpleCBALRETH.transferFrom(user1, address(this), 100);
     }
 
     function test_strategyCTokenTransferFrom_fail_whenTransferIsNotAllowed()
@@ -35,21 +35,21 @@ contract StrategyCTokenTransferFromTest is TestBaseStrategyCToken {
         marketManagerIsolated.setTransferPaused(true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        pBALRETH.transferFrom(address(this), user1, 100);
+        simpleCBALRETH.transferFrom(address(this), user1, 100);
     }
 
     function test_strategyCTokenTransferFrom_success() public {
-        uint256 balance = pBALRETH.balanceOf(address(this));
-        uint256 user1Balance = pBALRETH.balanceOf(user1);
+        uint256 balance = simpleCBALRETH.balanceOf(address(this));
+        uint256 user1Balance = simpleCBALRETH.balanceOf(user1);
 
-        pBALRETH.approve(address(this), 100);
+        simpleCBALRETH.approve(address(this), 100);
 
-        vm.expectEmit(true, true, true, true, address(pBALRETH));
+        vm.expectEmit(true, true, true, true, address(simpleCBALRETH));
         emit Transfer(address(this), user1, 100);
 
-        pBALRETH.transferFrom(address(this), user1, 100);
+        simpleCBALRETH.transferFrom(address(this), user1, 100);
 
-        assertEq(pBALRETH.balanceOf(address(this)), balance - 100);
-        assertEq(pBALRETH.balanceOf(user1), user1Balance + 100);
+        assertEq(simpleCBALRETH.balanceOf(address(this)), balance - 100);
+        assertEq(simpleCBALRETH.balanceOf(user1), user1Balance + 100);
     }
 }

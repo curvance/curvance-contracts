@@ -87,18 +87,18 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
         _prepareUSDC(address(this), _ONE);
         usdc.approve(address(borrowableCUSDC), _ONE);
 
-        // list pBALRETH
+        // list simpleCBALRETH
         _prepareBALRETH(address(this), 77777);
         
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,
-            address(pBALRETH),
+            address(simpleCBALRETH),
             77777
         );
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pBALRETH);
+        configToken0.cToken = address(simpleCBALRETH);
         configToken0.collRatio = 7000;
         configToken0.collReqSoft = 4000;
         configToken0.collReqHard = 3000;
@@ -128,8 +128,8 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareBALRETH(liquidityProvider, 10e18);
         vm.startPrank(liquidityProvider);
-        balRETH.approve(address(pBALRETH), 10e18);
-        pBALRETH.mint(10e18, liquidityProvider);
+        balRETH.approve(address(simpleCBALRETH), 10e18);
+        simpleCBALRETH.mint(10e18, liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.mint(200000e6, liquidityProvider);
 
@@ -142,11 +142,11 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
 
         vm.startPrank(user1);
 
-        balRETH.approve(address(pBALRETH), 1000e18);
+        balRETH.approve(address(simpleCBALRETH), 1000e18);
 
-        pBALRETH.deposit(100e18, user1);
+        simpleCBALRETH.deposit(100e18, user1);
 
-        pBALRETH.postCollateral(100e18);
+        simpleCBALRETH.postCollateral(100e18);
 
         borrowableCUSDC.borrow(100e6);
 
@@ -154,7 +154,7 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
         
         // we aren't using this struct, only for required arguments
         DeleverageStruct memory deleverageData = DeleverageStruct({
-            collateralToken: ICToken(address(pBALRETH)),
+            collateralToken: ICToken(address(simpleCBALRETH)),
             collateralAmount: 0,
             debtToken: IBorrowableCToken(address(borrowableCUSDC)),
             swapData: swapData,
@@ -169,7 +169,7 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
 
         uint256 collateralRemoveAmount = 5e18;
 
-        pBALRETH.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageData);
+        simpleCBALRETH.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageData);
 
         // a usual workflow would swap the collateral for the borrowToken, repay the borrowToken
         // we are checking that withdraw can be called on the pToken

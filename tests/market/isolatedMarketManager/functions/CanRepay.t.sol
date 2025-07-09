@@ -12,12 +12,12 @@ contract CanRepayTest is TestBaseMarketManagerIsolated {
 
     function test_canRepay_fail_withinMinimumHoldPeriod() public {
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(pBALRETH), 77777);
+        balRETH.approve(address(simpleCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
         vm.prank(address(borrowableCUSDC));
         marketManagerIsolated.notifyBorrow(address(borrowableCUSDC), user1);
@@ -30,12 +30,12 @@ contract CanRepayTest is TestBaseMarketManagerIsolated {
 
     function test_canRepay_success_whenPastMinimumHoldPeriod() public {
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(pBALRETH), 77777);
+        balRETH.approve(address(simpleCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
         vm.prank(address(borrowableCUSDC));
         marketManagerIsolated.notifyBorrow(address(borrowableCUSDC), user1);
@@ -46,12 +46,12 @@ contract CanRepayTest is TestBaseMarketManagerIsolated {
 
     function test_canRepay_success() public {
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(pBALRETH), 77777);
+        balRETH.approve(address(simpleCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
         marketManagerIsolated.canRepay(address(borrowableCUSDC), user1);
     }
 }

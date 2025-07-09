@@ -97,7 +97,7 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
     }
 
     function test_strategyCTokenWithExitFeeDeployment_success() public {
-        pBALRETHWithExitFee = new MockAuraCTokenWithExitFee(
+        simpleCBALRETHWithExitFee = new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManagerIsolated),
@@ -109,18 +109,18 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
         );
 
         assertEq(
-            address(pBALRETHWithExitFee.centralRegistry()),
+            address(simpleCBALRETHWithExitFee.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(pBALRETHWithExitFee.asset(), _BAL_WETH_RETH_ADDRESS);
+        assertEq(simpleCBALRETHWithExitFee.asset(), _BAL_WETH_RETH_ADDRESS);
         assertEq(
-            address(pBALRETHWithExitFee.marketManager()),
+            address(simpleCBALRETHWithExitFee.marketManager()),
             address(marketManagerIsolated)
         );
         assertEq(
-            pBALRETHWithExitFee.name(),
+            simpleCBALRETHWithExitFee.name(),
             "Curvance Balancer rETH Stable Pool"
         );
-        assertEq(pBALRETHWithExitFee.exitFee(), 0.02e18);
+        assertEq(simpleCBALRETHWithExitFee.exitFee(), 0.02e18);
     }
 }

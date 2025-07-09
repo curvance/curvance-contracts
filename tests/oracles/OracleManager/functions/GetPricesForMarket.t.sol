@@ -19,7 +19,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         _prepareBALRETH(address(this), 1e18);
         _prepareUSDC(address(this), 1e18);
 
-        balRETH.approve(address(pBALRETH), 1e18);
+        balRETH.approve(address(simpleCBALRETH), 1e18);
         
     }
 
@@ -46,7 +46,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         vm.prank(address(this));
         usdc.approve(address(borrowableCUSDC), 1e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
         vm.prank(address(marketManagerIsolated));
         borrowableCUSDC.startMarket(address(this));
@@ -62,7 +62,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         vm.prank(address(this));
         usdc.approve(address(borrowableCUSDC), 1e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
         _addSinglePriceFeed();
 
         vm.prank(address(marketManagerIsolated));
@@ -79,7 +79,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         vm.prank(address(this));
         usdc.approve(address(borrowableCUSDC), 1e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
         vm.prank(address(marketManagerIsolated));
         borrowableCUSDC.startMarket(address(this));
