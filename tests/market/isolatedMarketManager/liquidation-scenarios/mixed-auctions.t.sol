@@ -14,10 +14,10 @@ import "forge-std/console2.sol";
 
 // ## Scenario 4: Mixed Auction and Regular Liquidations, all using liquidate() function
 // - Setup: 4 users with varying positions
-// - User 1: 1.9 simpleCBALRETH ($2,850), 2500 USDC debt (for Auction)
-// - User 2: 1.9 simpleCBALRETH ($2,850), 2500 USDC debt (for Auction)
-// - User 3: 1.9 simpleCBALRETH ($2,850), 2500 USDC debt (for regular)
-// - User 4: 1.9 simpleCBALRETH ($2,850), 2500 USDC debt (for regular)
+// - User 1: 1.9 strategyCBALRETH ($2,850), 2500 USDC debt (for Auction)
+// - User 2: 1.9 strategyCBALRETH ($2,850), 2500 USDC debt (for Auction)
+// - User 3: 1.9 strategyCBALRETH ($2,850), 2500 USDC debt (for regular)
+// - User 4: 1.9 strategyCBALRETH ($2,850), 2500 USDC debt (for regular)
 // - Action 1: Price drop by to ~$1,300, Auction transaction with custom parameters for User 1 and User 2
 // - Action 2: Regular liquidation attempt for User 3 and User 4
 // - Expected: Users 1 and 2 liquidated via Auction with custom parameters, Users 3 and 4 via regular liquidation
@@ -91,12 +91,12 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         vm.prank(user1);
         usdc.approve(address(borrowableCUSDC), _ONE);
-        balRETH.approve(address(simpleCBALRETH), _ONE + 77777);
+        balRETH.approve(address(strategyCBALRETH), _ONE + 77777);
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(simpleCBALRETH);
+        configToken0.cToken = address(strategyCBALRETH);
         configToken0.collRatio = 9200;
         configToken0.collReqSoft = 830;
         configToken0.collReqHard = 650;
@@ -126,8 +126,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
-        balRETH.approve(address(simpleCBALRETH), 10e18);
-        simpleCBALRETH.deposit(10e18, liquidityProvider);
+        balRETH.approve(address(strategyCBALRETH), 10e18);
+        strategyCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
         _createPositions();
 
@@ -135,7 +135,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         mockRethFeed.setMockAnswer(1300e8);
 
         (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
-            marketManagerIsolated.tokenData(address(simpleCBALRETH));
+            marketManagerIsolated.tokenData(address(strategyCBALRETH));
 
         liqBaseIncentive = liqBaseIncentive_;
         liqCurve = liqCurve_;
@@ -176,7 +176,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         // ===== Cache liquidation values =====
 
-        uint256 cTokenExchangeRate = simpleCBALRETH.exchangeRate();
+        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
 
         totalBorrowsBefore = borrowableCUSDC.marketOutstandingDebt();
 
@@ -187,7 +187,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         lFactorsPreLiquidation_regular = _getLFactorsPreLiquidation(regularBorrowers);
 
         (,eTokenPrice, cTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(auctionBorrowers[0], address(borrowableCUSDC), address(simpleCBALRETH));
+            marketManagerIsolated.liquidationStatusOf(auctionBorrowers[0], address(borrowableCUSDC), address(strategyCBALRETH));
 
         (maxAmount_auction, liquidatedPTokens_auction, collateralRequired_auction) = 
             _getLiquidationValuesWithHigherPrecision_Auction(
@@ -247,7 +247,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         borrowableCUSDC.liquidate(
             auctionBorrowers,
-            address(simpleCBALRETH)
+            address(strategyCBALRETH)
         );
         marketManagerIsolated.lockAuctionCollateral();
         marketManagerIsolated.resetAuctionParameters();
@@ -263,7 +263,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         borrowableCUSDC.liquidate(
             regularBorrowers,
-            address(simpleCBALRETH)
+            address(strategyCBALRETH)
         );
 
         // ===== Validate =====
@@ -276,28 +276,28 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         // Verify collateral is reduced by liquidatedPTokens
         assertApproxEqAbs(
-            simpleCBALRETH.balanceOf(auctionBorrowers[0]),
+            strategyCBALRETH.balanceOf(auctionBorrowers[0]),
             collateralAmounts[0] - (liquidatedPTokens_auction[0]),
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
-            simpleCBALRETH.balanceOf(auctionBorrowers[1]),
+            strategyCBALRETH.balanceOf(auctionBorrowers[1]),
             collateralAmounts[1] - (liquidatedPTokens_auction[1]),
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
-            simpleCBALRETH.balanceOf(regularBorrowers[0]),
+            strategyCBALRETH.balanceOf(regularBorrowers[0]),
             collateralAmounts[2] - (liquidatedPTokens_regular[0]),
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
-            simpleCBALRETH.balanceOf(regularBorrowers[1]),
+            strategyCBALRETH.balanceOf(regularBorrowers[1]),
             collateralAmounts[3] - (liquidatedPTokens_regular[1]),
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
@@ -337,14 +337,14 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         console2.log("liquidatedPTokens_regular[1]", liquidatedPTokens_regular[1]);
 
         assertApproxEqAbs(
-            simpleCBALRETH.balanceOf(dappControlUser),
+            strategyCBALRETH.balanceOf(dappControlUser),
             expectedDappControlUserLiquidatorBalance,
             1000,
             "Dapp control user didn't receive expected collateral"
         );
 
         assertApproxEqAbs(
-            simpleCBALRETH.balanceOf(address(this)),
+            strategyCBALRETH.balanceOf(address(this)),
             expectedNormalUserLiquidatorBalance,
             1000,
             "Liquidator didn't receive expected collateral"
@@ -358,7 +358,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
                 auctionBorrowers[i],
                 address(borrowableCUSDC),
-                address(simpleCBALRETH)
+                address(strategyCBALRETH)
             );
 
             assertGt(lFactorAfter, 0, "Auction borrower should still have lFactor > 0");
@@ -368,7 +368,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
                 regularBorrowers[i],
                 address(borrowableCUSDC),
-                address(simpleCBALRETH)
+                address(strategyCBALRETH)
             );
 
             assertEq(lFactorAfter, 0, "Regular borrower should have lFactor = 0");
@@ -386,26 +386,26 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         _prepareBALRETH(borrower4, collateralAmounts[3]);
 
         vm.startPrank(borrower1);
-        balRETH.approve(address(simpleCBALRETH), collateralAmounts[0]);
-        simpleCBALRETH.depositAsCollateral(collateralAmounts[0], borrower1);
+        balRETH.approve(address(strategyCBALRETH), collateralAmounts[0]);
+        strategyCBALRETH.depositAsCollateral(collateralAmounts[0], borrower1);
         borrowableCUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
         vm.startPrank(borrower2);
-        balRETH.approve(address(simpleCBALRETH), collateralAmounts[1]);
-        simpleCBALRETH.depositAsCollateral(collateralAmounts[1], borrower2);
+        balRETH.approve(address(strategyCBALRETH), collateralAmounts[1]);
+        strategyCBALRETH.depositAsCollateral(collateralAmounts[1], borrower2);
         borrowableCUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
         vm.startPrank(borrower3);
-        balRETH.approve(address(simpleCBALRETH), collateralAmounts[2]);
-        simpleCBALRETH.depositAsCollateral(collateralAmounts[2], borrower3);
+        balRETH.approve(address(strategyCBALRETH), collateralAmounts[2]);
+        strategyCBALRETH.depositAsCollateral(collateralAmounts[2], borrower3);
         borrowableCUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
         vm.startPrank(borrower4);
-        balRETH.approve(address(simpleCBALRETH), collateralAmounts[3]);
-        simpleCBALRETH.depositAsCollateral(collateralAmounts[3], borrower4);
+        balRETH.approve(address(strategyCBALRETH), collateralAmounts[3]);
+        strategyCBALRETH.depositAsCollateral(collateralAmounts[3], borrower4);
         borrowableCUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
@@ -418,7 +418,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             (lFactors[i],,) = marketManagerIsolated.liquidationStatusOf(
                 borrowers[i],
                 address(borrowableCUSDC),
-                address(simpleCBALRETH)
+                address(strategyCBALRETH)
             );
         }
 
@@ -442,7 +442,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256[] memory liquidatedPTokens,
         uint256[] memory collateralRequired
     ) {
-        uint256 cTokenExchangeRate = simpleCBALRETH.exchangeRate();
+        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
@@ -495,7 +495,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256[] memory liquidatedPTokens,
         uint256[] memory collateralRequired
     ) {
-        uint256 cTokenExchangeRate = simpleCBALRETH.exchangeRate();
+        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor

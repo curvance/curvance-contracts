@@ -17,30 +17,30 @@ contract StrategyCTokenWithExitFeeMintTest is
         vm.expectRevert(
             BaseCToken.BaseCToken__ZeroAmount.selector
         );
-        simpleCBALRETHWithExitFee.mint(0, address(this));
+        strategyCBALRETHWithExitFee.mint(0, address(this));
     }
 
     function test_strategyCTokenWithExitFeeMint_fail_whenMintIsNotAllowed()
         public
     {
-        marketManagerIsolated.setMintPaused(address(simpleCBALRETHWithExitFee), true);
+        marketManagerIsolated.setMintPaused(address(strategyCBALRETHWithExitFee), true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        simpleCBALRETHWithExitFee.mint(100, address(this));
+        strategyCBALRETHWithExitFee.mint(100, address(this));
     }
 
     function test_strategyCTokenWithExitFeeMint_success() public {
         uint256 underlyingBalance = balRETH.balanceOf(address(this));
-        uint256 balance = simpleCBALRETHWithExitFee.balanceOf(address(this));
-        uint256 totalSupply = simpleCBALRETHWithExitFee.totalSupply();
+        uint256 balance = strategyCBALRETHWithExitFee.balanceOf(address(this));
+        uint256 totalSupply = strategyCBALRETHWithExitFee.totalSupply();
 
-        vm.expectEmit(true, true, true, true, address(simpleCBALRETHWithExitFee));
+        vm.expectEmit(true, true, true, true, address(strategyCBALRETHWithExitFee));
         emit Transfer(address(0), address(this), 100);
 
-        simpleCBALRETHWithExitFee.mint(100, address(this));
+        strategyCBALRETHWithExitFee.mint(100, address(this));
 
         assertEq(balRETH.balanceOf(address(this)), underlyingBalance - 100);
-        assertEq(simpleCBALRETHWithExitFee.balanceOf(address(this)), balance + 100);
-        assertEq(simpleCBALRETHWithExitFee.totalSupply(), totalSupply + 100);
+        assertEq(strategyCBALRETHWithExitFee.balanceOf(address(this)), balance + 100);
+        assertEq(strategyCBALRETHWithExitFee.totalSupply(), totalSupply + 100);
     }
 }

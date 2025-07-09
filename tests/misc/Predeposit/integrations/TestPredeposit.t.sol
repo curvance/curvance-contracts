@@ -27,16 +27,16 @@ contract TestPredeposit is TestBasePredeposit {
         vm.stopPrank();
 
         usdc.approve(address(borrowableCUSDC), 1000e6);
-        balRETH.approve(address(simpleCBALRETH), 1000e18);
+        balRETH.approve(address(strategyCBALRETH), 1000e18);
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH),address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH),address(borrowableCUSDC));
 
         vm.startPrank(manager);
 
         predeposit.setMigrationConfig(_USDC_ADDRESS, address(borrowableCUSDC));
         predeposit.setMigrationConfig(
             _BAL_WETH_RETH_ADDRESS,
-            address(simpleCBALRETH)
+            address(strategyCBALRETH)
         );
 
         vm.stopPrank();
@@ -87,7 +87,7 @@ contract TestPredeposit is TestBasePredeposit {
         vm.stopPrank();
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(simpleCBALRETH);
+        configToken0.cToken = address(strategyCBALRETH);
         configToken0.collRatio = 7000;
         configToken0.collReqSoft = 4000;
         configToken0.collReqHard = 3000;
@@ -131,12 +131,12 @@ contract TestPredeposit is TestBasePredeposit {
             block.timestamp
         );
 
-        simpleCBALRETH.setDelegateApproval(address(predeposit), true);
+        strategyCBALRETH.setDelegateApproval(address(predeposit), true);
         predeposit.swapAndDeposit(swapData, 0.1e18);
 
         skip(1 weeks);
 
-        uint256 underlyingBalance = balRETH.balanceOf(address(simpleCBALRETH));
+        uint256 underlyingBalance = balRETH.balanceOf(address(strategyCBALRETH));
 
         assertEq(
             predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS),
@@ -150,8 +150,8 @@ contract TestPredeposit is TestBasePredeposit {
 
         assertEq(predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS), 0);
         assertEq(balRETH.balanceOf(address(predeposit)), 0);
-        assertEq(balRETH.balanceOf(address(simpleCBALRETH)), underlyingBalance);
-        assertEq(simpleCBALRETH.balanceOf(user1), 0.1e18);
+        assertEq(balRETH.balanceOf(address(strategyCBALRETH)), underlyingBalance);
+        assertEq(strategyCBALRETH.balanceOf(user1), 0.1e18);
     }
 
     function test_swapAndDeposit_migrate_withPToken_withoutCollateralize_success()
@@ -182,7 +182,7 @@ contract TestPredeposit is TestBasePredeposit {
 
         skip(1 weeks);
 
-        uint256 underlyingBalance = balRETH.balanceOf(address(simpleCBALRETH));
+        uint256 underlyingBalance = balRETH.balanceOf(address(strategyCBALRETH));
 
         assertEq(
             predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS),
@@ -195,8 +195,8 @@ contract TestPredeposit is TestBasePredeposit {
 
         assertEq(predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS), 0);
         assertEq(balRETH.balanceOf(address(predeposit)), 0);
-        assertEq(balRETH.balanceOf(address(simpleCBALRETH)), underlyingBalance);
-        assertEq(simpleCBALRETH.balanceOf(user1), 0.1e18);
+        assertEq(balRETH.balanceOf(address(strategyCBALRETH)), underlyingBalance);
+        assertEq(strategyCBALRETH.balanceOf(user1), 0.1e18);
     }
 
     function test_swapAndDeposit_migrate_withEToken_success() public {

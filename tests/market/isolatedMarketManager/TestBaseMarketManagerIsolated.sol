@@ -26,7 +26,7 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         SafeTransferLib.safeApprove(_DAI_ADDRESS, address(borrowableCDAI), _ONE);
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,
-            address(simpleCBALRETH),
+            address(strategyCBALRETH),
             _ONE
         );
 
@@ -90,15 +90,15 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
 
         vm.prank(user1);
         usdc.approve(address(borrowableCUSDC), _ONE);
-        balRETH.approve(address(simpleCBALRETH), _ONE + 77777);
+        balRETH.approve(address(strategyCBALRETH), _ONE + 77777);
 
         console2.log("balRETH address:", address(balRETH));
-        address balRETHUnderlying = simpleCBALRETH.asset();
-        console2.log("simpleCBALRETH underlying:", balRETHUnderlying); 
+        address balRETHUnderlying = strategyCBALRETH.asset();
+        console2.log("strategyCBALRETH underlying:", balRETHUnderlying); 
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         address liquidityProvider = makeAddr("liquidityProvider");
@@ -109,8 +109,8 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
-        balRETH.approve(address(simpleCBALRETH), 10e18);
-        simpleCBALRETH.deposit(10e18, liquidityProvider);
+        balRETH.approve(address(strategyCBALRETH), 10e18);
+        strategyCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
 
         _prepareBALRETH(user1, _ONE);
@@ -120,9 +120,9 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        simpleCBALRETH.deposit(_ONE, user1);
-        simpleCBALRETH.postCollateral(_ONE - 1);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, user1);
+        strategyCBALRETH.postCollateral(_ONE - 1);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockUpdatedAt(block.timestamp);

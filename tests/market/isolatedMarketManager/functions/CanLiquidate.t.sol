@@ -24,7 +24,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
     function test_canLiquidate_fail_whenETokenNotListed() public {
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             collateralToken: address(borrowableCUSDC),
-            debtToken: address(simpleCBALRETH),
+            debtToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -46,7 +46,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         // marketManager.listToken(address(borrowableCUSDC));
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             collateralToken: address(borrowableCUSDC),
-            debtToken: address(simpleCBALRETH),
+            debtToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -66,16 +66,16 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
 
     function test_canLiquidate_fail_whenCollRatioZero() public {
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(simpleCBALRETH), 77777);
+        balRETH.approve(address(strategyCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             collateralToken: address(borrowableCUSDC),
-            debtToken: address(simpleCBALRETH),
+            debtToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -97,18 +97,18 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
 
     function test_canLiquidate_fail_whenUserHasNotEnteredAnyMarket() public {
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(simpleCBALRETH), 77777);
+        balRETH.approve(address(strategyCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
-        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             collateralToken: address(borrowableCUSDC),
-            debtToken: address(simpleCBALRETH),
+            debtToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -132,18 +132,18 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         public
     {
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(simpleCBALRETH), 77777);
+        balRETH.approve(address(strategyCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
-        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             collateralToken: address(borrowableCUSDC),
-            debtToken: address(simpleCBALRETH),
+            debtToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -187,26 +187,26 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             block.timestamp
         );
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(simpleCBALRETH), 77777);
+        balRETH.approve(address(strategyCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1_000e18);
-        simpleCBALRETH.deposit(1_000e18, user1);
-        simpleCBALRETH.postCollateral(999e18);
+        balRETH.approve(address(strategyCBALRETH), 1_000e18);
+        strategyCBALRETH.deposit(1_000e18, user1);
+        strategyCBALRETH.postCollateral(999e18);
         vm.stopPrank();
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             collateralToken: address(borrowableCUSDC),
-            debtToken: address(simpleCBALRETH),
+            debtToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -230,21 +230,21 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
 
     function test_canLiquidate_success() public {
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(simpleCBALRETH), 77777);
+        balRETH.approve(address(strategyCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100_000e6);
 
         _setupUserPositionAndOracles();
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             collateralToken: address(borrowableCUSDC),
-            debtToken: address(simpleCBALRETH),
+            debtToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -326,14 +326,14 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        // Mint simpleCBALRETH for collateral
+        // Mint strategyCBALRETH for collateral
         _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1_000e18);
-        simpleCBALRETH.deposit(1e18, user1);
-        simpleCBALRETH.postCollateral(1e18 - 1);
+        balRETH.approve(address(strategyCBALRETH), 1_000e18);
+        strategyCBALRETH.deposit(1e18, user1);
+        strategyCBALRETH.postCollateral(1e18 - 1);
 
-        // Borrow eUSDC with simpleCBALRETH as collateral
+        // Borrow eUSDC with strategyCBALRETH as collateral
         _prepareUSDC(address(borrowableCUSDC), 100_000e6);
         borrowableCUSDC.borrow(1000e6);
         vm.stopPrank();

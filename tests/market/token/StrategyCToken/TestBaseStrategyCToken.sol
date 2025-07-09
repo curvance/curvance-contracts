@@ -79,13 +79,13 @@ contract TestBaseStrategyCToken is TestBaseMarketIsolated {
         {
             // support market
             _prepareBALRETH(owner, 1 ether);
-            balRETH.approve(address(simpleCBALRETH), 1 ether);
+            balRETH.approve(address(strategyCBALRETH), 1 ether);
         }
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(simpleCBALRETH);
+        configToken0.cToken = address(strategyCBALRETH);
         configToken0.collRatio = 7000;
         configToken0.collReqSoft = 4000;
         configToken0.collReqHard = 3000;

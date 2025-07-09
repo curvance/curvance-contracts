@@ -24,11 +24,11 @@ contract ETokenBorrowTest is TestBaseEToken {
     }
 
     function test_eTokenBorrow_success() public {
-        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 100_000e18);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 100_000e18);
 
         borrowableCUSDC.deposit(200e6, address(this));
 
-        simpleCBALRETH.postCollateral(1e18 - 1);
+        strategyCBALRETH.postCollateral(1e18 - 1);
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = borrowableCUSDC.balanceOf(address(this));
@@ -44,11 +44,11 @@ contract ETokenBorrowTest is TestBaseEToken {
     }
 
     function test_eTokenBorrowFor_success() public {
-        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
 
         borrowableCUSDC.deposit(200e6, address(this));
 
-        simpleCBALRETH.postCollateral(1e18 - 1);
+        strategyCBALRETH.postCollateral(1e18 - 1);
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = borrowableCUSDC.balanceOf(address(this));

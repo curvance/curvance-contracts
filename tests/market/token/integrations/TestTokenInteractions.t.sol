@@ -77,17 +77,17 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
-        // setup simpleCBALRETH
+        // setup strategyCBALRETH
         {
             // support market
             _prepareBALRETH(owner, _ONE);
-            balRETH.approve(address(simpleCBALRETH), _ONE);
+            balRETH.approve(address(strategyCBALRETH), _ONE);
         }
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(simpleCBALRETH);
+        configToken0.cToken = address(strategyCBALRETH);
         configToken0.collRatio = 7000;
         configToken0.collReqSoft = 4000;
         configToken0.collReqHard = 3000;
@@ -121,8 +121,8 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         dai.approve(address(borrowableCDAI), 200_000e18);
         borrowableCDAI.deposit(200_000e18, liquidityProvider);
         // mint cBALETH
-        balRETH.approve(address(simpleCBALRETH), 10e18);
-        simpleCBALRETH.deposit(10e18, liquidityProvider);
+        balRETH.approve(address(strategyCBALRETH), 10e18);
+        strategyCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
     }
 
@@ -131,20 +131,20 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        simpleCBALRETH.mint(_ONE, user1);
-        assertEq(simpleCBALRETH.balanceOf(user1), _ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.mint(_ONE, user1);
+        assertEq(strategyCBALRETH.balanceOf(user1), _ONE);
 
         // try mint to another user
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        simpleCBALRETH.mint(_ONE, user2);
-        assertEq(simpleCBALRETH.balanceOf(user1), _ONE);
-        assertEq(simpleCBALRETH.balanceOf(user2), _ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.mint(_ONE, user2);
+        assertEq(strategyCBALRETH.balanceOf(user1), _ONE);
+        assertEq(strategyCBALRETH.balanceOf(user2), _ONE);
 
         // try redeem()
-        simpleCBALRETH.redeem(_ONE, user1, user1);
+        strategyCBALRETH.redeem(_ONE, user1, user1);
         vm.stopPrank();
-        assertEq(simpleCBALRETH.balanceOf(user1), 0);
+        assertEq(strategyCBALRETH.balanceOf(user1), 0);
     }
 
     function testETokenMintRedeem() public {
@@ -173,12 +173,12 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        simpleCBALRETH.deposit(_ONE, user1);
-        simpleCBALRETH.postCollateral(_ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, user1);
+        strategyCBALRETH.postCollateral(_ONE);
 
-        assertEq(simpleCBALRETH.balanceOf(user1), _ONE);
-        assertEq(simpleCBALRETH.exchangeRate(), _ONE);
+        assertEq(strategyCBALRETH.balanceOf(user1), _ONE);
+        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
 
         uint256 priceDecimals = mockDaiFeed.decimals();
         (, int256 daiPrice, , , ) = mockDaiFeed.latestRoundData();
@@ -242,9 +242,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        simpleCBALRETH.deposit(_ONE, user1);
-        simpleCBALRETH.postCollateral(_ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, user1);
+        strategyCBALRETH.postCollateral(_ONE);
 
         // try borrow()
         borrowableCDAI.borrow(500e18);
@@ -256,23 +256,23 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.expectRevert(
             bytes4(keccak256("MarketManager__InsufficientCollateral()"))
         );
-        simpleCBALRETH.redeem(_ONE, user1, user1);
+        strategyCBALRETH.redeem(_ONE, user1, user1);
 
         // can redeem partially
-        simpleCBALRETH.redeem(0.2e18, user1, user1);
+        strategyCBALRETH.redeem(0.2e18, user1, user1);
         vm.stopPrank();
 
-        assertEq(simpleCBALRETH.balanceOf(user1), 0.8e18);
-        assertEq(simpleCBALRETH.exchangeRate(), _ONE);
+        assertEq(strategyCBALRETH.balanceOf(user1), 0.8e18);
+        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
     }
 
     function testETokenRedeemOnBorrow() public {
         // try mint()
         _prepareBALRETH(user1, _ONE);
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        simpleCBALRETH.deposit(_ONE, user1);
-        simpleCBALRETH.postCollateral(_ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, user1);
+        strategyCBALRETH.postCollateral(_ONE);
 
         // try mint()
         _prepareDAI(user1, 1000e18);
@@ -295,8 +295,8 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         borrowableCDAI.redeem(1000e18, address(this), address(this));
         vm.stopPrank();
 
-        assertEq(simpleCBALRETH.balanceOf(user1), _ONE);
-        assertEq(simpleCBALRETH.exchangeRate(), _ONE);
+        assertEq(strategyCBALRETH.balanceOf(user1), _ONE);
+        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertGt(borrowableCDAI.debtBalance(user1), 500e18);
@@ -308,9 +308,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        simpleCBALRETH.deposit(_ONE, user1);
-        simpleCBALRETH.postCollateral(_ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, user1);
+        strategyCBALRETH.postCollateral(_ONE);
 
         // try borrow()
         borrowableCDAI.borrow(500e18);
@@ -322,24 +322,24 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.expectRevert(
             bytes4(keccak256("MarketManager__InsufficientCollateral()"))
         );
-        simpleCBALRETH.transfer(user2, _ONE);
+        strategyCBALRETH.transfer(user2, _ONE);
 
         // can redeem partially
-        simpleCBALRETH.transfer(user2, 0.2e18);
+        strategyCBALRETH.transfer(user2, 0.2e18);
         vm.stopPrank();
 
-        assertEq(simpleCBALRETH.balanceOf(user1), 0.8e18);
-        assertEq(simpleCBALRETH.balanceOf(user2), 0.2e18);
-        assertEq(simpleCBALRETH.exchangeRate(), _ONE);
+        assertEq(strategyCBALRETH.balanceOf(user1), 0.8e18);
+        assertEq(strategyCBALRETH.balanceOf(user2), 0.2e18);
+        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
     }
 
     function testETokenTransferOnBorrow() public {
         // try mint()
         _prepareBALRETH(user1, _ONE);
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        simpleCBALRETH.deposit(_ONE, user1);
-        simpleCBALRETH.postCollateral(_ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, user1);
+        strategyCBALRETH.postCollateral(_ONE);
 
         // try mint()
         _prepareDAI(user1, 1000e18);
@@ -356,8 +356,8 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         borrowableCDAI.transfer(user2, 1000e18);
         vm.stopPrank();
 
-        assertEq(simpleCBALRETH.balanceOf(user1), _ONE);
-        assertEq(simpleCBALRETH.exchangeRate(), _ONE);
+        assertEq(strategyCBALRETH.balanceOf(user1), _ONE);
+        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertEq(borrowableCDAI.debtBalance(user1), 500e18);
@@ -372,9 +372,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        simpleCBALRETH.deposit(_ONE, user1);
-        simpleCBALRETH.postCollateral(_ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, user1);
+        strategyCBALRETH.postCollateral(_ONE);
 
         // try borrow()
         borrowableCDAI.borrow(1000e18);
@@ -402,15 +402,15 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         borrowableCDAI.liquidateExact(
             accounts,
             debtAmounts,
-            address(simpleCBALRETH));
+            address(strategyCBALRETH));
         vm.stopPrank();
 
         assertApproxEqRel(
-            simpleCBALRETH.balanceOf(user1),
+            strategyCBALRETH.balanceOf(user1),
             _ONE - (500e18 * _ONE) / balRETHPrice,
             0.02e18
         );
-        assertEq(simpleCBALRETH.exchangeRate(), _ONE);
+        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertApproxEqRel(borrowableCDAI.debtBalance(user1), 750e18, 0.01e18);
@@ -422,9 +422,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        simpleCBALRETH.deposit(_ONE, user1);
-        simpleCBALRETH.postCollateral(_ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, user1);
+        strategyCBALRETH.postCollateral(_ONE);
 
         // try borrow()
         borrowableCDAI.borrow(1000e18);
@@ -450,16 +450,16 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         borrowableCDAI.liquidate(
             accounts,
-            address(simpleCBALRETH));
+            address(strategyCBALRETH));
     
         vm.stopPrank();
 
         assertApproxEqRel(
-            simpleCBALRETH.balanceOf(user1),
+            strategyCBALRETH.balanceOf(user1),
             _ONE - (1550e18 * _ONE) / balRETHPrice,
             0.06e18
         );
-        assertEq(simpleCBALRETH.exchangeRate(), _ONE);
+        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertEq(borrowableCDAI.debtBalance(user1), 0);
@@ -471,9 +471,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        simpleCBALRETH.deposit(_ONE, user1);
-        simpleCBALRETH.postCollateral(_ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, user1);
+        strategyCBALRETH.postCollateral(_ONE);
 
         // try borrow()
         borrowableCDAI.borrow(1000e18);
@@ -492,11 +492,11 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         accounts[0] = user1;
         borrowableCDAI.liquidate(
             accounts,
-            address(simpleCBALRETH));
+            address(strategyCBALRETH));
         vm.stopPrank();
 
-        assertEq(simpleCBALRETH.balanceOf(user1), 0);
-        assertEq(simpleCBALRETH.exchangeRate(), _ONE);
+        assertEq(strategyCBALRETH.balanceOf(user1), 0);
+        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertApproxEqRel(borrowableCDAI.debtBalance(user1), 830e18, 0.01e18);
@@ -508,9 +508,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        simpleCBALRETH.deposit(_ONE, user1);
-        simpleCBALRETH.postCollateral(_ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, user1);
+        strategyCBALRETH.postCollateral(_ONE);
 
         // try borrow()
         borrowableCDAI.borrow(1000e18);
@@ -543,15 +543,15 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         borrowableCDAI.liquidate(
             accounts,
-            address(simpleCBALRETH));
+            address(strategyCBALRETH));
         vm.stopPrank();
 
         assertApproxEqRel(
-            simpleCBALRETH.balanceOf(user1),
+            strategyCBALRETH.balanceOf(user1),
             _ONE - (daiPrice * 1e10 * _ONE) / balRETHPrice,
             0.08e18
         );
-        assertEq(simpleCBALRETH.exchangeRate(), _ONE);
+        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertApproxEqRel(borrowableCDAI.debtBalance(user1), 900e18, 0.01e18);
@@ -559,15 +559,15 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     }
 
     function testRevertBorrowAndLiquidateWithZeroCollRatio() public {
-        _deploySimpleCBALRETH();
+        _deployStrategyCBALRETH();
 
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCDAI));
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
 
-        oracleManager.addCTokenSupport(address(simpleCBALRETH));
+        oracleManager.addCTokenSupport(address(strategyCBALRETH));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(simpleCBALRETH);
+        configToken0.cToken = address(strategyCBALRETH);
         configToken0.collRatio = 7000;
         configToken0.collReqSoft = 4000;
         configToken0.collReqHard = 3000;
@@ -593,13 +593,13 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // try mint()
         vm.startPrank(user1);
 
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        simpleCBALRETH.deposit(_ONE, user1);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, user1);
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__CapReached.selector
         );
-        simpleCBALRETH.postCollateral(_ONE);
+        strategyCBALRETH.postCollateral(_ONE);
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
@@ -625,10 +625,10 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         );
         borrowableCDAI.liquidate(
             accounts,
-            address(simpleCBALRETH));
+            address(strategyCBALRETH));
         vm.stopPrank();
 
         vm.prank(user1);
-        simpleCBALRETH.withdraw(_ONE, user1, user1);
+        strategyCBALRETH.withdraw(_ONE, user1, user1);
     }
 }

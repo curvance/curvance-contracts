@@ -25,7 +25,7 @@ contract LiquidateExactSingleTest is TestBaseETokenIsolated {
         borrowableCUSDC.liquidateExact(
             accounts,
             debtAmounts,
-            address(simpleCBALRETH)
+            address(strategyCBALRETH)
         );
         vm.stopPrank();
 
@@ -40,11 +40,11 @@ contract LiquidateExactSingleTest is TestBaseETokenIsolated {
         );
 
         assertApproxEqRel(
-            simpleCBALRETH.balanceOf(user1),
+            strategyCBALRETH.balanceOf(user1),
             _ONE - (500e18 * _ONE) / balRETHPrice,
             0.02e18
         );
-        assertEq(simpleCBALRETH.exchangeRate(), _ONE);
+        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertApproxEqRel(borrowableCUSDC.debtBalance(user1), 750e6, 0.01e18);

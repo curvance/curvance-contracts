@@ -10,12 +10,12 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         super.setUp();
 
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(simpleCBALRETH), 77777);
+        balRETH.approve(address(strategyCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
     }
 
     function test_canBorrowWithNotify_fail_whenCallerIsNotCToken() public {
@@ -62,12 +62,12 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
         chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
 
-        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100e6 - 1);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
-        vm.prank(address(simpleCBALRETH));
-        marketManagerIsolated.canBorrowWithNotify(address(simpleCBALRETH), user1, 100e6, 100e6);
+        vm.prank(address(strategyCBALRETH));
+        marketManagerIsolated.canBorrowWithNotify(address(strategyCBALRETH), user1, 100e6, 100e6);
     }
 
     function test_canBorrowWithNotify_success_whenCapNotExceeded() external {
@@ -75,14 +75,14 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
         chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
 
-        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100e6);
 
         _prepareBALRETH(user1, 1_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1_000e18);
-        simpleCBALRETH.deposit(10e18, user1);
-        simpleCBALRETH.postCollateral(10e18);
+        balRETH.approve(address(strategyCBALRETH), 1_000e18);
+        strategyCBALRETH.deposit(10e18, user1);
+        strategyCBALRETH.postCollateral(10e18);
         vm.stopPrank();
 
         vm.prank(address(borrowableCUSDC));
@@ -104,7 +104,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000_000e6);
 
         vm.prank(address(borrowableCUSDC));
@@ -140,15 +140,15 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000_000e6);
 
         _prepareBALRETH(user1, 1_000e18);
 
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1_000e18);
-        simpleCBALRETH.deposit(10e18, user1);
-        simpleCBALRETH.postCollateral(10e18);
+        balRETH.approve(address(strategyCBALRETH), 1_000e18);
+        strategyCBALRETH.deposit(10e18, user1);
+        strategyCBALRETH.postCollateral(10e18);
         vm.stopPrank();
 
         vm.prank(address(borrowableCUSDC));
@@ -183,15 +183,15 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000_000e6);
 
         _prepareBALRETH(user1, 1_000e18);
 
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1_000e18);
-        simpleCBALRETH.deposit(10e18, user1);
-        simpleCBALRETH.postCollateral(10e18);
+        balRETH.approve(address(strategyCBALRETH), 1_000e18);
+        strategyCBALRETH.deposit(10e18, user1);
+        strategyCBALRETH.postCollateral(10e18);
         vm.stopPrank();
 
         vm.prank(address(borrowableCUSDC));
@@ -237,15 +237,15 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000_000e6);
 
         // Need some PTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1_000e18);
-        simpleCBALRETH.deposit(1_000e18, user1);
-        simpleCBALRETH.postCollateral(999e18);
+        balRETH.approve(address(strategyCBALRETH), 1_000e18);
+        strategyCBALRETH.deposit(1_000e18, user1);
+        strategyCBALRETH.postCollateral(999e18);
         vm.stopPrank();
 
         bool hasPosition;
@@ -264,7 +264,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
 
         accountAssets = marketManagerIsolated.assetsOf(user1);
         assertEq(accountAssets.length, 2);
-        assertEq(address(accountAssets[0]), address(simpleCBALRETH));
+        assertEq(address(accountAssets[0]), address(strategyCBALRETH));
         assertEq(address(accountAssets[1]), address(borrowableCUSDC));
     }
 }

@@ -60,7 +60,7 @@ contract SetLinkedTokenTest is TestBaseDynamicInterestRateModel {
                 .DynamicInterestRateModel__InvalidToken
                 .selector
         );
-        interestRateModel.setLinkedToken(address(simpleCBALRETH));
+        interestRateModel.setLinkedToken(address(strategyCBALRETH));
     }
 
     function test_setLinkedToken_fail_whenInterestRateModelMismatch() public {

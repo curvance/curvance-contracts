@@ -79,14 +79,14 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         {
             // support market
             _prepareBALRETH(owner, 1 ether);
-            balRETH.approve(address(simpleCBALRETH), 1 ether);
+            balRETH.approve(address(strategyCBALRETH), 1 ether);
 
         }
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(simpleCBALRETH);
+        configToken0.cToken = address(strategyCBALRETH);
         configToken0.collRatio = 7000;
         configToken0.collReqSoft = 4000;
         configToken0.collReqHard = 3000;
@@ -120,8 +120,8 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         dai.approve(address(borrowableCDAI), 200000 ether);
         borrowableCDAI.mint(200000 ether, liquidityProvider);
         // mint cBALETH
-        balRETH.approve(address(simpleCBALRETH), 10 ether);
-        simpleCBALRETH.deposit(10 ether, liquidityProvider);
+        balRETH.approve(address(strategyCBALRETH), 10 ether);
+        strategyCBALRETH.deposit(10 ether, liquidityProvider);
         vm.stopPrank();
     }
 
@@ -130,9 +130,9 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
 
     //     // try mint()
     //     vm.startPrank(user1);
-    //     balRETH.approve(address(simpleCBALRETH), 1 ether);
-    //     simpleCBALRETH.deposit(1 ether, user1);
-    //     simpleCBALRETH.postCollateral(1 ether - 1);
+    //     balRETH.approve(address(strategyCBALRETH), 1 ether);
+    //     strategyCBALRETH.deposit(1 ether, user1);
+    //     strategyCBALRETH.postCollateral(1 ether - 1);
 
     //     // try borrow()
     //     borrowableCDAI.borrow(1000 ether);
@@ -148,7 +148,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
     //     );
 
     //     // adjust dai price, a bit lower than colReqA
-    //     // 1000 dai > 1 simpleCBALRETH / colReqA
+    //     // 1000 dai > 1 strategyCBALRETH / colReqA
     //     mockDaiFeed.setMockAnswer(
     //         int256(
     //             (balRETHPrice * 1 ether * 1e8) / 1000 ether / 1.4 ether - 100
@@ -167,7 +167,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
     //     borrowableCDAI.liquidateExact(
     //         accounts,
     //         debtAmounts, 
-    //         address(simpleCBALRETH));
+    //         address(strategyCBALRETH));
     // }
 
     // function testLiquidateWorksWhenAboveColReqA() public {
@@ -175,9 +175,9 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
 
     //     // try mint()
     //     vm.startPrank(user1);
-    //     balRETH.approve(address(simpleCBALRETH), 1 ether);
-    //     simpleCBALRETH.deposit(1 ether, user1);
-    //     simpleCBALRETH.postCollateral(1 ether - 1);
+    //     balRETH.approve(address(strategyCBALRETH), 1 ether);
+    //     strategyCBALRETH.deposit(1 ether, user1);
+    //     strategyCBALRETH.postCollateral(1 ether - 1);
 
     //     // try borrow()
     //     borrowableCDAI.borrow(1000 ether);
@@ -207,16 +207,16 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
     //     borrowableCDAI.liquidateExact(
     //         accounts,
     //         debtAmounts,
-    //         address(simpleCBALRETH)
+    //         address(strategyCBALRETH)
     //     );
     //     vm.stopPrank();
 
     //     assertApproxEqRel(
-    //         simpleCBALRETH.balanceOf(user1),
+    //         strategyCBALRETH.balanceOf(user1),
     //         1 ether - (500 ether * 1 ether) / balRETHPrice,
     //         0.02e18
     //     );
-    //     assertEq(simpleCBALRETH.exchangeRateCached(), 1 ether);
+    //     assertEq(strategyCBALRETH.exchangeRateCached(), 1 ether);
 
     //     assertEq(borrowableCDAI.balanceOf(user1), 0);
     //     assertApproxEqRel(borrowableCDAI.debtBalance(user1), 750 ether, 0.01e18);

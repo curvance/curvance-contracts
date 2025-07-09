@@ -14,14 +14,14 @@ contract StrategyCTokenWithExitFeeTransferTest is
     function setUp() public override {
         super.setUp();
 
-        simpleCBALRETHWithExitFee.mint(100, address(this));
+        strategyCBALRETHWithExitFee.mint(100, address(this));
     }
 
     function test_strategyCTokenWithExitFeeTransfer_fail_whenTransferZeroAmount()
         public
     {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-        simpleCBALRETHWithExitFee.transfer(user1, 0);
+        strategyCBALRETHWithExitFee.transfer(user1, 0);
     }
 
     function test_strategyCTokenWithExitFeeTransfer_fail_whenTransferIsNotAllowed()
@@ -30,19 +30,19 @@ contract StrategyCTokenWithExitFeeTransferTest is
         marketManagerIsolated.setTransferPaused(true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        simpleCBALRETHWithExitFee.transfer(user1, 1e18);
+        strategyCBALRETHWithExitFee.transfer(user1, 1e18);
     }
 
     function test_strategyCTokenWithExitFeeTransfer_success() public {
-        uint256 balance = simpleCBALRETHWithExitFee.balanceOf(address(this));
-        uint256 user1Balance = simpleCBALRETHWithExitFee.balanceOf(user1);
+        uint256 balance = strategyCBALRETHWithExitFee.balanceOf(address(this));
+        uint256 user1Balance = strategyCBALRETHWithExitFee.balanceOf(user1);
 
-        vm.expectEmit(true, true, true, true, address(simpleCBALRETHWithExitFee));
+        vm.expectEmit(true, true, true, true, address(strategyCBALRETHWithExitFee));
         emit Transfer(address(this), user1, 100);
 
-        simpleCBALRETHWithExitFee.transfer(user1, 100);
+        strategyCBALRETHWithExitFee.transfer(user1, 100);
 
-        assertEq(simpleCBALRETHWithExitFee.balanceOf(address(this)), balance - 100);
-        assertEq(simpleCBALRETHWithExitFee.balanceOf(user1), user1Balance + 100);
+        assertEq(strategyCBALRETHWithExitFee.balanceOf(address(this)), balance - 100);
+        assertEq(strategyCBALRETHWithExitFee.balanceOf(user1), user1Balance + 100);
     }
 }

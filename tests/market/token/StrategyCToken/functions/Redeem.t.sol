@@ -12,55 +12,55 @@ contract StrategyCTokenRedeemTest is TestBaseStrategyCToken {
         vm.prank(address(1));
 
         vm.expectRevert();
-        simpleCBALRETH.redeem(100, address(this), address(this));
+        strategyCBALRETH.redeem(100, address(this), address(this));
     }
 
     function test_strategyCTokenRedeem_fail_whenTransferIsDisabled()
         public
     {
-        simpleCBALRETH.mint(100, address(this));
+        strategyCBALRETH.mint(100, address(this));
 
         centralRegistry.setTransferableStatus(true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        simpleCBALRETH.redeem(10, address(this), address(this));
+        strategyCBALRETH.redeem(10, address(this), address(this));
     }
 
     function test_strategyCTokenRedeem_fail_whenCooldownIsNotEnded()
         public
     {
-        simpleCBALRETH.mint(100, address(this));
+        strategyCBALRETH.mint(100, address(this));
 
         centralRegistry.setCooldown(10 days);
         centralRegistry.setCooldown(5 days);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        simpleCBALRETH.redeem(10, address(this), address(this));
+        strategyCBALRETH.redeem(10, address(this), address(this));
     }
 
     function test_strategyCTokenRedeem_fail_whenAmountIsZero() public {
-        simpleCBALRETH.mint(100, address(this));
+        strategyCBALRETH.mint(100, address(this));
 
         vm.expectRevert(
             BaseCToken.BaseCToken__ZeroAmount.selector
         );
-        simpleCBALRETH.redeem(0, address(this), address(this));
+        strategyCBALRETH.redeem(0, address(this), address(this));
     }
 
     function test_strategyCTokenRedeem_success() public {
-        simpleCBALRETH.mint(100, address(this));
+        strategyCBALRETH.mint(100, address(this));
 
         uint256 underlyingBalance = balRETH.balanceOf(address(this));
-        uint256 balance = simpleCBALRETH.balanceOf(address(this));
-        uint256 totalSupply = simpleCBALRETH.totalSupply();
+        uint256 balance = strategyCBALRETH.balanceOf(address(this));
+        uint256 totalSupply = strategyCBALRETH.totalSupply();
 
-        vm.expectEmit(true, true, true, true, address(simpleCBALRETH));
+        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
         emit Transfer(address(this), address(0), 100);
 
-        simpleCBALRETH.redeem(100, address(this), address(this));
+        strategyCBALRETH.redeem(100, address(this), address(this));
 
         assertEq(balRETH.balanceOf(address(this)), underlyingBalance + 100);
-        assertEq(simpleCBALRETH.balanceOf(address(this)), balance - 100);
-        assertEq(simpleCBALRETH.totalSupply(), totalSupply - 100);
+        assertEq(strategyCBALRETH.balanceOf(address(this)), balance - 100);
+        assertEq(strategyCBALRETH.totalSupply(), totalSupply - 100);
     }
 }

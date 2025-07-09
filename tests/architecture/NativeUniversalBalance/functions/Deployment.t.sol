@@ -29,7 +29,7 @@ contract NativeUniversalBalanceDeploymentTest is
         vm.expectRevert(bytes4(0xc75f2a32));
         new NativeUniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(simpleCBALRETH),
+            address(strategyCBALRETH),
             _WETH_ADDRESS
         );
     }

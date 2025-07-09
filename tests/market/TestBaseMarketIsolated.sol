@@ -65,8 +65,8 @@ contract TestBaseMarketIsolated is TestBase {
         _deployBorrowableCDAI();
 
         _deploySimpleCUSDC();
-        _deploySimpleCBALRETH();
-        _deploySimpleCBALRETHWithExitFee();
+        _deployStrategyCBALRETH();
+        _deployStrategyCBALRETHWithExitFee();
 
 
         _deployPendleZapper();
@@ -75,8 +75,8 @@ contract TestBaseMarketIsolated is TestBase {
         _setRedstoneSigners();
 
         oracleManagers[chainId].addCTokenSupport(address(borrowableCUSDC));
-        oracleManagers[chainId].addCTokenSupport(address(simpleCBALRETH));
-        oracleManagers[chainId].addCTokenSupport(address(simpleCBALRETHWithExitFee));
+        oracleManagers[chainId].addCTokenSupport(address(strategyCBALRETH));
+        oracleManagers[chainId].addCTokenSupport(address(strategyCBALRETHWithExitFee));
     }
 
     function _deployBaseContracts() internal {
@@ -470,12 +470,12 @@ contract TestBaseMarketIsolated is TestBase {
         return simpleCUSDC;
     }
 
-    function _deploySimpleCBALRETH()
+    function _deployStrategyCBALRETH()
         internal
         initMainVariables
         returns (AuraCToken)
     {
-        simpleCBALRETH = simpleCBALRETHs[block.chainid] = new AuraCToken(
+        strategyCBALRETH = strategyCBALRETHs[block.chainid] = new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManagerIsolated),
@@ -484,15 +484,15 @@ contract TestBaseMarketIsolated is TestBase {
             _AURA_BOOSTER,
             1 days
         );
-        return simpleCBALRETH;
+        return strategyCBALRETH;
     }
 
-    function _deploySimpleCBALRETHWithExitFee()
+    function _deployStrategyCBALRETHWithExitFee()
         internal
         initMainVariables
         returns (MockAuraCTokenWithExitFee)
     {
-        simpleCBALRETHWithExitFee = simpleCBALRETHWithExitFees[
+        strategyCBALRETHWithExitFee = strategyCBALRETHWithExitFees[
             block.chainid
         ] = new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
@@ -504,7 +504,7 @@ contract TestBaseMarketIsolated is TestBase {
             200,
             1 days
         );
-        return simpleCBALRETHWithExitFee;
+        return strategyCBALRETHWithExitFee;
     }
 
     function _deployPendleZapper()

@@ -11,13 +11,13 @@ contract StrategyCTokenApproveTest is TestBaseStrategyCToken {
     );
 
     function test_strategyCTokenApprove_success() public {
-        uint256 allowance = simpleCBALRETH.allowance(address(this), user1);
+        uint256 allowance = strategyCBALRETH.allowance(address(this), user1);
 
-        vm.expectEmit(true, true, true, true, address(simpleCBALRETH));
+        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
         emit Approval(address(this), user1, 100);
 
-        simpleCBALRETH.approve(user1, 100);
+        strategyCBALRETH.approve(user1, 100);
 
-        assertEq(simpleCBALRETH.allowance(address(this), user1), allowance + 100);
+        assertEq(strategyCBALRETH.allowance(address(this), user1), allowance + 100);
     }
 }

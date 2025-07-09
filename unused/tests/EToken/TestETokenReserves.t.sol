@@ -81,14 +81,14 @@ contract TestETokenReserves is TestBaseMarketIsolated {
             oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
-        // deploy simpleCBALRETH
+        // deploy strategyCBALRETH
         {
             // support market
             _prepareBALRETH(owner, 1 ether);
-            balRETH.approve(address(simpleCBALRETH), 1 ether);
+            balRETH.approve(address(strategyCBALRETH), 1 ether);
         }
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
 
             // set collateral factor
         marketManagerIsolated.updatePositionToken(
@@ -104,7 +104,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
             1000     // baseCFactor 20%
         );
         address[] memory tokens = new address[](1);
-        tokens[0] = address(simpleCBALRETH);
+        tokens[0] = address(strategyCBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
@@ -137,9 +137,9 @@ contract TestETokenReserves is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1 ether);
-        simpleCBALRETH.deposit(1 ether, user1);
-        simpleCBALRETH.postCollateral(1 ether - 1);
+        balRETH.approve(address(strategyCBALRETH), 1 ether);
+        strategyCBALRETH.deposit(1 ether, user1);
+        strategyCBALRETH.postCollateral(1 ether - 1);
 
         // try borrow()
         borrowableCDAI.borrow(500 ether);

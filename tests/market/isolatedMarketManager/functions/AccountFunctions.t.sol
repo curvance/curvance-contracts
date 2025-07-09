@@ -55,13 +55,13 @@ contract AccountFunctionsIsolatedMarketManager is TestBaseMarketManagerIsolated 
     function test_assetsOf() public {
         address[] memory assets = marketManagerIsolated.assetsOf(user1);
         assertEq(assets.length, 2);
-        assertEq(address(assets[0]), address(simpleCBALRETH));
+        assertEq(address(assets[0]), address(strategyCBALRETH));
         assertEq(address(assets[1]), address(borrowableCUSDC));
     }
 
     function test_tokenDataOf() public {
 
-        (bool hasPosition, uint256 balanceOf, uint256 collateralPostedOf) = auxiliaryData.tokenDataOf(user1, address(simpleCBALRETH));
+        (bool hasPosition, uint256 balanceOf, uint256 collateralPostedOf) = auxiliaryData.tokenDataOf(user1, address(strategyCBALRETH));
         assertEq(hasPosition, true);
         assertEq(balanceOf, _ONE, "balance of mismatch");
         assertEq(collateralPostedOf, _ONE - 1, "collateral posted mismatch");

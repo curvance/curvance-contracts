@@ -79,18 +79,18 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
             usdc.approve(address(borrowableCUSDC), 200000e6);
         }
 
-        // setup simpleCBALRETH
+        // setup strategyCBALRETH
         {
             // support market
             _prepareBALRETH(owner, 1 ether);
-            balRETH.approve(address(simpleCBALRETH), 1 ether);
+            balRETH.approve(address(strategyCBALRETH), 1 ether);
 
         }
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(simpleCBALRETH);
+        configToken0.cToken = address(strategyCBALRETH);
         configToken0.collRatio = 7000;
         configToken0.collReqSoft = 4000;
         configToken0.collReqHard = 3000;
@@ -124,8 +124,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
-        balRETH.approve(address(simpleCBALRETH), 10 ether);
-        simpleCBALRETH.deposit(10 ether, liquidityProvider);
+        balRETH.approve(address(strategyCBALRETH), 10 ether);
+        strategyCBALRETH.deposit(10 ether, liquidityProvider);
         vm.stopPrank();
     }
 
@@ -134,24 +134,24 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1 ether);
-        simpleCBALRETH.deposit(1 ether, user1);
-        simpleCBALRETH.postCollateral(1 ether);
-        assertEq(simpleCBALRETH.balanceOf(user1), 1 ether);
+        balRETH.approve(address(strategyCBALRETH), 1 ether);
+        strategyCBALRETH.deposit(1 ether, user1);
+        strategyCBALRETH.postCollateral(1 ether);
+        assertEq(strategyCBALRETH.balanceOf(user1), 1 ether);
 
         // try mintFor()
-        balRETH.approve(address(simpleCBALRETH), 1 ether);
-        simpleCBALRETH.deposit(1 ether, user2);
-        assertEq(simpleCBALRETH.balanceOf(user1), 1 ether);
-        assertEq(simpleCBALRETH.balanceOf(user2), 1 ether);
+        balRETH.approve(address(strategyCBALRETH), 1 ether);
+        strategyCBALRETH.deposit(1 ether, user2);
+        assertEq(strategyCBALRETH.balanceOf(user1), 1 ether);
+        assertEq(strategyCBALRETH.balanceOf(user2), 1 ether);
 
         // skip some period
         skip(20 minutes);
 
         // try redeem()
-        simpleCBALRETH.redeem(1 ether, user1, user1);
+        strategyCBALRETH.redeem(1 ether, user1, user1);
         vm.stopPrank();
-        assertEq(simpleCBALRETH.balanceOf(user1), 0);
+        assertEq(strategyCBALRETH.balanceOf(user1), 0);
     }
 
     function testETokenMintRedeem() public {
@@ -180,12 +180,12 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1 ether);
-        simpleCBALRETH.deposit(1 ether, user1);
-        simpleCBALRETH.postCollateral(1 ether);
+        balRETH.approve(address(strategyCBALRETH), 1 ether);
+        strategyCBALRETH.deposit(1 ether, user1);
+        strategyCBALRETH.postCollateral(1 ether);
 
-        assertEq(simpleCBALRETH.balanceOf(user1), 1 ether);
-        assertEq(simpleCBALRETH.exchangeRate(), 1 ether);
+        assertEq(strategyCBALRETH.balanceOf(user1), 1 ether);
+        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
 
         // try borrow()
         borrowableCUSDC.borrow(500e6);
@@ -237,9 +237,9 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1 ether);
-        simpleCBALRETH.deposit(1 ether, user1);
-        simpleCBALRETH.postCollateral(1 ether);
+        balRETH.approve(address(strategyCBALRETH), 1 ether);
+        strategyCBALRETH.deposit(1 ether, user1);
+        strategyCBALRETH.postCollateral(1 ether);
 
         // try borrow()
         borrowableCUSDC.borrow(500e6);
@@ -251,23 +251,23 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         vm.expectRevert(
             bytes4(keccak256("MarketManager__InsufficientCollateral()"))
         );
-        simpleCBALRETH.redeem(1 ether, user1, user1);
+        strategyCBALRETH.redeem(1 ether, user1, user1);
 
         // can redeem partially
-        simpleCBALRETH.redeem(0.2 ether, user1, user1);
+        strategyCBALRETH.redeem(0.2 ether, user1, user1);
         vm.stopPrank();
 
-        assertEq(simpleCBALRETH.balanceOf(user1), 0.8 ether);
-        assertEq(simpleCBALRETH.exchangeRate(), 1 ether);
+        assertEq(strategyCBALRETH.balanceOf(user1), 0.8 ether);
+        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
     }
 
     function testETokenRedeemOnBorrow() public {
         // try mint()
         _prepareBALRETH(user1, 1 ether);
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1 ether);
-        simpleCBALRETH.deposit(1 ether, user1);
-        simpleCBALRETH.postCollateral(1 ether);
+        balRETH.approve(address(strategyCBALRETH), 1 ether);
+        strategyCBALRETH.deposit(1 ether, user1);
+        strategyCBALRETH.postCollateral(1 ether);
 
         // try mint()
         _prepareUSDC(user1, 1000e6);
@@ -290,8 +290,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         borrowableCUSDC.redeem(1000e6, address(this), user1);
         vm.stopPrank();
 
-        assertEq(simpleCBALRETH.balanceOf(user1), 1 ether);
-        assertEq(simpleCBALRETH.exchangeRate(), 1 ether);
+        assertEq(strategyCBALRETH.balanceOf(user1), 1 ether);
+        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertGt(borrowableCUSDC.debtBalance(user1), 500e6);
@@ -303,9 +303,9 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1 ether);
-        simpleCBALRETH.deposit(1 ether, user1);
-        simpleCBALRETH.postCollateral(1 ether);
+        balRETH.approve(address(strategyCBALRETH), 1 ether);
+        strategyCBALRETH.deposit(1 ether, user1);
+        strategyCBALRETH.postCollateral(1 ether);
 
         // try borrow()
         borrowableCUSDC.borrow(500e6);
@@ -317,24 +317,24 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         vm.expectRevert(
             bytes4(keccak256("MarketManager__InsufficientCollateral()"))
         );
-        simpleCBALRETH.transfer(user2, 1 ether);
+        strategyCBALRETH.transfer(user2, 1 ether);
 
         // can redeem partially
-        simpleCBALRETH.transfer(user2, 0.2 ether);
+        strategyCBALRETH.transfer(user2, 0.2 ether);
         vm.stopPrank();
 
-        assertEq(simpleCBALRETH.balanceOf(user1), 0.8 ether);
-        assertEq(simpleCBALRETH.balanceOf(user2), 0.2 ether);
-        assertEq(simpleCBALRETH.exchangeRate(), 1 ether);
+        assertEq(strategyCBALRETH.balanceOf(user1), 0.8 ether);
+        assertEq(strategyCBALRETH.balanceOf(user2), 0.2 ether);
+        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
     }
 
     function testETokenTransferOnBorrow() public {
         // try mint()
         _prepareBALRETH(user1, 1 ether);
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1 ether);
-        simpleCBALRETH.deposit(1 ether, user1);
-        simpleCBALRETH.postCollateral(1 ether);
+        balRETH.approve(address(strategyCBALRETH), 1 ether);
+        strategyCBALRETH.deposit(1 ether, user1);
+        strategyCBALRETH.postCollateral(1 ether);
 
         // try mint()
         _prepareUSDC(user1, 1000e6);
@@ -351,8 +351,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         borrowableCUSDC.transfer(user2, 1000e6);
         vm.stopPrank();
 
-        assertEq(simpleCBALRETH.balanceOf(user1), 1 ether);
-        assertEq(simpleCBALRETH.exchangeRate(), 1 ether);
+        assertEq(strategyCBALRETH.balanceOf(user1), 1 ether);
+        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertEq(borrowableCUSDC.debtBalance(user1), 500e6);
@@ -368,9 +368,9 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1 ether);
-        simpleCBALRETH.deposit(1 ether, user1);
-        simpleCBALRETH.postCollateral(1 ether);
+        balRETH.approve(address(strategyCBALRETH), 1 ether);
+        strategyCBALRETH.deposit(1 ether, user1);
+        strategyCBALRETH.postCollateral(1 ether);
 
         // try borrow()
         borrowableCUSDC.borrow(1000e6);
@@ -400,15 +400,15 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         borrowableCUSDC.liquidateExact(
             accounts,
             debtAmounts,
-            address(simpleCBALRETH));
+            address(strategyCBALRETH));
         vm.stopPrank();
 
         assertApproxEqRel(
-            simpleCBALRETH.balanceOf(user1),
+            strategyCBALRETH.balanceOf(user1),
             1 ether - (500 ether * 1 ether) / balRETHPrice,
             0.02e18
         );
-        assertEq(simpleCBALRETH.exchangeRate(), 1 ether);
+        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertApproxEqRel(borrowableCUSDC.debtBalance(user1), 750e6, 0.01e18);
@@ -420,9 +420,9 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), 1 ether);
-        simpleCBALRETH.deposit(1 ether, user1);
-        simpleCBALRETH.postCollateral(1 ether);
+        balRETH.approve(address(strategyCBALRETH), 1 ether);
+        strategyCBALRETH.deposit(1 ether, user1);
+        strategyCBALRETH.postCollateral(1 ether);
 
         // try borrow()
         borrowableCUSDC.borrow(1000e6);
@@ -449,15 +449,15 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         borrowableCUSDC.liquidate(
             accounts,
-            address(simpleCBALRETH));
+            address(strategyCBALRETH));
         vm.stopPrank();
 
         assertApproxEqRel(
-            simpleCBALRETH.balanceOf(user1),
+            strategyCBALRETH.balanceOf(user1),
             1 ether - (1550 ether * 1e18) / balRETHPrice,
             0.06e18
         );
-        assertEq(simpleCBALRETH.exchangeRate(), 1 ether);
+        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertEq(borrowableCUSDC.debtBalance(user1), 0);

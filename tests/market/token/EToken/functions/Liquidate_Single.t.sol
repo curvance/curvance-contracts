@@ -34,7 +34,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
 
         IMarketManager.LiqInstructions memory instructions = IMarketManager.LiqInstructions({
             debtToken: address(borrowableCUSDC),
-            collateralToken: address(simpleCBALRETH),
+            collateralToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             debtRepaid: 0,
@@ -55,7 +55,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         assertEq(results.liquidatedAmounts[0], _ONE - 1, "Liquidated amount mismatch");
         borrowableCUSDC.liquidate(
             accounts,
-            address(simpleCBALRETH)
+            address(strategyCBALRETH)
         );
         vm.stopPrank();
 
@@ -68,16 +68,16 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
 
         // Hard liquidation, should have lost all collateral
         assertEq(
-            simpleCBALRETH.balanceOf(user1),
-            1, "Borrower simpleCBALRETH balance mismatch"
+            strategyCBALRETH.balanceOf(user1),
+            1, "Borrower strategyCBALRETH balance mismatch"
         );
 
         assertEq(expectedRepayAmount, results.debtRepaid, "Debt repaid mismatch");
 
         assertEq(borrowableCUSDC.debtBalance(user1), 0, "eUSDC debt balance mismatch");
-        assertEq(simpleCBALRETH.exchangeRate(), _ONE, "simpleCBALRETH exchange rate mismatch");
+        assertEq(strategyCBALRETH.exchangeRate(), _ONE, "strategyCBALRETH exchange rate mismatch");
         assertLt(borrowableCUSDC.exchangeRate(), _ONE, "eUSDC exchange rate mismatch, there should be bad debt");
-        assertEq(simpleCBALRETH.balanceOf(user2), _ONE - 1, "Liquidator simpleCBALRETH balance mismatch");
+        assertEq(strategyCBALRETH.balanceOf(user2), _ONE - 1, "Liquidator strategyCBALRETH balance mismatch");
         assertEq(usdc.balanceOf(user2), 1000e6 - results.debtRepaid, "Liquidator USDC balance mismatch");
        
     }
@@ -91,16 +91,16 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
-        balRETH.approve(address(simpleCBALRETH), 10e18);
-        simpleCBALRETH.deposit(10e18, liquidityProvider);
+        balRETH.approve(address(strategyCBALRETH), 10e18);
+        strategyCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
 
         _prepareBALRETH(user1, _ONE);
 
         vm.startPrank(user1);
-        balRETH.approve(address(simpleCBALRETH), _ONE);
-        simpleCBALRETH.deposit(_ONE, user1);
-        simpleCBALRETH.postCollateral(_ONE - 1);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, user1);
+        strategyCBALRETH.postCollateral(_ONE - 1);
 
         borrowableCUSDC.borrow(1000e6);
         vm.stopPrank();
@@ -120,7 +120,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         uint256 earnTokenPrice,
         uint256 positionTokenPrice
     ) internal view returns (uint256) {
-        uint256 exchangeRate = simpleCBALRETH.exchangeRate();
+        uint256 exchangeRate = strategyCBALRETH.exchangeRate();
         return (((auctionLiqIncentive * earnTokenPrice * WAD) / (positionTokenPrice * exchangeRate)) * 10 ** 18) / 10 ** 6;
     }
 
@@ -130,7 +130,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         uint256 maxAmount,
         uint256 debtToCollateralMultiplier
     ) internal view returns (uint256) {
-        (, , uint256 collateralAvailable) = auxiliaryData.tokenDataOf(user, address(simpleCBALRETH));
+        (, , uint256 collateralAvailable) = auxiliaryData.tokenDataOf(user, address(strategyCBALRETH));
         uint256 debtAmount = maxAmount;
         uint256 liquidatedPTokens = (debtAmount * debtToCollateralMultiplier) / WAD;
         if (liquidatedPTokens > collateralAvailable) {
@@ -142,10 +142,10 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
     // Main function refactored to avoid stack too deep
     function _calculateExpectedRepayAmountNotExact(address user) internal view returns (uint256) {
         (,,,, uint256 liqBaseIncentive, uint256 liqCurve,,,,, uint256 baseCFactor, uint256 cFactorCurve) = 
-            marketManagerIsolated.tokenData(address(simpleCBALRETH));
+            marketManagerIsolated.tokenData(address(strategyCBALRETH));
         
         (uint256 lFactor, uint256 earnTokenPrice, uint256 positionTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(user, address(borrowableCUSDC), address(simpleCBALRETH));
+            marketManagerIsolated.liquidationStatusOf(user, address(borrowableCUSDC), address(strategyCBALRETH));
 
         uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
         uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);

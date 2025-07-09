@@ -13,38 +13,38 @@ contract StrategyCTokenWithExitFeePreviewRedeemTest is
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function test_strategyCTokenWithExitFeeRedeem_success() public {
-        simpleCBALRETHWithExitFee.mint(100, address(this));
+        strategyCBALRETHWithExitFee.mint(100, address(this));
 
         uint256 underlyingBalance = balRETH.balanceOf(address(this));
-        uint256 balance = simpleCBALRETHWithExitFee.balanceOf(address(this));
-        uint256 totalSupply = simpleCBALRETHWithExitFee.totalSupply();
+        uint256 balance = strategyCBALRETHWithExitFee.balanceOf(address(this));
+        uint256 totalSupply = strategyCBALRETHWithExitFee.totalSupply();
 
-        uint256 redeemQuote = simpleCBALRETHWithExitFee.previewRedeem(100);
+        uint256 redeemQuote = strategyCBALRETHWithExitFee.previewRedeem(100);
         assertEq(redeemQuote, 98); // 100 - 2% exit fee = 98
 
     }
 
     function test_strategyCTokenWithExitFeeRedeem_All() public {
-        simpleCBALRETHWithExitFee.mint(100, address(this));
+        strategyCBALRETHWithExitFee.mint(100, address(this));
 
         uint256 underlyingBalance = balRETH.balanceOf(address(this));
-        uint256 balance = simpleCBALRETHWithExitFee.balanceOf(address(this));
-        uint256 totalSupply = simpleCBALRETHWithExitFee.totalSupply();
+        uint256 balance = strategyCBALRETHWithExitFee.balanceOf(address(this));
+        uint256 totalSupply = strategyCBALRETHWithExitFee.totalSupply();
 
-        uint256 redeemQuote = simpleCBALRETHWithExitFee.previewRedeem(totalSupply);
+        uint256 redeemQuote = strategyCBALRETHWithExitFee.previewRedeem(totalSupply);
         assertEq(redeemQuote, 41325); // 42169 - 2% exit fee = 41325.62
 
     }
 
     // can't withdraw more than total supply
     // function test_strategyCTokenWithExitFeeRedeem_MoreThanTotalSupply() public {
-    //     simpleCBALRETHWithExitFee.mint(100, address(this));
+    //     strategyCBALRETHWithExitFee.mint(100, address(this));
 
     //     uint256 underlyingBalance = balRETH.balanceOf(address(this));
-    //     uint256 balance = simpleCBALRETHWithExitFee.balanceOf(address(this));
-    //     uint256 totalSupply = simpleCBALRETHWithExitFee.totalSupply();
+    //     uint256 balance = strategyCBALRETHWithExitFee.balanceOf(address(this));
+    //     uint256 totalSupply = strategyCBALRETHWithExitFee.totalSupply();
 
-    //     uint256 redeemQuote = simpleCBALRETHWithExitFee.previewRedeem(totalSupply + 1);
+    //     uint256 redeemQuote = strategyCBALRETHWithExitFee.previewRedeem(totalSupply + 1);
        
     // }
 }

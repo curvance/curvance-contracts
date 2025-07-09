@@ -10,11 +10,11 @@ contract ETokenRepayForTest is TestBaseEToken {
     function setUp() public override {
         super.setUp();
 
-        _setCTokenConfigBasic(address(simpleCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
 
         _prepareUSDC(address(borrowableCUSDC), 2000e6);
 
-        simpleCBALRETH.postCollateral(1e18 - 1);
+        strategyCBALRETH.postCollateral(1e18 - 1);
 
         _prepareUSDC(address(user1), 1000e6);
 
