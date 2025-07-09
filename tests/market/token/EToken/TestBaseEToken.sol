@@ -64,10 +64,10 @@ contract TestBaseEToken is TestBaseMarketIsolated {
         _prepareUSDC(address(this), _ONE + 77777);
         _prepareBALRETH(address(this), 10e18 + 77777);
         
-        usdc.approve(address(eUSDC), _ONE + 77777);
+        usdc.approve(address(borrowableCUSDC), _ONE + 77777);
         balRETH.approve(address(pBALRETH), 10e18 + 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(pBALRETH);
@@ -87,7 +87,7 @@ contract TestBaseEToken is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
+        configToken1.cToken = address(borrowableCUSDC);
         configToken1.debtCap = 100_000e6;
         marketManagerIsolated.updateTokenConfig(configToken1);
         
@@ -101,8 +101,8 @@ contract TestBaseEToken is TestBaseMarketIsolated {
         _prepareBALRETH(liquidityProvider, 10e18);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.deposit(200000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);
@@ -115,7 +115,7 @@ contract TestBaseEToken is TestBaseMarketIsolated {
         pBALRETH.deposit(_ONE, user1);
         pBALRETH.postCollateral(_ONE - 1);
 
-        eUSDC.borrow(1000e6);
+        borrowableCUSDC.borrow(1000e6);
         vm.stopPrank();
 
         // skip min hold period

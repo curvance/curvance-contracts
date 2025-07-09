@@ -14,10 +14,10 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         balRETH.approve(address(pBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
         
         // List tokens in the market
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
     }
 

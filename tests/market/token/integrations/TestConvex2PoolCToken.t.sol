@@ -64,8 +64,8 @@ contract TestConvex2PoolCToken is TestBaseMarketIsolated {
         CONVEX_STETH_ETH_POOL.approve(address(cSTETH), 1 ether);
 
         _prepareUSDC(address(this), 1 ether);
-        usdc.approve(address(eUSDC), 1 ether);
-        marketManagerIsolated.listTokens(address(cSTETH), address(eUSDC));
+        usdc.approve(address(borrowableCUSDC), 1 ether);
+        marketManagerIsolated.listTokens(address(cSTETH), address(borrowableCUSDC));
 
         centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,

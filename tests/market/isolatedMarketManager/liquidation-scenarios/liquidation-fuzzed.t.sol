@@ -73,10 +73,10 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         _prepareBALRETH(user1, _ONE + 77777);
 
         vm.prank(user1);
-        usdc.approve(address(eUSDC), _ONE);
+        usdc.approve(address(borrowableCUSDC), _ONE);
         balRETH.approve(address(pBALRETH), _ONE + 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
         // marketManagerIsolated.updatePositionToken(
         //     9750,    // collRatio 97.5% (max borrowing power)
@@ -109,7 +109,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
+        configToken1.cToken = address(borrowableCUSDC);
         configToken1.debtCap = 100_000e6;
 
         marketManagerIsolated.updateTokenConfig(configToken1);
@@ -120,8 +120,8 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         _prepareBALRETH(liquidityProvider, 100e18);
         
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.deposit(200000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
         balRETH.approve(address(pBALRETH), 100e18);
         pBALRETH.deposit(100e18, liquidityProvider);
         vm.stopPrank();
@@ -156,7 +156,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         vm.assume(_borrowAmount >= MINIMUM_BORROW_AMOUNT
             && _borrowAmount <= maxBorrowAmount);
 
-        eUSDC.borrow(_borrowAmount);
+        borrowableCUSDC.borrow(_borrowAmount);
 
         vm.stopPrank();
 
@@ -174,7 +174,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         uint256 lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower);
 
         (,uint256 eTokenPrice, uint256 cTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(borrower, address(eUSDC), address(pBALRETH));
+            marketManagerIsolated.liquidationStatusOf(borrower, address(borrowableCUSDC), address(pBALRETH));
 
         (maxAmount, liquidatedPTokens, collateralRequired) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
@@ -184,7 +184,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
 
         collateralAmounts = pBALRETH.collateralPosted(borrower);
 
-        debtBalancesPreLiquidation = eUSDC.debtBalanceUpdated(borrower);
+        debtBalancesPreLiquidation = borrowableCUSDC.debtBalanceUpdated(borrower);
 
         expectedBadDebt = _calculateBadDebt(
                 debtBalancesPreLiquidation,
@@ -202,10 +202,10 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         vm.prank(liquidator);
         (uint256 lFactor,,) = marketManagerIsolated.liquidationStatusOf(
             borrower,
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH)
         );
-        usdc.approve(address(eUSDC), 1_000_000e6);
+        usdc.approve(address(borrowableCUSDC), 1_000_000e6);
         if (lFactor == 0) {
             vm.expectRevert(abi.encodeWithSelector(MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector));
         }
@@ -214,7 +214,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         emit BadDebtRecognized(borrower, expectedBadDebt);
         emit Repay(liquidator, borrower , maxAmount + expectedBadDebt);
 
-        eUSDC.liquidate(borrowerArray, address(pBALRETH));
+        borrowableCUSDC.liquidate(borrowerArray, address(pBALRETH));
 
         // TODO ADD ASSERTIONS!!!!!
 
@@ -271,7 +271,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
 
             (lFactors,,) = marketManagerIsolated.liquidationStatusOf(
                 _borrowers,
-                address(eUSDC),
+                address(borrowableCUSDC),
                 address(pBALRETH)
             );
 

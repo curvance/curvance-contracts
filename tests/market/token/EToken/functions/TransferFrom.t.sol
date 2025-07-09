@@ -13,38 +13,38 @@ contract ETokenTransferFromTest is TestBaseEToken {
         public
     {
         vm.expectRevert(BaseCToken.BaseCToken__TransferError.selector);
-        eUSDC.transferFrom(address(this), address(this), 100e6);
+        borrowableCUSDC.transferFrom(address(this), address(this), 100e6);
     }
 
     function test_eTokenTransferFrom_fail_whenTransferZeroAmount() public {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-        eUSDC.transferFrom(address(this), user1, 0);
+        borrowableCUSDC.transferFrom(address(this), user1, 0);
     }
 
     function test_eTokenTransferFrom_fail_whenAllowanceIsInvalid() public {
         vm.expectRevert();
-        eUSDC.transferFrom(user1, address(this), 100e6);
+        borrowableCUSDC.transferFrom(user1, address(this), 100e6);
     }
 
     function test_transfer_fail_whenTransferIsNotAllowed() public {
         marketManagerIsolated.setTransferPaused(true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        eUSDC.transferFrom(address(this), user1, 100e6);
+        borrowableCUSDC.transferFrom(address(this), user1, 100e6);
     }
 
     function test_eTokenTransferFrom_success() public {
-        deal(address(eUSDC), address(this), 100e6);
+        deal(address(borrowableCUSDC), address(this), 100e6);
 
-        uint256 balance = eUSDC.balanceOf(address(this));
-        uint256 user1Balance = eUSDC.balanceOf(user1);
+        uint256 balance = borrowableCUSDC.balanceOf(address(this));
+        uint256 user1Balance = borrowableCUSDC.balanceOf(user1);
 
-        vm.expectEmit(true, true, true, true, address(eUSDC));
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Transfer(address(this), user1, 100e6);
 
-        eUSDC.transferFrom(address(this), user1, 100e6);
+        borrowableCUSDC.transferFrom(address(this), user1, 100e6);
 
-        assertEq(eUSDC.balanceOf(address(this)), balance - 100e6);
-        assertEq(eUSDC.balanceOf(user1), user1Balance + 100e6);
+        assertEq(borrowableCUSDC.balanceOf(address(this)), balance - 100e6);
+        assertEq(borrowableCUSDC.balanceOf(user1), user1Balance + 100e6);
     }
 }

@@ -40,7 +40,7 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         _deployOracleManager();
         _deployChainlinkAdaptors();
         _deployMarketManager();
-        _deployEDAI();
+        _deployBorrowableCDAI();
 
         chainlinkPendleUsd = new MockV3Aggregator(18, 3.6e18, 3.6e24, 3.6e13);
         chainlinkAdaptor.addAsset(
@@ -76,10 +76,10 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         deal(_LP_STETH, address(this), 77777);
 
         _prepareDAI(address(this), 77777);
-        dai.approve(address(eDAI), 77777);
+        dai.approve(address(borrowableCDAI), 77777);
 
         IERC20(_LP_STETH).approve(address(cSTETH), 77777);
-        marketManagerIsolated.listTokens(address(cSTETH), address(eDAI));
+        marketManagerIsolated.listTokens(address(cSTETH), address(borrowableCDAI));
 
         vm.prank(user1);
         IERC20(_LP_STETH).approve(address(cSTETH), assets);
@@ -157,10 +157,10 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         deal(_LP_STETH, address(this), 77777);
 
         _prepareDAI(address(this), 77777);
-        dai.approve(address(eDAI), 77777);
+        dai.approve(address(borrowableCDAI), 77777);
 
         IERC20(_LP_STETH).approve(address(cSTETH), 77777);
-        marketManagerIsolated.listTokens(address(cSTETH), address(eDAI));
+        marketManagerIsolated.listTokens(address(cSTETH), address(borrowableCDAI));
 
         vm.prank(user1);
         IERC20(_LP_STETH).approve(address(cSTETH), assets);

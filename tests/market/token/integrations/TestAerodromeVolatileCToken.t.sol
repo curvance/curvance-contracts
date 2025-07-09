@@ -188,7 +188,7 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
         deal(_AERODROME_WETH_USDC, address(this), 77777);
 
         IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 77777);
-        marketManagerIsolated.listTokens(address(pWETHUSDC),address(eUSDC));
+        marketManagerIsolated.listTokens(address(pWETHUSDC),address(borrowableCUSDC));
 
         vm.prank(user1);
         IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), assets);

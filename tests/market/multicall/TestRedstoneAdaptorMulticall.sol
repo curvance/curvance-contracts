@@ -136,11 +136,11 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             _deployBorrowableCUSDC();
             // support market
             _prepareUSDC(owner, 200000e6);
-            usdc.approve(address(eUSDC), 200000e6);
+            usdc.approve(address(borrowableCUSDC), 200000e6);
             // Add cToken support on Oracle Manager.
-            oracleManager.addCTokenSupport(address(eUSDC));
+            oracleManager.addCTokenSupport(address(borrowableCUSDC));
             address[] memory markets = new address[](1);
-            markets[0] = address(eUSDC);
+            markets[0] = address(borrowableCUSDC);
             // vm.prank(user1);
             // marketManager.enterMarkets(markets);
             // vm.prank(user2);
@@ -172,7 +172,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             // marketManager.enterMarkets(markets);
         }
 
-        marketManagerIsolated.listTokens(address(pWBTC),address(eUSDC));
+        marketManagerIsolated.listTokens(address(pWBTC),address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(pWBTC);
@@ -192,7 +192,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
+        configToken1.cToken = address(borrowableCUSDC);
         configToken1.debtCap = 100_000e6;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
@@ -217,7 +217,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         address[] memory multicallProviders = new address[](3);
         multicallProviders[0] = address(pWBTC);
         multicallProviders[1] = address(positionManagement);
-        multicallProviders[2] = address(eUSDC);
+        multicallProviders[2] = address(borrowableCUSDC);
         centralRegistry.setMulticallProviders(multicallProviders, true);
     }
 
@@ -227,8 +227,8 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         _prepareWBTC(liquidityProvider, 10 ether);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.deposit(200000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         wbtc.approve(address(pWBTC), 10 ether);
         pWBTC.deposit(10 ether, liquidityProvider);
@@ -285,7 +285,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         _prepareUSDC(user1, 2e6);
 
         vm.prank(user1);
-        usdc.approve(address(eUSDC), 1e6);
+        usdc.approve(address(borrowableCUSDC), 1e6);
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
             2
@@ -307,14 +307,14 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         calls[0].data = encodedFunctionWithRedstonePayload;
         calls[0].isPriceUpdate = true;
 
-        calls[1].target = address(eUSDC);
-        calls[1].data = abi.encodeWithSelector(eUSDC.deposit.selector, 1e6, user1);
+        calls[1].target = address(borrowableCUSDC);
+        calls[1].data = abi.encodeWithSelector(borrowableCUSDC.deposit.selector, 1e6, user1);
 
         // try mint()
         vm.prank(user1);
-        eUSDC.multicall(calls);
+        borrowableCUSDC.multicall(calls);
 
-        assertEq(eUSDC.balanceOf(user1), 1e6);
+        assertEq(borrowableCUSDC.balanceOf(user1), 1e6);
         PriceReturnData memory priceData = adapter.getPrice(
             _WBTC_ADDRESS,
             true,
@@ -339,11 +339,11 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
             user1,
-            address(eUSDC)
+            address(borrowableCUSDC)
         ) * 50) / 100;
 
         SimplePositionManager.LeverageStruct memory leverageData;
-        leverageData.debtToken = IBorrowableCToken(address(eUSDC));
+        leverageData.debtToken = IBorrowableCToken(address(borrowableCUSDC));
         leverageData.borrowAmount = amountForLeverage;
         leverageData.collateralToken = ICToken(address(pWBTC));
         leverageData.swapData.inputToken = _USDC_ADDRESS;

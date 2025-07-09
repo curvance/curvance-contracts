@@ -72,9 +72,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // setup eDAI
         {
             _prepareDAI(owner, 200_000e18);
-            dai.approve(address(eDAI), 200_000e18);
+            dai.approve(address(borrowableCDAI), 200_000e18);
             // Add cToken support on Oracle Manager.
-            oracleManager.addCTokenSupport(address(eDAI));
+            oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
         // setup pBALRETH
@@ -84,7 +84,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             balRETH.approve(address(pBALRETH), _ONE);
         }
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCDAI));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(pBALRETH);
@@ -104,7 +104,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eDAI);
+        configToken1.cToken = address(borrowableCDAI);
         configToken1.debtCap = 100_000e18;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
@@ -118,8 +118,8 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         _prepareBALRETH(liquidityProvider, 10e18);
         // mint eDAI
         vm.startPrank(liquidityProvider);
-        dai.approve(address(eDAI), 200_000e18);
-        eDAI.deposit(200_000e18, liquidityProvider);
+        dai.approve(address(borrowableCDAI), 200_000e18);
+        borrowableCDAI.deposit(200_000e18, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);
@@ -152,20 +152,20 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        dai.approve(address(eDAI), _ONE);
-        eDAI.mint(_ONE, user1);
-        assertEq(eDAI.balanceOf(user1), _ONE);
+        dai.approve(address(borrowableCDAI), _ONE);
+        borrowableCDAI.mint(_ONE, user1);
+        assertEq(borrowableCDAI.balanceOf(user1), _ONE);
 
         // try mint to another user
-        dai.approve(address(eDAI), _ONE);
-        eDAI.mint(_ONE, user2);
-        assertEq(eDAI.balanceOf(user1), _ONE);
-        assertEq(eDAI.balanceOf(user2), _ONE);
+        dai.approve(address(borrowableCDAI), _ONE);
+        borrowableCDAI.mint(_ONE, user2);
+        assertEq(borrowableCDAI.balanceOf(user1), _ONE);
+        assertEq(borrowableCDAI.balanceOf(user2), _ONE);
 
         // try redeem()
-        eDAI.redeem(_ONE, address(this), address(this));
+        borrowableCDAI.redeem(_ONE, address(this), address(this));
         vm.stopPrank();
-        assertEq(eDAI.balanceOf(user1), 0);
+        assertEq(borrowableCDAI.balanceOf(user1), 0);
     }
 
     function testETokenBorrowRepay() public {
@@ -190,51 +190,51 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.expectRevert(
             LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector
         );
-        eDAI.borrow(minimumBorrowAmount - 1);
+        borrowableCDAI.borrow(minimumBorrowAmount - 1);
 
         // try borrow()
-        eDAI.borrow(minimumBorrowAmount);
+        borrowableCDAI.borrow(minimumBorrowAmount);
 
-        assertEq(eDAI.balanceOf(user1), 0);
-        assertEq(eDAI.debtBalance(user1), minimumBorrowAmount);
-        assertEq(eDAI.exchangeRate(), _ONE);
+        assertEq(borrowableCDAI.balanceOf(user1), 0);
+        assertEq(borrowableCDAI.debtBalance(user1), minimumBorrowAmount);
+        assertEq(borrowableCDAI.exchangeRate(), _ONE);
 
         // try borrow()
         skip(1200);
-        eDAI.borrow(100e18);
+        borrowableCDAI.borrow(100e18);
 
-        assertEq(eDAI.balanceOf(user1), 0);
-        assertGt(eDAI.debtBalance(user1), minimumBorrowAmount + 100e18);
-        assertGt(eDAI.exchangeRate(), _ONE);
+        assertEq(borrowableCDAI.balanceOf(user1), 0);
+        assertGt(borrowableCDAI.debtBalance(user1), minimumBorrowAmount + 100e18);
+        assertGt(borrowableCDAI.exchangeRate(), _ONE);
 
         // skip min hold period
         skip(20 minutes);
 
         // try partial repay
-        uint256 borrowBalanceBefore = eDAI.debtBalance(user1);
-        uint256 exchangeRateBefore = eDAI.exchangeRate();
+        uint256 borrowBalanceBefore = borrowableCDAI.debtBalance(user1);
+        uint256 exchangeRateBefore = borrowableCDAI.exchangeRate();
         _prepareDAI(user1, 20e18);
-        dai.approve(address(eDAI), 20e18);
-        eDAI.repay(20e18);
+        dai.approve(address(borrowableCDAI), 20e18);
+        borrowableCDAI.repay(20e18);
 
-        assertEq(eDAI.balanceOf(user1), 0);
-        assertGt(eDAI.debtBalance(user1), borrowBalanceBefore - 20e18);
-        assertGt(eDAI.exchangeRate(), exchangeRateBefore);
+        assertEq(borrowableCDAI.balanceOf(user1), 0);
+        assertGt(borrowableCDAI.debtBalance(user1), borrowBalanceBefore - 20e18);
+        assertGt(borrowableCDAI.exchangeRate(), exchangeRateBefore);
 
         // skip some period
         skip(1200);
 
         // try repay full
-        borrowBalanceBefore = eDAI.debtBalance(user1);
-        exchangeRateBefore = eDAI.exchangeRate();
+        borrowBalanceBefore = borrowableCDAI.debtBalance(user1);
+        exchangeRateBefore = borrowableCDAI.exchangeRate();
         _prepareDAI(user1, borrowBalanceBefore);
-        dai.approve(address(eDAI), borrowBalanceBefore);
-        eDAI.repay(borrowBalanceBefore);
+        dai.approve(address(borrowableCDAI), borrowBalanceBefore);
+        borrowableCDAI.repay(borrowBalanceBefore);
         vm.stopPrank();
 
-        assertEq(eDAI.balanceOf(user1), 0);
-        assertGt(eDAI.debtBalance(user1), 0);
-        assertGt(eDAI.exchangeRate(), exchangeRateBefore);
+        assertEq(borrowableCDAI.balanceOf(user1), 0);
+        assertGt(borrowableCDAI.debtBalance(user1), 0);
+        assertGt(borrowableCDAI.exchangeRate(), exchangeRateBefore);
     }
 
     function testCTokenRedeemOnBorrow() public {
@@ -247,7 +247,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         pBALRETH.postCollateral(_ONE);
 
         // try borrow()
-        eDAI.borrow(500e18);
+        borrowableCDAI.borrow(500e18);
 
         // skip min hold period
         skip(20 minutes);
@@ -276,31 +276,31 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // try mint()
         _prepareDAI(user1, 1000e18);
-        dai.approve(address(eDAI), 1000e18);
-        eDAI.mint(1000e18, user1);
+        dai.approve(address(borrowableCDAI), 1000e18);
+        borrowableCDAI.mint(1000e18, user1);
 
         // try borrow()
-        eDAI.borrow(500e18);
+        borrowableCDAI.borrow(500e18);
 
         // fail to redeem before minimum hold time pass
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
-        eDAI.redeem(1000e18, address(this), address(this));
+        borrowableCDAI.redeem(1000e18, address(this), address(this));
 
         // skip min hold period
         skip(20 minutes);
 
         // can redeem fully
-        eDAI.redeem(1000e18, address(this), address(this));
+        borrowableCDAI.redeem(1000e18, address(this), address(this));
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), _ONE);
         assertEq(pBALRETH.exchangeRate(), _ONE);
 
-        assertEq(eDAI.balanceOf(user1), 0);
-        assertGt(eDAI.debtBalance(user1), 500e18);
-        assertGt(eDAI.exchangeRate(), _ONE);
+        assertEq(borrowableCDAI.balanceOf(user1), 0);
+        assertGt(borrowableCDAI.debtBalance(user1), 500e18);
+        assertGt(borrowableCDAI.exchangeRate(), _ONE);
     }
 
     function testCTokenTransferOnBorrow() public {
@@ -313,7 +313,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         pBALRETH.postCollateral(_ONE);
 
         // try borrow()
-        eDAI.borrow(500e18);
+        borrowableCDAI.borrow(500e18);
 
         // skip min hold period
         skip(20 minutes);
@@ -343,28 +343,28 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // try mint()
         _prepareDAI(user1, 1000e18);
-        dai.approve(address(eDAI), 1000e18);
-        eDAI.deposit(1000e18, user1);
+        dai.approve(address(borrowableCDAI), 1000e18);
+        borrowableCDAI.deposit(1000e18, user1);
 
         // try borrow()
-        eDAI.borrow(500e18);
+        borrowableCDAI.borrow(500e18);
 
         // skip min hold period
         skip(20 minutes);
 
         // try full transfer
-        eDAI.transfer(user2, 1000e18);
+        borrowableCDAI.transfer(user2, 1000e18);
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), _ONE);
         assertEq(pBALRETH.exchangeRate(), _ONE);
 
-        assertEq(eDAI.balanceOf(user1), 0);
-        assertEq(eDAI.debtBalance(user1), 500e18);
+        assertEq(borrowableCDAI.balanceOf(user1), 0);
+        assertEq(borrowableCDAI.debtBalance(user1), 500e18);
 
-        assertEq(eDAI.balanceOf(user2), 1000e18);
-        assertEq(eDAI.debtBalance(user2), 0e18);
-        assertEq(eDAI.exchangeRate(), _ONE);
+        assertEq(borrowableCDAI.balanceOf(user2), 1000e18);
+        assertEq(borrowableCDAI.debtBalance(user2), 0e18);
+        assertEq(borrowableCDAI.exchangeRate(), _ONE);
     }
 
     function testLiquidationExact() public {
@@ -377,7 +377,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         pBALRETH.postCollateral(_ONE);
 
         // try borrow()
-        eDAI.borrow(1000e18);
+        borrowableCDAI.borrow(1000e18);
         vm.stopPrank();
 
         // skip min hold period
@@ -394,12 +394,12 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // try liquidate half
         _prepareDAI(user2, 250e18);
         vm.startPrank(user2);
-        dai.approve(address(eDAI), 250e18);
+        dai.approve(address(borrowableCDAI), 250e18);
         address[] memory accounts = new address[](1);
         accounts[0] = user1;
         uint256[] memory debtAmounts = new uint256[](1);
         debtAmounts[0] = 250e18;
-        eDAI.liquidateExact(
+        borrowableCDAI.liquidateExact(
             accounts,
             debtAmounts,
             address(pBALRETH));
@@ -412,9 +412,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         );
         assertEq(pBALRETH.exchangeRate(), _ONE);
 
-        assertEq(eDAI.balanceOf(user1), 0);
-        assertApproxEqRel(eDAI.debtBalance(user1), 750e18, 0.01e18);
-        assertApproxEqRel(eDAI.exchangeRate(), _ONE, 0.01e18);
+        assertEq(borrowableCDAI.balanceOf(user1), 0);
+        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 750e18, 0.01e18);
+        assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
     function testLiquidation() public {
@@ -427,7 +427,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         pBALRETH.postCollateral(_ONE);
 
         // try borrow()
-        eDAI.borrow(1000e18);
+        borrowableCDAI.borrow(1000e18);
         vm.stopPrank();
 
         // skip min hold period
@@ -444,11 +444,11 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // try liquidate
         _prepareDAI(user2, 10_000e18);
         vm.startPrank(user2);
-        dai.approve(address(eDAI), 10_000e18);
+        dai.approve(address(borrowableCDAI), 10_000e18);
         address[] memory accounts = new address[](1);
         accounts[0] = user1;
 
-        eDAI.liquidate(
+        borrowableCDAI.liquidate(
             accounts,
             address(pBALRETH));
     
@@ -461,9 +461,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         );
         assertEq(pBALRETH.exchangeRate(), _ONE);
 
-        assertEq(eDAI.balanceOf(user1), 0);
-        assertEq(eDAI.debtBalance(user1), 0);
-        assertApproxEqRel(eDAI.exchangeRate(), _ONE, 0.01e18);
+        assertEq(borrowableCDAI.balanceOf(user1), 0);
+        assertEq(borrowableCDAI.debtBalance(user1), 0);
+        assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
     function testLiquidationWithFullValueLoss() public {
@@ -476,7 +476,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         pBALRETH.postCollateral(_ONE);
 
         // try borrow()
-        eDAI.borrow(1000e18);
+        borrowableCDAI.borrow(1000e18);
         vm.stopPrank();
 
         // skip min hold period
@@ -487,10 +487,10 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // try liquidate
         _prepareDAI(user2, 10_000e18);
         vm.startPrank(user2);
-        dai.approve(address(eDAI), 10_000e18);
+        dai.approve(address(borrowableCDAI), 10_000e18);
         address[] memory accounts = new address[](1);
         accounts[0] = user1;
-        eDAI.liquidate(
+        borrowableCDAI.liquidate(
             accounts,
             address(pBALRETH));
         vm.stopPrank();
@@ -498,9 +498,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(pBALRETH.balanceOf(user1), 0);
         assertEq(pBALRETH.exchangeRate(), _ONE);
 
-        assertEq(eDAI.balanceOf(user1), 0);
-        assertApproxEqRel(eDAI.debtBalance(user1), 830e18, 0.01e18);
-        assertApproxEqRel(eDAI.exchangeRate(), _ONE, 0.01e18);
+        assertEq(borrowableCDAI.balanceOf(user1), 0);
+        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 830e18, 0.01e18);
+        assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
     function testSoftLiquidation() public {
@@ -513,7 +513,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         pBALRETH.postCollateral(_ONE);
 
         // try borrow()
-        eDAI.borrow(1000e18);
+        borrowableCDAI.borrow(1000e18);
         vm.stopPrank();
 
         // skip min hold period
@@ -525,7 +525,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             true
         );
 
-        uint256 debtBalance = eDAI.debtBalanceUpdated(user1);
+        uint256 debtBalance = borrowableCDAI.debtBalanceUpdated(user1);
 
         uint256 daiPrice = ((balRETHPrice * 1e8 * 1e18) / debtBalance) /
             1.4e18 +
@@ -536,12 +536,12 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // try liquidate
         _prepareDAI(user2, 1000e18);
         vm.startPrank(user2);
-        dai.approve(address(eDAI), 1000e18);
+        dai.approve(address(borrowableCDAI), 1000e18);
 
         address[] memory accounts = new address[](1);
         accounts[0] = user1;
 
-        eDAI.liquidate(
+        borrowableCDAI.liquidate(
             accounts,
             address(pBALRETH));
         vm.stopPrank();
@@ -553,16 +553,16 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         );
         assertEq(pBALRETH.exchangeRate(), _ONE);
 
-        assertEq(eDAI.balanceOf(user1), 0);
-        assertApproxEqRel(eDAI.debtBalance(user1), 900e18, 0.01e18);
-        assertApproxEqRel(eDAI.exchangeRate(), _ONE, 0.01e18);
+        assertEq(borrowableCDAI.balanceOf(user1), 0);
+        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 900e18, 0.01e18);
+        assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
     function testRevertBorrowAndLiquidateWithZeroCollRatio() public {
-        _deployPBALRETH();
+        _deploySimpleCBALRETH();
 
         balRETH.approve(address(pBALRETH), _ONE);
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCDAI));
 
         oracleManager.addCTokenSupport(address(pBALRETH));
 
@@ -584,7 +584,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eDAI);
+        configToken1.cToken = address(borrowableCDAI);
         configToken1.debtCap = 100_000e18;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
@@ -604,7 +604,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
-        eDAI.borrow(1000e18);
+        borrowableCDAI.borrow(1000e18);
         vm.stopPrank();
 
         // skip min hold period
@@ -615,7 +615,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // try liquidate
         _prepareDAI(user2, 10_000e18);
         vm.startPrank(user2);
-        dai.approve(address(eDAI), 10_000e18);
+        dai.approve(address(borrowableCDAI), 10_000e18);
 
         address[] memory accounts = new address[](1);
         accounts[0] = user1;
@@ -623,7 +623,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InvalidParameter.selector
         );
-        eDAI.liquidate(
+        borrowableCDAI.liquidate(
             accounts,
             address(pBALRETH));
         vm.stopPrank();

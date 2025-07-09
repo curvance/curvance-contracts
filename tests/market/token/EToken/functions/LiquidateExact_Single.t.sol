@@ -21,8 +21,8 @@ contract LiquidateExactSingleTest is TestBaseETokenIsolated {
         debtAmounts[0] = 250e6;
      
         vm.startPrank(user2);
-        usdc.approve(address(eUSDC), 250e6);
-        eUSDC.liquidateExact(
+        usdc.approve(address(borrowableCUSDC), 250e6);
+        borrowableCUSDC.liquidateExact(
             accounts,
             debtAmounts,
             address(pBALRETH)
@@ -46,8 +46,8 @@ contract LiquidateExactSingleTest is TestBaseETokenIsolated {
         );
         assertEq(pBALRETH.exchangeRate(), _ONE);
 
-        assertEq(eUSDC.balanceOf(user1), 0);
-        assertApproxEqRel(eUSDC.debtBalance(user1), 750e6, 0.01e18);
-        assertApproxEqRel(eUSDC.exchangeRate(), _ONE, 0.01e18);
+        assertEq(borrowableCUSDC.balanceOf(user1), 0);
+        assertApproxEqRel(borrowableCUSDC.debtBalance(user1), 750e6, 0.01e18);
+        assertApproxEqRel(borrowableCUSDC.exchangeRate(), _ONE, 0.01e18);
     }
 }

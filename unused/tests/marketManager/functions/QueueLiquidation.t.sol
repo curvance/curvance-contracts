@@ -16,7 +16,7 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
     {
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
         marketManager.queueLiquidation(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user2,
             user1
@@ -26,11 +26,11 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
     function test_marketManagerQueueLiquidation_fail_whenMTokenIsNotListed()
         public
     {
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
         marketManager.queueLiquidation(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user2,
             user1
@@ -40,13 +40,13 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
     function test_marketManagerQueueLiquidation_fail_whenPTokenIsNotListed()
         public
     {
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
         marketManager.queueLiquidation(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user2,
             user1
@@ -56,16 +56,16 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
     function test_marketManagerQueueLiquidation_fail_whenCallateralRatioIsZero()
         public
     {
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
         marketManager.listToken(address(pBALRETH));
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.queueLiquidation(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user2,
             user1
@@ -75,7 +75,7 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
     function test_marketManagerQueueLiquidation_fail_whenNoLiquidationAvailable()
         public
     {
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
         marketManager.listToken(address(pBALRETH));
 
         marketManager.updatePositionToken(
@@ -88,13 +88,13 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
             1000
         );
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(
             MarketManager.MarketManager__NoLiquidationAvailable.selector
         );
         marketManager.queueLiquidation(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user2,
             user1
@@ -104,15 +104,15 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
     function test_marketManagerQueueLiquidation_success() public {
         _prepareLiquidation();
 
-        bytes32 queueKey = keccak256(abi.encodePacked(user1, address(eUSDC)));
+        bytes32 queueKey = keccak256(abi.encodePacked(user1, address(borrowableCUSDC)));
         bytes32 user2AccessKey = keccak256(
-            abi.encodePacked(user1, user2, uint64(1), address(eUSDC))
+            abi.encodePacked(user1, user2, uint64(1), address(borrowableCUSDC))
         );
         bytes32 user3AccessKey = keccak256(
-            abi.encodePacked(user1, user3, uint64(1), address(eUSDC))
+            abi.encodePacked(user1, user3, uint64(1), address(borrowableCUSDC))
         );
         bytes32 user4AccessKey = keccak256(
-            abi.encodePacked(user1, user4, uint64(2), address(eUSDC))
+            abi.encodePacked(user1, user4, uint64(2), address(borrowableCUSDC))
         );
 
         (
@@ -130,23 +130,23 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
         assertEq(marketManager.priorityAccess(user3AccessKey), 0);
         assertEq(marketManager.priorityAccess(user4AccessKey), 0);
 
-        vm.startPrank(address(eUSDC));
+        vm.startPrank(address(borrowableCUSDC));
 
         vm.expectEmit(true, true, true, true, address(marketManager));
-        emit LiquidationQueued(user1, user2, address(eUSDC));
+        emit LiquidationQueued(user1, user2, address(borrowableCUSDC));
 
         marketManager.queueLiquidation(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user2,
             user1
         );
 
         vm.expectEmit(true, true, true, true, address(marketManager));
-        emit LiquidationQueued(user1, user3, address(eUSDC));
+        emit LiquidationQueued(user1, user3, address(borrowableCUSDC));
 
         marketManager.queueLiquidation(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user3,
             user1
@@ -172,10 +172,10 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
         skip(100);
 
         vm.expectEmit(true, true, true, true, address(marketManager));
-        emit LiquidationQueued(user1, user4, address(eUSDC));
+        emit LiquidationQueued(user1, user4, address(borrowableCUSDC));
 
         marketManager.queueLiquidation(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user4,
             user1

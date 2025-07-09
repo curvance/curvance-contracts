@@ -70,9 +70,9 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         // deploy eDAI
         {
             _prepareDAI(owner, 200000e18);
-            dai.approve(address(eDAI), 200000e18);
+            dai.approve(address(borrowableCDAI), 200000e18);
             // Add cToken support on Oracle Manager.
-            oracleManager.addCTokenSupport(address(eDAI));
+            oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
         // deploy PBALRETH
@@ -83,7 +83,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
 
         }
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCDAI));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(pBALRETH);
@@ -103,7 +103,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eDAI);
+        configToken1.cToken = address(borrowableCDAI);
         configToken1.debtCap = 100_000e18;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
@@ -117,8 +117,8 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         _prepareBALRETH(liquidityProvider, 10 ether);
         // mint eDAI
         vm.startPrank(liquidityProvider);
-        dai.approve(address(eDAI), 200000 ether);
-        eDAI.mint(200000 ether, liquidityProvider);
+        dai.approve(address(borrowableCDAI), 200000 ether);
+        borrowableCDAI.mint(200000 ether, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10 ether);
         pBALRETH.deposit(10 ether, liquidityProvider);
@@ -135,7 +135,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
     //     pBALRETH.postCollateral(1 ether - 1);
 
     //     // try borrow()
-    //     eDAI.borrow(1000 ether);
+    //     borrowableCDAI.borrow(1000 ether);
     //     vm.stopPrank();
 
     //     // skip min hold period
@@ -164,7 +164,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
     //     uint256[] memory debtAmounts = new uint256[](1);
     //     debtAmounts[0] = 250 ether;
 
-    //     eDAI.liquidateExact(
+    //     borrowableCDAI.liquidateExact(
     //         accounts,
     //         debtAmounts, 
     //         address(pBALRETH));
@@ -180,7 +180,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
     //     pBALRETH.postCollateral(1 ether - 1);
 
     //     // try borrow()
-    //     eDAI.borrow(1000 ether);
+    //     borrowableCDAI.borrow(1000 ether);
     //     vm.stopPrank();
 
     //     // skip min hold period
@@ -197,14 +197,14 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
     //     // try liquidate half
     //     _prepareDAI(user2, 250 ether);
     //     vm.startPrank(user2);
-    //     dai.approve(address(eDAI), 250 ether);
+    //     dai.approve(address(borrowableCDAI), 250 ether);
 
     //     address[] memory accounts = new address[](1);
     //     accounts[0] = user1;
     //     uint256[] memory debtAmounts = new uint256[](1);
     //     debtAmounts[0] = 250 ether;
         
-    //     eDAI.liquidateExact(
+    //     borrowableCDAI.liquidateExact(
     //         accounts,
     //         debtAmounts,
     //         address(pBALRETH)
@@ -218,8 +218,8 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
     //     );
     //     assertEq(pBALRETH.exchangeRateCached(), 1 ether);
 
-    //     assertEq(eDAI.balanceOf(user1), 0);
-    //     assertApproxEqRel(eDAI.debtBalance(user1), 750 ether, 0.01e18);
-    //     assertApproxEqRel(eDAI.exchangeRateCached(), 1 ether, 0.01e18);
+    //     assertEq(borrowableCDAI.balanceOf(user1), 0);
+    //     assertApproxEqRel(borrowableCDAI.debtBalance(user1), 750 ether, 0.01e18);
+    //     assertApproxEqRel(borrowableCDAI.exchangeRateCached(), 1 ether, 0.01e18);
     // }
 }

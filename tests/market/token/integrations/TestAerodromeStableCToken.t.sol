@@ -187,7 +187,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
         deal(_AERODROME_DAI_USDC, address(this), 77777);
 
         IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 77777);
-        marketManagerIsolated.listTokens(address(pUSDCDAI), address(eDAI));
+        marketManagerIsolated.listTokens(address(pUSDCDAI), address(borrowableCDAI));
 
         vm.prank(user1);
         IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), assets);

@@ -125,7 +125,7 @@
 //         emit LogString("DEPLOYED: EUSDC");
 //         _deployBorrowableCUSDC();
 //         emit LogString("DEPLOYED: EDAI");
-//         _deployEDAI();
+//         _deployBorrowableCDAI();
 //         emit LogString("DEPLOYED: PUSDC");
 //         _deployPUSDC();
 //         emit LogString("DEPLOYED: DAI");
@@ -381,7 +381,7 @@
 //         return eUSDC;
 //     }
 
-//     function _deployEDAI() internal returns (EToken) {
+//     function _deployBorrowableCDAI() internal returns (EToken) {
 //         eDAI = _deployBorrowableCToken(_DAI_ADDRESS);
 //         return eDAI;
 //     }
@@ -515,7 +515,7 @@
 //             true
 //         );
 //         chainlinkAdaptor.addAsset(
-//             address(eUSDC),
+//             address(borrowableCUSDC),
 //             address(mockUsdcFeed),
 //             0,
 //             true
@@ -535,7 +535,7 @@
 //             true
 //         );
 //         chainlinkAdaptor.addAsset(
-//             address(eDAI),
+//             address(borrowableCDAI),
 //             address(mockDaiFeed),
 //             0,
 //             true
@@ -564,8 +564,8 @@
 //         oracleManager.addCTokenSupport(address(pDAI));
 //         emit LogString("DEPLOYED: Adding pUSDC to router");
 //         oracleManager.addCTokenSupport(address(pUSDC));
-//         oracleManager.addCTokenSupport(address(eDAI));
-//         oracleManager.addCTokenSupport(address(eUSDC));
+//         oracleManager.addCTokenSupport(address(borrowableCDAI));
+//         oracleManager.addCTokenSupport(address(borrowableCUSDC));
 //         feedsSetup = true;
 //         lastRoundUpdate = block.timestamp;
 //     }
@@ -608,7 +608,7 @@
 //     }
 
 //     function _isSupportedEToken(address eToken) internal view {
-//         require(eToken == address(eUSDC) || eToken == address(eDAI));
+//         require(eToken == address(borrowableCUSDC) || eToken == address(borrowableCDAI));
 //         require(marketManager.isListed(eToken));
 //     }
 

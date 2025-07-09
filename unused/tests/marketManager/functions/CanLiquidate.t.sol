@@ -11,7 +11,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
     function test_canLiquidate_fail_whenETokenNotListed() public {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
         marketManager.canLiquidate(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user1,
             1000,
@@ -20,10 +20,10 @@ contract CanLiquidateTest is TestBaseMarketManager {
     }
 
     function test_canLiquidate_fail_whenPTokenNotListed() public {
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
         marketManager.canLiquidate(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user1,
             1000,
@@ -32,14 +32,14 @@ contract CanLiquidateTest is TestBaseMarketManager {
     }
 
     function test_canLiquidate_fail_whenCollRatioZero() public {
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
         marketManager.listToken(address(pBALRETH));
 
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.canLiquidate(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user1,
             1000,
@@ -48,7 +48,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
     }
 
     function test_canLiquidate_fail_whenUserHasNotEnteredAnyMarket() public {
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
         marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
             address(pBALRETH),
@@ -64,7 +64,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
             MarketManager.MarketManager__NoLiquidationAvailable.selector
         );
         marketManager.canLiquidate(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user1,
             1000,
@@ -75,7 +75,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
     function test_canLiquidate_fail_whenAccountHasNoBorrowsAndCollateralPosted()
         public
     {
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
         marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
             address(pBALRETH),
@@ -91,7 +91,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
             MarketManager.MarketManager__NoLiquidationAvailable.selector
         );
         marketManager.canLiquidate(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user1,
             1000,
@@ -122,7 +122,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
             block.timestamp,
             block.timestamp
         );
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
         marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
             address(pBALRETH),
@@ -150,7 +150,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
             MarketManager.MarketManager__NoLiquidationAvailable.selector
         );
         marketManager.canLiquidate(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user1,
             1000,
@@ -159,7 +159,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
     }
 
     function test_canLiquidate_success() public {
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
         marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
             address(pBALRETH),
@@ -195,8 +195,8 @@ contract CanLiquidateTest is TestBaseMarketManager {
         pBALRETH.postCollateral(1e18 - 1);
 
         // Borrow eUSDC with pBALRETH as collateral
-        _prepareUSDC(address(eUSDC), 100_000e6);
-        eUSDC.borrow(1000e6);
+        _prepareUSDC(address(borrowableCUSDC), 100_000e6);
+        borrowableCUSDC.borrow(1000e6);
         vm.stopPrank();
 
         assertEq(usdc.balanceOf(user1), 1000e6);
@@ -206,7 +206,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
             MarketManager.MarketManager__NoLiquidationAvailable.selector
         );
         marketManager.canLiquidate(
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(pBALRETH),
             user1,
             1000e6,
@@ -221,7 +221,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
         // =================== RESULTS ==================
         (uint256 liqAmount, uint256 liquidatedTokens) = marketManager
             .canLiquidate(
-                address(eUSDC),
+                address(borrowableCUSDC),
                 address(pBALRETH),
                 user1,
                 1000e6,
@@ -232,7 +232,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
             .tokenData(address(pBALRETH));
 
         uint256 cFactor = baseCFactor + ((cFactorCurve * 1e18) / WAD);
-        uint256 debtAmount = (cFactor * eUSDC.debtBalance(user1)) / WAD;
+        uint256 debtAmount = (cFactor * borrowableCUSDC.debtBalance(user1)) / WAD;
 
         PriceReturnData memory data = balRETHAdapter.getPrice(
             _BAL_WETH_RETH_ADDRESS,
@@ -260,7 +260,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
                 earnTokenPrice *
                 WAD) / (data.price * pBALRETH.exchangeRate());
             uint256 amountAdjusted = (debtAmount *
-                (10 ** pBALRETH.decimals())) / (10 ** eUSDC.decimals());
+                (10 ** pBALRETH.decimals())) / (10 ** borrowableCUSDC.decimals());
             uint256 expectedLiquidatedTokens = (amountAdjusted *
                 debtToCollateralRatio) / WAD;
             expectedLiqAmount = FixedPointMathLib.mulDivUp(

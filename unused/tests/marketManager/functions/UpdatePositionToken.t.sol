@@ -18,7 +18,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
     function test_updatePositionToken_fail_whenNotPToken() public {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
         marketManager.updatePositionToken(
-            address(eUSDC),
+            address(borrowableCUSDC),
             9100 + 1,
             200,
             300,
@@ -33,7 +33,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
         marketManager.updatePositionToken(
-            address(eUSDC),
+            address(borrowableCUSDC),
             9000,
             200,
             300,

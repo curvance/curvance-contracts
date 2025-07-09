@@ -9,29 +9,29 @@ contract RemoveCTokenSupportTest is TestBaseOracleManager {
         vm.prank(address(1));
 
         vm.expectRevert(OracleManager.OracleManager__Unauthorized.selector);
-        oracleManager.removeCTokenSupport(address(eUSDC));
+        oracleManager.removeCTokenSupport(address(borrowableCUSDC));
     }
 
     function test_removeCTokenSupport_fail_whenCTokenIsNotConfigured() public {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.removeCTokenSupport(address(eUSDC));
+        oracleManager.removeCTokenSupport(address(borrowableCUSDC));
     }
 
     function test_removeCTokenSupport_success() public {
-        oracleManager.addCTokenSupport(address(eUSDC));
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
 
         (bool isCToken, address underlying) = oracleManager.cTokenAssets(
-            address(eUSDC)
+            address(borrowableCUSDC)
         );
 
         assertTrue(isCToken);
         assertEq(underlying, _USDC_ADDRESS);
 
-        oracleManager.removeCTokenSupport(address(eUSDC));
+        oracleManager.removeCTokenSupport(address(borrowableCUSDC));
 
-        (isCToken, underlying) = oracleManager.cTokenAssets(address(eUSDC));
+        (isCToken, underlying) = oracleManager.cTokenAssets(address(borrowableCUSDC));
 
         assertFalse(isCToken);
         assertEq(underlying, address(0));

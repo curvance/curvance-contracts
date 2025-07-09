@@ -12,18 +12,18 @@ contract ETokenRepayForTest is TestBaseEToken {
 
         _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
 
-        _prepareUSDC(address(eUSDC), 2000e6);
+        _prepareUSDC(address(borrowableCUSDC), 2000e6);
 
         pBALRETH.postCollateral(1e18 - 1);
 
         _prepareUSDC(address(user1), 1000e6);
 
         vm.startPrank(user1);
-        usdc.approve(address(eUSDC), type(uint256).max);
-        eUSDC.mint(100e6, address(this));
+        usdc.approve(address(borrowableCUSDC), type(uint256).max);
+        borrowableCUSDC.mint(100e6, address(this));
         vm.stopPrank();
 
-        eUSDC.borrow(100e6);
+        borrowableCUSDC.borrow(100e6);
 
         skip(20 minutes);
     }
@@ -31,23 +31,23 @@ contract ETokenRepayForTest is TestBaseEToken {
 
     function test_eTokenRepayFor_success() public {
 
-        eUSDC.accrueIfNeeded();
+        borrowableCUSDC.accrueIfNeeded();
 
-       uint256 currentDebt = eUSDC.debtBalance(address(this));
+       uint256 currentDebt = borrowableCUSDC.debtBalance(address(this));
 
-       uint256 underlyingBalance = usdc.balanceOf(address(eUSDC));
+       uint256 underlyingBalance = usdc.balanceOf(address(borrowableCUSDC));
 
         _prepareUSDC(user2, currentDebt);
         vm.startPrank(user2);
-        usdc.approve(address(eUSDC), currentDebt);
+        usdc.approve(address(borrowableCUSDC), currentDebt);
         
-        eUSDC.repayFor(address(this), currentDebt);
+        borrowableCUSDC.repayFor(address(this), currentDebt);
 
-        uint256 newDebt = eUSDC.debtBalance(address(this));
+        uint256 newDebt = borrowableCUSDC.debtBalance(address(this));
         
         assertEq(newDebt, 0);
         assertEq(usdc.balanceOf(user2), 0);
-        assertEq(usdc.balanceOf(address(eUSDC)), underlyingBalance + currentDebt);
+        assertEq(usdc.balanceOf(address(borrowableCUSDC)), underlyingBalance + currentDebt);
 
     }
 

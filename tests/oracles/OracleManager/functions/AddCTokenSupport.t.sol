@@ -15,18 +15,18 @@ contract AddCTokenSupportTest is TestBaseOracleManager {
         vm.prank(address(1));
 
         vm.expectRevert(OracleManager.OracleManager__Unauthorized.selector);
-        oracleManager.addCTokenSupport(address(eUSDC));
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
     }
 
     function test_addCTokenSupport_fail_whenCTokenIsAlreadyConfigured()
         public
     {
-        oracleManager.addCTokenSupport(address(eUSDC));
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
 
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.addCTokenSupport(address(eUSDC));
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
     }
 
     function test_addCTokenSupport_fail_whenCTokenIsInvalid() public {
@@ -36,15 +36,15 @@ contract AddCTokenSupportTest is TestBaseOracleManager {
 
     function test_addCTokenSupport_success() public {
         (bool isCToken, address underlying) = oracleManager.cTokenAssets(
-            address(eUSDC)
+            address(borrowableCUSDC)
         );
 
         assertFalse(isCToken);
         assertEq(underlying, address(0));
 
-        oracleManager.addCTokenSupport(address(eUSDC));
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
 
-        (isCToken, underlying) = oracleManager.cTokenAssets(address(eUSDC));
+        (isCToken, underlying) = oracleManager.cTokenAssets(address(borrowableCUSDC));
 
         assertTrue(isCToken);
         assertEq(underlying, _USDC_ADDRESS);

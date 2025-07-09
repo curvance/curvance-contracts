@@ -11,29 +11,29 @@ contract ETokenMintTest is TestBaseEToken {
 
     function test_eTokenMint_fail_whenTransferZeroAmount() public {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-        eUSDC.mint(0, address(this));
+        borrowableCUSDC.mint(0, address(this));
     }
 
     function test_eTokenMint_fail_whenMintIsNotAllowed() public {
-        marketManagerIsolated.setMintPaused(address(eUSDC), true);
+        marketManagerIsolated.setMintPaused(address(borrowableCUSDC), true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        eUSDC.mint(100e6, address(this));
+        borrowableCUSDC.mint(100e6, address(this));
     }
 
     //hopefully 1:1
     function test_eTokenMint_success() public {
         uint256 underlyingBalance = usdc.balanceOf(address(this));
-        uint256 balance = eUSDC.balanceOf(address(this));
-        uint256 totalSupply = eUSDC.totalSupply();
+        uint256 balance = borrowableCUSDC.balanceOf(address(this));
+        uint256 totalSupply = borrowableCUSDC.totalSupply();
 
-        vm.expectEmit(true, true, true, true, address(eUSDC));
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Transfer(address(0), address(this), 100e6);
 
-        eUSDC.mint(100e6, address(this));
+        borrowableCUSDC.mint(100e6, address(this));
 
         assertEq(usdc.balanceOf(address(this)), underlyingBalance - 100e6);
-        assertEq(eUSDC.balanceOf(address(this)), balance + 100e6);
-        assertEq(eUSDC.totalSupply(), totalSupply + 100e6);
+        assertEq(borrowableCUSDC.balanceOf(address(this)), balance + 100e6);
+        assertEq(borrowableCUSDC.totalSupply(), totalSupply + 100e6);
     }
 }

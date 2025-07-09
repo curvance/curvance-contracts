@@ -70,9 +70,9 @@ contract TestBaseStrategyCToken is TestBaseMarketIsolated {
         // deploy eDAI
         {
             _prepareDAI(owner, 200000e18);
-            dai.approve(address(eDAI), 200000e18);
+            dai.approve(address(borrowableCDAI), 200000e18);
             // Add cToken support on Oracle Manager.
-            oracleManager.addCTokenSupport(address(eDAI));
+            oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
         // deploy PBALRETH
@@ -82,7 +82,7 @@ contract TestBaseStrategyCToken is TestBaseMarketIsolated {
             balRETH.approve(address(pBALRETH), 1 ether);
         }
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCDAI));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(pBALRETH);
@@ -102,7 +102,7 @@ contract TestBaseStrategyCToken is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eDAI);
+        configToken1.cToken = address(borrowableCDAI);
         configToken1.debtCap = 100_000e18;
         marketManagerIsolated.updateTokenConfig(configToken1);
 

@@ -12,50 +12,50 @@ contract ETokenRedeemTest is TestBaseEToken {
         vm.prank(address(1));
 
         vm.expectRevert();
-        eUSDC.redeem(100e6, address(this), address(1));
+        borrowableCUSDC.redeem(100e6, address(this), address(1));
     }
 
     function test_eTokenRedeem_fail_whenAmountIsZero() public {
-        eUSDC.mint(100e6, address(this));
+        borrowableCUSDC.mint(100e6, address(this));
 
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-        eUSDC.redeem(0, address(this), address(this));
+        borrowableCUSDC.redeem(0, address(this), address(this));
     }
 
     function test_eTokenRedeem_success() public {
-        eUSDC.mint(100e6, address(this));
+        borrowableCUSDC.mint(100e6, address(this));
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
-        uint256 balance = eUSDC.balanceOf(address(this));
-        uint256 totalSupply = eUSDC.totalSupply();
+        uint256 balance = borrowableCUSDC.balanceOf(address(this));
+        uint256 totalSupply = borrowableCUSDC.totalSupply();
 
-        vm.expectEmit(true, true, true, true, address(eUSDC));
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Transfer(address(this), address(0), 100e6);
 
-        eUSDC.redeem(100e6, address(this), address(this));
+        borrowableCUSDC.redeem(100e6, address(this), address(this));
 
         assertEq(usdc.balanceOf(address(this)), underlyingBalance + 100e6);
-        assertEq(eUSDC.balanceOf(address(this)), balance - 100e6);
-        assertEq(eUSDC.totalSupply(), totalSupply - 100e6);
+        assertEq(borrowableCUSDC.balanceOf(address(this)), balance - 100e6);
+        assertEq(borrowableCUSDC.totalSupply(), totalSupply - 100e6);
     }
 
     function test_eTokenRedeemFor_success() public {
-        eUSDC.mint(100e6, address(this));
+        borrowableCUSDC.mint(100e6, address(this));
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
-        uint256 balance = eUSDC.balanceOf(address(this));
-        uint256 totalSupply = eUSDC.totalSupply();
+        uint256 balance = borrowableCUSDC.balanceOf(address(this));
+        uint256 totalSupply = borrowableCUSDC.totalSupply();
 
-        eUSDC.setDelegateApproval(user1, true);
+        borrowableCUSDC.setDelegateApproval(user1, true);
 
-        vm.expectEmit(true, true, true, true, address(eUSDC));
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Transfer(address(this), address(0), 100e6);
 
         vm.prank(user1);
-        eUSDC.redeemFor(100e6, address(this), address(this));
+        borrowableCUSDC.redeemFor(100e6, address(this), address(this));
 
         assertEq(usdc.balanceOf(address(this)), underlyingBalance + 100e6);
-        assertEq(eUSDC.balanceOf(address(this)), balance - 100e6);
-        assertEq(eUSDC.totalSupply(), totalSupply - 100e6);
+        assertEq(borrowableCUSDC.balanceOf(address(this)), balance - 100e6);
+        assertEq(borrowableCUSDC.totalSupply(), totalSupply - 100e6);
     }
 }

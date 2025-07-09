@@ -42,7 +42,7 @@
 //             _prepareDAI(users[i], 200000e18);
 //         }
 //         for (uint256 i = 0; i < 10; i++) {
-//             tokens[i] = address(_deployEDAI());
+//             tokens[i] = address(_deployBorrowableCDAI());
 //         }
 
 //         for (uint256 i = 0; i < 10; i++) {

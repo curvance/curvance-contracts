@@ -13,8 +13,8 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
     function setUp() public override {
         super.setUp();
 
-        mTokens.push(address(eUSDC));
-        mTokens.push(address(eDAI));
+        mTokens.push(address(borrowableCUSDC));
+        mTokens.push(address(borrowableCDAI));
         mTokens.push(address(pBALRETH));
         collateralCaps.push(100e6);
         collateralCaps.push(100e18);
@@ -44,7 +44,7 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
     function test_setCollateralCaps_fail_whenMTokenAndCapsLengthsMismatch()
         public
     {
-        mTokens.push(address(eUSDC));
+        mTokens.push(address(borrowableCUSDC));
         assertNotEq(mTokens.length, collateralCaps.length);
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InvalidParameter.selector
@@ -68,9 +68,9 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
         balRETH.approve(address(pBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
         marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%

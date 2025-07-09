@@ -133,12 +133,12 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         //     _deployBorrowableCUSDC();
         //     // support market
         //     _prepareUSDC(owner, 200000e6);
-        //     usdc.approve(address(eUSDC), 200000e6);
-        //     marketManagerIsolated.listToken(address(eUSDC));
+        //     usdc.approve(address(borrowableCUSDC), 200000e6);
+        //     marketManagerIsolated.listToken(address(borrowableCUSDC));
         //     Add cToken support on Oracle Manager.
-        //     oracleManager.addCTokenSupport(address(eUSDC));
+        //     oracleManager.addCTokenSupport(address(borrowableCUSDC));
         //     address[] memory markets = new address[](1);
-        //     markets[0] = address(eUSDC);
+        //     markets[0] = address(borrowableCUSDC);
         //     // vm.prank(user1);
         //     // marketManager.enterMarkets(markets);
         //     // vm.prank(user2);
@@ -233,8 +233,8 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         _prepareWETH(liquidityProvider, 200000 ether);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
-        // usdc.approve(address(eUSDC), 200000e6);
-        // eUSDC.mint(200000e6);
+        // usdc.approve(address(borrowableCUSDC), 200000e6);
+        // borrowableCUSDC.mint(200000e6);
         // mint eWETH
         weth.approve(address(eWETH), 200000e6);
         eWETH.deposit(200000e6, liquidityProvider);

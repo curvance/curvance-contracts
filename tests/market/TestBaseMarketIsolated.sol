@@ -62,11 +62,11 @@ contract TestBaseMarketIsolated is TestBase {
         _deployMarketManager();
 
         _deployBorrowableCUSDC();
-        _deployEDAI();
+        _deployBorrowableCDAI();
 
-        _deployPUSDC();
-        _deployPBALRETH();
-        _deployPBALRETHWithExitFee();
+        _deploySimpleCUSDC();
+        _deploySimpleCBALRETH();
+        _deploySimpleCBALRETHWithExitFee();
 
 
         _deployPendleZapper();
@@ -74,7 +74,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         _setRedstoneSigners();
 
-        oracleManagers[chainId].addCTokenSupport(address(eUSDC));
+        oracleManagers[chainId].addCTokenSupport(address(borrowableCUSDC));
         oracleManagers[chainId].addCTokenSupport(address(pBALRETH));
         oracleManagers[chainId].addCTokenSupport(address(pBALRETHWithExitFee));
     }
@@ -432,13 +432,13 @@ contract TestBaseMarketIsolated is TestBase {
     }
 
     function _deployBorrowableCUSDC() internal initMainVariables returns (BorrowableCToken) {
-        eUSDC = eUSDCs[block.chainid] = _deployBorrowableCToken(_USDC_ADDRESS);
-        return eUSDC;
+        borrowableCUSDC = borrowableCUSDCs[block.chainid] = _deployBorrowableCToken(_USDC_ADDRESS);
+        return borrowableCUSDC;
     }
 
-    function _deployEDAI() internal initMainVariables returns (BorrowableCToken) {
-        eDAI = eDAIs[block.chainid] = _deployBorrowableCToken(_DAI_ADDRESS);
-        return eDAI;
+    function _deployBorrowableCDAI() internal initMainVariables returns (BorrowableCToken) {
+        borrowableCDAI = borrowableCDAIs[block.chainid] = _deployBorrowableCToken(_DAI_ADDRESS);
+        return borrowableCDAI;
     }
 
     function _deployBorrowableCToken(
@@ -458,7 +458,7 @@ contract TestBaseMarketIsolated is TestBase {
         return eToken;
     }
 
-    function _deployPUSDC()
+    function _deploySimpleCUSDC()
         internal
         initMainVariables
         returns (SimpleCToken) {
@@ -470,7 +470,7 @@ contract TestBaseMarketIsolated is TestBase {
         return pUSDC;
     }
 
-    function _deployPBALRETH()
+    function _deploySimpleCBALRETH()
         internal
         initMainVariables
         returns (AuraCToken)
@@ -487,7 +487,7 @@ contract TestBaseMarketIsolated is TestBase {
         return pBALRETH;
     }
 
-    function _deployPBALRETHWithExitFee()
+    function _deploySimpleCBALRETHWithExitFee()
         internal
         initMainVariables
         returns (MockAuraCTokenWithExitFee)

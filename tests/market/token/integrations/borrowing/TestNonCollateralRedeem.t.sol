@@ -13,7 +13,7 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
     function test_partialCollateralizedWithdraw() public {
         // Get underlying
         MockERC20Token balRETH = MockERC20Token(pBALRETH.asset());
-        MockERC20Token USDC = MockERC20Token(eUSDC.asset());
+        MockERC20Token USDC = MockERC20Token(borrowableCUSDC.asset());
 
         // Prepare token balances
         _prepareBALRETH(address(this), 10e18);
@@ -21,10 +21,10 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
 
         // Approve underlying tokens
         balRETH.approve(address(pBALRETH), 10e18);
-        USDC.approve(address(eUSDC), 1_000_000e6);
+        USDC.approve(address(borrowableCUSDC), 1_000_000e6);
 
         // List tokens
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(pBALRETH);
@@ -44,7 +44,7 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
+        configToken1.cToken = address(borrowableCUSDC);
         configToken1.debtCap = 100_000e6;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
@@ -54,9 +54,9 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
         // Deposit & Collateralize 1 pBALRETH
         pBALRETH.depositAsCollateral(1e18, address(this));
         // Lend so there is something to borrow
-        eUSDC.deposit(100_000e6, address(this));
+        borrowableCUSDC.deposit(100_000e6, address(this));
         // Do a partial borrow
-        eUSDC.borrow(750e6);
+        borrowableCUSDC.borrow(750e6);
         // Fast forward to get past minimum hold
         vm.warp(block.timestamp + 1 days);
         // Withdraw 1 pBALRETH (which has not been collateralized yet)

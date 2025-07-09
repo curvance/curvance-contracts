@@ -134,9 +134,9 @@ contract TestAuraCToken is TestBaseMarketIsolated {
 
         _prepareUSDC(address(this), 1000e6);
 
-        usdc.approve(address(eUSDC), type(uint256).max);
+        usdc.approve(address(borrowableCUSDC), type(uint256).max);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
     }
 
     function testHarvestAuraCToken() public {

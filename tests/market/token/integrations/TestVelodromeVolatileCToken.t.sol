@@ -41,7 +41,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
         _deployVeCVE();
         _deployGaugeManager();
         _deployMarketManager();
-        _deployEDAI();
+        _deployBorrowableCDAI();
 
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
@@ -102,10 +102,10 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
         deal(_WETH_USDC, address(this), 77777);
 
         _prepareDAI(address(this), 77777);
-        dai.approve(address(eDAI), 77777);
+        dai.approve(address(borrowableCDAI), 77777);
 
         IERC20(_WETH_USDC).approve(address(pWETHUSDC), 77777);
-        marketManagerIsolated.listTokens(address(pWETHUSDC), address(eDAI));
+        marketManagerIsolated.listTokens(address(pWETHUSDC), address(borrowableCDAI));
 
         vm.prank(user1);
         IERC20(_WETH_USDC).approve(address(pWETHUSDC), assets);

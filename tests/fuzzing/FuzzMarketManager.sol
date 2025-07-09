@@ -20,12 +20,12 @@
 //     constructor() {
 //         SafeTransferLib.safeApprove(
 //             _USDC_ADDRESS,
-//             address(eUSDC),
+//             address(borrowableCUSDC),
 //             type(uint256).max
 //         );
 //         SafeTransferLib.safeApprove(
 //             _DAI_ADDRESS,
-//             address(eDAI),
+//             address(borrowableCDAI),
 //             type(uint256).max
 //         );
 //         SafeTransferLib.safeApprove(
@@ -68,8 +68,8 @@
 //         require(
 //             cToken == address(pDAI) ||
 //                 cToken == address(pUSDC) ||
-//                 cToken == address(eDAI) ||
-//                 cToken == address(eDAI)
+//                 cToken == address(borrowableCDAI) ||
+//                 cToken == address(borrowableCDAI)
 //         );
 //         require(_mintAndApprove(ICToken(cToken).underlying(), cToken, amount));
 
@@ -1051,7 +1051,7 @@
 //         dai.mint(amount * WAD);
 
 //         hevm.prank(liquidator);
-//         dai.approve(address(eDAI), amount * WAD);
+//         dai.approve(address(borrowableCDAI), amount * WAD);
 
 //         emit LogUint256("setting dai price to:", uint256(int256(daiPrice)));
 //         mockDaiFeed.setMockAnswer(int256(daiPrice));
@@ -1063,7 +1063,7 @@
 //             block.timestamp
 //         );
 //         PriceReturnData memory daiData = chainlinkAdaptor.getPrice(
-//             address(eDAI),
+//             address(borrowableCDAI),
 //             true,
 //             false
 //         );
@@ -1134,21 +1134,21 @@
 //         {
 //             // eDAI must be listed in the market manager to continue
 //             (bool is_eDAI_listed, , , , , , , ) = marketManager.tokenData(
-//                 address(eDAI)
+//                 address(borrowableCDAI)
 //             );
 //             // if eDAI is not listed, list the eDAI token to the manager
 //             if (!is_eDAI_listed) {
-//                 list_token_should_succeed(address(eDAI));
+//                 list_token_should_succeed(address(borrowableCDAI));
 //             }
 //         }
 
 //         // the maximum amount of eDAI that can be borrowed is the market underlying held - totalReserves
-//         uint256 upperBound = EToken(address(eDAI)).marketUnderlyingHeld() -
+//         uint256 upperBound = EToken(address(borrowableCDAI)).marketUnderlyingHeld() -
 //             EToken(eDAI).totalReserves();
 //         // clamp the amount of eDAI to borrow between 1 wei and upperBound-1
 //         amount = clampBetween(amount, 1, upperBound - 1);
 
-//         eDAI.borrow(amount);
+//         borrowableCDAI.borrow(amount);
 
 //         // mint tokens and set the oracle prices of the system
 //         _setup_liquidatable_states(amount, daiPrice, usdcPrice);

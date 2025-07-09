@@ -101,8 +101,8 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             1 ether
         );
         _prepareUSDC(address(this), 1 ether);
-        SafeTransferLib.safeApprove(_USDC_ADDRESS, address(eUSDC), 1 ether);
-        marketManagerIsolated.listTokens(address(cSTETH), address(eUSDC));
+        SafeTransferLib.safeApprove(_USDC_ADDRESS, address(borrowableCUSDC), 1 ether);
+        marketManagerIsolated.listTokens(address(cSTETH), address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(cSTETH);
@@ -122,12 +122,12 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
+        configToken1.cToken = address(borrowableCUSDC);
         configToken1.debtCap = 100_000e6;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
         // User mints cSTETH with cvxStethEth LP tokens and then uses the cSTETH as collateral to borrow 10,000 eUSDC
-        _prepareUSDC(address(eUSDC), 100_000e6);
+        _prepareUSDC(address(borrowableCUSDC), 100_000e6);
         deal(address(CONVEX_STETH_ETH_POOL), user1, 10_000e18);
         vm.startPrank(user1);
         CONVEX_STETH_ETH_POOL.approve(address(cSTETH), 1_000e18);
@@ -152,7 +152,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         assertEq(rewarder.earned(address(cSTETH)), 0);
         assertEq(cSTETH.balanceOf(user1), 1_000e18);
 
-        eUSDC.borrow(10_000e6);
+        borrowableCUSDC.borrow(10_000e6);
         vm.stopPrank();
 
         assertEq(
@@ -161,12 +161,12 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             "User must have borrowed 10,000 USDC"
         );
         assertEq(
-            eUSDC.debtBalance(user1),
+            borrowableCUSDC.debtBalance(user1),
             10_000e6,
             "User must have a debt balance of 10,000 USDC"
         );
         assertEq(
-            eUSDC.marketOutstandingDebt(),
+            borrowableCUSDC.marketOutstandingDebt(),
             10_000e6,
             "There must be a total amount of 10,000 USDC borrowed"
         );
@@ -174,35 +174,35 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
 
     function testConvexLPCollateralRepayDebt() public {
         testBorrowWithConvexLPCollateral();
-        uint256 prevBalance = usdc.balanceOf(address(eUSDC));
+        uint256 prevBalance = usdc.balanceOf(address(borrowableCUSDC));
         // User1 needs more funds to be able to repay debt with interest
         usdc.transfer(user1, 1000e6);
 
         vm.startPrank(user1);
-        usdc.approve(address(eUSDC), type(uint256).max);
+        usdc.approve(address(borrowableCUSDC), type(uint256).max);
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
-        eUSDC.repay(0);
+        borrowableCUSDC.repay(0);
 
         // Must hold for a minimum of 20 minutes before debt can be repaid
         skip(20 minutes);
         // Pay off full debt including interest
-        eUSDC.accrueIfNeeded();
-        uint256 debtWithInterest = eUSDC.debtBalance(user1);
-        vm.expectEmit(true, true, true, true, address(eUSDC));
+        borrowableCUSDC.accrueIfNeeded();
+        uint256 debtWithInterest = borrowableCUSDC.debtBalance(user1);
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Repay(user1, user1, debtWithInterest);
-        eUSDC.repay(0);
+        borrowableCUSDC.repay(0);
         vm.stopPrank();
 
-        assertEq(eUSDC.marketOutstandingDebt(), 0, "No borrows must be left");
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), 0, "No borrows must be left");
         assertEq(
-            eUSDC.debtBalance(user1),
+            borrowableCUSDC.debtBalance(user1),
             0,
             "User must have settled debt"
         );
         assertEq(
-            usdc.balanceOf(address(eUSDC)),
+            usdc.balanceOf(address(borrowableCUSDC)),
             debtWithInterest + prevBalance,
             "EToken's balance must include repaid debt plus interest"
         );

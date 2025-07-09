@@ -85,7 +85,7 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
 
         // list eUSDC
         _prepareUSDC(address(this), _ONE);
-        usdc.approve(address(eUSDC), _ONE);
+        usdc.approve(address(borrowableCUSDC), _ONE);
 
         // list pBALRETH
         _prepareBALRETH(address(this), 77777);
@@ -95,7 +95,7 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
             address(pBALRETH),
             77777
         );
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(pBALRETH);
@@ -115,12 +115,12 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
+        configToken1.cToken = address(borrowableCUSDC);
         configToken1.debtCap = 100_000e6;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
         // deposit reserves
-        eUSDC.deposit(1000e6, address(this));
+        borrowableCUSDC.deposit(1000e6, address(this));
 
         addPositionManagement();
 
@@ -130,8 +130,8 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
         vm.startPrank(liquidityProvider);
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.mint(10e18, liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.mint(200000e6, liquidityProvider);
 
         vm.stopPrank();
     }
@@ -148,7 +148,7 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
 
         pBALRETH.postCollateral(100e18);
 
-        eUSDC.borrow(100e6);
+        borrowableCUSDC.borrow(100e6);
 
         SwapperLib.Swap[] memory swapData; // empty swap data
         
@@ -156,7 +156,7 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
         DeleverageStruct memory deleverageData = DeleverageStruct({
             collateralToken: ICToken(address(pBALRETH)),
             collateralAmount: 0,
-            debtToken: IBorrowableCToken(address(eUSDC)),
+            debtToken: IBorrowableCToken(address(borrowableCUSDC)),
             swapData: swapData,
             repayAmount: 0,
             auxData: ""

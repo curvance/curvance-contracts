@@ -341,7 +341,7 @@ contract StartContractsConfig is
         uint256 collateralCap,
         uint256 debtCap
     ) internal {
-        address cTokenToList =_deploySimpleCToken(
+        address cToken0 =_deploySimpleCToken(
                 simpleCToken.name,
                 simpleCToken.token,
                 simpleCToken.chainlinkEthAggregator,
@@ -349,7 +349,7 @@ contract StartContractsConfig is
                 cr,
                 market
         );
-        address cTokenToList = _deployBorrowableCToken(
+        address cToken1 = _deployBorrowableCToken(
             borrowableCToken.name,
             borrowableCToken.token,
             borrowableCToken.chainlinkEthAggregator,
@@ -357,10 +357,10 @@ contract StartContractsConfig is
             cr,
             market
         );
-        market.listTokens(cTokenToList, cTokenToList);
+        market.listTokens(cToken0, cToken1);
 
         MarketManagerIsolated.TokenConfig memory token0Config;
-        token0Config.cToken = cTokenToList;
+        token0Config.cToken = cToken0;
         token0Config.collRatio = 9200;
         token0Config.collReqSoft = 830;
         token0Config.collReqHard = 650;
@@ -375,7 +375,7 @@ contract StartContractsConfig is
         token0Config.debtCap = debtCap; // add individual debt cap later
 
         MarketManagerIsolated.TokenConfig memory token1Config;
-        token1Config.cToken = cTokenToList;
+        token1Config.cToken = cToken1;
         token1Config.collRatio = 9200;
         token1Config.collReqSoft = 830;
         token1Config.collReqHard = 650;
@@ -387,8 +387,8 @@ contract StartContractsConfig is
         token1Config.maxEffectiveCloseFactor = 5000;
         token1Config.baseCFactor = 2000;
         // add individual collateral cap later
-        token1Config.collateralCap = collateralCap * 10 ** IERC20(cTokenToList).decimals(); 
-        token1Config.debtCap = debtCap * 10 ** IERC20(cTokenToList).decimals(); // add individual debt cap later
+        token1Config.collateralCap = collateralCap * 10 ** IERC20(cToken1).decimals(); 
+        token1Config.debtCap = debtCap * 10 ** IERC20(cToken1).decimals(); // add individual debt cap later
 
         market.updateTokenConfig(token0Config);
         market.updateTokenConfig(token1Config);

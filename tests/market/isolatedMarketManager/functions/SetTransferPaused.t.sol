@@ -19,12 +19,12 @@ contract SetTransferPausedTest is TestBaseMarketManagerIsolated {
         balRETH.approve(address(pBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
-        vm.prank(address(eUSDC));
-        marketManagerIsolated.canTransfer(address(eUSDC), address(this), 100, 0, 1, false);
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canTransfer(address(borrowableCUSDC), address(this), 100, 0, 1, false);
 
         assertEq(marketManagerIsolated.transferPaused(), 1);
 
@@ -35,8 +35,8 @@ contract SetTransferPausedTest is TestBaseMarketManagerIsolated {
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
 
-        vm.prank(address(eUSDC));
-        marketManagerIsolated.canTransfer(address(eUSDC), address(this), 100, 0, 1, false);
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canTransfer(address(borrowableCUSDC), address(this), 100, 0, 1, false);
 
         assertEq(marketManagerIsolated.transferPaused(), 2);
 

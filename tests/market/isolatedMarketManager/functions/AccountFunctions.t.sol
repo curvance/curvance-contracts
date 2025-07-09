@@ -17,10 +17,10 @@ contract AccountFunctionsIsolatedMarketManager is TestBaseMarketManagerIsolated 
         // balRETH.approve(address(pBALRETH), 77777);
 
         // deal(address(_USDC_ADDRESS), address(this), 77777);
-        // usdc.approve(address(eUSDC), 77777);
+        // usdc.approve(address(borrowableCUSDC), 77777);
         
         // // List tokens in the market
-        // marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        // marketManager.listTokens(address(pBALRETH), address(borrowableCUSDC));
         
         // // Set position token parameters
         // marketManager.updatePositionToken(
@@ -56,7 +56,7 @@ contract AccountFunctionsIsolatedMarketManager is TestBaseMarketManagerIsolated 
         address[] memory assets = marketManagerIsolated.assetsOf(user1);
         assertEq(assets.length, 2);
         assertEq(address(assets[0]), address(pBALRETH));
-        assertEq(address(assets[1]), address(eUSDC));
+        assertEq(address(assets[1]), address(borrowableCUSDC));
     }
 
     function test_tokenDataOf() public {

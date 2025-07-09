@@ -82,7 +82,7 @@ contract TestBaseStrategyCTokenWithExitFee is TestBaseMarketIsolated {
             _ONE
         );
 
-        dai.approve(address(eDAI), _ONE);
-        marketManagerIsolated.listTokens(address(pBALRETHWithExitFee), address(eDAI));
+        dai.approve(address(borrowableCDAI), _ONE);
+        marketManagerIsolated.listTokens(address(pBALRETHWithExitFee), address(borrowableCDAI));
     }
 }

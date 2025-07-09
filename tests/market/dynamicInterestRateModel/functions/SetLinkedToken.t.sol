@@ -69,7 +69,7 @@ contract SetLinkedTokenTest is TestBaseDynamicInterestRateModel {
                 .DynamicInterestRateModel__InvalidToken
                 .selector
         );
-        interestRateModel.setLinkedToken(address(eDAI));
+        interestRateModel.setLinkedToken(address(borrowableCDAI));
     }
 
     function test_setLinkedToken_success() public {

@@ -100,12 +100,12 @@
 
 //         // setup eDAI
 //         {
-//             _deployEDAI();
+//             _deployBorrowableCDAI();
 //             // add MToken support on price router
-//             oracleManager.addCTokenSupport(address(eDAI));
+//             oracleManager.addCTokenSupport(address(borrowableCDAI));
 
 //             _prepareDAI(owner, 200000e18);
-//             dai.approve(address(eDAI), 200000e18);
+//             dai.approve(address(borrowableCDAI), 200000e18);
 //         }
 
 //         // deploy pPendlePT
@@ -180,19 +180,19 @@
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
-//         eDAI.borrow(100 ether);
+//         borrowableCDAI.borrow(100 ether);
 //         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
 //         // try leverage with 20% of max
 //         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) * 20) / 100;
 
 //         emit debugUint("amountForLeverage", amountForLeverage);
 
 //         PendlePTPositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pPendlePT));
 //         PendleLib.PendleData memory data;
@@ -220,8 +220,8 @@
 
 //         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-//         assertEq(eDAI.balanceOf(user), 0);
+//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
 //         (uint256 pPendlePTBalance, uint256 pPendlePTBorrowed, ) = pPendlePT
@@ -243,8 +243,8 @@
 //         vm.startPrank(liquidityProvider);
 
 //         // mint eDAI
-//         dai.approve(address(eDAI), 20000000 ether);
-//         eDAI.mint(20000000 ether);
+//         dai.approve(address(borrowableCDAI), 20000000 ether);
+//         borrowableCDAI.mint(20000000 ether);
 
 //         // mint pSTETH
 //         pendlePT.approve(address(pPendlePT), 10 ether);
@@ -270,13 +270,13 @@
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
-//         eDAI.borrow(100 ether);
+//         borrowableCDAI.borrow(100 ether);
 //         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
 //         // try leverage with 20% of max
 //         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) * 20) / 100;
 
 //         address[] memory path = new address[](2);
@@ -315,7 +315,7 @@
 //         );
 
 //         PendlePTPositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pPendlePT));
 //         PendleLib.PendleData memory data;
@@ -360,18 +360,18 @@
 
 //         // Warp until collateral posting wait time ends
 //         vm.warp(block.timestamp + 20 minutes);
-//         eDAI.accrueInterest();
+//         borrowableCDAI.accrueInterest();
 
 //         vm.startPrank(user);
 //         PendlePTPositionManager.DeleverageStruct memory deleverageData;
-//         (,,,, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+//         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
 //         (uint256 PTBalanceBefore, , ) = pPendlePT.getSnapshot(user);
 
 //         emit debugUint("eDAIBorrowedBefore", eDAIBorrowedBefore);
 
 //         deleverageData.positionToken = ICToken(address(pPendlePT));
 //         deleverageData.collateralAmount = 1 ether;
-//         deleverageData.borrowToken = IEToken(address(eDAI));
+//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
 
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = _STETH;
@@ -415,8 +415,8 @@
 
 //         positionManagement.deleverage(deleverageData, 0.6e18); // 60% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-//         assertEq(eDAI.balanceOf(user), 0);
+//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(
 //             eDAIBorrowed,
 //             eDAIBorrowedBefore - deleverageData.repayAmount

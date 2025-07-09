@@ -10,51 +10,51 @@ contract ETokenRescueTokenTest is TestBaseEToken {
     function setUp() public override {
         super.setUp();
 
-        deal(address(eUSDC), _ONE);
-        _prepareDAI(address(eUSDC), _ONE);
+        deal(address(borrowableCUSDC), _ONE);
+        _prepareDAI(address(borrowableCUSDC), _ONE);
     }
 
     function test_eTokenRescueToken_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(1));
 
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
-        eUSDC.rescueToken(_USDC_ADDRESS, 100);
+        borrowableCUSDC.rescueToken(_USDC_ADDRESS, 100);
     }
 
     function test_eTokenRescueToken_fail_whenETHAmountExceedsBalance() public {
-        uint256 balance = address(eUSDC).balance;
+        uint256 balance = address(borrowableCUSDC).balance;
 
         vm.expectRevert(SafeTransferLib.ETHTransferFailed.selector);
-        eUSDC.rescueToken(address(0), balance + 1);
+        borrowableCUSDC.rescueToken(address(0), balance + 1);
     }
 
     function test_eTokenRescueToken_fail_whenTokenIsUnderlyingToken() public {
         vm.expectRevert(BaseCToken.BaseCToken__TransferError.selector);
-        eUSDC.rescueToken(_USDC_ADDRESS, 100);
+        borrowableCUSDC.rescueToken(_USDC_ADDRESS, 100);
     }
 
     function test_eTokenRescueToken_fail_whenTokenAmountExceedsBalance()
         public
     {
-        uint256 balance = dai.balanceOf(address(eUSDC));
+        uint256 balance = dai.balanceOf(address(borrowableCUSDC));
 
         vm.expectRevert(SafeTransferLib.TransferFailed.selector);
-        eUSDC.rescueToken(_DAI_ADDRESS, balance + 1);
+        borrowableCUSDC.rescueToken(_DAI_ADDRESS, balance + 1);
     }
 
     function test_eTokenRescueToken_success() public {
         address daoOperator = centralRegistry.daoAddress();
 
-        uint256 ethBalance = address(eUSDC).balance;
-        uint256 daiBalance = dai.balanceOf(address(eUSDC));
+        uint256 ethBalance = address(borrowableCUSDC).balance;
+        uint256 daiBalance = dai.balanceOf(address(borrowableCUSDC));
         uint256 daoOperatorEthBalance = daoOperator.balance;
         uint256 daoOperatorDaiBalance = dai.balanceOf(daoOperator);
 
-        eUSDC.rescueToken(address(0), 100);
-        eUSDC.rescueToken(_DAI_ADDRESS, 100);
+        borrowableCUSDC.rescueToken(address(0), 100);
+        borrowableCUSDC.rescueToken(_DAI_ADDRESS, 100);
 
-        assertEq(address(eUSDC).balance, ethBalance - 100);
-        assertEq(dai.balanceOf(address(eUSDC)), daiBalance - 100);
+        assertEq(address(borrowableCUSDC).balance, ethBalance - 100);
+        assertEq(dai.balanceOf(address(borrowableCUSDC)), daiBalance - 100);
         assertEq(daoOperator.balance, daoOperatorEthBalance + 100);
         assertEq(dai.balanceOf(daoOperator), daoOperatorDaiBalance + 100);
     }

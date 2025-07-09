@@ -72,11 +72,11 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             _deployBorrowableCUSDC();
             // support market
             _prepareUSDC(owner, 200000e6);
-            usdc.approve(address(eUSDC), 200000e6);
+            usdc.approve(address(borrowableCUSDC), 200000e6);
             // add CToken support on oracle manager
-            oracleManager.addCTokenSupport(address(eUSDC));
+            oracleManager.addCTokenSupport(address(borrowableCUSDC));
             address[] memory markets = new address[](1);
-            markets[0] = address(eUSDC);
+            markets[0] = address(borrowableCUSDC);
             // vm.prank(user1);
             // marketManager.enterMarkets(markets);
             // vm.prank(user2);
@@ -109,7 +109,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         }
 
         // list tokens
-        marketManagerIsolated.listTokens(address(pWETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pWETH), address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(pWETH);
@@ -129,7 +129,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
+        configToken1.cToken = address(borrowableCUSDC);
         configToken1.debtCap = 1_000_000e18;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
@@ -142,8 +142,8 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         _prepareWETH(liquidityProvider, 10 ether);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.deposit(200000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         weth.approve(address(pWETH), 10 ether);
         pWETH.mint(10 ether, liquidityProvider);
@@ -307,7 +307,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         pWETH.mint(1 ether, user1);
         pWETH.postCollateral(1 ether);
         // borrow
-        eUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6);
         vm.stopPrank();
 
         simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);
@@ -358,7 +358,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         );
 
         uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
-        uint256 desiredTokenBalance = eUSDC.debtBalance(user1);
+        uint256 desiredTokenBalance = borrowableCUSDC.debtBalance(user1);
 
         vm.prank(user1);
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
@@ -366,7 +366,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         vm.prank(user1);
         simpleRewardZapper.claimSwapAndRepay(
             swapData,
-            address(eUSDC),
+            address(borrowableCUSDC),
             100e6,
             user1
         );
@@ -376,7 +376,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             baseRewardBalance - 100e6
         );
         assertApproxEqAbs(
-            eUSDC.debtBalance(user1),
+            borrowableCUSDC.debtBalance(user1),
             desiredTokenBalance - 100e6,
             10000
         );

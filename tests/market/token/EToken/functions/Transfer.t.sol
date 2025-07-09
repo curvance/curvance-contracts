@@ -11,34 +11,34 @@ contract ETokenTransferTest is TestBaseEToken {
 
     function test_eTokenTransfer_fail_whenSenderAndReceiverAreSame() public {
         vm.expectRevert(BaseCToken.BaseCToken__TransferError.selector);
-        eUSDC.transfer(address(this), 100e6);
+        borrowableCUSDC.transfer(address(this), 100e6);
     }
 
     function test_eTokenTransfer_fail_whenTransferZeroAmount() public {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-        eUSDC.transfer(user1, 0);
+        borrowableCUSDC.transfer(user1, 0);
     }
 
     function test_eTokenTransfer_fail_whenTransferIsNotAllowed() public {
-        deal(address(eUSDC), address(this), 100e6);
+        deal(address(borrowableCUSDC), address(this), 100e6);
         marketManagerIsolated.setTransferPaused(true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        eUSDC.transfer(user1, 10e6);
+        borrowableCUSDC.transfer(user1, 10e6);
     }
 
     function test_eTokenTransfer_success() public {
-        deal(address(eUSDC), address(this), 100e6);
+        deal(address(borrowableCUSDC), address(this), 100e6);
 
-        uint256 balance = eUSDC.balanceOf(address(this));
-        uint256 user1Balance = eUSDC.balanceOf(user1);
+        uint256 balance = borrowableCUSDC.balanceOf(address(this));
+        uint256 user1Balance = borrowableCUSDC.balanceOf(user1);
 
-        vm.expectEmit(true, true, true, true, address(eUSDC));
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Transfer(address(this), user1, 100e6);
 
-        eUSDC.transfer(user1, 100e6);
+        borrowableCUSDC.transfer(user1, 100e6);
 
-        assertEq(eUSDC.balanceOf(address(this)), balance - 100e6);
-        assertEq(eUSDC.balanceOf(user1), user1Balance + 100e6);
+        assertEq(borrowableCUSDC.balanceOf(address(this)), balance - 100e6);
+        assertEq(borrowableCUSDC.balanceOf(user1), user1Balance + 100e6);
     }
 }

@@ -42,20 +42,20 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         {
             // support market
             _prepareDAI(owner, 200000e18);
-            dai.approve(address(eDAI), 200000e18);
+            dai.approve(address(borrowableCDAI), 200000e18);
             // Add cToken support on Oracle Manager.
-            oracleManager.addCTokenSupport(address(eDAI));
+            oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
         // deploy simple pToken
         {
-            _deployPUSDC();
+            _deploySimpleCUSDC();
             _prepareUSDC(owner, 100e6);
             usdc.approve(address(pUSDC), 100e6);
 
         }
 
-        marketManagerIsolated.listTokens(address(pUSDC), address(eDAI));
+        marketManagerIsolated.listTokens(address(pUSDC), address(borrowableCDAI));
         oracleManager.addCTokenSupport(address(pUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
@@ -76,7 +76,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eDAI);
+        configToken1.cToken = address(borrowableCDAI);
         configToken1.debtCap = 100_000e18;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
@@ -85,8 +85,8 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         _prepareUSDC(liquidityProvider, 100e6);
         vm.startPrank(liquidityProvider);
         // mint eDAI
-        dai.approve(address(eDAI), 1000 ether);
-        eDAI.deposit(1000 ether, liquidityProvider);
+        dai.approve(address(borrowableCDAI), 1000 ether);
+        borrowableCDAI.deposit(1000 ether, liquidityProvider);
         // mint pUSDC
         usdc.approve(address(pUSDC), 100e6);
         pUSDC.mint(100e6, liquidityProvider);
@@ -137,11 +137,11 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         pUSDC.postCollateral(2e9);
 
         // try borrow()
-        eDAI.borrow(500 ether);
+        borrowableCDAI.borrow(500 ether);
         vm.stopPrank();
 
         assertEq(dai.balanceOf(user1), 500 ether);
-        assertApproxEqAbs(eDAI.debtBalance(user1), 500 ether, 1 ether);
+        assertApproxEqAbs(borrowableCDAI.debtBalance(user1), 500 ether, 1 ether);
 
         // skip min hold period
         skip(20 minutes);
@@ -169,7 +169,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         vm.startPrank(user1);
         usdc.approve(address(simpleZapper), 500e6);
         simpleZapper.swapAndRepay(
-            address(eDAI),
+            address(borrowableCDAI),
             false,
             swapData,
             450e18,
@@ -178,7 +178,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertApproxEqAbs(dai.balanceOf(user1), 550 ether, 1 ether);
-        assertApproxEqAbs(eDAI.debtBalance(user1), 50 ether, 1 ether);
+        assertApproxEqAbs(borrowableCDAI.debtBalance(user1), 50 ether, 1 ether);
     }
 
     function testRedeemAndSwapPToken() public {
@@ -225,13 +225,13 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
 
         // mint eDAI
         _prepareDAI(user1, 10 ether);
-        dai.approve(address(eDAI), 10 ether);
-        eDAI.deposit(10 ether, user1);
+        dai.approve(address(borrowableCDAI), 10 ether);
+        borrowableCDAI.deposit(10 ether, user1);
 
-        eDAI.setDelegateApproval(address(simpleZapper), true);
+        borrowableCDAI.setDelegateApproval(address(simpleZapper), true);
 
         ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.cToken = address(eDAI);
+        redemptionData.cToken = address(borrowableCDAI);
         redemptionData.shares = 10 ether;
         redemptionData.forceRedeemCollateral = false;
 
@@ -265,13 +265,13 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         // redeem eDAI and deposit to pUSDC
 
         _prepareDAI(user1, 100 ether);
-        dai.approve(address(eDAI), 100 ether);
-        eDAI.deposit(100 ether, user1);
+        dai.approve(address(borrowableCDAI), 100 ether);
+        borrowableCDAI.deposit(100 ether, user1);
 
-        eDAI.setDelegateApproval(address(simpleZapper), true);
+        borrowableCDAI.setDelegateApproval(address(simpleZapper), true);
 
         ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.cToken = address(eDAI);
+        redemptionData.cToken = address(borrowableCDAI);
         redemptionData.shares = 100 ether;
         redemptionData.forceRedeemCollateral = false;
 

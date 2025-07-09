@@ -13,8 +13,8 @@ contract SetCollateralCapsTest is TestBaseMarketManager {
     function setUp() public override {
         super.setUp();
 
-        mTokens.push(address(eUSDC));
-        mTokens.push(address(eDAI));
+        mTokens.push(address(borrowableCUSDC));
+        mTokens.push(address(borrowableCDAI));
         mTokens.push(address(pBALRETH));
         collateralCaps.push(100e6);
         collateralCaps.push(100e18);
@@ -44,7 +44,7 @@ contract SetCollateralCapsTest is TestBaseMarketManager {
     function test_setCollateralCaps_fail_whenMTokenAndCapsLengthsMismatch()
         public
     {
-        mTokens.push(address(eUSDC));
+        mTokens.push(address(borrowableCUSDC));
         assertNotEq(mTokens.length, collateralCaps.length);
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector

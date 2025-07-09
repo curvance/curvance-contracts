@@ -11,13 +11,13 @@ contract ETokenApproveTest is TestBaseEToken {
     );
 
     function test_eTokenApprove_success() public {
-        uint256 allowance = eUSDC.allowance(address(this), user1);
+        uint256 allowance = borrowableCUSDC.allowance(address(this), user1);
 
-        vm.expectEmit(true, true, true, true, address(eUSDC));
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Approval(address(this), user1, 100e6);
 
-        eUSDC.approve(user1, 100e6);
+        borrowableCUSDC.approve(user1, 100e6);
 
-        assertEq(eUSDC.allowance(address(this), user1), allowance + 100e6);
+        assertEq(borrowableCUSDC.allowance(address(this), user1), allowance + 100e6);
     }
 }

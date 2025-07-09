@@ -11,7 +11,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
     function setUp() public override {
         super.setUp();
 
-        // marketManager.listToken(address(eUSDC));
+        // marketManager.listToken(address(borrowableCUSDC));
         skip(gaugeManager.gaugeStartTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
@@ -21,39 +21,39 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         balRETH.approve(address(pBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
     }
 
     function test_canBorrow_fail_whenBorrowPaused() public {
-        marketManagerIsolated.setBorrowPaused(address(eUSDC), true);
+        marketManagerIsolated.setBorrowPaused(address(borrowableCUSDC), true);
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        marketManagerIsolated.canBorrow(address(eUSDC), user1, 100e6, 100e6);
+        marketManagerIsolated.canBorrow(address(borrowableCUSDC), user1, 100e6, 100e6);
     }
 
     function test_canBorrow_fail_whenCTokenIsNotListed() public {
-        // marketManager.listToken(address(eDAI));
+        // marketManager.listToken(address(borrowableCDAI));
 
-        vm.prank(address(eDAI));
+        vm.prank(address(borrowableCDAI));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
 
-        marketManagerIsolated.canBorrow(address(eUSDC), user1, 100e6, 100e6);
+        marketManagerIsolated.canBorrow(address(borrowableCUSDC), user1, 100e6, 100e6);
     }
 
     function test_canBorrow_fail_whenCallerIsNotCTokenAndBorrowerNotInMarket()
         public
     {
-        // marketManager.listToken(address(eDAI));
+        // marketManager.listToken(address(borrowableCDAI));
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManagerIsolated.canBorrow(address(eDAI), user1, 100e6, 100e6);
+        marketManagerIsolated.canBorrow(address(borrowableCDAI), user1, 100e6, 100e6);
     }
 
     function test_canBorrow_fail_whenInsufficientLiquidity() public {
@@ -71,14 +71,14 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         );
 
         _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(eUSDC), 0, 1_000_000e6);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
-        marketManagerIsolated.canBorrow(address(eUSDC), user1, 100e6, 100e6);
+        marketManagerIsolated.canBorrow(address(borrowableCUSDC), user1, 100e6, 100e6);
     }
 
     function test_canBorrow_fail_whenInsufficientLoanSize() public {
@@ -102,7 +102,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         );
 
         _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(eUSDC), 0, 1_000_000e6);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         // Need some PTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 1_000e18);
@@ -112,12 +112,12 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         pBALRETH.postCollateral(10e18);
         vm.stopPrank();
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(
             LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector
         );
-        marketManagerIsolated.canBorrow(address(eUSDC), user1, 10e6, 10e6);
+        marketManagerIsolated.canBorrow(address(borrowableCUSDC), user1, 10e6, 10e6);
     }
 
     function test_canBorrow_success_whenSufficientLiquidity() public {
@@ -141,7 +141,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         );
 
         _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(eUSDC), 0, 1_000_000e6);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         // Need some PTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 10_000e18);
@@ -151,8 +151,8 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         pBALRETH.postCollateral(999e18);
         vm.stopPrank();
 
-        vm.prank(address(eUSDC));
-        marketManagerIsolated.canBorrow(address(eUSDC), user1, 100e6, 100e6);
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canBorrow(address(borrowableCUSDC), user1, 100e6, 100e6);
 
         AccountSnapshot memory snapshot = pBALRETH.getSnapshot(user1);
         (uint256 price, ) = oracleManager.getPrice(
@@ -170,17 +170,17 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
 
         // max amount of USDC that can be borrowed based on provided collateral in pBALRETH
         uint256 borrowInUSDC = (maxBorrow / 10 ** pBALRETH.decimals()) *
-            10 ** eUSDC.decimals();
-        vm.prank(address(eUSDC));
-        marketManagerIsolated.canBorrow(address(eUSDC), user1, borrowInUSDC, borrowInUSDC);
+            10 ** borrowableCUSDC.decimals();
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canBorrow(address(borrowableCUSDC), user1, borrowInUSDC, borrowInUSDC);
 
         // should fail when borrowing more than is allowed by provided collateral
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
         marketManagerIsolated.canBorrow(
-            address(eUSDC),
+            address(borrowableCUSDC),
             user1,
             borrowInUSDC + 1e6,
             borrowInUSDC + 1e6
@@ -202,7 +202,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         );
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManagerIsolated.canBorrow(address(eUSDC), user1, 0, 0);
+        marketManagerIsolated.canBorrow(address(borrowableCUSDC), user1, 0, 0);
     }
 
     function test_canBorrow_success_entersUserInMarket() external {
@@ -229,7 +229,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         );
 
         _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(eUSDC), 0, 1_000_000e6);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         // Need some PTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 10_000e18);
@@ -240,23 +240,23 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         bool hasPosition;
-        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(eUSDC));
+        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(borrowableCUSDC));
 
         assertFalse(hasPosition);
         address[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
         assertEq(accountAssets.length, 1);
 
-        vm.prank(address(eUSDC));
-        marketManagerIsolated.canBorrow(address(eUSDC), user1, 1_000e6, 1_000e6);
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canBorrow(address(borrowableCUSDC), user1, 1_000e6, 1_000e6);
 
-        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(eUSDC));
+        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(borrowableCUSDC));
 
         assertTrue(hasPosition);
 
         accountAssets = marketManagerIsolated.assetsOf(user1);
         assertEq(accountAssets.length, 2);
         assertEq(address(accountAssets[0]), address(pBALRETH));
-        assertEq(address(accountAssets[1]), address(eUSDC));
+        assertEq(address(accountAssets[1]), address(borrowableCUSDC));
     }
 
     function test_canBorrow_fail_whenExceedsBorrowCap() external {
@@ -274,7 +274,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         );
 
         _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(eUSDC), 0, 1_000_000e6);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
         vm.prank(address(pBALRETH));
@@ -296,7 +296,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         );
 
         _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(eUSDC), 0, 10_000e6);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000e6);
 
         _prepareBALRETH(user1, 1_000e18);
         vm.startPrank(user1);
@@ -305,7 +305,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         pBALRETH.postCollateral(10e18);
         vm.stopPrank();
 
-        vm.prank(address(eUSDC));
-        marketManagerIsolated.canBorrow(address(eUSDC), user1, 10_000e6 - 1, 10_000e6 - 1);
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canBorrow(address(borrowableCUSDC), user1, 10_000e6 - 1, 10_000e6 - 1);
     }
 }

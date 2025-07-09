@@ -11,30 +11,30 @@
 
 //     function test_eTokenMintFor_fail_whenTransferZeroAmount() public {
 //         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-//         eUSDC.mintFor(0, user1, address(this));
+//         borrowableCUSDC.mintFor(0, user1, address(this));
 //     }
 
 //     function test_eTokenMintFor_fail_whenMintIsNotAllowed() public {
-//         marketManagerIsolated.setMintPaused(address(eUSDC), true);
+//         marketManagerIsolated.setMintPaused(address(borrowableCUSDC), true);
 
 //         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-//         eUSDC.mintFor(100e6, user1, address(this));
+//         borrowableCUSDC.mintFor(100e6, user1, address(this));
 //     }
 
 //     function test_eTokenMintFor_success() public {
 //         uint256 underlyingBalance = usdc.balanceOf(address(this));
-//         uint256 balance = eUSDC.balanceOf(address(this));
-//         uint256 user1Balance = eUSDC.balanceOf(user1);
-//         uint256 totalSupply = eUSDC.totalSupply();
+//         uint256 balance = borrowableCUSDC.balanceOf(address(this));
+//         uint256 user1Balance = borrowableCUSDC.balanceOf(user1);
+//         uint256 totalSupply = borrowableCUSDC.totalSupply();
 
-//         vm.expectEmit(true, true, true, true, address(eUSDC));
+//         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
 //         emit Transfer(address(0), user1, 100e6);
 
-//         eUSDC.mintFor(100e6, user1, address(this));
+//         borrowableCUSDC.mintFor(100e6, user1, address(this));
 
 //         assertEq(usdc.balanceOf(address(this)), underlyingBalance - 100e6);
-//         assertEq(eUSDC.balanceOf(address(this)), balance);
-//         assertEq(eUSDC.balanceOf(user1), user1Balance + 100e6);
-//         assertEq(eUSDC.totalSupply(), totalSupply + 100e6);
+//         assertEq(borrowableCUSDC.balanceOf(address(this)), balance);
+//         assertEq(borrowableCUSDC.balanceOf(user1), user1Balance + 100e6);
+//         assertEq(borrowableCUSDC.totalSupply(), totalSupply + 100e6);
 //     }
 // }

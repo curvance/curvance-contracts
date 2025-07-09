@@ -31,26 +31,26 @@ contract SetInterestRateModelTest is TestBaseEToken {
         vm.prank(address(1));
 
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
-        eUSDC.setInterestRateModel(address(newDynamicInterestRateModel));
+        borrowableCUSDC.setInterestRateModel(address(newDynamicInterestRateModel));
     }
 
     function test_setInterestRateModel_fail_whenInvalidInterestRateModel()
         public
     {
         vm.expectRevert();
-        eUSDC.setInterestRateModel(address(1));
+        borrowableCUSDC.setInterestRateModel(address(1));
     }
 
     function test_setInterestRateModel_success() public {
         assertEq(
-            address(eUSDC.interestRateModel()),
+            address(borrowableCUSDC.interestRateModel()),
             address(interestRateModels[block.chainid][_USDC_ADDRESS])
         );
 
-        eUSDC.setInterestRateModel(address(newDynamicInterestRateModel));
+        borrowableCUSDC.setInterestRateModel(address(newDynamicInterestRateModel));
 
         assertEq(
-            address(eUSDC.interestRateModel()),
+            address(borrowableCUSDC.interestRateModel()),
             address(newDynamicInterestRateModel)
         );
     }

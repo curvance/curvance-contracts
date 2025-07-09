@@ -10,12 +10,12 @@ contract CanSeizeTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.setSeizePaused(true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        marketManagerIsolated.canSeize(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.canSeize(address(pBALRETH), address(borrowableCUSDC));
     }
 
     function test_canSeize_fail_whenPTokenNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManagerIsolated.canSeize(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.canSeize(address(pBALRETH), address(borrowableCUSDC));
     }
 
     function test_canSeize_fail_whenETokenNotListed() public {
@@ -23,12 +23,12 @@ contract CanSeizeTest is TestBaseMarketManagerIsolated {
         // balRETH.approve(address(pBALRETH), 77777);
 
         // deal(address(_USDC_ADDRESS), address(this), 77777);
-        // usdc.approve(address(eUSDC), 77777);
+        // usdc.approve(address(borrowableCUSDC), 77777);
 
-        // marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        // marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManagerIsolated.canSeize(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.canSeize(address(pBALRETH), address(borrowableCUSDC));
     }
 
     function test_canSeize_success() public {
@@ -36,26 +36,26 @@ contract CanSeizeTest is TestBaseMarketManagerIsolated {
         balRETH.approve(address(pBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
-        marketManagerIsolated.canSeize(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.canSeize(address(pBALRETH), address(borrowableCUSDC));
     }
 
     // not possible to reach this code path
     // function test_canSeize_fail_whenMarketManagersMismatch() public {
     //     marketManagerIsolated.listToken(address(pBALRETH));
-    //     marketManagerIsolated.listToken(address(eUSDC));
+    //     marketManagerIsolated.listToken(address(borrowableCUSDC));
 
     //     MarketManager newMarketManager = new MarketManager(
     //         ICentralRegistry(address(centralRegistry)),
     //         address(gaugeManager)
     //     );
     //     centralRegistry.addLendingMarket(address(newMarketManager), 1000);
-    //     eUSDC.setMarketManager(address(newMarketManager));
+    //     borrowableCUSDC.setMarketManager(address(newMarketManager));
 
     //     vm.expectRevert(MarketManagerIsolated.MarketManager__MarketManagerMismatch.selector);
-    //     marketManagerIsolated.canSeize(address(pBALRETH), address(eUSDC));
+    //     marketManagerIsolated.canSeize(address(pBALRETH), address(borrowableCUSDC));
     // }
 }

@@ -20,6 +20,6 @@ contract MarketManagerDeploymentTest is TestBaseMarketManagerIsolated {
             ICentralRegistry(address(centralRegistry))
         );
 
-        assertEq(address(eUSDC.centralRegistry()), address(centralRegistry));
+        assertEq(address(borrowableCUSDC.centralRegistry()), address(centralRegistry));
     }
 }

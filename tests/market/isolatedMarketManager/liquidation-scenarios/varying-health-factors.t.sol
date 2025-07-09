@@ -83,10 +83,10 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         _prepareBALRETH(user1, _ONE + 77777);
 
         vm.prank(user1);
-        usdc.approve(address(eUSDC), _ONE);
+        usdc.approve(address(borrowableCUSDC), _ONE);
         balRETH.approve(address(pBALRETH), _ONE + 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(pBALRETH);
@@ -106,7 +106,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
+        configToken1.cToken = address(borrowableCUSDC);
         configToken1.debtCap = 100_000e6;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
@@ -115,8 +115,8 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         _prepareBALRETH(liquidityProvider, 10e18);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.deposit(200000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);
@@ -143,7 +143,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
 
         IMarketManager.LiqInstructions memory liqInstructions;
         liqInstructions = IMarketManager.LiqInstructions({
-            debtToken: address(eUSDC),
+            debtToken: address(borrowableCUSDC),
             collateralToken: address(pBALRETH),
             numAccounts: 5,
             liquidateExact: false,
@@ -160,7 +160,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         uint256[] memory debtBalancesPreLiquidation = _getDebtBalancePreLiquidation();
 
         (,uint256 eTokenPrice, uint256 cTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(borrowers[0], address(eUSDC), address(pBALRETH));
+            marketManagerIsolated.liquidationStatusOf(borrowers[0], address(borrowableCUSDC), address(pBALRETH));
 
         (uint256[] memory maxAmount, uint256[] memory liquidatedPTokens, uint256[] memory collateralRequired) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction(
@@ -184,11 +184,11 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
             expectedTotalBadDebt += badDebt[i];
         }
 
-        uint256 totalBorrowsBefore = eUSDC.marketOutstandingDebt();
+        uint256 totalBorrowsBefore = borrowableCUSDC.marketOutstandingDebt();
 
         // ===== Liquidate =====
 
-        eUSDC.approve(address(marketManagerIsolated), 100000e6);
+        borrowableCUSDC.approve(address(marketManagerIsolated), 100000e6);
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit();
@@ -197,7 +197,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         emit Repay(address(this), borrowers[3], maxAmount[3] + badDebt[3]);
         emit Repay(address(this), borrowers[4], maxAmount[4] + badDebt[4]);
 
-        eUSDC.liquidate(
+        borrowableCUSDC.liquidate(
             borrowers,
             address(pBALRETH)
         );
@@ -205,16 +205,16 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         // ===== Validate =====
 
         // Verify healthy accounts (1 and 2) are not liquidated
-        assertEq(eUSDC.debtBalance(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
-        assertEq(eUSDC.debtBalance(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
+        assertEq(borrowableCUSDC.debtBalance(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
+        assertEq(borrowableCUSDC.debtBalance(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
 
         // Verify liquidated accounts (3, 4, and 5) are liquidated
         for (uint i = 2; i < 5; i++) {
             // Debt should be reduced by maxAmount if soft liquidation
             if(borrowers[i] == borrower3) {
-                assertEq(eUSDC.debtBalance(borrowers[i]), debtBalancesPreLiquidation[i] - maxAmount[i], "Borrower 3 should be soft liquidated");
+                assertEq(borrowableCUSDC.debtBalance(borrowers[i]), debtBalancesPreLiquidation[i] - maxAmount[i], "Borrower 3 should be soft liquidated");
             } else {
-                assertEq(eUSDC.debtBalance(borrowers[i]), 0, "Borrower should be hard liquidated");
+                assertEq(borrowableCUSDC.debtBalance(borrowers[i]), 0, "Borrower should be hard liquidated");
             }
 
             // Collateral should be reduced by liquidatedPTokens
@@ -229,7 +229,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         uint256 totalDebtRepaid = maxAmount[2] + borrowAmounts[3] + borrowAmounts[4];
 
         assertApproxEqAbs(
-            eUSDC.marketOutstandingDebt(),
+            borrowableCUSDC.marketOutstandingDebt(),
             totalBorrowsBefore - totalDebtRepaid,
             100, // Small tolerance
             "Incorrect totalBorrows after liquidation"
@@ -248,11 +248,11 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         for (uint i = 2; i < 5; i++) {
             (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
                 borrowers[i],
-                address(eUSDC),
+                address(borrowableCUSDC),
                 address(pBALRETH)
             );
             
-            if (eUSDC.debtBalance(borrowers[i]) > 0) {
+            if (borrowableCUSDC.debtBalance(borrowers[i]) > 0) {
                 // If there's still debt, health factor should be improved
                 assertTrue(
                     lFactorAfter < lFactorsPreLiquidation[i],
@@ -275,31 +275,31 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         vm.startPrank(borrower1);
         balRETH.approve(address(pBALRETH), _ONE);
         pBALRETH.depositAsCollateral(_ONE, borrower1);
-        eUSDC.borrow(borrowAmounts[0]);
+        borrowableCUSDC.borrow(borrowAmounts[0]);
         vm.stopPrank();
 
         vm.startPrank(borrower2);
         balRETH.approve(address(pBALRETH), _ONE);
         pBALRETH.depositAsCollateral(_ONE, borrower2);
-        eUSDC.borrow(borrowAmounts[1]);
+        borrowableCUSDC.borrow(borrowAmounts[1]);
         vm.stopPrank();
 
         vm.startPrank(borrower3);
         balRETH.approve(address(pBALRETH), _ONE);
         pBALRETH.depositAsCollateral(_ONE, borrower3);
-        eUSDC.borrow(borrowAmounts[2]);
+        borrowableCUSDC.borrow(borrowAmounts[2]);
         vm.stopPrank();
 
         vm.startPrank(borrower4);
         balRETH.approve(address(pBALRETH), _ONE);
         pBALRETH.depositAsCollateral(_ONE, borrower4);
-        eUSDC.borrow(borrowAmounts[3]);
+        borrowableCUSDC.borrow(borrowAmounts[3]);
         vm.stopPrank();
 
         vm.startPrank(borrower5);
         balRETH.approve(address(pBALRETH), _ONE);
         pBALRETH.depositAsCollateral(_ONE, borrower5);
-        eUSDC.borrow(borrowAmounts[4]);
+        borrowableCUSDC.borrow(borrowAmounts[4]);
         vm.stopPrank();
     }
 
@@ -309,7 +309,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         for(uint i; i < 5; i++) {
             (lFactors[i],,) = marketManagerIsolated.liquidationStatusOf(
                 borrowers[i],
-                address(eUSDC),
+                address(borrowableCUSDC),
                 address(pBALRETH)
             );
         }
@@ -320,7 +320,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
     function _getDebtBalancePreLiquidation() internal view returns (uint256[] memory debtBalances) {
         debtBalances = new uint256[](5);
         for(uint i; i < 5; i++) {
-            debtBalances[i] = eUSDC.debtBalance(borrowers[i]);
+            debtBalances[i] = borrowableCUSDC.debtBalance(borrowers[i]);
         }
         return debtBalances;
     }

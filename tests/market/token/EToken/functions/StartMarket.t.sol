@@ -11,20 +11,20 @@ contract ETokenStartMarketTest is TestBaseEToken {
         public
     {
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
-        eUSDC.startMarket(address(0));
+        borrowableCUSDC.startMarket(address(0));
     }
 
     function test_eTokenStartMarket_fail_whenInterestRateModelLinkedToWrongToken()
         public
     {
-        eUSDC.setInterestRateModel(
+        borrowableCUSDC.setInterestRateModel(
             address(interestRateModels[block.chainid][_DAI_ADDRESS])
         );
 
         vm.prank(address(marketManagerIsolated));
 
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
-        eUSDC.startMarket(user1);
+        borrowableCUSDC.startMarket(user1);
     }
 
     function test_eTokenStartMarket_fail_whenInitializerIsZeroAddress()
@@ -33,21 +33,21 @@ contract ETokenStartMarketTest is TestBaseEToken {
         vm.prank(address(marketManagerIsolated));
 
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
-        eUSDC.startMarket(address(0));
+        borrowableCUSDC.startMarket(address(0));
     }
 
     function test_eTokenStartMarket_success() public {
         _prepareUSDC(address(user1), 1000e6);
 
         vm.startPrank(user1);
-        SafeTransferLib.safeApprove(_USDC_ADDRESS, address(eUSDC), 1e18);
+        SafeTransferLib.safeApprove(_USDC_ADDRESS, address(borrowableCUSDC), 1e18);
         vm.stopPrank();
 
-        uint256 totalSupply = eUSDC.totalSupply();
+        uint256 totalSupply = borrowableCUSDC.totalSupply();
 
         vm.prank(address(marketManagerIsolated));
-        eUSDC.startMarket(user1);
+        borrowableCUSDC.startMarket(user1);
 
-        assertEq(eUSDC.totalSupply(), totalSupply + 77777);
+        assertEq(borrowableCUSDC.totalSupply(), totalSupply + 77777);
     }
 }

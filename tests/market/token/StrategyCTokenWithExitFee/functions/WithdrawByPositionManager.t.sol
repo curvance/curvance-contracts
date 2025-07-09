@@ -80,7 +80,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
 
         // list eUSDC
         _prepareUSDC(address(this), _ONE);
-        usdc.approve(address(eUSDC), _ONE);
+        usdc.approve(address(borrowableCUSDC), _ONE);
 
 
         // list pBALRETHWithExitFee
@@ -92,7 +92,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
             77777
         );
 
-        marketManagerIsolated.listTokens(address(pBALRETHWithExitFee), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETHWithExitFee), address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(pBALRETHWithExitFee);
@@ -112,14 +112,14 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
+        configToken1.cToken = address(borrowableCUSDC);
         configToken1.debtCap = 1_000_000e6;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
         addPositionManagement();
 
         // deposit reserves
-        eUSDC.deposit(1000e6, address(this));
+        borrowableCUSDC.deposit(1000e6, address(this));
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
@@ -127,8 +127,8 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         vm.startPrank(liquidityProvider);
         balRETH.approve(address(pBALRETHWithExitFee), 10e18);
         pBALRETHWithExitFee.mint(10e18, liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.mint(200000e6, liquidityProvider);
 
         vm.stopPrank();
     }
@@ -145,7 +145,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
 
         pBALRETHWithExitFee.postCollateral(100e18);
 
-        eUSDC.borrow(100e6);
+        borrowableCUSDC.borrow(100e6);
 
         SwapperLib.Swap[] memory swapData; // empty swap data
         
@@ -153,7 +153,7 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         DeleverageStruct memory deleverageData = DeleverageStruct({
             collateralToken: ICToken(address(pBALRETHWithExitFee)),
             collateralAmount: 0,
-            debtToken: IBorrowableCToken(address(eUSDC)),
+            debtToken: IBorrowableCToken(address(borrowableCUSDC)),
             swapData: swapData,
             repayAmount: 0,
             auxData: ""

@@ -12,18 +12,18 @@ contract ETokenRepayTest is TestBaseEToken {
 
         _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
 
-        _prepareUSDC(address(eUSDC), 2000e6);
+        _prepareUSDC(address(borrowableCUSDC), 2000e6);
 
         pBALRETH.postCollateral(1e18 - 1);
 
         _prepareUSDC(address(user1), 1000e6);
 
         vm.startPrank(user1);
-        usdc.approve(address(eUSDC), type(uint256).max);
-        eUSDC.mint(100e6, address(this));
+        usdc.approve(address(borrowableCUSDC), type(uint256).max);
+        borrowableCUSDC.mint(100e6, address(this));
         vm.stopPrank();
 
-        eUSDC.borrow(100e6);
+        borrowableCUSDC.borrow(100e6);
 
         skip(20 minutes);
     }
@@ -32,45 +32,45 @@ contract ETokenRepayTest is TestBaseEToken {
         rewind(1);
 
         vm.expectRevert();
-        eUSDC.repay(100e6);
+        borrowableCUSDC.repay(100e6);
     }
 
     function test_eTokenRepay_fail_whenBorrowAmountExceedsCash() public {
-        eUSDC.accrueIfNeeded();
+        borrowableCUSDC.accrueIfNeeded();
 
-        uint256 debtBalance = eUSDC.debtBalance(address(this));
+        uint256 debtBalance = borrowableCUSDC.debtBalance(address(this));
 
         vm.expectRevert(BorrowableCToken.BorrowableCToken__InvalidParameter.selector);
-        eUSDC.repay(debtBalance + 1);
+        borrowableCUSDC.repay(debtBalance + 1);
     }
 
     function test_eTokenRepay_success() public {
-        eUSDC.accrueIfNeeded();
+        borrowableCUSDC.accrueIfNeeded();
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
-        uint256 balance = eUSDC.balanceOf(address(this));
-        uint256 totalSupply = eUSDC.totalSupply();
-        uint256 totalBorrows = eUSDC.marketOutstandingDebt();
+        uint256 balance = borrowableCUSDC.balanceOf(address(this));
+        uint256 totalSupply = borrowableCUSDC.totalSupply();
+        uint256 totalBorrows = borrowableCUSDC.marketOutstandingDebt();
 
-        vm.expectEmit(true, true, true, true, address(eUSDC)    );
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC)    );
         emit Repay(address(this), address(this), 100e6);
 
-        eUSDC.repay(100e6);
+        borrowableCUSDC.repay(100e6);
 
         assertEq(usdc.balanceOf(address(this)), underlyingBalance - 100e6);
-        assertEq(eUSDC.balanceOf(address(this)), balance);
-        assertEq(eUSDC.totalSupply(), totalSupply);
-        assertEq(eUSDC.marketOutstandingDebt(), totalBorrows - 100e6);
+        assertEq(borrowableCUSDC.balanceOf(address(this)), balance);
+        assertEq(borrowableCUSDC.totalSupply(), totalSupply);
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrows - 100e6);
     }
 
     function test_eTokenRepay_success_whenRepayAll() public {
-        eUSDC.accrueIfNeeded();
+        borrowableCUSDC.accrueIfNeeded();
 
-        uint256 debtBalance = eUSDC.debtBalance(address(this));
+        uint256 debtBalance = borrowableCUSDC.debtBalance(address(this));
         uint256 underlyingBalance = usdc.balanceOf(address(this));
-        uint256 balance = eUSDC.balanceOf(address(this));
-        uint256 totalSupply = eUSDC.totalSupply();
-        uint256 totalBorrows = eUSDC.marketOutstandingDebt();
+        uint256 balance = borrowableCUSDC.balanceOf(address(this));
+        uint256 totalSupply = borrowableCUSDC.totalSupply();
+        uint256 totalBorrows = borrowableCUSDC.marketOutstandingDebt();
         uint256 expectedTotalBorrows;
 
         // If the totalBorrows adjustment won't be rounded down then we
@@ -80,18 +80,18 @@ contract ETokenRepayTest is TestBaseEToken {
             expectedTotalBorrows = totalBorrows - debtBalance;
         }
 
-        vm.expectEmit(true, true, true, true, address(eUSDC));
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Repay(address(this), address(this), debtBalance);
 
-        eUSDC.repay(0);
+        borrowableCUSDC.repay(0);
         
         assertEq(
             usdc.balanceOf(address(this)),
             underlyingBalance - debtBalance
         );
-        assertEq(eUSDC.balanceOf(address(this)), balance);
-        assertEq(eUSDC.totalSupply(), totalSupply);
-        assertEq(eUSDC.marketOutstandingDebt(), expectedTotalBorrows);
+        assertEq(borrowableCUSDC.balanceOf(address(this)), balance);
+        assertEq(borrowableCUSDC.totalSupply(), totalSupply);
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), expectedTotalBorrows);
     }
 
     function test_borrowers_repayAllDebts() public {
@@ -100,7 +100,7 @@ contract ETokenRepayTest is TestBaseEToken {
         _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
 
         uint256 addUsdcAmount = 1500e6;
-        eUSDC.mint(
+        borrowableCUSDC.mint(
             _BASE_UNDERLYING_RESERVE + initialUsdcReserves + addUsdcAmount,
             address(this)
         );
@@ -119,7 +119,7 @@ contract ETokenRepayTest is TestBaseEToken {
             deal(address(pBALRETH), user, 1e18);
             vm.startPrank(user);
             pBALRETH.postCollateral(1e18 - 1);
-            eUSDC.borrow(100e6);
+            borrowableCUSDC.borrow(100e6);
             vm.stopPrank();
         }
 
@@ -130,23 +130,23 @@ contract ETokenRepayTest is TestBaseEToken {
             vm.startPrank(user);
             // give users enough usdc to repay their debt because accumulated interest
             _prepareUSDC(user, 1000e6);
-            usdc.approve(address(eUSDC), type(uint256).max);
-            eUSDC.repay(0);
+            usdc.approve(address(borrowableCUSDC), type(uint256).max);
+            borrowableCUSDC.repay(0);
             vm.stopPrank();
         }
 
         // can be called by malicious users
         for (uint i; i < 2; ++i) {
             skip(1 days);
-            eUSDC.accrueIfNeeded();
+            borrowableCUSDC.accrueIfNeeded();
         }
 
         _prepareUSDC(users[2], 1000e6);
         vm.startPrank(users[2]);
-        usdc.approve(address(eUSDC), type(uint256).max);
+        usdc.approve(address(borrowableCUSDC), type(uint256).max);
         // 3. user103 repay all his debt would revert because overflow
         // vm.expectRevert();
-        eUSDC.repay(0);
+        borrowableCUSDC.repay(0);
         vm.stopPrank();
     }
 }

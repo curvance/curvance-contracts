@@ -10,7 +10,7 @@ contract CanBorrowTest is TestBaseMarketManager {
     function setUp() public override {
         super.setUp();
 
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
         skip(gaugeManager.gaugeStartTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
@@ -18,33 +18,33 @@ contract CanBorrowTest is TestBaseMarketManager {
     }
 
     function test_canBorrow_fail_whenBorrowPaused() public {
-        marketManager.setBorrowPaused(address(eUSDC), true);
+        marketManager.setBorrowPaused(address(borrowableCUSDC), true);
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
-        marketManager.canBorrow(address(eUSDC), user1, 100e6);
+        marketManager.canBorrow(address(borrowableCUSDC), user1, 100e6);
     }
 
     function test_canBorrow_fail_whenMTokenIsNotListed() public {
-        marketManager.listToken(address(eDAI));
+        marketManager.listToken(address(borrowableCDAI));
 
-        vm.prank(address(eDAI));
+        vm.prank(address(borrowableCDAI));
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
 
-        marketManager.canBorrow(address(eUSDC), user1, 100e6);
+        marketManager.canBorrow(address(borrowableCUSDC), user1, 100e6);
     }
 
     function test_canBorrow_fail_whenCallerIsNotMTokenAndBorrowerNotInMarket()
         public
     {
-        marketManager.listToken(address(eDAI));
+        marketManager.listToken(address(borrowableCDAI));
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        marketManager.canBorrow(address(eDAI), user1, 100e6);
+        marketManager.canBorrow(address(borrowableCDAI), user1, 100e6);
     }
 
     function test_canBorrow_fail_whenInsufficientLiquidity() public {
@@ -61,12 +61,12 @@ contract CanBorrowTest is TestBaseMarketManager {
             block.timestamp
         );
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(
             MarketManager.MarketManager__InsufficientCollateral.selector
         );
-        marketManager.canBorrow(address(eUSDC), user1, 100e6);
+        marketManager.canBorrow(address(borrowableCUSDC), user1, 100e6);
     }
 
     function test_canBorrow_fail_whenInsufficientLoanSize() public {
@@ -113,12 +113,12 @@ contract CanBorrowTest is TestBaseMarketManager {
         pBALRETH.postCollateral(10e18);
         vm.stopPrank();
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(
             LiquidityManager.LiquidityManager__InsufficientLoanSize.selector
         );
-        marketManager.canBorrow(address(eUSDC), user1, 10e6);
+        marketManager.canBorrow(address(borrowableCUSDC), user1, 10e6);
     }
 
     function test_canBorrow_success_whenSufficientLiquidity() public {
@@ -165,8 +165,8 @@ contract CanBorrowTest is TestBaseMarketManager {
         pBALRETH.postCollateral(999e18);
         vm.stopPrank();
 
-        vm.prank(address(eUSDC));
-        marketManager.canBorrow(address(eUSDC), user1, 100e6);
+        vm.prank(address(borrowableCUSDC));
+        marketManager.canBorrow(address(borrowableCUSDC), user1, 100e6);
 
         AccountSnapshot memory snapshot = pBALRETH.getSnapshot(user1);
         (uint256 price, ) = oracleManager.getPrice(
@@ -184,17 +184,17 @@ contract CanBorrowTest is TestBaseMarketManager {
 
         // max amount of USDC that can be borrowed based on provided collateral in pBALRETH
         uint256 borrowInUSDC = (maxBorrow / 10 ** pBALRETH.decimals()) *
-            10 ** eUSDC.decimals();
-        vm.prank(address(eUSDC));
-        marketManager.canBorrow(address(eUSDC), user1, borrowInUSDC);
+            10 ** borrowableCUSDC.decimals();
+        vm.prank(address(borrowableCUSDC));
+        marketManager.canBorrow(address(borrowableCUSDC), user1, borrowInUSDC);
 
         // should fail when borrowing more than is allowed by provided collateral
         vm.expectRevert(
             MarketManager.MarketManager__InsufficientCollateral.selector
         );
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
         marketManager.canBorrow(
-            address(eUSDC),
+            address(borrowableCUSDC),
             user1,
             borrowInUSDC + 1e6
         );
@@ -215,7 +215,7 @@ contract CanBorrowTest is TestBaseMarketManager {
         );
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        marketManager.canBorrow(address(eUSDC), user1, 0);
+        marketManager.canBorrow(address(borrowableCUSDC), user1, 0);
     }
 
     function test_canBorrow_success_entersUserInMarket() external {
@@ -267,23 +267,23 @@ contract CanBorrowTest is TestBaseMarketManager {
         vm.stopPrank();
 
         bool hasPosition;
-        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(eUSDC));
+        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(borrowableCUSDC));
 
         assertFalse(hasPosition);
         IMToken[] memory accountAssets = marketManager.assetsOf(user1);
         assertEq(accountAssets.length, 1);
 
-        vm.prank(address(eUSDC));
-        marketManager.canBorrow(address(eUSDC), user1, 1_000e6);
+        vm.prank(address(borrowableCUSDC));
+        marketManager.canBorrow(address(borrowableCUSDC), user1, 1_000e6);
 
-        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(eUSDC));
+        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(borrowableCUSDC));
 
         assertTrue(hasPosition);
 
         accountAssets = marketManager.assetsOf(user1);
         assertEq(accountAssets.length, 2);
         assertEq(address(accountAssets[0]), address(pBALRETH));
-        assertEq(address(accountAssets[1]), address(eUSDC));
+        assertEq(address(accountAssets[1]), address(borrowableCUSDC));
     }
 
     // function test_canBorrow_fail_whenExceedsBorrowCap() external {

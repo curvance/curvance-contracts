@@ -30,10 +30,10 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         
         _prepareUSDC(user2, 1000e6);
         vm.startPrank(user2);
-        usdc.approve(address(eUSDC), 1000e6);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
 
         IMarketManager.LiqInstructions memory instructions = IMarketManager.LiqInstructions({
-            debtToken: address(eUSDC),
+            debtToken: address(borrowableCUSDC),
             collateralToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
@@ -53,14 +53,14 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
 
         // Hard liquidation, should have lost all collateral
         assertEq(results.liquidatedAmounts[0], _ONE - 1, "Liquidated amount mismatch");
-        eUSDC.liquidate(
+        borrowableCUSDC.liquidate(
             accounts,
             address(pBALRETH)
         );
         vm.stopPrank();
 
-        console2.log("eUSDC.debtBalance(user1)", eUSDC.debtBalance(user1));
-        console2.log("eUSDC.exchangeRate()", eUSDC.exchangeRate());
+        console2.log("borrowableCUSDC.debtBalance(user1)", borrowableCUSDC.debtBalance(user1));
+        console2.log("borrowableCUSDC.exchangeRate()", borrowableCUSDC.exchangeRate());
         console2.log("Debt amount returned", debtAmountReturned[0]);
         console2.log("LiqResults.liquidatedAmounts[0]", results.liquidatedAmounts[0]);
         console2.log("LiqResults.debtRepaid", results.debtRepaid);
@@ -74,9 +74,9 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
 
         assertEq(expectedRepayAmount, results.debtRepaid, "Debt repaid mismatch");
 
-        assertEq(eUSDC.debtBalance(user1), 0, "eUSDC debt balance mismatch");
+        assertEq(borrowableCUSDC.debtBalance(user1), 0, "eUSDC debt balance mismatch");
         assertEq(pBALRETH.exchangeRate(), _ONE, "pBALRETH exchange rate mismatch");
-        assertLt(eUSDC.exchangeRate(), _ONE, "eUSDC exchange rate mismatch, there should be bad debt");
+        assertLt(borrowableCUSDC.exchangeRate(), _ONE, "eUSDC exchange rate mismatch, there should be bad debt");
         assertEq(pBALRETH.balanceOf(user2), _ONE - 1, "Liquidator pBALRETH balance mismatch");
         assertEq(usdc.balanceOf(user2), 1000e6 - results.debtRepaid, "Liquidator USDC balance mismatch");
        
@@ -88,8 +88,8 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         _prepareBALRETH(liquidityProvider, 10e18);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.deposit(200000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);
@@ -102,7 +102,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         pBALRETH.deposit(_ONE, user1);
         pBALRETH.postCollateral(_ONE - 1);
 
-        eUSDC.borrow(1000e6);
+        borrowableCUSDC.borrow(1000e6);
         vm.stopPrank();
 
         // skip min hold period
@@ -145,7 +145,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
             marketManagerIsolated.tokenData(address(pBALRETH));
         
         (uint256 lFactor, uint256 earnTokenPrice, uint256 positionTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(user, address(eUSDC), address(pBALRETH));
+            marketManagerIsolated.liquidationStatusOf(user, address(borrowableCUSDC), address(pBALRETH));
 
         uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
         uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
@@ -157,7 +157,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
             positionTokenPrice
         );
         
-        uint256 maxAmount = (auctionCFactor * eUSDC.debtBalance(user)) / WAD;
+        uint256 maxAmount = (auctionCFactor * borrowableCUSDC.debtBalance(user)) / WAD;
         
         uint256 debtAmount = calculateDebtAmount(user, maxAmount, debtToCollateralMultiplier);
         

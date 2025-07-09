@@ -10,7 +10,7 @@ contract SetMigrationConfigTest is TestBasePredeposit {
         vm.expectRevert(
             Predeposit.Predeposit__Unauthorized.selector
         );
-        predeposit.setMigrationConfig(_USDC_ADDRESS, address(eUSDC));
+        predeposit.setMigrationConfig(_USDC_ADDRESS, address(borrowableCUSDC));
     }
 
     function test_setMigrationConfig_fail_whenTokenIsNotApproved() public {
@@ -25,7 +25,7 @@ contract SetMigrationConfigTest is TestBasePredeposit {
         vm.expectRevert(
             Predeposit.Predeposit__InvalidParameters.selector
         );
-        predeposit.setMigrationConfig(_USDC_ADDRESS, address(eUSDC));
+        predeposit.setMigrationConfig(_USDC_ADDRESS, address(borrowableCUSDC));
     }
 
     function test_setMigrationConfig_fail_whenUnderlyingIsNotPredepositToken()
@@ -36,7 +36,7 @@ contract SetMigrationConfigTest is TestBasePredeposit {
         vm.expectRevert(
             Predeposit.Predeposit__InvalidParameters.selector
         );
-        predeposit.setMigrationConfig(_USDC_ADDRESS, address(eDAI));
+        predeposit.setMigrationConfig(_USDC_ADDRESS, address(borrowableCDAI));
     }
 
     function test_setMigrationConfig_fail_whenProtocolTokenIsNotListed()
@@ -47,17 +47,17 @@ contract SetMigrationConfigTest is TestBasePredeposit {
         vm.expectRevert(
             Predeposit.Predeposit__InvalidParameters.selector
         );
-        predeposit.setMigrationConfig(_USDC_ADDRESS, address(eUSDC));
+        predeposit.setMigrationConfig(_USDC_ADDRESS, address(borrowableCUSDC));
     }
 
     function test_setMigrationConfig_success() public {
         _prepareUSDC(address(this), 1000e6);
         _prepareBALRETH(address(this), 1000e18);
 
-        usdc.approve(address(eUSDC), 1000e6);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
         balRETH.approve(address(pBALRETH), 1000e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
         (, address mTokenAddress) = predeposit.tokenData(
             _USDC_ADDRESS
@@ -66,11 +66,11 @@ contract SetMigrationConfigTest is TestBasePredeposit {
         assertEq(mTokenAddress, _ZERO_ADDRESS);
 
         vm.prank(manager);
-        predeposit.setMigrationConfig(_USDC_ADDRESS, address(eUSDC));
+        predeposit.setMigrationConfig(_USDC_ADDRESS, address(borrowableCUSDC));
 
         (, mTokenAddress) = predeposit.tokenData(_USDC_ADDRESS);
 
-        assertEq(mTokenAddress, address(eUSDC));
+        assertEq(mTokenAddress, address(borrowableCUSDC));
 
         (, mTokenAddress) = predeposit.tokenData(
             _BAL_WETH_RETH_ADDRESS

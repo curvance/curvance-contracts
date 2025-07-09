@@ -89,7 +89,7 @@ contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
                 ),
                 31_536_000 * predictedBorrowRate
             );
-            vm.prank(address(eUSDC));
+            vm.prank(address(borrowableCUSDC));
             assertEq(
                 interestRateModel.getBorrowRateWithUpdate(
                     cash,

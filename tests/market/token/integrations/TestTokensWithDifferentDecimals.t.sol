@@ -76,7 +76,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         {
             // support market
             _prepareUSDC(owner, 200000e6);
-            usdc.approve(address(eUSDC), 200000e6);
+            usdc.approve(address(borrowableCUSDC), 200000e6);
         }
 
         // setup pBALRETH
@@ -87,7 +87,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         }
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(pBALRETH);
@@ -107,7 +107,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
+        configToken1.cToken = address(borrowableCUSDC);
         configToken1.debtCap = 100_000e6;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
@@ -121,8 +121,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         _prepareBALRETH(liquidityProvider, 10 ether);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.deposit(200000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10 ether);
         pBALRETH.deposit(10 ether, liquidityProvider);
@@ -159,20 +159,20 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        usdc.approve(address(eUSDC), 1e6);
-        eUSDC.deposit(1e6, user1);
-        assertEq(eUSDC.balanceOf(user1), 1e6);
+        usdc.approve(address(borrowableCUSDC), 1e6);
+        borrowableCUSDC.deposit(1e6, user1);
+        assertEq(borrowableCUSDC.balanceOf(user1), 1e6);
 
         // try minting for user2
-        usdc.approve(address(eUSDC), 1e6);
-        eUSDC.deposit(1e6, user2);
-        assertEq(eUSDC.balanceOf(user1), 1e6);
-        assertEq(eUSDC.balanceOf(user2), 1e6);
+        usdc.approve(address(borrowableCUSDC), 1e6);
+        borrowableCUSDC.deposit(1e6, user2);
+        assertEq(borrowableCUSDC.balanceOf(user1), 1e6);
+        assertEq(borrowableCUSDC.balanceOf(user2), 1e6);
 
         // try redeem()
-        eUSDC.redeem(1e6, address(this), user1);
+        borrowableCUSDC.redeem(1e6, address(this), user1);
         vm.stopPrank();
-        assertEq(eUSDC.balanceOf(user1), 0);
+        assertEq(borrowableCUSDC.balanceOf(user1), 0);
     }
 
     function testETokenBorrowRepay() public {
@@ -188,48 +188,48 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(pBALRETH.exchangeRate(), 1 ether);
 
         // try borrow()
-        eUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6);
 
-        assertEq(eUSDC.balanceOf(user1), 0);
-        assertEq(eUSDC.debtBalance(user1), 500e6);
-        assertEq(eUSDC.exchangeRate(), 1 ether);
+        assertEq(borrowableCUSDC.balanceOf(user1), 0);
+        assertEq(borrowableCUSDC.debtBalance(user1), 500e6);
+        assertEq(borrowableCUSDC.exchangeRate(), 1 ether);
 
         // try borrow()
         skip(1200);
-        eUSDC.borrow(100e6);
+        borrowableCUSDC.borrow(100e6);
 
-        assertEq(eUSDC.balanceOf(user1), 0);
-        assertGt(eUSDC.debtBalance(user1), 600e6);
-        assertGt(eUSDC.exchangeRate(), 1 ether);
+        assertEq(borrowableCUSDC.balanceOf(user1), 0);
+        assertGt(borrowableCUSDC.debtBalance(user1), 600e6);
+        assertGt(borrowableCUSDC.exchangeRate(), 1 ether);
 
         // skip min hold period
         skip(20 minutes);
 
         // try partial repay
-        uint256 borrowBalanceBefore = eUSDC.debtBalance(user1);
-        uint256 exchangeRateBefore = eUSDC.exchangeRate();
+        uint256 borrowBalanceBefore = borrowableCUSDC.debtBalance(user1);
+        uint256 exchangeRateBefore = borrowableCUSDC.exchangeRate();
         _prepareUSDC(user1, 200e6);
-        usdc.approve(address(eUSDC), 200e6);
-        eUSDC.repay(200e6);
+        usdc.approve(address(borrowableCUSDC), 200e6);
+        borrowableCUSDC.repay(200e6);
 
-        assertEq(eUSDC.balanceOf(user1), 0);
-        assertGt(eUSDC.debtBalance(user1), borrowBalanceBefore - 200e6);
-        assertGt(eUSDC.exchangeRate(), exchangeRateBefore);
+        assertEq(borrowableCUSDC.balanceOf(user1), 0);
+        assertGt(borrowableCUSDC.debtBalance(user1), borrowBalanceBefore - 200e6);
+        assertGt(borrowableCUSDC.exchangeRate(), exchangeRateBefore);
 
         // skip some period
         skip(20 minutes);
 
         // try repay full
-        borrowBalanceBefore = eUSDC.debtBalance(user1);
-        exchangeRateBefore = eUSDC.exchangeRate();
+        borrowBalanceBefore = borrowableCUSDC.debtBalance(user1);
+        exchangeRateBefore = borrowableCUSDC.exchangeRate();
         _prepareUSDC(user1, borrowBalanceBefore);
-        usdc.approve(address(eUSDC), borrowBalanceBefore);
-        eUSDC.repay(borrowBalanceBefore);
+        usdc.approve(address(borrowableCUSDC), borrowBalanceBefore);
+        borrowableCUSDC.repay(borrowBalanceBefore);
         vm.stopPrank();
 
-        assertEq(eUSDC.balanceOf(user1), 0);
-        assertGt(eUSDC.debtBalance(user1), 0);
-        assertGt(eUSDC.exchangeRate(), exchangeRateBefore);
+        assertEq(borrowableCUSDC.balanceOf(user1), 0);
+        assertGt(borrowableCUSDC.debtBalance(user1), 0);
+        assertGt(borrowableCUSDC.exchangeRate(), exchangeRateBefore);
     }
 
     function testCTokenRedeemOnBorrow() public {
@@ -242,7 +242,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         pBALRETH.postCollateral(1 ether);
 
         // try borrow()
-        eUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6);
 
         // skip min hold period
         skip(20 minutes);
@@ -271,31 +271,31 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         // try mint()
         _prepareUSDC(user1, 1000e6);
-        usdc.approve(address(eUSDC), 1000e6);
-        eUSDC.deposit(1000e6, user1);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+        borrowableCUSDC.deposit(1000e6, user1);
 
         // try borrow()
-        eUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6);
 
         // fail to redeem before minimum hold time pass
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
-        eUSDC.redeem(1000e6, address(this), user1);
+        borrowableCUSDC.redeem(1000e6, address(this), user1);
 
         // skip min hold period
         skip(20 minutes);
 
         // can redeem fully
-        eUSDC.redeem(1000e6, address(this), user1);
+        borrowableCUSDC.redeem(1000e6, address(this), user1);
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), 1 ether);
         assertEq(pBALRETH.exchangeRate(), 1 ether);
 
-        assertEq(eUSDC.balanceOf(user1), 0);
-        assertGt(eUSDC.debtBalance(user1), 500e6);
-        assertGt(eUSDC.exchangeRate(), 1 ether);
+        assertEq(borrowableCUSDC.balanceOf(user1), 0);
+        assertGt(borrowableCUSDC.debtBalance(user1), 500e6);
+        assertGt(borrowableCUSDC.exchangeRate(), 1 ether);
     }
 
     function testCTokenTransferOnBorrow() public {
@@ -308,7 +308,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         pBALRETH.postCollateral(1 ether);
 
         // try borrow()
-        eUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6);
 
         // skip min hold period
         skip(20 minutes);
@@ -338,29 +338,29 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         // try mint()
         _prepareUSDC(user1, 1000e6);
-        usdc.approve(address(eUSDC), 1000e6);
-        eUSDC.deposit(1000e6, user1);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+        borrowableCUSDC.deposit(1000e6, user1);
 
         // try borrow()
-        eUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6);
 
         // skip min hold period
         skip(20 minutes);
 
         // try full transfer
-        eUSDC.transfer(user2, 1000e6);
+        borrowableCUSDC.transfer(user2, 1000e6);
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), 1 ether);
         assertEq(pBALRETH.exchangeRate(), 1 ether);
 
-        assertEq(eUSDC.balanceOf(user1), 0);
-        assertEq(eUSDC.debtBalance(user1), 500e6);
-        assertEq(eUSDC.exchangeRate(), 1 ether);
+        assertEq(borrowableCUSDC.balanceOf(user1), 0);
+        assertEq(borrowableCUSDC.debtBalance(user1), 500e6);
+        assertEq(borrowableCUSDC.exchangeRate(), 1 ether);
 
-        assertEq(eUSDC.balanceOf(user2), 1000e6);
-        assertEq(eUSDC.debtBalance(user2), 0);
-        assertEq(eUSDC.exchangeRate(), 1 ether);
+        assertEq(borrowableCUSDC.balanceOf(user2), 1000e6);
+        assertEq(borrowableCUSDC.debtBalance(user2), 0);
+        assertEq(borrowableCUSDC.exchangeRate(), 1 ether);
     }
 
     function testLiquidationExact() public {
@@ -373,7 +373,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         pBALRETH.postCollateral(1 ether);
 
         // try borrow()
-        eUSDC.borrow(1000e6);
+        borrowableCUSDC.borrow(1000e6);
         vm.stopPrank();
 
         // skip min hold period
@@ -390,14 +390,14 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         // try liquidate half
         _prepareUSDC(user2, 250e6);
         vm.startPrank(user2);
-        usdc.approve(address(eUSDC), 250e6);
+        usdc.approve(address(borrowableCUSDC), 250e6);
 
         address[] memory accounts = new address[](1);
         accounts[0] = user1;
         uint256[] memory debtAmounts = new uint256[](1);
         debtAmounts[0] = 250e6;
 
-        eUSDC.liquidateExact(
+        borrowableCUSDC.liquidateExact(
             accounts,
             debtAmounts,
             address(pBALRETH));
@@ -410,9 +410,9 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         );
         assertEq(pBALRETH.exchangeRate(), 1 ether);
 
-        assertEq(eUSDC.balanceOf(user1), 0);
-        assertApproxEqRel(eUSDC.debtBalance(user1), 750e6, 0.01e18);
-        assertApproxEqRel(eUSDC.exchangeRate(), 1 ether, 0.01e18);
+        assertEq(borrowableCUSDC.balanceOf(user1), 0);
+        assertApproxEqRel(borrowableCUSDC.debtBalance(user1), 750e6, 0.01e18);
+        assertApproxEqRel(borrowableCUSDC.exchangeRate(), 1 ether, 0.01e18);
     }
 
     function testLiquidation() public {
@@ -425,7 +425,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         pBALRETH.postCollateral(1 ether);
 
         // try borrow()
-        eUSDC.borrow(1000e6);
+        borrowableCUSDC.borrow(1000e6);
         vm.stopPrank();
 
         // skip min hold period
@@ -442,12 +442,12 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         // try liquidate
         _prepareUSDC(user2, 10000e6);
         vm.startPrank(user2);
-        usdc.approve(address(eUSDC), 10000e6);
+        usdc.approve(address(borrowableCUSDC), 10000e6);
         
         address[] memory accounts = new address[](1);
         accounts[0] = user1;
 
-        eUSDC.liquidate(
+        borrowableCUSDC.liquidate(
             accounts,
             address(pBALRETH));
         vm.stopPrank();
@@ -459,8 +459,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         );
         assertEq(pBALRETH.exchangeRate(), 1 ether);
 
-        assertEq(eUSDC.balanceOf(user1), 0);
-        assertEq(eUSDC.debtBalance(user1), 0);
-        assertApproxEqRel(eUSDC.exchangeRate(), 1 ether, 0.01e18);
+        assertEq(borrowableCUSDC.balanceOf(user1), 0);
+        assertEq(borrowableCUSDC.debtBalance(user1), 0);
+        assertApproxEqRel(borrowableCUSDC.exchangeRate(), 1 ether, 0.01e18);
     }
 }

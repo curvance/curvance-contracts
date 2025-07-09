@@ -58,10 +58,10 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         _prepareBALRETH(user1, _ONE + 77777);
 
         vm.prank(user1);
-        usdc.approve(address(eUSDC), _ONE);
+        usdc.approve(address(borrowableCUSDC), _ONE);
         balRETH.approve(address(pBALRETH), _ONE + 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(pBALRETH);
@@ -81,7 +81,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
+        configToken1.cToken = address(borrowableCUSDC);
         configToken1.debtCap = 100_000e6;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
@@ -90,8 +90,8 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         _prepareBALRETH(liquidityProvider, 10e18);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.deposit(200000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);
@@ -109,21 +109,21 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
 
         // Cache original debt balances for verification
         uint256[] memory debtBalancesPreLiquidation = _getDebtBalancePreLiquidation();
-        uint256 totalBorrowsBefore = eUSDC.marketOutstandingDebt();
+        uint256 totalBorrowsBefore = borrowableCUSDC.marketOutstandingDebt();
 
         // Attempt to liquidate
-        eUSDC.approve(address(marketManagerIsolated), 100000e6);
+        borrowableCUSDC.approve(address(marketManagerIsolated), 100000e6);
 
         vm.expectRevert(abi.encodeWithSelector(MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector));
-        eUSDC.liquidate(
+        borrowableCUSDC.liquidate(
             borrowers,
             address(pBALRETH)
         );
 
         // Verify all healthy accounts are not liquidated
-        assertEq(eUSDC.debtBalance(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
-        assertEq(eUSDC.debtBalance(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
-        assertEq(eUSDC.debtBalance(borrowers[2]), debtBalancesPreLiquidation[2], "Healthy account 3 shouldn't be liquidated");
+        assertEq(borrowableCUSDC.debtBalance(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
+        assertEq(borrowableCUSDC.debtBalance(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
+        assertEq(borrowableCUSDC.debtBalance(borrowers[2]), debtBalancesPreLiquidation[2], "Healthy account 3 shouldn't be liquidated");
 
         // Verify all users have the same collateral
         assertEq(pBALRETH.balanceOf(borrowers[0]), collateralAmounts[0], "Healthy account 1 should have the same collateral");
@@ -131,7 +131,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         assertEq(pBALRETH.balanceOf(borrowers[2]), collateralAmounts[2], "Healthy account 3 should have the same collateral");
     
         // Verify the same amount of borrows is still owed
-        assertEq(eUSDC.marketOutstandingDebt(), totalBorrowsBefore, "Total borrows should be the same");
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrowsBefore, "Total borrows should be the same");
 
         // Verify liquidator received no collateral
         assertEq(pBALRETH.balanceOf(address(this)), 0, "Liquidator should have received no collateral");
@@ -145,19 +145,19 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         vm.startPrank(borrower1);
         balRETH.approve(address(pBALRETH), collateralAmounts[0]);
         pBALRETH.depositAsCollateral(collateralAmounts[0], borrower1);
-        eUSDC.borrow(borrowAmount);
+        borrowableCUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
         vm.startPrank(borrower2);
         balRETH.approve(address(pBALRETH), collateralAmounts[1]);
         pBALRETH.depositAsCollateral(collateralAmounts[1], borrower2);
-        eUSDC.borrow(borrowAmount);
+        borrowableCUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
         vm.startPrank(borrower3);
         balRETH.approve(address(pBALRETH), collateralAmounts[2]);
         pBALRETH.depositAsCollateral(collateralAmounts[2], borrower3);
-        eUSDC.borrow(borrowAmount);
+        borrowableCUSDC.borrow(borrowAmount);
         vm.stopPrank();
     }
 
@@ -167,7 +167,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         for(uint i; i < 3; i++) {
             (lFactors[i],,) = marketManagerIsolated.liquidationStatusOf(
                 borrowers[i],
-                address(eUSDC),
+                address(borrowableCUSDC),
                 address(pBALRETH)
             );
         }
@@ -178,7 +178,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
     function _getDebtBalancePreLiquidation() internal view returns (uint256[] memory debtBalances) {
         debtBalances = new uint256[](3);
         for(uint i; i < 3; i++) {
-            debtBalances[i] = eUSDC.debtBalance(borrowers[i]);
+            debtBalances[i] = borrowableCUSDC.debtBalance(borrowers[i]);
         }
         return debtBalances;
     }

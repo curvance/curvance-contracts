@@ -79,10 +79,10 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         // setup eDAI
         {
             _prepareDAI(address(this), 200000e18);
-            dai.approve(address(eDAI), 200000e18);
+            dai.approve(address(borrowableCDAI), 200000e18);
 
             // Add cToken support on Oracle Manager.
-            oracleManager.addCTokenSupport(address(eDAI));
+            oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
         // setup pBALRETH
@@ -94,7 +94,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         }
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCDAI));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
         configToken0.cToken = address(pBALRETH);
@@ -114,7 +114,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eDAI);
+        configToken1.cToken = address(borrowableCDAI);
         configToken1.debtCap = 100_000e18;
         marketManagerIsolated.updateTokenConfig(configToken1);
 
@@ -178,13 +178,13 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(CCTPZapper), true);
+        borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
 
         vm.expectRevert(
             CCTPBorrowZapper.CCTPBorrowZapper__InvalidSwapData.selector
         );
         CCTPZapper.borrowAndBridge{ value: _ONE }(
-            address(eDAI),
+            address(borrowableCDAI),
             500e18,
             swapData,
             42161,
@@ -199,13 +199,13 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(CCTPZapper), true);
+        borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
 
         vm.expectRevert(
             CCTPBorrowZapper.CCTPBorrowZapper__CCTPIsNotConfigured.selector
         );
         CCTPZapper.borrowAndBridge{ value: _ONE }(
-            address(eDAI),
+            address(borrowableCDAI),
             500e18,
             swapData,
             42161,
@@ -220,7 +220,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(CCTPZapper), true);
+        borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
 
         vm.expectRevert(
             CCTPBorrowZapper
@@ -228,7 +228,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
                 .selector
         );
         CCTPZapper.borrowAndBridge{ value: messageFee - 1 }(
-            address(eDAI),
+            address(borrowableCDAI),
             500e18,
             swapData,
             42161,
@@ -244,15 +244,15 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(CCTPZapper), true);
+        borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
         CCTPZapper.borrowAndBridge{ value: _ONE }(
-            address(eDAI),
+            address(borrowableCDAI),
             500e18,
             swapData,
             42161,
             0
         );
-        eDAI.borrow(500e18);
+        borrowableCDAI.borrow(500e18);
 
         vm.stopPrank();
 
@@ -265,8 +265,8 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         _prepareBALRETH(liquidityProvider, 10e18);
         // mint eDAI
         vm.startPrank(liquidityProvider);
-        dai.approve(address(eDAI), 200000e18);
-        eDAI.deposit(200000e18, liquidityProvider);
+        dai.approve(address(borrowableCDAI), 200000e18);
+        borrowableCDAI.deposit(200000e18, liquidityProvider);
         // mint cBALETH
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);

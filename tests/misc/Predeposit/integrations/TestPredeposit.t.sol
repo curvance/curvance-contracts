@@ -26,14 +26,14 @@ contract TestPredeposit is TestBasePredeposit {
         predeposit.addPredepositTokens(newPredepositTokens);
         vm.stopPrank();
 
-        usdc.approve(address(eUSDC), 1000e6);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
         balRETH.approve(address(pBALRETH), 1000e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH),address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH),address(borrowableCUSDC));
 
         vm.startPrank(manager);
 
-        predeposit.setMigrationConfig(_USDC_ADDRESS, address(eUSDC));
+        predeposit.setMigrationConfig(_USDC_ADDRESS, address(borrowableCUSDC));
         predeposit.setMigrationConfig(
             _BAL_WETH_RETH_ADDRESS,
             address(pBALRETH)
@@ -104,7 +104,7 @@ contract TestPredeposit is TestBasePredeposit {
         marketManagerIsolated.updateTokenConfig(configToken0);
 
         MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
+        configToken1.cToken = address(borrowableCUSDC);
         configToken1.debtCap = 100_000e6;
         marketManagerIsolated.updateTokenConfig(configToken1);
     }
@@ -211,7 +211,7 @@ contract TestPredeposit is TestBasePredeposit {
 
         skip(1 weeks);
 
-        uint256 marketUnderlyingHeld = eUSDC.assetsHeld();
+        uint256 marketUnderlyingHeld = borrowableCUSDC.assetsHeld();
 
         assertEq(predeposit.balanceOf(user1, _USDC_ADDRESS), 100e6);
         assertEq(usdc.balanceOf(address(predeposit)), 100e6);
@@ -222,7 +222,7 @@ contract TestPredeposit is TestBasePredeposit {
 
         assertEq(predeposit.balanceOf(user1, _USDC_ADDRESS), 0);
         assertEq(usdc.balanceOf(address(predeposit)), 0);
-        assertEq(eUSDC.assetsHeld(), marketUnderlyingHeld + 100e6);
-        assertEq(eUSDC.balanceOf(user1), 100e6);
+        assertEq(borrowableCUSDC.assetsHeld(), marketUnderlyingHeld + 100e6);
+        assertEq(borrowableCUSDC.balanceOf(user1), 100e6);
     }
 }

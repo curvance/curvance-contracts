@@ -12,9 +12,9 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
     function setUp() public override {
         super.setUp();
 
-        assets.push(address(eUSDC));
+        assets.push(address(borrowableCUSDC));
 
-        _deployPBALRETH();
+        _deploySimpleCBALRETH();
 
         _prepareBALRETH(address(this), 1e18);
         _prepareUSDC(address(this), 1e18);
@@ -44,12 +44,12 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
     function test_getPricesForMarket_fail_whenNoFeedsAvailable() public {
         _prepareUSDC(address(this), 1e18);
         vm.prank(address(this));
-        usdc.approve(address(eUSDC), 1e18);
+        usdc.approve(address(borrowableCUSDC), 1e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
         vm.prank(address(marketManagerIsolated));
-        eUSDC.startMarket(address(this));
+        borrowableCUSDC.startMarket(address(this));
 
         vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
         oracleManager.getPricesForMarket(address(this), assets, 1);
@@ -60,13 +60,13 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
     {
         _prepareUSDC(address(this), 1e18);
         vm.prank(address(this));
-        usdc.approve(address(eUSDC), 1e18);
+        usdc.approve(address(borrowableCUSDC), 1e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
         _addSinglePriceFeed();
 
         vm.prank(address(marketManagerIsolated));
-        eUSDC.startMarket(address(this));
+        borrowableCUSDC.startMarket(address(this));
 
         vm.expectRevert(
             OracleManager.OracleManager__ErrorCodeFlagged.selector
@@ -77,12 +77,12 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
     function test_getPricesForMarket_success() public {
         _prepareUSDC(address(this), 1e18);
         vm.prank(address(this));
-        usdc.approve(address(eUSDC), 1e18);
+        usdc.approve(address(borrowableCUSDC), 1e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
         vm.prank(address(marketManagerIsolated));
-        eUSDC.startMarket(address(this));
+        borrowableCUSDC.startMarket(address(this));
 
         _addSinglePriceFeed();
 
@@ -99,12 +99,12 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
 
         for (uint256 i = 0; i < numAssets; i++) {
             assertEq(underlyingPrices[i], uint256(usdcPrice) * 1e10);
-            assertEq(snapshots[i].asset, address(eUSDC));
+            assertEq(snapshots[i].asset, address(borrowableCUSDC));
             assertFalse(snapshots[i].isCollateral);
             assertEq(snapshots[i].decimals, usdc.decimals());
             assertEq(
                 ICToken(assets[i]).balanceOf(address(this)),
-                eUSDC.balanceOf(address(this))
+                borrowableCUSDC.balanceOf(address(this))
             );
             assertEq(snapshots[i].debtOutstanding, 0);
             assertEq(snapshots[i].exchangeRate, 0);

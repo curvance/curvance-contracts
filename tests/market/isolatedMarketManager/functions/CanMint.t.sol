@@ -10,18 +10,18 @@ contract CanMintTest is TestBaseMarketManagerIsolated {
         balRETH.approve(address(pBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
 
-        marketManagerIsolated.setMintPaused(address(eUSDC), true);
+        marketManagerIsolated.setMintPaused(address(borrowableCUSDC), true);
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        marketManagerIsolated.canMint(address(eUSDC));
+        marketManagerIsolated.canMint(address(borrowableCUSDC));
     }
 
     function test_canMint_fail_whenTokenNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManagerIsolated.canMint(address(eUSDC));
+        marketManagerIsolated.canMint(address(borrowableCUSDC));
     }
 
     function test_canMint_success() public {
@@ -29,9 +29,9 @@ contract CanMintTest is TestBaseMarketManagerIsolated {
         balRETH.approve(address(pBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
-        marketManagerIsolated.canMint(address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.canMint(address(borrowableCUSDC));
     }
 }

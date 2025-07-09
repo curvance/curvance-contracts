@@ -15,22 +15,22 @@ contract SetInteresFeeTest is TestBaseEToken {
         vm.prank(address(1));
 
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
-        eUSDC.setInterestFee(5000);
+        borrowableCUSDC.setInterestFee(5000);
     }
 
     function test_setInterestFee_fail_whenInvalidInterestFee() public {
         vm.expectRevert(BorrowableCToken.BorrowableCToken__InvalidParameter.selector);
-        eUSDC.setInterestFee(5001);
+        borrowableCUSDC.setInterestFee(5001);
     }
 
     function test_setInterestFee_success() public {
-        assertEq(eUSDC.interestFee(), 0.1e18);
+        assertEq(borrowableCUSDC.interestFee(), 0.1e18);
 
-        vm.expectEmit(true, true, true, true, address(eUSDC));
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit NewInterestFee(0.1e18, 0.5e18);
 
-        eUSDC.setInterestFee(5000);
+        borrowableCUSDC.setInterestFee(5000);
 
-        assertEq(eUSDC.interestFee(), 0.5e18);
+        assertEq(borrowableCUSDC.interestFee(), 0.5e18);
     }
 }

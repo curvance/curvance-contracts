@@ -86,19 +86,19 @@ contract ETokenDeploymentTest is TestBaseEToken {
         );
         emit NewInterestFactor(0, newInterestFactor);
 
-        eUSDC = new BorrowableCToken(
+        borrowableCUSDC = new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_USDC_ADDRESS),
             address(marketManagerIsolated),
             address(interestRateModel)
         );
 
-        assertEq(address(eUSDC.centralRegistry()), address(centralRegistry));
-        assertEq(address(eUSDC.asset()), _USDC_ADDRESS);
+        assertEq(address(borrowableCUSDC.centralRegistry()), address(centralRegistry));
+        assertEq(address(borrowableCUSDC.asset()), _USDC_ADDRESS);
         assertEq(
-            address(eUSDC.interestRateModel()),
+            address(borrowableCUSDC.interestRateModel()),
             address(interestRateModel)
         );
-        assertEq(address(eUSDC.marketManager()), address(marketManagerIsolated));
+        assertEq(address(borrowableCUSDC.marketManager()), address(marketManagerIsolated));
     }
 }

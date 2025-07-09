@@ -28,7 +28,7 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
         _deployVeCVE();
         _deployGaugeManager();
         _deployMarketManager();
-        _deployEDAI();
+        _deployBorrowableCDAI();
 
         vm.warp(centralRegistry.genesisEpoch());
         rewardManager.startRewardManager();
@@ -55,9 +55,9 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
 
         _prepareDAI(address(this), 20000000e18);
         console2.log("checkpoint 2");
-        dai.approve(address(eDAI), 20000000e18);
+        dai.approve(address(borrowableCDAI), 20000000e18);
         console2.log("checkpoint 3");
-        marketManagerIsolated.listTokens(address(mockPToken), address(eDAI));
+        marketManagerIsolated.listTokens(address(mockPToken), address(borrowableCDAI));
         console2.log("checkpoint 4");
 
         _underlying_ = address(mockUnderlying);
