@@ -11,6 +11,8 @@ import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
 import { IFlashLoan } from "contracts/interfaces/IFlashLoan.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 contract BorrowableCToken is BaseCTokenWithYield {
     /// CONSTANTS ///
 
@@ -382,7 +384,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
         result = marketOutstandingDebt;
     }
 
-    /// @notice Returns share -> asset exchange rate, in `WAD`.
+    /// @notice Updates pending interest and returns the up-to-date exchange
+    ///         rate from the underlying to the BorrowableCToken.
     /// @dev Oracle Manager calculates cToken value from this exchange rate.
     /// @return result The share -> asset exchange rate, in `WAD`.
     function exchangeRateUpdated() external nonReentrant returns (
@@ -697,15 +700,18 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @dev May emit a {InterestAccrualUpdate} event.
     function _accrueIfNeeded() internal override {
         uint256 vestingData = _vestingData;
+        console2.log("vestingData", vestingData);
         uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_VEST_END);
-        // If no time has passed since the last accrual can exit.
+        console2.log("lastVestingClaim", lastVestingClaim);
+        console2.log("block.timestamp", block.timestamp);
+        
+        // If no time has passed since the last accrual can exit immediately.
         if (block.timestamp == lastVestingClaim) {
             return;
         }
-
-        uint256 vestingRate = uint176(vestingData);
+        uint256 vestingRate = uint96(vestingData);
         uint256 vestingPeriodEnd = uint40(vestingData >> _BITPOS_LAST_VEST);
-        uint256 marketDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
+        uint256 marketDebtIndex = uint80(vestingData >> _BITPOS_DEBT_INDEX);
         uint256 outstandingDebt = marketOutstandingDebt;
         uint256 cachedTa = _totalAssets;
         uint256 pendingYieldToVest = _getPendingYield(
@@ -713,19 +719,31 @@ contract BorrowableCToken is BaseCTokenWithYield {
             lastVestingClaim,
             vestingPeriodEnd
         );
+        console2.log("vestingRate", vestingRate);
+        console2.log("vestingPeriodEnd", vestingPeriodEnd);
+        console2.log("marketDebtIndex", marketDebtIndex);
+        console2.log("outstandingDebt", outstandingDebt);
+        console2.log("cachedTa", cachedTa);
+        console2.log("pendingYieldToVest", pendingYieldToVest);
         
         // Update last claim timestamp, stopping at vesting end if vesting
         // period is over.
         lastVestingClaim = block.timestamp > vestingPeriodEnd
             ? vestingPeriodEnd : block.timestamp;
+        console2.log("lastVestingClaim", lastVestingClaim);
 
         uint256 protocolFees;
+
+        console2.log("block.timestamp", block.timestamp);
         
         // Check if it is time to start a new vesting period.
         if (block.timestamp >= vestingPeriodEnd) {
+            console2.log("block.timestamp >= vestingPeriodEnd");
             // Cache interest accrual fee, and vesting period to save gas.
             uint256 accrualPeriod = vestingPeriod;
             uint256 protocolInterestFee = interestFee;
+            console2.log("accrualPeriod", accrualPeriod);
+            console2.log("protocolInterestFee", protocolInterestFee);
 
             // Calculate the interest vesting cycles for new vesting period.
             // The weird multiplication logic here is to round down to
@@ -733,15 +751,21 @@ contract BorrowableCToken is BaseCTokenWithYield {
             accrualPeriod = ((block.timestamp - lastVestingClaim) /
                 accrualPeriod) * accrualPeriod;
             vestingPeriodEnd = lastVestingClaim + accrualPeriod;
-            // Calculate the borrow rate to new the new interest vesting rate per second.
+
+            console2.log("accrualPeriod", accrualPeriod);
+            console2.log("vestingPeriodEnd", vestingPeriodEnd);
+
+            // Calculate the new in interest rate for borrowers, in seconds.
             vestingRate = interestRateModel.getBorrowRateWithUpdate(
                 assetsHeld(),
                 outstandingDebt
             );
+            console2.log("vestingRate", vestingRate);
 
             // Check whether the DAO takes a cut of interest, and whether new
             // assets will vest over time the next vesting period.
             if (protocolInterestFee > 0  && vestingRate > 0) {
+                console2.log("protocolInterestFee > 0  && vestingRate > 0");
                 // Fees are initially calculated off vesting rate giving us
                 // essentially fees per second, in assets. Which we can then
                 // subtract directly from vestingRate so theres no precision loss.
@@ -750,7 +774,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
                     protocolInterestFee,
                     WAD
                 );
+                console2.log("protocolFees", protocolFees);
                 vestingRate = vestingRate - protocolFees;
+                console2.log("vestingRate", vestingRate);
                 // We can now convert the per second assets value to the
                 // amount of assets to be minted by the end of the new
                 // `vestingPeriodEnd`. Next we need to discount the amount of
@@ -758,12 +784,16 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 // the protocol is not overpaid. The discount asset amount can
                 // be calculated with:
                 // assets * (current assets / current assets + future assets)
+                // `vestingRate` is in WAD which means we need to divide the
+                // output by WAD to get protocolFees in `assets`.
                 protocolFees = FixedPointMathLib.mulDiv(
                     protocolFees * accrualPeriod * outstandingDebt,
                     cachedTa,
-                    cachedTa + (pendingYieldToVest + 
-                        (vestingRate * accrualPeriod / WAD)) * outstandingDebt
+                    (cachedTa + (pendingYieldToVest + 
+                        (vestingRate * accrualPeriod / WAD)) * outstandingDebt)
+                            * WAD
                 );
+                console2.log("protocolFees", protocolFees);
             }
 
             emit InterestAccrualUpdate(vestingRate, accrualPeriod);
@@ -777,14 +807,18 @@ contract BorrowableCToken is BaseCTokenWithYield {
             lastVestingClaim,
             vestingPeriodEnd
         );
+        console2.log("pendingYieldToVest after second call", pendingYieldToVest);
 
         // If theres fees we need to mint new shares for the protocol.
         if (protocolFees > 0) {
+            console2.log("protocolFees > 0");
             cachedTa = cachedTa + protocolFees;
+            console2.log("cachedTa", cachedTa);
             // Convert assets to shares and mint to protocol address. This
             // ensures that user share value is identical to before hand,
             // excluding `pendingYieldToVest`.
             protocolFees = _convertToShares(protocolFees, _getTotalAssets());
+            console2.log("protocolFees", protocolFees);
             // Cache the current dao address then mint shares to the dao.
             address daoAddress = centralRegistry.daoAddress();
             _mint(daoAddress, protocolFees);
@@ -793,23 +827,29 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Vest pending yield, if there is any.
         if (pendingYieldToVest > 0) {
+            console2.log("pendingYieldToVest > 0");
             // pendingYieldToVest at this point is a % of outstanding debt
             // which is exactly what we want to increase our debt index by.
             marketDebtIndex =
                 (pendingYieldToVest * marketDebtIndex) + marketDebtIndex;
+            console2.log("marketDebtIndex", marketDebtIndex);
             // Convert pendingYieldToVest to a numerical value of new debt.
             pendingYieldToVest = pendingYieldToVest * outstandingDebt;
+            console2.log("pendingYieldToVest", pendingYieldToVest);
             // Update marketOutstandingDebt invariant with vested yield.
             marketOutstandingDebt = outstandingDebt + pendingYieldToVest;
+            console2.log("marketOutstandingDebt", marketOutstandingDebt);
             cachedTa = cachedTa + pendingYieldToVest;
+            console2.log("cachedTa", cachedTa);
         }
 
         // Update _totalAssets based on new assets recognized by protocol.
         _totalAssets = cachedTa;
+        console2.log("_totalAssets", _totalAssets);
 
         assembly {
-            // Mask vestingRate to the lower 176 bits,
-            // in case the upper bits somehow aren't clean.
+            // Mask vestingRate to the lower 96 bits, in case
+            // the upper bits somehow aren't clean.
             vestingRate := and(vestingRate, _BITMASK_VESTING_RATE)
             // Equals vestingRate | (vestingPeriodEnd << _BITPOS_VEST_END) |
             //        block.timestamp << _BITPOS_LAST_VEST | marketDebtIndex.
@@ -824,6 +864,10 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 )  
             )
         }
+
+        // Set the new vesting data.
+        _vestingData = vestingData;
+        console2.log("_vestingData", _vestingData);
     }
 
     /// @notice Updates the interest rate model.

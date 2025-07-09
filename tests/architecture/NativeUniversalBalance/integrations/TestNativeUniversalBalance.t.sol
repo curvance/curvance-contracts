@@ -12,6 +12,8 @@ import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 
 import "tests/market/TestBaseMarketIsolated.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 contract TestNativeUniversalBalance is TestBaseMarketIsolated {
     address public owner;
 
@@ -123,7 +125,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
 
         oracleManager.addCTokenSupport(address(cWBTC));
 
-        _setCTokenConfigBasic(address(cWBTC), 100e8, 1000e18);
+        _setCTokenConfigBasic(address(cWBTC), 100e8, 0);
 
         _setCTokenConfigBasic(address(eWETH), 1000e18, 1000e18);
 
@@ -784,13 +786,17 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        skip(10 weeks);
+        // skip(10 weeks);
 
         _prepareWETH(owner, 100e18);
         weth.approve(address(eWETH), 100e18);
         eWETH.deposit(100e18, address(this));
 
+        // Moved skip here to allow easier debugging in _accrueIfNeeded() and ensure the full code path is executed.
+        skip(10 weeks);
+
         vm.prank(user1);
+        console2.log("=== START LOG CHANGE HERE ===");
         nativeUniversalBalance.withdrawNative(50e18, true, address(this));
 
         (uint256 sittingBalance, uint256 lentBalance) = nativeUniversalBalance
