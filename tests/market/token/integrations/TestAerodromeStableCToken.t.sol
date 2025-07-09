@@ -25,7 +25,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
     IVeloRouter public aeroRouter =
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
-    AerodromeStableCToken public pUSDCDAI;
+    AerodromeStableCToken public cUSDCDAI;
     VelodromeStableLPAdaptor public adaptor;
     MockV3Aggregator public chainlinkAERO;
     MockV3Aggregator public chainlinkDAI;
@@ -52,7 +52,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(aeroRouter)))
         );
 
-        pUSDCDAI = new AerodromeStableCToken(
+        cUSDCDAI = new AerodromeStableCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_AERODROME_DAI_USDC),
             address(marketManagerIsolated),
@@ -186,17 +186,17 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
 
         deal(_AERODROME_DAI_USDC, address(this), 77777);
 
-        IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 77777);
-        marketManagerIsolated.listTokens(address(pUSDCDAI), address(borrowableCDAI));
+        IERC20(_AERODROME_DAI_USDC).approve(address(cUSDCDAI), 77777);
+        marketManagerIsolated.listTokens(address(cUSDCDAI), address(borrowableCDAI));
 
         vm.prank(user1);
-        IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), assets);
+        IERC20(_AERODROME_DAI_USDC).approve(address(cUSDCDAI), assets);
 
         vm.prank(user1);
-        pUSDCDAI.deposit(assets, user1);
+        cUSDCDAI.deposit(assets, user1);
 
         assertEq(
-            pUSDCDAI.totalAssets(),
+            cUSDCDAI.totalAssets(),
             assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
@@ -213,7 +213,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
         chainlinkDAI.updateAnswer(chainlinkDAI.latestAnswer());
 
         // Mint some extra rewards for Vault.
-        uint256 earned = gauge.earned(address(pUSDCDAI));
+        uint256 earned = gauge.earned(address(cUSDCDAI));
         uint256 amount = (earned * 84) / 100;
         SwapperLib.Swap memory swapData;
         swapData.inputToken = _AERO_ADDRESS;
@@ -230,15 +230,15 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             amount,
             0,
             routes,
-            address(pUSDCDAI),
+            address(cUSDCDAI),
             type(uint256).max
         );
         swapData.slippage = 50e16;
 
-        pUSDCDAI.harvest(abi.encode(swapData, 1e4));
+        cUSDCDAI.harvest(abi.encode(swapData, 1e4));
 
         assertEq(
-            pUSDCDAI.totalAssets(),
+            cUSDCDAI.totalAssets(),
             assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
@@ -248,7 +248,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
         chainlinkDAI.updateAnswer(chainlinkDAI.latestAnswer());
 
         // Mint some extra rewards for Vault.
-        earned = gauge.earned(address(pUSDCDAI));
+        earned = gauge.earned(address(cUSDCDAI));
         amount = (earned * 84) / 100;
         swapData.inputAmount = amount;
         swapData.call = abi.encodeWithSelector(
@@ -256,22 +256,22 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             amount,
             0,
             routes,
-            address(pUSDCDAI),
+            address(cUSDCDAI),
             type(uint256).max
         );
-        pUSDCDAI.harvest(abi.encode(swapData, 1e4));
+        cUSDCDAI.harvest(abi.encode(swapData, 1e4));
 
         vm.warp(block.timestamp + 7 days);
         chainlinkAERO.updateAnswer(chainlinkAERO.latestAnswer());
         chainlinkDAI.updateAnswer(chainlinkDAI.latestAnswer());
 
         assertGt(
-            pUSDCDAI.totalAssets(),
+            cUSDCDAI.totalAssets(),
             assets + 77777,
             "Total Assets should greater than original deposit plus initial mint."
         );
 
         vm.prank(user1);
-        pUSDCDAI.withdraw(assets, user1, user1);
+        cUSDCDAI.withdraw(assets, user1, user1);
     }
 }

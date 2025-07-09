@@ -462,12 +462,12 @@ contract TestBaseMarketIsolated is TestBase {
         internal
         initMainVariables
         returns (SimpleCToken) {
-        pUSDC = new SimpleCToken(
+        simpleCUSDC = new SimpleCToken(
             ICentralRegistry(address(centralRegistry)),
             usdc,
             address(marketManagerIsolated)
         );
-        return pUSDC;
+        return simpleCUSDC;
     }
 
     function _deploySimpleCBALRETH()

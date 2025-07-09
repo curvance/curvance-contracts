@@ -109,7 +109,7 @@ contract TestVariables {
     BorrowableCToken public borrowableCUSDC;
     BorrowableCToken public borrowableCDAI;
 
-    SimpleCToken public pUSDC;
+    SimpleCToken public simpleCUSDC;
     AuraCToken public simpleCBALRETH;
     MockAuraCTokenWithExitFee public simpleCBALRETHWithExitFee;
  

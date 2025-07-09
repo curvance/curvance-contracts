@@ -42,7 +42,7 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         owner = address(this);
         user = user1;
 
-        // Deploy eDAI and pUSDC
+        // Deploy eDAI and simpleCUSDC
         _deployBorrowableCDAI();
         _deploySimpleCUSDC();
         interestRateModel = interestRateModels[block.chainid][_DAI_ADDRESS];
@@ -51,14 +51,14 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         oracleManager.addCTokenSupport(address(borrowableCDAI));
         _prepareDAI(owner, 100e18);
         dai.approve(address(borrowableCDAI), 100e18);
-        // Setup cToken (pUSDC)
-        oracleManager.addCTokenSupport(address(pUSDC));
+        // Setup cToken (simpleCUSDC)
+        oracleManager.addCTokenSupport(address(simpleCUSDC));
         _prepareUSDC(owner, 100e6);
-        usdc.approve(address(pUSDC), 100e6);
-        marketManagerIsolated.listTokens(address(pUSDC),address(borrowableCDAI));
+        usdc.approve(address(simpleCUSDC), 100e6);
+        marketManagerIsolated.listTokens(address(simpleCUSDC),address(borrowableCDAI));
 
         MarketManagerIsolated.TokenConfig memory usdcTokenConfig;
-        usdcTokenConfig.cToken = address(pUSDC);
+        usdcTokenConfig.cToken = address(simpleCUSDC);
         usdcTokenConfig.collRatio = 7000;
         usdcTokenConfig.collReqSoft = 4000;
         usdcTokenConfig.collReqHard = 3000;
@@ -124,8 +124,8 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         // given
         // Set up collateral for borrowing
         _prepareUSDC(user, 100000e6);
-        usdc.approve(address(pUSDC), 100000e6);
-        pUSDC.depositAsCollateral(100000e6, user);
+        usdc.approve(address(simpleCUSDC), 100000e6);
+        simpleCUSDC.depositAsCollateral(100000e6, user);
 
         // Initial state checks
         uint256 initialUtilization = interestRateModel.utilizationRate(
@@ -197,8 +197,8 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         // given
         // Set up collateral for borrowing
         _prepareUSDC(user, 1000000e6);
-        usdc.approve(address(pUSDC), 1000000e6);
-        pUSDC.depositAsCollateral(1000000e6, user);
+        usdc.approve(address(simpleCUSDC), 1000000e6);
+        simpleCUSDC.depositAsCollateral(1000000e6, user);
 
         skip(1);
 
@@ -289,8 +289,8 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         // given
         // Set up collateral for borrowing
         _prepareUSDC(user, 1000000e6);
-        usdc.approve(address(pUSDC), 1000000e6);
-        pUSDC.depositAsCollateral(1000000e6, user);
+        usdc.approve(address(simpleCUSDC), 1000000e6);
+        simpleCUSDC.depositAsCollateral(1000000e6, user);
 
         // Initial state checks
         uint256 initialMultiplier = interestRateModel.vertexMultiplier();
@@ -400,8 +400,8 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         // given
         // Set up collateral for borrowing
         _prepareUSDC(user, 2000000e6);
-        usdc.approve(address(pUSDC), 2000000e6);
-        pUSDC.depositAsCollateral(2000000e6, user);
+        usdc.approve(address(simpleCUSDC), 2000000e6);
+        simpleCUSDC.depositAsCollateral(2000000e6, user);
 
         (
             ,

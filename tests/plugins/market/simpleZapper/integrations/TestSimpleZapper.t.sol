@@ -51,15 +51,15 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         {
             _deploySimpleCUSDC();
             _prepareUSDC(owner, 100e6);
-            usdc.approve(address(pUSDC), 100e6);
+            usdc.approve(address(simpleCUSDC), 100e6);
 
         }
 
-        marketManagerIsolated.listTokens(address(pUSDC), address(borrowableCDAI));
-        oracleManager.addCTokenSupport(address(pUSDC));
+        marketManagerIsolated.listTokens(address(simpleCUSDC), address(borrowableCDAI));
+        oracleManager.addCTokenSupport(address(simpleCUSDC));
 
         MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pUSDC);
+        configToken0.cToken = address(simpleCUSDC);
         configToken0.collRatio = 7000;
         configToken0.collReqSoft = 4000;
         configToken0.collReqHard = 3000;
@@ -87,9 +87,9 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         // mint eDAI
         dai.approve(address(borrowableCDAI), 1000 ether);
         borrowableCDAI.deposit(1000 ether, liquidityProvider);
-        // mint pUSDC
-        usdc.approve(address(pUSDC), 100e6);
-        pUSDC.mint(100e6, liquidityProvider);
+        // mint simpleCUSDC
+        usdc.approve(address(simpleCUSDC), 100e6);
+        simpleCUSDC.mint(100e6, liquidityProvider);
         vm.stopPrank();
     }
 
@@ -119,7 +119,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
 
         vm.prank(user1);
         simpleZapper.swapAndDeposit{ value: ethAmount }(
-            address(pUSDC),
+            address(simpleCUSDC),
             false, // was false before contract refactor
             swapData,
             0,
@@ -128,13 +128,13 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         );
 
         assertEq(user1.balance, 0);
-        assertGt(pUSDC.balanceOf(user1), 0);
+        assertGt(simpleCUSDC.balanceOf(user1), 0);
     }
 
     function testSwapAndRepay() external {
         testSwapAndDeposit();
         vm.startPrank(user1);
-        pUSDC.postCollateral(2e9);
+        simpleCUSDC.postCollateral(2e9);
 
         // try borrow()
         borrowableCDAI.borrow(500 ether);
@@ -185,12 +185,12 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         testSwapAndDeposit();
 
         vm.prank(user1);
-        pUSDC.setDelegateApproval(address(simpleZapper), true);
+        simpleCUSDC.setDelegateApproval(address(simpleZapper), true);
 
-        uint256 shares = pUSDC.balanceOf(user1);
+        uint256 shares = simpleCUSDC.balanceOf(user1);
 
         ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.cToken = address(pUSDC);
+        redemptionData.cToken = address(simpleCUSDC);
         redemptionData.shares = shares;
         redemptionData.forceRedeemCollateral = false;
 
@@ -262,7 +262,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
     }
 
     function testRedeemSwapAndDeposit() public {
-        // redeem eDAI and deposit to pUSDC
+        // redeem eDAI and deposit to simpleCUSDC
 
         _prepareDAI(user1, 100 ether);
         dai.approve(address(borrowableCDAI), 100 ether);
@@ -295,7 +295,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         );
 
         simpleZapper.redeemSwapAndDeposit(
-            address(pUSDC),
+            address(simpleCUSDC),
             redemptionData,
             swapData,
             0,
@@ -303,6 +303,6 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             user1
         );
 
-        assertGt(pUSDC.balanceOf(user1), 99e6);
+        assertGt(simpleCUSDC.balanceOf(user1), 99e6);
     }
 }
