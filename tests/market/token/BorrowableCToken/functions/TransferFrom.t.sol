@@ -39,9 +39,12 @@ contract BorrowableCTokenTransferFromTest is TestBaseBorrowableCToken {
         uint256 balance = borrowableCUSDC.balanceOf(address(this));
         uint256 user1Balance = borrowableCUSDC.balanceOf(user1);
 
+        borrowableCUSDC.approve(user1, 100e6);
+
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Transfer(address(this), user1, 100e6);
 
+        vm.prank(user1);
         borrowableCUSDC.transferFrom(address(this), user1, 100e6);
 
         assertEq(borrowableCUSDC.balanceOf(address(this)), balance - 100e6);

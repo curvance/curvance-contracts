@@ -16,6 +16,23 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenBorrow_fail_whenBorrowAmountExceedsAssetsHeld() public {
+
+        address liquidityProvider = makeAddr("liquidityProvider");
+        _prepareUSDC(liquidityProvider, 100e6);
+        // mint borrowableCUSDC
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 100e6);
+        borrowableCUSDC.deposit(100e6, liquidityProvider);
+        vm.stopPrank();
+
+
+        _prepareBALRETH(address(this), _ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, address(this));
+        strategyCBALRETH.postCollateral(_ONE);
+
+        skip(69 minutes);
+
         uint256 assetsHeld = borrowableCUSDC.assetsHeld();
 
         vm.expectRevert(
