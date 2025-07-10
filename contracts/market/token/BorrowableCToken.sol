@@ -832,10 +832,10 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Vest pending yield, if there is any.
         if (pendingYieldToVest > 0) {
             console2.log("pendingYieldToVest > 0");
-            // pendingYieldToVest at this point is a % of outstanding debt
-            // which is exactly what we want to increase our debt index by.
+            // pendingYieldToVest at this point is $ outstanding debt
+            // so we need to redivide by `outstandingDebt` so its in % form.
             marketDebtIndex =
-                ((pendingYieldToVest / outstandingDebt) * marketDebtIndex)
+                ((pendingYieldToVest * marketDebtIndex) / outstandingDebt)
                     + marketDebtIndex;
             console2.log("marketDebtIndex", marketDebtIndex);
             // Update marketOutstandingDebt invariant with vested yield.
