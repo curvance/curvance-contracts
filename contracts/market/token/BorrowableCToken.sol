@@ -793,7 +793,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
                     protocolFees * accrualPeriod * outstandingDebt,
                     cachedTa,
                     (cachedTa + (pendingYieldToVest + 
-                        (vestingRate * accrualPeriod / WAD)) * outstandingDebt)
+                        (vestingRate * accrualPeriod * outstandingDebt / WAD)))
                             * WAD
                 );
                 console2.log("protocolFees", protocolFees);
