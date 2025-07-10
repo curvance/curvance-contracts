@@ -123,7 +123,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
 
         oracleManager.addCTokenSupport(address(cWBTC));
 
-        _setCTokenConfigBasic(address(cWBTC), 100e8, 1000e18);
+        _setCTokenConfigBasic(address(cWBTC), 100e8, 0);
 
         _setCTokenConfigBasic(address(borrowableCWETH), 1000e18, 1000e18);
 

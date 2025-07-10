@@ -11,8 +11,6 @@ import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 
 import "tests/market/TestBaseMarketIsolated.sol";
 
-contract User {}
-
 contract TestUniversalBalance is TestBaseMarketIsolated {
     address public owner;
 
@@ -128,7 +126,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
             // Add cToken support on Oracle Manager.
             oracleManager.addCTokenSupport(address(simpleCWBTC));
             // Set cToken configuration.
-            _setCTokenConfigBasic(address(simpleCWBTC), 100e8, 100e8);
+            _setCTokenConfigBasic(address(simpleCWBTC), 100e8, 0);
             _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000e6, 1_000_000e6);
 
         }
