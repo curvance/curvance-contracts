@@ -107,7 +107,7 @@ contract MigrateTest is TestBasePredeposit {
         vm.stopPrank();
     }
 
-    function test_migrate_success_withPToken_withCollateralize() public {
+    function test_migrate_success_withStrategyCToken_withCollateralize() public {
         skip(1 weeks);
 
         uint256 underlyingBalance = balRETH.balanceOf(address(strategyCBALRETH));
@@ -134,7 +134,7 @@ contract MigrateTest is TestBasePredeposit {
         assertEq(strategyCBALRETH.balanceOf(user1), 100e18);
     }
 
-    function test_migrate_success_withPToken_withoutCollateralize() public {
+    function test_migrate_success_withStrategyCToken_withoutCollateralize() public {
         skip(1 weeks);
 
         uint256 underlyingBalance = balRETH.balanceOf(address(strategyCBALRETH));
@@ -158,7 +158,7 @@ contract MigrateTest is TestBasePredeposit {
         assertEq(strategyCBALRETH.balanceOf(user1), 100e18);
     }
 
-    function test_migrate_success_withEToken() public {
+    function test_migrate_success_withBorrowableCTokenWithCollateralize() public {
         skip(1 weeks);
 
         uint256 marketUnderlyingHeld = borrowableCUSDC.assetsHeld();
@@ -166,12 +166,38 @@ contract MigrateTest is TestBasePredeposit {
         assertEq(predeposit.balanceOf(user1, _USDC_ADDRESS), 100e6);
         assertEq(usdc.balanceOf(address(predeposit)), 100e6);
 
-        vm.prank(user1);
+        vm.startPrank(user1);
+        borrowableCUSDC.setDelegateApproval(address(predeposit), true);
 
         vm.expectEmit(true, true, true, true);
         emit Migrated(user1, _USDC_ADDRESS, 100e6);
 
         predeposit.migrate(_USDC_ADDRESS, 100e6, true);
+
+        vm.stopPrank();
+
+        assertEq(predeposit.balanceOf(user1, _USDC_ADDRESS), 0);
+        assertEq(usdc.balanceOf(address(predeposit)), 0);
+        assertEq(borrowableCUSDC.assetsHeld(), marketUnderlyingHeld + 100e6);
+        assertEq(borrowableCUSDC.balanceOf(user1), 100e6);
+    }
+
+    function test_migrate_success_withBorrowableCTokenWithoutCollateralize() public {
+        skip(1 weeks);
+
+        uint256 marketUnderlyingHeld = borrowableCUSDC.assetsHeld();
+
+        assertEq(predeposit.balanceOf(user1, _USDC_ADDRESS), 100e6);
+        assertEq(usdc.balanceOf(address(predeposit)), 100e6);
+
+        vm.startPrank(user1);
+        
+        vm.expectEmit(true, true, true, true);
+        emit Migrated(user1, _USDC_ADDRESS, 100e6);
+
+        predeposit.migrate(_USDC_ADDRESS, 100e6, false);
+
+        vm.stopPrank();
 
         assertEq(predeposit.balanceOf(user1, _USDC_ADDRESS), 0);
         assertEq(usdc.balanceOf(address(predeposit)), 0);
