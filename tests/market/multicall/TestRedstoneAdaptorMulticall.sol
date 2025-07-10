@@ -235,7 +235,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testPTokenMintMulticall() public {
+    function testCTokenMintMulticall() public {
         _prepareWBTC(user1, 2 ether);
 
         vm.prank(user1);
@@ -281,7 +281,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         assertEq(priceData.price, 61000e18);
     }
 
-    function testETokenMintWithMulticall() public {
+    function testBorrowableCTokenMintWithMulticall() public {
         _prepareUSDC(user1, 2e6);
 
         vm.prank(user1);

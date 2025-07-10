@@ -244,7 +244,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testPTokenMintMulticall() public {
+    function testCTokenMintMulticall() public {
         // provide fee to universal balance
         vm.deal(user1, 1 ether);
         vm.prank(user1);
@@ -284,7 +284,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         assertEq(pWBTC.balanceOf(user1), 1e8);
     }
 
-    function testETokenMintWithMulticall() public {
+    function testBorrowableCTokenMintWithMulticall() public {
         // provide fee to universal balance
         vm.deal(user1, 1 ether);
         vm.prank(user1);

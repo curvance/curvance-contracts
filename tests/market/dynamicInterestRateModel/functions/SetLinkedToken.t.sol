@@ -7,9 +7,9 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract SetLinkedTokenTest is TestBaseDynamicInterestRateModel {
-    event TokenLinked(address eTokenAddress);
+    event TokenLinked(address cTokenAddress);
 
-    BorrowableCToken public eToken;
+    BorrowableCToken public cToken;
 
     function setUp() public override {
         super.setUp();
@@ -24,7 +24,7 @@ contract SetLinkedTokenTest is TestBaseDynamicInterestRateModel {
             100000000, // 1000x maximum vertex multiplier
             100 // decayRate
         );
-        eToken = new BorrowableCToken(
+        cToken = new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_USDC_ADDRESS),
             address(marketManagerIsolated),
@@ -40,21 +40,21 @@ contract SetLinkedTokenTest is TestBaseDynamicInterestRateModel {
                 .DynamicInterestRateModel__Unauthorized
                 .selector
         );
-        interestRateModel.setLinkedToken(address(eToken));
+        interestRateModel.setLinkedToken(address(cToken));
     }
 
-    function test_setLinkedToken_fail_whenETokenHasAlreadyLinked() public {
-        interestRateModel.setLinkedToken(address(eToken));
+    function test_setLinkedToken_fail_whenBorrowableCTokenHasAlreadyLinked() public {
+        interestRateModel.setLinkedToken(address(cToken));
 
         vm.expectRevert(
             DynamicInterestRateModel
                 .DynamicInterestRateModel__Unauthorized
                 .selector
         );
-        interestRateModel.setLinkedToken(address(eToken));
+        interestRateModel.setLinkedToken(address(cToken));
     }
 
-    function test_setLinkedToken_fail_whenETokenIsPToken() public {
+    function test_setLinkedToken_fail_whenBorrowableCTokenIsNotBorrowable() public {
         vm.expectRevert(
             DynamicInterestRateModel
                 .DynamicInterestRateModel__InvalidToken
@@ -76,10 +76,10 @@ contract SetLinkedTokenTest is TestBaseDynamicInterestRateModel {
         assertEq(interestRateModel.linkedToken(), _ZERO_ADDRESS);
 
         vm.expectEmit(true, true, true, true);
-        emit TokenLinked(address(eToken));
+        emit TokenLinked(address(cToken));
 
-        interestRateModel.setLinkedToken(address(eToken));
+        interestRateModel.setLinkedToken(address(cToken));
 
-        assertEq(interestRateModel.linkedToken(), address(eToken));
+        assertEq(interestRateModel.linkedToken(), address(cToken));
     }
 }
