@@ -29,7 +29,7 @@ contract BorrowableCTokenRescueTokenTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenRescueToken_fail_whenTokenIsUnderlyingToken() public {
-        vm.expectRevert(BaseCToken.BaseCToken__TransferError.selector);
+        vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
         borrowableCUSDC.rescueToken(_USDC_ADDRESS, 100);
     }
 
