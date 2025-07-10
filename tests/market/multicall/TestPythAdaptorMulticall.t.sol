@@ -33,13 +33,13 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
-    SimpleCToken public pWBTC;
+    SimpleCToken public cWBTC;
     NativeUniversalBalance public nativeUniversalBalance;
 
     address internal _PYTH_ADDRESS =
         0x4305FB66699C3B2702D4d05CF36551390A4c69C6;
 
-    BorrowableCToken public eWETH;
+    BorrowableCToken public borrowableCWETH;
     SimplePositionManager public positionManagement;
 
     receive() external payable {}
@@ -80,11 +80,11 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             true
         );
 
-        eWETH = _deployBorrowableCToken(_WETH_ADDRESS);
+        borrowableCWETH = _deployBorrowableCToken(_WETH_ADDRESS);
 
         nativeUniversalBalance = new NativeUniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eWETH),
+            address(borrowableCWETH),
             _WETH_ADDRESS
         );
 
@@ -128,42 +128,20 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
-        // // deploy eUSDC
-        // {
-        //     _deployBorrowableCUSDC();
-        //     // support market
-        //     _prepareUSDC(owner, 200000e6);
-        //     usdc.approve(address(borrowableCUSDC), 200000e6);
-        //     marketManagerIsolated.listToken(address(borrowableCUSDC));
-        //     Add cToken support on Oracle Manager.
-        //     oracleManager.addCTokenSupport(address(borrowableCUSDC));
-        //     address[] memory markets = new address[](1);
-        //     markets[0] = address(borrowableCUSDC);
-        //     // vm.prank(user1);
-        //     // marketManager.enterMarkets(markets);
-        //     // vm.prank(user2);
-        //     // marketManager.enterMarkets(markets);
-        // }
-
-        // deploy eWETH
+        // Deploy borrowableCWETH
         {
             // support market
             _prepareWETH(owner, 200000 ether);
-            weth.approve(address(eWETH), 200000e6);
+            weth.approve(address(borrowableCWETH), 200000e6);
             // add CToken support on oracle manager
-            oracleManager.addCTokenSupport(address(eWETH));
+            oracleManager.addCTokenSupport(address(borrowableCWETH));
             address[] memory markets = new address[](1);
-            markets[0] = address(eWETH);
-            // vm.prank(user1);
-            // marketManager.enterMarkets(markets);
-            // vm.prank(user2);
-            // marketManager.enterMarkets(markets);
+            markets[0] = address(borrowableCWETH);
         }
 
-        // deploy pWBTC
+        // Deploy cWBTC
         {
-            // deploy aura position vault
-            pWBTC = new SimpleCToken(
+            cWBTC = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
                 address(marketManagerIsolated)
@@ -171,35 +149,35 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
 
             // support market
             _prepareWBTC(owner, 1e8);
-            wbtc.approve(address(pWBTC), 1e8);
+            wbtc.approve(address(cWBTC), 1e8);
             // add CToken support on oracle manager
-            oracleManager.addCTokenSupport(address(pWBTC));
+            oracleManager.addCTokenSupport(address(cWBTC));
             // set position token configuration
         }
 
-        marketManagerIsolated.listTokens(address(pWBTC), address(eWETH));
+        marketManagerIsolated.listTokens(address(cWBTC), address(borrowableCWETH));
 
-        MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pWBTC);
-        configToken0.collRatio = 7000;
-        configToken0.collReqSoft = 4000;
-        configToken0.collReqHard = 3000;
-        configToken0.liqIncBase = 1000;
-        configToken0.liqIncHard = 1500;
-        configToken0.liqIncMin = 500;
-        configToken0.liqIncMax = 2000;
-        configToken0.minEffectiveCloseFactor = 2000;
-        configToken0.maxEffectiveCloseFactor = 3000;
-        configToken0.baseCFactor = 1000;
-        configToken0.collateralCap = 100e8;
-        configToken0.debtCap = 0;
+        MarketManagerIsolated.TokenConfig memory tokenConfigs;
+        tokenConfigs.cToken = address(cWBTC);
+        tokenConfigs.collRatio = 7000;
+        tokenConfigs.collReqSoft = 4000;
+        tokenConfigs.collReqHard = 3000;
+        tokenConfigs.liqIncBase = 1000;
+        tokenConfigs.liqIncHard = 1500;
+        tokenConfigs.liqIncMin = 500;
+        tokenConfigs.liqIncMax = 2000;
+        tokenConfigs.minEffectiveCloseFactor = 2000;
+        tokenConfigs.maxEffectiveCloseFactor = 3000;
+        tokenConfigs.baseCFactor = 1000;
+        tokenConfigs.collateralCap = 100e8;
+        tokenConfigs.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(configToken0);
+        marketManagerIsolated.updateTokenConfig(tokenConfigs);
 
-        MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eWETH);
-        configToken1.debtCap = 100_000e18;
-        marketManagerIsolated.updateTokenConfig(configToken1);
+        tokenConfigs.cToken = address(borrowableCWETH);
+        tokenConfigs.debtCap = 100_000e6;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfigs);
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();
@@ -215,9 +193,9 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         }
 
         address[] memory multicallProviders = new address[](3);
-        multicallProviders[0] = address(pWBTC);
+        multicallProviders[0] = address(cWBTC);
         multicallProviders[1] = address(positionManagement);
-        multicallProviders[2] = address(eWETH);
+        multicallProviders[2] = address(borrowableCWETH);
         centralRegistry.setMulticallProviders(multicallProviders, true);
 
         centralRegistry.setExternalCalldataChecker(
@@ -235,12 +213,12 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         vm.startPrank(liquidityProvider);
         // usdc.approve(address(borrowableCUSDC), 200000e6);
         // borrowableCUSDC.mint(200000e6);
-        // mint eWETH
-        weth.approve(address(eWETH), 200000e6);
-        eWETH.deposit(200000e6, liquidityProvider);
-        // mint pWBTC
-        wbtc.approve(address(pWBTC), 10 ether);
-        pWBTC.deposit(10 ether, liquidityProvider);
+        // mint borrowableCWETH
+        weth.approve(address(borrowableCWETH), 200000e6);
+        borrowableCWETH.deposit(200000e6, liquidityProvider);
+        // mint cWBTC
+        wbtc.approve(address(cWBTC), 10 ether);
+        cWBTC.deposit(10 ether, liquidityProvider);
         vm.stopPrank();
     }
 
@@ -253,7 +231,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         _prepareWBTC(user1, 2 ether);
 
         vm.prank(user1);
-        wbtc.approve(address(pWBTC), 1e8);
+        wbtc.approve(address(cWBTC), 1e8);
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
             2
@@ -270,18 +248,18 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         );
         calls[0].isPriceUpdate = true;
 
-        calls[1].target = address(pWBTC);
+        calls[1].target = address(cWBTC);
         calls[1].data = abi.encodeWithSelector(
-            pWBTC.mint.selector,
+            cWBTC.mint.selector,
             1e8,
             user1
         );
 
         // try mint()
         vm.prank(user1);
-        pWBTC.multicall(calls);
+        cWBTC.multicall(calls);
 
-        assertEq(pWBTC.balanceOf(user1), 1e8);
+        assertEq(cWBTC.balanceOf(user1), 1e8);
     }
 
     function testBorrowableCTokenMintWithMulticall() public {
@@ -293,7 +271,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         _prepareWETH(user1, 2 ether);
 
         vm.prank(user1);
-        weth.approve(address(eWETH), 1 ether);
+        weth.approve(address(borrowableCWETH), 1 ether);
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](2);
         calls[0].target = address(adapter);
@@ -307,14 +285,14 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         );
         calls[0].isPriceUpdate = true;
 
-        calls[1].target = address(eWETH);
-        calls[1].data = abi.encodeWithSelector(eWETH.deposit.selector, 1 ether, user1);
+        calls[1].target = address(borrowableCWETH);
+        calls[1].data = abi.encodeWithSelector(borrowableCWETH.deposit.selector, 1 ether, user1);
 
         // try mint()
         vm.prank(user1);
-        eWETH.multicall(calls);
+        borrowableCWETH.multicall(calls);
 
-        assertEq(eWETH.balanceOf(user1), 1 ether);
+        assertEq(borrowableCWETH.balanceOf(user1), 1 ether);
     }
 
     function testPositionLeverage() public {
@@ -327,23 +305,23 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
 
         _prepareWBTC(user1, 0.1e8);
         vm.prank(user1);
-        wbtc.approve(address(pWBTC), 0.1e8);
+        wbtc.approve(address(cWBTC), 0.1e8);
 
         vm.prank(user1);
-        assertGt(pWBTC.deposit(0.1e8, user1), 0);
+        assertGt(cWBTC.deposit(0.1e8, user1), 0);
         vm.prank(user1);
-        pWBTC.postCollateral(0.1e8);
-        assertEq(pWBTC.balanceOf(user1), 0.1e8);
+        cWBTC.postCollateral(0.1e8);
+        assertEq(cWBTC.balanceOf(user1), 0.1e8);
 
         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
             user1,
-            address(eWETH)
+            address(borrowableCWETH)
         ) * 50) / 100;
 
         SimplePositionManager.LeverageStruct memory leverageData;
-        leverageData.debtToken = IBorrowableCToken(address(eWETH));
+        leverageData.debtToken = IBorrowableCToken(address(borrowableCWETH));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.collateralToken = ICToken(address(pWBTC));
+        leverageData.collateralToken = ICToken(address(cWBTC));
         leverageData.swapData.inputToken = _WETH_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WBTC_ADDRESS;

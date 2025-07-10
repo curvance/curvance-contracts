@@ -32,7 +32,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
-    SimpleCToken public pWBTC;
+    SimpleCToken public cWBTC;
     SimplePositionManager public positionManagement;
 
     receive() external payable {}
@@ -131,7 +131,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         );
         assertTrue(success);
 
-        // deploy eUSDC
+        // Deploy borrowableCUSDC
         {
             _deployBorrowableCUSDC();
             // support market
@@ -141,16 +141,11 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             oracleManager.addCTokenSupport(address(borrowableCUSDC));
             address[] memory markets = new address[](1);
             markets[0] = address(borrowableCUSDC);
-            // vm.prank(user1);
-            // marketManager.enterMarkets(markets);
-            // vm.prank(user2);
-            // marketManager.enterMarkets(markets);
         }
 
-        // deploy pWBTC
+        // Deploy cWBTC
         {
-            // deploy aura position vault
-            pWBTC = new SimpleCToken(
+            cWBTC = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
                 address(marketManagerIsolated)
@@ -158,24 +153,24 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
             // support market
             _prepareWBTC(owner, 1e8);
-            wbtc.approve(address(pWBTC), 1e8);
+            wbtc.approve(address(cWBTC), 1e8);
             // add CToken support on oracle manager
-            oracleManager.addCTokenSupport(address(pWBTC));
+            oracleManager.addCTokenSupport(address(cWBTC));
             // set position token configuration
 
 
             // address[] memory markets = new address[](1);
-            // markets[0] = address(pWBTC);
+            // markets[0] = address(cWBTC);
             // vm.prank(user1);
             // marketManager.enterMarkets(markets);
             // vm.prank(user2);
             // marketManager.enterMarkets(markets);
         }
 
-        marketManagerIsolated.listTokens(address(pWBTC),address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(cWBTC),address(borrowableCUSDC));
 
         MarketManagerIsolated.TokenConfig memory tokenConfigs;
-        tokenConfigs.cToken = address(pWBTC);
+        tokenConfigs.cToken = address(cWBTC);
         tokenConfigs.collRatio = 7000;
         tokenConfigs.collReqSoft = 4000;
         tokenConfigs.collReqHard = 3000;
@@ -215,7 +210,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         );
 
         address[] memory multicallProviders = new address[](3);
-        multicallProviders[0] = address(pWBTC);
+        multicallProviders[0] = address(cWBTC);
         multicallProviders[1] = address(positionManagement);
         multicallProviders[2] = address(borrowableCUSDC);
         centralRegistry.setMulticallProviders(multicallProviders, true);
@@ -230,8 +225,8 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
-        wbtc.approve(address(pWBTC), 10 ether);
-        pWBTC.deposit(10 ether, liquidityProvider);
+        wbtc.approve(address(cWBTC), 10 ether);
+        cWBTC.deposit(10 ether, liquidityProvider);
         vm.stopPrank();
     }
 
@@ -239,7 +234,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         _prepareWBTC(user1, 2 ether);
 
         vm.prank(user1);
-        wbtc.approve(address(pWBTC), 1e8);
+        wbtc.approve(address(cWBTC), 1e8);
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
             2
@@ -261,18 +256,18 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         calls[0].data = encodedFunctionWithRedstonePayload;
         calls[0].isPriceUpdate = true;
 
-        calls[1].target = address(pWBTC);
+        calls[1].target = address(cWBTC);
         calls[1].data = abi.encodeWithSelector(
-            pWBTC.deposit.selector,
+            cWBTC.deposit.selector,
             1e8,
             user1
         );
 
         // try mint()
         vm.prank(user1);
-        pWBTC.multicall(calls);
+        cWBTC.multicall(calls);
 
-        assertEq(pWBTC.balanceOf(user1), 1e8);
+        assertEq(cWBTC.balanceOf(user1), 1e8);
         PriceReturnData memory priceData = adapter.getPrice(
             _WBTC_ADDRESS,
             true,
@@ -329,13 +324,13 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         // provide fee to universal balance
         _prepareWBTC(user1, 0.1e8);
         vm.prank(user1);
-        wbtc.approve(address(pWBTC), 0.1e8);
+        wbtc.approve(address(cWBTC), 0.1e8);
 
         vm.prank(user1);
-        assertGt(pWBTC.deposit(0.1e8, user1), 0);
+        assertGt(cWBTC.deposit(0.1e8, user1), 0);
         vm.prank(user1);
-        pWBTC.postCollateral(0.1e8);
-        assertEq(pWBTC.balanceOf(user1), 0.1e8);
+        cWBTC.postCollateral(0.1e8);
+        assertEq(cWBTC.balanceOf(user1), 0.1e8);
 
         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
             user1,
@@ -345,7 +340,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         SimplePositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCUSDC));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.collateralToken = ICToken(address(pWBTC));
+        leverageData.collateralToken = ICToken(address(cWBTC));
         leverageData.swapData.inputToken = _USDC_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WBTC_ADDRESS;
