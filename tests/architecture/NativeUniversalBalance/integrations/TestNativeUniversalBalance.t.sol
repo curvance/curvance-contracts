@@ -799,7 +799,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         console2.log("=== START LOG INSPECTION HERE ===");
         nativeUniversalBalance.withdrawNative(50e18, true, address(this));
 
-        assertGt(eWETH.exchangeRateUpdated(), 1e18);
+        assertGt(borrowableCWETH.exchangeRateUpdated(), 1e18);
 
         (uint256 sittingBalance, uint256 lentBalance) = nativeUniversalBalance
             .userBalances(user1);
