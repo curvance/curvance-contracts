@@ -14,13 +14,13 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         borrowableCUSDC.borrow(100e6);
     }
 
-    function test_borrowableCTokenBorrow_fail_whenBorrowAmountExceedsCash() public {
-        uint256 cash = borrowableCUSDC.assetsHeld();
+    function test_borrowableCTokenBorrow_fail_whenBorrowAmountExceedsAssetsHeld() public {
+        uint256 assetsHeld = borrowableCUSDC.assetsHeld();
 
         vm.expectRevert(
-            MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
+            BorrowableCToken.BorrowableCToken__InsufficientAssetsHeld.selector
         );
-        borrowableCUSDC.borrow(cash + 1);
+        borrowableCUSDC.borrow(assetsHeld + 1);
     }
 
     function test_borrowableCTokenBorrow_success() public {

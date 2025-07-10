@@ -13,10 +13,7 @@ import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 contract BorrowableCTokenDeploymentTest is TestBaseBorrowableCToken {
     using stdStorage for StdStorage;
 
-    event NewInterestFactor(
-        uint256 oldInterestFactor,
-        uint256 newInterestFactor
-    );
+    event NewInterestFee(uint256 oldInterestFee, uint256 newInterestFee);
 
     DynamicInterestRateModel public interestRateModel;
 
@@ -81,10 +78,10 @@ contract BorrowableCTokenDeploymentTest is TestBaseBorrowableCToken {
 
     function test_borrowableCTokenDeployment_success() public {
         vm.expectEmit(true, true, true, true);
-        uint256 newInterestFactor = centralRegistry.protocolInterestFee(
+        uint256 newInterestFee = centralRegistry.protocolInterestFee(
             address(marketManagerIsolated)
         );
-        emit NewInterestFactor(0, newInterestFactor);
+        emit NewInterestFee(0, newInterestFee);
 
         borrowableCUSDC = new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
