@@ -23,8 +23,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
     
     function test_canLiquidate_fail_whenBorrowableCTokenNotListed() public {
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            collateralToken: address(borrowableCUSDC),
-            debtToken: address(strategyCBALRETH),
+            collateralToken: address(strategyCBALRETH),
+            debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -45,8 +45,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
     function test_canLiquidate_fail_whenCTokenNotListed() public {
         // marketManager.listToken(address(borrowableCUSDC));
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            collateralToken: address(borrowableCUSDC),
-            debtToken: address(strategyCBALRETH),
+            collateralToken: address(strategyCBALRETH),
+            debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -74,8 +74,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            collateralToken: address(borrowableCUSDC),
-            debtToken: address(strategyCBALRETH),
+            collateralToken: address(strategyCBALRETH),
+            debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -107,8 +107,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            collateralToken: address(borrowableCUSDC),
-            debtToken: address(strategyCBALRETH),
+            collateralToken: address(strategyCBALRETH),
+            debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -142,8 +142,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            collateralToken: address(borrowableCUSDC),
-            debtToken: address(strategyCBALRETH),
+            collateralToken: address(strategyCBALRETH),
+            debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -205,8 +205,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            collateralToken: address(borrowableCUSDC),
-            debtToken: address(strategyCBALRETH),
+            collateralToken: address(strategyCBALRETH),
+            debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -243,8 +243,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         _setupUserPositionAndOracles();
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            collateralToken: address(borrowableCUSDC),
-            debtToken: address(strategyCBALRETH),
+            collateralToken: address(strategyCBALRETH),
+            debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,

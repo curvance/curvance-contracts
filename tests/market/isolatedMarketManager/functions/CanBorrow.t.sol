@@ -117,7 +117,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         vm.expectRevert(
             LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector
         );
-        marketManagerIsolated.canBorrow(address(borrowableCUSDC), user1, 10e6, 10e6);
+        marketManagerIsolated.canBorrow(address(borrowableCUSDC), user1, 1e6, 1e6);
     }
 
     function test_canBorrow_success_whenSufficientLiquidity() public {

@@ -155,7 +155,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
 
         vm.expectRevert(LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector);
         // borrow below the minimum loan size
-        marketManagerIsolated.canBorrowWithNotify(address(borrowableCUSDC), user1, 10e6, 10e6);
+        marketManagerIsolated.canBorrowWithNotify(address(borrowableCUSDC), user1, 1e6, 1e6);
     }
 
     function test_canBorrowWithNotify_Success_whenSufficientLiquidity() public {

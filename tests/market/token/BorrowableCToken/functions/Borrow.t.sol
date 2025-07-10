@@ -42,7 +42,6 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenBorrow_success() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 100_000e18);
 
         borrowableCUSDC.deposit(200e6, address(this));
 
