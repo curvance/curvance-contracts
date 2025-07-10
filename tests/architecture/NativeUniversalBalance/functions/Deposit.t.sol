@@ -18,7 +18,7 @@ contract NativeUniversalBalanceDepositTest is TestBaseNativeUniversalBalance {
     function test_nativeUniversalBalanceDeposit_fail_whenInsufficientBalance_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(amount < type(uint216).max);
+        vm.assume(amount < type(uint256).max);
 
         _prepareWETH(user1, amount);
 
@@ -35,7 +35,7 @@ contract NativeUniversalBalanceDepositTest is TestBaseNativeUniversalBalance {
     function test_nativeUniversalBalanceDeposit_fail_whenExceedsAllowance_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(amount < type(uint216).max);
+        vm.assume(amount < type(uint256).max);
 
         _prepareWETH(user1, amount + 1);
 
@@ -85,7 +85,7 @@ contract NativeUniversalBalanceDepositTest is TestBaseNativeUniversalBalance {
     function test_nativeUniversalBalanceDeposit_success_withLend_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(0 < amount && amount < type(uint216).max / _ONE);
+        vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         _prepareWETH(user1, amount);
 
@@ -123,7 +123,7 @@ contract NativeUniversalBalanceDepositTest is TestBaseNativeUniversalBalance {
     function test_nativeUniversalBalanceDeposit_success_withoutLend_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(0 < amount && amount < type(uint216).max / _ONE);
+        vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         _prepareWETH(user1, amount);
 

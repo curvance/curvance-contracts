@@ -297,7 +297,7 @@ contract NativeUniversalBalanceMultiWithdrawForTest is
         for (uint256 i; i < 3; i++) {
             vm.assume(
                 0 < depositAmounts[i] &&
-                    depositAmounts[i] < type(uint216).max / _ONE / 3
+                    depositAmounts[i] < type(uint256).max / _ONE / 3
             );
             vm.assume(
                 0 < withdrawAmounts_[i] &&

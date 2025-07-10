@@ -1214,7 +1214,7 @@ abstract contract BaseCToken is
 
         shares = totalShares == 0
             ? assets
-            : FixedPointMathLib.mulDiv(assets, totalShares, ta);
+            : FixedPointMathLib.fullMulDiv(assets, totalShares, ta);
     }
 
     /// @notice Returns the amount of assets that would be exchanged by the
@@ -1233,7 +1233,7 @@ abstract contract BaseCToken is
 
         assets = totalShares == 0
             ? shares
-            : FixedPointMathLib.mulDiv(shares, ta, totalShares);
+            : FixedPointMathLib.fullMulDiv(shares, ta, totalShares);
     }
 
     /// @notice Simulates the effects of a user deposit at the current
@@ -1263,7 +1263,7 @@ abstract contract BaseCToken is
 
         assets = totalShares == 0
             ? shares
-            : FixedPointMathLib.mulDivUp(shares, ta, totalShares);
+            : FixedPointMathLib.fullMulDivUp(shares, ta, totalShares);
     }
 
     /// @notice Simulates the effects of a user withdrawal at the current
@@ -1280,7 +1280,7 @@ abstract contract BaseCToken is
 
         shares = totalShares == 0
             ? assets
-            : FixedPointMathLib.mulDivUp(assets, totalShares, ta);
+            : FixedPointMathLib.fullMulDivUp(assets, totalShares, ta);
     }
 
     /// @notice Simulates the effects of a user redemption at the current

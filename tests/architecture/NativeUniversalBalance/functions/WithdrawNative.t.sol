@@ -16,7 +16,7 @@ contract WithdrawNativeTest is TestBaseNativeUniversalBalance {
     function test_withdrawNative_fail_whenExceedsLentBalance_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(0 < amount && amount < type(uint216).max / _ONE);
+        vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         deal(user1, amount);
 
@@ -33,7 +33,7 @@ contract WithdrawNativeTest is TestBaseNativeUniversalBalance {
     function test_withdrawNative_fail_whenExceedsSittingBalance_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(0 < amount && amount < type(uint216).max / _ONE);
+        vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         deal(user1, amount);
 
@@ -60,7 +60,7 @@ contract WithdrawNativeTest is TestBaseNativeUniversalBalance {
         uint256 withdrawAmount
     ) public {
         vm.assume(
-            0 < depositAmount && depositAmount < type(uint216).max / _ONE
+            0 < depositAmount && depositAmount < type(uint256).max / _ONE
         );
         vm.assume(0 < withdrawAmount && withdrawAmount <= depositAmount);
 
@@ -107,7 +107,7 @@ contract WithdrawNativeTest is TestBaseNativeUniversalBalance {
         uint256 withdrawAmount
     ) public {
         vm.assume(
-            0 < depositAmount && depositAmount < type(uint216).max / _ONE
+            0 < depositAmount && depositAmount < type(uint256).max / _ONE
         );
         vm.assume(0 < withdrawAmount && withdrawAmount <= depositAmount);
 

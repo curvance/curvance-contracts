@@ -63,7 +63,7 @@ contract NativeUniversalBalanceShiftBalanceTest is
     function test_nativeUniversalBalanceShiftBalance_fail_whenExceedsLentBalance_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(0 < amount && amount < type(uint216).max / _ONE);
+        vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         _prepareWETH(user1, amount);
 
@@ -80,7 +80,7 @@ contract NativeUniversalBalanceShiftBalanceTest is
     function test_nativeUniversalBalanceShiftBalance_fail_whenExceedsSittingBalance_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(0 < amount && amount < type(uint216).max / _ONE);
+        vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         _prepareWETH(user1, amount);
 
@@ -113,7 +113,7 @@ contract NativeUniversalBalanceShiftBalanceTest is
         bool fromLent
     ) public {
         vm.assume(
-            0 < depositAmount && depositAmount < type(uint216).max / _ONE
+            0 < depositAmount && depositAmount < type(uint256).max / _ONE
         );
         vm.assume(0 < shiftAmount && shiftAmount <= depositAmount);
 

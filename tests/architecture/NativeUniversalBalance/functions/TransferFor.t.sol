@@ -84,7 +84,7 @@ contract NativeUniversalBalanceTransferForTest is
     function test_nativeUniversalBalanceTransferFor_fail_whenExceedsLentBalance_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(0 < amount && amount < type(uint216).max / _ONE);
+        vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         _prepareWETH(user1, amount);
 
@@ -106,7 +106,7 @@ contract NativeUniversalBalanceTransferForTest is
     function test_nativeUniversalBalanceTransferFor_fail_whenExceedsSittingBalance_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(0 < amount && amount < type(uint216).max / _ONE);
+        vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         _prepareWETH(user1, amount);
 
@@ -143,7 +143,7 @@ contract NativeUniversalBalanceTransferForTest is
         bool willLend
     ) public {
         vm.assume(
-            0 < depositAmount && depositAmount < type(uint216).max / _ONE
+            0 < depositAmount && depositAmount < type(uint256).max / _ONE
         );
         vm.assume(0 < transferAmount && transferAmount <= depositAmount);
 

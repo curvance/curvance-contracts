@@ -41,8 +41,8 @@ contract UseBalanceForOracleUpdateTest is TestBaseNativeUniversalBalance {
     ) public {
         vm.assume(0 < depositAmount1 && 0 < depositAmount2);
         vm.assume(
-            depositAmount1 < type(uint216).max / _ONE &&
-                depositAmount2 < type(uint216).max / _ONE
+            depositAmount1 < type(uint256).max / _ONE &&
+                depositAmount2 < type(uint256).max / _ONE
         );
         vm.assume(
             0 < withdrawAmount &&
