@@ -5,7 +5,7 @@
 // import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 // import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
 // import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-// import { EToken } from "contracts/market/token/EToken.sol";
+// import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 // import { IMToken } from "contracts/interfaces/IMToken.sol";
 // import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 // import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -46,7 +46,7 @@
 //         internal
 //         returns (
 //             MockSimpleCToken[] memory,
-//             EToken[] memory,
+//             BorrowableCToken[] memory,
 //             address[] memory,
 //             MockV3Aggregator[] memory,
 //             MockV3Aggregator[] memory,
@@ -64,7 +64,7 @@
 //         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
-//         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
+//         BorrowableCToken[] memory cTokens = new BorrowableCToken[](noOfEarnTokens);
 //         address[] memory users = new address[](noOfUsers);
 
 //         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
@@ -74,7 +74,7 @@
 //             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfPositionTokens
 //             );
-//         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfEarnTokens
 //         );
 
@@ -87,14 +87,14 @@
 //             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfPositionTokens, entropy);
 
-//         (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
+//         (cTokens, cTokensAgg) = _genEarnToken(noOfEarnTokens);
 //         return (
 //             cTokens,
-//             eTokens,
+//             cTokens,
 //             users,
 //             cTokensAgg,
 //             cTokensUnderlyingAgg,
-//             eTokensAgg
+//             cTokensAgg
 //         );
 //     }
 
@@ -103,7 +103,7 @@
 //         uint256 debtLimit,
 //         address[] memory users,
 //         MockSimpleCToken[] memory cTokens,
-//         EToken[] memory eTokens
+//         BorrowableCToken[] memory cTokens
 //     ) internal {
 //         uint256 runs;
 //         uint256 _amountCollateral;
@@ -129,7 +129,7 @@
 //                 } else if (i < noOfUsersCollateral + noOfUsersDebt) {
 //                     _supplyETokenWithEntropy(
 //                         users[i],
-//                         eTokens[j % noOfEarnTokens],
+//                         cTokens[j % noOfEarnTokens],
 //                         _amountDebt
 //                     );
 //                 } else {
@@ -140,13 +140,13 @@
 //                     );
 //                     _supplyETokenWithEntropy(
 //                         users[i],
-//                         eTokens[j % noOfEarnTokens],
+//                         cTokens[j % noOfEarnTokens],
 //                         _amountDebt
 //                     );
 //                 }
 //             }
 //         }
-//         _executeBorrows(users, eTokens, cTokens);
+//         _executeBorrows(users, cTokens, cTokens);
 //     }
 
 //     function testLiquidationMultipleMarkets() public {
@@ -161,7 +161,7 @@
 //         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfPositionTokens
 //         );
-//         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
+//         BorrowableCToken[] memory cTokens = new BorrowableCToken[](noOfEarnTokens);
 //         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfPositionTokens
 //         );
@@ -169,7 +169,7 @@
 //             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfPositionTokens
 //             );
-//         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfEarnTokens
 //         );
 
@@ -178,7 +178,7 @@
 //             cTokensAgg,
 //             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfPositionTokens, 0);
-//         (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
+//         (cTokens, cTokensAgg) = _genEarnToken(noOfEarnTokens);
 
 //         _genCollateral(users[0], cTokens[0], 100e18);
 //         _postCollateral(users[0], cTokens[0], 100e18);
@@ -189,21 +189,21 @@
 //         _genCollateral(users[2], cTokens[1], 100e18);
 //         _postCollateral(users[2], cTokens[1], 100e18);
 
-//         _supplyEToken(users[2], eTokens[0], 300e18);
+//         _supplyEToken(users[2], cTokens[0], 300e18);
 
-//         _borrow(users[0], eTokens[0], 70e18);
-//         _borrow(users[1], eTokens[0], 70e18);
-//         _borrow(users[2], eTokens[0], 70e18);
+//         _borrow(users[0], cTokens[0], 70e18);
+//         _borrow(users[1], cTokens[0], 70e18);
+//         _borrow(users[2], cTokens[0], 70e18);
 
 //         for (uint256 i = 0; i < noOfPositionTokens; i++) {
 //             skip(20 minutes);
 //             _updateRoundData(cTokensAgg[i], 0, 1e7);
 //         }
 
-//         _liquidate(eTokens[0], cTokens[0], users[0], false);
-//         _liquidate(eTokens[0], cTokens[1], users[1], true);
+//         _liquidate(cTokens[0], cTokens[0], users[0], false);
+//         _liquidate(cTokens[0], cTokens[1], users[1], true);
 
-//         _prepareLiquidationMultiple(liquidator, eTokens);
+//         _prepareLiquidationMultiple(liquidator, cTokens);
 //         // _liquidateAccount(users[2], liquidator);
 //     }
 
@@ -215,7 +215,7 @@
 //     ) public {
 //         (
 //             MockSimpleCToken[] memory cTokens,
-//             EToken[] memory eTokens,
+//             BorrowableCToken[] memory cTokens,
 //             address[] memory users,
 //             MockV3Aggregator[] memory cTokensAgg,
 //             ,
@@ -226,14 +226,14 @@
 //                 _noOfUsers,
 //                 _entropy
 //             );
-//         _setupLiquidity(100e18, 200e18, users, cTokens, eTokens);
+//         _setupLiquidity(100e18, 200e18, users, cTokens, cTokens);
 
 //         for (uint256 i; i < noOfPositionTokens; i++) {
 //             skip(20 minutes);
 //             _updateRoundData(cTokensAgg[0], 0, 1e7);
 //         }
 
-//         _liquidateAllByEToken(eTokens, cTokens, users);
+//         _liquidateAllByEToken(cTokens, cTokens, users);
 //     }
 
 //     function testLiquidationMultipleMarketsWithEntropyExact(
@@ -244,7 +244,7 @@
 //     ) public {
 //         (
 //             MockSimpleCToken[] memory cTokens,
-//             EToken[] memory eTokens,
+//             BorrowableCToken[] memory cTokens,
 //             address[] memory users,
 //             MockV3Aggregator[] memory cTokensAgg,
 //             ,
@@ -255,14 +255,14 @@
 //                 _noOfUsers,
 //                 _entropy
 //             );
-//         _setupLiquidity(100e18, 200e18, users, cTokens, eTokens);
+//         _setupLiquidity(100e18, 200e18, users, cTokens, cTokens);
 
 //         for (uint256 i; i < noOfPositionTokens; i++) {
 //             skip(20 minutes);
 //             _updateRoundData(cTokensAgg[0], 0, 1e7);
 //         }
 
-//         _liquidateAllExact(eTokens, cTokens, users);
+//         _liquidateAllExact(cTokens, cTokens, users);
 //     }
 
 //     function testLiquidationMultipleMarketsWithEntropyAccount(
@@ -273,7 +273,7 @@
 //     ) public {
 //         (
 //             MockSimpleCToken[] memory cTokens,
-//             EToken[] memory eTokens,
+//             BorrowableCToken[] memory cTokens,
 //             address[] memory users,
 //             MockV3Aggregator[] memory cTokensAgg,
 //             ,
@@ -284,16 +284,16 @@
 //                 _noOfUsers,
 //                 _entropy
 //             );
-//         _setupLiquidity(100e18, 200e18, users, cTokens, eTokens);
+//         _setupLiquidity(100e18, 200e18, users, cTokens, cTokens);
 
 //         for (uint256 i; i < noOfPositionTokens; i++) {
 //             skip(20 minutes);
 //             _updateRoundData(cTokensAgg[0], 0, 1e7);
 //         }
 
-//         _prepareLiquidationMultiple(liquidator, eTokens);
+//         _prepareLiquidationMultiple(liquidator, cTokens);
 //         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
-//             if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[0]), address(cTokens[0]))) {
+//             if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(cTokens[0]), address(cTokens[0]))) {
 //                 continue;
 //             }
 //             // _liquidateAccount(users[i], liquidator);

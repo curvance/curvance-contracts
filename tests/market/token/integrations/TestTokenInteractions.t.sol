@@ -146,7 +146,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.balanceOf(user1), 0);
     }
 
-    function testETokenMintRedeem() public {
+    function testBorrowableCTokenMintRedeem() public {
         _prepareDAI(user1, 2e18);
 
         // try mint()
@@ -167,7 +167,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user1), 0);
     }
 
-    function testETokenBorrowRepay() public {
+    function testBorrowableCTokenBorrowRepay() public {
         _prepareBALRETH(user1, _ONE);
 
         // try mint()
@@ -265,7 +265,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.exchangeRate(), _ONE);
     }
 
-    function testETokenRedeemOnBorrow() public {
+    function testBorrowableCTokenRedeemOnBorrow() public {
         // try mint()
         _prepareBALRETH(user1, _ONE);
         vm.startPrank(user1);
@@ -332,7 +332,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.exchangeRate(), _ONE);
     }
 
-    function testETokenTransferOnBorrow() public {
+    function testBorrowableCTokenTransferOnBorrow() public {
         // try mint()
         _prepareBALRETH(user1, _ONE);
         vm.startPrank(user1);

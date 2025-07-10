@@ -193,7 +193,7 @@ contract Predeposit {
             );
         }
 
-        // Execute swap into eToken underlying.
+        // Execute swap into cToken underlying.
         uint256 amount = SwapperLib._swapUnsafe(centralRegistry, swapData);
 
         if (amount < depositAmount) {

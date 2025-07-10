@@ -14,14 +14,14 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
     address[] accounts = new address[](1);
     uint256[] debtAmounts = new uint256[](1);
 
-    uint256 eTokenUnderlyingPrice = 1e18;
+    uint256 borrowableCTokenUnderlyingPrice = 1e18;
 
     constructor() {
         accounts[0] = user1;
         debtAmounts[0] = 1000e6;
     }
     
-    function test_canLiquidate_fail_whenETokenNotListed() public {
+    function test_canLiquidate_fail_whenBorrowableCTokenNotListed() public {
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             collateralToken: address(borrowableCUSDC),
             debtToken: address(strategyCBALRETH),
@@ -364,10 +364,10 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
                 ((liqCurve * lFactor) / WAD);
 
         // uint256 cTokenDecimals = 1e18;
-        // uint256 eTokenDecimals = 1e6;
+        // uint256 borrowableCTokenDecimals = 1e6;
 
         uint256 debtToCollateralMultiplier = 
-        (((auctionLiqIncentive * eTokenUnderlyingPrice * WAD) /
+        (((auctionLiqIncentive * borrowableCTokenUnderlyingPrice * WAD) /
             (priceData.price * 1e18)) *
             1e18) / 1e6;
 
@@ -401,7 +401,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             FixedPointMathLib.mulDivUp(
                 ((collateralAvailable - liquidatedCTokens) * 1e18) / WAD,
                 cTokenUnderlyingPrice,
-                (eTokenUnderlyingPrice * WAD) / 1e6
+                (borrowableCTokenUnderlyingPrice * WAD) / 1e6
             );
     }
 }

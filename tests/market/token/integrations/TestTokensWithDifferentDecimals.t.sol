@@ -153,7 +153,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.balanceOf(user1), 0);
     }
 
-    function testETokenMintRedeem() public {
+    function testBorrowableCTokenMintRedeem() public {
         _prepareUSDC(user1, 2e6);
 
         // try mint()
@@ -174,7 +174,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
     }
 
-    function testETokenBorrowRepay() public {
+    function testBorrowableCTokenBorrowRepay() public {
         _prepareBALRETH(user1, 1 ether);
 
         // try mint()
@@ -260,7 +260,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
     }
 
-    function testETokenRedeemOnBorrow() public {
+    function testBorrowableCTokenRedeemOnBorrow() public {
         // try mint()
         _prepareBALRETH(user1, 1 ether);
         vm.startPrank(user1);
@@ -327,7 +327,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
     }
 
-    function testETokenTransferOnBorrow() public {
+    function testBorrowableCTokenTransferOnBorrow() public {
         // try mint()
         _prepareBALRETH(user1, 1 ether);
         vm.startPrank(user1);

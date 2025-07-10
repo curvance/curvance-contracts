@@ -65,6 +65,7 @@ contract TestBaseMarketIsolated is TestBase {
         _deployBorrowableCDAI();
 
         _deploySimpleCUSDC();
+
         _deployStrategyCBALRETH();
         _deployStrategyCBALRETHWithExitFee();
 
@@ -444,7 +445,7 @@ contract TestBaseMarketIsolated is TestBase {
     function _deployBorrowableCToken(
         address token
     ) internal virtual initMainVariables returns (BorrowableCToken) {
-        BorrowableCToken eToken = new BorrowableCToken(
+        BorrowableCToken borrowableCToken = new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(token),
             address(marketManagerIsolated),
@@ -452,10 +453,10 @@ contract TestBaseMarketIsolated is TestBase {
         );
 
         interestRateModels[block.chainid][token].setLinkedToken(
-            address(eToken)
+            address(borrowableCToken)
         );
 
-        return eToken;
+        return borrowableCToken;
     }
 
     function _deploySimpleCUSDC()

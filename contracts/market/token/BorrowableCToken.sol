@@ -116,7 +116,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Accrues pending interest and updates the interest rate model.
     /// @dev Admin function to update the interest rate model.
     /// @param newInterestRateModel The new interest rate model for this
-    ///                             eToken to use.
+    ///                             borrowableCToken to use.
     function setInterestRateModel(address newInterestRateModel) external {
         _checkElevatedPermissions();
 
@@ -129,7 +129,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Accrues pending interest and updates the interest factor.
     /// @dev Admin function to update the interest factor value.
     /// @param newInterestFee The new interest factor for this
-    ///                          eToken to use.
+    ///                       borrowableCToken to use.
     function setInterestFee(uint256 newInterestFee) external {
         _checkElevatedPermissions();
 
@@ -835,7 +835,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Updates the interest rate model.
     /// @dev Emits a {NewMarketInterestRateModel} event.
     /// @param newInterestRateModel The new interest rate model for this
-    ///                             eToken to use.
+    ///                             borrowableCToken to use.
     function _setInterestRateModel(
         IInterestRateModel newInterestRateModel
     ) internal {
@@ -867,7 +867,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Updates the interest factor.
     /// @dev Emits a {NewInterestFee} event.
     /// @param newInterestFee The new interest factor for this
-    ///                          eToken to use.
+    ///                       borrowableCToken to use.
     function _setInterestFee(uint256 newInterestFee) internal {
         // The DAO cannot take more than 50% of interest collected.
         if (newInterestFee > MAX_INTEREST_ACCRUAL_FEE) {
