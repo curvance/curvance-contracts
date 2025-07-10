@@ -465,18 +465,15 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool willLend,
         address recipient
     ) internal {
+        _checkZeroAmount(amount);
+
         if (willLend) {
-            // Will natively fail if amount == 0 on gaugeManager call.
-            // Records balance in tokens (shares).
+            // Records balance in shares.
             uint256 tokensReceived = linkedToken.deposit(amount, address(this));
             userBalances[recipient].lentBalance += tokensReceived;
 
             emit Deposit(msg.sender, recipient, amount, willLend);
             return;
-        }
-
-        if (amount == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         userBalances[recipient].sittingBalance += amount;
@@ -537,12 +534,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool forceLentRedemption,
         address owner
     ) internal returns (uint256, bool) {
-        // Validate caller is not trying to withdraw nothing, though this
-        // technically double checks amount in cases of lending balance
-        // redemption, we want an efficient non-panic check here.
-        if (amount == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        _checkZeroAmount(amount);
 
         if (
             IActionRegistry(address(centralRegistry)).checkTransfersDisabled(
@@ -673,9 +665,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         // Validate that tokens were actually redeemed.
-        if (withdrawSum == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        _checkZeroAmount(withdrawSum);
 
         return withdrawSum;
     }
@@ -719,6 +709,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         );
 
         _deposit(amountTransferred, willLend, recipient);
+    }
+
+    /// @notice Checks to make sure an action is not an empty action.
+    function _checkZeroAmount(uint256 amount) internal pure {
+        if (amount == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
