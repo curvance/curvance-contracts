@@ -84,27 +84,26 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(strategyCBALRETH);
-        configToken0.collRatio = 9200;
-        configToken0.collReqSoft = 830;
-        configToken0.collReqHard = 650;
-        configToken0.liqIncBase = 500;
-        configToken0.liqIncHard = 550;
-        configToken0.liqIncMin = 300;
-        configToken0.liqIncMax = 550;
-        configToken0.minEffectiveCloseFactor = 1000;
-        configToken0.maxEffectiveCloseFactor = 5000;
-        configToken0.baseCFactor = 2000;
-        configToken0.collateralCap = 100_000e18;
-        configToken0.debtCap = 0;
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 9200;
+        tokenConfig.collReqSoft = 830;
+        tokenConfig.collReqHard = 650;
+        tokenConfig.liqIncBase = 500;
+        tokenConfig.liqIncHard = 550;
+        tokenConfig.liqIncMin = 300;
+        tokenConfig.liqIncMax = 550;
+        tokenConfig.minEffectiveCloseFactor = 1000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(configToken0);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-        MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(borrowableCUSDC);
-        configToken1.debtCap = 100_000e6;
-        marketManagerIsolated.updateTokenConfig(configToken1);
+        tokenConfig.cToken = address(borrowableCUSDC);
+        tokenConfig.debtCap = 100_000e6;
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
