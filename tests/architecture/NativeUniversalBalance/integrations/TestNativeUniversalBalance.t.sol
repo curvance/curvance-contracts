@@ -12,6 +12,8 @@ import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 
 import "tests/market/TestBaseMarketIsolated.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 contract TestNativeUniversalBalance is TestBaseMarketIsolated {
     address public owner;
 
@@ -784,14 +786,20 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        skip(10 weeks);
+        // skip(10 weeks);
 
         _prepareWETH(owner, 100e18);
         weth.approve(address(borrowableCWETH), 100e18);
         borrowableCWETH.deposit(100e18, address(this));
 
+        // Moved skip here to allow easier debugging in _accrueIfNeeded() and ensure the full code path is executed.
+        skip(10 weeks);
+
         vm.prank(user1);
+        console2.log("=== START LOG INSPECTION HERE ===");
         nativeUniversalBalance.withdrawNative(50e18, true, address(this));
+
+        assertGt(borrowableCWETH.exchangeRateUpdated(), 1e18);
 
         (uint256 sittingBalance, uint256 lentBalance) = nativeUniversalBalance
             .userBalances(user1);

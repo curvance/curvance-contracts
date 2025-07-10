@@ -97,39 +97,6 @@ abstract contract BaseCTokenWithYield is BaseCToken {
         result = _totalAssets + _getPendingYield();
     }
 
-    /// @notice Calculates pending yield that has been vested.
-    /// @dev If there are no pending yield or the vesting period has ended,
-    ///      it returns 0.
-    /// @return pendingYield The calculated pending yield, in assets.
-    function _getPendingYield(
-        uint256 vestingRate,
-        uint256 lastVestingClaim,
-        uint256 vestingPeriodEnd
-    )
-        internal
-        view
-        returns (uint256 pendingYield)
-    {
-        // Check whether there are pending yield vesting.
-        if (vestingRate > 0 && lastVestingClaim < vestingPeriodEnd) {
-            // When calculating pending yield:
-            // pendingYield =
-            // If the vesting period has not ended:
-            // PY = vestingRate * (block.timestamp - lastTimeVestClaimed).
-            // If the vesting period has ended:
-            // PY = vestingRate * (vestingPeriodEnd - lastTimeVestClaimed)).
-            // Then in either case:
-            // Divide the pending yield by `WAD` (1e18) for precision.
-            pendingYield =
-                (
-                    block.timestamp < vestingPeriodEnd
-                        ? vestingRate * (block.timestamp - lastVestingClaim)
-                        : vestingRate * (vestingPeriodEnd - lastVestingClaim)
-                ) /
-                WAD;
-        }
-    }
-
     /// @notice Updates the vesting period, if needed.
     /// @dev If there a pending vesting update,
     ///      and prior vest is done then `vestingPeriod` is updated.
