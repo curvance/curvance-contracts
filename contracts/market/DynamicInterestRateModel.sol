@@ -423,7 +423,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
             }
         }
 
-        // Execute interest rate update if necessary.
+        // Update interest rate vertex multiplier, if necessary.
         if (block.timestamp >= updateTimestamp()) {
             // If the vertex multiplier is already at its minimum,
             // and would decrease more, can break here.

@@ -718,6 +718,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         uint256 cachedTa = _totalAssets;
         uint256 pendingYieldToVest = _getPendingYield(
             vestingRate,
+            outstandingDebt,
             lastVestingClaim,
             vestingPeriodEnd
         );
@@ -806,6 +807,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // into the new vesting period.
         pendingYieldToVest += _getPendingYield(
             vestingRate,
+            outstandingDebt,
             lastVestingClaim,
             vestingPeriodEnd
         );
@@ -833,11 +835,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // pendingYieldToVest at this point is a % of outstanding debt
             // which is exactly what we want to increase our debt index by.
             marketDebtIndex =
-                (pendingYieldToVest * marketDebtIndex) + marketDebtIndex;
+                ((pendingYieldToVest / outstandingDebt) * marketDebtIndex)
+                    + marketDebtIndex;
             console2.log("marketDebtIndex", marketDebtIndex);
-            // Convert pendingYieldToVest to a numerical value of new debt.
-            pendingYieldToVest = pendingYieldToVest * outstandingDebt;
-            console2.log("pendingYieldToVest", pendingYieldToVest);
             // Update marketOutstandingDebt invariant with vested yield.
             marketOutstandingDebt = outstandingDebt + pendingYieldToVest;
             console2.log("marketOutstandingDebt", marketOutstandingDebt);
@@ -983,9 +983,44 @@ contract BorrowableCToken is BaseCTokenWithYield {
         uint256 vestingData = _vestingData;
         pendingYield =  _getPendingYield(
             uint96(vestingData),
+            marketOutstandingDebt,
             uint40(vestingData >> _BITPOS_VEST_END),
             uint40(vestingData >> _BITPOS_LAST_VEST)
         );
+    }
+
+        /// @notice Calculates pending yield that has been vested.
+    /// @dev If there are no pending yield or the vesting period has ended,
+    ///      it returns 0.
+    /// @return pendingYield The calculated pending yield, in assets.
+    function _getPendingYield(
+        uint256 vestingRate,
+        uint256 outstandingDebt,
+        uint256 lastVestingClaim,
+        uint256 vestingPeriodEnd
+    )
+        internal
+        view
+        returns (uint256 pendingYield)
+    {
+        // Check whether there are pending yield vesting.
+        if (vestingRate > 0 && lastVestingClaim < vestingPeriodEnd) {
+            // When calculating pending yield:
+            // pendingYield =
+            // If the vesting period has not ended:
+            // PY = vestingRate * (block.timestamp - lastTimeVestClaimed).
+            // If the vesting period has ended:
+            // PY = vestingRate * (vestingPeriodEnd - lastTimeVestClaimed)).
+            // Then in either case:
+            // Divide the pending yield by `WAD` (1e18) for precision.
+            pendingYield =
+                ((
+                    block.timestamp < vestingPeriodEnd
+                        ? vestingRate * (block.timestamp - lastVestingClaim)
+                        : vestingRate * (vestingPeriodEnd - lastVestingClaim)
+                ) * outstandingDebt) /
+                WAD;
+        }
     }
 
     /// @notice Checks whether there is sufficient assets to handle
