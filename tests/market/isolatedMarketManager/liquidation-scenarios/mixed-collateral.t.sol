@@ -15,11 +15,11 @@ import "forge-std/console2.sol";
 
 // ## Scenario 2: Mixed Collateral Results w/ 92% LTV, all using liquidate() function
 // - Setup: 4 users with different positions
-// - User 1: 2.5 pBALRETH ($4,000), 2,500 USDC debt (very healthy)
-// - User 2: 2.0 pBALRETH ($3,200), 2,500 USDC debt (healthy)
-// - User 3: 1.9 pBALRETH ($3,040), 2,500 USDC debt (borderline)
-// - User 4: 1.7 pBALRETH ($2,720), 2,500 USDC debt (risky)
-// - Action: Price drop of pBALRETH by 10% (to ~$1,420)
+// - User 1: 2.5 strategyCBALRETH ($4,000), 2,500 USDC debt (very healthy)
+// - User 2: 2.0 strategyCBALRETH ($3,200), 2,500 USDC debt (healthy)
+// - User 3: 1.9 strategyCBALRETH ($3,040), 2,500 USDC debt (borderline)
+// - User 4: 1.7 strategyCBALRETH ($2,720), 2,500 USDC debt (risky)
+// - Action: Price drop of strategyCBALRETH by 10% (to ~$1,420)
 // - Expected: Users 3 and 4 liquidated, Users 1 and 2 remain healthy
 //      User 3 has a soft liquidation, so no bad debt.
 //      User 4 has a hard liquidation which accrues bad debt.
@@ -79,43 +79,42 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         _prepareBALRETH(user1, _ONE + 77777);
 
         vm.prank(user1);
-        usdc.approve(address(eUSDC), _ONE);
-        balRETH.approve(address(pBALRETH), _ONE + 77777);
+        usdc.approve(address(borrowableCUSDC), _ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE + 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pBALRETH);
-        configToken0.collRatio = 9200;
-        configToken0.collReqSoft = 830;
-        configToken0.collReqHard = 650;
-        configToken0.liqIncBase = 500;
-        configToken0.liqIncHard = 550;
-        configToken0.liqIncMin = 300;
-        configToken0.liqIncMax = 550;
-        configToken0.minEffectiveCloseFactor = 1000;
-        configToken0.maxEffectiveCloseFactor = 5000;
-        configToken0.baseCFactor = 2000;
-        configToken0.collateralCap = 100_000e18;
-        configToken0.debtCap = 0;
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 9200;
+        tokenConfig.collReqSoft = 830;
+        tokenConfig.collReqHard = 650;
+        tokenConfig.liqIncBase = 500;
+        tokenConfig.liqIncHard = 550;
+        tokenConfig.liqIncMin = 300;
+        tokenConfig.liqIncMax = 550;
+        tokenConfig.minEffectiveCloseFactor = 1000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(configToken0);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-        MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
-        configToken1.debtCap = 100_000e6;
-        marketManagerIsolated.updateTokenConfig(configToken1);
+        tokenConfig.cToken = address(borrowableCUSDC);
+        tokenConfig.debtCap = 100_000e6;
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareBALRETH(liquidityProvider, 10e18);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.deposit(200000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
-        balRETH.approve(address(pBALRETH), 10e18);
-        pBALRETH.deposit(10e18, liquidityProvider);
+        balRETH.approve(address(strategyCBALRETH), 10e18);
+        strategyCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
 
         _createPositions();
@@ -124,7 +123,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         mockRethFeed.setMockAnswer(1440e8);
 
         (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
-            marketManagerIsolated.tokenData(address(pBALRETH));
+            marketManagerIsolated.tokenData(address(strategyCBALRETH));
 
         liqBaseIncentive = liqBaseIncentive_;
         liqCurve = liqCurve_;
@@ -138,8 +137,8 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         
         IMarketManager.LiqInstructions memory liqInstructions;
         liqInstructions = IMarketManager.LiqInstructions({
-            debtToken: address(eUSDC),
-            collateralToken: address(pBALRETH),
+            debtToken: address(borrowableCUSDC),
+            collateralToken: address(strategyCBALRETH),
             numAccounts: 4,
             liquidateExact: false,
             debtRepaid: 0,
@@ -160,7 +159,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         console2.log("Borrower 4 lFactor", lFactorsPreLiquidation[3]);
 
         (,uint256 eTokenPrice, uint256 cTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(borrowers[0], address(eUSDC), address(pBALRETH));
+            marketManagerIsolated.liquidationStatusOf(borrowers[0], address(borrowableCUSDC), address(strategyCBALRETH));
 
         console2.log("eTokenPrice", eTokenPrice);
         console2.log("cTokenPrice", cTokenPrice);
@@ -171,7 +170,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
             );
 
         uint256 expectedTotalBadDebt;
-        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
+        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
 
         for(uint i; i < 4; i++) {
             badDebt[i] = _calculateBadDebt(
@@ -187,11 +186,11 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
             expectedTotalBadDebt += badDebt[i];
         }
 
-        uint256 totalBorrowsBefore = eUSDC.marketOutstandingDebt();
+        uint256 totalBorrowsBefore = borrowableCUSDC.marketOutstandingDebt();
 
         // ===== Liquidate =====
 
-        eUSDC.approve(address(marketManagerIsolated), 100000e6);
+        borrowableCUSDC.approve(address(marketManagerIsolated), 100000e6);
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit();
@@ -199,33 +198,33 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         emit Repay(address(this), borrowers[2], maxAmount[2] + badDebt[2]);
         emit Repay(address(this), borrowers[3], maxAmount[3] + badDebt[3]);
         
-        eUSDC.liquidate(
+        borrowableCUSDC.liquidate(
             borrowers,
-            address(pBALRETH)
+            address(strategyCBALRETH)
         );
 
         // ===== Validate =====
 
         // Verify healthy accounts (1 and 2) are not liquidated
-        assertEq(eUSDC.debtBalance(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
-        assertEq(eUSDC.debtBalance(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
+        assertEq(borrowableCUSDC.debtBalance(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
+        assertEq(borrowableCUSDC.debtBalance(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
 
         // Verify account 4 is hard liquidated
-        assertEq(eUSDC.debtBalance(borrowers[3]), 0, "Borrower 4 should be hard liquidated");
+        assertEq(borrowableCUSDC.debtBalance(borrowers[3]), 0, "Borrower 4 should be hard liquidated");
 
         // Verify account 3 is soft liquidated
-        assertEq(eUSDC.debtBalance(borrowers[2]), debtBalancesPreLiquidation[2] - maxAmount[2], "Borrower 3 should be soft liquidated");
+        assertEq(borrowableCUSDC.debtBalance(borrowers[2]), debtBalancesPreLiquidation[2] - maxAmount[2], "Borrower 3 should be soft liquidated");
         
         // Assert collateral is reduced by liquidatedPTokens
         assertApproxEqAbs(
-            pBALRETH.balanceOf(borrowers[3]),
+            strategyCBALRETH.balanceOf(borrowers[3]),
             collateralAmounts[3] - liquidatedPTokens[3],
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
-            pBALRETH.balanceOf(borrowers[2]),
+            strategyCBALRETH.balanceOf(borrowers[2]),
             collateralAmounts[2] - liquidatedPTokens[2],
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
@@ -236,7 +235,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         uint256 totalDebtRepaid = borrowAmount + maxAmount[2]; // User 3 is soft liquidated, using borrowAmount as user 4 who is hard liquidated
 
         assertApproxEqAbs(
-            eUSDC.marketOutstandingDebt(),
+            borrowableCUSDC.marketOutstandingDebt(),
             totalBorrowsBefore - totalDebtRepaid,
             100, // Small tolerance
             "Incorrect totalBorrows after liquidation"
@@ -245,7 +244,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         // Verify liquidator received the expected collateral
         uint256 expectedLiquidatorBalance = liquidatedPTokens[2] + liquidatedPTokens[3];
         assertApproxEqAbs(
-            pBALRETH.balanceOf(address(this)),
+            strategyCBALRETH.balanceOf(address(this)),
             expectedLiquidatorBalance,
             1000,
             "Liquidator didn't receive expected collateral"
@@ -255,11 +254,11 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         for(uint i = 2; i < 4; i++) {
             (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
                 borrowers[i],
-                address(eUSDC),
-                address(pBALRETH)
+                address(borrowableCUSDC),
+                address(strategyCBALRETH)
             );
 
-            if(eUSDC.debtBalance(borrowers[i]) > 0) {
+            if(borrowableCUSDC.debtBalance(borrowers[i]) > 0) {
                 assertTrue(lFactorAfter < lFactorsPreLiquidation[i], "Health factor should improve after partial liquidation");
             } else {
                 assertEq(lFactorAfter, 0, "Fully liquidated account should have 0 lFactor");
@@ -274,27 +273,27 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         _prepareBALRETH(borrower4, collateralAmounts[3]);
 
         vm.startPrank(borrower1);
-        balRETH.approve(address(pBALRETH), collateralAmounts[0]);
-        pBALRETH.depositAsCollateral(collateralAmounts[0], borrower1);
-        eUSDC.borrow(borrowAmount);
+        balRETH.approve(address(strategyCBALRETH), collateralAmounts[0]);
+        strategyCBALRETH.depositAsCollateral(collateralAmounts[0], borrower1);
+        borrowableCUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
         vm.startPrank(borrower2);
-        balRETH.approve(address(pBALRETH), collateralAmounts[1]);
-        pBALRETH.depositAsCollateral(collateralAmounts[1], borrower2);
-        eUSDC.borrow(borrowAmount);
+        balRETH.approve(address(strategyCBALRETH), collateralAmounts[1]);
+        strategyCBALRETH.depositAsCollateral(collateralAmounts[1], borrower2);
+        borrowableCUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
         vm.startPrank(borrower3);
-        balRETH.approve(address(pBALRETH), collateralAmounts[2]);
-        pBALRETH.depositAsCollateral(collateralAmounts[2], borrower3);
-        eUSDC.borrow(borrowAmount);
+        balRETH.approve(address(strategyCBALRETH), collateralAmounts[2]);
+        strategyCBALRETH.depositAsCollateral(collateralAmounts[2], borrower3);
+        borrowableCUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
         vm.startPrank(borrower4);
-        balRETH.approve(address(pBALRETH), collateralAmounts[3]);
-        pBALRETH.depositAsCollateral(collateralAmounts[3], borrower4);
-        eUSDC.borrow(borrowAmount);
+        balRETH.approve(address(strategyCBALRETH), collateralAmounts[3]);
+        strategyCBALRETH.depositAsCollateral(collateralAmounts[3], borrower4);
+        borrowableCUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
     }
@@ -305,8 +304,8 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         for(uint i; i < 4; i++) {
             (lFactors[i],,) = marketManagerIsolated.liquidationStatusOf(
                 borrowers[i],
-                address(eUSDC),
-                address(pBALRETH)
+                address(borrowableCUSDC),
+                address(strategyCBALRETH)
             );
         }
 
@@ -316,7 +315,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
     function _getDebtBalancePreLiquidation() internal view returns (uint256[] memory debtBalances) {
         debtBalances = new uint256[](4);
         for(uint i; i < 4; i++) {
-            debtBalances[i] = eUSDC.debtBalance(borrowers[i]);
+            debtBalances[i] = borrowableCUSDC.debtBalance(borrowers[i]);
         }
         return debtBalances;
     }
@@ -330,7 +329,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         uint256[] memory liquidatedPTokens,
         uint256[] memory collateralRequired
     ) {
-        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
+        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor

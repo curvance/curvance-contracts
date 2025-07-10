@@ -106,8 +106,8 @@ contract TestOracleManager is TestBaseOracleManager {
         oracleManager.getPrice(_VELODROME_WETH_USDC, true, false);
     }
 
-    function testReturnsCorrectPriceForMTokens() public {
-        _deployEUSDC();
+    function testReturnsCorrectPriceForCTokens() public {
+        _deployBorrowableCUSDC();
         
         // Create a mock collateral token
         MockERC20Token underlying = new MockERC20Token();
@@ -123,19 +123,19 @@ contract TestOracleManager is TestBaseOracleManager {
 
         // Support market
         _prepareUSDC(address(this), 200000e6);
-        usdc.approve(address(eUSDC), 200000e6);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
         
         // Use mock collateral token
-        marketManagerIsolated.listTokens(address(mockPToken), address(eUSDC));
+        marketManagerIsolated.listTokens(address(mockPToken), address(borrowableCUSDC));
 
-        oracleManager.addCTokenSupport(address(eUSDC));
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
 
         uint256 eUSDCPrice;
         uint256 usdcPrice;
         uint256 errorCode;
 
         (eUSDCPrice, errorCode) = oracleManager.getPrice(
-            address(eUSDC),
+            address(borrowableCUSDC),
             true,
             false
         );

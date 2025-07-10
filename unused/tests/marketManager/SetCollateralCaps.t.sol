@@ -13,9 +13,9 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
     function setUp() public override {
         super.setUp();
 
-        mTokens.push(address(eUSDC));
-        mTokens.push(address(eDAI));
-        mTokens.push(address(pBALRETH));
+        mTokens.push(address(borrowableCUSDC));
+        mTokens.push(address(borrowableCDAI));
+        mTokens.push(address(simpleCBALRETH));
         collateralCaps.push(100e6);
         collateralCaps.push(100e18);
         collateralCaps.push(100e18);
@@ -44,7 +44,7 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
     function test_setCollateralCaps_fail_whenMTokenAndCapsLengthsMismatch()
         public
     {
-        mTokens.push(address(eUSDC));
+        mTokens.push(address(borrowableCUSDC));
         assertNotEq(mTokens.length, collateralCaps.length);
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InvalidParameter.selector
@@ -63,14 +63,14 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
 
     function test_setCollateralCaps_success() public {
         _prepareBALRETH(address(this), 1 ether);
-        balRETH.approve(address(pBALRETH), 1 ether);
+        balRETH.approve(address(simpleCBALRETH), 1 ether);
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(pBALRETH), 77777);
+        balRETH.approve(address(simpleCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
         marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
@@ -85,8 +85,8 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
         );
 
         address[] memory validMTokens = new address[](2);
-        validMTokens[0] = address(pBALRETH);
-        validMTokens[1] = address(pBALRETH);
+        validMTokens[0] = address(simpleCBALRETH);
+        validMTokens[1] = address(simpleCBALRETH);
         uint256[] memory validCollateralCaps = new uint256[](2);
         validCollateralCaps[0] = 100e18;
         validCollateralCaps[1] = 10e18;
@@ -102,7 +102,7 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
         );
 
         assertEq(
-            marketManagerIsolated.collateralCaps(address(pBALRETH)),
+            marketManagerIsolated.collateralCaps(address(simpleCBALRETH)),
             validCollateralCaps[1]
         );
     }

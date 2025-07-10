@@ -34,11 +34,11 @@
 
 //         // setup eDAI
 //         {
-//             _deployEDAI();
+//             _deployBorrowableCDAI();
 //             // add MToken support on price router
-//             oracleManager.addCTokenSupport(address(eDAI));
+//             oracleManager.addCTokenSupport(address(borrowableCDAI));
 //             _prepareDAI(owner, 200000e18);
-//             dai.approve(address(eDAI), 200000e18);
+//             dai.approve(address(borrowableCDAI), 200000e18);
 //         }
 
 //         // deploy simple cToken
@@ -56,7 +56,7 @@
 //             _WETH_ADDRESS
 //         );
 
-//         marketManagerIsolated.listTokens(address(pUSDC), address(eDAI));
+//         marketManagerIsolated.listTokens(address(pUSDC), address(borrowableCDAI));
 
 //         marketManagerIsolated.updatePositionToken(
 //             7000,    // collRatio 70%

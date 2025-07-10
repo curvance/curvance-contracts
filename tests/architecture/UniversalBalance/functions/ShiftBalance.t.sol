@@ -122,10 +122,10 @@ contract UniversalBalanceShiftBalanceTest is TestBaseUniversalBalance {
 
         vm.stopPrank();
 
-        uint256 redeemAmount = eUSDC.convertToShares(shiftAmount);
+        uint256 redeemAmount = borrowableCUSDC.convertToShares(shiftAmount);
         uint256 ethBalance = address(universalBalance).balance;
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user1);
 
         vm.expectEmit();
@@ -158,13 +158,13 @@ contract UniversalBalanceShiftBalanceTest is TestBaseUniversalBalance {
 
         if (fromLent) {
             usdcBalance += shiftAmount;
-            eUSDCBalance -= redeemAmount;
+            borrowableCUSDCBalance -= redeemAmount;
         } else {
             usdcBalance -= shiftAmount;
-            eUSDCBalance += redeemAmount;
+            borrowableCUSDCBalance += redeemAmount;
         }
 
         assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
-        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(borrowableCUSDC.balanceOf(address(universalBalance)), borrowableCUSDCBalance);
     }
 }

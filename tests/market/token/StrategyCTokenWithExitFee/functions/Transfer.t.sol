@@ -14,14 +14,14 @@ contract StrategyCTokenWithExitFeeTransferTest is
     function setUp() public override {
         super.setUp();
 
-        pBALRETHWithExitFee.mint(100, address(this));
+        strategyCBALRETHWithExitFee.mint(100, address(this));
     }
 
     function test_strategyCTokenWithExitFeeTransfer_fail_whenTransferZeroAmount()
         public
     {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-        pBALRETHWithExitFee.transfer(user1, 0);
+        strategyCBALRETHWithExitFee.transfer(user1, 0);
     }
 
     function test_strategyCTokenWithExitFeeTransfer_fail_whenTransferIsNotAllowed()
@@ -30,19 +30,19 @@ contract StrategyCTokenWithExitFeeTransferTest is
         marketManagerIsolated.setTransferPaused(true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        pBALRETHWithExitFee.transfer(user1, 1e18);
+        strategyCBALRETHWithExitFee.transfer(user1, 1e18);
     }
 
     function test_strategyCTokenWithExitFeeTransfer_success() public {
-        uint256 balance = pBALRETHWithExitFee.balanceOf(address(this));
-        uint256 user1Balance = pBALRETHWithExitFee.balanceOf(user1);
+        uint256 balance = strategyCBALRETHWithExitFee.balanceOf(address(this));
+        uint256 user1Balance = strategyCBALRETHWithExitFee.balanceOf(user1);
 
-        vm.expectEmit(true, true, true, true, address(pBALRETHWithExitFee));
+        vm.expectEmit(true, true, true, true, address(strategyCBALRETHWithExitFee));
         emit Transfer(address(this), user1, 100);
 
-        pBALRETHWithExitFee.transfer(user1, 100);
+        strategyCBALRETHWithExitFee.transfer(user1, 100);
 
-        assertEq(pBALRETHWithExitFee.balanceOf(address(this)), balance - 100);
-        assertEq(pBALRETHWithExitFee.balanceOf(user1), user1Balance + 100);
+        assertEq(strategyCBALRETHWithExitFee.balanceOf(address(this)), balance - 100);
+        assertEq(strategyCBALRETHWithExitFee.balanceOf(user1), user1Balance + 100);
     }
 }

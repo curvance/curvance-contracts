@@ -23,7 +23,7 @@
 //         SafeTransferLib.safeApprove(_DAI_ADDRESS, address(eDAI), _ONE);
 //         SafeTransferLib.safeApprove(
 //             _BAL_WETH_RETH_ADDRESS,
-//             address(pBALRETH),
+//             address(simpleCBALRETH),
 //             _ONE
 //         );
 
@@ -90,11 +90,11 @@
 
 //         eUSDC.depositReserves(1000e6);
 //         _prepareBALRETH(address(this), 10e18);
-//         balRETH.approve(address(pBALRETH), 10e18);
+//         balRETH.approve(address(simpleCBALRETH), 10e18);
 
-//         marketManager.listToken(address(pBALRETH));
+//         marketManager.listToken(address(simpleCBALRETH));
 //         marketManager.updatePositionToken(
-//             address(pBALRETH),
+//             address(simpleCBALRETH),
 //             7000,
 //             4000, // liquidate at 71%
 //             3000,
@@ -104,12 +104,12 @@
 //         );
 
 //         address[] memory tokens = new address[](1);
-//         tokens[0] = address(pBALRETH);
+//         tokens[0] = address(simpleCBALRETH);
 //         uint256[] memory caps = new uint256[](1);
 //         caps[0] = 100_000e18;
 //         marketManager.setCollateralCaps(tokens, caps);
 
-//         pBALRETH.mint(_ONE, address(this));
+//         simpleCBALRETH.mint(_ONE, address(this));
 
 //         address liquidityProvider = makeAddr("liquidityProvider");
 //         _prepareUSDC(liquidityProvider, 200000e6);
@@ -119,16 +119,16 @@
 //         usdc.approve(address(eUSDC), 200000e6);
 //         eUSDC.mint(200000e6);
 //         // mint cBALETH
-//         balRETH.approve(address(pBALRETH), 10e18);
-//         pBALRETH.deposit(10e18, liquidityProvider);
+//         balRETH.approve(address(simpleCBALRETH), 10e18);
+//         simpleCBALRETH.deposit(10e18, liquidityProvider);
 //         vm.stopPrank();
 
 //         _prepareBALRETH(user1, _ONE);
 
 //         vm.startPrank(user1);
-//         balRETH.approve(address(pBALRETH), _ONE);
-//         pBALRETH.deposit(_ONE, user1);
-//         pBALRETH.postCollateral(_ONE - 1);
+//         balRETH.approve(address(simpleCBALRETH), _ONE);
+//         simpleCBALRETH.deposit(_ONE, user1);
+//         simpleCBALRETH.postCollateral(_ONE - 1);
 
 //         eUSDC.borrow(1000e6);
 //         vm.stopPrank();
@@ -170,10 +170,10 @@
 
 //         vm.startPrank(user1);
 
-//         balRETH.approve(address(pBALRETHIsolated), _ONE);
-//         pBALRETHIsolated.deposit(_ONE, user1);
+//         balRETH.approve(address(simpleCBALRETHIsolated), _ONE);
+//         simpleCBALRETHIsolated.deposit(_ONE, user1);
 
-//         marketManagerIsolated.postCollateral(user1, address(pBALRETHIsolated), _ONE - 1);
+//         marketManagerIsolated.postCollateral(user1, address(simpleCBALRETHIsolated), _ONE - 1);
 
 //         _prepareUSDC(address(this), 1000e6);   
 

@@ -45,7 +45,7 @@
 //             _prepareDAI(users[i], 200000e18);
 //         }
 //         for (uint256 i = 0; i < 10; i++) {
-//             tokens[i] = address(_deployEDAI());
+//             tokens[i] = address(_deployBorrowableCDAI());
 //         }
 
 //         for (uint256 i = 0; i < 10; i++) {
@@ -53,7 +53,7 @@
 //             dai.approve(address(tokens[i]), 200000e18);
 //             marketManagerIsolated.listToken(tokens[i]);
 
-//             // add MToken support on oracle manager
+//             // add CToken support on oracle manager
 //             oracleManager.addCTokenSupport(tokens[i]);
 
 //             for (uint256 j = 0; j < 10; j++) {
@@ -280,7 +280,7 @@
 //     }
 
 //     // Deploy ETokenWithGauge
-//     function _deployEToken(
+//     function _deployBorrowableCToken(
 //         address token
 //     ) internal override initMainVariables returns (EToken) {
 //         EToken eToken = EToken(

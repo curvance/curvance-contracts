@@ -61,12 +61,13 @@ contract TestBaseMarketIsolated is TestBase {
 
         _deployMarketManager();
 
-        _deployEUSDC();
-        _deployEDAI();
+        _deployBorrowableCUSDC();
+        _deployBorrowableCDAI();
 
-        _deployPUSDC();
-        _deployPBALRETH();
-        _deployPBALRETHWithExitFee();
+        _deploySimpleCUSDC();
+
+        _deployStrategyCBALRETH();
+        _deployStrategyCBALRETHWithExitFee();
 
 
         _deployPendleZapper();
@@ -74,9 +75,9 @@ contract TestBaseMarketIsolated is TestBase {
 
         _setRedstoneSigners();
 
-        oracleManagers[chainId].addCTokenSupport(address(eUSDC));
-        oracleManagers[chainId].addCTokenSupport(address(pBALRETH));
-        oracleManagers[chainId].addCTokenSupport(address(pBALRETHWithExitFee));
+        oracleManagers[chainId].addCTokenSupport(address(borrowableCUSDC));
+        oracleManagers[chainId].addCTokenSupport(address(strategyCBALRETH));
+        oracleManagers[chainId].addCTokenSupport(address(strategyCBALRETHWithExitFee));
     }
 
     function _deployBaseContracts() internal {
@@ -431,51 +432,51 @@ contract TestBaseMarketIsolated is TestBase {
         return address(interestRateModels[block.chainid][underlyingToken]);
     }
 
-    function _deployEUSDC() internal initMainVariables returns (BorrowableCToken) {
-        eUSDC = eUSDCs[block.chainid] = _deployEToken(_USDC_ADDRESS);
-        return eUSDC;
+    function _deployBorrowableCUSDC() internal initMainVariables returns (BorrowableCToken) {
+        borrowableCUSDC = borrowableCUSDCs[block.chainid] = _deployBorrowableCToken(_USDC_ADDRESS);
+        return borrowableCUSDC;
     }
 
-    function _deployEDAI() internal initMainVariables returns (BorrowableCToken) {
-        eDAI = eDAIs[block.chainid] = _deployEToken(_DAI_ADDRESS);
-        return eDAI;
+    function _deployBorrowableCDAI() internal initMainVariables returns (BorrowableCToken) {
+        borrowableCDAI = borrowableCDAIs[block.chainid] = _deployBorrowableCToken(_DAI_ADDRESS);
+        return borrowableCDAI;
     }
 
-    function _deployEToken(
-        address token
+    function _deployBorrowableCToken(
+        address underlyingAsset
     ) internal virtual initMainVariables returns (BorrowableCToken) {
-        BorrowableCToken eToken = new BorrowableCToken(
+        BorrowableCToken borrowableCToken = new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(token),
+            IERC20(underlyingAsset),
             address(marketManagerIsolated),
-            _deployDynamicInterestRateModel(token)
+            _deployDynamicInterestRateModel(underlyingAsset)
         );
 
-        interestRateModels[block.chainid][token].setLinkedToken(
-            address(eToken)
+        interestRateModels[block.chainid][underlyingAsset].setLinkedToken(
+            address(borrowableCToken)
         );
 
-        return eToken;
+        return borrowableCToken;
     }
 
-    function _deployPUSDC()
+    function _deploySimpleCUSDC()
         internal
         initMainVariables
         returns (SimpleCToken) {
-        pUSDC = new SimpleCToken(
+        simpleCUSDC = new SimpleCToken(
             ICentralRegistry(address(centralRegistry)),
             usdc,
             address(marketManagerIsolated)
         );
-        return pUSDC;
+        return simpleCUSDC;
     }
 
-    function _deployPBALRETH()
+    function _deployStrategyCBALRETH()
         internal
         initMainVariables
         returns (AuraCToken)
     {
-        pBALRETH = pBALRETHs[block.chainid] = new AuraCToken(
+        strategyCBALRETH = strategyCBALRETHs[block.chainid] = new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManagerIsolated),
@@ -484,15 +485,15 @@ contract TestBaseMarketIsolated is TestBase {
             _AURA_BOOSTER,
             1 days
         );
-        return pBALRETH;
+        return strategyCBALRETH;
     }
 
-    function _deployPBALRETHWithExitFee()
+    function _deployStrategyCBALRETHWithExitFee()
         internal
         initMainVariables
         returns (MockAuraCTokenWithExitFee)
     {
-        pBALRETHWithExitFee = pBALRETHWithExitFees[
+        strategyCBALRETHWithExitFee = strategyCBALRETHWithExitFees[
             block.chainid
         ] = new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
@@ -504,7 +505,7 @@ contract TestBaseMarketIsolated is TestBase {
             200,
             1 days
         );
-        return pBALRETHWithExitFee;
+        return strategyCBALRETHWithExitFee;
     }
 
     function _deployPendleZapper()

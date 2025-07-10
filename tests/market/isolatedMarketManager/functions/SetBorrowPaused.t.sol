@@ -5,43 +5,43 @@ import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract SetBorrowPausedTest is TestBaseMarketManagerIsolated {
-    event TokenActionPaused(address mToken, string action, bool pauseState);
+    event TokenActionPaused(address cToken, string action, bool pauseState);
 
     function test_setBorrowPaused_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(1));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManagerIsolated.setBorrowPaused(address(eUSDC), true);
+        marketManagerIsolated.setBorrowPaused(address(borrowableCUSDC), true);
     }
 
-    function test_setBorrowPaused_fail_whenMTokenIsNotListed() public {
+    function test_setBorrowPaused_fail_whenCTokenIsNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManagerIsolated.setBorrowPaused(address(eUSDC), true);
+        marketManagerIsolated.setBorrowPaused(address(borrowableCUSDC), true);
     }
 
     function test_setBorrowPaused_success() public {
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(pBALRETH), 77777);
+        balRETH.approve(address(strategyCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        assertEq(marketManagerIsolated.borrowPaused(address(eUSDC)), 0);
-
-        vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
-        emit TokenActionPaused(address(eUSDC), "Borrow Paused", true);
-
-        marketManagerIsolated.setBorrowPaused(address(eUSDC), true);
-
-        assertEq(marketManagerIsolated.borrowPaused(address(eUSDC)), 2);
+        assertEq(marketManagerIsolated.borrowPaused(address(borrowableCUSDC)), 0);
 
         vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
-        emit TokenActionPaused(address(eUSDC), "Borrow Paused", false);
+        emit TokenActionPaused(address(borrowableCUSDC), "Borrow Paused", true);
 
-        marketManagerIsolated.setBorrowPaused(address(eUSDC), false);
+        marketManagerIsolated.setBorrowPaused(address(borrowableCUSDC), true);
 
-        assertEq(marketManagerIsolated.borrowPaused(address(eUSDC)), 1);
+        assertEq(marketManagerIsolated.borrowPaused(address(borrowableCUSDC)), 2);
+
+        vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
+        emit TokenActionPaused(address(borrowableCUSDC), "Borrow Paused", false);
+
+        marketManagerIsolated.setBorrowPaused(address(borrowableCUSDC), false);
+
+        assertEq(marketManagerIsolated.borrowPaused(address(borrowableCUSDC)), 1);
     }
 }

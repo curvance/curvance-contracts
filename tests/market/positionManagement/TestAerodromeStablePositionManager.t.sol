@@ -92,12 +92,12 @@
 
 //         // setup eDAI
 //         {
-//             _deployEDAI();
+//             _deployBorrowableCDAI();
 //             // add MToken support on price router
-//             oracleManager.addCTokenSupport(address(eDAI));
+//             oracleManager.addCTokenSupport(address(borrowableCDAI));
 
 //             _prepareDAI(owner, 200000e18);
-//             dai.approve(address(eDAI), 200000e18);
+//             dai.approve(address(borrowableCDAI), 200000e18);
             
 //         }
 
@@ -120,7 +120,7 @@
 
 
 
-//         marketManagerIsolated.listTokens(address(pUSDCDAI),address(eDAI));
+//         marketManagerIsolated.listTokens(address(pUSDCDAI),address(borrowableCDAI));
 
 
 //         marketManagerIsolated.updatePositionToken(
@@ -193,17 +193,17 @@
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
-//         eDAI.borrow(100 ether);
+//         borrowableCDAI.borrow(100 ether);
 //         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
 //         // try leverage with 50% of max
 //         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) * 50) / 100;
 
 //         AerodromePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDCDAI));
 //         leverageData.swapData.inputToken = address(0x0);
@@ -216,8 +216,8 @@
 
 //         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
-//         AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
-//         assertEq(eDAI.balanceOf(user), 0);
+//         AccountSnapshot memory eDAISnapshot = borrowableCDAI.getSnapshot(user);
+//         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAISnapshot.debtOutstanding, 100 ether + amountForLeverage);
 
 //         AccountSnapshot memory pUSDCDAISnapshot = pUSDCDAI.getSnapshot(user);
@@ -243,7 +243,7 @@
 //         uint256 amountForLeverage = 0.66e20;
 
 //         AerodromePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDCDAI));
 //         leverageData.swapData.inputToken = address(0x0);
@@ -260,8 +260,8 @@
 //             0.05e18
 //         ); // 5% slippage
 
-//         AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
-//         assertEq(eDAI.balanceOf(user), 0);
+//         AccountSnapshot memory eDAISnapshot = borrowableCDAI.getSnapshot(user);
+//         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAISnapshot.debtOutstanding, amountForLeverage);
 
 //         AccountSnapshot memory pUSDCDAISnapshot = pUSDCDAI.getSnapshot(user);
@@ -281,7 +281,7 @@
 //         pUSDCDAI.postCollateral(0.001 ether);
 //         assertEq(pUSDCDAI.balanceOf(user), 0.001 ether);
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
-//         eDAI.borrow(500 ether);
+//         borrowableCDAI.borrow(500 ether);
 //         assertEq(balanceBeforeBorrow + 500 ether, dai.balanceOf(user));
 
 //         // deposit and leverage
@@ -297,11 +297,11 @@
 //         // try max leverage
 //         uint256 amountForLeverage = positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         );
 
 //         AerodromePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDCDAI));
 //         leverageData.swapData.inputToken = address(0x0);
@@ -318,8 +318,8 @@
 //             0.05e18 // 5% slippage
 //         );
 
-//         AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
-//         assertEq(eDAI.balanceOf(user), 0);
+//         AccountSnapshot memory eDAISnapshot = borrowableCDAI.getSnapshot(user);
+//         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAISnapshot.debtOutstanding, amountForLeverage + 500 ether);
 
 //         AccountSnapshot memory pUSDCDAISnapshot = pUSDCDAI.getSnapshot(user);
@@ -339,7 +339,7 @@
 //         pUSDCDAI.postCollateral(0.001 ether);
 //         assertEq(pUSDCDAI.balanceOf(user), 0.001 ether);
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
-//         eDAI.borrow(500 ether);
+//         borrowableCDAI.borrow(500 ether);
 //         assertEq(balanceBeforeBorrow + 500 ether, dai.balanceOf(user));
 
 //         // deposit and leverage
@@ -355,11 +355,11 @@
 //         // try half of max leverage
 //         uint256 amountForLeverage = positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) / 2;
 
 //         AerodromePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDCDAI));
 //         leverageData.swapData.inputToken = address(0x0);
@@ -376,8 +376,8 @@
 //             0.05e18 // 5% slippage
 //         );
 
-//         AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
-//         assertEq(eDAI.balanceOf(user), 0);
+//         AccountSnapshot memory eDAISnapshot = borrowableCDAI.getSnapshot(user);
+//         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAISnapshot.debtOutstanding, amountForLeverage + 500 ether);
 
 //         AccountSnapshot memory pUSDCDAISnapshot = pUSDCDAI.getSnapshot(user);
@@ -391,18 +391,18 @@
 //         testLeverage();
 //         // Warp until collateral posting wait time ends
 //         vm.warp(block.timestamp + 20 minutes);
-//         eDAI.accrueInterest();
+//         borrowableCDAI.accrueInterest();
 
 //         vm.startPrank(user);
 
 //         AerodromePositionManager.DeleverageStruct memory deleverageData;
 
-//         AccountSnapshot memory eDAISnapshotBefore = eDAI.getSnapshot(user);
+//         AccountSnapshot memory eDAISnapshotBefore = borrowableCDAI.getSnapshot(user);
 //         uint256 pUSDCDAIBalanceBefore = pUSDCDAI.balanceOf(user);
 
 //         deleverageData.positionToken = ICToken(address(pUSDCDAI));
 //         deleverageData.collateralAmount = 0.00003 ether;
-//         deleverageData.borrowToken = IEToken(address(eDAI));
+//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
 
 //         uint256 usdcAmount = 28430000;
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
@@ -429,8 +429,8 @@
 //         pUSDCDAI.approve(address(positionManagement), type(uint256).max);
 //         positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
 
-//         AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
-//         assertEq(eDAI.balanceOf(user), 0);
+//         AccountSnapshot memory eDAISnapshot = borrowableCDAI.getSnapshot(user);
+//         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(
 //             eDAISnapshot.debtOutstanding,
 //             eDAISnapshotBefore.debtOutstanding - deleverageData.repayAmount
@@ -459,16 +459,16 @@
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
-//         eDAI.borrow(100 ether);
+//         borrowableCDAI.borrow(100 ether);
 //         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
 //         // try leverage with 50% of max
 //         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) * 50) / 100;
 //         AerodromePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDCDAI));
 //         leverageData.swapData.inputToken = address(0x0);
@@ -485,8 +485,8 @@
 //         vm.prank(user2);
 //         positionManagement.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
-//         AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
-//         assertEq(eDAI.balanceOf(user), 0);
+//         AccountSnapshot memory eDAISnapshot = borrowableCDAI.getSnapshot(user);
+//         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAISnapshot.debtOutstanding, 100 ether + amountForLeverage);
 
 //         AccountSnapshot memory pUSDCDAISnapshot = pUSDCDAI.getSnapshot(user);
@@ -500,18 +500,18 @@
 //         testLeverage();
 //         // Warp until collateral posting wait time ends
 //         vm.warp(block.timestamp + 20 minutes);
-//         eDAI.accrueInterest();
+//         borrowableCDAI.accrueInterest();
 
 //         vm.startPrank(user);
 
 //         AerodromePositionManager.DeleverageStruct memory deleverageData;
 
-//         AccountSnapshot memory eDAISnapshotBefore = eDAI.getSnapshot(user);
+//         AccountSnapshot memory eDAISnapshotBefore = borrowableCDAI.getSnapshot(user);
 //         uint256 pUSDCDAIBalanceBefore = pUSDCDAI.balanceOf(user);
 
 //         deleverageData.positionToken = ICToken(address(pUSDCDAI));
 //         deleverageData.collateralAmount = 0.00003 ether;
-//         deleverageData.borrowToken = IEToken(address(eDAI));
+//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
 
 //         uint256 usdcAmount = 28430000;
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
@@ -542,8 +542,8 @@
 //         vm.prank(user2);
 //         positionManagement.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
-//         AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
-//         assertEq(eDAI.balanceOf(user), 0);
+//         AccountSnapshot memory eDAISnapshot = borrowableCDAI.getSnapshot(user);
+//         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(
 //             eDAISnapshot.debtOutstanding,
 //             eDAISnapshotBefore.debtBalance - deleverageData.repayAmount
@@ -568,8 +568,8 @@
 //         vm.startPrank(liquidityProvider);
 
 //         // mint eDAI
-//         dai.approve(address(eDAI), 20000000 ether);
-//         eDAI.mint(20000000 ether);
+//         dai.approve(address(borrowableCDAI), 20000000 ether);
+//         borrowableCDAI.mint(20000000 ether);
 
 //         // mint pUSDCDAI
 //         IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 1 ether);

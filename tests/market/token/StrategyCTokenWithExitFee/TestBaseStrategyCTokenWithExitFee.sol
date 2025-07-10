@@ -78,11 +78,11 @@ contract TestBaseStrategyCTokenWithExitFee is TestBaseMarketIsolated {
 
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,
-            address(pBALRETHWithExitFee),
+            address(strategyCBALRETHWithExitFee),
             _ONE
         );
 
-        dai.approve(address(eDAI), _ONE);
-        marketManagerIsolated.listTokens(address(pBALRETHWithExitFee), address(eDAI));
+        dai.approve(address(borrowableCDAI), _ONE);
+        marketManagerIsolated.listTokens(address(strategyCBALRETHWithExitFee), address(borrowableCDAI));
     }
 }

@@ -118,7 +118,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Accrues pending interest and updates the interest rate model.
     /// @dev Admin function to update the interest rate model.
     /// @param newInterestRateModel The new interest rate model for this
-    ///                             eToken to use.
+    ///                             borrowableCToken to use.
     function setInterestRateModel(address newInterestRateModel) external {
         _checkElevatedPermissions();
 
@@ -131,7 +131,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Accrues pending interest and updates the interest factor.
     /// @dev Admin function to update the interest factor value.
     /// @param newInterestFee The new interest factor for this
-    ///                          eToken to use.
+    ///                       borrowableCToken to use.
     function setInterestFee(uint256 newInterestFee) external {
         _checkElevatedPermissions();
 
@@ -702,13 +702,15 @@ contract BorrowableCToken is BaseCTokenWithYield {
         uint256 vestingData = _vestingData;
         console2.log("vestingData", vestingData);
         uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_VEST_END);
+
         console2.log("lastVestingClaim", lastVestingClaim);
         console2.log("block.timestamp", block.timestamp);
-        
+
         // If no time has passed since the last accrual can exit immediately.
         if (block.timestamp == lastVestingClaim) {
             return;
         }
+
         uint256 vestingRate = uint96(vestingData);
         uint256 vestingPeriodEnd = uint40(vestingData >> _BITPOS_LAST_VEST);
         uint256 marketDebtIndex = uint80(vestingData >> _BITPOS_DEBT_INDEX);
@@ -843,10 +845,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
             console2.log("cachedTa", cachedTa);
         }
 
-        // Update _totalAssets based on new assets recognized by protocol.
-        _totalAssets = cachedTa;
-        console2.log("_totalAssets", _totalAssets);
-
         assembly {
             // Mask vestingRate to the lower 96 bits, in case
             // the upper bits somehow aren't clean.
@@ -865,15 +863,19 @@ contract BorrowableCToken is BaseCTokenWithYield {
             )
         }
 
-        // Set the new vesting data.
+        // Update _totalAssets based on new assets recognized by protocol.
+        _totalAssets = cachedTa;
+        // Update packed vesting data based on new vesting configuration.
         _vestingData = vestingData;
+        
         console2.log("_vestingData", _vestingData);
+        console2.log("_totalAssets", _totalAssets);
     }
 
     /// @notice Updates the interest rate model.
     /// @dev Emits a {NewMarketInterestRateModel} event.
     /// @param newInterestRateModel The new interest rate model for this
-    ///                             eToken to use.
+    ///                             borrowableCToken to use.
     function _setInterestRateModel(
         IInterestRateModel newInterestRateModel
     ) internal {
@@ -905,7 +907,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Updates the interest factor.
     /// @dev Emits a {NewInterestFee} event.
     /// @param newInterestFee The new interest factor for this
-    ///                          eToken to use.
+    ///                       borrowableCToken to use.
     function _setInterestFee(uint256 newInterestFee) internal {
         // The DAO cannot take more than 50% of interest collected.
         if (newInterestFee > MAX_INTEREST_ACCRUAL_FEE) {

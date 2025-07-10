@@ -14,13 +14,13 @@ contract AccountFunctionsIsolatedMarketManager is TestBaseMarketManagerIsolated 
         
         // // Setup market with tokens
         // deal(address(balRETH), address(this), 77777);
-        // balRETH.approve(address(pBALRETH), 77777);
+        // balRETH.approve(address(simpleCBALRETH), 77777);
 
         // deal(address(_USDC_ADDRESS), address(this), 77777);
-        // usdc.approve(address(eUSDC), 77777);
+        // usdc.approve(address(borrowableCUSDC), 77777);
         
         // // List tokens in the market
-        // marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        // marketManager.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
         
         // // Set position token parameters
         // marketManager.updatePositionToken(
@@ -43,7 +43,7 @@ contract AccountFunctionsIsolatedMarketManager is TestBaseMarketManagerIsolated 
         // vm.stopPrank();
 
         // address[] memory tokens = new address[](1);
-        // tokens[0] = address(pBALRETH);
+        // tokens[0] = address(simpleCBALRETH);
         // uint256[] memory caps = new uint256[](1);
         // caps[0] = 100_000e18;
         // marketManager.setCollateralCaps(tokens, caps);
@@ -55,13 +55,13 @@ contract AccountFunctionsIsolatedMarketManager is TestBaseMarketManagerIsolated 
     function test_assetsOf() public {
         address[] memory assets = marketManagerIsolated.assetsOf(user1);
         assertEq(assets.length, 2);
-        assertEq(address(assets[0]), address(pBALRETH));
-        assertEq(address(assets[1]), address(eUSDC));
+        assertEq(address(assets[0]), address(strategyCBALRETH));
+        assertEq(address(assets[1]), address(borrowableCUSDC));
     }
 
     function test_tokenDataOf() public {
 
-        (bool hasPosition, uint256 balanceOf, uint256 collateralPostedOf) = auxiliaryData.tokenDataOf(user1, address(pBALRETH));
+        (bool hasPosition, uint256 balanceOf, uint256 collateralPostedOf) = auxiliaryData.tokenDataOf(user1, address(strategyCBALRETH));
         assertEq(hasPosition, true);
         assertEq(balanceOf, _ONE, "balance of mismatch");
         assertEq(collateralPostedOf, _ONE - 1, "collateral posted mismatch");

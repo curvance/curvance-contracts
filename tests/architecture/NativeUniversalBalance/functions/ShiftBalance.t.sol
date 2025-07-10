@@ -126,10 +126,10 @@ contract NativeUniversalBalanceShiftBalanceTest is
 
         vm.stopPrank();
 
-        uint256 redeemAmount = eWETH.convertToShares(shiftAmount);
+        uint256 redeemAmount = borrowableCWETH.convertToShares(shiftAmount);
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userUSDCBalance = weth.balanceOf(user1);
@@ -164,16 +164,16 @@ contract NativeUniversalBalanceShiftBalanceTest is
 
         if (fromLent) {
             wethBalance += shiftAmount;
-            eWETHBalance -= redeemAmount;
+            borrowableCWETHBalance -= redeemAmount;
         } else {
             wethBalance -= shiftAmount;
-            eWETHBalance += redeemAmount;
+            borrowableCWETHBalance += redeemAmount;
         }
 
         assertEq(weth.balanceOf(address(nativeUniversalBalance)), wethBalance);
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance
         );
     }
 }

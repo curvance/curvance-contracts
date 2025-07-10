@@ -11,7 +11,7 @@ contract StrategyCTokenStartMarketTest is TestBaseStrategyCToken {
     {
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
 
-        pBALRETH.startMarket(address(0));
+        strategyCBALRETH.startMarket(address(0));
     }
 
     function test_strategyCTokenStartMarket_fail_whenInitializerIsZeroAddress()
@@ -20,22 +20,22 @@ contract StrategyCTokenStartMarketTest is TestBaseStrategyCToken {
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
 
         vm.prank(address(marketManagerIsolated));
-        pBALRETH.startMarket(address(0));
+        strategyCBALRETH.startMarket(address(0));
     }
 
     function test_strategyCTokenStartMarket_success() public {
         vm.prank(user1);
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,
-            address(pBALRETH),
+            address(strategyCBALRETH),
             1e18
         );
 
-        uint256 totalSupply = pBALRETH.totalSupply();
+        uint256 totalSupply = strategyCBALRETH.totalSupply();
 
         vm.prank(address(marketManagerIsolated));
-        pBALRETH.startMarket(user1);
+        strategyCBALRETH.startMarket(user1);
 
-        assertEq(pBALRETH.totalSupply(), totalSupply + 77777);
+        assertEq(strategyCBALRETH.totalSupply(), totalSupply + 77777);
     }
 }

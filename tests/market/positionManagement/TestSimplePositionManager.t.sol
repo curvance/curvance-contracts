@@ -39,12 +39,12 @@
 
 //         // setup eDAI
 //         {
-//             _deployEDAI();
+//             _deployBorrowableCDAI();
 //             // add MToken support on price router
-//             oracleManager.addCTokenSupport(address(eDAI));
+//             oracleManager.addCTokenSupport(address(borrowableCDAI));
 
 //             _prepareDAI(owner, 200000e18);
-//             dai.approve(address(eDAI), 200000e18);
+//             dai.approve(address(borrowableCDAI), 200000e18);
 //         }
 
 //         // deploy simple cToken
@@ -57,7 +57,7 @@
 
 //         }
 
-//         marketManagerIsolated.listTokens(address(pUSDC), address(eDAI));
+//         marketManagerIsolated.listTokens(address(pUSDC), address(borrowableCDAI));
 
 //         marketManagerIsolated.updatePositionToken(
 //             7000,    // collRatio 70%
@@ -97,8 +97,8 @@
 //         vm.startPrank(liquidityProvider);
 
 //         // mint eDAI
-//         dai.approve(address(eDAI), 20000000 ether);
-//         eDAI.mint(20000000 ether);
+//         dai.approve(address(borrowableCDAI), 20000000 ether);
+//         borrowableCDAI.mint(20000000 ether);
 
 //         // mint pUSDC
 //         usdc.approve(address(pUSDC), 100e6);
@@ -131,17 +131,17 @@
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
-//         eDAI.borrow(100 ether);
+//         borrowableCDAI.borrow(100 ether);
 //         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
 //         // try leverage with 50% of max
 //         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) * 50) / 100;
 
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -163,8 +163,8 @@
 
 //         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-//         assertEq(eDAI.balanceOf(user), 0);
+//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
 //         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = pUSDC.getSnapshot(
@@ -189,7 +189,7 @@
 //         uint256 amountForLeverage = 0.99e21;
 
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -211,8 +211,8 @@
 
 //         positionManagement.depositAndLeverage(1000e6, leverageData, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-//         assertEq(eDAI.balanceOf(user), 0);
+//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, amountForLeverage);
 
 //         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = pUSDC.getSnapshot(
@@ -228,16 +228,16 @@
 //         testLeverage();
 //         // Warp until collateral posting wait time ends
 //         vm.warp(block.timestamp + 20 minutes);
-//         eDAI.accrueInterest();
+//         borrowableCDAI.accrueInterest();
 
 //         vm.startPrank(user);
-//         (,,,, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+//         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
 //         (uint256 pUSDCBalanceBefore, , ) = pUSDC.getSnapshot(user);
 
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
 //         deleverageData.positionToken = ICToken(address(pUSDC));
 //         deleverageData.collateralAmount = 900e6;
-//         deleverageData.borrowToken = IEToken(address(eDAI));
+//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = address(usdc);
 //         deleverageData.swapData[0].inputAmount = 900e6;
@@ -258,8 +258,8 @@
 //         deleverageData.repayAmount = 890 ether;
 //         positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-//         assertEq(eDAI.balanceOf(user), 0);
+//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(
 //             eDAIBorrowed,
 //             eDAIBorrowedBefore - deleverageData.repayAmount
@@ -290,17 +290,17 @@
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
-//         eDAI.borrow(100 ether);
+//         borrowableCDAI.borrow(100 ether);
 //         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
 //         // try leverage with 50% of max
 //         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) * 50) / 100;
 
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -326,8 +326,8 @@
 //         vm.prank(user2);
 //         positionManagement.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-//         assertEq(eDAI.balanceOf(user), 0);
+//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
 //         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = pUSDC.getSnapshot(
@@ -344,16 +344,16 @@
 
 //         // Warp until collateral posting wait time ends
 //         vm.warp(block.timestamp + 20 minutes);
-//         eDAI.accrueInterest();
+//         borrowableCDAI.accrueInterest();
 
 //         vm.startPrank(user);
-//         (,,,, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+//         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
 //         (uint256 pUSDCBalanceBefore, , ) = pUSDC.getSnapshot(user);
 
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
 //         deleverageData.positionToken = ICToken(address(pUSDC));
 //         deleverageData.collateralAmount = 900e6;
-//         deleverageData.borrowToken = IEToken(address(eDAI));
+//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = address(usdc);
 //         deleverageData.swapData[0].inputAmount = 900e6;
@@ -380,8 +380,8 @@
 //         vm.prank(user2);
 //         positionManagement.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-//         assertEq(eDAI.balanceOf(user), 0);
+//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(
 //             eDAIBorrowed,
 //             eDAIBorrowedBefore - deleverageData.repayAmount
@@ -408,15 +408,15 @@
 //         pUSDC.mint(1000e6, user);
 //         pUSDC.postCollateral(1000e6);
         
-//         eDAI.borrow(100 ether);
+//         borrowableCDAI.borrow(100 ether);
         
 //         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -449,14 +449,14 @@
         
 //         // Warp until collateral posting wait time ends
 //         vm.warp(block.timestamp + 20 minutes);
-//         eDAI.accrueInterest();
+//         borrowableCDAI.accrueInterest();
         
 //         vm.startPrank(user);
         
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
 //         deleverageData.positionToken = ICToken(address(pUSDC));
 //         deleverageData.collateralAmount = 900e6;
-//         deleverageData.borrowToken = IEToken(address(eDAI));
+//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = address(usdc);
 //         deleverageData.swapData[0].inputAmount = 900e6;
@@ -493,15 +493,15 @@
 //         pUSDC.postCollateral(1000e6);
         
 //         // borrow
-//         eDAI.borrow(100 ether);
+//         borrowableCDAI.borrow(100 ether);
         
 //         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(usdc); // incorrect input token
@@ -534,14 +534,14 @@
         
 //         // Warp until collateral posting wait time ends
 //         vm.warp(block.timestamp + 20 minutes);
-//         eDAI.accrueInterest();
+//         borrowableCDAI.accrueInterest();
         
 //         vm.startPrank(user);
         
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
 //         deleverageData.positionToken = ICToken(address(pUSDC));
 //         deleverageData.collateralAmount = 900e6;
-//         deleverageData.borrowToken = IEToken(address(eDAI));
+//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = address(dai); // Incorrect input token (should be USDC)
 //         deleverageData.swapData[0].inputAmount = 900e6;
@@ -578,15 +578,15 @@
 //         pUSDC.postCollateral(1000e6);
         
 //         // borrow
-//         eDAI.borrow(100 ether);
+//         borrowableCDAI.borrow(100 ether);
         
 //         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -624,15 +624,15 @@
 //         pUSDC.postCollateral(1000e6);
         
 //         // borrow
-//         eDAI.borrow(100 ether);
+//         borrowableCDAI.borrow(100 ether);
         
 //         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -665,14 +665,14 @@
         
 //         // Warp until collateral posting wait time ends
 //         vm.warp(block.timestamp + 20 minutes);
-//         eDAI.accrueInterest();
+//         borrowableCDAI.accrueInterest();
         
 //         vm.startPrank(user);
         
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
 //         deleverageData.positionToken = ICToken(address(pUSDC));
 //         deleverageData.collateralAmount = 900e6;
-//         deleverageData.borrowToken = IEToken(address(eDAI));
+//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = address(usdc);
 //         deleverageData.swapData[0].inputAmount = 800e6; // Incorrect amount (should match collateralAmount)
@@ -709,15 +709,15 @@
 //         pUSDC.postCollateral(1000e6);
         
 //         // borrow
-//         eDAI.borrow(100 ether);
+//         borrowableCDAI.borrow(100 ether);
         
 //         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -739,14 +739,14 @@
         
 //         // Warp until collateral posting wait time ends
 //         vm.warp(block.timestamp + 20 minutes);
-//         eDAI.accrueInterest();
+//         borrowableCDAI.accrueInterest();
         
 //         vm.startPrank(user);
         
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
 //         deleverageData.positionToken = ICToken(address(pUSDC));
 //         deleverageData.collateralAmount = 900e6;
-//         deleverageData.borrowToken = IEToken(address(eDAI));
+//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](0); // Empty array
 //         deleverageData.repayAmount = 890 ether;
         
@@ -768,15 +768,15 @@
 //         pUSDC.postCollateral(1000e6);
         
 //         // borrow
-//         eDAI.borrow(100 ether);
+//         borrowableCDAI.borrow(100 ether);
         
 //         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -813,7 +813,7 @@
 //         usdc.approve(address(pUSDC), 1000e6);
 //         pUSDC.mint(1000e6, user);
 //         pUSDC.postCollateral(1000e6);
-//         eDAI.borrow(100 ether);
+//         borrowableCDAI.borrow(100 ether);
         
 //         // Do not set delegate approval for user2
 
@@ -822,11 +822,11 @@
 //         // Set up leverage data
 //         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -859,7 +859,7 @@
         
 //         // Warp until collateral posting wait time ends
 //         vm.warp(block.timestamp + 20 minutes);
-//         eDAI.accrueInterest();
+//         borrowableCDAI.accrueInterest();
         
 //         vm.startPrank(user);
         
@@ -867,7 +867,7 @@
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
 //         deleverageData.positionToken = ICToken(address(pUSDC));
 //         deleverageData.collateralAmount = 900e6;
-//         deleverageData.borrowToken = IEToken(address(eDAI));
+//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = address(usdc);
 //         deleverageData.swapData[0].inputAmount = 900e6;
@@ -914,17 +914,17 @@
 //         usdc.approve(address(pUSDC), 1000e6);
 //         pUSDC.mint(1000e6, user);
 //         pUSDC.postCollateral(1000e6);
-//         eDAI.borrow(100 ether);
+//         borrowableCDAI.borrow(100 ether);
         
 //         vm.stopPrank();
 
 //         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
 //             user,
-//             address(eDAI)
+//             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(eDAI));
+//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);

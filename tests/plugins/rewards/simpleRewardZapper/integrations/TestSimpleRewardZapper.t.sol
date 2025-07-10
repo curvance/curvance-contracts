@@ -18,7 +18,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
 
-    SimpleCToken public pWETH;
+    SimpleCToken public simpleCWETH;
 
     function setUp() public override {
         super.setUp();
@@ -67,71 +67,56 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         address owner = address(this);
 
-        // deploy eUSDC
+        // Deploy borrowableCUSDC.
         {
-            _deployEUSDC();
+            _deployBorrowableCUSDC();
             // support market
             _prepareUSDC(owner, 200000e6);
-            usdc.approve(address(eUSDC), 200000e6);
-            // add MToken support on oracle manager
-            oracleManager.addCTokenSupport(address(eUSDC));
-            address[] memory markets = new address[](1);
-            markets[0] = address(eUSDC);
-            // vm.prank(user1);
-            // marketManager.enterMarkets(markets);
-            // vm.prank(user2);
-            // marketManager.enterMarkets(markets);
+            usdc.approve(address(borrowableCUSDC), 200000e6);
+            // add CToken support on oracle manager
+            oracleManager.addCTokenSupport(address(borrowableCUSDC));
         }
 
-        // deploy pWETH
+        // Deploy simpleCWETH
         {
-            // deploy aura position vault
-            pWETH = new SimpleCToken(
+            simpleCWETH = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
                 weth,
                 address(marketManagerIsolated)
             );
 
-            // support market
             _prepareWETH(owner, 1 ether);
-            weth.approve(address(pWETH), 1 ether);
-            // add MToken support on oracle manager
-            oracleManager.addCTokenSupport(address(pWETH));
-            // set position token configuration
-
-
-            // address[] memory markets = new address[](1);
-            // markets[0] = address(pWETH);
-            // vm.prank(user1);
-            // marketManager.enterMarkets(markets);
-            // vm.prank(user2);
-            // marketManager.enterMarkets(markets);
+            weth.approve(address(simpleCWETH), 1 ether);
+            // add CToken support on oracle manager
+            oracleManager.addCTokenSupport(address(simpleCWETH));
         }
 
-        // list tokens
-        marketManagerIsolated.listTokens(address(pWETH), address(eUSDC));
+        // List tokens.
+        marketManagerIsolated.listTokens(
+            address(simpleCWETH),
+            address(borrowableCUSDC)
+        );
 
-        MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pWETH);
-        configToken0.collRatio = 7000;
-        configToken0.collReqSoft = 4000;
-        configToken0.collReqHard = 3000;
-        configToken0.liqIncBase = 1000;
-        configToken0.liqIncHard = 1500;
-        configToken0.liqIncMin = 500;
-        configToken0.liqIncMax = 2000;
-        configToken0.minEffectiveCloseFactor = 2000;
-        configToken0.maxEffectiveCloseFactor = 5000;
-        configToken0.baseCFactor = 1000;
-        configToken0.collateralCap = 100_000e18;
-        configToken0.debtCap = 0;
+        MarketManagerIsolated.TokenConfig memory tokenConfigs;
+        tokenConfigs.cToken = address(simpleCWETH);
+        tokenConfigs.collRatio = 7000;
+        tokenConfigs.collReqSoft = 4000;
+        tokenConfigs.collReqHard = 3000;
+        tokenConfigs.liqIncBase = 1000;
+        tokenConfigs.liqIncHard = 1500;
+        tokenConfigs.liqIncMin = 500;
+        tokenConfigs.liqIncMax = 2000;
+        tokenConfigs.minEffectiveCloseFactor = 2000;
+        tokenConfigs.maxEffectiveCloseFactor = 5000;
+        tokenConfigs.baseCFactor = 1000;
+        tokenConfigs.collateralCap = 100_000e18;
+        tokenConfigs.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(configToken0);
+        marketManagerIsolated.updateTokenConfig(tokenConfigs);
 
-        MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
-        configToken1.debtCap = 1_000_000e18;
-        marketManagerIsolated.updateTokenConfig(configToken1);
+        tokenConfigs.cToken = address(borrowableCUSDC);
+        tokenConfigs.debtCap = 1_000_000e18;
+        marketManagerIsolated.updateTokenConfig(tokenConfigs);
 
         provideEnoughLiquidityForLeverage();
     }
@@ -142,11 +127,11 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         _prepareWETH(liquidityProvider, 10 ether);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.deposit(200000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
-        weth.approve(address(pWETH), 10 ether);
-        pWETH.mint(10 ether, liquidityProvider);
+        weth.approve(address(simpleCWETH), 10 ether);
+        simpleCWETH.mint(10 ether, liquidityProvider);
         vm.stopPrank();
     }
 
@@ -278,14 +263,14 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
             .getAmountsOut(rewards, path);
         uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
-        uint256 desiredTokenBalance = pWETH.balanceOf(user1);
+        uint256 desiredTokenBalance = simpleCWETH.balanceOf(user1);
 
         vm.prank(user1);
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
 
         vm.prank(user1);
         simpleRewardZapper.claimSwapAndDeposit(
-            address(pWETH),
+            address(simpleCWETH),
             swapData,
             0,
             false,
@@ -296,18 +281,18 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             usdc.balanceOf(address(rewardManager)),
             baseRewardBalance - amountsOut[0]
         );
-        assertEq(pWETH.balanceOf(user1), desiredTokenBalance + amountsOut[1]);
+        assertEq(simpleCWETH.balanceOf(user1), desiredTokenBalance + amountsOut[1]);
     }
 
     function testClaimSwapAndRepay() public {
         // mint
         vm.startPrank(user1);
         _prepareWETH(user1, 1 ether);
-        weth.approve(address(pWETH), 1 ether);
-        pWETH.mint(1 ether, user1);
-        pWETH.postCollateral(1 ether);
+        weth.approve(address(simpleCWETH), 1 ether);
+        simpleCWETH.mint(1 ether, user1);
+        simpleCWETH.postCollateral(1 ether);
         // borrow
-        eUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6);
         vm.stopPrank();
 
         simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);
@@ -358,7 +343,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         );
 
         uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
-        uint256 desiredTokenBalance = eUSDC.debtBalance(user1);
+        uint256 desiredTokenBalance = borrowableCUSDC.debtBalance(user1);
 
         vm.prank(user1);
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
@@ -366,7 +351,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         vm.prank(user1);
         simpleRewardZapper.claimSwapAndRepay(
             swapData,
-            address(eUSDC),
+            address(borrowableCUSDC),
             100e6,
             user1
         );
@@ -376,7 +361,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             baseRewardBalance - 100e6
         );
         assertApproxEqAbs(
-            eUSDC.debtBalance(user1),
+            borrowableCUSDC.debtBalance(user1),
             desiredTokenBalance - 100e6,
             10000
         );

@@ -35,7 +35,7 @@ contract StartContractsConfig is
     OogaBoogaDeployer,
     SimplePositionManagerDeployer
 {
-    struct ETokenInterestRateParam {
+    struct InterestRateParam {
         uint256 adjustmentRate;
         uint256 adjustmentVelocity;
         uint256 baseRatePerYear;
@@ -45,14 +45,14 @@ contract StartContractsConfig is
         uint256 vertexUtilizationStart;
     }
 
-    struct ETokenParam {
+    struct BorrowableCTokenParam {
         address asset;
         address chainlinkEth;
         address chainlinkUsd;
-        ETokenInterestRateParam interestRateParam;
+        InterestRateParam interestRateParam;
     }
 
-    struct PTokenParam {
+    struct CTokenParam {
         address asset;
         address chainlinkEth;
         address chainlinkUsd;
@@ -222,13 +222,13 @@ contract StartContractsConfig is
                 thirdMarket,
                 cr,
                 MarketTokenDeploy(
-                    "PToken-mETH",
+                    "CToken-mETH",
                     m_eth,
                     address(0),
                     chainlinkEthFeedInUsd
                 ),
                 MarketTokenDeploy(
-                    "EToken-mUSD",
+                    "CToken-mUSD",
                     m_usd,
                     address(0),
                     chainlinkUsdcFeedInUsd
@@ -243,13 +243,13 @@ contract StartContractsConfig is
             fourthMarket,
             cr,
             MarketTokenDeploy(
-                "PToken-LUSD",
+                "CToken-LUSD",
                 l_usd,
                 address(0),
                 chainlinkUsdcFeedInUsd
             ),
             MarketTokenDeploy(
-                "EToken-SWETH",
+                "CToken-SWETH",
                 sweth,
                 address(0),
                 chainlinkUsdcFeedInUsd
@@ -272,16 +272,16 @@ contract StartContractsConfig is
             firstMarket,
             cr,
             MarketTokenDeploy(
-                "PToken-WBTC",
+                "CToken-WBTC",
                 wbtc,
-                _readConfigAddress(".markets.pTokens.WBTC.chainlinkEth"),
-                _readConfigAddress(".markets.pTokens.WBTC.chainlinkUsd")
+                _readConfigAddress(".markets.cTokens.WBTC.chainlinkEth"),
+                _readConfigAddress(".markets.cTokens.WBTC.chainlinkUsd")
             ),
             MarketTokenDeploy(
-                "EToken-USDC",
+                "CToken-USDC",
                 usdc,
-                _readConfigAddress(".markets.eTokens.USDC.chainlinkEth"),
-                _readConfigAddress(".markets.eTokens.USDC.chainlinkUsd")
+                _readConfigAddress(".markets.cTokens.USDC.chainlinkEth"),
+                _readConfigAddress(".markets.cTokens.USDC.chainlinkUsd")
             ),
             1000000,
             700000
@@ -292,16 +292,16 @@ contract StartContractsConfig is
             secondMarket,
             cr,
             MarketTokenDeploy(
-                "PToken-USDC",
+                "CToken-USDC",
                 usdc,
-                _readConfigAddress(".markets.eTokens.USDC.chainlinkEth"),
-                _readConfigAddress(".markets.eTokens.USDC.chainlinkUsd")
+                _readConfigAddress(".markets.cTokens.USDC.chainlinkEth"),
+                _readConfigAddress(".markets.cTokens.USDC.chainlinkUsd")
             ),
             MarketTokenDeploy(
-                "EToken-WBTC",
+                "CToken-WBTC",
                 wbtc,
-                _readConfigAddress(".markets.pTokens.WBTC.chainlinkEth"),
-                _readConfigAddress(".markets.pTokens.WBTC.chainlinkUsd")
+                _readConfigAddress(".markets.cTokens.WBTC.chainlinkEth"),
+                _readConfigAddress(".markets.cTokens.WBTC.chainlinkUsd")
             ),
             1000000,
             700000
@@ -336,31 +336,31 @@ contract StartContractsConfig is
     function _configureMarket(
         MarketManagerIsolated market,
         ICentralRegistry cr,
-        MarketTokenDeploy memory PositionToken,
-        MarketTokenDeploy memory earnToken,
+        MarketTokenDeploy memory simpleCToken,
+        MarketTokenDeploy memory borrowableCToken,
         uint256 collateralCap,
         uint256 debtCap
     ) internal {
-        address pTokenToList =_deployPToken(
-                PositionToken.name,
-                PositionToken.token,
-                PositionToken.chainlinkEthAggregator,
-                PositionToken.chainlinkUsdAggregator,
+        address cToken0 =_deploySimpleCToken(
+                simpleCToken.name,
+                simpleCToken.token,
+                simpleCToken.chainlinkEthAggregator,
+                simpleCToken.chainlinkUsdAggregator,
                 cr,
                 market
         );
-        address eTokenToList = _deployEToken(
-            earnToken.name,
-            earnToken.token,
-            earnToken.chainlinkEthAggregator,
-            earnToken.chainlinkUsdAggregator,
+        address cToken1 = _deployBorrowableCToken(
+            borrowableCToken.name,
+            borrowableCToken.token,
+            borrowableCToken.chainlinkEthAggregator,
+            borrowableCToken.chainlinkUsdAggregator,
             cr,
             market
         );
-        market.listTokens(pTokenToList, eTokenToList);
+        market.listTokens(cToken0, cToken1);
 
         MarketManagerIsolated.TokenConfig memory token0Config;
-        token0Config.cToken = pTokenToList;
+        token0Config.cToken = cToken0;
         token0Config.collRatio = 9200;
         token0Config.collReqSoft = 830;
         token0Config.collReqHard = 650;
@@ -375,7 +375,7 @@ contract StartContractsConfig is
         token0Config.debtCap = debtCap; // add individual debt cap later
 
         MarketManagerIsolated.TokenConfig memory token1Config;
-        token1Config.cToken = eTokenToList;
+        token1Config.cToken = cToken1;
         token1Config.collRatio = 9200;
         token1Config.collReqSoft = 830;
         token1Config.collReqHard = 650;
@@ -387,14 +387,14 @@ contract StartContractsConfig is
         token1Config.maxEffectiveCloseFactor = 5000;
         token1Config.baseCFactor = 2000;
         // add individual collateral cap later
-        token1Config.collateralCap = collateralCap * 10 ** IERC20(pTokenToList).decimals(); 
-        token1Config.debtCap = debtCap * 10 ** IERC20(pTokenToList).decimals(); // add individual debt cap later
+        token1Config.collateralCap = collateralCap * 10 ** IERC20(cToken1).decimals(); 
+        token1Config.debtCap = debtCap * 10 ** IERC20(cToken1).decimals(); // add individual debt cap later
 
         market.updateTokenConfig(token0Config);
         market.updateTokenConfig(token1Config);
     }
 
-    function _deployEToken(
+    function _deployBorrowableCToken(
         string memory name,
         address tokenAddress,
         address chainlinkEthAggregator,
@@ -413,7 +413,7 @@ contract StartContractsConfig is
                 100
             );
 
-        address eToken = address(
+        address cToken = address(
             new BorrowableCToken(
                 cr,
                 IERC20(tokenAddress),
@@ -421,14 +421,14 @@ contract StartContractsConfig is
                 address(interestRateModel)
             )
         );
-        _saveDeployedContracts(name, eToken);
-        interestRateModel.setLinkedToken(eToken);
+        _saveDeployedContracts(name, cToken);
+        interestRateModel.setLinkedToken(cToken);
 
         if (tokenAddress != _getDeployedContract("SWETH")) {
             _addChainlinkOracleSupport(
                 chainlinkEthAggregator,
                 chainlinkUsdAggregator,
-                eToken
+                cToken
             );
         }
 
@@ -438,16 +438,16 @@ contract StartContractsConfig is
             tokenAddress != _getDeployedContract("mkUSD")
         ) {
             console.log("[REDSTONE] - Adding", name);
-            _addRedstoneOracleSupport(eToken);
+            _addRedstoneOracleSupport(cToken);
         } else {
             console.log("Avoiding Redstone Oracle for testnet token: ", name);
         }
 
-        MockToken(tokenAddress).approve(eToken, 1e25);
-        return eToken;
+        MockToken(tokenAddress).approve(cToken, 1e25);
+        return cToken;
     }
 
-    function _deployPToken(
+    function _deploySimpleCToken(
         string memory name,
         address tokenAddress,
         address chainlinkEthAggregator,
@@ -456,15 +456,15 @@ contract StartContractsConfig is
         MarketManagerIsolated market
     ) internal returns (address) {
         IERC20 underlying = IERC20(tokenAddress);
-        address pToken = address(
+        address cToken = address(
             new SimpleCToken(cr, underlying, address(market))
         );
-        _saveDeployedContracts(name, pToken);
+        _saveDeployedContracts(name, cToken);
 
         _addChainlinkOracleSupport(
             chainlinkEthAggregator,
             chainlinkUsdAggregator,
-            pToken
+            cToken
         );
 
         if (
@@ -473,37 +473,37 @@ contract StartContractsConfig is
             tokenAddress != _getDeployedContract("mkUSD")
         ) {
             console.log("[REDSTONE] - Adding", name);
-            _addRedstoneOracleSupport(pToken);
+            _addRedstoneOracleSupport(cToken);
         } else {
             console.log("Avoiding Redstone Oracle for testnet token: ", name);
         }
 
-        MockToken(tokenAddress).approve(pToken, 1e25);
-        return pToken;
+        MockToken(tokenAddress).approve(cToken, 1e25);
+        return cToken;
     }
 
-    function _addRedstoneOracleSupport(address mToken) internal {
+    function _addRedstoneOracleSupport(address cToken) internal {
         address oracleManager = _getDeployedContract("oracleManager");
         // address redstoneAdaptor = _getDeployedContract("redstoneAdaptor");
-        // address underlying = IMToken(mToken).underlying();
+        // address underlying = ICToken(cToken).underlying();
 
         // IERC20 underlyingToken = IERC20(underlying);
         // RedstoneCoreAdaptor adaptor = RedstoneCoreAdaptor(redstoneAdaptor);
         OracleManager router = OracleManager(oracleManager);
 
-        if (!router.isSupportedAsset(mToken)) {
-            router.addCTokenSupport(mToken);
+        if (!router.isSupportedAsset(cToken)) {
+            router.addCTokenSupport(cToken);
         }
     }
 
     function _addChainlinkOracleSupport(
         address chainlinkEth,
         address chainlinkUsd,
-        address mToken
+        address cToken
     ) internal {
         address oracleManager = _getDeployedContract("oracleManager");
         address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
-        address underlying = ICToken(mToken).asset();
+        address underlying = ICToken(cToken).asset();
 
         if (chainlinkEth == address(0) && chainlinkUsd == address(0)) {
             return;
@@ -545,8 +545,8 @@ contract StartContractsConfig is
         }
 
         // Link cToken
-        if (!OracleManager(oracleManager).isSupportedAsset(mToken)) {
-            OracleManager(oracleManager).addCTokenSupport(mToken);
+        if (!OracleManager(oracleManager).isSupportedAsset(cToken)) {
+            OracleManager(oracleManager).addCTokenSupport(cToken);
         }
     }
 

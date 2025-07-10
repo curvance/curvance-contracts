@@ -37,12 +37,9 @@ contract RedstoneCoreAdaptor is
     /// @param price The price recorded for an asset, in `WAD`.
     /// @param redstoneTimestamp The price timestamp reported by Redstone
     ///                          signers, in milliseconds.
-    /// @param blockTimestamp The block timestamp when `price` was stored,
-    ///                       in seconds.
     struct StoredData {
         uint256 price;
-        uint128 redstoneTimestamp;
-        uint128 blockTimestamp;
+        uint256 redstoneTimestamp;
     }
 
     /// CONSTANTS ///
@@ -203,7 +200,6 @@ contract RedstoneCoreAdaptor is
 
         storedData[asset][inUSD] = StoredData({
             price: price,
-            blockTimestamp: uint128(block.timestamp),
             redstoneTimestamp: redstoneTimestamp
         });
 
@@ -474,12 +470,16 @@ contract RedstoneCoreAdaptor is
         pData.inUSD = inUSD;
         StoredData memory assetData = storedData[asset][inUSD];
         // Validate the price returned is not stale.
-        if (block.timestamp - assetData.blockTimestamp > heartbeat) {
+        uint256 timestampInSeconds = assetData.redstoneTimestamp / 1000;
+        if (
+            timestampInSeconds < block.timestamp &&
+            block.timestamp - timestampInSeconds > heartbeat
+        ) {
             pData.hadError = true;
             return pData;
         }
 
-        uint256 price = uint240(assetData.price);
+        pData.price = uint240(assetData.price);
     }
 
     /// @dev This logic replicates RedstoneDefaultsLib.validateTimestamp

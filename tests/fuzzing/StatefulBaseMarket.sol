@@ -29,7 +29,7 @@
 // import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
 // import { IERC20 } from "contracts/interfaces/IERC20.sol";
-// import { IMToken } from "contracts/interfaces/IMToken.sol";
+// import { ICToken } from "contracts/interfaces/ICToken.sol";
 // import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 // import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
@@ -55,7 +55,7 @@
 //     MarketManager public marketManager;
 //     OracleManager public oracleManager;
 
-//     AuraCToken public pBALRETH;
+//     AuraCToken public simpleCBALRETH;
 
 //     EToken public eUSDC;
 //     EToken public eDAI;
@@ -84,7 +84,7 @@
 
 //     mapping(address => uint256) public postedCollateralAt;
 
-//     // the maximum collateral cap for a specific mtoken
+//     // the maximum collateral cap for a specific cToken
 //     mapping(address => uint256) public maxCollateralCap;
 
 //     constructor() {
@@ -123,9 +123,9 @@
 //         emit LogString("DEPLOYED: DynamicInterestRateModel");
 //         _deployDynamicInterestRateModel();
 //         emit LogString("DEPLOYED: EUSDC");
-//         _deployEUSDC();
+//         _deployBorrowableCUSDC();
 //         emit LogString("DEPLOYED: EDAI");
-//         _deployEDAI();
+//         _deployBorrowableCDAI();
 //         emit LogString("DEPLOYED: PUSDC");
 //         _deployPUSDC();
 //         emit LogString("DEPLOYED: DAI");
@@ -376,13 +376,13 @@
 //         );
 //     }
 
-//     function _deployEUSDC() internal returns (EToken) {
-//         eUSDC = _deployEToken(_USDC_ADDRESS);
+//     function _deployBorrowableCUSDC() internal returns (EToken) {
+//         eUSDC = _deployBorrowableCToken(_USDC_ADDRESS);
 //         return eUSDC;
 //     }
 
-//     function _deployEDAI() internal returns (EToken) {
-//         eDAI = _deployEToken(_DAI_ADDRESS);
+//     function _deployBorrowableCDAI() internal returns (EToken) {
+//         eDAI = _deployBorrowableCToken(_DAI_ADDRESS);
 //         return eDAI;
 //     }
 
@@ -404,7 +404,7 @@
 //         return pDAI;
 //     }
 
-//     function _deployEToken(address token) internal returns (EToken) {
+//     function _deployBorrowableCToken(address token) internal returns (EToken) {
 //         return
 //             new EToken(
 //                 ICentralRegistry(address(centralRegistry)),
@@ -434,7 +434,7 @@
 
 //     function _mintAndApprove(
 //         address underlyingAddress,
-//         address mtoken,
+//         address cToken,
 //         uint256 amount
 //     ) internal returns (bool) {
 //         // mint ME enough tokens to cover deposit
@@ -443,7 +443,7 @@
 //         ) {
 //             uint256 underlyingSupply = MockToken(underlyingAddress)
 //                 .totalSupply();
-//             uint256 mtokenSupply = MockToken(underlyingAddress).totalSupply();
+//             uint256 cTokenSupply = MockToken(underlyingAddress).totalSupply();
 //             uint256 errorSelector = extractErrorSelector(revertData);
 
 //             unchecked {
@@ -451,28 +451,28 @@
 //                     doesOverflow(
 //                         underlyingSupply + amount,
 //                         underlyingSupply
-//                     ) || doesOverflow(mtokenSupply + amount, mtokenSupply)
+//                     ) || doesOverflow(cTokenSupply + amount, cTokenSupply)
 //                 ) {
 //                     assertWithMsg(
 //                         errorSelector == token_total_supply_overflow,
-//                         "MToken underlying - mint underlying amount should succeed"
+//                         "CToken underlying - mint underlying amount should succeed"
 //                     );
 //                     return false;
 //                 } else {
 //                     assertWithMsg(
 //                         false,
-//                         "MToken underlying - mint underlying amount should succeed"
+//                         "CToken underlying - mint underlying amount should succeed"
 //                     );
 //                 }
 //             }
 //         }
 //         // approve sufficient underlying tokens prior to calling deposit
-//         try MockToken(underlyingAddress).approve(mtoken, amount) {} catch (
+//         try MockToken(underlyingAddress).approve(cToken, amount) {} catch (
 //             bytes memory revertData
 //         ) {
 //             uint256 currentAllowance = MockToken(underlyingAddress).allowance(
 //                 msg.sender,
-//                 mtoken
+//                 cToken
 //             );
 
 //             uint256 errorSelector = extractErrorSelector(revertData);
@@ -515,7 +515,7 @@
 //             true
 //         );
 //         chainlinkAdaptor.addAsset(
-//             address(eUSDC),
+//             address(borrowableCUSDC),
 //             address(mockUsdcFeed),
 //             0,
 //             true
@@ -535,7 +535,7 @@
 //             true
 //         );
 //         chainlinkAdaptor.addAsset(
-//             address(eDAI),
+//             address(borrowableCDAI),
 //             address(mockDaiFeed),
 //             0,
 //             true
@@ -564,8 +564,8 @@
 //         oracleManager.addCTokenSupport(address(pDAI));
 //         emit LogString("DEPLOYED: Adding pUSDC to router");
 //         oracleManager.addCTokenSupport(address(pUSDC));
-//         oracleManager.addCTokenSupport(address(eDAI));
-//         oracleManager.addCTokenSupport(address(eUSDC));
+//         oracleManager.addCTokenSupport(address(borrowableCDAI));
+//         oracleManager.addCTokenSupport(address(borrowableCUSDC));
 //         feedsSetup = true;
 //         lastRoundUpdate = block.timestamp;
 //     }
@@ -608,7 +608,7 @@
 //     }
 
 //     function _isSupportedEToken(address eToken) internal view {
-//         require(eToken == address(eUSDC) || eToken == address(eDAI));
+//         require(eToken == address(borrowableCUSDC) || eToken == address(borrowableCDAI));
 //         require(marketManager.isListed(eToken));
 //     }
 
@@ -619,14 +619,14 @@
 
 //     function _getLiquidityDeficit(
 //         address account,
-//         address mtoken,
-//         uint256 redeemTokens,
+//         address cToken,
+//         uint256 redeecTokens,
 //         uint256 amount
 //     ) internal view returns (uint256) {
 //         (, uint256 liquidityDeficit, ) = _getHypotheticalLiquidityOf(
 //             account,
-//             mtoken,
-//             redeemTokens,
+//             cToken,
+//             redeecTokens,
 //             amount
 //         );
 //         return liquidityDeficit;
@@ -634,8 +634,8 @@
 
 //     function _getHypotheticalLiquidityOf(
 //         address account,
-//         address mtoken,
-//         uint256 redeemTokens,
+//         address cToken,
+//         uint256 redeecTokens,
 //         uint256 amount
 //     ) internal view returns (uint256, uint256, bool[] memory) {
 //         (
@@ -644,27 +644,27 @@
 //             bool[] memory closePositions
 //         ) = marketManager.hypotheticalLiquidityOf(
 //                 account,
-//                 mtoken,
-//                 redeemTokens,
+//                 cToken,
+//                 redeecTokens,
 //                 amount
 //             );
 //         return (accountLiquidity, liquidityDeficit, closePositions);
 //     }
 
-//     function _hasPosition(address mToken) internal view returns (bool) {
+//     function _hasPosition(address cToken) internal view returns (bool) {
 //         (bool hasPosition, , ) = marketManager.tokenDataOf(
 //             address(this),
-//             mToken
+//             cToken
 //         );
 //         return hasPosition;
 //     }
 
 //     function _collateralPostedFor(
-//         address mToken
+//         address cToken
 //     ) internal view returns (uint256) {
 //         (, , uint256 collateralPosted) = marketManager.tokenDataOf(
 //             address(this),
-//             mToken
+//             cToken
 //         );
 //         return collateralPosted;
 //     }

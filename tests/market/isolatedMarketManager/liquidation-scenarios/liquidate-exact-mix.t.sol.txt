@@ -14,7 +14,7 @@ import "forge-std/console2.sol";
 
 // ## Scenario 4: Mixed Auction and Regular Liquidations, with a mix of liquidateExact() and liquidate()
 // - Setup: 4 users with varying positions
-// - User 1: 1.9 pBALRETH ($2,850), 2500 USDC debt
+// - User 1: 1.9 simpleCBALRETH ($2,850), 2500 USDC debt
 // - Action 1: Price drop by to ~$1,300, 
 // - Action 2: User 1 is liquidated via regular liquidation using liquidateExact() 1/4 of their total debt
 // - Action 3: User 1 is liquidated via regular liquidation using liquidateExact() 1/4 of their remaining debt
@@ -81,9 +81,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         vm.prank(user1);
         usdc.approve(address(eUSDC), _ONE);
-        balRETH.approve(address(pBALRETH), _ONE + 77777);
+        balRETH.approve(address(simpleCBALRETH), _ONE + 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(eUSDC));
 
         eUSDC.depositReserves(1000e6);
 
@@ -103,7 +103,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
 
         address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETH);
+        tokens[0] = address(simpleCBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
         marketManagerIsolated.setCollateralCaps(tokens, caps);
@@ -116,8 +116,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         usdc.approve(address(eUSDC), 200000e6);
         eUSDC.mint(200000e6);
         // mint cBALETH
-        balRETH.approve(address(pBALRETH), 10e18);
-        pBALRETH.deposit(10e18, liquidityProvider);
+        balRETH.approve(address(simpleCBALRETH), 10e18);
+        simpleCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
         _createPositions();
 
@@ -125,7 +125,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         mockRethFeed.setMockAnswer(1300e8);
 
         (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
-            marketManagerIsolated.tokenData(address(pBALRETH));
+            marketManagerIsolated.tokenData(address(simpleCBALRETH));
 
         liqBaseIncentive = liqBaseIncentive_;
         liqCurve = liqCurve_;
@@ -149,7 +149,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         // ===== Cache general liquidation values =====
 
-        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
+        uint256 cTokenExchangeRate = simpleCBALRETH.exchangeRate();
 
         totalBorrowsBefore = eUSDC.totalBorrows();
 
@@ -158,7 +158,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256 lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower1);
 
         (,eTokenPrice, cTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(borrower1, address(eUSDC), address(pBALRETH));
+            marketManagerIsolated.liquidationStatusOf(borrower1, address(eUSDC), address(simpleCBALRETH));
 
         // ===== Cache first liquidation values =====
         amountToRepayPartial = new uint256[](1);
@@ -205,7 +205,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         eUSDC.liquidateExact(
             borrowers,
             amountToRepayPartial,
-            address(pBALRETH)
+            address(simpleCBALRETH)
         );
 
         vm.stopPrank();
@@ -262,7 +262,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         eUSDC.liquidateExact(
             borrowers,
             amountToRepayPartial,
-            address(pBALRETH)
+            address(simpleCBALRETH)
         );
 
         vm.stopPrank();
@@ -317,7 +317,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         eUSDC.liquidate(
             borrowers,
-            address(pBALRETH)
+            address(simpleCBALRETH)
         );
 
        vm.stopPrank();
@@ -328,7 +328,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         assertEq(eUSDC.debtBalance(borrower1), 0, "Borrower1 should have zero debt remaining");
 
         // Verify borrower1's collateral is fully liquidated
-        assertEq(pBALRETH.balanceOf(borrower1), 0, "Borrower1 should have zero collateral remaining");
+        assertEq(simpleCBALRETH.balanceOf(borrower1), 0, "Borrower1 should have zero collateral remaining");
 
         // Verify total borrows decreased appropriately
         uint256 totalBorrowsAfter = eUSDC.totalBorrows();
@@ -338,7 +338,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         (uint256 lFactorFinal,,) = marketManagerIsolated.liquidationStatusOf(
             borrower1,
             address(eUSDC),
-            address(pBALRETH)
+            address(simpleCBALRETH)
         );
         assertEq(lFactorFinal, 0, "Position should no longer be liquidatable");
 
@@ -352,8 +352,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         _prepareBALRETH(borrower1, collateralAmountStart);
 
         vm.startPrank(borrower1);
-        balRETH.approve(address(pBALRETH), collateralAmountStart);
-        pBALRETH.depositAsCollateral(collateralAmountStart, borrower1);
+        balRETH.approve(address(simpleCBALRETH), collateralAmountStart);
+        simpleCBALRETH.depositAsCollateral(collateralAmountStart, borrower1);
         eUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
@@ -364,7 +364,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             (lFactors,,) = marketManagerIsolated.liquidationStatusOf(
                 _borrowers,
                 address(eUSDC),
-                address(pBALRETH)
+                address(simpleCBALRETH)
             );
 
         return lFactors;
@@ -387,7 +387,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256 liquidatedPTokens,
         uint256 collateralRequired
     ) {
-        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
+        uint256 cTokenExchangeRate = simpleCBALRETH.exchangeRate();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
@@ -435,7 +435,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256 liquidatedPTokens,
         uint256 collateralRequired
     ) {
-        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
+        uint256 cTokenExchangeRate = simpleCBALRETH.exchangeRate();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor

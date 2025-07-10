@@ -70,41 +70,40 @@ contract TestBaseStrategyCToken is TestBaseMarketIsolated {
         // deploy eDAI
         {
             _prepareDAI(owner, 200000e18);
-            dai.approve(address(eDAI), 200000e18);
-            // add MToken support on oracle manager
-            oracleManager.addCTokenSupport(address(eDAI));
+            dai.approve(address(borrowableCDAI), 200000e18);
+            // Add cToken support on Oracle Manager.
+            oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
         // deploy PBALRETH
         {
             // support market
             _prepareBALRETH(owner, 1 ether);
-            balRETH.approve(address(pBALRETH), 1 ether);
+            balRETH.approve(address(strategyCBALRETH), 1 ether);
         }
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
 
-        MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pBALRETH);
-        configToken0.collRatio = 7000;
-        configToken0.collReqSoft = 4000;
-        configToken0.collReqHard = 3000;
-        configToken0.liqIncBase = 1000;
-        configToken0.liqIncHard = 1500;
-        configToken0.liqIncMin = 500;
-        configToken0.liqIncMax = 2000;
-        configToken0.minEffectiveCloseFactor = 2000;
-        configToken0.maxEffectiveCloseFactor = 3000;
-        configToken0.baseCFactor = 1000;
-        configToken0.collateralCap = 100_000e18;
-        configToken0.debtCap = 0;
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 7000;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 3000;
+        tokenConfig.baseCFactor = 1000;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(configToken0);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-        MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eDAI);
-        configToken1.debtCap = 100_000e18;
-        marketManagerIsolated.updateTokenConfig(configToken1);
+        tokenConfig.cToken = address(borrowableCDAI);
+        tokenConfig.debtCap = 100_000e18;
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
     }
 }

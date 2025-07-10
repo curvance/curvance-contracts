@@ -42,7 +42,7 @@
 //             _prepareDAI(users[i], 200000e18);
 //         }
 //         for (uint256 i = 0; i < 10; i++) {
-//             tokens[i] = address(_deployEDAI());
+//             tokens[i] = address(_deployBorrowableCDAI());
 //         }
 
 //         for (uint256 i = 0; i < 10; i++) {
@@ -50,7 +50,7 @@
 //             dai.approve(address(tokens[i]), 200000e18);
 //             marketManagerIsolated.listToken(tokens[i]);
 
-//             // add MToken support on oracle manager
+//             // Add cToken support on Oracle Manager
 //             oracleManager.addCTokenSupport(tokens[i]);
 
 //             for (uint256 j = 0; j < 10; j++) {
@@ -894,31 +894,31 @@
 
 //     function testZach_RevertOnSecondDeposit() public {
 //         // set up emission rates and fund the gauge pool with cve
-//         address mToken = tokens[0];
+//         address cToken = tokens[0];
 //         address[] memory tokensParam = new address[](1);
-//         tokensParam[0] = mToken;
+//         tokensParam[0] = cToken;
 //         uint256[] memory poolWeights = new uint256[](1);
 //         poolWeights[0] = 1e18;
 //         vm.prank(address(messagingHub));
 //         gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
 //         _prepareCVE(address(gaugeManager), 1e18);
 
-//         vm.startPrank(mToken);
+//         vm.startPrank(cToken);
 
 //         // make a deposit before start time
-//         gaugeManager.deposit(mToken, address(this), 100 ether);
+//         gaugeManager.deposit(cToken, address(this), 100 ether);
 
 //         // make a withdrawal before start time
-//         gaugeManager.withdraw(mToken, address(this), 100 ether);
+//         gaugeManager.withdraw(cToken, address(this), 100 ether);
 
 //         // fast forward to after start time
 //         vm.warp(gaugeManager.gaugeStartTime() + 2 weeks);
 
 //         // make a deposit after start time
-//         gaugeManager.deposit(mToken, address(this), 100 ether);
+//         gaugeManager.deposit(cToken, address(this), 100 ether);
 
 //         // make a withdrawal after start time
-//         gaugeManager.withdraw(mToken, address(this), 100 ether);
+//         gaugeManager.withdraw(cToken, address(this), 100 ether);
 
 //         vm.stopPrank();
 //     }
@@ -927,14 +927,14 @@
 //         _deployPBALRETH();
 //         _prepareBALRETH(address(this), 1 ether);
 
-//         balRETH.approve(address(pBALRETH), 1 ether);
-//         marketManagerIsolated.listToken(address(pBALRETH));
+//         balRETH.approve(address(simpleCBALRETH), 1 ether);
+//         marketManagerIsolated.listToken(address(simpleCBALRETH));
 
-//         oracleManager.addCTokenSupport(address(pBALRETH));
+//         oracleManager.addCTokenSupport(address(simpleCBALRETH));
 
 //         // set collateral factor
 //         marketManagerIsolated.updatePositionToken(
-//             address(pBALRETH),
+//             address(simpleCBALRETH),
 //             0,
 //             4000,
 //             3000,
@@ -945,29 +945,29 @@
 
 //         // set up emission rates and fund the gauge pool with cve
 //         address[] memory tokensParam = new address[](1);
-//         tokensParam[0] = address(pBALRETH);
+//         tokensParam[0] = address(simpleCBALRETH);
 //         uint256[] memory poolWeights = new uint256[](1);
 //         poolWeights[0] = 1e18;
 //         vm.prank(address(messagingHub));
 //         gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
 //         _prepareCVE(address(gaugeManager), 1e18);
 
-//         vm.startPrank(address(pBALRETH));
+//         vm.startPrank(address(simpleCBALRETH));
 
 //         // make a deposit before start time
-//         gaugeManager.deposit(address(pBALRETH), address(this), 1 ether);
+//         gaugeManager.deposit(address(simpleCBALRETH), address(this), 1 ether);
 
 //         // make a withdrawal before start time
-//         gaugeManager.withdraw(address(pBALRETH), address(this), 1 ether);
+//         gaugeManager.withdraw(address(simpleCBALRETH), address(this), 1 ether);
 
 //         // fast forward to after start time
 //         vm.warp(gaugeManager.gaugeStartTime() + 2 weeks);
 
 //         // make a deposit after start time
-//         gaugeManager.deposit(address(pBALRETH), address(this), 1 ether);
+//         gaugeManager.deposit(address(simpleCBALRETH), address(this), 1 ether);
 
 //         // make a withdrawal after start time
-//         gaugeManager.withdraw(address(pBALRETH), address(this), 1 ether);
+//         gaugeManager.withdraw(address(simpleCBALRETH), address(this), 1 ether);
 
 //         vm.stopPrank();
 //     }
@@ -984,7 +984,7 @@
 //     }
 
 //     // Deploy ETokenWithGauge
-//     function _deployEToken(
+//     function _deployBorrowableCToken(
 //         address token
 //     ) internal override initMainVariables returns (EToken) {
 //         EToken eToken = EToken(

@@ -44,7 +44,7 @@
 //     function test_liquidateAccount_success() public {
 //         vm.startPrank(user2);
 
-//         usdc.approve(address(eUSDC), 1000e6);
+//         usdc.approve(address(borrowableCUSDC), 1000e6);
 //         // marketManager.liquidateAccount(user1);
 
 //         vm.stopPrank();
@@ -53,11 +53,11 @@
 //     }
 
 //     function _checkLiquidationResult() internal {
-//         assertApproxEqAbs(pBALRETH.balanceOf(user1), 0, 1);
-//         assertEq(pBALRETH.exchangeRateCached(), _ONE);
+//         assertApproxEqAbs(simpleCBALRETH.balanceOf(user1), 0, 1);
+//         assertEq(simpleCBALRETH.exchangeRateCached(), _ONE);
 
-//         assertEq(eUSDC.balanceOf(user1), 0);
-//         assertEq(eUSDC.debtBalance(user1), 0);
-//         assertApproxEqRel(eUSDC.exchangeRateCached(), _ONE, 0.01e18);
+//         assertEq(borrowableCUSDC.balanceOf(user1), 0);
+//         assertEq(borrowableCUSDC.debtBalance(user1), 0);
+//         assertApproxEqRel(borrowableCUSDC.exchangeRateCached(), _ONE, 0.01e18);
 //     }
 // }

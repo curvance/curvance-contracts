@@ -24,7 +24,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
 
     SimpleCToken public cWBTC;
     NativeUniversalBalance public nativeUniversalBalance;
-    BorrowableCToken public eWETH;
+    BorrowableCToken public borrowableCWETH;
 
     address[] public owners;
     address[] public recipients;
@@ -89,11 +89,11 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             address(dualChainlinkAdaptor)
         );
 
-        eWETH = _deployEToken(_WETH_ADDRESS);
+        borrowableCWETH = _deployBorrowableCToken(_WETH_ADDRESS);
 
         nativeUniversalBalance = new NativeUniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eWETH),
+            address(borrowableCWETH),
             _WETH_ADDRESS
         );
 
@@ -106,11 +106,11 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         mockWbtcFeed.updateAnswer(60000e8);
 
         _prepareWETH(owner, 200000 ether);
-        weth.approve(address(eWETH), 200000e18);
+        weth.approve(address(borrowableCWETH), 200000e18);
 
-        oracleManager.addCTokenSupport(address(eWETH));
+        oracleManager.addCTokenSupport(address(borrowableCWETH));
         address[] memory markets = new address[](1);
-        markets[0] = address(eWETH);
+        markets[0] = address(borrowableCWETH);
 
         cWBTC = new SimpleCToken(
             ICentralRegistry(address(centralRegistry)),
@@ -121,13 +121,13 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         _prepareWBTC(owner, 1e8);
         wbtc.approve(address(cWBTC), 1e8);
 
-        marketManagerIsolated.listTokens(address(cWBTC), address(eWETH));
+        marketManagerIsolated.listTokens(address(cWBTC), address(borrowableCWETH));
 
         oracleManager.addCTokenSupport(address(cWBTC));
 
         _setCTokenConfigBasic(address(cWBTC), 100e8, 0);
 
-        _setCTokenConfigBasic(address(eWETH), 1000e18, 1000e18);
+        _setCTokenConfigBasic(address(borrowableCWETH), 1000e18, 1000e18);
 
         owners.push(user2);
         owners.push(user3);
@@ -152,7 +152,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
     function testInitialize() public {
         assertEq(
             address(nativeUniversalBalance.linkedToken()),
-            address(eWETH)
+            address(borrowableCWETH)
         );
         assertEq(nativeUniversalBalance.underlying(), _WETH_ADDRESS);
     }
@@ -160,9 +160,9 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
     function testDeposit() public {
         _prepareWETH(user1, 200e18);
 
-        uint256 receiveAmount = eWETH.convertToShares(100e18);
+        uint256 receiveAmount = borrowableCWETH.convertToShares(100e18);
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
 
@@ -180,8 +180,8 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             wethBalance + 100e18
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance
         );
         assertEq(weth.balanceOf(user1), 100e18);
 
@@ -200,8 +200,8 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             wethBalance + 100e18
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance + receiveAmount
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance + receiveAmount
         );
         assertEq(weth.balanceOf(user1), 0);
     }
@@ -209,10 +209,10 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
     function testDepositNative() public {
         vm.deal(user1, 200e18);
 
-        uint256 receiveAmount = eWETH.convertToShares(100e18);
+        uint256 receiveAmount = borrowableCWETH.convertToShares(100e18);
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
 
@@ -229,8 +229,8 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             wethBalance + 100e18
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance
         );
         assertEq(user1.balance, 100e18);
 
@@ -248,8 +248,8 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             wethBalance + 100e18
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance + receiveAmount
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance + receiveAmount
         );
         assertEq(user1.balance, 0);
     }
@@ -270,11 +270,11 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         uint256[] memory receiveAmounts = new uint256[](3);
 
         for (uint256 i; i < 3; i++) {
-            receiveAmounts[i] = eWETH.convertToShares(amounts[i]);
+            receiveAmounts[i] = borrowableCWETH.convertToShares(amounts[i]);
         }
 
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userWETHBalance = weth.balanceOf(user1);
@@ -317,8 +317,8 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             wethBalance + sittingAmount
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance + lentAmount
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance + lentAmount
         );
         assertEq(weth.balanceOf(user1), userWETHBalance - 600e18);
     }
@@ -339,11 +339,11 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         uint256[] memory receiveAmounts = new uint256[](3);
 
         for (uint256 i; i < 3; i++) {
-            receiveAmounts[i] = eWETH.convertToShares(amounts[i]);
+            receiveAmounts[i] = borrowableCWETH.convertToShares(amounts[i]);
         }
 
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userETHBalance = user1.balance;
@@ -380,8 +380,8 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             wethBalance + sittingAmount
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance + lentAmount
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance + lentAmount
         );
         assertEq(user1.balance, userETHBalance - 600e18);
     }
@@ -389,10 +389,10 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
     function testWithdraw() public {
         testDeposit();
 
-        uint256 redeemAmount = eWETH.convertToShares(100e18);
+        uint256 redeemAmount = borrowableCWETH.convertToShares(100e18);
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
 
@@ -410,8 +410,8 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             wethBalance - 100e18
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance
         );
         assertEq(weth.balanceOf(user2), 100e18);
 
@@ -429,8 +429,8 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             wethBalance - 100e18
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance - redeemAmount
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance - redeemAmount
         );
         assertEq(weth.balanceOf(user2), 200e18);
     }
@@ -438,10 +438,10 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
     function testWithdrawNative() public {
         testDepositNative();
 
-        uint256 redeemAmount = eWETH.convertToShares(100e18);
+        uint256 redeemAmount = borrowableCWETH.convertToShares(100e18);
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userETHBalance = user1.balance;
@@ -459,8 +459,8 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             wethBalance - 100e18
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance
         );
         assertEq(user2.balance, userETHBalance + 100e18);
 
@@ -478,8 +478,8 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             wethBalance - 100e18
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance - redeemAmount
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance - redeemAmount
         );
         assertEq(user2.balance, userETHBalance + 200e18);
 
@@ -519,7 +519,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
 
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userWETHBalance = weth.balanceOf(user1);
@@ -564,8 +564,8 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             wethBalance - sittingAmountUsed
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance - lentAmountUsed
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance - lentAmountUsed
         );
         assertEq(weth.balanceOf(user1), userWETHBalance + 600e18);
     }
@@ -603,7 +603,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
 
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userETHBalance = user1.balance;
@@ -648,8 +648,8 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             wethBalance - sittingAmountUsed
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance - lentAmountUsed
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance - lentAmountUsed
         );
         assertEq(user1.balance, userETHBalance + 600e18);
     }
@@ -657,10 +657,10 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
     function testTransfer() public {
         testDeposit();
 
-        uint256 redeemAmount = eWETH.convertToShares(100e18);
+        uint256 redeemAmount = borrowableCWETH.convertToShares(100e18);
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userUSDCBalance = weth.balanceOf(user2);
@@ -685,12 +685,12 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         assertEq(weth.balanceOf(user2), userUSDCBalance);
 
         wethBalance += 100e18;
-        eWETHBalance -= redeemAmount;
+        borrowableCWETHBalance -= redeemAmount;
 
         assertEq(weth.balanceOf(address(nativeUniversalBalance)), wethBalance);
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance
         );
 
         vm.prank(user1);
@@ -709,22 +709,22 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         assertEq(weth.balanceOf(user2), userUSDCBalance);
 
         wethBalance -= 100e18;
-        eWETHBalance += redeemAmount;
+        borrowableCWETHBalance += redeemAmount;
 
         assertEq(weth.balanceOf(address(nativeUniversalBalance)), wethBalance);
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance
         );
     }
 
     function testShiftBalance() public {
         testDeposit();
 
-        uint256 redeemAmount = eWETH.convertToShares(100e18);
+        uint256 redeemAmount = borrowableCWETH.convertToShares(100e18);
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userUSDCBalance = weth.balanceOf(user1);
@@ -743,18 +743,18 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         assertEq(weth.balanceOf(user1), userUSDCBalance);
 
         wethBalance += 100e18;
-        eWETHBalance -= redeemAmount;
+        borrowableCWETHBalance -= redeemAmount;
 
         assertEq(weth.balanceOf(address(nativeUniversalBalance)), wethBalance);
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance
         );
 
         vm.prank(user1);
         nativeUniversalBalance.shiftBalance(200e18, false);
 
-        redeemAmount = eWETH.convertToShares(200e18);
+        redeemAmount = borrowableCWETH.convertToShares(200e18);
         (userSittingBalance, userLentBalance) = nativeUniversalBalance
             .userBalances(user1);
 
@@ -764,12 +764,12 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         assertEq(weth.balanceOf(user1), userUSDCBalance);
 
         wethBalance -= 200e18;
-        eWETHBalance += redeemAmount;
+        borrowableCWETHBalance += redeemAmount;
 
         assertEq(weth.balanceOf(address(nativeUniversalBalance)), wethBalance);
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance
         );
     }
 
@@ -782,15 +782,15 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         wbtc.approve(address(cWBTC), 100e8);
         cWBTC.deposit(100e8, user2);
         cWBTC.postCollateral(100e8);
-        eWETH.borrow(50e18);
+        borrowableCWETH.borrow(50e18);
 
         vm.stopPrank();
 
         // skip(10 weeks);
 
         _prepareWETH(owner, 100e18);
-        weth.approve(address(eWETH), 100e18);
-        eWETH.deposit(100e18, address(this));
+        weth.approve(address(borrowableCWETH), 100e18);
+        borrowableCWETH.deposit(100e18, address(this));
 
         // Moved skip here to allow easier debugging in _accrueIfNeeded() and ensure the full code path is executed.
         skip(10 weeks);

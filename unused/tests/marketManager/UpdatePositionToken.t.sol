@@ -11,13 +11,13 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         
         // Setup market with tokens
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(pBALRETH), 77777);
+        balRETH.approve(address(simpleCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
         
         // List tokens in the market
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
     }
 
@@ -49,7 +49,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             uint256 maxEffectiveCloseFactor,
             uint256 baseCFactor,
             uint256 cFactorCurve
-        ) = marketManagerIsolated.tokenData(address(pBALRETH));
+        ) = marketManagerIsolated.tokenData(address(simpleCBALRETH));
 
         assertEq(collRatio, 700000000000000000);
         assertEq(collReqSoft, 1400000000000000000);

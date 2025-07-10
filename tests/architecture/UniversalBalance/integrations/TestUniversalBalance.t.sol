@@ -20,7 +20,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
     MockDataFeed public mockStethFeed;
     MockV3Aggregator public mockWbtcFeed;
 
-    SimpleCToken public pWBTC;
+    SimpleCToken public simpleCWBTC;
     UniversalBalance public universalBalance;
 
     address[] public owners;
@@ -87,7 +87,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
 
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eUSDC)
+            address(borrowableCUSDC)
         );
 
         // start epoch
@@ -97,23 +97,23 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
         mockWbtcFeed.updateAnswer(60000e8);
 
-        // // deploy eUSDC
+        // // deploy borrowableCUSDC
         // {
         //     // support market
         //     _prepareUSDC(owner, 200_000e6);
         //     _prepareBALRETH(owner, 1000e18);
-        //     usdc.approve(address(eUSDC), 200_000e6);
-        //     balRETH.approve(address(pBALRETH), 1000e18);
-        //     marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        //     usdc.approve(address(borrowableCUSDC), 200_000e6);
+        //     balRETH.approve(address(simpleCBALRETH), 1000e18);
+        //     marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
         //     address[] memory markets = new address[](1);
-        //     markets[0] = address(eUSDC);
+        //     markets[0] = address(borrowableCUSDC);
         // }
 
-        // deploy pWBTC
+        // deploy simpleCWBTC
         {
-            // deploy aura position vault
-            pWBTC = new SimpleCToken(
+            // Deploy simple cToken
+            simpleCWBTC = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
                 address(marketManagerIsolated)
@@ -122,14 +122,14 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
             // support market
             _prepareWBTC(owner, 1e8);
             _prepareUSDC(owner, 1000e6);    
-            wbtc.approve(address(pWBTC), 1e8);
-            usdc.approve(address(eUSDC), 1000e6);
-            marketManagerIsolated.listTokens(address(pWBTC), address(eUSDC));
-            // add MToken support on oracle manager
-            oracleManager.addCTokenSupport(address(pWBTC));
-            // set position token configuration
-            _setCTokenConfigBasic(address(pWBTC), 100e8, 100e8);
-            _setCTokenConfigBasic(address(eUSDC), 1_000_000e6, 1_000_000e6);
+            wbtc.approve(address(simpleCWBTC), 1e8);
+            usdc.approve(address(borrowableCUSDC), 1000e6);
+            marketManagerIsolated.listTokens(address(simpleCWBTC), address(borrowableCUSDC));
+            // Add cToken support on Oracle Manager.
+            oracleManager.addCTokenSupport(address(simpleCWBTC));
+            // Set cToken configuration.
+            _setCTokenConfigBasic(address(simpleCWBTC), 100e8, 100e8);
+            _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000e6, 1_000_000e6);
 
         }
 
@@ -153,16 +153,16 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
     }
 
     function testInitialize() public {
-        assertEq(address(universalBalance.linkedToken()), address(eUSDC));
+        assertEq(address(universalBalance.linkedToken()), address(borrowableCUSDC));
         assertEq(universalBalance.underlying(), _USDC_ADDRESS);
     }
 
     function testDeposit() public {
         _prepareUSDC(user1, 200e6);
 
-        uint256 receiveAmount = eUSDC.convertToShares(100e6);
+        uint256 receiveAmount = borrowableCUSDC.convertToShares(100e6);
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
 
         vm.startPrank(user1);
         usdc.approve(address(universalBalance), 100e6);
@@ -177,7 +177,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
             usdc.balanceOf(address(universalBalance)),
             usdcBalance + 100e6
         );
-        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(borrowableCUSDC.balanceOf(address(universalBalance)), borrowableCUSDCBalance);
         assertEq(usdc.balanceOf(user1), 100e6);
 
         vm.startPrank(user1);
@@ -193,8 +193,8 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
             usdcBalance + 100e6
         );
         assertEq(
-            eUSDC.balanceOf(address(universalBalance)),
-            eUSDCBalance + receiveAmount
+            borrowableCUSDC.balanceOf(address(universalBalance)),
+            borrowableCUSDCBalance + receiveAmount
         );
         assertEq(usdc.balanceOf(user1), 0);
     }
@@ -215,11 +215,11 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         uint256[] memory receiveAmounts = new uint256[](3);
 
         for (uint256 i; i < 3; i++) {
-            receiveAmounts[i] = eUSDC.convertToShares(amounts[i]);
+            receiveAmounts[i] = borrowableCUSDC.convertToShares(amounts[i]);
         }
 
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user1);
 
         vm.startPrank(user1);
@@ -258,8 +258,8 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
             usdcBalance + sittingAmount
         );
         assertEq(
-            eUSDC.balanceOf(address(universalBalance)),
-            eUSDCBalance + lentAmount
+            borrowableCUSDC.balanceOf(address(universalBalance)),
+            borrowableCUSDCBalance + lentAmount
         );
         assertEq(usdc.balanceOf(user1), userUSDCBalance - 600e6);
     }
@@ -267,10 +267,10 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
     function testWithdraw() public {
         testDeposit();
 
-        uint256 redeemAmount = eUSDC.convertToShares(100e6);
+        uint256 redeemAmount = borrowableCUSDC.convertToShares(100e6);
         uint256 ethBalance = address(universalBalance).balance;
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
 
         vm.prank(user1);
         universalBalance.withdraw(100e6, false, user2);
@@ -284,7 +284,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
             usdc.balanceOf(address(universalBalance)),
             usdcBalance - 100e6
         );
-        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(borrowableCUSDC.balanceOf(address(universalBalance)), borrowableCUSDCBalance);
         assertEq(usdc.balanceOf(user2), 100e6);
 
         vm.prank(user1);
@@ -299,8 +299,8 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
             usdcBalance - 100e6
         );
         assertEq(
-            eUSDC.balanceOf(address(universalBalance)),
-            eUSDCBalance - redeemAmount
+            borrowableCUSDC.balanceOf(address(universalBalance)),
+            borrowableCUSDCBalance - redeemAmount
         );
         assertEq(usdc.balanceOf(user2), 200e6);
     }
@@ -335,7 +335,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
 
         uint256 ethBalance = address(universalBalance).balance;
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user1);
 
         vm.prank(user1);
@@ -376,8 +376,8 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
             usdcBalance - sittingAmountUsed
         );
         assertEq(
-            eUSDC.balanceOf(address(universalBalance)),
-            eUSDCBalance - lentAmountUsed
+            borrowableCUSDC.balanceOf(address(universalBalance)),
+            borrowableCUSDCBalance - lentAmountUsed
         );
         assertEq(usdc.balanceOf(user1), userUSDCBalance + 600e6);
     }
@@ -385,10 +385,10 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
     function testTransfer() public {
         testDeposit();
 
-        uint256 redeemAmount = eUSDC.convertToShares(100e6);
+        uint256 redeemAmount = borrowableCUSDC.convertToShares(100e6);
         uint256 ethBalance = address(universalBalance).balance;
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user2);
 
         vm.prank(user1);
@@ -411,10 +411,10 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         assertEq(usdc.balanceOf(user2), userUSDCBalance);
 
         usdcBalance += 100e6;
-        eUSDCBalance -= redeemAmount;
+        borrowableCUSDCBalance -= redeemAmount;
 
         assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
-        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(borrowableCUSDC.balanceOf(address(universalBalance)), borrowableCUSDCBalance);
 
         vm.prank(user1);
         universalBalance.transfer(100e6, false, true, user2);
@@ -432,19 +432,19 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         assertEq(usdc.balanceOf(user2), userUSDCBalance);
 
         usdcBalance -= 100e6;
-        eUSDCBalance += redeemAmount;
+        borrowableCUSDCBalance += redeemAmount;
 
         assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
-        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(borrowableCUSDC.balanceOf(address(universalBalance)), borrowableCUSDCBalance);
     }
 
     function testShiftBalance() public {
         testDeposit();
 
-        uint256 redeemAmount = eUSDC.convertToShares(100e6);
+        uint256 redeemAmount = borrowableCUSDC.convertToShares(100e6);
         uint256 ethBalance = address(universalBalance).balance;
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user1);
 
         vm.prank(user1);
@@ -461,15 +461,15 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         assertEq(usdc.balanceOf(user1), userUSDCBalance);
 
         usdcBalance += 100e6;
-        eUSDCBalance -= redeemAmount;
+        borrowableCUSDCBalance -= redeemAmount;
 
         assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
-        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(borrowableCUSDC.balanceOf(address(universalBalance)), borrowableCUSDCBalance);
 
         vm.prank(user1);
         universalBalance.shiftBalance(200e6, false);
 
-        redeemAmount = eUSDC.convertToShares(200e6);
+        redeemAmount = borrowableCUSDC.convertToShares(200e6);
         (userSittingBalance, userLentBalance) = universalBalance.userBalances(
             user1
         );
@@ -480,30 +480,30 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         assertEq(usdc.balanceOf(user1), userUSDCBalance);
 
         usdcBalance -= 200e6;
-        eUSDCBalance += redeemAmount;
+        borrowableCUSDCBalance += redeemAmount;
 
         assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
-        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(borrowableCUSDC.balanceOf(address(universalBalance)), borrowableCUSDCBalance);
     }
 
     function testLentBalanceIncreased() public {
         testDeposit();
 
-        // mint pWBTC & borrow USDC
+        // mint simpleCWBTC & borrow USDC
         _prepareWBTC(user2, 100e8);
         vm.startPrank(user2);
-        wbtc.approve(address(pWBTC), 100e8);
-        pWBTC.mint(100e8, user2);
-        pWBTC.postCollateral(100e8);
-        eUSDC.borrow(50e6);
+        wbtc.approve(address(simpleCWBTC), 100e8);
+        simpleCWBTC.mint(100e8, user2);
+        simpleCWBTC.postCollateral(100e8);
+        borrowableCUSDC.borrow(50e6);
 
         vm.stopPrank();
 
         skip(10 weeks);
 
         _prepareUSDC(owner, 100e6);
-        usdc.approve(address(eUSDC), 100e6);
-        eUSDC.deposit(100e6, address(this));
+        usdc.approve(address(borrowableCUSDC), 100e6);
+        borrowableCUSDC.deposit(100e6, address(this));
 
         vm.prank(user1);
         universalBalance.withdraw(50e6, true, address(this));

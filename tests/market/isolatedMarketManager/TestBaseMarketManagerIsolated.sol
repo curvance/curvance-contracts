@@ -20,13 +20,13 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         _prepareDAI(address(this), _ONE);
         _prepareBALRETH(address(this), _ONE);
 
-        oracleManager.addCTokenSupport(address(eDAI));
+        oracleManager.addCTokenSupport(address(borrowableCDAI));
 
-        SafeTransferLib.safeApprove(_USDC_ADDRESS, address(eUSDC), _ONE);
-        SafeTransferLib.safeApprove(_DAI_ADDRESS, address(eDAI), _ONE);
+        SafeTransferLib.safeApprove(_USDC_ADDRESS, address(borrowableCUSDC), _ONE);
+        SafeTransferLib.safeApprove(_DAI_ADDRESS, address(borrowableCDAI), _ONE);
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,
-            address(pBALRETH),
+            address(strategyCBALRETH),
             _ONE
         );
 
@@ -89,28 +89,28 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         _prepareUSDC(address(this), _ONE); // possibly not needed
 
         vm.prank(user1);
-        usdc.approve(address(eUSDC), _ONE);
-        balRETH.approve(address(pBALRETH), _ONE + 77777);
+        usdc.approve(address(borrowableCUSDC), _ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE + 77777);
 
         console2.log("balRETH address:", address(balRETH));
-        address balRETHUnderlying = pBALRETH.asset();
-        console2.log("pBALRETH underlying:", balRETHUnderlying); 
+        address balRETHUnderlying = strategyCBALRETH.asset();
+        console2.log("strategyCBALRETH underlying:", balRETHUnderlying); 
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(eUSDC), 0, 1_000_000e6);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareBALRETH(liquidityProvider, 10e18);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.deposit(200000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
-        balRETH.approve(address(pBALRETH), 10e18);
-        pBALRETH.deposit(10e18, liquidityProvider);
+        balRETH.approve(address(strategyCBALRETH), 10e18);
+        strategyCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
 
         _prepareBALRETH(user1, _ONE);
@@ -120,15 +120,15 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
         vm.startPrank(user1);
-        balRETH.approve(address(pBALRETH), _ONE);
-        pBALRETH.deposit(_ONE, user1);
-        pBALRETH.postCollateral(_ONE - 1);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, user1);
+        strategyCBALRETH.postCollateral(_ONE - 1);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
-        eUSDC.borrow(1000e6);
+        borrowableCUSDC.borrow(1000e6);
         vm.stopPrank();
 
         // skip min hold period
@@ -168,10 +168,10 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
 
     //     vm.startPrank(user1);
 
-    //     balRETH.approve(address(pBALRETH), _ONE);
-    //     pBALRETH.deposit(_ONE, user1);
+    //     balRETH.approve(address(simpleCBALRETH), _ONE);
+    //     simpleCBALRETH.deposit(_ONE, user1);
 
-    //     marketManagerIsolated.postCollateral(user1, address(pBALRETH), _ONE - 1);
+    //     marketManagerIsolated.postCollateral(user1, address(simpleCBALRETH), _ONE - 1);
 
     //     _prepareUSDC(address(this), 1000e6);   
 
@@ -182,16 +182,16 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
 
     //     vm.startPrank(user2);
 
-    //     usdc.approve(address(eUSDC), 10_000e6);
+    //     usdc.approve(address(borrowableCUSDC), 10_000e6);
 
     //     // Deposit USDC to get eTokens
 
-    //     eUSDC.mint(10_000e6);
+    //     borrowableCUSDC.mint(10_000e6);
     //     vm.stopPrank();
 
     //     vm.startPrank(user1);
 
-    //     eUSDC.borrow(1000e6);
+    //     borrowableCUSDC.borrow(1000e6);
     //     vm.stopPrank();
         
     //     skip(20 minutes);

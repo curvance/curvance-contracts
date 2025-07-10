@@ -26,17 +26,17 @@ contract TestPredeposit is TestBasePredeposit {
         predeposit.addPredepositTokens(newPredepositTokens);
         vm.stopPrank();
 
-        usdc.approve(address(eUSDC), 1000e6);
-        balRETH.approve(address(pBALRETH), 1000e18);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+        balRETH.approve(address(strategyCBALRETH), 1000e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH),address(eUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH),address(borrowableCUSDC));
 
         vm.startPrank(manager);
 
-        predeposit.setMigrationConfig(_USDC_ADDRESS, address(eUSDC));
+        predeposit.setMigrationConfig(_USDC_ADDRESS, address(borrowableCUSDC));
         predeposit.setMigrationConfig(
             _BAL_WETH_RETH_ADDRESS,
-            address(pBALRETH)
+            address(strategyCBALRETH)
         );
 
         vm.stopPrank();
@@ -86,27 +86,26 @@ contract TestPredeposit is TestBasePredeposit {
 
         vm.stopPrank();
 
-        MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pBALRETH);
-        configToken0.collRatio = 7000;
-        configToken0.collReqSoft = 4000;
-        configToken0.collReqHard = 3000;
-        configToken0.liqIncBase = 1000;
-        configToken0.liqIncHard = 1500;
-        configToken0.liqIncMin = 500;
-        configToken0.liqIncMax = 2000;
-        configToken0.minEffectiveCloseFactor = 2000;
-        configToken0.maxEffectiveCloseFactor = 5000;
-        configToken0.baseCFactor = 1000;
-        configToken0.collateralCap = 100_000e18;
-        configToken0.debtCap = 0;
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 7000;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 1000;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(configToken0);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-        MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
-        configToken1.debtCap = 100_000e6;
-        marketManagerIsolated.updateTokenConfig(configToken1);
+        tokenConfig.cToken = address(borrowableCUSDC);
+        tokenConfig.debtCap = 100_000e6;
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
     function test_swapAndDeposit_migrate_withPToken_withCollateralize_success()
@@ -131,12 +130,12 @@ contract TestPredeposit is TestBasePredeposit {
             block.timestamp
         );
 
-        pBALRETH.setDelegateApproval(address(predeposit), true);
+        strategyCBALRETH.setDelegateApproval(address(predeposit), true);
         predeposit.swapAndDeposit(swapData, 0.1e18);
 
         skip(1 weeks);
 
-        uint256 underlyingBalance = balRETH.balanceOf(address(pBALRETH));
+        uint256 underlyingBalance = balRETH.balanceOf(address(strategyCBALRETH));
 
         assertEq(
             predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS),
@@ -150,8 +149,8 @@ contract TestPredeposit is TestBasePredeposit {
 
         assertEq(predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS), 0);
         assertEq(balRETH.balanceOf(address(predeposit)), 0);
-        assertEq(balRETH.balanceOf(address(pBALRETH)), underlyingBalance);
-        assertEq(pBALRETH.balanceOf(user1), 0.1e18);
+        assertEq(balRETH.balanceOf(address(strategyCBALRETH)), underlyingBalance);
+        assertEq(strategyCBALRETH.balanceOf(user1), 0.1e18);
     }
 
     function test_swapAndDeposit_migrate_withPToken_withoutCollateralize_success()
@@ -182,7 +181,7 @@ contract TestPredeposit is TestBasePredeposit {
 
         skip(1 weeks);
 
-        uint256 underlyingBalance = balRETH.balanceOf(address(pBALRETH));
+        uint256 underlyingBalance = balRETH.balanceOf(address(strategyCBALRETH));
 
         assertEq(
             predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS),
@@ -195,11 +194,11 @@ contract TestPredeposit is TestBasePredeposit {
 
         assertEq(predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS), 0);
         assertEq(balRETH.balanceOf(address(predeposit)), 0);
-        assertEq(balRETH.balanceOf(address(pBALRETH)), underlyingBalance);
-        assertEq(pBALRETH.balanceOf(user1), 0.1e18);
+        assertEq(balRETH.balanceOf(address(strategyCBALRETH)), underlyingBalance);
+        assertEq(strategyCBALRETH.balanceOf(user1), 0.1e18);
     }
 
-    function test_swapAndDeposit_migrate_withEToken_success() public {
+    function test_swapAndDeposit_migrate_withBorrowableToken_success() public {
         vm.startPrank(user1);
 
         weth.approve(address(predeposit), _ONE);
@@ -211,18 +210,21 @@ contract TestPredeposit is TestBasePredeposit {
 
         skip(1 weeks);
 
-        uint256 marketUnderlyingHeld = eUSDC.assetsHeld();
+        uint256 marketUnderlyingHeld = borrowableCUSDC.assetsHeld();
 
         assertEq(predeposit.balanceOf(user1, _USDC_ADDRESS), 100e6);
         assertEq(usdc.balanceOf(address(predeposit)), 100e6);
 
-        vm.prank(user1);
-
+        vm.startPrank(user1);
+        
+        borrowableCUSDC.setDelegateApproval(address(predeposit), true);
         predeposit.migrate(_USDC_ADDRESS, 100e6, true);
+
+        vm.stopPrank();
 
         assertEq(predeposit.balanceOf(user1, _USDC_ADDRESS), 0);
         assertEq(usdc.balanceOf(address(predeposit)), 0);
-        assertEq(eUSDC.assetsHeld(), marketUnderlyingHeld + 100e6);
-        assertEq(eUSDC.balanceOf(user1), 100e6);
+        assertEq(borrowableCUSDC.assetsHeld(), marketUnderlyingHeld + 100e6);
+        assertEq(borrowableCUSDC.balanceOf(user1), 100e6);
     }
 }

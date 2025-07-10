@@ -42,23 +42,23 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         owner = address(this);
         user = user1;
 
-        // Deploy eDAI and pUSDC
-        _deployEDAI();
-        _deployPUSDC();
+        // Deploy eDAI and simpleCUSDC
+        _deployBorrowableCDAI();
+        _deploySimpleCUSDC();
         interestRateModel = interestRateModels[block.chainid][_DAI_ADDRESS];
 
-        // Setup eToken (eDAI)
-        oracleManager.addCTokenSupport(address(eDAI));
+        // Setup cToken (borrowableCDAI)
+        oracleManager.addCTokenSupport(address(borrowableCDAI));
         _prepareDAI(owner, 100e18);
-        dai.approve(address(eDAI), 100e18);
-        // Setup cToken (pUSDC)
-        oracleManager.addCTokenSupport(address(pUSDC));
+        dai.approve(address(borrowableCDAI), 100e18);
+        // Setup cToken (simpleCUSDC)
+        oracleManager.addCTokenSupport(address(simpleCUSDC));
         _prepareUSDC(owner, 100e6);
-        usdc.approve(address(pUSDC), 100e6);
-        marketManagerIsolated.listTokens(address(pUSDC),address(eDAI));
+        usdc.approve(address(simpleCUSDC), 100e6);
+        marketManagerIsolated.listTokens(address(simpleCUSDC),address(borrowableCDAI));
 
         MarketManagerIsolated.TokenConfig memory usdcTokenConfig;
-        usdcTokenConfig.cToken = address(pUSDC);
+        usdcTokenConfig.cToken = address(simpleCUSDC);
         usdcTokenConfig.collRatio = 7000;
         usdcTokenConfig.collReqSoft = 4000;
         usdcTokenConfig.collReqHard = 3000;
@@ -73,7 +73,7 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         usdcTokenConfig.debtCap = 0;
 
         MarketManagerIsolated.TokenConfig memory daiTokenConfig;
-        daiTokenConfig.cToken = address(eDAI);
+        daiTokenConfig.cToken = address(borrowableCDAI);
         daiTokenConfig.collRatio = 7000;
         daiTokenConfig.collReqSoft = 4000;
         daiTokenConfig.collReqHard = 3000;
@@ -93,8 +93,8 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, INITIAL_DEPOSIT - 100e18);
         vm.startPrank(liquidityProvider);
-        dai.approve(address(eDAI), INITIAL_DEPOSIT - 100e18);
-        eDAI.deposit(INITIAL_DEPOSIT - 100e18, liquidityProvider);
+        dai.approve(address(borrowableCDAI), INITIAL_DEPOSIT - 100e18);
+        borrowableCDAI.deposit(INITIAL_DEPOSIT - 100e18, liquidityProvider);
         vm.stopPrank();
     }
 
@@ -124,31 +124,31 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         // given
         // Set up collateral for borrowing
         _prepareUSDC(user, 100000e6);
-        usdc.approve(address(pUSDC), 100000e6);
-        pUSDC.depositAsCollateral(100000e6, user);
+        usdc.approve(address(simpleCUSDC), 100000e6);
+        simpleCUSDC.depositAsCollateral(100000e6, user);
 
         // Initial state checks
         uint256 initialUtilization = interestRateModel.utilizationRate(
-            eDAI.assetsHeld(),
-            eDAI.marketOutstandingDebt()
+            borrowableCDAI.assetsHeld(),
+            borrowableCDAI.marketOutstandingDebt()
         );
         uint256 initialBorrowRate = interestRateModel.getBorrowRatePerYear(
-            eDAI.assetsHeld(),
-            eDAI.marketOutstandingDebt()
+            borrowableCDAI.assetsHeld(),
+            borrowableCDAI.marketOutstandingDebt()
         );
 
         // when
         // Borrow amount that keeps utilization below vertex point
-        eDAI.borrow(BORROW_AMOUNT_BELOW_VERTEX);
+        borrowableCDAI.borrow(BORROW_AMOUNT_BELOW_VERTEX);
 
         // then
         uint256 newUtilization = interestRateModel.utilizationRate(
-            eDAI.assetsHeld(),
-            eDAI.marketOutstandingDebt()
+            borrowableCDAI.assetsHeld(),
+            borrowableCDAI.marketOutstandingDebt()
         );
         uint256 newBorrowRate = interestRateModel.getBorrowRatePerYear(
-            eDAI.assetsHeld(),
-            eDAI.marketOutstandingDebt()
+            borrowableCDAI.assetsHeld(),
+            borrowableCDAI.marketOutstandingDebt()
         );
         (, , uint256 vertexPoint, , , , , , , , ) = interestRateModel
             .ratesConfig();
@@ -197,35 +197,35 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         // given
         // Set up collateral for borrowing
         _prepareUSDC(user, 1000000e6);
-        usdc.approve(address(pUSDC), 1000000e6);
-        pUSDC.depositAsCollateral(1000000e6, user);
+        usdc.approve(address(simpleCUSDC), 1000000e6);
+        simpleCUSDC.depositAsCollateral(1000000e6, user);
 
         skip(1);
 
         // Initial state checks
         uint256 initialUtilization = interestRateModel.utilizationRate(
-            eDAI.assetsHeld(),
-            eDAI.marketOutstandingDebt()
+            borrowableCDAI.assetsHeld(),
+            borrowableCDAI.marketOutstandingDebt()
         );
         uint256 initialBorrowRate = interestRateModel.getBorrowRatePerYear(
-            eDAI.assetsHeld(),
-            eDAI.marketOutstandingDebt()
+            borrowableCDAI.assetsHeld(),
+            borrowableCDAI.marketOutstandingDebt()
         );
 
         skip(1);
 
         // when
         // Borrow amount that pushes utilization above vertex point
-        eDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX);
+        borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX);
 
         // then
         uint256 newUtilization = interestRateModel.utilizationRate(
-            eDAI.assetsHeld(),
-            eDAI.marketOutstandingDebt()
+            borrowableCDAI.assetsHeld(),
+            borrowableCDAI.marketOutstandingDebt()
         );
         uint256 newBorrowRate = interestRateModel.getBorrowRatePerYear(
-            eDAI.assetsHeld(),
-            eDAI.marketOutstandingDebt()
+            borrowableCDAI.assetsHeld(),
+            borrowableCDAI.marketOutstandingDebt()
         );
         (, , uint256 vertexPoint, , , , , , , , ) = interestRateModel
             .ratesConfig();
@@ -289,8 +289,8 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         // given
         // Set up collateral for borrowing
         _prepareUSDC(user, 1000000e6);
-        usdc.approve(address(pUSDC), 1000000e6);
-        pUSDC.depositAsCollateral(1000000e6, user);
+        usdc.approve(address(simpleCUSDC), 1000000e6);
+        simpleCUSDC.depositAsCollateral(1000000e6, user);
 
         // Initial state checks
         uint256 initialMultiplier = interestRateModel.vertexMultiplier();
@@ -310,19 +310,19 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
 
         // when
         // Borrow enough to push utilization above increaseThreshold
-        eDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX);
+        borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX);
 
         // Move time forward to trigger multiplier update
         vm.warp(block.timestamp + adjustmentRate);
 
         // Force an interest rate update
-        eDAI.accrueIfNeeded();
+        borrowableCDAI.accrueIfNeeded();
 
         // then
         uint256 newMultiplier = interestRateModel.vertexMultiplier();
         uint256 utilization = interestRateModel.utilizationRate(
-            eDAI.assetsHeld(),
-            eDAI.marketOutstandingDebt()
+            borrowableCDAI.assetsHeld(),
+            borrowableCDAI.marketOutstandingDebt()
         );
 
         assertGt(
@@ -345,12 +345,12 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         uint256 highMultiplier = interestRateModel.vertexMultiplier();
 
         // Repay most of the debt to drop utilization
-        uint256 currentDebt = eDAI.debtBalance(address(user));
+        uint256 currentDebt = borrowableCDAI.debtBalance(address(user));
         uint256 repayAmount = (currentDebt * 90) / 100; // Repay 90%
 
         _prepareDAI(user, repayAmount);
-        dai.approve(address(eDAI), repayAmount);
-        eDAI.repay(repayAmount);
+        dai.approve(address(borrowableCDAI), repayAmount);
+        borrowableCDAI.repay(repayAmount);
 
         (
             ,
@@ -373,12 +373,12 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         vm.startPrank(user);
 
         // Force an interest rate update
-        eDAI.accrueIfNeeded();
+        borrowableCDAI.accrueIfNeeded();
 
         uint256 newMultiplier = interestRateModel.vertexMultiplier();
         uint256 utilization = interestRateModel.utilizationRate(
-            eDAI.assetsHeld(),
-            eDAI.marketOutstandingDebt()
+            borrowableCDAI.assetsHeld(),
+            borrowableCDAI.marketOutstandingDebt()
         );
 
         assertLt(
@@ -400,8 +400,8 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         // given
         // Set up collateral for borrowing
         _prepareUSDC(user, 2000000e6);
-        usdc.approve(address(pUSDC), 2000000e6);
-        pUSDC.depositAsCollateral(2000000e6, user);
+        usdc.approve(address(simpleCUSDC), 2000000e6);
+        simpleCUSDC.depositAsCollateral(2000000e6, user);
 
         (
             ,
@@ -418,12 +418,12 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         ) = interestRateModel.ratesConfig();
 
         // Borrow to push utilization very high
-        eDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX);
+        borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX);
 
         // Move time forward multiple periods to allow multiplier to increase
         for (uint256 i = 0; i < 10; i++) {
             vm.warp(block.timestamp + adjustmentRate);
-            eDAI.accrueIfNeeded();
+            borrowableCDAI.accrueIfNeeded();
         }
 
         uint256 finalMultiplier = interestRateModel.vertexMultiplier();
@@ -441,10 +441,10 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
 
         vm.startPrank(user);
         // Repay almost all debt
-        uint256 currentDebt = eDAI.debtBalance(address(user));
+        uint256 currentDebt = borrowableCDAI.debtBalance(address(user));
         _prepareDAI(user, currentDebt);
-        dai.approve(address(eDAI), currentDebt);
-        eDAI.repay(currentDebt);
+        dai.approve(address(borrowableCDAI), currentDebt);
+        borrowableCDAI.repay(currentDebt);
 
         // Move time forward several adjustment periods
         uint256 adjustmentPeriods = 10;
@@ -453,7 +453,7 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
 
         for (uint256 i = 0; i < adjustmentPeriods; i++) {
             vm.warp(block.timestamp + adjustmentRate);
-            eDAI.accrueIfNeeded();
+            borrowableCDAI.accrueIfNeeded();
         }
 
         uint256 finalMultiplier = interestRateModel.vertexMultiplier();

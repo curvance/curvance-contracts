@@ -13,9 +13,9 @@ contract SetCollateralCapsTest is TestBaseMarketManager {
     function setUp() public override {
         super.setUp();
 
-        mTokens.push(address(eUSDC));
-        mTokens.push(address(eDAI));
-        mTokens.push(address(pBALRETH));
+        mTokens.push(address(borrowableCUSDC));
+        mTokens.push(address(borrowableCDAI));
+        mTokens.push(address(simpleCBALRETH));
         collateralCaps.push(100e6);
         collateralCaps.push(100e18);
         collateralCaps.push(100e18);
@@ -44,7 +44,7 @@ contract SetCollateralCapsTest is TestBaseMarketManager {
     function test_setCollateralCaps_fail_whenMTokenAndCapsLengthsMismatch()
         public
     {
-        mTokens.push(address(eUSDC));
+        mTokens.push(address(borrowableCUSDC));
         assertNotEq(mTokens.length, collateralCaps.length);
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
@@ -63,10 +63,10 @@ contract SetCollateralCapsTest is TestBaseMarketManager {
 
     function test_setCollateralCaps_success() public {
         _prepareBALRETH(address(this), 1 ether);
-        balRETH.approve(address(pBALRETH), 1 ether);
-        marketManager.listToken(address(pBALRETH));
+        balRETH.approve(address(simpleCBALRETH), 1 ether);
+        marketManager.listToken(address(simpleCBALRETH));
         marketManager.updatePositionToken(
-            address(pBALRETH),
+            address(simpleCBALRETH),
             7000,
             4000,
             3000,
@@ -76,8 +76,8 @@ contract SetCollateralCapsTest is TestBaseMarketManager {
         );
 
         address[] memory validMTokens = new address[](2);
-        validMTokens[0] = address(pBALRETH);
-        validMTokens[1] = address(pBALRETH);
+        validMTokens[0] = address(simpleCBALRETH);
+        validMTokens[1] = address(simpleCBALRETH);
         uint256[] memory validCollateralCaps = new uint256[](2);
         validCollateralCaps[0] = 100e18;
         validCollateralCaps[1] = 10e18;
@@ -93,7 +93,7 @@ contract SetCollateralCapsTest is TestBaseMarketManager {
         );
 
         assertEq(
-            marketManager.collateralCaps(address(pBALRETH)),
+            marketManager.collateralCaps(address(simpleCBALRETH)),
             validCollateralCaps[1]
         );
     }

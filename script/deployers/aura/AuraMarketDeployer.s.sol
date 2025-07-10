@@ -190,10 +190,10 @@ contract AuraMarketDeployer is DeployConfiguration {
             console.log("oracleManager.addAssetPriceFeed: ", param.asset);
         }
 
-        // Deploy PToken
-        address pToken = _getDeployedContract(name);
-        if (pToken == address(0)) {
-            pToken = address(
+        // Deploy cToken
+        address cToken = _getDeployedContract(name);
+        if (cToken == address(0)) {
+            cToken = address(
                 new AuraCToken(
                     ICentralRegistry(centralRegistry),
                     IERC20(param.asset),
@@ -205,8 +205,8 @@ contract AuraMarketDeployer is DeployConfiguration {
                 )
             );
 
-            console.log("pToken: ", pToken);
-            _saveDeployedContracts(name, pToken);
+            console.log("cToken: ", cToken);
+            _saveDeployedContracts(name, cToken);
         }
 
         // followings should be done separate because it requires dust amount deposits

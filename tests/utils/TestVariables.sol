@@ -106,12 +106,12 @@ contract TestVariables {
     OracleManager public oracleManager;
     AuxiliaryData public auxiliaryData;
     DAOTimelock public daoTimelock;
-    BorrowableCToken public eUSDC;
-    BorrowableCToken public eDAI;
+    BorrowableCToken public borrowableCUSDC;
+    BorrowableCToken public borrowableCDAI;
 
-    SimpleCToken public pUSDC;
-    AuraCToken public pBALRETH;
-    MockAuraCTokenWithExitFee public pBALRETHWithExitFee;
+    SimpleCToken public simpleCUSDC;
+    AuraCToken public strategyCBALRETH;
+    MockAuraCTokenWithExitFee public strategyCBALRETHWithExitFee;
  
     IERC20 public usdc;
     IERC20 public dai;
@@ -150,11 +150,11 @@ contract TestVariables {
     mapping(uint256 => AuxiliaryData) public auxiliaryDatas;
     mapping(uint256 => DAOTimelock) public daoTimelocks;
     mapping(uint256 => OracleManager) public oracleManagers;
-    mapping(uint256 => BorrowableCToken) public eUSDCs;
-    mapping(uint256 => BorrowableCToken) public eDAIs;
+    mapping(uint256 => BorrowableCToken) public borrowableCUSDCs;
+    mapping(uint256 => BorrowableCToken) public borrowableCDAIs;
 
-    mapping(uint256 => AuraCToken) public pBALRETHs;
-    mapping(uint256 => MockAuraCTokenWithExitFee) public pBALRETHWithExitFees;
+    mapping(uint256 => AuraCToken) public strategyCBALRETHs;
+    mapping(uint256 => MockAuraCTokenWithExitFee) public strategyCBALRETHWithExitFees;
 
 
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcUsds;
@@ -383,11 +383,11 @@ contract TestVariables {
         marketManagerIsolated = marketManagersIsolated[chainId];
         oracleManager = oracleManagers[chainId];
         auxiliaryData = auxiliaryDatas[chainId];
-        eUSDC = eUSDCs[chainId];
-        eDAI = eDAIs[chainId];
+        borrowableCUSDC = borrowableCUSDCs[chainId];
+        borrowableCDAI = borrowableCDAIs[chainId];
 
-        pBALRETH = pBALRETHs[chainId];
-        pBALRETHWithExitFee = pBALRETHWithExitFees[chainId];
+        strategyCBALRETH = strategyCBALRETHs[chainId];
+        strategyCBALRETHWithExitFee = strategyCBALRETHWithExitFees[chainId];
 
 
         chainlinkUsdcUsd = chainlinkUsdcUsds[chainId];

@@ -12,54 +12,52 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
 
     function test_partialCollateralizedWithdraw() public {
         // Get underlying
-        MockERC20Token balRETH = MockERC20Token(pBALRETH.asset());
-        MockERC20Token USDC = MockERC20Token(eUSDC.asset());
+        MockERC20Token balRETH = MockERC20Token(strategyCBALRETH.asset());
+        MockERC20Token USDC = MockERC20Token(borrowableCUSDC.asset());
 
         // Prepare token balances
         _prepareBALRETH(address(this), 10e18);
         deal(address(USDC), address(this), 1_000_000e6);
 
         // Approve underlying tokens
-        balRETH.approve(address(pBALRETH), 10e18);
-        USDC.approve(address(eUSDC), 1_000_000e6);
+        balRETH.approve(address(strategyCBALRETH), 10e18);
+        USDC.approve(address(borrowableCUSDC), 1_000_000e6);
 
         // List tokens
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pBALRETH);
-        configToken0.collRatio = 7000;
-        configToken0.collReqSoft = 4000;
-        configToken0.collReqHard = 3000;
-        configToken0.liqIncBase = 1000;
-        configToken0.liqIncHard = 1500;
-        configToken0.liqIncMin = 500;
-        configToken0.liqIncMax = 2000;
-        configToken0.minEffectiveCloseFactor = 2000;
-        configToken0.maxEffectiveCloseFactor = 5000;
-        configToken0.baseCFactor = 1000;
-        configToken0.collateralCap = 100_000e18;
-        configToken0.debtCap = 0;
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 7000;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 1000;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(configToken0);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-        MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
-        configToken1.debtCap = 100_000e6;
-        marketManagerIsolated.updateTokenConfig(configToken1);
+        tokenConfig.cToken = address(borrowableCUSDC);
+        tokenConfig.debtCap = 100_000e6;
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-
-        // Deposit 1 pBALRETH
-        pBALRETH.deposit(1e18, address(this));
-        // Deposit & Collateralize 1 pBALRETH
-        pBALRETH.depositAsCollateral(1e18, address(this));
+        // Deposit 1 strategyCBALRETH
+        strategyCBALRETH.deposit(1e18, address(this));
+        // Deposit & Collateralize 1 strategyCBALRETH
+        strategyCBALRETH.depositAsCollateral(1e18, address(this));
         // Lend so there is something to borrow
-        eUSDC.deposit(100_000e6, address(this));
+        borrowableCUSDC.deposit(100_000e6, address(this));
         // Do a partial borrow
-        eUSDC.borrow(750e6);
+        borrowableCUSDC.borrow(750e6);
         // Fast forward to get past minimum hold
         vm.warp(block.timestamp + 1 days);
-        // Withdraw 1 pBALRETH (which has not been collateralized yet)
-        pBALRETH.redeem(1e18, address(this), address(this));
+        // Withdraw 1 strategyCBALRETH (which has not been collateralized yet)
+        strategyCBALRETH.redeem(1e18, address(this), address(this));
     }
 }

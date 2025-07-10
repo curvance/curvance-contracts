@@ -44,7 +44,7 @@
 
 //     constructor() {
 //         positionToken = address(pUSDC);
-//         earnToken = address(eDAI);
+//         earnToken = address(borrowableCDAI);
 //     }
 
 //     /// @notice stores failed steps and error codes

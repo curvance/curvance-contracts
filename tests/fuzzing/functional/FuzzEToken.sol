@@ -10,8 +10,8 @@
 //     constructor() {
 //         require(_mintAndApprove(address(usdc), address(pUSDC), 1000 ether));
 //         require(_mintAndApprove(address(dai), address(pDAI), 1000 ether));
-//         require(_mintAndApprove(address(usdc), address(eUSDC), 1000 ether));
-//         require(_mintAndApprove(address(dai), address(eDAI), 1000 ether));
+//         require(_mintAndApprove(address(usdc), address(borrowableCUSDC), 1000 ether));
+//         require(_mintAndApprove(address(dai), address(borrowableCDAI), 1000 ether));
 //     }
 
 //     /// @custom:property dtok-1 calling EToken.mint should succeed with correct preconditions
@@ -303,7 +303,7 @@
 
 //         amount = clampBetween(amount, accountDebt + 1, type(uint256).max);
 //         dai.mint(amount);
-//         dai.approve(address(eDAI), amount);
+//         dai.approve(address(borrowableCDAI), amount);
 //         try marketManager.canRepay(address(eToken), address(this)) {} catch {
 //             return;
 //         }
@@ -457,7 +457,7 @@
 //     /// @custom:limitation this property is also currently ONLY testing the eToken = DAI, cToken = pUSDC and should be expanded as other liquidation functions should be
 //     /// @custom:limitation missing collateralPostedFor assertion difference checks
 //     function liquidate_should_succeed_with_non_exact(uint256 amount) public {
-//         address eToken = address(eDAI);
+//         address eToken = address(borrowableCDAI);
 //         address positionToken = address(pUSDC);
 //         require(marketManager.seizePaused() != 2);
 //         address account = address(this);
@@ -610,7 +610,7 @@
 //     /// @custom:limitation current uses a constant for dai and usdc price to push the position into an liquidatable state, see liquidateAccount in marketManager for dynamic generation
 //     /// @custom:limitation missing check for position token balance of account
 //     function liquidate_should_succeed_with_exact(uint256 amount) public {
-//         address eToken = address(eDAI);
+//         address eToken = address(borrowableCDAI);
 //         address positionToken = address(pUSDC);
 //         address account = address(this);
 //         uint256 priorCollateral = _collateralPostedFor(address(positionToken));

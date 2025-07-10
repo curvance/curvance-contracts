@@ -79,44 +79,43 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         // setup eDAI
         {
             _prepareDAI(address(this), 200000e18);
-            dai.approve(address(eDAI), 200000e18);
+            dai.approve(address(borrowableCDAI), 200000e18);
 
-            // add MToken support on oracle manager
-            oracleManager.addCTokenSupport(address(eDAI));
+            // Add cToken support on Oracle Manager.
+            oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
-        // setup pBALRETH
+        // setup strategyCBALRETH
         {
             // support market
             _prepareBALRETH(address(this), _ONE);
-            balRETH.approve(address(pBALRETH), _ONE);
+            balRETH.approve(address(strategyCBALRETH), _ONE);
             
 
         }
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
 
-        MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pBALRETH);
-        configToken0.collRatio = 7000;
-        configToken0.collReqSoft = 4000;
-        configToken0.collReqHard = 3000;
-        configToken0.liqIncBase = 1000;
-        configToken0.liqIncHard = 1500;
-        configToken0.liqIncMin = 500;
-        configToken0.liqIncMax = 2000;
-        configToken0.minEffectiveCloseFactor = 2000;
-        configToken0.maxEffectiveCloseFactor = 5000;
-        configToken0.baseCFactor = 1000;
-        configToken0.collateralCap = 100_000e18;
-        configToken0.debtCap = 0;
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 7000;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 1000;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(configToken0);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-        MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eDAI);
-        configToken1.debtCap = 100_000e18;
-        marketManagerIsolated.updateTokenConfig(configToken1);
+        tokenConfig.cToken = address(borrowableCDAI);
+        tokenConfig.debtCap = 100_000e18;
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
         // provide enough liquidity
         _provideEnoughLiquidityForLeverage();
@@ -142,13 +141,13 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(pBALRETH), _ONE);
-        pBALRETH.deposit(_ONE, user1);
-        pBALRETH.postCollateral(_ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, user1);
+        strategyCBALRETH.postCollateral(_ONE);
         vm.stopPrank();
 
-        assertEq(pBALRETH.balanceOf(user1), _ONE);
-        assertEq(pBALRETH.exchangeRate(), _ONE);
+        assertEq(strategyCBALRETH.balanceOf(user1), _ONE);
+        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
 
         centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
@@ -178,13 +177,13 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(CCTPZapper), true);
+        borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
 
         vm.expectRevert(
             CCTPBorrowZapper.CCTPBorrowZapper__InvalidSwapData.selector
         );
         CCTPZapper.borrowAndBridge{ value: _ONE }(
-            address(eDAI),
+            address(borrowableCDAI),
             500e18,
             swapData,
             42161,
@@ -199,13 +198,13 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(CCTPZapper), true);
+        borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
 
         vm.expectRevert(
             CCTPBorrowZapper.CCTPBorrowZapper__CCTPIsNotConfigured.selector
         );
         CCTPZapper.borrowAndBridge{ value: _ONE }(
-            address(eDAI),
+            address(borrowableCDAI),
             500e18,
             swapData,
             42161,
@@ -220,7 +219,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(CCTPZapper), true);
+        borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
 
         vm.expectRevert(
             CCTPBorrowZapper
@@ -228,7 +227,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
                 .selector
         );
         CCTPZapper.borrowAndBridge{ value: messageFee - 1 }(
-            address(eDAI),
+            address(borrowableCDAI),
             500e18,
             swapData,
             42161,
@@ -244,15 +243,15 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(CCTPZapper), true);
+        borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
         CCTPZapper.borrowAndBridge{ value: _ONE }(
-            address(eDAI),
+            address(borrowableCDAI),
             500e18,
             swapData,
             42161,
             0
         );
-        eDAI.borrow(500e18);
+        borrowableCDAI.borrow(500e18);
 
         vm.stopPrank();
 
@@ -265,11 +264,11 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         _prepareBALRETH(liquidityProvider, 10e18);
         // mint eDAI
         vm.startPrank(liquidityProvider);
-        dai.approve(address(eDAI), 200000e18);
-        eDAI.deposit(200000e18, liquidityProvider);
+        dai.approve(address(borrowableCDAI), 200000e18);
+        borrowableCDAI.deposit(200000e18, liquidityProvider);
         // mint cBALETH
-        balRETH.approve(address(pBALRETH), 10e18);
-        pBALRETH.deposit(10e18, liquidityProvider);
+        balRETH.approve(address(strategyCBALRETH), 10e18);
+        strategyCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
     }
 }

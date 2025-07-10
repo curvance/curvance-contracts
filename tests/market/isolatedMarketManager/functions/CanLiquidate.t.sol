@@ -14,17 +14,17 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
     address[] accounts = new address[](1);
     uint256[] debtAmounts = new uint256[](1);
 
-    uint256 eTokenUnderlyingPrice = 1e18;
+    uint256 borrowableCTokenUnderlyingPrice = 1e18;
 
     constructor() {
         accounts[0] = user1;
         debtAmounts[0] = 1000e6;
     }
     
-    function test_canLiquidate_fail_whenETokenNotListed() public {
+    function test_canLiquidate_fail_whenBorrowableCTokenNotListed() public {
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            collateralToken: address(eUSDC),
-            debtToken: address(pBALRETH),
+            collateralToken: address(borrowableCUSDC),
+            debtToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -32,7 +32,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             badDebt: 0
         });
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.canLiquidate(
@@ -42,11 +42,11 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             liqInstructions);
     }
 
-    function test_canLiquidate_fail_whenPTokenNotListed() public {
-        // marketManager.listToken(address(eUSDC));
+    function test_canLiquidate_fail_whenCTokenNotListed() public {
+        // marketManager.listToken(address(borrowableCUSDC));
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            collateralToken: address(eUSDC),
-            debtToken: address(pBALRETH),
+            collateralToken: address(borrowableCUSDC),
+            debtToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -54,7 +54,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             badDebt: 0
         });
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.canLiquidate(
@@ -66,16 +66,16 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
 
     function test_canLiquidate_fail_whenCollRatioZero() public {
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(pBALRETH), 77777);
+        balRETH.approve(address(strategyCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            collateralToken: address(eUSDC),
-            debtToken: address(pBALRETH),
+            collateralToken: address(borrowableCUSDC),
+            debtToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -83,7 +83,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             badDebt: 0
         });
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InvalidParameter.selector
@@ -97,18 +97,18 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
 
     function test_canLiquidate_fail_whenUserHasNotEnteredAnyMarket() public {
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(pBALRETH), 77777);
+        balRETH.approve(address(strategyCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
-        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(eUSDC), 0, 1_000_000e6);
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            collateralToken: address(eUSDC),
-            debtToken: address(pBALRETH),
+            collateralToken: address(borrowableCUSDC),
+            debtToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -116,7 +116,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             badDebt: 0
         });
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
@@ -132,18 +132,18 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         public
     {
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(pBALRETH), 77777);
+        balRETH.approve(address(strategyCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
-        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(eUSDC), 0, 1_000_000e6);
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            collateralToken: address(eUSDC),
-            debtToken: address(pBALRETH),
+            collateralToken: address(borrowableCUSDC),
+            debtToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -151,7 +151,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             badDebt: 0
         });
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
@@ -187,26 +187,26 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             block.timestamp
         );
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(pBALRETH), 77777);
+        balRETH.approve(address(strategyCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(eUSDC), 0, 1_000_000e6);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(pBALRETH), 1_000e18);
-        pBALRETH.deposit(1_000e18, user1);
-        pBALRETH.postCollateral(999e18);
+        balRETH.approve(address(strategyCBALRETH), 1_000e18);
+        strategyCBALRETH.deposit(1_000e18, user1);
+        strategyCBALRETH.postCollateral(999e18);
         vm.stopPrank();
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            collateralToken: address(eUSDC),
-            debtToken: address(pBALRETH),
+            collateralToken: address(borrowableCUSDC),
+            debtToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -214,7 +214,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             badDebt: 0
         });
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
@@ -230,21 +230,21 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
 
     function test_canLiquidate_success() public {
         deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(pBALRETH), 77777);
+        balRETH.approve(address(strategyCBALRETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(eUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(pBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(eUSDC), 0, 100_000e6);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100_000e6);
 
         _setupUserPositionAndOracles();
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            collateralToken: address(eUSDC),
-            debtToken: address(pBALRETH),
+            collateralToken: address(borrowableCUSDC),
+            debtToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             collateralLiquidated: 0,
@@ -256,7 +256,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         mockWethFeed.setMockAnswer(1000e8);
         mockRethFeed.setMockAnswer(1000e8);
 
-        vm.prank(address(eUSDC));
+        vm.prank(address(borrowableCUSDC));
 
         // =================== RESULTS ==================
         (
@@ -278,13 +278,13 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         console2.log("debtAmounts", debtAmountsReturned[0]);
 
         uint256 collateralAvailable = 1e18 - 1;
-        (uint256 expectedRepayAmount, uint256 expectedCollateralSeized, uint256 pTokenPrice) = _calculateExpectedRepayAndLiquidated(collateralAvailable);
+        (uint256 expectedRepayAmount, uint256 expectedCollateralSeized, uint256 cTokenPrice) = _calculateExpectedRepayAndLiquidated(collateralAvailable);
 
         uint256 expectedBadDebt = _calculateBadDebt(
             expectedRepayAmount,
             collateralAvailable,
             expectedCollateralSeized,
-            pTokenPrice
+            cTokenPrice
         );
 
         // validate liqResults.liquidatedAmounts[0]
@@ -326,22 +326,22 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        // Mint pBALRETH for collateral
+        // Mint strategyCBALRETH for collateral
         _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(pBALRETH), 1_000e18);
-        pBALRETH.deposit(1e18, user1);
-        pBALRETH.postCollateral(1e18 - 1);
+        balRETH.approve(address(strategyCBALRETH), 1_000e18);
+        strategyCBALRETH.deposit(1e18, user1);
+        strategyCBALRETH.postCollateral(1e18 - 1);
 
-        // Borrow eUSDC with pBALRETH as collateral
-        _prepareUSDC(address(eUSDC), 100_000e6);
-        eUSDC.borrow(1000e6);
+        // Borrow eUSDC with strategyCBALRETH as collateral
+        _prepareUSDC(address(borrowableCUSDC), 100_000e6);
+        borrowableCUSDC.borrow(1000e6);
         vm.stopPrank();
 
         assertEq(usdc.balanceOf(user1), 1000e6);
     }
 
-    function _calculateExpectedRepayAndLiquidated(uint256 collateralAvailable) internal view returns (uint256 maxAmount, uint256 liquidatedPTokens, uint256) {
+    function _calculateExpectedRepayAndLiquidated(uint256 collateralAvailable) internal view returns (uint256 maxAmount, uint256 liquidatedCTokens, uint256) {
         // Get price data
         PriceReturnData memory priceData = balRETHAdapter.getPrice(
             _BAL_WETH_RETH_ADDRESS,
@@ -363,45 +363,45 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         uint256 auctionLiqIncentive = liqBaseIncentive +
                 ((liqCurve * lFactor) / WAD);
 
-        // uint256 pTokenDecimals = 1e18;
-        // uint256 eTokenDecimals = 1e6;
+        // uint256 cTokenDecimals = 1e18;
+        // uint256 borrowableCTokenDecimals = 1e6;
 
         uint256 debtToCollateralMultiplier = 
-        (((auctionLiqIncentive * eTokenUnderlyingPrice * WAD) /
+        (((auctionLiqIncentive * borrowableCTokenUnderlyingPrice * WAD) /
             (priceData.price * 1e18)) *
             1e18) / 1e6;
 
         maxAmount = (auctionCFactor * 1000e6) / WAD;
 
-        liquidatedPTokens = (maxAmount * debtToCollateralMultiplier) / WAD;
+        liquidatedCTokens = (maxAmount * debtToCollateralMultiplier) / WAD;
 
-        console2.log("liquidatedPTokens 000", liquidatedPTokens);
+        console2.log("liquidatedCTokens 000", liquidatedCTokens);
 
         maxAmount = FixedPointMathLib.mulDivUp(
             maxAmount,
             collateralAvailable,
-            liquidatedPTokens
+            liquidatedCTokens
         );
 
-        liquidatedPTokens = collateralAvailable;
+        liquidatedCTokens = collateralAvailable;
 
 
-        return (maxAmount, liquidatedPTokens, priceData.price);
+        return (maxAmount, liquidatedCTokens, priceData.price);
     }
 
     function _calculateBadDebt(
         uint256 debtAmount,
         uint256 collateralAvailable, 
-        uint256 liquidatedPTokens, 
-        uint256 pTokenUnderlyingPrice) internal view returns (uint256 badDebt) {
+        uint256 liquidatedCTokens, 
+        uint256 cTokenUnderlyingPrice) internal view returns (uint256 badDebt) {
 
             uint256 debtBalance = 1e9;
 
             badDebt = (debtBalance - debtAmount) -
             FixedPointMathLib.mulDivUp(
-                ((collateralAvailable - liquidatedPTokens) * 1e18) / WAD,
-                pTokenUnderlyingPrice,
-                (eTokenUnderlyingPrice * WAD) / 1e6
+                ((collateralAvailable - liquidatedCTokens) * 1e18) / WAD,
+                cTokenUnderlyingPrice,
+                (borrowableCTokenUnderlyingPrice * WAD) / 1e6
             );
     }
 }
