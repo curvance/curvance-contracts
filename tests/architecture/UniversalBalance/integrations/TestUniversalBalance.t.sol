@@ -20,7 +20,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
     MockDataFeed public mockStethFeed;
     MockV3Aggregator public mockWbtcFeed;
 
-    SimpleCToken public pWBTC;
+    SimpleCToken public simpleCWBTC;
     UniversalBalance public universalBalance;
 
     address[] public owners;
@@ -110,10 +110,10 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         //     markets[0] = address(borrowableCUSDC);
         // }
 
-        // deploy pWBTC
+        // deploy simpleCWBTC
         {
             // Deploy simple cToken
-            pWBTC = new SimpleCToken(
+            simpleCWBTC = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
                 address(marketManagerIsolated)
@@ -122,13 +122,13 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
             // support market
             _prepareWBTC(owner, 1e8);
             _prepareUSDC(owner, 1000e6);    
-            wbtc.approve(address(pWBTC), 1e8);
+            wbtc.approve(address(simpleCWBTC), 1e8);
             usdc.approve(address(borrowableCUSDC), 1000e6);
-            marketManagerIsolated.listTokens(address(pWBTC), address(borrowableCUSDC));
-            // add CToken support on oracle manager
-            oracleManager.addCTokenSupport(address(pWBTC));
-            // set position token configuration
-            _setCTokenConfigBasic(address(pWBTC), 100e8, 100e8);
+            marketManagerIsolated.listTokens(address(simpleCWBTC), address(borrowableCUSDC));
+            // Add cToken support on Oracle Manager.
+            oracleManager.addCTokenSupport(address(simpleCWBTC));
+            // Set cToken configuration.
+            _setCTokenConfigBasic(address(simpleCWBTC), 100e8, 100e8);
             _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000e6, 1_000_000e6);
 
         }
@@ -489,12 +489,12 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
     function testLentBalanceIncreased() public {
         testDeposit();
 
-        // mint pWBTC & borrow USDC
+        // mint simpleCWBTC & borrow USDC
         _prepareWBTC(user2, 100e8);
         vm.startPrank(user2);
-        wbtc.approve(address(pWBTC), 100e8);
-        pWBTC.mint(100e8, user2);
-        pWBTC.postCollateral(100e8);
+        wbtc.approve(address(simpleCWBTC), 100e8);
+        simpleCWBTC.mint(100e8, user2);
+        simpleCWBTC.postCollateral(100e8);
         borrowableCUSDC.borrow(50e6);
 
         vm.stopPrank();

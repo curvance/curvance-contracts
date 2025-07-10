@@ -78,41 +78,27 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        // marketManagerIsolated.updatePositionToken(
-        //     9750,    // collRatio 97.5% (max borrowing power)
-        //     250,     // collReqSoft 2.5% (enables ~97.56% LTV liquidation trigger)
-        //     200,     // collReqHard 2.0% (enables ~98.04% LTV hard liquidation)
-        //     1000,    // liqIncBase 10%
-        //     1500,    // liqIncHard 15%
-        //     500,     // liqIncMin 5%
-        //     2000,    // liqIncMax 20%
-        //     2000,    // minEffectiveCFactor 20%
-        //     5000,    // maxEffectiveCFactor 50%
-        //     2000     // baseCFactor 20%
-        // );
+        MarketManagerIsolated.TokenConfig memory tokenConfigs;
+        tokenConfigs.cToken = address(strategyCBALRETH);
+        tokenConfigs.collRatio = 7000;
+        tokenConfigs.collReqSoft = 4000;
+        tokenConfigs.collReqHard = 3000;
+        tokenConfigs.liqIncBase = 1000;
+        tokenConfigs.liqIncHard = 1500;
+        tokenConfigs.liqIncMin = 500;
+        tokenConfigs.liqIncMax = 2000;
+        tokenConfigs.minEffectiveCloseFactor = 2000;
+        tokenConfigs.maxEffectiveCloseFactor = 3000;
+        tokenConfigs.baseCFactor = 1000;
+        tokenConfigs.collateralCap = 100e8;
+        tokenConfigs.debtCap = 0;
 
-        MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(strategyCBALRETH);
-        configToken0.collRatio = 9750;
-        configToken0.collReqSoft = 250;
-        configToken0.collReqHard = 200;
-        configToken0.liqIncBase = 1000;
-        configToken0.liqIncHard = 1500;
-        configToken0.liqIncMin = 500;
-        configToken0.liqIncMax = 2000;
-        configToken0.minEffectiveCloseFactor = 2000;
-        configToken0.maxEffectiveCloseFactor = 5000;
-        configToken0.baseCFactor = 2000;
-        configToken0.collateralCap = 100_000e18;
-        configToken0.debtCap = 0;
+        marketManagerIsolated.updateTokenConfig(tokenConfigs);
 
-        marketManagerIsolated.updateTokenConfig(configToken0);
+        tokenConfigs.cToken = address(borrowableCUSDC);
+        tokenConfigs.debtCap = 100_000e6;
 
-        MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(borrowableCUSDC);
-        configToken1.debtCap = 100_000e6;
-
-        marketManagerIsolated.updateTokenConfig(configToken1);
+        marketManagerIsolated.updateTokenConfig(tokenConfigs);
 
         // Add liquidity
         address liquidityProvider = makeAddr("liquidityProvider");
