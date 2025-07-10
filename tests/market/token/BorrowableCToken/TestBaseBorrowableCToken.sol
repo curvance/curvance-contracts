@@ -69,27 +69,26 @@ contract TestBaseBorrowableCToken is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(strategyCBALRETH);
-        configToken0.collRatio = 7000;
-        configToken0.collReqSoft = 4000;
-        configToken0.collReqHard = 3000;
-        configToken0.liqIncBase = 1000;
-        configToken0.liqIncHard = 1500;
-        configToken0.liqIncMin = 500;
-        configToken0.liqIncMax = 2000;
-        configToken0.minEffectiveCloseFactor = 2000;
-        configToken0.maxEffectiveCloseFactor = 3000;
-        configToken0.baseCFactor = 1000;
-        configToken0.collateralCap = 100_000e18;
-        configToken0.debtCap = 0;
+        MarketManagerIsolated.TokenConfig memory cTokenConfig;
+        cTokenConfig.cToken = address(strategyCBALRETH);
+        cTokenConfig.collRatio = 7000;
+        cTokenConfig.collReqSoft = 4000;
+        cTokenConfig.collReqHard = 3000;
+        cTokenConfig.liqIncBase = 1000;
+        cTokenConfig.liqIncHard = 1500;
+        cTokenConfig.liqIncMin = 500;
+        cTokenConfig.liqIncMax = 2000;
+        cTokenConfig.minEffectiveCloseFactor = 2000;
+        cTokenConfig.maxEffectiveCloseFactor = 3000;
+        cTokenConfig.baseCFactor = 1000;
+        cTokenConfig.collateralCap = 100_000e18;
+        cTokenConfig.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(configToken0);
+        marketManagerIsolated.updateTokenConfig(cTokenConfig);
 
-        MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(borrowableCUSDC);
-        configToken1.debtCap = 100_000e6;
-        marketManagerIsolated.updateTokenConfig(configToken1);
+        cTokenConfig.cToken = address(borrowableCUSDC);
+        cTokenConfig.debtCap = 100_000e6;
+        marketManagerIsolated.updateTokenConfig(cTokenConfig);
         
 
         strategyCBALRETH.mint(_ONE, address(this));
