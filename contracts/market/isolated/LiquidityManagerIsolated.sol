@@ -377,8 +377,10 @@ abstract contract LiquidityManagerIsolated {
             // Calculate impact of cTokenModified action.
             if (action.cTokenModified == snapshot.asset) {
                 // If its being used as collateral it cannot be a debt position
-                // too.
-                if (snapshot.isCollateral) {
+                // too, but on a fresh borrow position snapshot can misreport a
+                // debt position as collateral until its fully opened because
+                // debtBalance still equals 0 at getSnapshot level.
+                if (snapshot.isCollateral && action.borrowAssets == 0) {
                     // If they are trying to redeem more tokens than
                     // they have, the transaction will fail before it
                     // gets to this point, so no special case needed.
