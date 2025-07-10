@@ -201,7 +201,7 @@ abstract contract LiquidityManager {
     ///         from a new line of credit inside a market.
     /// @dev This restriction is to minimize the potential of debt positions
     ///      being created that cannot not be profitably closed.
-    uint256 public constant MIN_ACTIVE_LOAN_SIZE = 50e18;
+    uint256 public constant MIN_ACTIVE_LOAN_SIZE = 10e18;
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
