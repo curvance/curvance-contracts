@@ -174,27 +174,27 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(pWBTC),address(borrowableCUSDC));
 
-        MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pWBTC);
-        configToken0.collRatio = 7000;
-        configToken0.collReqSoft = 4000;
-        configToken0.collReqHard = 3000;
-        configToken0.liqIncBase = 1000;
-        configToken0.liqIncHard = 1500;
-        configToken0.liqIncMin = 500;
-        configToken0.liqIncMax = 2000;
-        configToken0.minEffectiveCloseFactor = 2000;
-        configToken0.maxEffectiveCloseFactor = 3000;
-        configToken0.baseCFactor = 1000;
-        configToken0.collateralCap = 100e8;
-        configToken0.debtCap = 0;
+        MarketManagerIsolated.TokenConfig memory tokenConfigs;
+        tokenConfigs.cToken = address(pWBTC);
+        tokenConfigs.collRatio = 7000;
+        tokenConfigs.collReqSoft = 4000;
+        tokenConfigs.collReqHard = 3000;
+        tokenConfigs.liqIncBase = 1000;
+        tokenConfigs.liqIncHard = 1500;
+        tokenConfigs.liqIncMin = 500;
+        tokenConfigs.liqIncMax = 2000;
+        tokenConfigs.minEffectiveCloseFactor = 2000;
+        tokenConfigs.maxEffectiveCloseFactor = 3000;
+        tokenConfigs.baseCFactor = 1000;
+        tokenConfigs.collateralCap = 100e8;
+        tokenConfigs.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(configToken0);
+        marketManagerIsolated.updateTokenConfig(tokenConfigs);
 
-        MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(borrowableCUSDC);
-        configToken1.debtCap = 100_000e6;
-        marketManagerIsolated.updateTokenConfig(configToken1);
+        tokenConfigs.cToken = address(borrowableCUSDC);
+        tokenConfigs.debtCap = 100_000e6;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfigs);
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();
