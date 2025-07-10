@@ -107,12 +107,6 @@
 //             usdc.approve(address(borrowableCUSDC), 200000e6);
 //             // Add cToken support on Oracle Manager.
 //             oracleManager.addCTokenSupport(address(borrowableCUSDC));
-//             address[] memory markets = new address[](1);
-//             markets[0] = address(borrowableCUSDC);
-//             // vm.prank(user1);
-//             // marketManager.enterMarkets(markets);
-//             // vm.prank(user2);
-//             // marketManager.enterMarkets(markets);
 //         }
 
 //         // deploy cPendlePT
@@ -129,15 +123,7 @@
 //             pendlePT.approve(address(cPendlePT), 1 ether);
 //             // Add cToken support on Oracle Manager
 //             oracleManager.addCTokenSupport(address(cPendlePT));
-            
 
-
-//             // address[] memory markets = new address[](1);
-//             // markets[0] = address(cPendlePT);
-//             // vm.prank(user1);
-//             // marketManager.enterMarkets(markets);
-//             // vm.prank(user2);
-//             // marketManager.enterMarkets(markets);
 //         }
 
 //         marketManagerIsolated.listTokens(address(cPendlePT), address(borrowableCUSDC));

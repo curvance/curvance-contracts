@@ -373,8 +373,6 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             assertEq(lFactorAfter, 0, "Regular borrower should have lFactor = 0");
         }
 
-
-
     }
 
 
