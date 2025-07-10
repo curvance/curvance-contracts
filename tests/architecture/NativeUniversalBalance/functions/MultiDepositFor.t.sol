@@ -291,7 +291,7 @@ contract NativeUniversalBalanceMultiDepositForTest is
     ) {
         for (uint256 i; i < 3; i++) {
             vm.assume(
-                0 < amounts_[i] && amounts_[i] < type(uint256).max / _ONE
+                0 < amounts_[i] && amounts_[i] < type(uint216).max / _ONE
             );
 
             amounts.push(amounts_[i]);

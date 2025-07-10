@@ -741,7 +741,7 @@ abstract contract BaseCToken is
 
         // Check for rounding error by converting assets to shares,
         // since we round down in previewDeposit.
-        _checkZeroAmount(shares = _previewDeposit(assets, _getTotalAssets()));
+        _checkZeroAmount(shares = _convertToShares(assets, _getTotalAssets()));
         _checkDeposit(receiver);
 
         // Fails if deposit not allowed, this stands in for a maxDeposit
