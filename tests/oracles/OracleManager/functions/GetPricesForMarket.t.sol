@@ -62,11 +62,13 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         vm.prank(address(this));
         usdc.approve(address(borrowableCUSDC), 1e18);
 
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
-        _addSinglePriceFeed();
 
         vm.prank(address(marketManagerIsolated));
         borrowableCUSDC.startMarket(address(this));
+
+        _addSinglePriceFeed();
 
         vm.expectRevert(
             OracleManager.OracleManager__ErrorCodeFlagged.selector
@@ -79,6 +81,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         vm.prank(address(this));
         usdc.approve(address(borrowableCUSDC), 1e18);
 
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
         vm.prank(address(marketManagerIsolated));

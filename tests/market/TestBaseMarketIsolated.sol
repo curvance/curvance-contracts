@@ -443,16 +443,16 @@ contract TestBaseMarketIsolated is TestBase {
     }
 
     function _deployBorrowableCToken(
-        address token
+        address underlyingAsset
     ) internal virtual initMainVariables returns (BorrowableCToken) {
         BorrowableCToken borrowableCToken = new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(token),
+            IERC20(underlyingAsset),
             address(marketManagerIsolated),
-            _deployDynamicInterestRateModel(token)
+            _deployDynamicInterestRateModel(underlyingAsset)
         );
 
-        interestRateModels[block.chainid][token].setLinkedToken(
+        interestRateModels[block.chainid][underlyingAsset].setLinkedToken(
             address(borrowableCToken)
         );
 
