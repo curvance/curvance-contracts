@@ -239,7 +239,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
         // Set a valid penalty (WAD + 15%)
         vm.startPrank(dappControlUser);
-        marketManagerIsolated.unlockAuctionCollateral(address(borrowableCUSDC));
+        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
         uint256 validPenalty = 1.15e18; //15%
         uint256 closeFactor = 0.30e18; // 30%
         marketManagerIsolated.setAuctionParameters(address(strategyCBALRETH), validPenalty, closeFactor);
