@@ -198,7 +198,7 @@ contract TestPredeposit is TestBasePredeposit {
         assertEq(strategyCBALRETH.balanceOf(user1), 0.1e18);
     }
 
-    function test_swapAndDeposit_migrate_withEToken_success() public {
+    function test_swapAndDeposit_migrate_withBorrowableToken_success() public {
         vm.startPrank(user1);
 
         weth.approve(address(predeposit), _ONE);
@@ -215,9 +215,12 @@ contract TestPredeposit is TestBasePredeposit {
         assertEq(predeposit.balanceOf(user1, _USDC_ADDRESS), 100e6);
         assertEq(usdc.balanceOf(address(predeposit)), 100e6);
 
-        vm.prank(user1);
-
+        vm.startPrank(user1);
+        
+        borrowableCUSDC.setDelegateApproval(address(predeposit), true);
         predeposit.migrate(_USDC_ADDRESS, 100e6, true);
+
+        vm.stopPrank();
 
         assertEq(predeposit.balanceOf(user1, _USDC_ADDRESS), 0);
         assertEq(usdc.balanceOf(address(predeposit)), 0);
