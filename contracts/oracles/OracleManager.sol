@@ -17,12 +17,12 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 ///      The Oracle Manager can support up to two oracle adaptors, returning
 ///      a maximum of two prices for any asset.
 ///
-///      Finalized prices can be returned in USD or
-///      a chain's native gas token. Either the higher or lower of the two
-///      prices can returned, based on what is desired. For Curvance protocol,
-///      the more advantageous of both prices is used. For user collateral
-///      assets, the lower of the two prices is used. For user debt positions,
-///      the higher of the two prices is used.
+///      Prices can be returned in USD or a chain's native gas token.
+///      Either the higher or lower of the two prices can returned, based on
+///      what is desired. For Curvance protocol, the more advantageous of both
+///      prices is used. For user collateralized assets, the lower of the two
+///      prices is used. For user debt positions, the higher of the two prices
+///      is used.
 ///
 ///      Curvance specific voucher tokens can also be priced by the Oracle
 ///      Router, based on the exchange rate between the voucher token, and
@@ -43,10 +43,10 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 ///      on the prices returned to the Oracle Manager. If prices diverge
 ///      heavily, error codes can be returned. Based on current default
 ///      configurations:
-///      - An error code of 1 will be triggered by a 5% or greater price
-///        divergence.
-///      - An error code of 2 will be triggered by a 10% or greater price
-///        divergence.
+///      - An error code of 1 will be triggered by a 50 basis point or greater
+///        price divergence.
+///      - An error code of 2 will be triggered by a 100 basis point or greater
+///        price divergence.
 ///
 ///      Oracle Adaptors can be added or removed by the DAO which can change
 ///      how an asset is priced. This allows for continually improving the
@@ -71,18 +71,18 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 contract OracleManager is IOracleManager {
     /// TYPES ///
 
-    /// @notice Data retrieved from a price feed.
+    /// @notice Structured data to be retrieved from an Oracle Adaptor.
     /// @param price Price of the asset in some asset, either the chain's
     ///              native token or USD.The price is stored as a uint240 to
     ///              avoid precision loss.
-    /// @param hadError Success/Failure return data, true if adaptor couldnt
-    ///                 price asset.
+    /// @param hadError Success/Failure return data. True if adaptor could not
+    ///                 price an asset, false if successfully priced.
     struct FeedData {
         uint240 price;
         bool hadError;
     }
 
-    /// @notice Stored data for Curvance token.
+    /// @notice Stored data to facilitate pricing Curvance tokens (cTokens).
     /// @param isCToken Used to indicate if the provided address is a
     ///                 Curvance token or not.
     /// @param underlying Address of the underlying asset for the Curvance
@@ -122,11 +122,11 @@ contract OracleManager is IOracleManager {
 
     /// @notice The maximum allowed divergence between prices
     ///         before CAUTION is flipped, in `DENOMINATOR`.
-    ///         10500 = 5% deviation.
+    ///         10050 = 0.5% = 50 basis point deviation.
     uint256 public cautionDivergenceFlag = 1.005e4;
     /// @notice The maximum allowed divergence between prices
     ///         before BAD_SOURCE is flipped, in `DENOMINATOR`.
-    ///         11000 = 10% deviation.
+    ///         10100 = 1% = 100 basis point deviation.
     uint256 public badSourceDivergenceFlag = 1.01e4;
 
     // Address => Adaptor approval status.
@@ -658,8 +658,8 @@ contract OracleManager is IOracleManager {
                 _revert(_NOT_SUPPORTED_SELECTOR);
             }
         }
-        // we know the feed exists, cant use isApprovedAdaptor as
-        // we could have removed it as an approved adaptor prior
+        // We know the feed exists, but we cannot use `isApprovedAdaptor` as
+        // we could have removed it as an approved adaptor prior.
 
         assetPriceFeeds[asset].pop();
     }
@@ -667,8 +667,8 @@ contract OracleManager is IOracleManager {
     /// @notice Retrieves the price of a specified asset from two specific
     ///         price feeds.
     /// @param asset The address of the asset to retrieve the price for.
-    /// @param inUSD Specifies whether the price format should be in USD (true)
-    ///              or a chain's native token (false).
+    /// @param inUSD Specifies whether the price format should be in
+    ///              USD (true) or a chain's native token (false).
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
     /// @return A tuple containing the asset's price and an error flag
@@ -695,11 +695,12 @@ contract OracleManager is IOracleManager {
         if (feed0Error && feed1Error){
             return (0, BAD_SOURCE);
         }
-        // Check if we had an error in either price that should block borrowing.
+        // Check if we had an error in either price that should block
+        // borrowing/redemption.
         if (feed0Error || feed1Error) {
-            // We know based on context of when this if statement block is called that
-            // one but not both feeds have an error.
-            // So, if feed0 had the error, feed1 is okay, and vice versa.
+            // We know based on context of when this if statement block is
+            // called that one but not both feeds have an error.
+            // So, if feed0 had the error, feed1 is usable, and vice versa.
             if (feed0Error) {
                 return (feed1Price, CAUTION);
             }
@@ -842,10 +843,10 @@ contract OracleManager is IOracleManager {
     /// @param conversionRate The rate to use for the conversion.
     /// @param currentlyInUSD Specifies whether the current format of the
     ///                       price is in USD.
-    ///                       If true, it will convert the price from
-    ///                       USD to native token.
-    ///                       If false, it will convert the price from
-    ///                       native token to USD.
+    ///                       If true -> Convert the price from USD to
+    ///                       native token.
+    ///                       If false -> Convert the price from native token
+    ///                       to USD.
     /// @return The converted price.
     function _convertNativeUSD(
         uint240 currentPrice,
@@ -857,6 +858,7 @@ contract OracleManager is IOracleManager {
             return (currentPrice * conversionRate) / WAD;
         }
 
+        // The price denomination is in USD and we want native token.
         return (currentPrice * WAD) / conversionRate;
     }
 
