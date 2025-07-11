@@ -158,8 +158,12 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         uint256[] memory lFactorsPreLiquidation = _getLFactorsPreLiquidation();
         uint256[] memory debtBalancesPreLiquidation = _getDebtBalancePreLiquidation();
 
-        (,uint256 eTokenPrice, uint256 cTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(borrowers[0], address(borrowableCUSDC), address(strategyCBALRETH));
+        (,uint256 cTokenPrice, uint256 eTokenPrice) = 
+            marketManagerIsolated.liquidationStatusOf(
+                borrowers[0],
+                address(strategyCBALRETH), 
+                address(borrowableCUSDC)
+            );
 
         (uint256[] memory maxAmount, uint256[] memory liquidatedPTokens, uint256[] memory collateralRequired) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction(
@@ -211,6 +215,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         for (uint i = 2; i < 5; i++) {
             // Debt should be reduced by maxAmount if soft liquidation
             if(borrowers[i] == borrower3) {
+
                 assertEq(borrowableCUSDC.debtBalance(borrowers[i]), debtBalancesPreLiquidation[i] - maxAmount[i], "Borrower 3 should be soft liquidated");
             } else {
                 assertEq(borrowableCUSDC.debtBalance(borrowers[i]), 0, "Borrower should be hard liquidated");

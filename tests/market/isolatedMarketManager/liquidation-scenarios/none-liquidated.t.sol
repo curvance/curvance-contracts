@@ -166,8 +166,8 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         for(uint i; i < 3; i++) {
             (lFactors[i],,) = marketManagerIsolated.liquidationStatusOf(
                 borrowers[i],
-                address(borrowableCUSDC),
-                address(strategyCBALRETH)
+                address(strategyCBALRETH),
+                address(borrowableCUSDC)
             );
         }
 

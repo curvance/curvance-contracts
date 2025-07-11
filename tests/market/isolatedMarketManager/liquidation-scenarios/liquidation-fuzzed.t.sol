@@ -121,7 +121,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         cFactorCurve = cFactorCurve_;
     }
 
-    function fuzzLiquidation(
+    function test_fuzzLiquidation(
         uint256 _collateralAmount,
         uint256 _borrowAmount,
         int256 _oraclePrice
@@ -159,8 +159,8 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
 
         uint256 lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower);
 
-        (,uint256 eTokenPrice, uint256 cTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(borrower, address(borrowableCUSDC), address(strategyCBALRETH));
+        (uint256 lFactor,uint256 cTokenPrice, uint256 eTokenPrice) = 
+            marketManagerIsolated.liquidationStatusOf(borrower, address(strategyCBALRETH), address(borrowableCUSDC));
 
         (maxAmount, liquidatedPTokens, collateralRequired) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
@@ -185,13 +185,8 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         
         _prepareUSDC(liquidator, 1_000_000e6);
 
-        vm.prank(liquidator);
-        (uint256 lFactor,,) = marketManagerIsolated.liquidationStatusOf(
-            borrower,
-            address(borrowableCUSDC),
-            address(strategyCBALRETH)
-        );
         usdc.approve(address(borrowableCUSDC), 1_000_000e6);
+
         if (lFactor == 0) {
             vm.expectRevert(abi.encodeWithSelector(MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector));
         }

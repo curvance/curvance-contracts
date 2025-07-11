@@ -62,6 +62,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         super.setUp();
 
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
+        mockUsdcFeed.setMockAnswer(1e8);
+
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             address(mockUsdcFeed),
@@ -185,8 +187,13 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         lFactorsPreLiquidation_auction = _getLFactorsPreLiquidation(auctionBorrowers);
         lFactorsPreLiquidation_regular = _getLFactorsPreLiquidation(regularBorrowers);
 
-        (,eTokenPrice, cTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(auctionBorrowers[0], address(borrowableCUSDC), address(strategyCBALRETH));
+        ( , cTokenPrice, eTokenPrice) =
+            marketManagerIsolated.liquidationStatusOf(
+                auctionBorrowers[0],
+                address(strategyCBALRETH),   // collateral token
+                address(borrowableCUSDC)     // debt token
+            );
+
 
         (maxAmount_auction, liquidatedPTokens_auction, collateralRequired_auction) = 
             _getLiquidationValuesWithHigherPrecision_Auction(
@@ -235,8 +242,13 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         vm.startPrank(dappControlUser);
         usdc.approve(address(borrowableCUSDC), 100000e6);
 
-        marketManagerIsolated.setAuctionParameters(address(borrowableCUSDC), validPenalty, closeFactor);
-        marketManagerIsolated.unlockAuctionCollateral(address(borrowableCUSDC));
+        marketManagerIsolated.setAuctionParameters(
+            address(borrowableCUSDC),  
+            validPenalty,
+            closeFactor
+        );
+
+        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit();

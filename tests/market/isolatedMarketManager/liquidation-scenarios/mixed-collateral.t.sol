@@ -158,8 +158,12 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         console2.log("Borrower 3 lFactor", lFactorsPreLiquidation[2]);
         console2.log("Borrower 4 lFactor", lFactorsPreLiquidation[3]);
 
-        (,uint256 eTokenPrice, uint256 cTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(borrowers[0], address(borrowableCUSDC), address(strategyCBALRETH));
+        (,uint256 cTokenPrice, uint256 eTokenPrice) = 
+            marketManagerIsolated.liquidationStatusOf(
+                borrowers[0],
+                address(strategyCBALRETH), 
+                address(borrowableCUSDC)
+            );
 
         console2.log("eTokenPrice", eTokenPrice);
         console2.log("cTokenPrice", cTokenPrice);
