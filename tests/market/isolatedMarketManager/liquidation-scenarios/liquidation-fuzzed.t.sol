@@ -32,7 +32,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
     uint256 constant MAXIMUM_COLLATERAL_AMOUNT = 20e18;
     int256 constant MINIMUM_COLLATERAL_PRICE = 1000e8;
     int256 constant MAXIMUM_COLLATERAL_PRICE = 2000e8;
-    uint256 constant MINIMUM_BORROW_AMOUNT = 50e6;
+    uint256 constant MINIMUM_BORROW_AMOUNT = 10e6;
 
     uint256 liqBaseIncentive;
     uint256 liqCurve;
@@ -90,7 +90,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         tokenConfigs.minEffectiveCloseFactor = 2000;
         tokenConfigs.maxEffectiveCloseFactor = 3000;
         tokenConfigs.baseCFactor = 1000;
-        tokenConfigs.collateralCap = 100e8;
+        tokenConfigs.collateralCap = 100e18;
         tokenConfigs.debtCap = 0;
 
         marketManagerIsolated.updateTokenConfig(tokenConfigs);
@@ -127,8 +127,9 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         int256 _oraclePrice
     ) public {
 
-        vm.assume(_collateralAmount >= MINIMUM_COLLATERAL_AMOUNT
-            && _collateralAmount <= MAXIMUM_COLLATERAL_AMOUNT);
+        _collateralAmount = bound(_collateralAmount, MINIMUM_COLLATERAL_AMOUNT, MAXIMUM_COLLATERAL_AMOUNT);
+
+        _oraclePrice = int256(bound(uint256(int256(_oraclePrice)), uint256(MINIMUM_COLLATERAL_PRICE), uint256(MAXIMUM_COLLATERAL_PRICE)));
 
         _prepareBALRETH(borrower, _collateralAmount);
 
@@ -136,23 +137,28 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         balRETH.approve(address(strategyCBALRETH), _collateralAmount);
         strategyCBALRETH.depositAsCollateral(_collateralAmount,borrower);
 
-        // get maximum borrow amount
         (, uint256 maxBorrowAmount,) = marketManagerIsolated.statusOf(borrower);
 
-        vm.assume(_borrowAmount >= MINIMUM_BORROW_AMOUNT
-            && _borrowAmount <= maxBorrowAmount);
+        maxBorrowAmount = (maxBorrowAmount * 95) / 100;
+        maxBorrowAmount = maxBorrowAmount / 1e18;
 
+        // Skip this test case if maxBorrowAmount is too small
+        if (maxBorrowAmount < MINIMUM_BORROW_AMOUNT) {
+            return; 
+        }
+
+        _borrowAmount = bound(_borrowAmount, MINIMUM_BORROW_AMOUNT, maxBorrowAmount);
+
+        console2.log("_collateralAmount", _collateralAmount);
+        console2.log("_borrowAmount", _borrowAmount);
+        console2.log("maxBorrowAmount", maxBorrowAmount);
+        
         borrowableCUSDC.borrow(_borrowAmount);
 
         vm.stopPrank();
 
-        // create liquidation scenario price
-        vm.assume(_oraclePrice <= MAXIMUM_COLLATERAL_PRICE
-            && _oraclePrice >= MINIMUM_COLLATERAL_PRICE);
-
         mockWethFeed.setMockAnswer(_oraclePrice);
         mockRethFeed.setMockAnswer(_oraclePrice);
-
 
         skip(20 minutes);
 
