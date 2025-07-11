@@ -1495,12 +1495,12 @@ contract MarketManagerIsolated is
         // shares to seize.
         uint256 debtToCollateralMultiplier =
             (((auctionData.auctionLiqIncentive *
-                cachedData.debtUnderlyingPrice * WAD) /
+                cachedData.debtUnderlyingPrice * WAD_SQUARED) /
             (cachedData.collateralUnderlyingPrice *
                 cachedData.collateralExchangeRate)) *
             cachedData.collateralDecimals) / cachedData.debtDecimals;
         uint256 maxAmount =
-            (auctionData.auctionCFactor * auctionData.debtBalance) / WAD;
+            (auctionData.auctionCFactor * auctionData.debtBalance) / WAD_SQUARED;
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
         // otherwise liquidate the maximum amount possible.
         if (!liquidateExact) {
@@ -1509,7 +1509,7 @@ contract MarketManagerIsolated is
         
         // Calculate how many tokens should be liquidated, adjusting decimals
         // if necessary.
-        collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD;
+        collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
 
         // Cache `account`'s collateral posted of `cachedData.collateralToken`.
         uint256 collateralAvailable = ICToken(
