@@ -130,7 +130,7 @@ abstract contract BaseCToken is
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
-        address MarketManager_
+        address marketManager_
     ) PluginDelegable(centralRegistry_) {
         _asset = asset_;
         _name = string.concat("Curvance ", asset_.name());
@@ -138,12 +138,12 @@ abstract contract BaseCToken is
         _decimals = asset_.decimals();
 
         // Ensure that `marketManager_` is a marketManager.
-        if (!centralRegistry.isMarketManager(MarketManager_)) {
+        if (!centralRegistry.isMarketManager(marketManager_)) {
             revert BaseCToken__InvalidMarketManager();
         }
 
         // Set `marketManager`.
-        marketManager = IMarketManager(MarketManager_);
+        marketManager = IMarketManager(marketManager_);
 
         // Sanity check of _asset so that we know users will not need to
         // mint anywhere close to causing an overflow.

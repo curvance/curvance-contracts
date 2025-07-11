@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { BorrowableCToken, IERC20 } from "contracts/market/token/BorrowableCToken.sol";
 import { BorrowableCTokenWithGauge } from "contracts/market/token/withGauge/BorrowableCTokenWithGauge.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
@@ -230,20 +230,20 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
 
     // Deploy BorrowableCToken
     function _deployBorrowableCToken(
-        address token
+        address asset
     ) internal override initMainVariables returns (BorrowableCToken) {
         BorrowableCToken borrowableCToken = BorrowableCToken(
             address(
                 new BorrowableCTokenWithGauge(
                     ICentralRegistry(address(centralRegistry)),
-                    token,
+                    IERC20(asset),
                     address(marketManagerIsolated),
-                    _deployDynamicInterestRateModel(token)
+                    _deployDynamicInterestRateModel(asset)
                 )
             )
         );
 
-        interestRateModels[block.chainid][token].setLinkedToken(
+        interestRateModels[block.chainid][asset].setLinkedToken(
             address(borrowableCToken)
         );
 
