@@ -18,21 +18,23 @@ contract SimplePositionManager is BasePositionManager {
         )
     {}
 
-    /// @notice Callback function on borrowing tokens from an eToken contract
-    ///         providing instant liquidity in the eToken underlying which is
-    ///         then swapped into the underlying of a pToken that a user is
-    ///         currently putting up as collateral against the eToken debt
-    ///         position, creating a leveraged spot position.
+    /// @notice Callback function on borrowing tokens from an borrowableCToken
+    ///         contract providing instant liquidity in the borrowableCToken
+    ///         underlying which is then swapped into the underlying of a
+    ///         cToken that a user is currently putting up as collateral
+    ///         against the borrowableCToken debt position, creating a
+    ///         leveraged spot position.
     /// @param leverageData Struct containing information on the desired
     ///                     leverage action to execute. Containing values:
-    ///                     1. Address of eToken that will be borrowed from.
-    ///                     2. The amount of underlying tokens from eToken
-    ///                        that will be borrowed.
-    ///                     3. Address of pToken that borrowed funds
-    ///                        will be swapped into.
-    ///                     4. Struct containing instructions
-    ///                        on how to handle the necessary eToken swap
-    ///                        to facilitate leveraging.
+    ///                     1. Address of `debtToken` that will be borrowed
+    ///                        and swapped.
+    ///                     2. The amount of underlying tokens from
+    ///                        `debtToken` that will be borrowed.
+    ///                     3. Curvance token that borrowed funds will be
+    ///                        swapped into.
+    ///                     4. Struct containing instructions on how
+    ///                        to handle the necessary swap to 
+    ///                        facilitate leveraging.
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
     function _swapBorrowUnderlyingToCollateral(
@@ -64,24 +66,25 @@ contract SimplePositionManager is BasePositionManager {
         SwapperLib._swapSafe(centralRegistry, swapData);
     }
 
-    /// @notice Callback function on redemption of tokens from a pToken vault
-    ///         providing instant liquidity in the pToken underlying which is
-    ///         then swapped into the underlying of an eToken that a user is
-    ///         currently borrowing from, partially or fully closing a
+    /// @notice Callback function on redemption of tokens from a cToken vault
+    ///         providing instant liquidity in the cToken underlying which is
+    ///         then swapped into the underlying of an borrowableCToken that a
+    ///         user is currently borrowing from, partially or fully closing a
     ///         leveraged spot position.
     /// @param deleverageData Struct containing information on the desired
     ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of pToken that will be routed into
-    ///                          eToken underlying to repay outstanding debt.
-    ///                       2. The amount of pTokens that will be
+    ///                       1. Address of the Curvance token that will be 
+    ///                          routed into debt token underlying to repay
+    ///                          outstanding debt.
+    ///                       2. The amount of `collateralToken` that will be
     ///                          deleveraged.
-    ///                       3. Address of eToken that will have its underlying
-    ///                          token debt repaid.
-    ///                       4. Optional struct containing instructions on how
-    ///                          to handle swapping into eToken underlying to
+    ///                       3. Address of Curvance token that will have its
+    ///                          outstanding debt repaid.
+    ///                       4. Optional struct containing instructions on
+    ///                          how to handle swapping into debt token to
     ///                          facilitate deleveraging.
     ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to the eToken lenders.
+    ///                          repaid to lenders.
     ///                       6. Optional auxiliary data for execution of a
     ///                          deleverage action.
     function _swapCollateralToBorrowUnderlying(

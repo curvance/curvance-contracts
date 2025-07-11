@@ -36,7 +36,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
 
         if (funcSigHash == PendleZapper.enterPendle.selector) {
             (
-                address pToken,
+                address cToken,
                 PendleZapper.ZapperData memory desc,
                 ,
                 ,
@@ -62,7 +62,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
             recipient = _recipient;
             inputToken = desc.inputToken;
             inputAmount = desc.inputAmount;
-            outputToken = pToken == address(0) ? desc.outputToken : pToken;
+            outputToken = cToken == address(0) ? desc.outputToken : cToken;
         } else if (funcSigHash == PendleZapper.exitPendle.selector) {
             (
                 ,

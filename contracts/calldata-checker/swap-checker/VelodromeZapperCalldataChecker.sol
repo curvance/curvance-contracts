@@ -35,7 +35,7 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
 
         if (funcSigHash == VelodromeZapper.enterVelodrome.selector) {
             (
-                address pToken,
+                address cToken,
                 VelodromeZapper.ZapperData memory desc,
                 ,
                 ,
@@ -59,7 +59,7 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
             recipient = _recipient;
             inputToken = desc.inputToken;
             inputAmount = desc.inputAmount;
-            outputToken = pToken == address(0) ? desc.outputToken : pToken;
+            outputToken = cToken == address(0) ? desc.outputToken : cToken;
         } else if (funcSigHash == VelodromeZapper.exitVelodrome.selector) {
             (
                 ,

@@ -167,26 +167,26 @@ abstract contract BasePositionManager is
         LeverageStruct calldata leverageData,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
-        ICToken pToken = leverageData.collateralToken;
-        address pTokenUnderlying = pToken.asset();
+        ICToken cToken = leverageData.collateralToken;
+        address cTokenUnderlying = cToken.asset();
         // Transfer the underlying tokens to deposit.
         SafeTransferLib.safeTransferFrom(
-            pTokenUnderlying,
+            cTokenUnderlying,
             msg.sender,
             address(this),
             assets
         );
 
-        // Approve pToken to process a deposit.
+        // Approve cToken to process a deposit.
         SwapperLib._approveTokenIfNeeded(
-            pTokenUnderlying,
-            address(pToken),
+            cTokenUnderlying,
+            address(cToken),
             assets
         );
 
-        // Deposit and Collateralize the underlying tokens in pToken
+        // Deposit and Collateralize the underlying tokens in cToken
         // contract.
-        pToken.depositAsCollateralFor(assets, msg.sender);
+        cToken.depositAsCollateralFor(assets, msg.sender);
 
         // Execute leverage operation.
         _leverage(leverageData, msg.sender);
@@ -408,7 +408,7 @@ abstract contract BasePositionManager is
     ///         active debt for `redeemer`.
     /// @dev Measures slippage after this callback validating that `redeemer`
     ///      is still within acceptable liquidity requirements.
-    /// @param collateralToken The pToken redeemed for its underlying.
+    /// @param collateralToken The cToken redeemed for its underlying.
     /// @param redeemer The account redeeming collateral that will be used to
     ///                 repay their active debt.
     /// @param collateralAmount The amount of `collateralToken` underlying
