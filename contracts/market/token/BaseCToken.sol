@@ -685,7 +685,7 @@ abstract contract BaseCToken is
     function previewDeposit(
         uint256 assets
     ) public view override returns (uint256) {
-        return _previewDeposit(assets, _getTotalAssets());
+        return _convertToShares(assets, _getTotalAssets());
     }
 
     /// @notice Allows users to simulate the effects of their mint at
@@ -717,7 +717,7 @@ abstract contract BaseCToken is
     function previewRedeem(
         uint256 shares
     ) public view virtual override returns (uint256) {
-        return _previewRedeem(shares, _getTotalAssets());
+        return _convertToAssets(shares, _getTotalAssets());
     }
 
     /// @notice Can accrue pending yield, configure next vesting
@@ -867,7 +867,7 @@ abstract contract BaseCToken is
         // rewards are already vested via _accrueIfNeeded().
         uint256 ta = _totalAssets;
         uint256 ownerBalance = _checkRedemption(
-            assets = _previewRedeem(shares, ta),
+            assets = _convertToAssets(shares, ta),
             owner,
             ta
         );
@@ -1236,19 +1236,6 @@ abstract contract BaseCToken is
             : FixedPointMathLib.fullMulDiv(shares, ta, totalShares);
     }
 
-    /// @notice Simulates the effects of a user deposit at the current
-    ///         block.
-    /// @param assets The number of assets to preview a deposit call.
-    /// @param ta The total number of assets to simulate a deposit at the
-    ///           current block.
-    /// @return The shares received for depositing `assets`.
-    function _previewDeposit(
-        uint256 assets,
-        uint256 ta
-    ) internal view returns (uint256) {
-        return _convertToShares(assets, ta);
-    }
-
     /// @notice Simulates the effects of a user mint at the current
     ///         block.
     /// @param shares The number of shares to preview a mint call.
@@ -1281,19 +1268,6 @@ abstract contract BaseCToken is
         shares = totalShares == 0
             ? assets
             : FixedPointMathLib.fullMulDivUp(assets, totalShares, ta);
-    }
-
-    /// @notice Simulates the effects of a user redemption at the current
-    ///         block.
-    /// @param shares The number of shares to preview a redemption call.
-    /// @param ta The total number of assets to simulate a redemption at the
-    ///           current block.
-    /// @return The assets received for redeeming `shares`.
-    function _previewRedeem(
-        uint256 shares,
-        uint256 ta
-    ) internal view returns (uint256) {
-        return _convertToAssets(shares, ta);
     }
 
     /// @notice Updates asset values for a pending deposit.
