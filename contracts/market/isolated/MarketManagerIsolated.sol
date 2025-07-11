@@ -268,7 +268,7 @@ contract MarketManagerIsolated is
 
     /// @notice Determine `account`'s current collateral and debt values
     ///         in the market.
-    /// @param account The account to check bad debt status for.
+    /// @param account The account to calculate liquidation values for.
     /// @return The total market value of `account`'s collateral offset
     /// by soft liquidation requirements.
     /// @return The total market value of `account`'s collateral offset

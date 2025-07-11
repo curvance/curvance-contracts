@@ -16,7 +16,7 @@ contract PendleLPCToken is StrategyCToken {
     /// @title Strategy Data
     /// @dev Data for a Pendle LP token.
     /// @param router Address of Pendle Router.
-    /// @param lp Address of PToken underlying Pendle lp token.
+    /// @param lp Address of strategyCToken underlying Pendle lp token.
     /// @param sy Address of Standardized Yield for minting pt/yt.
     /// @param pt Address of Pendle principal token.
     /// @param yt Address of Pendle yield token.

@@ -167,18 +167,18 @@ abstract contract BaseCToken is
     /// @param owner The owner address of assets to redeem.
     /// @param deleverageData Struct containing information on the desired
     ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of cToken that will be routed into
-    ///                          a token underlying to repay outstanding
-    ///                          debt.
-    ///                       2. The amount of cTokens that will be
+    ///                       1. Address of the Curvance token that will be 
+    ///                          routed into debt token underlying to repay
+    ///                          outstanding debt.
+    ///                       2. The amount of `collateralToken` that will be
     ///                          deleveraged.
-    ///                       3. Address of token that will have its
-    ///                          underlying token debt repaid.
-    ///                       4. Optional struct containing instructions on how
-    ///                          to handle swapping into cToken underlying
-    ///                          borrowed to facilitate deleveraging.
+    ///                       3. Address of Curvance token that will have its
+    ///                          outstanding debt repaid.
+    ///                       4. Optional struct containing instructions on
+    ///                          how to handle swapping into debt token to
+    ///                          facilitate deleveraging.
     ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to the token lenders.
+    ///                          repaid to lenders.
     ///                       6. Optional auxiliary data for execution of a
     ///                          deleverage action.
     function withdrawByPositionManager(

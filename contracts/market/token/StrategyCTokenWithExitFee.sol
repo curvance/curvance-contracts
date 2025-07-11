@@ -93,17 +93,18 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
     ///                     redemption. 
     /// @param deleverageData Struct containing information on the desired
     ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of pToken that will be routed into
-    ///                          eToken underlying to repay outstanding debt.
-    ///                       2. The amount of pTokens that will be
+    ///                       1. Address of the Curvance token that will be 
+    ///                          routed into debt token underlying to repay
+    ///                          outstanding debt.
+    ///                       2. The amount of `collateralToken` that will be
     ///                          deleveraged.
-    ///                       3. Address of eToken that will have its underlying
-    ///                          token debt repaid.
-    ///                       4. Optional struct containing instructions on how
-    ///                          to handle swapping into eToken underlying to
+    ///                       3. Address of Curvance token that will have its
+    ///                          outstanding debt repaid.
+    ///                       4. Optional struct containing instructions on
+    ///                          how to handle swapping into debt token to
     ///                          facilitate deleveraging.
     ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to the eToken lenders.
+    ///                          repaid to lenders.
     ///                       6. Optional auxiliary data for execution of a
     ///                          deleverage action.
     function _processPositionManagerRedemption(
