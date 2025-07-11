@@ -87,6 +87,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// CONSTRUCTOR ///
 
+    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param asset_ The address of the underlying asset for this cToken.
+    /// @param marketManager_ The address of the MarketManager which manages
+    ///                       liquidity positions between linked cTokens
+    ///                       inside a joint market.
+    /// @param interestRateModel_ The address of the interest rate model to
+    ///                           manage outstanding loans.
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,

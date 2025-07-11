@@ -17,7 +17,7 @@ contract AerodromeStableCToken is VelodromeStableCToken {
         IVeloGauge gauge,
         IVeloPairFactory pairFactory,
         IVeloRouter router,
-        uint256 vestPeriod_
+        uint256 vestingPeriod_
     )
         VelodromeStableCToken(
             centralRegistry_,
@@ -26,7 +26,7 @@ contract AerodromeStableCToken is VelodromeStableCToken {
             gauge,
             pairFactory,
             router,
-            vestPeriod_
+            vestingPeriod_
         )
     {}
 

@@ -65,8 +65,8 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
             centralRegistry_,
             asset_,
             marketManager_,
-            exitFee_,
-            vestPeriod_
+            vestPeriod_,
+            exitFee_
         )
     {
         strategyData.pid = pid_;

@@ -17,10 +17,9 @@ import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
 /// @notice Curvance's cTokens (Curvance Tokens) are ERC4626 compliant. However,
-///         they follow their
-///         own design flow modifying underlying mechanisms such as totalAssets
-///         following a vesting mechanism in yield-bearing scenarios and a direct
-///         conversion in basic or "primitive" vaults.
+///         they follow their own design flow modifying underlying mechanisms
+///         such as totalAssets following a vesting mechanism in yield-bearing
+///         scenarios and a direct conversion in basic or "simple" vaults.
 ///
 ///         The "cToken" employs two different methods of engaging with the
 ///         Curvance protocol. Users can deposit an unlimited amount of assets,
@@ -44,6 +43,9 @@ import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 ///         View functions are "safe" by introducing reentry and update
 ///         protection logic to minimize risks when integrating with Curvance.
 ///
+/// @dev `Asset()` Positions must have all assets ready for withdraw,
+///      IE assets can NOT be locked.
+///      This way assets can be easily liquidated when loans default.
 abstract contract BaseCToken is
     ERC4626,
     PluginDelegable,
@@ -120,6 +122,11 @@ abstract contract BaseCToken is
 
     /// CONSTRUCTOR ///
 
+    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param asset_ The address of the underlying asset for this cToken.
+    /// @param marketManager_ The address of the MarketManager which manages
+    ///                       liquidity positions between linked cTokens
+    ///                       inside a joint market.
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
@@ -1426,7 +1433,7 @@ abstract contract BaseCToken is
         }
     }
 
-    /// INTERNAL CONVERSION FUNCTIONS WHICH MAY BE OVERRIDDEN ///
+    /// INTERNAL HOOK FUNCTIONS WHICH MAY BE OVERRIDDEN ///
 
     /// @notice An optional set of instructions to execute before processing
     ///         a deposit of `owners`'s assets.

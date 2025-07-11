@@ -56,12 +56,12 @@ contract VelodromeVolatileCToken is StrategyCToken {
         IVeloGauge gauge,
         IVeloPairFactory pairFactory,
         IVeloRouter router,
-        uint256 vestPeriod_
+        uint256 vestingPeriod_
     ) StrategyCToken(
         centralRegistry_,
         asset_,
         marketManager_,
-        vestPeriod_
+        vestingPeriod_
     ) {
         _validateChainDeployment();
 

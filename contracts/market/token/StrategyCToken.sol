@@ -4,10 +4,11 @@ pragma solidity ^0.8.26;
 import { BaseCTokenWithYield, FixedPointMathLib, WAD, IERC20, ICentralRegistry } from "contracts/market/token/BaseCTokenWithYield.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-/// @notice Vault Positions must have all assets ready for withdraw,
-///         IE assets can NOT be locked.
-///         This way assets can be easily liquidated when loans default.
-/// @dev Each Curvance token vault run must be a LOSSLESS position, since
+/// @dev `Asset()` Positions must have all assets ready for withdraw,
+///      IE assets can NOT be locked.
+///      This way assets can be easily liquidated when loans default.
+///
+///      Each Curvance strategy run must be a LOSSLESS position, since
 ///      totalAssets is not actually using the balances stored in the
 ///      contract, rather it only uses an internal balance.
 abstract contract StrategyCToken is BaseCTokenWithYield {
@@ -51,12 +52,24 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
 
     /// CONSTRUCTOR ///
 
+    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param asset_ The address of the underlying asset for this cToken.
+    /// @param marketManager_ The address of the MarketManager which manages
+    ///                       liquidity positions between linked cTokens
+    ///                       inside a joint market.
+    /// @param vestingPeriod_ The length of time a vesting period will last,
+    ///                       in seconds.
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address marketManager_,
-        uint256 vestPeriod_
-    ) BaseCTokenWithYield(centralRegistry_, asset_, marketManager_, vestPeriod_) {}
+        uint256 vestingPeriod_
+    ) BaseCTokenWithYield(
+        centralRegistry_,
+        asset_,
+        marketManager_,
+        vestingPeriod_
+    ) {}
 
     /// EXTERNAL FUNCTIONS ///
 

@@ -8,12 +8,13 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
-/// @notice Vault Positions must have all assets ready for withdraw,
-///         IE assets can NOT be locked.
-///         This way assets can be easily liquidated when loans default.
-/// @dev The PToken vaults run must be a LOSSLESS position, since totalAssets
-///      is not actually using the balances stored in the position,
-///      rather it only uses an internal balance.
+/// @dev `Asset()` Positions must have all assets ready for withdraw,
+///      IE assets can NOT be locked.
+///      This way assets can be easily liquidated when loans default.
+///
+///      Each Curvance strategy run must be a LOSSLESS position, since
+///      totalAssets is not actually using the balances stored in the
+///      contract, rather it only uses an internal balance.
 abstract contract StrategyCTokenWithExitFee is StrategyCToken {
     /// CONSTANTS ///
 
@@ -36,17 +37,26 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
 
     /// CONSTRUCTOR ///
 
+    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param asset_ The address of the underlying asset for this cToken.
+    /// @param marketManager_ The address of the MarketManager which manages
+    ///                       liquidity positions between linked cTokens
+    ///                       inside a joint market.
+    /// @param vestingPeriod_ The length of time a vesting period will last,
+    ///                       in seconds.
+    /// @param exitFee_ The exit fee paid by users when withdrawing from the
+    ///                 strategyCToken position, in basis points.
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address marketManager_,
-        uint256 exitFee_,
-        uint256 vestPeriod_
+        uint256 vestingPeriod_,
+        uint256 exitFee_
     ) StrategyCToken(
         centralRegistry_,
         asset_,
         marketManager_,
-        vestPeriod_
+        vestingPeriod_
     ) {
         _setExitFee(exitFee_);
     }

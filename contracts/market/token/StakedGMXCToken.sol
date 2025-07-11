@@ -36,12 +36,12 @@ contract StakedGMXCToken is StrategyCToken {
         address marketManager_,
         address rewardRouter_,
         address weth_,
-        uint256 vestPeriod_
+        uint256 vestingPeriod_
     ) StrategyCToken(
         centralRegistry_,
         asset_,
         marketManager_,
-        vestPeriod_
+        vestingPeriod_
     ) {
         if (block.chainid != _ARBITRUM_CHAIN_ID) {
             revert StakedGMXCToken__ChainIsNotSupported();

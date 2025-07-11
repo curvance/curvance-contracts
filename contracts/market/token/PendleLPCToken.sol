@@ -44,12 +44,12 @@ contract PendleLPCToken is StrategyCToken {
         IERC20 asset_,
         address marketManager_,
         IPendleRouter router_,
-        uint256 vestPeriod_
+        uint256 vestingPeriod_
     ) StrategyCToken(
         centralRegistry_,
         asset_,
         marketManager_,
-        vestPeriod_
+        vestingPeriod_
     ) {
         strategyData.router = router_;
         strategyData.lp = IPMarket(address(asset_));

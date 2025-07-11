@@ -59,12 +59,12 @@ contract Convex2PoolCToken is StrategyCToken {
         uint256 pid_,
         address rewarder_,
         address booster_,
-        uint256 vestPeriod_
+        uint256 vestingPeriod_
     ) StrategyCToken(
         centralRegistry_,
         asset_,
         marketManager_,
-        vestPeriod_
+        vestingPeriod_
     ) {
         if (block.chainid != 1) {
             revert Convex2PoolCToken__UnsafePool();
