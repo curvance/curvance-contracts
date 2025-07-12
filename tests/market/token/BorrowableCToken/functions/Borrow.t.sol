@@ -41,6 +41,60 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         borrowableCUSDC.borrow(assetsHeld + 1);
     }
 
+    function test_borrowableCTokenBorrow_fail_whenBorrowAmountExceedsDebtCap() public {
+        address liquidityProvider = makeAddr("liquidityProvider");
+        _prepareUSDC(liquidityProvider, 100e6);
+        // mint borrowableCUSDC
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 100e6);
+        borrowableCUSDC.deposit(100e6, liquidityProvider);
+        vm.stopPrank();
+
+        _prepareBALRETH(address(this), _ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE);
+        strategyCBALRETH.deposit(_ONE, address(this));
+        strategyCBALRETH.postCollateral(_ONE);
+
+        skip(69 minutes);
+
+        MarketManagerIsolated.TokenConfig memory cTokenConfig;
+        cTokenConfig.cToken = address(borrowableCUSDC);
+        cTokenConfig.collRatio = 7000;
+        cTokenConfig.collReqSoft = 4000;
+        cTokenConfig.collReqHard = 3000;
+        cTokenConfig.liqIncBase = 1000;
+        cTokenConfig.liqIncHard = 1500;
+        cTokenConfig.liqIncMin = 500;
+        cTokenConfig.liqIncMax = 2000;
+        cTokenConfig.minEffectiveCloseFactor = 2000;
+        cTokenConfig.maxEffectiveCloseFactor = 3000;
+        cTokenConfig.baseCFactor = 1000;
+        cTokenConfig.collateralCap = 100_000e18;
+        cTokenConfig.debtCap = 0;
+
+        marketManagerIsolated.updateTokenConfig(cTokenConfig);
+
+        vm.expectRevert(
+            BorrowableCToken.MarketManager__CapReached.selector
+        );
+
+        borrowableCUSDC.borrow(100e6);
+    }
+
+    function test_borrowableCTokenBorrow_fail_whenCollateralPostedInBorrowableCToken() public {
+
+        borrowableCUSDC.deposit(200e6, address(this));
+
+        strategyCBALRETH.postCollateral(1e18 - 1);
+        borrowableCUSDC.postCollateral(100e6 - 1);
+
+        vm.expectRevert(
+            BorrowableCToken.BorrowableCToken__InvalidParameter.selector
+        );
+
+        borrowableCUSDC.borrow(20e6);
+    }
+
     function test_borrowableCTokenBorrow_success() public {
 
         borrowableCUSDC.deposit(200e6, address(this));
