@@ -340,7 +340,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
 
         // Warp until collateralization cooldown period ends.
         vm.warp(block.timestamp + 20 minutes);
-        borrowableCDAI.accrueInterest();
+        borrowableCDAI.accrueIfNeeded();
 
         vm.startPrank(user);
         PendlePTPositionManager.DeleverageStruct memory deleverageData;

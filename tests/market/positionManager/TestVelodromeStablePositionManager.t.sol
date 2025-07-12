@@ -304,7 +304,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
         // Warp until collateralization cooldown period ends.
         vm.warp(block.timestamp + 20 minutes);
-        borrowableCDAI.accrueInterest();
+        borrowableCDAI.accrueIfNeeded();
 
         vm.startPrank(user);
 
@@ -364,7 +364,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
         // Warp until collateralization cooldown period ends.
         vm.warp(block.timestamp + 20 minutes);
-        borrowableCDAI.accrueInterest();
+        borrowableCDAI.accrueIfNeeded();
 
         // 1% leverage fee
         centralRegistry.setProtocolLeverageFee(100);
@@ -503,7 +503,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
         // Warp until collateralization cooldown period ends.
         vm.warp(block.timestamp + 20 minutes);
-        borrowableCDAI.accrueInterest();
+        borrowableCDAI.accrueIfNeeded();
 
         vm.startPrank(user);
 
