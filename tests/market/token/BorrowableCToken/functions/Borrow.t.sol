@@ -75,7 +75,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         marketManagerIsolated.updateTokenConfig(cTokenConfig);
 
         vm.expectRevert(
-            BorrowableCToken.MarketManager__CapReached.selector
+            MarketManagerIsolated.MarketManager__CapReached.selector
         );
 
         borrowableCUSDC.borrow(100e6);
