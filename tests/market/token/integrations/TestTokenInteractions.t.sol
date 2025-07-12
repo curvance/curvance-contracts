@@ -162,7 +162,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user2), _ONE);
 
         // try redeem()
-        borrowableCDAI.redeem(_ONE, address(this), address(this));
+        borrowableCDAI.redeem(_ONE, address(this), user1);
         vm.stopPrank();
         assertEq(borrowableCDAI.balanceOf(user1), 0);
     }
@@ -285,13 +285,13 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
-        borrowableCDAI.redeem(1000e18, address(this), address(this));
+        borrowableCDAI.redeem(1000e18, address(this), user1);
 
         // skip min hold period
         skip(20 minutes);
 
         // can redeem fully
-        borrowableCDAI.redeem(1000e18, address(this), address(this));
+        borrowableCDAI.redeem(1000e18, address(this), user1);
         vm.stopPrank();
 
         assertEq(strategyCBALRETH.balanceOf(user1), _ONE);
