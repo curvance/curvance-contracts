@@ -41,11 +41,6 @@
 
 //     fallback() external payable {}
 
-//     // this is to use address(this) as mock cToken address
-//     function tokenType() external pure returns (uint256) {
-//         return 1;
-//     }
-
 //     function setUp() public override {
 //         _fork(21163719);
 
@@ -86,10 +81,10 @@
 //         owner = address(this);
 //         user = user1;
 
-//         // setup eDAI
+//         // Setup borrowable cDAI.
 //         {
 //             _deployBorrowableCDAI();
-//             // add MToken support on price router
+//             // Add cToken support on Oracle Manager.
 //             oracleManager.addCTokenSupport(address(borrowableCDAI));
 
 //             _prepareDAI(owner, 200000e18);
@@ -128,11 +123,11 @@
 //         );
 
 
-//             address[] memory mTokens = new address[](1);
-//             mTokens[0] = address(pPendlePT);
+//             address[] memory cTokens = new address[](1);
+//             cTokens[0] = address(pPendlePT);
 //             uint256[] memory caps = new uint256[](1);
 //             caps[0] = 100 ether;
-//             marketManagerIsolated.setCollateralCaps(mTokens, caps);
+//             marketManagerIsolated.setCollateralCaps(cTokens, caps);
 
 //         positionManager = new PendlePTPositionManager(
 //             ICentralRegistry(address(centralRegistry)),

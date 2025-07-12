@@ -16,11 +16,6 @@
 
 //     fallback() external payable {}
 
-//     // this is to use address(this) as mock cToken address
-//     function tokenType() external pure returns (uint256) {
-//         return 1;
-//     }
-
 //     function setUp() public override {
 //         super.setUp();
 
@@ -32,10 +27,10 @@
 //             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
 //         );
 
-//         // setup eDAI
+//         // Setup borrowable cDAI.
 //         {
 //             _deployBorrowableCDAI();
-//             // add MToken support on price router
+//             // Add cToken support on Oracle Manager.
 //             oracleManager.addCTokenSupport(address(borrowableCDAI));
 //             _prepareDAI(owner, 200000e18);
 //             dai.approve(address(borrowableCDAI), 200000e18);
@@ -43,10 +38,10 @@
 
 //         // deploy simple cToken
 //         {
-//             _deployPUSDC();
-//             oracleManager.addCTokenSupport(address(pUSDC));
+//             _deployBorrowableCUSDC();
+//             oracleManager.addCTokenSupport(address(borrowableCUSDC));
 //             _prepareUSDC(owner, 100e6);
-//             usdc.approve(address(pUSDC), 100e6);
+//             usdc.approve(address(borrowableCUSDC), 100e6);
 
 //         }
 
@@ -56,7 +51,7 @@
 //             _WETH_ADDRESS
 //         );
 
-//         marketManagerIsolated.listTokens(address(pUSDC), address(borrowableCDAI));
+//         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
 
 //         marketManagerIsolated.updatePositionToken(
 //             7000,    // collRatio 70%
@@ -71,11 +66,11 @@
 //             1000     // baseCFactor 20%
 //         );
 
-//         address[] memory mTokens = new address[](1);
-//         mTokens[0] = address(pUSDC);
+//         address[] memory cTokens = new address[](1);
+//         cTokens[0] = address(borrowableCUSDC);
 //         uint256[] memory caps = new uint256[](1);
 //         caps[0] = 100 ether;
-//         marketManagerIsolated.setCollateralCaps(mTokens, caps);
+//         marketManagerIsolated.setCollateralCaps(cTokens, caps);
 
 //     }
 

@@ -113,10 +113,10 @@
 //         owner = address(this);
 //         user = user1;
 
-//         // setup eDAI
+//         // Setup borrowable cDAI.
 //         {
 //             _deployBorrowableCDAI();
-//             // add MToken support on price router
+//             // Add cToken support on Oracle Manager.
 //             oracleManager.addCTokenSupport(address(borrowableCDAI));
 
 //             _prepareDAI(owner, 200000e18);
@@ -134,7 +134,7 @@
 //                 veloRouter,
 //                 1 days
 //             );
-//             // add MToken support on price router
+//             // Add cToken support on Oracle Manager.
 //             oracleManager.addCTokenSupport(address(pWETHUSDC));
 
 //             deal(_VELODROME_WETH_USDC, owner, 1 ether);

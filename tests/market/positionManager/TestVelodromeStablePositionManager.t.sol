@@ -28,7 +28,7 @@
 //     IVeloRouter public veloRouter =
 //         IVeloRouter(0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858);
 
-//     VelodromeStableCToken public pUSDCDAI;
+//     VelodromeStableCToken public strategyCTokenUSDCDAI;
 //     VelodromeStableLPAdaptor public adaptor;
 //     VelodromePositionManager public positionManager;
 
@@ -88,19 +88,19 @@
 //         owner = address(this);
 //         user = user1;
 
-//         // setup eDAI
+//         // Setup borrowable cDAI.
 //         {
 //             _deployBorrowableCDAI();
-//             // add MToken support on price router
+//             // Add cToken support on Oracle Manager.
 //             oracleManager.addCTokenSupport(address(borrowableCDAI));
 
 //             _prepareDAI(owner, 200000e18);
 //             dai.approve(address(borrowableCDAI), 200000e18);
 //         }
 
-//         // setup pUSDCDAI
+//         // setup strategyCTokenUSDCDAI
 //         {
-//             pUSDCDAI = new VelodromeStableCToken(
+//             strategyCTokenUSDCDAI = new VelodromeStableCToken(
 //                 ICentralRegistry(address(centralRegistry)),
 //                 IERC20(_VELODROME_DAI_USDC),
 //                 address(marketManagerIsolated),
@@ -109,11 +109,11 @@
 //                 veloRouter,
 //                 1 days
 //             );
-//             // add MToken support on price router
-//             oracleManager.addCTokenSupport(address(pUSDCDAI));
+//             // Add cToken support on Oracle Manager.
+//             oracleManager.addCTokenSupport(address(strategyCTokenUSDCDAI));
 
 //             deal(_VELODROME_DAI_USDC, owner, 1 ether);
-//             IERC20(_VELODROME_DAI_USDC).approve(address(pUSDCDAI), 1 ether);
+//             IERC20(_VELODROME_DAI_USDC).approve(address(strategyCTokenUSDCDAI), 1 ether);
 //         }
 
 //         positionManager = new VelodromePositionManager(
@@ -124,7 +124,7 @@
 //             address(veloPairFactory)
 //         );
 
-//         marketManagerIsolated.listTokens(address(pUSDCDAI), address(borrowableCDAI));
+//         marketManagerIsolated.listTokens(address(strategyCTokenUSDCDAI), address(borrowableCDAI));
 
 //         marketManagerIsolated.updatePositionToken(
 //             7000,    // collRatio 70%
@@ -141,7 +141,7 @@
 
 
 //         address[] memory tokens = new address[](1);
-//         tokens[0] = address(pUSDCDAI);
+//         tokens[0] = address(strategyCTokenUSDCDAI);
 //         uint256[] memory caps = new uint256[](1);
 //         caps[0] = 100_000e18;
 
@@ -182,12 +182,12 @@
 //         vm.startPrank(user);
 
 //         deal(_VELODROME_DAI_USDC, user, 0.0001 ether);
-//         IERC20(_VELODROME_DAI_USDC).approve(address(pUSDCDAI), 0.0001 ether);
+//         IERC20(_VELODROME_DAI_USDC).approve(address(strategyCTokenUSDCDAI), 0.0001 ether);
 
 //         // mint
-//         assertGt(pUSDCDAI.deposit(0.0001 ether, user), 0);
-//         pUSDCDAI.postCollateral(0.0001 ether);
-//         assertEq(pUSDCDAI.balanceOf(user), 0.0001 ether);
+//         assertGt(strategyCTokenUSDCDAI.deposit(0.0001 ether, user), 0);
+//         strategyCTokenUSDCDAI.postCollateral(0.0001 ether);
+//         assertEq(strategyCTokenUSDCDAI.balanceOf(user), 0.0001 ether);
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
@@ -203,7 +203,7 @@
 //         VelodromePositionManager.LeverageStruct memory leverageData;
 //         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pUSDCDAI));
+//         leverageData.positionToken = ICToken(address(strategyCTokenUSDCDAI));
 //         leverageData.swapData.inputToken = _DAI_ADDRESS;
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = _USDC_ADDRESS;
@@ -230,9 +230,9 @@
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-//         (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
-//         assertGt(pUSDCDAI.balanceOf(user), 0.00013 ether);
-//         assertEq(pUSDCDAIBorrowed, 0 ether);
+//         (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
+//         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
+//         assertEq(strategyCTokenUSDCDAIBorrowed, 0 ether);
 
 //         vm.stopPrank();
 //     }
@@ -244,12 +244,12 @@
 //         vm.startPrank(user);
 
 //         deal(_VELODROME_DAI_USDC, user, 0.0001 ether);
-//         IERC20(_VELODROME_DAI_USDC).approve(address(pUSDCDAI), 0.0001 ether);
+//         IERC20(_VELODROME_DAI_USDC).approve(address(strategyCTokenUSDCDAI), 0.0001 ether);
 
 //         // mint
-//         assertGt(pUSDCDAI.deposit(0.0001 ether, user), 0);
-//         pUSDCDAI.postCollateral(0.0001 ether);
-//         assertEq(pUSDCDAI.balanceOf(user), 0.0001 ether);
+//         assertGt(strategyCTokenUSDCDAI.deposit(0.0001 ether, user), 0);
+//         strategyCTokenUSDCDAI.postCollateral(0.0001 ether);
+//         assertEq(strategyCTokenUSDCDAI.balanceOf(user), 0.0001 ether);
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
@@ -274,7 +274,7 @@
 //         VelodromePositionManager.LeverageStruct memory leverageData;
 //         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pUSDCDAI));
+//         leverageData.positionToken = ICToken(address(strategyCTokenUSDCDAI));
 //         leverageData.swapData.inputToken = _DAI_ADDRESS;
 //         leverageData.swapData.inputAmount = amountForLeverage - leverageFee;
 //         leverageData.swapData.outputToken = _USDC_ADDRESS;
@@ -301,9 +301,9 @@
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-//         (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
-//         assertGt(pUSDCDAI.balanceOf(user), 0.00013 ether);
-//         assertEq(pUSDCDAIBorrowed, 0 ether);
+//         (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
+//         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
+//         assertEq(strategyCTokenUSDCDAIBorrowed, 0 ether);
 
 //         uint256 protocolBalanceAfterLeverage = dai.balanceOf(
 //             centralRegistry.daoAddress()
@@ -327,9 +327,9 @@
 //         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
 //         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
-//         (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
+//         (uint256 strategyCTokenUSDCDAIBalanceBefore, , ) = strategyCTokenUSDCDAI.getSnapshot(user);
 
-//         deleverageData.positionToken = ICToken(address(pUSDCDAI));
+//         deleverageData.positionToken = ICToken(address(strategyCTokenUSDCDAI));
 //         deleverageData.collateralAmount = 0.00003 ether;
 //         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 
@@ -355,7 +355,7 @@
 //         );
 //         deleverageData.repayAmount = 60e18;
 
-//         pUSDCDAI.approve(address(positionManager), type(uint256).max);
+//         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
 //         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
 //         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
@@ -365,12 +365,12 @@
 //             eDAIBorrowedBefore - deleverageData.repayAmount
 //         );
 
-//         (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
+//         (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
 //         assertEq(
-//             pUSDCDAI.balanceOf(user),
-//             pUSDCDAIBalanceBefore - deleverageData.collateralAmount
+//             strategyCTokenUSDCDAI.balanceOf(user),
+//             strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAmount
 //         );
-//         assertEq(pUSDCDAIBorrowed, 0);
+//         assertEq(strategyCTokenUSDCDAIBorrowed, 0);
 
 //         vm.stopPrank();
 //     }
@@ -389,14 +389,14 @@
 //         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
 //         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
-//         (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
+//         (uint256 strategyCTokenUSDCDAIBalanceBefore, , ) = strategyCTokenUSDCDAI.getSnapshot(user);
 
 //         uint256 collateralAmount = 0.00003 ether;
 //         uint256 leverageFee = collateralAmount / 100;
 //         uint256 protocolBalanceBeforeDeLeverage = IERC20(_VELODROME_DAI_USDC)
 //             .balanceOf(centralRegistry.daoAddress());
 
-//         deleverageData.positionToken = ICToken(address(pUSDCDAI));
+//         deleverageData.positionToken = ICToken(address(strategyCTokenUSDCDAI));
 //         deleverageData.collateralAmount = collateralAmount;
 //         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 
@@ -422,7 +422,7 @@
 //         );
 //         deleverageData.repayAmount = 59.3e18;
 
-//         pUSDCDAI.approve(address(positionManager), type(uint256).max);
+//         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
 //         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
 //         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
@@ -432,12 +432,12 @@
 //             eDAIBorrowedBefore - deleverageData.repayAmount
 //         );
 
-//         (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
+//         (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
 //         assertEq(
-//             pUSDCDAI.balanceOf(user),
-//             pUSDCDAIBalanceBefore - deleverageData.collateralAmount
+//             strategyCTokenUSDCDAI.balanceOf(user),
+//             strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAmount
 //         );
-//         assertEq(pUSDCDAIBorrowed, 0);
+//         assertEq(strategyCTokenUSDCDAIBorrowed, 0);
 
 //         uint256 protocolBalanceAfterDeLeverage = IERC20(_VELODROME_DAI_USDC)
 //             .balanceOf(centralRegistry.daoAddress());
@@ -453,12 +453,12 @@
 //         vm.startPrank(user);
 
 //         deal(_VELODROME_DAI_USDC, user, 0.0001 ether);
-//         IERC20(_VELODROME_DAI_USDC).approve(address(pUSDCDAI), 0.0001 ether);
+//         IERC20(_VELODROME_DAI_USDC).approve(address(strategyCTokenUSDCDAI), 0.0001 ether);
 
 //         // mint
-//         assertGt(pUSDCDAI.deposit(0.0001 ether, user), 0);
-//         pUSDCDAI.postCollateral(0.0001 ether);
-//         assertEq(pUSDCDAI.balanceOf(user), 0.0001 ether);
+//         assertGt(strategyCTokenUSDCDAI.deposit(0.0001 ether, user), 0);
+//         strategyCTokenUSDCDAI.postCollateral(0.0001 ether);
+//         assertEq(strategyCTokenUSDCDAI.balanceOf(user), 0.0001 ether);
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
@@ -474,7 +474,7 @@
 //         VelodromePositionManager.LeverageStruct memory leverageData;
 //         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pUSDCDAI));
+//         leverageData.positionToken = ICToken(address(strategyCTokenUSDCDAI));
 //         leverageData.swapData.inputToken = _DAI_ADDRESS;
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = _USDC_ADDRESS;
@@ -505,9 +505,9 @@
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-//         (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
-//         assertGt(pUSDCDAI.balanceOf(user), 0.00013 ether);
-//         assertEq(pUSDCDAIBorrowed, 0 ether);
+//         (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
+//         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
+//         assertEq(strategyCTokenUSDCDAIBorrowed, 0 ether);
 
 //         vm.stopPrank();
 //     }
@@ -523,9 +523,9 @@
 //         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
 //         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
-//         (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
+//         (uint256 strategyCTokenUSDCDAIBalanceBefore, , ) = strategyCTokenUSDCDAI.getSnapshot(user);
 
-//         deleverageData.positionToken = ICToken(address(pUSDCDAI));
+//         deleverageData.positionToken = ICToken(address(strategyCTokenUSDCDAI));
 //         deleverageData.collateralAmount = 0.00003 ether;
 //         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 
@@ -551,7 +551,7 @@
 //         );
 //         deleverageData.repayAmount = 60e18;
 
-//         pUSDCDAI.approve(address(positionManager), type(uint256).max);
+//         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
 //         positionManager.setDelegateApproval(address(user2), true);
 //         vm.stopPrank();
 
@@ -565,12 +565,12 @@
 //             eDAIBorrowedBefore - deleverageData.repayAmount
 //         );
 
-//         (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
+//         (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
 //         assertEq(
-//             pUSDCDAI.balanceOf(user),
-//             pUSDCDAIBalanceBefore - deleverageData.collateralAmount
+//             strategyCTokenUSDCDAI.balanceOf(user),
+//             strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAmount
 //         );
-//         assertEq(pUSDCDAIBorrowed, 0);
+//         assertEq(strategyCTokenUSDCDAIBorrowed, 0);
 //     }
 
 //     function _provideEnoughLiquidityForLeverage() internal {
@@ -585,9 +585,9 @@
 //         dai.approve(address(borrowableCDAI), 20000000 ether);
 //         borrowableCDAI.mint(20000000 ether);
 
-//         // mint pUSDCDAI
-//         IERC20(_VELODROME_DAI_USDC).approve(address(pUSDCDAI), 1 ether);
-//         pUSDCDAI.deposit(1 ether, liquidityProvider);
+//         // mint strategyCTokenUSDCDAI
+//         IERC20(_VELODROME_DAI_USDC).approve(address(strategyCTokenUSDCDAI), 1 ether);
+//         strategyCTokenUSDCDAI.deposit(1 ether, liquidityProvider);
 
 //         vm.stopPrank();
 //     }

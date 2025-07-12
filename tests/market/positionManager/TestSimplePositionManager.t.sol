@@ -21,11 +21,6 @@
 
 //     fallback() external payable {}
 
-//     // this is to use address(this) as mock cToken address
-//     function tokenType() external pure returns (uint256) {
-//         return 1;
-//     }
-
 //     function setUp() public override {
 //         super.setUp();
 
@@ -37,10 +32,10 @@
 //             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
 //         );
 
-//         // setup eDAI
+//         // Setup borrowable cDAI.
 //         {
 //             _deployBorrowableCDAI();
-//             // add MToken support on price router
+//             // Add cToken support on Oracle Manager.
 //             oracleManager.addCTokenSupport(address(borrowableCDAI));
 
 //             _prepareDAI(owner, 200000e18);
@@ -49,15 +44,15 @@
 
 //         // deploy simple cToken
 //         {
-//             _deployPUSDC();
+//             _deployBorrowableCUSDC();
 //             _prepareUSDC(owner, 100e6);
-//             usdc.approve(address(pUSDC), 100e6);
-//             oracleManager.addCTokenSupport(address(pUSDC));
+//             usdc.approve(address(borrowableCUSDC), 100e6);
+//             oracleManager.addCTokenSupport(address(borrowableCUSDC));
 
 
 //         }
 
-//         marketManagerIsolated.listTokens(address(pUSDC), address(borrowableCDAI));
+//         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
 
 //         marketManagerIsolated.updatePositionToken(
 //             7000,    // collRatio 70%
@@ -72,11 +67,11 @@
 //             1000     // baseCFactor 20%
 //         );
 
-//         address[] memory mTokens = new address[](1);
-//         mTokens[0] = address(pUSDC);
+//         address[] memory cTokens = new address[](1);
+//         cTokens[0] = address(borrowableCUSDC);
 //         uint256[] memory caps = new uint256[](1);
 //         caps[0] = 100 ether;
-//         marketManagerIsolated.setCollateralCaps(mTokens, caps);
+//         marketManagerIsolated.setCollateralCaps(cTokens, caps);
 //         positionManager = new SimplePositionManager(
 //         ICentralRegistry(address(centralRegistry)),
 //         address(marketManagerIsolated),
@@ -100,9 +95,9 @@
 //         dai.approve(address(borrowableCDAI), 20000000 ether);
 //         borrowableCDAI.mint(20000000 ether);
 
-//         // mint pUSDC
-//         usdc.approve(address(pUSDC), 100e6);
-//         pUSDC.mint(100e6, liquidityProvider);
+//         // mint borrowableCUSDC
+//         usdc.approve(address(borrowableCUSDC), 100e6);
+//         borrowableCUSDC.mint(100e6, liquidityProvider);
 
 //         vm.stopPrank();
 //     }
@@ -122,12 +117,12 @@
 //         vm.startPrank(user);
 
 //         deal(address(usdc), user, 1000e6);
-//         usdc.approve(address(pUSDC), 1000e6);
+//         usdc.approve(address(borrowableCUSDC), 1000e6);
 
 //         // mint
-//         assertGt(pUSDC.mint(1000e6, user), 0);
-//         pUSDC.postCollateral(1000e6);
-//         assertEq(pUSDC.balanceOf(user), 1000e6);
+//         assertGt(borrowableCUSDC.mint(1000e6, user), 0);
+//         borrowableCUSDC.postCollateral(1000e6);
+//         assertEq(borrowableCUSDC.balanceOf(user), 1000e6);
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
@@ -143,7 +138,7 @@
 //         SimplePositionManager.LeverageStruct memory leverageData;
 //         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pUSDC));
+//         leverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         leverageData.swapData.inputToken = address(dai);
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = address(usdc);
@@ -167,7 +162,7 @@
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-//         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = pUSDC.getSnapshot(
+//         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(
 //             user
 //         );
 //         assertGt(pUSDCBalance, 1900e6);
@@ -183,7 +178,7 @@
 //         usdc.approve(address(positionManager), 1000e6);
 
 //         // allow delegation for postCollateral
-//         pUSDC.setDelegateApproval(address(positionManager), true);
+//         borrowableCUSDC.setDelegateApproval(address(positionManager), true);
 
 //         // try leverage with 50% of max
 //         uint256 amountForLeverage = 0.99e21;
@@ -191,7 +186,7 @@
 //         SimplePositionManager.LeverageStruct memory leverageData;
 //         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pUSDC));
+//         leverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         leverageData.swapData.inputToken = address(dai);
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = address(usdc);
@@ -215,7 +210,7 @@
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, amountForLeverage);
 
-//         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = pUSDC.getSnapshot(
+//         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(
 //             user
 //         );
 //         assertGt(pUSDCBalance, 1900e6);
@@ -232,10 +227,10 @@
 
 //         vm.startPrank(user);
 //         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
-//         (uint256 pUSDCBalanceBefore, , ) = pUSDC.getSnapshot(user);
+//         (uint256 pUSDCBalanceBefore, , ) = borrowableCUSDC.getSnapshot(user);
 
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
-//         deleverageData.positionToken = ICToken(address(pUSDC));
+//         deleverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         deleverageData.collateralAmount = 900e6;
 //         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
@@ -265,7 +260,7 @@
 //             eDAIBorrowedBefore - deleverageData.repayAmount
 //         );
 
-//         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = pUSDC.getSnapshot(
+//         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(
 //             user
 //         );
 //         assertEq(
@@ -281,12 +276,12 @@
 //         vm.startPrank(user);
 
 //         deal(address(usdc), user, 1000e6);
-//         usdc.approve(address(pUSDC), 1000e6);
+//         usdc.approve(address(borrowableCUSDC), 1000e6);
 
 //         // mint
-//         assertGt(pUSDC.mint(1000e6, user), 0);
-//         pUSDC.postCollateral(1000e6);
-//         assertEq(pUSDC.balanceOf(user), 1000e6);
+//         assertGt(borrowableCUSDC.mint(1000e6, user), 0);
+//         borrowableCUSDC.postCollateral(1000e6);
+//         assertEq(borrowableCUSDC.balanceOf(user), 1000e6);
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
@@ -302,7 +297,7 @@
 //         SimplePositionManager.LeverageStruct memory leverageData;
 //         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pUSDC));
+//         leverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         leverageData.swapData.inputToken = address(dai);
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = address(usdc);
@@ -330,7 +325,7 @@
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-//         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = pUSDC.getSnapshot(
+//         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(
 //             user
 //         );
 //         assertGt(pUSDCBalance, 1900e6);
@@ -348,10 +343,10 @@
 
 //         vm.startPrank(user);
 //         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
-//         (uint256 pUSDCBalanceBefore, , ) = pUSDC.getSnapshot(user);
+//         (uint256 pUSDCBalanceBefore, , ) = borrowableCUSDC.getSnapshot(user);
 
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
-//         deleverageData.positionToken = ICToken(address(pUSDC));
+//         deleverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         deleverageData.collateralAmount = 900e6;
 //         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
@@ -372,7 +367,7 @@
 //         );
 //         deleverageData.swapData[0].slippage = 0.3e18;
 //         deleverageData.repayAmount = 890 ether;
-//         pUSDC.approve(address(positionManager), type(uint256).max);
+//         borrowableCUSDC.approve(address(positionManager), type(uint256).max);
 
 //         positionManager.setDelegateApproval(address(user2), true);
 //         vm.stopPrank();
@@ -387,7 +382,7 @@
 //             eDAIBorrowedBefore - deleverageData.repayAmount
 //         );
 
-//         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = pUSDC.getSnapshot(
+//         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(
 //             user
 //         );
 //         assertEq(
@@ -403,10 +398,10 @@
 //         vm.startPrank(user);
         
 //         deal(address(usdc), user, 1000e6);
-//         usdc.approve(address(pUSDC), 1000e6);
+//         usdc.approve(address(borrowableCUSDC), 1000e6);
         
-//         pUSDC.mint(1000e6, user);
-//         pUSDC.postCollateral(1000e6);
+//         borrowableCUSDC.mint(1000e6, user);
+//         borrowableCUSDC.postCollateral(1000e6);
         
 //         borrowableCDAI.borrow(100 ether);
         
@@ -418,7 +413,7 @@
 //         SimplePositionManager.LeverageStruct memory leverageData;
 //         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pUSDC));
+//         leverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         leverageData.swapData.inputToken = address(dai);
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = address(usdc);
@@ -454,7 +449,7 @@
 //         vm.startPrank(user);
         
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
-//         deleverageData.positionToken = ICToken(address(pUSDC));
+//         deleverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         deleverageData.collateralAmount = 900e6;
 //         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
@@ -487,10 +482,10 @@
 //         vm.startPrank(user);
         
 //         deal(address(usdc), user, 1000e6);
-//         usdc.approve(address(pUSDC), 1000e6);
+//         usdc.approve(address(borrowableCUSDC), 1000e6);
         
-//         pUSDC.mint(1000e6, user);
-//         pUSDC.postCollateral(1000e6);
+//         borrowableCUSDC.mint(1000e6, user);
+//         borrowableCUSDC.postCollateral(1000e6);
         
 //         // borrow
 //         borrowableCDAI.borrow(100 ether);
@@ -503,7 +498,7 @@
 //         SimplePositionManager.LeverageStruct memory leverageData;
 //         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pUSDC));
+//         leverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         leverageData.swapData.inputToken = address(usdc); // incorrect input token
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = address(usdc);
@@ -539,7 +534,7 @@
 //         vm.startPrank(user);
         
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
-//         deleverageData.positionToken = ICToken(address(pUSDC));
+//         deleverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         deleverageData.collateralAmount = 900e6;
 //         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
@@ -572,10 +567,10 @@
 //         vm.startPrank(user);
         
 //         deal(address(usdc), user, 1000e6);
-//         usdc.approve(address(pUSDC), 1000e6);
+//         usdc.approve(address(borrowableCUSDC), 1000e6);
         
-//         pUSDC.mint(1000e6, user);
-//         pUSDC.postCollateral(1000e6);
+//         borrowableCUSDC.mint(1000e6, user);
+//         borrowableCUSDC.postCollateral(1000e6);
         
 //         // borrow
 //         borrowableCDAI.borrow(100 ether);
@@ -588,7 +583,7 @@
 //         SimplePositionManager.LeverageStruct memory leverageData;
 //         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pUSDC));
+//         leverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         leverageData.swapData.inputToken = address(dai);
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = address(dai); // incorrect output token
@@ -618,10 +613,10 @@
 //         vm.startPrank(user);
         
 //         deal(address(usdc), user, 1000e6);
-//         usdc.approve(address(pUSDC), 1000e6);
+//         usdc.approve(address(borrowableCUSDC), 1000e6);
         
-//         pUSDC.mint(1000e6, user);
-//         pUSDC.postCollateral(1000e6);
+//         borrowableCUSDC.mint(1000e6, user);
+//         borrowableCUSDC.postCollateral(1000e6);
         
 //         // borrow
 //         borrowableCDAI.borrow(100 ether);
@@ -634,7 +629,7 @@
 //         SimplePositionManager.LeverageStruct memory leverageData;
 //         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pUSDC));
+//         leverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         leverageData.swapData.inputToken = address(dai);
 //         leverageData.swapData.inputAmount = amountForLeverage - 1; // incorrect input amount
 //         leverageData.swapData.outputToken = address(usdc);
@@ -670,7 +665,7 @@
 //         vm.startPrank(user);
         
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
-//         deleverageData.positionToken = ICToken(address(pUSDC));
+//         deleverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         deleverageData.collateralAmount = 900e6;
 //         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
@@ -703,10 +698,10 @@
 //         vm.startPrank(user);
         
 //         deal(address(usdc), user, 1000e6);
-//         usdc.approve(address(pUSDC), 1000e6);
+//         usdc.approve(address(borrowableCUSDC), 1000e6);
         
-//         pUSDC.mint(1000e6, user);
-//         pUSDC.postCollateral(1000e6);
+//         borrowableCUSDC.mint(1000e6, user);
+//         borrowableCUSDC.postCollateral(1000e6);
         
 //         // borrow
 //         borrowableCDAI.borrow(100 ether);
@@ -719,7 +714,7 @@
 //         SimplePositionManager.LeverageStruct memory leverageData;
 //         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pUSDC));
+//         leverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         leverageData.swapData.inputToken = address(dai);
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = address(usdc);
@@ -744,7 +739,7 @@
 //         vm.startPrank(user);
         
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
-//         deleverageData.positionToken = ICToken(address(pUSDC));
+//         deleverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         deleverageData.collateralAmount = 900e6;
 //         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](0); // Empty array
@@ -761,11 +756,11 @@
 //         vm.startPrank(user);
         
 //         deal(address(usdc), user, 1000e6);
-//         usdc.approve(address(pUSDC), 1000e6);
+//         usdc.approve(address(borrowableCUSDC), 1000e6);
         
 //         // mint
-//         pUSDC.mint(1000e6, user);
-//         pUSDC.postCollateral(1000e6);
+//         borrowableCUSDC.mint(1000e6, user);
+//         borrowableCUSDC.postCollateral(1000e6);
         
 //         // borrow
 //         borrowableCDAI.borrow(100 ether);
@@ -778,7 +773,7 @@
 //         SimplePositionManager.LeverageStruct memory leverageData;
 //         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pUSDC));
+//         leverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         leverageData.swapData.inputToken = address(dai);
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = address(usdc);
@@ -810,9 +805,9 @@
         
 //         // Set up the collateral and position
 //         deal(address(usdc), user, 1000e6);
-//         usdc.approve(address(pUSDC), 1000e6);
-//         pUSDC.mint(1000e6, user);
-//         pUSDC.postCollateral(1000e6);
+//         usdc.approve(address(borrowableCUSDC), 1000e6);
+//         borrowableCUSDC.mint(1000e6, user);
+//         borrowableCUSDC.postCollateral(1000e6);
 //         borrowableCDAI.borrow(100 ether);
         
 //         // Do not set delegate approval for user2
@@ -828,7 +823,7 @@
 //         SimplePositionManager.LeverageStruct memory leverageData;
 //         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pUSDC));
+//         leverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         leverageData.swapData.inputToken = address(dai);
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = address(usdc);
@@ -865,7 +860,7 @@
         
 //         // Deleverage data
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
-//         deleverageData.positionToken = ICToken(address(pUSDC));
+//         deleverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         deleverageData.collateralAmount = 900e6;
 //         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
@@ -886,7 +881,7 @@
 //         );
 //         deleverageData.swapData[0].slippage = 0.3e18;
 //         deleverageData.repayAmount = 890 ether;
-//         pUSDC.approve(address(positionManager), type(uint256).max);
+//         borrowableCUSDC.approve(address(positionManager), type(uint256).max);
         
 //         // Do not set delegate approval for user2
 //         vm.stopPrank();
@@ -911,9 +906,9 @@
         
 //         // Set up leverage operation
 //         deal(address(usdc), user, 1000e6);
-//         usdc.approve(address(pUSDC), 1000e6);
-//         pUSDC.mint(1000e6, user);
-//         pUSDC.postCollateral(1000e6);
+//         usdc.approve(address(borrowableCUSDC), 1000e6);
+//         borrowableCUSDC.mint(1000e6, user);
+//         borrowableCUSDC.postCollateral(1000e6);
 //         borrowableCDAI.borrow(100 ether);
         
 //         vm.stopPrank();
@@ -926,7 +921,7 @@
 //         SimplePositionManager.LeverageStruct memory leverageData;
 //         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pUSDC));
+//         leverageData.positionToken = ICToken(address(borrowableCUSDC));
 //         leverageData.swapData.inputToken = address(dai);
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = address(usdc);
