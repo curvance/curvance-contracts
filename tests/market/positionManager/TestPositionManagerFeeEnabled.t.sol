@@ -234,9 +234,9 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         leverageData.auxData = abi.encode(0);
         positionManager.leverage(leverageData, 0.05e18);
 
-        AccountSnapshot memory eDAISnapshot = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(eDAISnapshot.debtBalance, 100 ether + amountForLeverage);
+        assertEq(borrowableCDAISnapshot.debtOutstanding, 100 ether + amountForLeverage);
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
@@ -264,7 +264,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
 
         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
-        AccountSnapshot memory eDAISnapshotBefore = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshotBefore = borrowableCDAI.getSnapshot(user);
         uint256 strategyCTokenUSDCDAIBalanceBefore = strategyCTokenUSDCDAI.balanceOf(user);
 
         uint256 collateralAmount = 0.00003 ether;
@@ -315,11 +315,11 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
         positionManager.deleverage(deleverageData, 0.05e18);
 
-        AccountSnapshot memory eDAISnapshot = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
-            eDAISnapshot.debtBalance,
-            eDAISnapshotBefore.debtBalance - deleverageData.repayAmount
+            borrowableCDAISnapshot.debtOutstanding,
+            borrowableCDAISnapshotBefore.debtOutstanding - deleverageData.repayAmount
         );
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
