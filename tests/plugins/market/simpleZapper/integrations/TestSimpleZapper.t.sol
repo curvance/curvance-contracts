@@ -261,10 +261,12 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         // redeem eDAI and deposit to simpleCUSDC
 
         _prepareDAI(user1, 100 ether);
+        
+        vm.startPrank(user1);
         dai.approve(address(borrowableCDAI), 100 ether);
         borrowableCDAI.deposit(100 ether, user1);
-
         borrowableCDAI.setDelegateApproval(address(simpleZapper), true);
+        vm.stopPrank();  
 
         ZapperBase.RedemptionData memory redemptionData;
         redemptionData.cToken = address(borrowableCDAI);
@@ -290,6 +292,8 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             params
         );
 
+        vm.startPrank(user1);
+
         simpleZapper.redeemSwapAndDeposit(
             address(simpleCUSDC),
             redemptionData,
@@ -298,6 +302,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             false,
             user1
         );
+        vm.stopPrank();
 
         assertGt(simpleCUSDC.balanceOf(user1), 99e6);
     }
