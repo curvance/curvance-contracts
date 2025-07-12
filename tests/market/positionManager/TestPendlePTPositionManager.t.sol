@@ -29,7 +29,7 @@
 //     address internal _PT_ORACLE = 0x14030836AEc15B2ad48bB097bd57032559339c92;
 //     address internal _PENDLE_SWAP = 0x1e8b6Ac39f8A33f46a6Eb2D1aCD1047B99180AD1;
 
-//     PendlePTPositionManager public positionManagement;
+//     PendlePTPositionManager public positionManager;
 //     PendlePrincipalTokenAdaptor public adaptor;
 //     SimpleCToken public pPendlePT;
 //     IERC20 public pendlePT = IERC20(_PT_STETH);
@@ -134,14 +134,14 @@
 //             caps[0] = 100 ether;
 //             marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
-//         positionManagement = new PendlePTPositionManager(
+//         positionManager = new PendlePTPositionManager(
 //             ICentralRegistry(address(centralRegistry)),
 //             address(marketManagerIsolated),
 //             _WETH_ADDRESS,
 //             _ROUTER
 //         );
 
-//         marketManagerIsolated.addPositionManager(address(positionManagement));
+//         marketManagerIsolated.addPositionManager(address(positionManager));
 
 //         _provideEnoughLiquidityForLeverage();
 //     }
@@ -171,11 +171,11 @@
 
 //     function testInitialize() public {
 //         assertEq(
-//             address(positionManagement.centralRegistry()),
+//             address(positionManager.centralRegistry()),
 //             address(centralRegistry)
 //         );
 //         assertEq(
-//             address(positionManagement.marketManager()),
+//             address(positionManager.marketManager()),
 //             address(marketManagerIsolated)
 //         );
 //     }
@@ -197,13 +197,13 @@
 //         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
 //         // try leverage with 50% of max
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
 
 //         PendlePTPositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pPendlePT));
 //         PendleLib.PendleData memory data;
@@ -229,7 +229,7 @@
 //         data.input.swapData.needScale = false;
 //         leverageData.auxData = abi.encode(_LP_STETH, 1, data);
 
-//         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
+//         positionManager.leverage(leverageData, 0.05e18); // 5% slippage
 
 //         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
@@ -256,7 +256,7 @@
 
 //         deleverageData.positionToken = ICToken(address(pPendlePT));
 //         deleverageData.collateralAmount = 1 ether;
-//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.repayAmount = 3.141e21;
 
 //         PendleLib.PendleData memory data;
@@ -276,8 +276,8 @@
 //         data.output.swapData.needScale = false;
 //         deleverageData.auxData = abi.encode(_LP_STETH, data);
 
-//         pPendlePT.approve(address(positionManagement), type(uint256).max);
-//         positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
+//         pPendlePT.approve(address(positionManager), type(uint256).max);
+//         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
 //         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
@@ -314,13 +314,13 @@
 //         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
 //         // try leverage with 50% of max
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
 
 //         PendlePTPositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pPendlePT));
 //         PendleLib.PendleData memory data;
@@ -346,11 +346,11 @@
 //         data.input.swapData.needScale = false;
 //         leverageData.auxData = abi.encode(_LP_STETH, 1, data);
 
-//         positionManagement.setDelegateApproval(address(user2), true);
+//         positionManager.setDelegateApproval(address(user2), true);
 //         vm.stopPrank();
 
 //         vm.prank(user2);
-//         positionManagement.leverageFor(leverageData, user, 0.05e18); // 5% slippage
+//         positionManager.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
 //         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
@@ -377,7 +377,7 @@
 
 //         deleverageData.positionToken = ICToken(address(pPendlePT));
 //         deleverageData.collateralAmount = 1 ether;
-//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.repayAmount = 3.141e21;
 
 //         PendleLib.PendleData memory data;
@@ -397,12 +397,12 @@
 //         data.output.swapData.needScale = false;
 //         deleverageData.auxData = abi.encode(_LP_STETH, data);
 
-//         pPendlePT.approve(address(positionManagement), type(uint256).max);
-//         positionManagement.setDelegateApproval(address(user2), true);
+//         pPendlePT.approve(address(positionManager), type(uint256).max);
+//         positionManager.setDelegateApproval(address(user2), true);
 //         vm.stopPrank();
 
 //         vm.prank(user2);
-//         positionManagement.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
+//         positionManager.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
 //         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
@@ -437,14 +437,14 @@
 //         borrowableCDAI.borrow(100 ether);
         
 //         // try leverage with 50% of max
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         // Create leverage data with valid Pendle settings
 //         PendlePTPositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pPendlePT));
         
@@ -471,7 +471,7 @@
 //         leverageData.auxData = abi.encode(_LP_STETH, 1, data);
 //         // Expect the call to revert with BasePositionManager__InvalidSwapperParam
 //         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
-//         positionManagement.leverage(leverageData, 0.05e18);
+//         positionManager.leverage(leverageData, 0.05e18);
         
 //         vm.stopPrank();
 //     }
@@ -490,14 +490,14 @@
 //         borrowableCDAI.borrow(100 ether);
         
 //         // Calculate leverage amount
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         // Create leverage data
 //         PendlePTPositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pPendlePT));
         
@@ -524,7 +524,7 @@
         
 //         // This call should revert with BasePositionManager__InvalidSwapperParam
 //         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
-//         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
+//         positionManager.leverage(leverageData, 0.05e18); // 5% slippage
         
 //         vm.stopPrank();
 //     }

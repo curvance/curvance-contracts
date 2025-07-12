@@ -34,7 +34,7 @@
 //     OdosCalldataChecker public odosCallDataChecker;
 //     VelodromeStableCToken public pUSDCDAI;
 //     VelodromeStableLPAdaptor public adaptor;
-//     VelodromePositionManager public positionManagement;
+//     VelodromePositionManager public positionManager;
 
 //     address public owner;
 //     address public user;
@@ -165,14 +165,14 @@
 
 //         marketManagerIsolated.setCollateralCaps(tokens, caps);
 
-//         positionManagement = new VelodromePositionManager(
+//         positionManager = new VelodromePositionManager(
 //             ICentralRegistry(address(centralRegistry)),
 //             address(marketManagerIsolated),
 //             _WETH_ADDRESS,
 //             address(veloRouter),
 //             address(veloPairFactory)
 //         );
-//         marketManagerIsolated.addPositionManager(address(positionManagement));
+//         marketManagerIsolated.addPositionManager(address(positionManager));
 
 //         _provideEnoughLiquidityForLeverage();
 
@@ -212,7 +212,7 @@
 //         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
 //         // try leverage with 50% of max
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
@@ -230,7 +230,7 @@
 //             _DAI_ADDRESS,
 //             _USDC_ADDRESS,
 //             swapInputAmount,
-//             address(positionManagement),
+//             address(positionManager),
 //             5 // 0.5%
 //         );
 //         (uint256 minUsdcOut, bytes memory odosCallData) = abi.decode(
@@ -239,7 +239,7 @@
 //         );
 
 //         VelodromePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDCDAI));
 //         leverageData.swapData.inputToken = _DAI_ADDRESS;
@@ -249,7 +249,7 @@
 //         leverageData.swapData.slippage = 0.005e18; // 0.5%
 //         leverageData.swapData.call = odosCallData;
 //         leverageData.auxData = abi.encode(0);
-//         positionManagement.leverage(leverageData, 0.05e18);
+//         positionManager.leverage(leverageData, 0.05e18);
 
 //         AccountSnapshot memory eDAISnapshot = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
@@ -307,7 +307,7 @@
 //                 _USDC_ADDRESS,
 //                 _DAI_ADDRESS,
 //                 usdcOutAmount,
-//                 address(positionManagement),
+//                 address(positionManager),
 //                 5 // 0.5%
 //             );
 //             (uint256 minDaiOut, bytes memory odosCallData) = abi.decode(
@@ -317,7 +317,7 @@
 
 //             deleverageData.positionToken = ICToken(address(pUSDCDAI));
 //             deleverageData.collateralAmount = collateralAmount;
-//             deleverageData.borrowToken = IEToken(address(borrowableCDAI));
+//             deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //             deleverageData.swapData = new SwapperLib.Swap[](1);
 //             deleverageData.swapData[0].inputToken = _USDC_ADDRESS;
 //             deleverageData.swapData[0].inputAmount = usdcOutAmount;
@@ -328,8 +328,8 @@
 //             deleverageData.repayAmount = daiOutAmount + (minDaiOut / 10) * 9;
 //         }
 
-//         pUSDCDAI.approve(address(positionManagement), type(uint256).max);
-//         positionManagement.deleverage(deleverageData, 0.05e18);
+//         pUSDCDAI.approve(address(positionManager), type(uint256).max);
+//         positionManager.deleverage(deleverageData, 0.05e18);
 
 //         AccountSnapshot memory eDAISnapshot = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);

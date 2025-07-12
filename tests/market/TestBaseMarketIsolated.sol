@@ -661,9 +661,9 @@ contract TestBaseMarketIsolated is TestBase {
         tokenConfig.liqIncHard = 150;
         tokenConfig.liqIncMin = 50;
         tokenConfig.liqIncMax = 200;
-        tokenConfig.minEffectiveCloseFactor = 200;
-        tokenConfig.maxEffectiveCloseFactor = 500;
-        tokenConfig.baseCFactor = 200;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
         tokenConfig.collateralCap = collateralCap;
         tokenConfig.debtCap = debtCap;
 

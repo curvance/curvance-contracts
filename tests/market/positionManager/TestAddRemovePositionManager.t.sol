@@ -6,11 +6,11 @@
 // import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 // import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-// contract TestAddRemovePositionManagement is TestBaseMarketIsolated {
+// contract TestAddRemovePositionManager is TestBaseMarketIsolated {
 //     address public owner;
 //     address public user;
 
-//     SimplePositionManager public positionManagement;
+//     SimplePositionManager public positionManager;
 
 //     receive() external payable {}
 
@@ -50,7 +50,7 @@
 
 //         }
 
-//         positionManagement = new SimplePositionManager(
+//         positionManager = new SimplePositionManager(
 //             ICentralRegistry(address(centralRegistry)),
 //             address(marketManagerIsolated),
 //             _WETH_ADDRESS
@@ -88,9 +88,9 @@
 //     }
 
 //     function testAddPositionManager_AlreadyAdded() public {
-//         marketManagerIsolated.addPositionManager(address(positionManagement));
+//         marketManagerIsolated.addPositionManager(address(positionManager));
 //         vm.expectRevert(bytes4(keccak256("MarketManager__InvalidParameter()")));
-//         marketManagerIsolated.addPositionManager(address(positionManagement));
+//         marketManagerIsolated.addPositionManager(address(positionManager));
 //     }
 
 //     function testRemovePositionManager_Unauthorized() public {
@@ -101,7 +101,7 @@
     
 //     function testRemovePositionManager_NotAdded() public {
 //         vm.expectRevert(bytes4(keccak256("MarketManager__InvalidParameter()")));
-//         marketManagerIsolated.removePositionManager(address(positionManagement));
+//         marketManagerIsolated.removePositionManager(address(positionManager));
 //     }
 
 //     function testAddPositionManager_InvalidInterface() public {
@@ -111,10 +111,10 @@
 //     }
 
 //     function testAddAndRemovePositionManager_Success() public {
-//         marketManagerIsolated.addPositionManager(address(positionManagement));
-//         assertEq(marketManagerIsolated.isPositionManager(address(positionManagement)), true);
-//         marketManagerIsolated.removePositionManager(address(positionManagement));
-//         assertEq(marketManagerIsolated.isPositionManager(address(positionManagement)), false);
+//         marketManagerIsolated.addPositionManager(address(positionManager));
+//         assertEq(marketManagerIsolated.isPositionManager(address(positionManager)), true);
+//         marketManagerIsolated.removePositionManager(address(positionManager));
+//         assertEq(marketManagerIsolated.isPositionManager(address(positionManager)), false);
 //     }
 
 

@@ -15,7 +15,7 @@
 //     address public owner;
 //     address public user;
 
-//     SimplePositionManager public positionManagement;
+//     SimplePositionManager public positionManager;
 
 //     receive() external payable {}
 
@@ -77,13 +77,13 @@
 //         uint256[] memory caps = new uint256[](1);
 //         caps[0] = 100 ether;
 //         marketManagerIsolated.setCollateralCaps(mTokens, caps);
-//         positionManagement = new SimplePositionManager(
+//         positionManager = new SimplePositionManager(
 //         ICentralRegistry(address(centralRegistry)),
 //         address(marketManagerIsolated),
 //         _WETH_ADDRESS
 //     );
 
-//         marketManagerIsolated.addPositionManager(address(positionManagement));
+//         marketManagerIsolated.addPositionManager(address(positionManager));
 
 //         _provideEnoughLiquidityForLeverage();
 //     }
@@ -109,11 +109,11 @@
 
 //     function testInitialize() public {
 //         assertEq(
-//             address(positionManagement.centralRegistry()),
+//             address(positionManager.centralRegistry()),
 //             address(centralRegistry)
 //         );
 //         assertEq(
-//             address(positionManagement.marketManager()),
+//             address(positionManager.marketManager()),
 //             address(marketManagerIsolated)
 //         );
 //     }
@@ -135,13 +135,13 @@
 //         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
 //         // try leverage with 50% of max
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
 
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -156,12 +156,12 @@
 //             amountForLeverage,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         leverageData.swapData.slippage = 0.3e18;
 
-//         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
+//         positionManager.leverage(leverageData, 0.05e18); // 5% slippage
 
 //         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
@@ -180,16 +180,16 @@
 //         vm.startPrank(user);
 
 //         deal(address(usdc), user, 1000e6);
-//         usdc.approve(address(positionManagement), 1000e6);
+//         usdc.approve(address(positionManager), 1000e6);
 
 //         // allow delegation for postCollateral
-//         pUSDC.setDelegateApproval(address(positionManagement), true);
+//         pUSDC.setDelegateApproval(address(positionManager), true);
 
 //         // try leverage with 50% of max
 //         uint256 amountForLeverage = 0.99e21;
 
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -204,12 +204,12 @@
 //             amountForLeverage,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         leverageData.swapData.slippage = 0.3e18;
 
-//         positionManagement.depositAndLeverage(1000e6, leverageData, 0.05e18); // 5% slippage
+//         positionManager.depositAndLeverage(1000e6, leverageData, 0.05e18); // 5% slippage
 
 //         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
@@ -237,7 +237,7 @@
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
 //         deleverageData.positionToken = ICToken(address(pUSDC));
 //         deleverageData.collateralAmount = 900e6;
-//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = address(usdc);
 //         deleverageData.swapData[0].inputAmount = 900e6;
@@ -251,12 +251,12 @@
 //             900e6,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         deleverageData.swapData[0].slippage = 0.3e18;
 //         deleverageData.repayAmount = 890 ether;
-//         positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
+//         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
 //         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
@@ -294,13 +294,13 @@
 //         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
 //         // try leverage with 50% of max
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
 
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -315,16 +315,16 @@
 //             amountForLeverage,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         leverageData.swapData.slippage = 0.3e18;
 
-//         positionManagement.setDelegateApproval(address(user2), true);
+//         positionManager.setDelegateApproval(address(user2), true);
 //         vm.stopPrank();
 
 //         vm.prank(user2);
-//         positionManagement.leverageFor(leverageData, user, 0.05e18); // 5% slippage
+//         positionManager.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
 //         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
@@ -353,7 +353,7 @@
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
 //         deleverageData.positionToken = ICToken(address(pUSDC));
 //         deleverageData.collateralAmount = 900e6;
-//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = address(usdc);
 //         deleverageData.swapData[0].inputAmount = 900e6;
@@ -367,18 +367,18 @@
 //             900e6,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         deleverageData.swapData[0].slippage = 0.3e18;
 //         deleverageData.repayAmount = 890 ether;
-//         pUSDC.approve(address(positionManagement), type(uint256).max);
+//         pUSDC.approve(address(positionManager), type(uint256).max);
 
-//         positionManagement.setDelegateApproval(address(user2), true);
+//         positionManager.setDelegateApproval(address(user2), true);
 //         vm.stopPrank();
 
 //         vm.prank(user2);
-//         positionManagement.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
+//         positionManager.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
 //         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
@@ -410,13 +410,13 @@
         
 //         borrowableCDAI.borrow(100 ether);
         
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -432,14 +432,14 @@
 //             amountForLeverage,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         leverageData.swapData.slippage = 0.3e18;
         
 //         // Should revert with InvalidSwapperParam
 //         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
-//         positionManagement.leverage(leverageData, 0.05e18);
+//         positionManager.leverage(leverageData, 0.05e18);
         
 //         vm.stopPrank();
 //     }
@@ -456,7 +456,7 @@
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
 //         deleverageData.positionToken = ICToken(address(pUSDC));
 //         deleverageData.collateralAmount = 900e6;
-//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = address(usdc);
 //         deleverageData.swapData[0].inputAmount = 900e6;
@@ -470,7 +470,7 @@
 //             900e6,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         deleverageData.swapData[0].slippage = 0.3e18;
@@ -478,7 +478,7 @@
         
 //         // Should revert with InvalidSwapperParam
 //         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
-//         positionManagement.deleverage(deleverageData, 0.05e18);
+//         positionManager.deleverage(deleverageData, 0.05e18);
         
 //         vm.stopPrank();
 //     }
@@ -495,13 +495,13 @@
 //         // borrow
 //         borrowableCDAI.borrow(100 ether);
         
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(usdc); // incorrect input token
@@ -517,14 +517,14 @@
 //             amountForLeverage,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         leverageData.swapData.slippage = 0.3e18;
         
 //         // This should revert with InvalidSwapperParam
 //         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
-//         positionManagement.leverage(leverageData, 0.05e18);
+//         positionManager.leverage(leverageData, 0.05e18);
         
 //         vm.stopPrank();
 //     }
@@ -541,7 +541,7 @@
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
 //         deleverageData.positionToken = ICToken(address(pUSDC));
 //         deleverageData.collateralAmount = 900e6;
-//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = address(dai); // Incorrect input token (should be USDC)
 //         deleverageData.swapData[0].inputAmount = 900e6;
@@ -555,7 +555,7 @@
 //             900e6,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         deleverageData.swapData[0].slippage = 0.3e18;
@@ -563,7 +563,7 @@
         
 //         // Should revert with InvalidSwapperParam
 //         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
-//         positionManagement.deleverage(deleverageData, 0.05e18);
+//         positionManager.deleverage(deleverageData, 0.05e18);
         
 //         vm.stopPrank();
 //     }
@@ -580,13 +580,13 @@
 //         // borrow
 //         borrowableCDAI.borrow(100 ether);
         
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -602,14 +602,14 @@
 //             amountForLeverage,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         leverageData.swapData.slippage = 0.3e18;
         
 //         // Should revert with InvalidSwapperParam
 //         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
-//         positionManagement.leverage(leverageData, 0.05e18);
+//         positionManager.leverage(leverageData, 0.05e18);
         
 //         vm.stopPrank();
 //     }
@@ -626,13 +626,13 @@
 //         // borrow
 //         borrowableCDAI.borrow(100 ether);
         
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -648,14 +648,14 @@
 //             amountForLeverage,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         leverageData.swapData.slippage = 0.3e18;
         
 //         // Should revert with InvalidSwapperParam
 //         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
-//         positionManagement.leverage(leverageData, 0.05e18);
+//         positionManager.leverage(leverageData, 0.05e18);
         
 //         vm.stopPrank();
 //     }
@@ -672,7 +672,7 @@
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
 //         deleverageData.positionToken = ICToken(address(pUSDC));
 //         deleverageData.collateralAmount = 900e6;
-//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = address(usdc);
 //         deleverageData.swapData[0].inputAmount = 800e6; // Incorrect amount (should match collateralAmount)
@@ -686,7 +686,7 @@
 //             800e6,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         deleverageData.swapData[0].slippage = 0.3e18;
@@ -694,7 +694,7 @@
         
 //         // Should revert with InvalidSwapperParam
 //         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
-//         positionManagement.deleverage(deleverageData, 0.05e18);
+//         positionManager.deleverage(deleverageData, 0.05e18);
         
 //         vm.stopPrank();
 //     }
@@ -711,13 +711,13 @@
 //         // borrow
 //         borrowableCDAI.borrow(100 ether);
         
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -729,7 +729,7 @@
         
 //         // Should revert with InvalidSwapperParam
 //         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
-//         positionManagement.leverage(leverageData, 0.05e18);
+//         positionManager.leverage(leverageData, 0.05e18);
         
 //         vm.stopPrank();
 //     }
@@ -746,13 +746,13 @@
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
 //         deleverageData.positionToken = ICToken(address(pUSDC));
 //         deleverageData.collateralAmount = 900e6;
-//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](0); // Empty array
 //         deleverageData.repayAmount = 890 ether;
         
 //         // Should revert with InvalidSwapperParam
 //         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
-//         positionManagement.deleverage(deleverageData, 0.05e18);
+//         positionManager.deleverage(deleverageData, 0.05e18);
         
 //         vm.stopPrank();
 //     }
@@ -770,13 +770,13 @@
 //         // borrow
 //         borrowableCDAI.borrow(100 ether);
         
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -793,14 +793,14 @@
 //             amountForLeverage,
 //             amountForLeverage * 1e12, // Very high min amount out, which will fail
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         leverageData.swapData.slippage = 0.3e18;
         
 //         // We use a tiny slippage tolerance to revert
 //         vm.expectRevert();
-//         positionManagement.leverage(leverageData, 0.00001e18); // Very low slippage tolerance
+//         positionManager.leverage(leverageData, 0.00001e18); // Very low slippage tolerance
         
 //         vm.stopPrank();
 //     }
@@ -820,13 +820,13 @@
 //         vm.stopPrank();
         
 //         // Set up leverage data
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -841,7 +841,7 @@
 //             amountForLeverage,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         leverageData.swapData.slippage = 0.3e18;
@@ -849,7 +849,7 @@
 //         // user2 tries to leverage for user without permission
 //         vm.startPrank(user2);
 //         vm.expectRevert(bytes4(keccak256("PluginDelegable__Unauthorized()")));
-//         positionManagement.leverageFor(leverageData, user, 0.05e18);
+//         positionManager.leverageFor(leverageData, user, 0.05e18);
 //         vm.stopPrank();
 //     }
 
@@ -867,7 +867,7 @@
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
 //         deleverageData.positionToken = ICToken(address(pUSDC));
 //         deleverageData.collateralAmount = 900e6;
-//         deleverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = address(usdc);
 //         deleverageData.swapData[0].inputAmount = 900e6;
@@ -881,12 +881,12 @@
 //             900e6,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         deleverageData.swapData[0].slippage = 0.3e18;
 //         deleverageData.repayAmount = 890 ether;
-//         pUSDC.approve(address(positionManagement), type(uint256).max);
+//         pUSDC.approve(address(positionManager), type(uint256).max);
         
 //         // Do not set delegate approval for user2
 //         vm.stopPrank();
@@ -894,7 +894,7 @@
 //         // user2 tries to deleverage for user without permission
 //         vm.startPrank(user2);
 //         vm.expectRevert(bytes4(keccak256("PluginDelegable__Unauthorized()")));
-//         positionManagement.deleverageFor(deleverageData, user, 0.05e18);
+//         positionManager.deleverageFor(deleverageData, user, 0.05e18);
 //         vm.stopPrank();
 //     }
 
@@ -902,12 +902,12 @@
 //         vm.startPrank(user);
 
 //         // At this point, user2 should not have delegation
-//         assertFalse(positionManagement.isDelegate(user, address(user2)));
+//         assertFalse(positionManager.isDelegate(user, address(user2)));
 
-//         positionManagement.setDelegateApproval(address(user2), true);
+//         positionManager.setDelegateApproval(address(user2), true);
         
 //         // Verify delegation was set
-//         assertTrue(positionManagement.isDelegate(user, address(user2)));
+//         assertTrue(positionManager.isDelegate(user, address(user2)));
         
 //         // Set up leverage operation
 //         deal(address(usdc), user, 1000e6);
@@ -918,13 +918,13 @@
         
 //         vm.stopPrank();
 
-//         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+//         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
 //             user,
 //             address(borrowableCDAI)
 //         ) * 50) / 100;
         
 //         SimplePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IEToken(address(borrowableCDAI));
+//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
 //         leverageData.positionToken = ICToken(address(pUSDC));
 //         leverageData.swapData.inputToken = address(dai);
@@ -939,7 +939,7 @@
 //             amountForLeverage,
 //             0,
 //             path,
-//             address(positionManagement),
+//             address(positionManager),
 //             block.timestamp
 //         );
 //         leverageData.swapData.slippage = 0.3e18;
@@ -947,21 +947,21 @@
         
 //         // user2 is able to leverage on behalf of user
 //         vm.startPrank(user2);
-//         positionManagement.leverageFor(leverageData, user, 0.05e18);
+//         positionManager.leverageFor(leverageData, user, 0.05e18);
 //         vm.stopPrank();
         
 //         // Revoke the delegation
 //         vm.startPrank(user);
-//         positionManagement.setDelegateApproval(address(user2), false);
+//         positionManager.setDelegateApproval(address(user2), false);
         
 //         // Verify delegation was revoked
-//         assertFalse(positionManagement.isDelegate(user, address(user2)));
+//         assertFalse(positionManager.isDelegate(user, address(user2)));
 //         vm.stopPrank();
         
 //         // user2 is not able to leverage on behalf of user anymore
 //         vm.startPrank(user2);
 //         vm.expectRevert(bytes4(keccak256("PluginDelegable__Unauthorized()")));
-//         positionManagement.leverageFor(leverageData, user, 0.05e18);
+//         positionManager.leverageFor(leverageData, user, 0.05e18);
 //         vm.stopPrank();
 //     }
 
