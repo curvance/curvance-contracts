@@ -158,19 +158,19 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         console2.log("Borrower 3 lFactor", lFactorsPreLiquidation[2]);
         console2.log("Borrower 4 lFactor", lFactorsPreLiquidation[3]);
 
-        (,uint256 cTokenPrice, uint256 eTokenPrice) = 
+        (,uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
             marketManagerIsolated.liquidationStatusOf(
                 borrowers[0],
                 address(strategyCBALRETH), 
                 address(borrowableCUSDC)
             );
 
-        console2.log("eTokenPrice", eTokenPrice);
-        console2.log("cTokenPrice", cTokenPrice);
+        console2.log("debtTokenPrice", debtTokenPrice);
+        console2.log("collateralTokenPrice", collateralTokenPrice);
 
         (uint256[] memory maxAmount, uint256[] memory liquidatedCollateral, uint256[] memory collateralRequired) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction(
-                eTokenPrice, cTokenPrice, lFactorsPreLiquidation
+                debtTokenPrice, collateralTokenPrice, lFactorsPreLiquidation
             );
 
         uint256 expectedTotalBadDebt;
@@ -183,8 +183,8 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
                 collateralAmounts[i],
                 collateralRequired[i],
                 liquidatedCollateral[i],
-                cTokenPrice,
-                eTokenPrice,
+                collateralTokenPrice,
+                debtTokenPrice,
                 cTokenExchangeRate
             );
             expectedTotalBadDebt += badDebt[i];
@@ -325,8 +325,8 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
     }
 
     function _getLiquidationValuesWithHigherPrecision_NonAuction(
-        uint256 eTokenPrice,
-        uint256 cTokenPrice,
+        uint256 debtTokenPrice,
+        uint256 collateralTokenPrice,
         uint256[] memory lFactors
     ) internal view returns (
         uint256[] memory maxAmount, 
@@ -350,8 +350,8 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
             uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors[i]) / WAD);
             
             // Calculate with extra precision
-            uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
-                (cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
+            uint256 highPrecisionD2C = (((auctionLiqIncentive * debtTokenPrice * WAD * PRECISION_FACTOR) /
+                (collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
             maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
             

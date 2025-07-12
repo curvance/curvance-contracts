@@ -155,13 +155,13 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     uint256[] debtBalancesPreLiquidation_regular;
     uint256[] lFactorsPreLiquidation_auction;
     uint256[] lFactorsPreLiquidation_regular;
-    uint256 eTokenPrice;
-    uint256 cTokenPrice;
+    uint256 debtTokenPrice;
+    uint256 collateralTokenPrice;
     uint256[] maxAmount_auction;
-    uint256[] liquidatedPTokens_auction;
+    uint256[] collateralLiquidated_auction;
     uint256[] collateralRequired_auction;
     uint256[] maxAmount_regular;
-    uint256[] liquidatedPTokens_regular;
+    uint256[] collateralLiquidated_regular;
     uint256[] collateralRequired_regular;
     uint256[] badDebt_auction = new uint256[](2);
     uint256[] badDebt_regular = new uint256[](2);
@@ -187,7 +187,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         lFactorsPreLiquidation_auction = _getLFactorsPreLiquidation(auctionBorrowers);
         lFactorsPreLiquidation_regular = _getLFactorsPreLiquidation(regularBorrowers);
 
-        ( , cTokenPrice, eTokenPrice) =
+        ( , collateralTokenPrice, debtTokenPrice) =
             marketManagerIsolated.liquidationStatusOf(
                 auctionBorrowers[0],
                 address(strategyCBALRETH),   // collateral token
@@ -195,14 +195,14 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             );
 
 
-        (maxAmount_auction, liquidatedPTokens_auction, collateralRequired_auction) = 
+        (maxAmount_auction, collateralLiquidated_auction, collateralRequired_auction) = 
             _getLiquidationValuesWithHigherPrecision_Auction(
-                eTokenPrice, cTokenPrice, lFactorsPreLiquidation_auction, closeFactor, validPenalty
+                debtTokenPrice, collateralTokenPrice, lFactorsPreLiquidation_auction, closeFactor, validPenalty
             );
 
-        (maxAmount_regular, liquidatedPTokens_regular, collateralRequired_regular) = 
+        (maxAmount_regular, collateralLiquidated_regular, collateralRequired_regular) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction(
-                eTokenPrice, cTokenPrice, lFactorsPreLiquidation_regular
+                debtTokenPrice, collateralTokenPrice, lFactorsPreLiquidation_regular
             );
 
         console2.log("CHECKPOINT 1");
@@ -213,9 +213,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
                 maxAmount_auction[i],
                 collateralAmounts[i],
                 collateralRequired_auction[i],
-                liquidatedPTokens_auction[i],
-                cTokenPrice,
-                eTokenPrice,
+                collateralLiquidated_auction[i],
+                collateralTokenPrice,
+                debtTokenPrice,
                 cTokenExchangeRate
             );
             totalBadDebtAuction += badDebt_auction[i];
@@ -228,9 +228,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
                 maxAmount_regular[i],
                 collateralAmounts[i],
                 collateralRequired_regular[i],
-                liquidatedPTokens_regular[i],
-                cTokenPrice,
-                eTokenPrice,
+                collateralLiquidated_regular[i],
+                collateralTokenPrice,
+                debtTokenPrice,
                 cTokenExchangeRate
             );
             totalBadDebtRegular += badDebt_regular[i];
@@ -285,31 +285,31 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         assertEq(borrowableCUSDC.debtBalance(regularBorrowers[0]), debtBalancesPreLiquidation_regular[0] - (maxAmount_regular[0] + badDebt_regular[0]), "Regular borrower 1 debt balance mismatch");
         assertEq(borrowableCUSDC.debtBalance(regularBorrowers[1]), debtBalancesPreLiquidation_regular[1] - (maxAmount_regular[1] + badDebt_regular[1]), "Regular borrower 2 debt balance mismatch");
 
-        // Verify collateral is reduced by liquidatedPTokens
+        // Verify collateral is reduced by collateralLiquidated
         assertApproxEqAbs(
             strategyCBALRETH.balanceOf(auctionBorrowers[0]),
-            collateralAmounts[0] - (liquidatedPTokens_auction[0]),
+            collateralAmounts[0] - (collateralLiquidated_auction[0]),
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
             strategyCBALRETH.balanceOf(auctionBorrowers[1]),
-            collateralAmounts[1] - (liquidatedPTokens_auction[1]),
+            collateralAmounts[1] - (collateralLiquidated_auction[1]),
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
             strategyCBALRETH.balanceOf(regularBorrowers[0]),
-            collateralAmounts[2] - (liquidatedPTokens_regular[0]),
+            collateralAmounts[2] - (collateralLiquidated_regular[0]),
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
             strategyCBALRETH.balanceOf(regularBorrowers[1]),
-            collateralAmounts[3] - (liquidatedPTokens_regular[1]),
+            collateralAmounts[3] - (collateralLiquidated_regular[1]),
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
@@ -334,18 +334,18 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         // Verify liquidator received the expected collateral
         uint256 expectedDappControlUserLiquidatorBalance = 
-        (liquidatedPTokens_auction[0]) + 
-        (liquidatedPTokens_auction[1]);
+        (collateralLiquidated_auction[0]) + 
+        (collateralLiquidated_auction[1]);
 
         uint256 expectedNormalUserLiquidatorBalance = 
-        (liquidatedPTokens_regular[0]) + 
-        (liquidatedPTokens_regular[1]);
+        (collateralLiquidated_regular[0]) + 
+        (collateralLiquidated_regular[1]);
 
         console2.log("expectedDappControlUserLiquidatorBalance", expectedDappControlUserLiquidatorBalance);
-        console2.log("liquidatedPTokens_auction[0]", liquidatedPTokens_auction[0]);
-        console2.log("liquidatedPTokens_auction[1]", liquidatedPTokens_auction[1]);
-        console2.log("liquidatedPTokens_regular[0]", liquidatedPTokens_regular[0]);
-        console2.log("liquidatedPTokens_regular[1]", liquidatedPTokens_regular[1]);
+        console2.log("collateralLiquidated_auction[0]", collateralLiquidated_auction[0]);
+        console2.log("collateralLiquidated_auction[1]", collateralLiquidated_auction[1]);
+        console2.log("collateralLiquidated_regular[0]", collateralLiquidated_regular[0]);
+        console2.log("collateralLiquidated_regular[1]", collateralLiquidated_regular[1]);
 
         assertApproxEqAbs(
             strategyCBALRETH.balanceOf(dappControlUser),
@@ -443,12 +443,12 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     }
 
     function _getLiquidationValuesWithHigherPrecision_NonAuction(
-        uint256 _eTokenPrice,
-        uint256 _cTokenPrice,
+        uint256 _debtTokenPrice,
+        uint256 _collateralTokenPrice,
         uint256[] memory lFactors
     ) internal view returns (
         uint256[] memory maxAmount, 
-        uint256[] memory liquidatedPTokens,
+        uint256[] memory collateralLiquidated,
         uint256[] memory collateralRequired
     ) {
         uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
@@ -457,7 +457,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
         
         maxAmount = new uint256[](lFactors.length);
-        liquidatedPTokens = new uint256[](lFactors.length);
+        collateralLiquidated = new uint256[](lFactors.length);
         collateralRequired = new uint256[](lFactors.length);
 
         for (uint i; i < lFactors.length; i++) {
@@ -468,40 +468,40 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors[i]) / WAD);
             
             // Calculate with extra precision
-            uint256 highPrecisionD2C = (((auctionLiqIncentive * _eTokenPrice * WAD * PRECISION_FACTOR) /
-                (_cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
+            uint256 highPrecisionD2C = (((auctionLiqIncentive * _debtTokenPrice * WAD * PRECISION_FACTOR) /
+                (_collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
             maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
             
             // Calculate with extra precision
-            liquidatedPTokens[i] = (maxAmount[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
+            collateralLiquidated[i] = (maxAmount[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
             
-            if (liquidatedPTokens[i] > collateralAmounts[i]) {
+            if (collateralLiquidated[i] > collateralAmounts[i]) {
                 // Use the contract's exact formula
                 maxAmount[i] = FixedPointMathLib.mulDivUp(
                     maxAmount[i],
                     collateralAmounts[i],
-                    liquidatedPTokens[i]
+                    collateralLiquidated[i]
                 );
-                liquidatedPTokens[i] = collateralAmounts[i];
+                collateralLiquidated[i] = collateralAmounts[i];
             }
             
             // Use the contract's exact formula
             collateralRequired[i] = (borrowAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
         }
 
-        return (maxAmount, liquidatedPTokens, collateralRequired);
+        return (maxAmount, collateralLiquidated, collateralRequired);
     }
 
     function _getLiquidationValuesWithHigherPrecision_Auction(
-        uint256 _eTokenPrice,
-        uint256 _cTokenPrice,
+        uint256 _debtTokenPrice,
+        uint256 _collateralTokenPrice,
         uint256[] memory lFactors,
         uint256 auctionCFactor,
         uint256 auctionLiqIncentive
     ) internal view returns (
         uint256[] memory maxAmount, 
-        uint256[] memory liquidatedPTokens,
+        uint256[] memory collateralLiquidated,
         uint256[] memory collateralRequired
     ) {
         uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
@@ -510,36 +510,36 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
         
         maxAmount = new uint256[](lFactors.length);
-        liquidatedPTokens = new uint256[](lFactors.length);
+        collateralLiquidated = new uint256[](lFactors.length);
         collateralRequired = new uint256[](lFactors.length);
 
         for (uint i; i < lFactors.length; i++) {
             if (lFactors[i] == 0) continue;
             
             // Calculate with extra precision
-            uint256 highPrecisionD2C = (((auctionLiqIncentive * _eTokenPrice * WAD * PRECISION_FACTOR) /
-                (_cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
+            uint256 highPrecisionD2C = (((auctionLiqIncentive * _debtTokenPrice * WAD * PRECISION_FACTOR) /
+                (_collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
             maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
             
             // Calculate with extra precision
-            liquidatedPTokens[i] = (maxAmount[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
+            collateralLiquidated[i] = (maxAmount[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
             
-            if (liquidatedPTokens[i] > collateralAmounts[i]) {
+            if (collateralLiquidated[i] > collateralAmounts[i]) {
                 // Use the contract's exact formula
                 maxAmount[i] = FixedPointMathLib.mulDivUp(
                     maxAmount[i],
                     collateralAmounts[i],
-                    liquidatedPTokens[i]
+                    collateralLiquidated[i]
                 );
-                liquidatedPTokens[i] = collateralAmounts[i];
+                collateralLiquidated[i] = collateralAmounts[i];
             }
             
             // Use the contract's exact formula
             collateralRequired[i] = (borrowAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
         }
 
-        return (maxAmount, liquidatedPTokens, collateralRequired);
+        return (maxAmount, collateralLiquidated, collateralRequired);
     }
 
     function _calculateBadDebt(
@@ -547,7 +547,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256 _debtAmount,
         uint256 _collateralAvailable,
         uint256 _collateralRequired,
-        uint256 _liquidatedPTokens,
+        uint256 _collateralLiquidated,
         uint256 _cTokenUnderlyingPrice,
         uint256 _eTokenUnderlyingPrice,
         uint256 _cTokenExchangeRate
@@ -557,7 +557,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     
         badDebt = (_debtBalance - _debtAmount) -
         FixedPointMathLib.mulDivUp(
-            ((_collateralAvailable - _liquidatedPTokens) * _cTokenExchangeRate) / WAD,
+            ((_collateralAvailable - _collateralLiquidated) * _cTokenExchangeRate) / WAD,
             _cTokenUnderlyingPrice,
             (_eTokenUnderlyingPrice * WAD) / 1e6
         );

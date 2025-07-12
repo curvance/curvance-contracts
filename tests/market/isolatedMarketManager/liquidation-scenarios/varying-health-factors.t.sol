@@ -158,16 +158,16 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         uint256[] memory lFactorsPreLiquidation = _getLFactorsPreLiquidation();
         uint256[] memory debtBalancesPreLiquidation = _getDebtBalancePreLiquidation();
 
-        (,uint256 cTokenPrice, uint256 eTokenPrice) = 
+        (,uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
             marketManagerIsolated.liquidationStatusOf(
                 borrowers[0],
                 address(strategyCBALRETH), 
                 address(borrowableCUSDC)
             );
 
-        (uint256[] memory maxAmount, uint256[] memory liquidatedPTokens, uint256[] memory collateralRequired) = 
+        (uint256[] memory maxAmount, uint256[] memory collateralLiquidated, uint256[] memory collateralRequired) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction(
-                eTokenPrice, cTokenPrice, lFactorsPreLiquidation
+                debtTokenPrice, collateralTokenPrice, lFactorsPreLiquidation
             );
 
         uint256 expectedTotalBadDebt;
@@ -179,9 +179,9 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
                 maxAmount[i],
                 collateralAvailable,
                 collateralRequired[i],
-                liquidatedPTokens[i],
-                cTokenPrice,
-                eTokenPrice,
+                collateralLiquidated[i],
+                collateralTokenPrice,
+                debtTokenPrice,
                 cTokenExchangeRate
             );
             expectedTotalBadDebt += badDebt[i];
@@ -221,10 +221,10 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
                 assertEq(borrowableCUSDC.debtBalance(borrowers[i]), 0, "Borrower should be hard liquidated");
             }
 
-            // Collateral should be reduced by liquidatedPTokens
+            // Collateral should be reduced by collateralLiquidated
             assertApproxEqAbs(
                 strategyCBALRETH.balanceOf(borrowers[i]), 
-                _ONE - liquidatedPTokens[i],
+                _ONE - collateralLiquidated[i],
                 1000, // Tolerance of 1000 wei 
                 "Collateral post liquidation mismatch"
             );
@@ -240,7 +240,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         );
 
         // Verify liquidator received the expected collateral
-        uint256 expectedLiquidatorBalance = liquidatedPTokens[2] + liquidatedPTokens[3] + liquidatedPTokens[4];
+        uint256 expectedLiquidatorBalance = collateralLiquidated[2] + collateralLiquidated[3] + collateralLiquidated[4];
         assertApproxEqAbs(
             strategyCBALRETH.balanceOf(address(this)),
             expectedLiquidatorBalance,
@@ -330,12 +330,12 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
     }
 
     function _getLiquidationValuesWithHigherPrecision_NonAuction(
-        uint256 eTokenPrice,
-        uint256 cTokenPrice,
+        uint256 debtTokenPrice,
+        uint256 collateralTokenPrice,
         uint256[] memory lFactors
     ) internal view returns (
         uint256[] memory maxAmount, 
-        uint256[] memory liquidatedPTokens,
+        uint256[] memory collateralLiquidated,
         uint256[] memory collateralRequired
     ) {
         uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
@@ -344,7 +344,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
         
         maxAmount = new uint256[](5);
-        liquidatedPTokens = new uint256[](5);
+        collateralLiquidated = new uint256[](5);
         collateralRequired = new uint256[](5);
 
         for (uint i; i < 5; i++) {
@@ -355,29 +355,29 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
             uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors[i]) / WAD);
             
             // Calculate with extra precision
-            uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
-                (cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
+            uint256 highPrecisionD2C = (((auctionLiqIncentive * debtTokenPrice * WAD * PRECISION_FACTOR) /
+                (collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
             maxAmount[i] = (auctionCFactor * borrowAmounts[i]) / WAD;
             
             // Calculate with extra precision
-            liquidatedPTokens[i] = (maxAmount[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
+            collateralLiquidated[i] = (maxAmount[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
             
-            if (liquidatedPTokens[i] > collateralAvailable) {
+            if (collateralLiquidated[i] > collateralAvailable) {
                 // Use the contract's exact formula
                 maxAmount[i] = FixedPointMathLib.mulDivUp(
                     maxAmount[i],
                     collateralAvailable,
-                    liquidatedPTokens[i]
+                    collateralLiquidated[i]
                 );
-                liquidatedPTokens[i] = collateralAvailable;
+                collateralLiquidated[i] = collateralAvailable;
             }
             
             // Use the contract's exact formula
             collateralRequired[i] = (borrowAmounts[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
         }
 
-        return (maxAmount, liquidatedPTokens, collateralRequired);
+        return (maxAmount, collateralLiquidated, collateralRequired);
     }
 
     function _calculateBadDebt(
@@ -385,7 +385,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         uint256 _debtAmount,
         uint256 _collateralAvailable,
         uint256 _collateralRequired,
-        uint256 _liquidatedPTokens,
+        uint256 _collateralLiquidated,
         uint256 _cTokenUnderlyingPrice,
         uint256 _eTokenUnderlyingPrice,
         uint256 _cTokenExchangeRate
@@ -395,7 +395,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
     
         badDebt = (_debtBalance - _debtAmount) -
         FixedPointMathLib.mulDivUp(
-            ((_collateralAvailable - _liquidatedPTokens) * _cTokenExchangeRate) / WAD,
+            ((_collateralAvailable - _collateralLiquidated) * _cTokenExchangeRate) / WAD,
             _cTokenUnderlyingPrice,
             (_eTokenUnderlyingPrice * WAD) / 1e6
         );
