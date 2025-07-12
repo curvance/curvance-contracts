@@ -78,11 +78,11 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
 
         // Mint borrowable cDAI.
         dai.approve(address(borrowableCDAI), 20000000 ether);
-        borrowableCDAI.mint(20000000 ether);
+        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
 
         // Mint borrowable cUSDC.
         usdc.approve(address(borrowableCUSDC), 100e6);
-        borrowableCUSDC.mint(100e6, liquidityProvider);
+        borrowableCUSDC.deposit(100e6, liquidityProvider);
 
         vm.stopPrank();
     }
@@ -104,8 +104,8 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
 
-        // Mint borrowable cUSDC.
-        assertGt(borrowableCUSDC.mint(1000e6, user), 0);
+        // Deposit borrowable cUSDC.
+        assertGt(borrowableCUSDC.deposit(1000e6, user), 0);
         borrowableCUSDC.postCollateral(1000e6);
         assertEq(borrowableCUSDC.balanceOf(user), 1000e6);
 
@@ -265,8 +265,8 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
 
-        // Mint borrowable cDAI.
-        assertGt(borrowableCUSDC.mint(1000e6, user), 0);
+        // Deposit borrowable cDAI.
+        assertGt(borrowableCUSDC.deposit(1000e6, user), 0);
         borrowableCUSDC.postCollateral(1000e6);
         assertEq(borrowableCUSDC.balanceOf(user), 1000e6);
 
@@ -388,7 +388,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         
-        borrowableCUSDC.mint(1000e6, user);
+        borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
         
         // Borrow cDAI.
@@ -473,7 +473,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         
-        borrowableCUSDC.mint(1000e6, user);
+        borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
         
         // Borrow cDAI.
@@ -558,7 +558,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         
-        borrowableCUSDC.mint(1000e6, user);
+        borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
         
         // Borrow cDAI.
@@ -604,7 +604,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         
-        borrowableCUSDC.mint(1000e6, user);
+        borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
         
         // Borrow cDAI.
@@ -689,7 +689,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         
-        borrowableCUSDC.mint(1000e6, user);
+        borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
         
         // Borrow cDAI.
@@ -748,7 +748,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         usdc.approve(address(borrowableCUSDC), 1000e6);
         
         // Mint borrowable CUSDC.
-        borrowableCUSDC.mint(1000e6, user);
+        borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
         
         // Borrow borrowable cDAI.
@@ -792,10 +792,10 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
     function testRevert_LeverageForWithoutPermission() public {
         vm.startPrank(user);
         
-        // Set up the collateral and position
+        // Set up the collateral position.
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
-        borrowableCUSDC.mint(1000e6, user);
+        borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
         borrowableCDAI.borrow(100 ether);
         
@@ -896,7 +896,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         // Set up leverage operation.
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
-        borrowableCUSDC.mint(1000e6, user);
+        borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
         borrowableCDAI.borrow(100 ether);
         

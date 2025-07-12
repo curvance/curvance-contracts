@@ -221,13 +221,13 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
 
         vm.startPrank(liquidityProvider);
 
-        // Mint borrowableCDAI.
+        // Deposit borrowableCDAI.
         dai.approve(address(borrowableCDAI), 20000000 ether);
-        borrowableCDAI.mint(20000000 ether);
+        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
 
-        // Mint Pendle PT stETH.
+        // Deposit Pendle PT stETH.
         pendlePT.approve(address(cPendlePTSTETH), 10 ether);
-        cPendlePTSTETH.mint(10 ether, liquidityProvider);
+        cPendlePTSTETH.deposit(10 ether, liquidityProvider);
 
         vm.stopPrank();
     }
@@ -345,7 +345,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         vm.startPrank(user);
         PendlePTPositionManager.DeleverageStruct memory deleverageData;
         (,,,,, uint256 borrowableCDAIBorrowedBefore ) = borrowableCDAI.getSnapshot(user);
-        (,,,, uint256PTBalanceBefore, ) = cPendlePTSTETH.getSnapshot(user);
+        (,,,, uint256 PTBalanceBefore, ) = cPendlePTSTETH.getSnapshot(user);
 
         emit debugUint("borrowableCDAIBorrowedBefore", borrowableCDAIBorrowedBefore);
 

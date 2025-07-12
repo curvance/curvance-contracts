@@ -136,11 +136,11 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
 
         vm.startPrank(liquidityProvider);
 
-        // Mint borrowable cDAI.
+        // Deposit borrowable cDAI.
         dai.approve(address(borrowableCDAI), 20000000 ether);
-        borrowableCDAI.mint(20000000 ether);
+        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
 
-        // Mint strategyCTokenSTETH.
+        // Deposit strategyCTokenSTETH.
         IERC20(_LP_STETH).approve(address(strategyCTokenSTETH), 100 ether);
         strategyCTokenSTETH.deposit(100 ether, liquidityProvider);
 

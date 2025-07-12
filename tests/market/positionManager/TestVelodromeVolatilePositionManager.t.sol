@@ -658,11 +658,11 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         vm.startPrank(liquidityProvider);
 
-        // Mint borrowable cDAI.
+        // Deposit borrowable cDAI.
         dai.approve(address(borrowableCDAI), 20000000 ether);
-        borrowableCDAI.mint(20000000 ether);
+        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
 
-        // Mint strategyCTokenWETHUSDC.
+        // Deposit strategyCTokenWETHUSDC.
         IERC20(_VELODROME_WETH_USDC).approve(address(strategyCTokenWETHUSDC), 1 ether);
         strategyCTokenWETHUSDC.deposit(1 ether, liquidityProvider);
 

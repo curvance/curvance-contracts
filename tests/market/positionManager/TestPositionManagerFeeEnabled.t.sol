@@ -347,11 +347,11 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
 
         vm.startPrank(liquidityProvider);
 
-        // Mint borrowable cDAI.
+        // Deposit borrowable cDAI.
         dai.approve(address(borrowableCDAI), 20000000 ether);
-        borrowableCDAI.mint(20000000 ether);
+        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
 
-        // Mint strategyCTokenUSDCDAI.
+        // Deposit strategyCTokenUSDCDAI.
         IERC20(_VELODROME_DAI_USDC).approve(address(strategyCTokenUSDCDAI), 1 ether);
         strategyCTokenUSDCDAI.deposit(1 ether, liquidityProvider);
 
