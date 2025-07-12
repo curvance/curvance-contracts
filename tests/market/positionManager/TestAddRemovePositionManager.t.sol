@@ -36,7 +36,7 @@
 //             dai.approve(address(borrowableCDAI), 200000e18);
 //         }
 
-//         // deploy simple cToken
+//         // Setup borrowable cUSDC.
 //         {
 //             _deployBorrowableCUSDC();
 //             oracleManager.addCTokenSupport(address(borrowableCUSDC));

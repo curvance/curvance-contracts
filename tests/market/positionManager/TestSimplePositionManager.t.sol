@@ -76,11 +76,11 @@
 
 //         vm.startPrank(liquidityProvider);
 
-//         // mint eDAI
+//         // Mint borrowable cDAI.
 //         dai.approve(address(borrowableCDAI), 20000000 ether);
 //         borrowableCDAI.mint(20000000 ether);
 
-//         // mint borrowableCUSDC
+//         // Mint borrowable cUSDC.
 //         usdc.approve(address(borrowableCUSDC), 100e6);
 //         borrowableCUSDC.mint(100e6, liquidityProvider);
 
@@ -143,9 +143,9 @@
 
 //         positionManager.leverage(leverageData, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
-//         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
+//         assertEq(borrowableCDAIBorrowed, 100 ether + amountForLeverage);
 
 //         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(
 //             user
@@ -191,9 +191,9 @@
 
 //         positionManager.depositAndLeverage(1000e6, leverageData, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
-//         assertEq(eDAIBorrowed, amountForLeverage);
+//         assertEq(borrowableCDAIBorrowed, amountForLeverage);
 
 //         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(
 //             user
@@ -211,7 +211,7 @@
 //         borrowableCDAI.accrueInterest();
 
 //         vm.startPrank(user);
-//         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
 //         (uint256 pUSDCBalanceBefore, , ) = borrowableCUSDC.getSnapshot(user);
 
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
@@ -238,11 +238,11 @@
 //         deleverageData.repayAmount = 890 ether;
 //         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(
-//             eDAIBorrowed,
-//             eDAIBorrowedBefore - deleverageData.repayAmount
+//             borrowableCDAIBorrowed,
+//             borrowableCDAIBorrowedBefore - deleverageData.repayAmount
 //         );
 
 //         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(
@@ -306,9 +306,9 @@
 //         vm.prank(user2);
 //         positionManager.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
-//         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
+//         assertEq(borrowableCDAIBorrowed, 100 ether + amountForLeverage);
 
 //         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(
 //             user
@@ -327,7 +327,7 @@
 //         borrowableCDAI.accrueInterest();
 
 //         vm.startPrank(user);
-//         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
 //         (uint256 pUSDCBalanceBefore, , ) = borrowableCUSDC.getSnapshot(user);
 
 //         SimplePositionManager.DeleverageStruct memory deleverageData;
@@ -360,11 +360,11 @@
 //         vm.prank(user2);
 //         positionManager.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(
-//             eDAIBorrowed,
-//             eDAIBorrowedBefore - deleverageData.repayAmount
+//             borrowableCDAIBorrowed,
+//             borrowableCDAIBorrowedBefore - deleverageData.repayAmount
 //         );
 
 //         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(

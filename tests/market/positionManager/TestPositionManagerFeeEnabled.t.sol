@@ -123,7 +123,7 @@
 
 //         }
 
-//         // setup strategyCTokenUSDCDAI
+//         // Setup strategyCTokenUSDCDAI.
 //         {
 //             strategyCTokenUSDCDAI = new VelodromeStableCToken(
 //                 ICentralRegistry(address(centralRegistry)),
@@ -346,7 +346,7 @@
 
 //         vm.startPrank(liquidityProvider);
 
-//         // mint eDAI
+//         // Mint borrowable cDAI.
 //         dai.approve(address(borrowableCDAI), 20000000 ether);
 //         borrowableCDAI.mint(20000000 ether);
 

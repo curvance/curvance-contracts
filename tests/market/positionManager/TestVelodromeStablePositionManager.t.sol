@@ -98,7 +98,7 @@
 //             dai.approve(address(borrowableCDAI), 200000e18);
 //         }
 
-//         // setup strategyCTokenUSDCDAI
+//         // Setup strategyCTokenUSDCDAI.
 //         {
 //             strategyCTokenUSDCDAI = new VelodromeStableCToken(
 //                 ICentralRegistry(address(centralRegistry)),
@@ -207,9 +207,9 @@
 
 //         positionManager.leverage(leverageData, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
-//         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
+//         assertEq(borrowableCDAIBorrowed, 100 ether + amountForLeverage);
 
 //         (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
 //         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
@@ -278,9 +278,9 @@
 
 //         positionManager.leverage(leverageData, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
-//         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
+//         assertEq(borrowableCDAIBorrowed, 100 ether + amountForLeverage);
 
 //         (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
 //         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
@@ -307,7 +307,7 @@
 
 //         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
-//         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
 //         (uint256 strategyCTokenUSDCDAIBalanceBefore, , ) = strategyCTokenUSDCDAI.getSnapshot(user);
 
 //         deleverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
@@ -339,11 +339,11 @@
 //         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
 //         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(
-//             eDAIBorrowed,
-//             eDAIBorrowedBefore - deleverageData.repayAmount
+//             borrowableCDAIBorrowed,
+//             borrowableCDAIBorrowedBefore - deleverageData.repayAmount
 //         );
 
 //         (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
@@ -369,7 +369,7 @@
 
 //         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
-//         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
 //         (uint256 strategyCTokenUSDCDAIBalanceBefore, , ) = strategyCTokenUSDCDAI.getSnapshot(user);
 
 //         uint256 collateralAmount = 0.00003 ether;
@@ -406,11 +406,11 @@
 //         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
 //         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(
-//             eDAIBorrowed,
-//             eDAIBorrowedBefore - deleverageData.repayAmount
+//             borrowableCDAIBorrowed,
+//             borrowableCDAIBorrowedBefore - deleverageData.repayAmount
 //         );
 
 //         (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
@@ -482,9 +482,9 @@
 //         vm.prank(user2);
 //         positionManager.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
-//         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
+//         assertEq(borrowableCDAIBorrowed, 100 ether + amountForLeverage);
 
 //         (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
 //         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
@@ -503,7 +503,7 @@
 
 //         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
-//         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
 //         (uint256 strategyCTokenUSDCDAIBalanceBefore, , ) = strategyCTokenUSDCDAI.getSnapshot(user);
 
 //         deleverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
@@ -539,11 +539,11 @@
 //         vm.prank(user2);
 //         positionManager.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
-//         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+//         (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(
-//             eDAIBorrowed,
-//             eDAIBorrowedBefore - deleverageData.repayAmount
+//             borrowableCDAIBorrowed,
+//             borrowableCDAIBorrowedBefore - deleverageData.repayAmount
 //         );
 
 //         (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
@@ -562,7 +562,7 @@
 
 //         vm.startPrank(liquidityProvider);
 
-//         // mint eDAI
+//         // Mint borrowable cDAI.
 //         dai.approve(address(borrowableCDAI), 20000000 ether);
 //         borrowableCDAI.mint(20000000 ether);
 
