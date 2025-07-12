@@ -208,11 +208,11 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
         positionManager.leverage(leverageData, 0.05e18); // 5% slippage
 
-        (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(borrowableCDAIBorrowed, 100 ether + amountForLeverage);
 
-        (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
         assertEq(strategyCTokenUSDCDAIBorrowed, 0 ether);
 
@@ -280,11 +280,11 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
         positionManager.leverage(leverageData, 0.05e18); // 5% slippage
 
-        (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(borrowableCDAIBorrowed, 100 ether + amountForLeverage);
 
-        (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
         assertEq(strategyCTokenUSDCDAIBorrowed, 0 ether);
 
@@ -310,8 +310,8 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
-        (,,,, uint256 borrowableCDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
-        (uint256 strategyCTokenUSDCDAIBalanceBefore, , ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowedBefore ) = borrowableCDAI.getSnapshot(user);
+        (,,,, uint256 strategyCTokenUSDCDAIBalanceBefore, ) = strategyCTokenUSDCDAI.getSnapshot(user);
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
         deleverageData.collateralAmount = 0.00003 ether;
@@ -342,14 +342,14 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
-        (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAIBorrowed,
             borrowableCDAIBorrowedBefore - deleverageData.repayAmount
         );
 
-        (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
             strategyCTokenUSDCDAI.balanceOf(user),
             strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAmount
@@ -373,8 +373,8 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
-        (,,,, uint256 borrowableCDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
-        (uint256 strategyCTokenUSDCDAIBalanceBefore, , ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowedBefore ) = borrowableCDAI.getSnapshot(user);
+        (,,,, uint256 strategyCTokenUSDCDAIBalanceBefore, ) = strategyCTokenUSDCDAI.getSnapshot(user);
 
         uint256 collateralAmount = 0.00003 ether;
         uint256 leverageFee = collateralAmount / 100;
@@ -410,14 +410,14 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
-        (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAIBorrowed,
             borrowableCDAIBorrowedBefore - deleverageData.repayAmount
         );
 
-        (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
             strategyCTokenUSDCDAI.balanceOf(user),
             strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAmount
@@ -487,11 +487,11 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManager.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
-        (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(borrowableCDAIBorrowed, 100 ether + amountForLeverage);
 
-        (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
         assertEq(strategyCTokenUSDCDAIBorrowed, 0 ether);
 
@@ -509,8 +509,8 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
-        (,,,, uint256 borrowableCDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
-        (uint256 strategyCTokenUSDCDAIBalanceBefore, , ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowedBefore ) = borrowableCDAI.getSnapshot(user);
+        (,,,, uint256 strategyCTokenUSDCDAIBalanceBefore, ) = strategyCTokenUSDCDAI.getSnapshot(user);
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
         deleverageData.collateralAmount = 0.00003 ether;
@@ -545,14 +545,14 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManager.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
-        (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAIBorrowed,
             borrowableCDAIBorrowedBefore - deleverageData.repayAmount
         );
 
-        (,,,, uint256 strategyCTokenUSDCDAIBorrowed, ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
             strategyCTokenUSDCDAI.balanceOf(user),
             strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAmount

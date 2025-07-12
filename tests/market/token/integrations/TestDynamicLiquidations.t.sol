@@ -125,7 +125,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    // function testLiquidateRevertWhenBelowColReqA() public {
+    // function testLiquidateRevertWhenBelowColReqSoft() public {
     //     _prepareBALRETH(user1, 1 ether);
 
     //     // try mint()
@@ -170,7 +170,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
     //         address(strategyCBALRETH));
     // }
 
-    // function testLiquidateWorksWhenAboveColReqA() public {
+    // function testLiquidateWorksWhenAboveColReqSoft() public {
     //     _prepareBALRETH(user1, 1 ether);
 
     //     // try mint()

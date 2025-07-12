@@ -144,15 +144,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
 
         positionManager.leverage(leverageData, 0.05e18); // 5% slippage
 
-        (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(borrowableCDAIBorrowed, 100 ether + amountForLeverage);
 
-        (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(
+        (,,,, uint256 borrowableCUSDCBalance, uint256 borrowableCUSDCBorrowed ) = borrowableCUSDC.getSnapshot(
             user
         );
-        assertGt(pUSDCBalance, 1900e6);
-        assertEq(pUSDCBorrowed, 0);
+        assertGt(borrowableCUSDCBalance, 1900e6);
+        assertEq(borrowableCUSDCBorrowed, 0);
 
         vm.stopPrank();
     }
@@ -192,15 +192,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
 
         positionManager.depositAndLeverage(1000e6, leverageData, 0.05e18); // 5% slippage
 
-        (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(borrowableCDAIBorrowed, amountForLeverage);
 
-        (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(
+        (,,,, uint256 borrowableCUSDCBalance, uint256 borrowableCUSDCBorrowed ) = borrowableCUSDC.getSnapshot(
             user
         );
-        assertGt(pUSDCBalance, 1900e6);
-        assertEq(pUSDCBorrowed, 0);
+        assertGt(borrowableCUSDCBalance, 1900e6);
+        assertEq(borrowableCUSDCBorrowed, 0);
 
         vm.stopPrank();
     }
@@ -213,8 +213,8 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.accrueIfNeeded();
 
         vm.startPrank(user);
-        (,,,, uint256 borrowableCDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
-        (uint256 pUSDCBalanceBefore, , ) = borrowableCUSDC.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowedBefore ) = borrowableCDAI.getSnapshot(user);
+        (,,,, uint256 borrowableCUSDCBalanceBefore, ) = borrowableCUSDC.getSnapshot(user);
 
         SimplePositionManager.DeleverageStruct memory deleverageData;
         deleverageData.collateralToken = ICToken(address(borrowableCUSDC));
@@ -240,21 +240,21 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageData.repayAmount = 890 ether;
         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
-        (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAIBorrowed,
             borrowableCDAIBorrowedBefore - deleverageData.repayAmount
         );
 
-        (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(
+        (,,,, uint256 borrowableCUSDCBalance, uint256 borrowableCUSDCBorrowed ) = borrowableCUSDC.getSnapshot(
             user
         );
         assertEq(
-            pUSDCBalance,
-            pUSDCBalanceBefore - deleverageData.collateralAmount
+            borrowableCUSDCBalance,
+            borrowableCUSDCBalanceBefore - deleverageData.collateralAmount
         );
-        assertEq(pUSDCBorrowed, 0);
+        assertEq(borrowableCUSDCBorrowed, 0);
 
         vm.stopPrank();
     }
@@ -309,15 +309,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManager.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
-        (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(borrowableCDAIBorrowed, 100 ether + amountForLeverage);
 
-        (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(
+        (,,,, uint256 borrowableCUSDCBalance, uint256 borrowableCUSDCBorrowed ) = borrowableCUSDC.getSnapshot(
             user
         );
-        assertGt(pUSDCBalance, 1900e6);
-        assertEq(pUSDCBorrowed, 0);
+        assertGt(borrowableCUSDCBalance, 1900e6);
+        assertEq(borrowableCUSDCBorrowed, 0);
 
         vm.stopPrank();
     }
@@ -330,8 +330,8 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.accrueIfNeeded();
 
         vm.startPrank(user);
-        (,,,, uint256 borrowableCDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
-        (uint256 pUSDCBalanceBefore, , ) = borrowableCUSDC.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowedBefore ) = borrowableCDAI.getSnapshot(user);
+        (,,,, uint256 borrowableCUSDCBalanceBefore, ) = borrowableCUSDC.getSnapshot(user);
 
         SimplePositionManager.DeleverageStruct memory deleverageData;
         deleverageData.collateralToken = ICToken(address(borrowableCUSDC));
@@ -363,21 +363,21 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManager.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
-        (,,,, uint256 borrowableCDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
+        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAIBorrowed,
             borrowableCDAIBorrowedBefore - deleverageData.repayAmount
         );
 
-        (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = borrowableCUSDC.getSnapshot(
+        (,,,, uint256 borrowableCUSDCBalance, uint256 borrowableCUSDCBorrowed ) = borrowableCUSDC.getSnapshot(
             user
         );
         assertEq(
-            pUSDCBalance,
-            pUSDCBalanceBefore - deleverageData.collateralAmount
+            borrowableCUSDCBalance,
+            borrowableCUSDCBalanceBefore - deleverageData.collateralAmount
         );
-        assertEq(pUSDCBorrowed, 0);
+        assertEq(borrowableCUSDCBorrowed, 0);
 
         vm.stopPrank();
     }

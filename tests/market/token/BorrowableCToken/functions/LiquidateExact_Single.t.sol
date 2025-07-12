@@ -15,7 +15,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
     uint256 baseCFactor;
     uint256 cFactorCurve;
     uint256 maxAmount;
-    uint256 liquidatedPTokens;
+    uint256 collateralLiquidated;
     uint256 collateralRequired;
     uint256 cTokenExchangeRate;
     uint256 debtBalancesPreLiquidation;
@@ -65,7 +65,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
             true
         );
 
-        (maxAmount, liquidatedPTokens, collateralRequired) = _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
+        (maxAmount, collateralLiquidated, collateralRequired) = _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
             debtAmounts[0]
         );
 
@@ -77,7 +77,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
             debtAmounts[0],
             collateralAmounts,
             collateralRequired,
-            liquidatedPTokens,
+            collateralLiquidated,
             cTokenPrice,
             eTokenPrice,
             cTokenExchangeRate
@@ -140,13 +140,13 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
 
     function _assertCollateralSeizure(uint256 _collateralAmount) internal view {
         uint256 borrowerCollateralAfter = strategyCBALRETH.balanceOf(user1);
-        uint256 expectedBorrowerCollateralAfter = _collateralAmount - liquidatedPTokens;
+        uint256 expectedBorrowerCollateralAfter = _collateralAmount - collateralLiquidated;
         
         assertApproxEqAbs(
             borrowerCollateralAfter,
             expectedBorrowerCollateralAfter,
             1000,
-            "Borrower collateral should be reduced by liquidatedPTokens"
+            "Borrower collateral should be reduced by collateralLiquidated"
         );
     }
 
@@ -155,7 +155,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         
         assertApproxEqAbs(
             liquidatorBalanceAfter - liquidatorBalanceBefore,
-            liquidatedPTokens,
+            collateralLiquidated,
             1000,
             "Liquidator should receive expected collateral"
         );
@@ -223,7 +223,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         uint256 _debtAmount
     ) internal view returns (
         uint256 maxAmount,
-        uint256 liquidatedPTokens,
+        uint256 collateralLiquidated,
         uint256 collateralRequired
     ) {
 
@@ -252,7 +252,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         
         maxAmount = (auctionCFactor * debtBalance) / WAD_SQUARED;
 
-        liquidatedPTokens = (_debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
+        collateralLiquidated = (_debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
         
         collateralRequired = (debtBalance * debtToCollateralMultiplier) / WAD;
     }
@@ -262,9 +262,9 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         uint256 _debtAmount,
         uint256 _collateralAvailable,
         uint256 _collateralRequired,
-        uint256 _liquidatedPTokens,
-        uint256 _cTokenUnderlyingPrice,
-        uint256 _eTokenUnderlyingPrice,
+        uint256 _collateralLiquidated,
+        uint256 _collateralTokenUnderlyingPrice,
+        uint256 _debtTokenUnderlyingPrice,
         uint256 _cTokenExchangeRate
     ) internal pure returns (uint256 badDebt) {
         console2.log("BAD DEBT CALCULATION");
@@ -272,17 +272,17 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         console2.log("_collateralAvailable", _collateralAvailable);
         console2.log("_debtBalance", _debtBalance);
         console2.log("_debtAmount", _debtAmount);
-        console2.log("_liquidatedPTokens", _liquidatedPTokens);
-        console2.log("_cTokenUnderlyingPrice", _cTokenUnderlyingPrice);
-        console2.log("_eTokenUnderlyingPrice", _eTokenUnderlyingPrice);
+        console2.log("_collateralLiquidated", _collateralLiquidated);
+        console2.log("_collateralTokenUnderlyingPrice", _collateralTokenUnderlyingPrice);
+        console2.log("_debtTokenUnderlyingPrice", _debtTokenUnderlyingPrice);
         console2.log("_cTokenExchangeRate", _cTokenExchangeRate);
 
         if(_collateralRequired > _collateralAvailable) {
             uint256 amountToSubtract = 
                 FixedPointMathLib.mulDivUp(
-                    ((_collateralAvailable - _liquidatedPTokens) * _cTokenExchangeRate) / WAD,
-                    _cTokenUnderlyingPrice,
-                    (_eTokenUnderlyingPrice * WAD) / 1e6 
+                    ((_collateralAvailable - _collateralLiquidated) * _cTokenExchangeRate) / WAD,
+                    _collateralTokenUnderlyingPrice,
+                    (_debtTokenUnderlyingPrice * WAD) / 1e6 
                 );
 
             console2.log("amountToSubtract", amountToSubtract);
