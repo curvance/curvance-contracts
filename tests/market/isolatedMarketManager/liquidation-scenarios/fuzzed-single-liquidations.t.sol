@@ -29,7 +29,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
 
     uint256 constant INITIAL_PRICE = 1500e8;
     uint256 constant MINIMUM_COLLATERAL_AMOUNT = 0.1e18;
-    uint256 constant MAXIMUM_COLLATERAL_AMOUNT = 20e18;
+    uint256 constant MAXIMUM_COLLATERAL_AMOUNT = 2000e18;
     int256 constant MINIMUM_COLLATERAL_PRICE = 1000e8;
     int256 constant MAXIMUM_COLLATERAL_PRICE = 2000e8;
     uint256 constant MINIMUM_BORROW_AMOUNT = 10e6;
@@ -90,24 +90,24 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         tokenConfigs.minEffectiveCloseFactor = 2000;
         tokenConfigs.maxEffectiveCloseFactor = 3000;
         tokenConfigs.baseCFactor = 1000;
-        tokenConfigs.collateralCap = 100e18;
+        tokenConfigs.collateralCap = 10000e18;
         tokenConfigs.debtCap = 0;
 
         marketManagerIsolated.updateTokenConfig(tokenConfigs);
 
         tokenConfigs.cToken = address(borrowableCUSDC);
-        tokenConfigs.debtCap = 100_000e6;
+        tokenConfigs.debtCap = 100_000_000e6;
 
         marketManagerIsolated.updateTokenConfig(tokenConfigs);
 
         // Add liquidity
         address liquidityProvider = makeAddr("liquidityProvider");
-        _prepareUSDC(liquidityProvider, 200000e6);
+        _prepareUSDC(liquidityProvider, 200000000e6);
         _prepareBALRETH(liquidityProvider, 100e18);
         
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(borrowableCUSDC), 200000e6);
-        borrowableCUSDC.deposit(200000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000000e6);
+        borrowableCUSDC.deposit(200000000e6, liquidityProvider);
         balRETH.approve(address(strategyCBALRETH), 100e18);
         strategyCBALRETH.deposit(100e18, liquidityProvider);
         vm.stopPrank();
@@ -137,7 +137,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         strategyCBALRETH.depositAsCollateral(_collateralAmount,borrower);
 
         (, uint256 maxBorrowAmount,) = marketManagerIsolated.statusOf(borrower);
-        maxBorrowAmount = (maxBorrowAmount * 95) / 100;
+
         maxBorrowAmount = maxBorrowAmount / 1e18;
 
         // Skip this test case if maxBorrowAmount is too small
