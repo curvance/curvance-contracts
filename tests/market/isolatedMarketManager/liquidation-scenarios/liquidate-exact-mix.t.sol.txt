@@ -141,8 +141,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     }
 
     uint256 totalBorrowsBefore;
-    uint256 eTokenPrice;
-    uint256 cTokenPrice;
+    uint256 debtTokenPrice;
+    uint256 collateralTokenPrice;
     uint256 quarterRatio = 0.25e18;
 
     function test_liquidateExactMix() public {
@@ -157,7 +157,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         uint256 lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower1);
 
-        (,eTokenPrice, cTokenPrice) = 
+        (,debtTokenPrice, collateralTokenPrice) = 
             marketManagerIsolated.liquidationStatusOf(borrower1, address(eUSDC), address(simpleCBALRETH));
 
         // ===== Cache first liquidation values =====
@@ -166,10 +166,10 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         // repay a quarter of the total debt
         amountToRepayPartial[0] = (debtBalancesPreLiquidation * quarterRatio) / WAD;
 
-        (uint256 maxAmount_liquidateExact_1, uint256 liquidatedPTokens_liquidateExact_first, uint256 collateralRequired_liquidateExact_1) = 
+        (uint256 maxAmount_liquidateExact_1, uint256 collateralLiquidated_liquidateExact_first, uint256 collateralRequired_liquidateExact_1) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
-                eTokenPrice, 
-                cTokenPrice, 
+                debtTokenPrice, 
+                collateralTokenPrice, 
                 lFactorsPreLiquidation,
                 collateralAmountStart, 
                 amountToRepayPartial[0]
@@ -180,9 +180,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             maxAmount_liquidateExact_1,
             collateralAmountStart,
             collateralRequired_liquidateExact_1,
-            liquidatedPTokens_liquidateExact_first,
-            cTokenPrice,
-            eTokenPrice,
+            collateralLiquidated_liquidateExact_first,
+            collateralTokenPrice,
+            debtTokenPrice,
             cTokenExchangeRate
         );
 
@@ -219,12 +219,12 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower1);
 
         // Update expected remaining collateral
-        uint256 collateralAmount_after_first = collateralAmountStart - liquidatedPTokens_liquidateExact_first;
+        uint256 collateralAmount_after_first = collateralAmountStart - collateralLiquidated_liquidateExact_first;
 
-        (uint256 maxAmount_liquidateExact_2, uint256 liquidatedPTokens_liquidateExact_2, uint256 collateralRequired_liquidateExact_2) = 
+        (uint256 maxAmount_liquidateExact_2, uint256 collateralLiquidated_liquidateExact_2, uint256 collateralRequired_liquidateExact_2) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
-                eTokenPrice, 
-                cTokenPrice, 
+                debtTokenPrice, 
+                collateralTokenPrice, 
                 lFactorsPreLiquidation,
                 collateralAmount_after_first, 
                 amountToRepayPartial[0]
@@ -235,9 +235,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             maxAmount_liquidateExact_2,
             collateralAmount_after_first,
             collateralRequired_liquidateExact_2,
-            liquidatedPTokens_liquidateExact_2,
-            cTokenPrice,
-            eTokenPrice,
+            collateralLiquidated_liquidateExact_2,
+            collateralTokenPrice,
+            debtTokenPrice,
             cTokenExchangeRate
         );
 
@@ -273,7 +273,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower1);
 
         // Update expected remaining collateral
-        uint256 collateralAmount_after_second = collateralAmount_after_first - liquidatedPTokens_liquidateExact_2;
+        uint256 collateralAmount_after_second = collateralAmount_after_first - collateralLiquidated_liquidateExact_2;
 
         // ====== Third liquidation using liquidate ======
         // third liquidation should liquidate all remaining debt
@@ -281,10 +281,10 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         // repay the remaining debt
         amountToRepayPartial[0] = remainingDebt_after_second;
 
-        (uint256 maxAmount_liquidateExact_3, uint256 liquidatedPTokens_liquidateExact_3, uint256 collateralRequired_liquidateExact_3) = 
+        (uint256 maxAmount_liquidateExact_3, uint256 collateralLiquidated_liquidateExact_3, uint256 collateralRequired_liquidateExact_3) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
-                eTokenPrice, 
-                cTokenPrice, 
+                debtTokenPrice, 
+                collateralTokenPrice, 
                 lFactorsPreLiquidation,
                 collateralAmount_after_second, 
                 amountToRepayPartial[0]
@@ -295,9 +295,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             maxAmount_liquidateExact_3,
             collateralAmount_after_second,
             collateralRequired_liquidateExact_3,
-            liquidatedPTokens_liquidateExact_3,
-            cTokenPrice,
-            eTokenPrice,
+            collateralLiquidated_liquidateExact_3,
+            collateralTokenPrice,
+            debtTokenPrice,
             cTokenExchangeRate
         );
 
@@ -377,14 +377,14 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     }
 
     function _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
-        uint256 _eTokenPrice,
-        uint256 _cTokenPrice,
+        uint256 _debtTokenPrice,
+        uint256 _collateralTokenPrice,
         uint256 lFactors,
         uint256 _collateralAmounts,
         uint256 _borrowAmounts
     ) internal view returns (
         uint256 maxAmount, 
-        uint256 liquidatedPTokens,
+        uint256 collateralLiquidated,
         uint256 collateralRequired
     ) {
         uint256 cTokenExchangeRate = simpleCBALRETH.exchangeRate();
@@ -399,40 +399,40 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors) / WAD);
             
             // Calculate with extra precision
-            uint256 highPrecisionD2C = (((auctionLiqIncentive * _eTokenPrice * WAD * PRECISION_FACTOR) /
-                (_cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
+            uint256 highPrecisionD2C = (((auctionLiqIncentive * _debtTokenPrice * WAD * PRECISION_FACTOR) /
+                (_collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
             maxAmount = (auctionCFactor * borrowAmount) / WAD;
             
             // Calculate with extra precision
-            liquidatedPTokens = (maxAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
+            collateralLiquidated = (maxAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
             
-            if (liquidatedPTokens > _collateralAmounts) {
+            if (collateralLiquidated > _collateralAmounts) {
                 // Use the contract's exact formula
                 maxAmount = FixedPointMathLib.mulDivUp(
                     maxAmount,
                     _collateralAmounts,
-                    liquidatedPTokens
+                    collateralLiquidated
                 );
-                liquidatedPTokens = _collateralAmounts;
+                collateralLiquidated = _collateralAmounts;
             }
             
             // Use the contract's exact formula
             collateralRequired = (_borrowAmounts * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
 
 
-        return (maxAmount, liquidatedPTokens, collateralRequired);
+        return (maxAmount, collateralLiquidated, collateralRequired);
     }
 
     function _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
-        uint256 _eTokenPrice,
-        uint256 _cTokenPrice,
+        uint256 _debtTokenPrice,
+        uint256 _collateralTokenPrice,
         uint256 lFactor,
         uint256 _debtAmount,
         uint256 _collateralAmount
     ) internal view returns (
         uint256 maxAmount,
-        uint256 liquidatedPTokens,
+        uint256 collateralLiquidated,
         uint256 collateralRequired
     ) {
         uint256 cTokenExchangeRate = simpleCBALRETH.exchangeRate();
@@ -445,13 +445,13 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
         
         // Calculate with extra precision
-        uint256 highPrecisionD2C = (((auctionLiqIncentive * _eTokenPrice * WAD * PRECISION_FACTOR) /
-            (_cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
+        uint256 highPrecisionD2C = (((auctionLiqIncentive * _debtTokenPrice * WAD * PRECISION_FACTOR) /
+            (_collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
 
         maxAmount = (auctionCFactor * _debtAmount) / WAD;
 
         // Calculate with extra precision
-        liquidatedPTokens = (maxAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
+        collateralLiquidated = (maxAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
         
         collateralRequired = (_debtAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
     }
@@ -461,7 +461,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256 _debtAmount,
         uint256 _collateralAvailable,
         uint256 _collateralRequired,
-        uint256 _liquidatedPTokens,
+        uint256 _collateralLiquidated,
         uint256 _cTokenUnderlyingPrice,
         uint256 _eTokenUnderlyingPrice,
         uint256 _cTokenExchangeRate
@@ -471,7 +471,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     
         badDebt = (_debtBalance - _debtAmount) -
         FixedPointMathLib.mulDivUp(
-            ((_collateralAvailable - _liquidatedPTokens) * _cTokenExchangeRate) / WAD,
+            ((_collateralAvailable - _collateralLiquidated) * _cTokenExchangeRate) / WAD,
             _cTokenUnderlyingPrice,
             (_eTokenUnderlyingPrice * WAD) / 1e6
         );

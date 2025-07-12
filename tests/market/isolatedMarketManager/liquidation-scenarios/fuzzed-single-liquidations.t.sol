@@ -41,7 +41,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
 
     // Storage to avoid stack too deep
     uint256 maxAmount;
-    uint256 liquidatedPTokens;
+    uint256 collateralLiquidated;
     uint256 collateralRequired;
     uint256 cTokenExchangeRate;
     uint256 debtBalancesPreLiquidation;
@@ -155,12 +155,12 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
 
         uint256 lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower);
 
-        (uint256 lFactor, uint256 cTokenPrice, uint256 eTokenPrice) = 
+        (uint256 lFactor, uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
             marketManagerIsolated.liquidationStatusOf(borrower, address(strategyCBALRETH), address(borrowableCUSDC));
 
-        (maxAmount, liquidatedPTokens, collateralRequired) = 
+        (maxAmount, collateralLiquidated, collateralRequired) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
-                eTokenPrice, cTokenPrice, lFactorsPreLiquidation, _collateralAmount, _borrowAmount
+                debtTokenPrice, collateralTokenPrice, lFactorsPreLiquidation, _collateralAmount, _borrowAmount
             );
         
         cTokenExchangeRate = strategyCBALRETH.exchangeRate();
@@ -171,9 +171,9 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
             maxAmount,
             collateralAmounts,
             collateralRequired,
-            liquidatedPTokens,
-            cTokenPrice,
-            eTokenPrice,
+            collateralLiquidated,
+            collateralTokenPrice,
+            debtTokenPrice,
             cTokenExchangeRate
         );
         
@@ -239,13 +239,13 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
 
     function _assertCollateralSeizure(uint256 _collateralAmount) internal view {
         uint256 borrowerCollateralAfter = strategyCBALRETH.balanceOf(borrower);
-        uint256 expectedBorrowerCollateralAfter = _collateralAmount - liquidatedPTokens;
+        uint256 expectedBorrowerCollateralAfter = _collateralAmount - collateralLiquidated;
         
         assertApproxEqAbs(
             borrowerCollateralAfter,
             expectedBorrowerCollateralAfter,
             1000,
-            "Borrower collateral should be reduced by liquidatedPTokens"
+            "Borrower collateral should be reduced by collateralLiquidated"
         );
     }
 
@@ -254,7 +254,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         
         assertApproxEqAbs(
             liquidatorBalanceAfter - liquidatorBalanceBefore,
-            liquidatedPTokens,
+            collateralLiquidated,
             1000,
             "Liquidator should receive expected collateral"
         );
@@ -325,14 +325,14 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
     }
 
     function _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
-        uint256 _eTokenPrice,
-        uint256 _cTokenPrice,
+        uint256 _debtTokenPrice,
+        uint256 _collateralTokenPrice,
         uint256 lFactors,
         uint256 _collateralAmounts,
         uint256 _borrowAmounts
     ) internal view returns (
         uint256 maxAmount, 
-        uint256 liquidatedPTokens,
+        uint256 collateralLiquidated,
         uint256 collateralRequired
     ) {
         
@@ -346,29 +346,29 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
             uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors) / WAD);
             
             // Calculate with extra precision
-            uint256 highPrecisionD2C = (((auctionLiqIncentive * _eTokenPrice * WAD * PRECISION_FACTOR) /
-                (_cTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
+            uint256 highPrecisionD2C = (((auctionLiqIncentive * _debtTokenPrice * WAD * PRECISION_FACTOR) /
+                (_collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
                 
             maxAmount = (auctionCFactor * _borrowAmounts) / WAD;
             
             // Calculate with extra precision
-            liquidatedPTokens = (maxAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
+            collateralLiquidated = (maxAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
             
-            if (liquidatedPTokens > _collateralAmounts) {
+            if (collateralLiquidated > _collateralAmounts) {
                 // Use the contract's exact formula
                 maxAmount = FixedPointMathLib.mulDivUp(
                     maxAmount,
                     _collateralAmounts,
-                    liquidatedPTokens
+                    collateralLiquidated
                 );
-                liquidatedPTokens = _collateralAmounts;
+                collateralLiquidated = _collateralAmounts;
             }
             
             // Use the contract's exact formula
             collateralRequired = (_borrowAmounts * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
 
 
-        return (maxAmount, liquidatedPTokens, collateralRequired);
+        return (maxAmount, collateralLiquidated, collateralRequired);
     }
 
     function _getLFactorsPreLiquidation(address _borrowers) internal view returns (uint256 lFactors) {
@@ -387,7 +387,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         uint256 _debtAmount,
         uint256 _collateralAvailable,
         uint256 _collateralRequired,
-        uint256 _liquidatedPTokens,
+        uint256 _collateralLiquidated,
         uint256 _cTokenUnderlyingPrice,
         uint256 _eTokenUnderlyingPrice,
         uint256 _cTokenExchangeRate
@@ -397,7 +397,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
     
         badDebt = (_debtBalance - _debtAmount) -
         FixedPointMathLib.mulDivUp(
-            ((_collateralAvailable - _liquidatedPTokens) * _cTokenExchangeRate) / WAD,
+            ((_collateralAvailable - _collateralLiquidated) * _cTokenExchangeRate) / WAD,
             _cTokenUnderlyingPrice,
             (_eTokenUnderlyingPrice * WAD) / 1e6
         );
