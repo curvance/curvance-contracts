@@ -1500,7 +1500,7 @@ contract MarketManagerIsolated is
                 cachedData.collateralExchangeRate)) *
             cachedData.collateralDecimals) / cachedData.debtDecimals;
         uint256 maxAmount =
-            (auctionData.auctionCFactor * auctionData.debtBalance) / WAD_SQUARED;
+            (auctionData.auctionCFactor * auctionData.debtBalance) / WAD;
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
         // otherwise liquidate the maximum amount possible.
         if (!liquidateExact) {
