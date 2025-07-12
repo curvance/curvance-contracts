@@ -28,7 +28,7 @@
 //     address internal _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market
 //     address internal _PT_ORACLE = 0x14030836AEc15B2ad48bB097bd57032559339c92;
 //     PendleLPPositionManager public positionManager;
-//     PendleLPCToken public pSTETH;
+//     PendleLPCToken public strategyCTokenSTETH;
 //     MockV3Aggregator public chainlinkPendleUsd;
 //     PendleLPTokenAdaptor public adaptor;
 
@@ -99,39 +99,23 @@
 //             dai.approve(address(borrowableCDAI), 200000e18);
 //         }
 
-//         pSTETH = new PendleLPCToken(
+//         strategyCTokenSTETH = new PendleLPCToken(
 //             ICentralRegistry(address(centralRegistry)),
 //             IERC20(_LP_STETH),
 //             address(marketManagerIsolated),
 //             _ROUTER,
 //             1 days
 //         );
-//         oracleManager.addCTokenSupport(address(pSTETH));
+//         oracleManager.addCTokenSupport(address(strategyCTokenSTETH));
 
 //         deal(_LP_STETH, owner, 1 ether);
-//         IERC20(_LP_STETH).approve(address(pSTETH), 1 ether);
+//         IERC20(_LP_STETH).approve(address(strategyCTokenSTETH), 1 ether);
         
-//         marketManagerIsolated.listTokens(address(pSTETH), address(borrowableCDAI));
+//         marketManagerIsolated.listTokens(address(strategyCTokenSTETH), address(borrowableCDAI));
 
-//         marketManagerIsolated.updatePositionToken(
-//             7000,    // collRatio 70%
-//             4000,    // collReqSoft 40%
-//             3000,    // collReqHard 25%
-//             1000,    // liqIncBase 10%
-//             1500,    // liqIncHard 15%
-//             500,     // liqIncMin 5%
-//             2000,    // liqIncMax 20%
-//             2000,    // minEffectiveCFactor 20%
-//             5000,    // maxEffectiveCFactor 50%
-//             1000     // baseCFactor 20%
-//         );
+//          _setCTokenConfigBasic(address(strategyCTokenSTETH), 100_000e18, 0);
+//          _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
 
-//         address[] memory tokens = new address[](1);
-//         tokens[0] = address(pSTETH);
-//         uint256[] memory caps = new uint256[](1);
-//         caps[0] = 100_000e18;
-
-//         marketManagerIsolated.setCollateralCaps(tokens, caps);
 //         positionManager = new PendleLPPositionManager(
 //             ICentralRegistry(address(centralRegistry)),
 //             address(marketManagerIsolated),
@@ -156,9 +140,9 @@
 //         dai.approve(address(borrowableCDAI), 20000000 ether);
 //         borrowableCDAI.mint(20000000 ether);
 
-//         // mint pSTETH
-//         IERC20(_LP_STETH).approve(address(pSTETH), 100 ether);
-//         pSTETH.deposit(100 ether, liquidityProvider);
+//         // mint strategyCTokenSTETH
+//         IERC20(_LP_STETH).approve(address(strategyCTokenSTETH), 100 ether);
+//         strategyCTokenSTETH.deposit(100 ether, liquidityProvider);
 
 //         vm.stopPrank();
 //     }
@@ -178,12 +162,12 @@
 //         vm.startPrank(user);
 
 //         deal(_LP_STETH, user, 1 ether);
-//         IERC20(_LP_STETH).approve(address(pSTETH), 1 ether);
+//         IERC20(_LP_STETH).approve(address(strategyCTokenSTETH), 1 ether);
 
 //         // mint
-//         assertGt(pSTETH.deposit(1 ether, user), 0);
-//         pSTETH.postCollateral(1 ether);
-//         assertEq(pSTETH.balanceOf(user), 1 ether);
+//         assertGt(strategyCTokenSTETH.deposit(1 ether, user), 0);
+//         strategyCTokenSTETH.postCollateral(1 ether);
+//         assertEq(strategyCTokenSTETH.balanceOf(user), 1 ether);
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
@@ -197,9 +181,9 @@
 //         ) * 50) / 100;
 
 //         PendleLPPositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
+//         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pSTETH));
+//         leverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
 //         leverageData.swapData.inputToken = _DAI_ADDRESS;
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -234,11 +218,11 @@
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-//         (uint256 pSTETHBalance, uint256 pSTETHBorrowed, ) = pSTETH.getSnapshot(
+//         (uint256 strategyCTokenSTETHBalance, uint256 strategyCTokenSTETHBorrowed, ) = strategyCTokenSTETH.getSnapshot(
 //             user
 //         );
-//         assertGt(pSTETHBalance, 2 ether);
-//         assertEq(pSTETHBorrowed, 0 ether);
+//         assertGt(strategyCTokenSTETHBalance, 2 ether);
+//         assertEq(strategyCTokenSTETHBorrowed, 0 ether);
 
 //         vm.stopPrank();
 //     }
@@ -250,15 +234,15 @@
 //         IERC20(_LP_STETH).approve(address(positionManager), 1 ether);
 
 //         // allow delegation for postCollateral
-//         pSTETH.setDelegateApproval(address(positionManager), true);
+//         strategyCTokenSTETH.setDelegateApproval(address(positionManager), true);
 
 //         // try leverage with 50% of max
 //         uint256 amountForLeverage = 7.4983181832e21;
 
 //         PendleLPPositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
+//         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pSTETH));
+//         leverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
 //         leverageData.swapData.inputToken = _DAI_ADDRESS;
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -293,11 +277,11 @@
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, amountForLeverage);
 
-//         (uint256 pSTETHBalance, uint256 pSTETHBorrowed, ) = pSTETH.getSnapshot(
+//         (uint256 strategyCTokenSTETHBalance, uint256 strategyCTokenSTETHBorrowed, ) = strategyCTokenSTETH.getSnapshot(
 //             user
 //         );
-//         assertGt(pSTETHBalance, 2 ether);
-//         assertEq(pSTETHBorrowed, 0 ether);
+//         assertGt(strategyCTokenSTETHBalance, 2 ether);
+//         assertEq(strategyCTokenSTETHBorrowed, 0 ether);
 
 //         vm.stopPrank();
 //     }
@@ -311,11 +295,11 @@
 //         vm.startPrank(user);
 //         PendleLPPositionManager.DeleverageStruct memory deleverageData;
 //         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
-//         uint256 pSTETHBalanceBefore = pSTETH.balanceOf(user);
+//         uint256 strategyCTokenSTETHBalanceBefore = strategyCTokenSTETH.balanceOf(user);
 
-//         deleverageData.positionToken = ICToken(address(pSTETH));
+//         deleverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
 //         deleverageData.collateralAmount = 1 ether;
-//         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
+//         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = _STETH;
@@ -344,7 +328,7 @@
 //         data.approx.eps = 1e18;
 //         deleverageData.auxData = abi.encode(0, data);
 
-//         pSTETH.approve(address(positionManager), type(uint256).max);
+//         strategyCTokenSTETH.approve(address(positionManager), type(uint256).max);
 //         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
 //         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
@@ -354,14 +338,14 @@
 //             eDAIBorrowedBefore - deleverageData.repayAmount
 //         );
 
-//         (uint256 pSTETHBalance, uint256 pSTETHBorrowed, ) = pSTETH.getSnapshot(
+//         (uint256 strategyCTokenSTETHBalance, uint256 strategyCTokenSTETHBorrowed, ) = strategyCTokenSTETH.getSnapshot(
 //             user
 //         );
 //         assertEq(
-//             pSTETHBalance,
-//             pSTETHBalanceBefore - deleverageData.collateralAmount
+//             strategyCTokenSTETHBalance,
+//             strategyCTokenSTETHBalanceBefore - deleverageData.collateralAmount
 //         );
-//         assertEq(pSTETHBorrowed, 0);
+//         assertEq(strategyCTokenSTETHBorrowed, 0);
 
 //         vm.stopPrank();
 //     }
@@ -370,12 +354,12 @@
 //         vm.startPrank(user);
 
 //         deal(_LP_STETH, user, 1 ether);
-//         IERC20(_LP_STETH).approve(address(pSTETH), 1 ether);
+//         IERC20(_LP_STETH).approve(address(strategyCTokenSTETH), 1 ether);
 
 //         // mint
-//         assertGt(pSTETH.deposit(1 ether, user), 0);
-//         pSTETH.postCollateral(1 ether);
-//         assertEq(pSTETH.balanceOf(user), 1 ether);
+//         assertGt(strategyCTokenSTETH.deposit(1 ether, user), 0);
+//         strategyCTokenSTETH.postCollateral(1 ether);
+//         assertEq(strategyCTokenSTETH.balanceOf(user), 1 ether);
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
@@ -389,9 +373,9 @@
 //         ) * 50) / 100;
 
 //         PendleLPPositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
+//         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pSTETH));
+//         leverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
 //         leverageData.swapData.inputToken = _DAI_ADDRESS;
 //         leverageData.swapData.inputAmount = amountForLeverage;
 //         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -430,11 +414,11 @@
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-//         (uint256 pSTETHBalance, uint256 pSTETHBorrowed, ) = pSTETH.getSnapshot(
+//         (uint256 strategyCTokenSTETHBalance, uint256 strategyCTokenSTETHBorrowed, ) = strategyCTokenSTETH.getSnapshot(
 //             user
 //         );
-//         assertGt(pSTETHBalance, 2 ether);
-//         assertEq(pSTETHBorrowed, 0 ether);
+//         assertGt(strategyCTokenSTETHBalance, 2 ether);
+//         assertEq(strategyCTokenSTETHBorrowed, 0 ether);
 //     }
 
 //     function testDeLeverageFor() public {
@@ -446,11 +430,11 @@
 //         vm.startPrank(user);
 //         PendleLPPositionManager.DeleverageStruct memory deleverageData;
 //         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
-//         uint256 pSTETHBalanceBefore = pSTETH.balanceOf(user);
+//         uint256 strategyCTokenSTETHBalanceBefore = strategyCTokenSTETH.balanceOf(user);
 
-//         deleverageData.positionToken = ICToken(address(pSTETH));
+//         deleverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
 //         deleverageData.collateralAmount = 1 ether;
-//         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
+//         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
 //         deleverageData.swapData = new SwapperLib.Swap[](1);
 //         deleverageData.swapData[0].inputToken = _STETH;
@@ -479,7 +463,7 @@
 //         data.approx.eps = 1e18;
 //         deleverageData.auxData = abi.encode(0, data);
 
-//         pSTETH.approve(address(positionManager), type(uint256).max);
+//         strategyCTokenSTETH.approve(address(positionManager), type(uint256).max);
 //         positionManager.setDelegateApproval(address(user2), true);
 //         vm.stopPrank();
 
@@ -493,13 +477,13 @@
 //             eDAIBorrowedBefore - deleverageData.repayAmount
 //         );
 
-//         (uint256 pSTETHBalance, uint256 pSTETHBorrowed, ) = pSTETH.getSnapshot(
+//         (uint256 strategyCTokenSTETHBalance, uint256 strategyCTokenSTETHBorrowed, ) = strategyCTokenSTETH.getSnapshot(
 //             user
 //         );
 //         assertEq(
-//             pSTETHBalance,
-//             pSTETHBalanceBefore - deleverageData.collateralAmount
+//             strategyCTokenSTETHBalance,
+//             strategyCTokenSTETHBalanceBefore - deleverageData.collateralAmount
 //         );
-//         assertEq(pSTETHBorrowed, 0);
+//         assertEq(strategyCTokenSTETHBorrowed, 0);
 //     }
 // }

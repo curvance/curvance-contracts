@@ -52,25 +52,9 @@
 //         );
 
 //         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
-
-//         marketManagerIsolated.updatePositionToken(
-//             7000,    // collRatio 70%
-//             4000,    // collReqSoft 40%
-//             3000,    // collReqHard 25%
-//             1000,    // liqIncBase 10%
-//             1500,    // liqIncHard 15%
-//             500,     // liqIncMin 5%
-//             2000,    // liqIncMax 20%
-//             2000,    // minEffectiveCFactor 20%
-//             5000,    // maxEffectiveCFactor 50%
-//             1000     // baseCFactor 20%
-//         );
-
-//         address[] memory cTokens = new address[](1);
-//         cTokens[0] = address(borrowableCUSDC);
-//         uint256[] memory caps = new uint256[](1);
-//         caps[0] = 100 ether;
-//         marketManagerIsolated.setCollateralCaps(cTokens, caps);
+//
+//          _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e18);
+//          _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
 
 //     }
 

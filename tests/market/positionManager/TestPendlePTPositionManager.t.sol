@@ -31,7 +31,7 @@
 
 //     PendlePTPositionManager public positionManager;
 //     PendlePrincipalTokenAdaptor public adaptor;
-//     SimpleCToken public pPendlePT;
+//     SimpleCToken public cPendlePTSTETH;
 //     IERC20 public pendlePT = IERC20(_PT_STETH);
 
 //     address public owner;
@@ -91,9 +91,9 @@
 //             dai.approve(address(borrowableCDAI), 200000e18);
 //         }
 
-//         // deploy pPendlePT
+//         // deploy cPendlePTSTETH
 //         {
-//             pPendlePT = new SimpleCToken(
+//             cPendlePTSTETH = new SimpleCToken(
 //                 ICentralRegistry(address(centralRegistry)),
 //                 pendlePT,
 //                 address(marketManagerIsolated)
@@ -101,33 +101,16 @@
 
 //             // support market
 //             _preparePT(owner, 1 ether);
-//             pendlePT.approve(address(pPendlePT), 1 ether);
+//             pendlePT.approve(address(cPendlePTSTETH), 1 ether);
 //             // Add cToken support on Oracle Manager.
-//             oracleManager.addCTokenSupport(address(pPendlePT));
+//             oracleManager.addCTokenSupport(address(cPendlePTSTETH));
 
 //         }
 
-//         marketManagerIsolated.listTokens(address(pPendlePT), address(borrowableCDAI));
+//         marketManagerIsolated.listTokens(address(cPendlePTSTETH), address(borrowableCDAI));
 
-//         marketManagerIsolated.updatePositionToken(
-//             7000,    // collRatio 70%
-//             4000,    // collReqSoft 40%
-//             3000,    // collReqHard 25%
-//             1000,    // liqIncBase 10%
-//             1500,    // liqIncHard 15%
-//             500,     // liqIncMin 5%
-//             2000,    // liqIncMax 20%
-//             2000,    // minEffectiveCFactor 20%
-//             5000,    // maxEffectiveCFactor 50%
-//             1000     // baseCFactor 20%
-//         );
-
-
-//             address[] memory cTokens = new address[](1);
-//             cTokens[0] = address(pPendlePT);
-//             uint256[] memory caps = new uint256[](1);
-//             caps[0] = 100 ether;
-//             marketManagerIsolated.setCollateralCaps(cTokens, caps);
+//          _setCTokenConfigBasic(address(cPendlePTSTETH), 100_000e18, 0);
+//          _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
 
 //         positionManager = new PendlePTPositionManager(
 //             ICentralRegistry(address(centralRegistry)),
@@ -153,13 +136,13 @@
 
 //         vm.startPrank(liquidityProvider);
 
-//         // mint eDAI
+//         // Mint borrowableCDAI.
 //         dai.approve(address(borrowableCDAI), 20000000 ether);
 //         borrowableCDAI.mint(20000000 ether);
 
-//         // mint pSTETH
-//         pendlePT.approve(address(pPendlePT), 10 ether);
-//         pPendlePT.mint(10 ether, liquidityProvider);
+//         // Mint Curvance Pendle PT stETH.
+//         pendlePT.approve(address(cPendlePTSTETH), 10 ether);
+//         cPendlePTSTETH.mint(10 ether, liquidityProvider);
 
 //         vm.stopPrank();
 //     }
@@ -179,12 +162,12 @@
 //         vm.startPrank(user);
 
 //         _preparePT(user, 1 ether);
-//         pendlePT.approve(address(pPendlePT), 1 ether);
+//         pendlePT.approve(address(cPendlePTSTETH), 1 ether);
 
 //         // mint
-//         assertGt(pPendlePT.deposit(1 ether, user), 0);
-//         pPendlePT.postCollateral(1 ether);
-//         assertEq(pPendlePT.balanceOf(user), 1 ether);
+//         assertGt(cPendlePTSTETH.deposit(1 ether, user), 0);
+//         cPendlePTSTETH.postCollateral(1 ether);
+//         assertEq(cPendlePTSTETH.balanceOf(user), 1 ether);
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
@@ -198,9 +181,9 @@
 //         ) * 50) / 100;
 
 //         PendlePTPositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
+//         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pPendlePT));
+//         leverageData.collateralToken = ICToken(address(cPendlePTSTETH));
 //         PendleLib.PendleData memory data;
 //         data.approx.guessMin = 5e17;
 //         data.approx.guessMax = 1.2e18;
@@ -230,10 +213,10 @@
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-//         (uint256 pPendlePTBalance, uint256 pPendlePTBorrowed, ) = pPendlePT
+//         (uint256 cPendlePTSTETHBalance, uint256 cPendlePTSTETHBorrowed, ) = cPendlePTSTETH
 //             .getSnapshot(user);
-//         assertGt(pPendlePTBalance, 2 ether);
-//         assertEq(pPendlePTBorrowed, 0 ether);
+//         assertGt(cPendlePTSTETHBalance, 2 ether);
+//         assertEq(cPendlePTSTETHBorrowed, 0 ether);
 
 //         vm.stopPrank();
 //     }
@@ -247,11 +230,11 @@
 //         vm.startPrank(user);
 //         PendlePTPositionManager.DeleverageStruct memory deleverageData;
 //         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
-//         (uint256 pPendlePTBalanceBefore, , ) = pPendlePT.getSnapshot(user);
+//         (uint256 cPendlePTSTETHBalanceBefore, , ) = cPendlePTSTETH.getSnapshot(user);
 
-//         deleverageData.positionToken = ICToken(address(pPendlePT));
+//         deleverageData.collateralToken = ICToken(address(cPendlePTSTETH));
 //         deleverageData.collateralAmount = 1 ether;
-//         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
+//         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.repayAmount = 3.141e21;
 
 //         PendleLib.PendleData memory data;
@@ -271,7 +254,7 @@
 //         data.output.swapData.needScale = false;
 //         deleverageData.auxData = abi.encode(_LP_STETH, data);
 
-//         pPendlePT.approve(address(positionManager), type(uint256).max);
+//         cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
 //         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
 //         (,,,, uint256 eDAIBorrowed, ) = borrowableCDAI.getSnapshot(user);
@@ -281,13 +264,13 @@
 //             eDAIBorrowedBefore - deleverageData.repayAmount
 //         );
 
-//         (uint256 pPendlePTBalance, uint256 pPendlePTBorrowed, ) = pPendlePT
+//         (uint256 cPendlePTSTETHBalance, uint256 cPendlePTSTETHBorrowed, ) = cPendlePTSTETH
 //             .getSnapshot(user);
 //         assertEq(
-//             pPendlePTBalance,
-//             pPendlePTBalanceBefore - deleverageData.collateralAmount
+//             cPendlePTSTETHBalance,
+//             cPendlePTSTETHBalanceBefore - deleverageData.collateralAmount
 //         );
-//         assertEq(pPendlePTBorrowed, 0);
+//         assertEq(cPendlePTSTETHBorrowed, 0);
 
 //         vm.stopPrank();
 //     }
@@ -296,12 +279,12 @@
 //         vm.startPrank(user);
 
 //         _preparePT(user, 1 ether);
-//         pendlePT.approve(address(pPendlePT), 1 ether);
+//         pendlePT.approve(address(cPendlePTSTETH), 1 ether);
 
 //         // mint
-//         assertGt(pPendlePT.deposit(1 ether, user), 0);
-//         pPendlePT.postCollateral(1 ether);
-//         assertEq(pPendlePT.balanceOf(user), 1 ether);
+//         assertGt(cPendlePTSTETH.deposit(1 ether, user), 0);
+//         cPendlePTSTETH.postCollateral(1 ether);
+//         assertEq(cPendlePTSTETH.balanceOf(user), 1 ether);
 
 //         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 //         // borrow
@@ -315,9 +298,9 @@
 //         ) * 50) / 100;
 
 //         PendlePTPositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
+//         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pPendlePT));
+//         leverageData.collateralToken = ICToken(address(cPendlePTSTETH));
 //         PendleLib.PendleData memory data;
 //         data.approx.guessMin = 5e17;
 //         data.approx.guessMax = 1.2e18;
@@ -351,10 +334,10 @@
 //         assertEq(borrowableCDAI.balanceOf(user), 0);
 //         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-//         (uint256 pPendlePTBalance, uint256 pPendlePTBorrowed, ) = pPendlePT
+//         (uint256 cPendlePTSTETHBalance, uint256 cPendlePTSTETHBorrowed, ) = cPendlePTSTETH
 //             .getSnapshot(user);
-//         assertGt(pPendlePTBalance, 2 ether);
-//         assertEq(pPendlePTBorrowed, 0 ether);
+//         assertGt(cPendlePTSTETHBalance, 2 ether);
+//         assertEq(cPendlePTSTETHBorrowed, 0 ether);
 
 //         vm.stopPrank();
 //     }
@@ -368,11 +351,11 @@
 //         vm.startPrank(user);
 //         PendlePTPositionManager.DeleverageStruct memory deleverageData;
 //         (,,,, uint256 eDAIBorrowedBefore, ) = borrowableCDAI.getSnapshot(user);
-//         (uint256 pPendlePTBalanceBefore, , ) = pPendlePT.getSnapshot(user);
+//         (uint256 cPendlePTSTETHBalanceBefore, , ) = cPendlePTSTETH.getSnapshot(user);
 
-//         deleverageData.positionToken = ICToken(address(pPendlePT));
+//         deleverageData.collateralToken = ICToken(address(cPendlePTSTETH));
 //         deleverageData.collateralAmount = 1 ether;
-//         deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
+//         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 //         deleverageData.repayAmount = 3.141e21;
 
 //         PendleLib.PendleData memory data;
@@ -392,7 +375,7 @@
 //         data.output.swapData.needScale = false;
 //         deleverageData.auxData = abi.encode(_LP_STETH, data);
 
-//         pPendlePT.approve(address(positionManager), type(uint256).max);
+//         cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
 //         positionManager.setDelegateApproval(address(user2), true);
 //         vm.stopPrank();
 
@@ -406,13 +389,13 @@
 //             eDAIBorrowedBefore - deleverageData.repayAmount
 //         );
 
-//         (uint256 pPendlePTBalance, uint256 pPendlePTBorrowed, ) = pPendlePT
+//         (uint256 cPendlePTSTETHBalance, uint256 cPendlePTSTETHBorrowed, ) = cPendlePTSTETH
 //             .getSnapshot(user);
 //         assertEq(
-//             pPendlePTBalance,
-//             pPendlePTBalanceBefore - deleverageData.collateralAmount
+//             cPendlePTSTETHBalance,
+//             cPendlePTSTETHBalanceBefore - deleverageData.collateralAmount
 //         );
-//         assertEq(pPendlePTBorrowed, 0);
+//         assertEq(cPendlePTSTETHBorrowed, 0);
 
 //         vm.stopPrank();
 //     }
@@ -422,11 +405,11 @@
 //         vm.startPrank(user);
 
 //         _preparePT(user, 1 ether);
-//         pendlePT.approve(address(pPendlePT), 1 ether);
+//         pendlePT.approve(address(cPendlePTSTETH), 1 ether);
 
 //         // mint
-//         assertGt(pPendlePT.deposit(1 ether, user), 0);
-//         pPendlePT.postCollateral(1 ether);
+//         assertGt(cPendlePTSTETH.deposit(1 ether, user), 0);
+//         cPendlePTSTETH.postCollateral(1 ether);
         
 //         // borrow
 //         borrowableCDAI.borrow(100 ether);
@@ -439,9 +422,9 @@
         
 //         // Create leverage data with valid Pendle settings
 //         PendlePTPositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
+//         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pPendlePT));
+//         leverageData.collateralToken = ICToken(address(cPendlePTSTETH));
         
 //         PendleLib.PendleData memory data;
 //         data.approx.guessMin = 5e17;
@@ -475,11 +458,11 @@
 //         vm.startPrank(user);
 
 //         _preparePT(user, 1 ether);
-//         pendlePT.approve(address(pPendlePT), 1 ether);
+//         pendlePT.approve(address(cPendlePTSTETH), 1 ether);
 
 //         // mint
-//         assertGt(pPendlePT.deposit(1 ether, user), 0);
-//         pPendlePT.postCollateral(1 ether);
+//         assertGt(cPendlePTSTETH.deposit(1 ether, user), 0);
+//         cPendlePTSTETH.postCollateral(1 ether);
         
 //         // borrow
 //         borrowableCDAI.borrow(100 ether);
@@ -492,9 +475,9 @@
         
 //         // Create leverage data
 //         PendlePTPositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
+//         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(pPendlePT));
+//         leverageData.collateralToken = ICToken(address(cPendlePTSTETH));
         
 //         PendleLib.PendleData memory data;
 //         data.approx.guessMin = 5e17;

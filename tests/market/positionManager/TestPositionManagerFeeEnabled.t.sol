@@ -145,25 +145,8 @@
 
 //         marketManagerIsolated.listTokens(address(strategyCTokenUSDCDAI),address(borrowableCDAI));
 
-//         marketManagerIsolated.updatePositionToken(
-//             7000,    // collRatio 70%
-//             4000,    // collReqSoft 40%
-//             3000,    // collReqHard 25%
-//             1000,    // liqIncBase 10%
-//             1500,    // liqIncHard 15%
-//             500,     // liqIncMin 5%
-//             2000,    // liqIncMax 20%
-//             2000,    // minEffectiveCFactor 20%
-//             3000,    // maxEffectiveCFactor 30%
-//             1000     // baseCFactor 10%
-//         );
-
-//         address[] memory tokens = new address[](1);
-//         tokens[0] = address(strategyCTokenUSDCDAI);
-//         uint256[] memory caps = new uint256[](1);
-//         caps[0] = 100_000e18;
-
-//         marketManagerIsolated.setCollateralCaps(tokens, caps);
+//          _setCTokenConfigBasic(address(strategyCTokenUSDCDAI), 100_000e18, 0);
+//          _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
 
 //         positionManager = new VelodromePositionManager(
 //             ICentralRegistry(address(centralRegistry)),
@@ -239,9 +222,9 @@
 //         );
 
 //         VelodromePositionManager.LeverageStruct memory leverageData;
-//         leverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
+//         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 //         leverageData.borrowAmount = amountForLeverage;
-//         leverageData.positionToken = ICToken(address(strategyCTokenUSDCDAI));
+//         leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
 //         leverageData.swapData.inputToken = _DAI_ADDRESS;
 //         leverageData.swapData.inputAmount = swapInputAmount;
 //         leverageData.swapData.outputToken = _USDC_ADDRESS;
@@ -315,9 +298,9 @@
 //                 (uint256, bytes)
 //             );
 
-//             deleverageData.positionToken = ICToken(address(strategyCTokenUSDCDAI));
+//             deleverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
 //             deleverageData.collateralAmount = collateralAmount;
-//             deleverageData.borrowToken = IBorrowableCToken(address(borrowableCDAI));
+//             deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 //             deleverageData.swapData = new SwapperLib.Swap[](1);
 //             deleverageData.swapData[0].inputToken = _USDC_ADDRESS;
 //             deleverageData.swapData[0].inputAmount = usdcOutAmount;
