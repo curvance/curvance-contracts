@@ -1543,7 +1543,7 @@ contract MarketManagerIsolated is
         // overall debt is above their collateral balance, theres bad debt
         // that should be socialized.
         uint256 collateralRequired = 
-            (auctionData.debtBalance * debtToCollateralMultiplier) / WAD;
+            (auctionData.debtBalance * debtToCollateralMultiplier) / WAD_SQUARED;
         if (collateralRequired > collateralAvailable) {
             // Get prior ratio between debt/collateral before any
             // liquidation = Shortfall Ratio

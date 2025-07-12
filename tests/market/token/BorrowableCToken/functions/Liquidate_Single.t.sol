@@ -144,8 +144,8 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         (,,,, uint256 liqBaseIncentive, uint256 liqCurve,,,,, uint256 baseCFactor, uint256 cFactorCurve) = 
             marketManagerIsolated.tokenData(address(strategyCBALRETH));
         
-        (uint256 lFactor, uint256 earnTokenPrice, uint256 positionTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(user, address(borrowableCUSDC), address(strategyCBALRETH));
+        (uint256 lFactor, uint256 positionTokenPrice, uint256 earnTokenPrice) = 
+            marketManagerIsolated.liquidationStatusOf(user, address(strategyCBALRETH), address(borrowableCUSDC));
 
         uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
         uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
