@@ -55,18 +55,11 @@ abstract contract BasePositionManager is
     error BasePositionManager__Unauthorized();
     error BasePositionManager__InvalidSlippage();
     error BasePositionManager__InvalidMarketManager();
-    error BasePositionManager__InvalidSwapperParam();
     error BasePositionManager__InvalidParam();
     error BasePositionManager__InvalidAmount();
     error BasePositionManager__InvalidTokenPrice();
-    error BasePositionManager__ExceedsMaximumBorrowAmount(
-        uint256 amount,
-        uint256 maximum
-    );
-    error BasePositionManager__InsufficientRepayAmount(
-        uint256 repayAmount,
-        uint256 balance
-    );
+    error BasePositionManager__ExceedsMaximumBorrowAllowed();
+    error BasePositionManager__InsufficientAssetsForRepayment();
 
     /// MODIFIERS ///
 
@@ -322,9 +315,9 @@ abstract contract BasePositionManager is
     /// @dev Measures slippage after this callback validating that `borrower`
     ///      is still within acceptable liquidity requirements.
     /// @param debtToken The borrow token borrowed from.
-    /// @param borrower The account borrowing that will be swapped into
-    ///                 collateral assets deposited into Curvance.
-    /// @param borrowAmount The amount of `debtToken`'s underlying borrowed.
+    /// @param assets The amount of `debtToken`'s underlying borrowed.
+    /// @param owner The account borrowing that will be swapped into
+    ///              collateral assets deposited into Curvance.
     /// @param leverageData Struct containing information on the desired
     ///                     leverage action to execute. Containing values:
     ///                     1. Address of `debtToken` that will be borrowed
@@ -340,21 +333,21 @@ abstract contract BasePositionManager is
     ///                        leverage action.
     function onBorrow(
         address debtToken,
-        address borrower,
-        uint256 borrowAmount,
+        uint256 assets,
+        address owner,
         LeverageStruct memory leverageData
     ) external override {
         address borrowUnderlying = IBorrowableCToken(debtToken).asset();
         // Take protocol fee, if any.
         uint256 fee = _getFee(
             debtToken,
-            borrowAmount,
+            assets,
             address(leverageData.debtToken),
-            leverageData.borrowAmount,
+            leverageData.borrowAssets,
             borrowUnderlying
         );
         if (fee > 0) {
-            leverageData.borrowAmount -= fee;
+            leverageData.borrowAssets -= fee;
             SafeTransferLib.safeTransfer(
                 borrowUnderlying,
                 centralRegistry.daoAddress(),
@@ -371,7 +364,7 @@ abstract contract BasePositionManager is
         // Unwrap leverage instructions for collateral deposit.
         address collateralUnderlying = collateralToken.asset();
 
-        _swapBorrowUnderlyingToCollateral(leverageData, borrower);
+        _swapBorrowUnderlyingToCollateral(leverageData, owner);
 
         uint256 amount = IERC20(collateralUnderlying).balanceOf(address(this));
 
@@ -383,7 +376,7 @@ abstract contract BasePositionManager is
         );
 
         // Enter Curvance.
-        collateralToken.depositAsCollateral(amount, borrower);
+        collateralToken.depositAsCollateral(amount, owner);
 
         uint256 remaining = IERC20(borrowUnderlying).balanceOf(address(this));
 
@@ -391,7 +384,7 @@ abstract contract BasePositionManager is
         if (remaining > 0) {
             SafeTransferLib.safeTransfer(
                 borrowUnderlying,
-                borrower,
+                owner,
                 remaining
             );
         }
@@ -409,10 +402,9 @@ abstract contract BasePositionManager is
     /// @dev Measures slippage after this callback validating that `redeemer`
     ///      is still within acceptable liquidity requirements.
     /// @param collateralToken The cToken redeemed for its underlying.
-    /// @param redeemer The account redeeming collateral that will be used to
-    ///                 repay their active debt.
-    /// @param collateralAmount The amount of `collateralToken` underlying
-    ///                         redeemed.
+    /// @param assets The amount of `collateralToken` underlying redeemed.
+    /// @param owner The account redeeming collateral that will be used to
+    ///              repay their active debt.
     /// @param deleverageData Struct containing information on the desired
     ///                       deleverage action to execute. Containing values:
     ///                       1. Address of the Curvance token that will be 
@@ -431,21 +423,21 @@ abstract contract BasePositionManager is
     ///                          deleverage action.
     function onRedeem(
         address collateralToken,
-        address redeemer,
-        uint256 collateralAmount,
+        uint256 assets,
+        address owner,
         DeleverageStruct memory deleverageData
     ) external override {
         // Take protocol fee, if any.
         address collateralUnderlying = ICToken(collateralToken).asset();
         uint256 fee = _getFee(
             collateralToken,
-            collateralAmount,
+            assets,
             address(deleverageData.collateralToken),
-            deleverageData.collateralAmount,
+            deleverageData.collateralAssets,
             collateralUnderlying
         );
         if (fee > 0) {
-            deleverageData.collateralAmount -= fee;
+            deleverageData.collateralAssets -= fee;
             SafeTransferLib.safeTransfer(
                 collateralUnderlying,
                 centralRegistry.daoAddress(),
@@ -463,33 +455,30 @@ abstract contract BasePositionManager is
 
         // Unwrap deleverage instructions for debt repayment.
         address borrowUnderlying = debtToken.asset();
-        uint256 repayAmount = deleverageData.repayAmount;
+        uint256 repayAssets = deleverageData.repayAssets;
         uint256 borrowUnderlyingBalance = IERC20(borrowUnderlying).balanceOf(
             address(this)
         );
-        if (repayAmount > borrowUnderlyingBalance) {
-            revert BasePositionManager__InsufficientRepayAmount(
-                repayAmount,
-                borrowUnderlyingBalance
-            );
+        if (repayAssets > borrowUnderlyingBalance) {
+            revert BasePositionManager__InsufficientAssetsForRepayment();
         }
-        uint256 remaining = borrowUnderlyingBalance - repayAmount;
+        uint256 remaining = borrowUnderlyingBalance - repayAssets;
 
-        // Approve `repayAmount` of `borrowUnderlying` to `debtToken` contract.
+        // Approve `repayAssets` of `borrowUnderlying` to `debtToken` contract.
         SwapperLib._approveTokenIfNeeded(
             borrowUnderlying,
             address(debtToken),
-            repayAmount
+            repayAssets
         );
 
         // Repay debt.
-        debtToken.repayFor(redeemer, repayAmount);
+        debtToken.repayFor(repayAssets, owner);
 
         // Transfer remaining borrow underlying back to user.
         if (remaining > 0) {
             SafeTransferLib.safeTransfer(
                 borrowUnderlying,
-                redeemer,
+                owner,
                 remaining
             );
         }
@@ -500,7 +489,7 @@ abstract contract BasePositionManager is
         if (remaining > 0) {
             SafeTransferLib.safeTransfer(
                 collateralUnderlying,
-                redeemer,
+                owner,
                 remaining
             );
         }
@@ -513,7 +502,7 @@ abstract contract BasePositionManager is
                 if (remaining > 0) {
                     SafeTransferLib.safeTransfer(
                         deleverageData.swapData[i].outputToken,
-                        redeemer,
+                        owner,
                         remaining
                     );
                 }
@@ -538,8 +527,8 @@ abstract contract BasePositionManager is
     ///                  to achieve leverage.
     /// @param collateralToken The token that `account` will deposit to
     ///                        leverage against.
-    /// @param collateralAmount The amount of `collateralToken` underlying
-    ///                         that `account` will deposit to leverage against.
+    /// @param assets The amount of `collateralToken` underlying that
+    ///               `account` will deposit to leverage against.
     /// @return maxDebtBorrowable Returns the maximum remaining borrow amount
     ///                           allowed from `debtToken`, measured in
     ///                           underlying token amount, after the new
@@ -550,7 +539,7 @@ abstract contract BasePositionManager is
         address account,
         address debtToken,
         address collateralToken,
-        uint256 collateralAmount
+        uint256 assets
     ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
         (uint256 price, uint256 errorCode) = IOracleManager(
             ICentralRegistry(centralRegistry).oracleManager()
@@ -568,7 +557,7 @@ abstract contract BasePositionManager is
         ) = marketManager.statusOf(account);
 
         uint256 newCollateral = FixedPointMathLib.mulDiv(
-            ICToken(collateralToken).previewDeposit(collateralAmount),
+            ICToken(collateralToken).previewDeposit(assets),
             price,
             10 ** ICToken(collateralToken).decimals()
         );
@@ -643,35 +632,36 @@ abstract contract BasePositionManager is
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Do validation and calculate protocol fee.
+    /// @notice Validate action parameters versus function parameters and
+    ///         calculate protocol fee.
     function _getFee(
-        address token,
-        uint256 amount,
-        address dataToken,
-        uint256 dataAmount,
+        address cToken,
+        uint256 assets,
+        address actionToken,
+        uint256 actionAssets,
         address underlying
     ) internal view returns (uint256) {
         // Validate that the token itself is executing the callback.
-        if (msg.sender != token) {
+        if (msg.sender != cToken) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Validate the token is actually listed in this Market Manager.
-        if (!marketManager.isListed(token)) {
+        // Validate `cToken` is actually listed in this Market Manager.
+        if (!marketManager.isListed(cToken)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        if (IERC20(underlying).balanceOf(address(this)) < amount) {
+        if (IERC20(underlying).balanceOf(address(this)) < assets) {
             revert BasePositionManager__InvalidAmount();
         }
 
-        if (token != address(dataToken) || amount != dataAmount) {
+        if (cToken != address(actionToken) || assets != actionAssets) {
             revert BasePositionManager__InvalidParam();
         }
 
         // Fee is rounded up in favor of protocol.
         return
-            FixedPointMathLib.mulDivUp(amount, getProtocolLeverageFee(), WAD);
+            FixedPointMathLib.mulDivUp(assets, getProtocolLeverageFee(), WAD);
     }
 
     /// @notice Leverages an active Curvance position in favor of increasing
@@ -705,15 +695,12 @@ abstract contract BasePositionManager is
         // Validate that the desired borrow amount is within bounds of what
         // will be allowed by the Market Manager.
         if (borrowAmount > maxBorrowAmount) {
-            revert BasePositionManager__ExceedsMaximumBorrowAmount(
-                borrowAmount,
-                maxBorrowAmount
-            );
+            revert BasePositionManager__ExceedsMaximumBorrowAllowed();
         }
 
         debtToken.borrowForPositionManager(
-            account,
             borrowAmount,
+            account
             leverageData
         );
     }
@@ -744,7 +731,7 @@ abstract contract BasePositionManager is
     ) internal {
         deleverageData.collateralToken.withdrawByPositionManager(
             account,
-            deleverageData.collateralAmount,
+            deleverageData.collateralAssets,
             deleverageData
         );
     }
@@ -848,7 +835,7 @@ abstract contract BasePositionManager is
     /// @dev MUST be overridden in every Position Manager implementation.
     function _swapBorrowUnderlyingToCollateral(
         LeverageStruct memory leverageData,
-        address /* recipient */
+        address /* receiver */
     ) internal virtual;
 
     /// @notice Callback function on redemption of tokens from a Curvance token

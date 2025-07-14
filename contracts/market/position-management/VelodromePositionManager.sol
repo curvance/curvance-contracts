@@ -56,11 +56,11 @@ contract VelodromePositionManager is BasePositionManager {
     ///                        facilitate leveraging.
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
-    /// @param recipient The user account who will receive the remaining dust
-    ///                  post swap, if any.
+    /// @param receiver The address who will receive the remaining dust post
+    ///                 swap, if any.
     function _swapBorrowUnderlyingToCollateral(
         LeverageStruct memory leverageData,
-        address recipient
+        address receiver
     ) internal virtual override {
         address pool = leverageData.collateralToken.asset();
 
@@ -74,7 +74,7 @@ contract VelodromePositionManager is BasePositionManager {
             SwapperLib.Swap memory swapData = leverageData.swapData;
             // Make sure there is swap instructions.
             if (swapData.call.length == 0) {
-                revert BasePositionManager__InvalidSwapperParam();
+                revert BasePositionManager__InvalidParam();
             }
 
             // Make sure the swap instructions are safe.
@@ -85,7 +85,7 @@ contract VelodromePositionManager is BasePositionManager {
                     swapData.outputToken != token1) ||
                 swapData.inputAmount != leverageData.borrowAmount
             ) {
-                revert BasePositionManager__InvalidSwapperParam();
+                revert BasePositionManager__InvalidParam();
             }
 
             // Swap borrow underlying to token0.
@@ -116,11 +116,11 @@ contract VelodromePositionManager is BasePositionManager {
         totalAmountB = IERC20(token1).balanceOf(address(this));
 
         if (totalAmountA > 0) {
-            _transferToRecipient(token0, recipient, totalAmountA);
+            _transferToRecipient(token0, receiver, totalAmountA);
         }
 
         if (totalAmountB > 0) {
-            _transferToRecipient(token1, recipient, totalAmountB);
+            _transferToRecipient(token1, receiver, totalAmountB);
         }
     }
 
@@ -171,7 +171,7 @@ contract VelodromePositionManager is BasePositionManager {
                 deleverageData.swapData[numSwaps - 1].outputToken !=
                 borrowUnderlying
             ) {
-                revert BasePositionManager__InvalidSwapperParam();
+                revert BasePositionManager__InvalidParam();
             }
 
             for (uint256 i; i < numSwaps; ++i) {

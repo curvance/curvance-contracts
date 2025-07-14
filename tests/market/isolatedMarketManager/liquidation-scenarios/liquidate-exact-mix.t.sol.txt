@@ -80,12 +80,12 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         _prepareBALRETH(user1, _ONE + 77777);
 
         vm.prank(user1);
-        usdc.approve(address(eUSDC), _ONE);
+        usdc.approve(address(borrowableCUSDC), _ONE);
         balRETH.approve(address(simpleCBALRETH), _ONE + 77777);
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
 
-        eUSDC.depositReserves(1000e6);
+        borrowableCUSDC.depositReserves(1000e6);
 
         // Update position token parameters
         marketManagerIsolated.updatePositionToken(
@@ -111,10 +111,10 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareBALRETH(liquidityProvider, 10e18);
-        // mint eUSDC
+        // mint borrowableCUSDC
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.mint(200000e6);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.mint(200000e6);
         // mint cBALETH
         balRETH.approve(address(simpleCBALRETH), 10e18);
         simpleCBALRETH.deposit(10e18, liquidityProvider);
@@ -151,14 +151,14 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         uint256 cTokenExchangeRate = simpleCBALRETH.exchangeRate();
 
-        totalBorrowsBefore = eUSDC.totalBorrows();
+        totalBorrowsBefore = borrowableCUSDC.totalBorrows();
 
         uint256 debtBalancesPreLiquidation = _getDebtBalancePreLiquidation(borrower1);
 
         uint256 lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower1);
 
         (,debtTokenPrice, collateralTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(borrower1, address(eUSDC), address(simpleCBALRETH));
+            marketManagerIsolated.liquidationStatusOf(borrower1, address(borrowableCUSDC), address(simpleCBALRETH));
 
         // ===== Cache first liquidation values =====
         amountToRepayPartial = new uint256[](1);
@@ -202,9 +202,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         emit BadDebtRecognized(first_liquidator, badDebt_expected_liquidateExact_1);
         emit Repay(first_liquidator, borrower1, totalDebtPaid_first);
 
-        eUSDC.liquidateExact(
-            borrowers,
+        borrowableCUSDC.liquidateExact(
             amountToRepayPartial,
+            borrowers,
             address(simpleCBALRETH)
         );
 
@@ -259,9 +259,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         // The second liquidation should have the same expected result as the first
 
-        eUSDC.liquidateExact(
-            borrowers,
+        borrowableCUSDC.liquidateExact(
             amountToRepayPartial,
+            borrowers,
             address(simpleCBALRETH)
         );
 
@@ -315,7 +315,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         emit BadDebtRecognized(third_liquidator, badDebt_expected_liquidateExact_3);
         emit Repay(third_liquidator, borrower1, totalDebtPaid_third);
 
-        eUSDC.liquidate(
+        borrowableCUSDC.liquidate(
             borrowers,
             address(simpleCBALRETH)
         );
@@ -325,19 +325,19 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         // ===== Final Assertions =====
 
         // Verify borrower1's debt is fully liquidated
-        assertEq(eUSDC.debtBalance(borrower1), 0, "Borrower1 should have zero debt remaining");
+        assertEq(borrowableCUSDC.debtBalance(borrower1), 0, "Borrower1 should have zero debt remaining");
 
         // Verify borrower1's collateral is fully liquidated
         assertEq(simpleCBALRETH.balanceOf(borrower1), 0, "Borrower1 should have zero collateral remaining");
 
         // Verify total borrows decreased appropriately
-        uint256 totalBorrowsAfter = eUSDC.totalBorrows();
+        uint256 totalBorrowsAfter = borrowableCUSDC.totalBorrows();
         assertLt(totalBorrowsAfter, totalBorrowsBefore, "Total borrows should have decreased");
 
         // Verify the position is no longer liquidatable
         (uint256 lFactorFinal,,) = marketManagerIsolated.liquidationStatusOf(
             borrower1,
-            address(eUSDC),
+            address(borrowableCUSDC),
             address(simpleCBALRETH)
         );
         assertEq(lFactorFinal, 0, "Position should no longer be liquidatable");
@@ -354,7 +354,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         vm.startPrank(borrower1);
         balRETH.approve(address(simpleCBALRETH), collateralAmountStart);
         simpleCBALRETH.depositAsCollateral(collateralAmountStart, borrower1);
-        eUSDC.borrow(borrowAmount);
+        borrowableCUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
     }
@@ -363,7 +363,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
             (lFactors,,) = marketManagerIsolated.liquidationStatusOf(
                 _borrowers,
-                address(eUSDC),
+                address(borrowableCUSDC),
                 address(simpleCBALRETH)
             );
 
@@ -372,7 +372,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
     function _getDebtBalancePreLiquidation(address _borrower) internal view returns (uint256 debtBalance) {
 
-        debtBalance = eUSDC.debtBalance(_borrower);
+        debtBalance = borrowableCUSDC.debtBalance(_borrower);
 
     }
 

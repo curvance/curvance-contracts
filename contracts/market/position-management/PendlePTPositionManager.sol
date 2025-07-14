@@ -56,7 +56,7 @@ contract PendlePTPositionManager is BasePositionManager {
     ///                        leverage action.
     function _swapBorrowUnderlyingToCollateral(
         LeverageStruct memory leverageData,
-        address /* recipient */
+        address /* receiver */
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.debtToken.asset();
@@ -83,7 +83,7 @@ contract PendlePTPositionManager is BasePositionManager {
             IPPrincipalToken(ptToken).SY() != address(_SY) ||
             IPPrincipalToken(ptToken).YT() != address(_YT)
         ) {
-            revert BasePositionManager__InvalidSwapperParam();
+            revert BasePositionManager__InvalidParam();
         }
 
         if (swapData.call.length > 0) {
@@ -94,7 +94,7 @@ contract PendlePTPositionManager is BasePositionManager {
                 swapData.inputAmount != leverageData.borrowAmount ||
                 swapData.outputToken != pendleData.input.tokenIn
             ) {
-                revert BasePositionManager__InvalidSwapperParam();
+                revert BasePositionManager__InvalidParam();
             }
 
             SwapperLib._swapSafe(centralRegistry, swapData);
@@ -154,7 +154,7 @@ contract PendlePTPositionManager is BasePositionManager {
             IPPrincipalToken(ptToken).SY() != address(_SY) ||
             IPPrincipalToken(ptToken).YT() != address(_YT)
         ) {
-            revert BasePositionManager__InvalidSwapperParam();
+            revert BasePositionManager__InvalidParam();
         }
 
         // Exit Pendle position.
@@ -177,7 +177,7 @@ contract PendlePTPositionManager is BasePositionManager {
                 deleverageData.swapData[length - 1].outputToken !=
                 borrowUnderlying
             ) {
-                revert BasePositionManager__InvalidSwapperParam();
+                revert BasePositionManager__InvalidParam();
             }
 
             // Swap output token for borrow underlying.

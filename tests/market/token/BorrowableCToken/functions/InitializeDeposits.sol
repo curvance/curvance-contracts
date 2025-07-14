@@ -6,15 +6,15 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
-contract BorrowableCTokenStartMarketTest is TestBaseBorrowableCToken {
-    function test_borrowableCTokenStartMarket_fail_whenCallerIsNotMarketManager()
+contract BorrowableCTokenInitializeDepositsTest is TestBaseBorrowableCToken {
+    function test_borrowableCTokenInitializeDeposits_fail_whenCallerIsNotMarketManager()
         public
     {
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
-        borrowableCUSDC.startMarket(address(0));
+        borrowableCUSDC.initializeDeposits(address(0));
     }
 
-    function test_borrowableCTokenStartMarket_fail_whenInterestRateModelLinkedToWrongToken()
+    function test_borrowableCTokenInitializeDeposits_fail_whenInterestRateModelLinkedToWrongToken()
         public
     {
         borrowableCUSDC.setInterestRateModel(
@@ -24,19 +24,19 @@ contract BorrowableCTokenStartMarketTest is TestBaseBorrowableCToken {
         vm.prank(address(marketManagerIsolated));
 
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
-        borrowableCUSDC.startMarket(user1);
+        borrowableCUSDC.initializeDeposits(user1);
     }
 
-    function test_borrowableCTokenStartMarket_fail_whenInitializerIsZeroAddress()
+    function test_borrowableCTokenInitializeDeposits_fail_whenInitializerIsZeroAddress()
         public
     {
         vm.prank(address(marketManagerIsolated));
 
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
-        borrowableCUSDC.startMarket(address(0));
+        borrowableCUSDC.initializeDeposits(address(0));
     }
 
-    function test_borrowableCTokenStartMarket_success() public {
+    function test_borrowableCTokenInitializeDeposits_success() public {
         _prepareUSDC(address(user1), 1000e6);
 
         vm.startPrank(user1);
@@ -46,7 +46,7 @@ contract BorrowableCTokenStartMarketTest is TestBaseBorrowableCToken {
         uint256 totalSupply = borrowableCUSDC.totalSupply();
 
         vm.prank(address(marketManagerIsolated));
-        borrowableCUSDC.startMarket(user1);
+        borrowableCUSDC.initializeDeposits(user1);
 
         assertEq(borrowableCUSDC.totalSupply(), totalSupply + 77777);
     }

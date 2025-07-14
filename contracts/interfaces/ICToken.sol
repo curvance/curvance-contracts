@@ -19,8 +19,8 @@ interface ICToken {
     /// @dev This initial mint is a failsafe against rounding exploits,
     ///      although, we protect against them in many ways,
     ///      better safe than sorry.
-    /// @param by The account initializing the market.
-    function startMarket(address by) external returns (bool);
+    /// @param by The account initializing deposits.
+    function initializeDeposits(address by) external returns (bool);
 
     /// @notice Returns the decimals of the cToken.
     /// @dev We pull directly from underlying incase its a proxy contract,
@@ -36,8 +36,8 @@ interface ICToken {
 
     /// @notice The token balance of an account.
     /// @dev Account address => account token balance.
-    /// @param user User to query token balance for.
-    function balanceOf(address user) external view returns (uint256);
+    /// @param account The address of the account to query token balance for.
+    function balanceOf(address account) external view returns (uint256);
 
     /// @notice Returns the address of the underlying asset.
     /// @return The address of the underlying asset.
@@ -150,12 +150,12 @@ interface ICToken {
 
     /// @notice Helper function for Position Management contract to
     ///         redeem assets.
-    /// @param owner The owner address of assets to redeem.
     /// @param assets The amount of the underlying assets to redeem.
+    /// @param owner The owner address of assets to redeem.
     /// @param deleverageData The data for the deleverage operation.
     function withdrawByPositionManager(
-        address owner,
         uint256 assets,
+        address owner,
         IPositionManager.DeleverageStruct memory deleverageData
     ) external;
 
@@ -170,15 +170,15 @@ interface ICToken {
     /// @notice Transfers tokens from `account` to `liquidator`.
     /// @dev Will fail unless called by a cToken during the process
     ///      of liquidation.
+    /// @param shares An array containing the number of cToken shares
+    ///               to seize.
     /// @param liquidator The account receiving seized cTokens.
     /// @param accounts An array containing the accounts having
     ///                 collateral seized.
-    /// @param shares An array containing the number of cToken shares
-    ///               to seize.
     function seize(
+        uint256[] calldata shares,
         address liquidator,
-        address[] calldata accounts,
-        uint256[] calldata shares
+        address[] calldata accounts
     ) external;
 
     /// @notice Allows users to simulate the effects of their deposit at

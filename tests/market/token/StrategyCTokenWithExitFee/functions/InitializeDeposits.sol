@@ -5,27 +5,27 @@ import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWith
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-contract StrategyCTokenWithExitFeeStartMarketTest is
+contract StrategyCTokenWithExitFeeInitializeDepositsTest is
     TestBaseStrategyCTokenWithExitFee
 {
-    function test_strategyCTokenWithExitFeeStartMarket_fail_whenCallerIsNotMarketManager()
+    function test_strategyCTokenWithExitFeeInitializeDeposits_fail_whenCallerIsNotMarketManager()
         public
     {
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
 
-        strategyCBALRETHWithExitFee.startMarket(address(0));
+        strategyCBALRETHWithExitFee.initializeDeposits(address(0));
     }
 
-    function test_strategyCTokenWithExitFeeStartMarket_fail_whenInitializerIsZeroAddress()
+    function test_strategyCTokenWithExitFeeInitializeDeposits_fail_whenInitializerIsZeroAddress()
         public
     {
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
 
         vm.prank(address(marketManagerIsolated));
-        strategyCBALRETHWithExitFee.startMarket(address(0));
+        strategyCBALRETHWithExitFee.initializeDeposits(address(0));
     }
 
-    function test_strategyCTokenWithExitFeeStartMarket_success() public {
+    function test_strategyCTokenWithExitFeeInitializeDeposits_success() public {
         vm.prank(user1);
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,
@@ -36,7 +36,7 @@ contract StrategyCTokenWithExitFeeStartMarketTest is
         uint256 totalSupply = strategyCBALRETHWithExitFee.totalSupply();
 
         vm.prank(address(marketManagerIsolated));
-        strategyCBALRETHWithExitFee.startMarket(user1);
+        strategyCBALRETHWithExitFee.initializeDeposits(user1);
 
         assertEq(strategyCBALRETHWithExitFee.totalSupply(), totalSupply + 77777);
     }

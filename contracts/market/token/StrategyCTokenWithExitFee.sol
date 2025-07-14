@@ -96,9 +96,9 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
 
     /// @notice Helper function for Position Management contract to
     ///         redeem assets.
-    /// @param owner The owner address of assets to redeem.
     /// @param assets The amount of the underlying assets to redeem.
     /// @param shares The amount of the shares to redeem.
+    /// @param owner The owner address of assets to redeem.
     /// @param balancePrior The balance of shares `owner` has before this
     ///                     redemption. 
     /// @param deleverageData Struct containing information on the desired
@@ -118,18 +118,18 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
     ///                       6. Optional auxiliary data for execution of a
     ///                          deleverage action.
     function _processPositionManagerRedemption(
-        address owner,
         uint256 assets,
         uint256 shares,
+        address owner,
         uint256 balancePrior,
         IPositionManager.DeleverageStruct memory deleverageData
     ) internal override {
         assets = _removeExitFeeFromAssets(assets);
         deleverageData.collateralAmount = assets;
         super._processPositionManagerRedemption(
-            owner,
             assets,
             shares,
+            owner,
             balancePrior,
             deleverageData
         );
@@ -149,25 +149,26 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
 
     /// @notice Processes a withdrawal of `shares` from the market by burning
     ///         `owner` shares and transferring `assets` minus proportional
-    ///         `exitFee` to `to`, then  decreases `ta` by post exit fee
+    ///         `exitFee` to `receiver`, then  decreases `ta` by post exit fee
     ///         `assets`, and vests rewards if `pending` > 0.
-    /// @param by The account that is executing the withdrawal.
-    /// @param to The account that should receive `assets`.
-    /// @param owner The account that will have `shares` burned to withdraw `assets`.
     /// @param assets The amount of the underlying asset to withdraw,
     ///               prior to exit fee being applied.
     /// @param shares The amount of shares redeemed from `owner`.
+    /// @param by The account that is executing the withdrawal.
+    /// @param receiver The account that should receive `assets`.
+    /// @param owner The account that will have `shares` burned to withdraw
+    ///              `assets`.
     function _processWithdraw(
-        address by,
-        address to,
-        address owner,
         uint256 assets,
-        uint256 shares
+        uint256 shares,
+        address by,
+        address receiver,
+        address owner
     ) internal override {
         // We remove the fees directly from the assets a user,
         // will receive distributing fee paid to all users.
         assets = _removeExitFeeFromAssets(assets);
-        super._processWithdraw(by, to, owner, assets, shares);
+        super._processWithdraw(assets, shares, by, receiver, owner);
     }
 
     /// @notice Helper function for setting the exit fee on redemption

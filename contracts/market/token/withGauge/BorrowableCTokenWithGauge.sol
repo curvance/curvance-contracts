@@ -55,11 +55,11 @@ contract BorrowableCTokenWithGauge is BorrowableCToken {
 
     /// @notice An optional set of instructions to execute before processing
     ///         a deposit of `receiver`'s shares.
-    /// @param receiver The account that should receive the pToken shares.
-    /// @param shares The amount of pToken shares received by `receiver`.
+    /// @param shares The amount of cToken shares received by `receiver`.
+    /// @param receiver The account that should receive the cToken shares.
     function _afterDepositAction(
-        address receiver,
-        uint256 shares
+        uint256 shares,
+        address receiver
     ) internal override {
         // Update Gauge Manager values for `receiver`.
         gaugeManager.deposit(address(this), receiver, shares);
@@ -67,13 +67,13 @@ contract BorrowableCTokenWithGauge is BorrowableCToken {
 
     /// @notice An optional set of instructions to execute before processing
     ///         a withdrawal of `owners`'s shares.
-    /// @param owner The account that will burn their shares to withdraw
-    ///              assets.
     /// @param shares The amount of assets, quoted in shares received
     ///               by `receiver`.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
     function _beforeWithdrawAction(
-        address owner,
-        uint256 shares
+        uint256 shares,
+        address owner
     ) internal override {
         // Update Gauge Manager values for `owner`.
         gaugeManager.withdraw(address(this), owner, shares);
@@ -81,20 +81,41 @@ contract BorrowableCTokenWithGauge is BorrowableCToken {
 
     /// @notice An optional set of instructions to execute before processing
     ///         a transfer of `from`'s shares to `to`.
-    /// @param from The address of the account transferring `amount`
+    /// @param shares The number of shares to transfer from `owner` to
+    ///               `receiver`.
+    /// @param receiver The address of the destination account to receive
+    ///                 `shares` shares.
+    /// @param owner The address of the account transferring `shares`
     ///             shares from.
-    /// @param to The address of the destination account to receive `amount`
-    ///           shares.
-    /// @param shares The number of shares to transfer from `from` to `to`.
     function _beforeTransferAction(
-        address from,
-        address to,
-        uint256 shares
+        uint256 shares,
+        address receiver,
+        address owner
     ) internal override {
-        // Update Gauge Manager values for `from`.
-        gaugeManager.withdraw(address(this), from, shares);
+        // Update Gauge Manager values for `owner`.
+        gaugeManager.withdraw(address(this), owner, shares);
 
-        // Update Gauge Manager values for `to`.
-        gaugeManager.deposit(address(this), to, shares);
+        // Update Gauge Manager values for `receiver`.
+        gaugeManager.deposit(address(this), receiver, shares);
+    }
+
+    /// @notice An optional set of instructions to execute before processing
+    ///         liquidation of `account`'s collateral.
+    /// @param account The account having collateral seized.
+    /// @param liquidator The account receiving seized collateral.
+    /// @param shares The total number of cTokens shares to seize.
+    function _beforeLiquidationAction(
+        uint256 shares,
+        address liquidator,
+        address account
+    ) internal override {
+        // Process virtual balance updates and accrued rewards from this
+        // liquidation.
+        gaugeManager.processLiquidation(
+            address(this),
+            account,
+            liquidator,
+            shares
+        );
     }
 }

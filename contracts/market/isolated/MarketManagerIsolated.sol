@@ -424,46 +424,46 @@ contract MarketManagerIsolated is
     ///         in the given market, and then redeems.
     /// @dev This can only be called by the cToken itself.
     /// @param cToken The token to verify the redemption against.
-    /// @param account The account which would redeem the tokens.
+    /// @param shares The number of cToken shares to redeem for the
+    ///               underlying asset in the market.
+    /// @param account The account which would redeem `shares`.
     /// @param balanceOf The current cToken share balance of `account`.
     /// @param collateralPosted The current cToken shares posted as
     ///                         collateral by `account`.
-    /// @param amount The number of cToken shares to redeem for the
-    ///               underlying asset in the market.
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced.
     function canRedeemWithCollateralRemoval(
         address cToken,
+        uint256 shares,
         address account,
         uint256 balanceOf,
         uint256 collateralPosted,
-        uint256 amount,
         bool forceRedeemCollateral
     ) external returns (uint256) {
         _checkIsToken(cToken);
         return _canRedeemWithCollateralRemoval(
             cToken,
+            shares,
             account,
             balanceOf,
             collateralPosted,
-            amount,
             true,
             forceRedeemCollateral
         );
     }
 
-    /// @notice Checks if the account should be allowed to redeem `amount`
+    /// @notice Checks if the account should be allowed to redeem `shares`
     ///         of `cToken` in the given market state.
     /// @param cToken The Curvance token to verify the redemption for.
-    /// @param account The account which would redeem the tokens.
-    /// @param amount The number of cTokens to exchange
+    /// @param shares The number of cTokens to exchange
     ///               for the underlying asset in the market.
+    /// @param account The account which would redeem `shares`.
     function canRedeem(
         address cToken,
-        address account,
-        uint256 amount
+        uint256 shares,
+        address account
     ) external view {
-        _canRedeem(cToken, account, amount);
+        _canRedeem(cToken, shares, account);
     }
 
     /// @notice Checks if the account should be allowed to borrow
@@ -471,17 +471,17 @@ contract MarketManagerIsolated is
     ///         Prunes unused positions in `account` data.
     /// @dev May emit a {PositionUpdated} event.
     /// @param cToken The token to verify borrowability of.
+    /// @param assets The amount of underlying the account would borrow.
     /// @param account The account which would borrow the asset.
     /// @param newNetDebt The amount of assets that would be
     ///                   outstanding debt in total if allowed.
-    /// @param amount The amount of underlying the account would borrow.
     function canBorrow(
         address cToken,
+        uint256 assets,
         address account,
-        uint256 newNetDebt,
-        uint256 amount
+        uint256 newNetDebt
     ) external {
-        _canBorrow(cToken, account, newNetDebt, amount);
+        _canBorrow(cToken, assets, account, newNetDebt);
     }
 
     /// @notice Checks if the account should be allowed to borrow
@@ -489,18 +489,18 @@ contract MarketManagerIsolated is
     ///         and notifies the market of the borrow.
     /// @dev This can only be called by the market itself.
     /// @param cToken The token to verify borrowability of.
+    /// @param assets The amount of underlying the account would borrow.
     /// @param account The account which would borrow the asset.
     /// @param newNetDebt The amount of assets that would be
     ///                   outstanding debt in total if allowed.
-    /// @param amount The amount of underlying the account would borrow.
     function canBorrowWithNotify(
         address cToken,
+        uint256 assets,
         address account,
-        uint256 newNetDebt,
-        uint256 amount
+        uint256 newNetDebt
     ) external {
         accountAssets[account].cooldownTimestamp = block.timestamp;
-        _canBorrow(cToken, account, newNetDebt, amount);
+        _canBorrow(cToken, assets, account, newNetDebt);
     }
 
     /// @notice Updates `account` cooldownTimestamp to the current block
@@ -528,9 +528,13 @@ contract MarketManagerIsolated is
     /// @notice Checks if the liquidation should be allowed to occur,
     ///         and returns how many collateralized shares should be seized
     ///         on liquidation.
+    /// @param debtAmounts The amounts of outstanding debt the liquidator
+    ///                    wishes to repay, in underlying assets, empty if
+    ///                    intention is to liquidate maximum amount possible
+    ///                    for each account.
+    /// @param liquidator The address of the account trying to liquidate
+    ///                   `accounts`.
     /// @param accounts The addresses of the accounts to be liquidated.
-    /// @param debtAmounts The amounts of underlying asset the liquidator
-    ///                    wishes to repay, empty if desired to max liquidate.
     /// @param instructions A LiqInstructions struct containing:
     ///               collateralToken The token which is used as collateral
     ///                               by `account` and may be seized.
@@ -540,10 +544,9 @@ contract MarketManagerIsolated is
     ///                           liquidated.
     ///               liquidateExact Whether the liquidator desires a
     ///                              specific liquidation amount.
-    ///               collateralLiquidated Empty variable slot to store how
-    ///                                    much `collateralToken` will be
-    ///                                    seized as part of a particular
-    ///                                    liquidation.
+    ///               liquidatedShares Empty variable slot to store how much
+    ///                                `collateralToken` will be seized as
+    ///                                part of a particular liquidation.
     ///               debtRepaid Empty variable slot to store how much
     ///                          `debtToken` will be repaid as part of a
     ///                          particular liquidation.
@@ -559,11 +562,11 @@ contract MarketManagerIsolated is
     ///                 badDebtRealized The total amount of debt to realize as
     ///                                 losses for lenders inside this market.
     /// @return An array containing the debt amounts to repay from
-    ///        `accounts`.
+    ///        `accounts`, in assets.
     function canLiquidate(
+        uint256[] memory debtAmounts,
         address liquidator,
         address[] calldata accounts,
-        uint256[] memory debtAmounts,
         IMarketManager.LiqInstructions memory instructions
     ) external view virtual returns (
         IMarketManager.LiqResults memory results,
@@ -593,22 +596,22 @@ contract MarketManagerIsolated is
             }
 
             (
-                instructions.collateralLiquidated,
+                instructions.liquidatedShares,
                 instructions.debtRepaid,
                 instructions.badDebt
                 ) = _canLiquidate(
-                cachedAccount,
                 debtAmounts[i],
+                cachedAccount,
                 cachedData,
                 auctionData,
                 instructions.liquidateExact
             );
 
             // If the user is being liquidated update relevant values.
-            if (instructions.collateralLiquidated > 0) {
+            if (instructions.liquidatedShares > 0) {
                 results.debtRepaid += instructions.debtRepaid;
                 results.liquidatedAmounts[i] =
-                    instructions.collateralLiquidated;
+                    instructions.liquidatedShares;
 
                 if (instructions.badDebt > 0) {
                     results.badDebtRealized += instructions.badDebt;
@@ -633,12 +636,16 @@ contract MarketManagerIsolated is
         return (results, debtAmounts);
     }
 
-    /// @notice Checks if the seizing of `collateral` by repayment of
-    ///         `earnToken` should be allowed.
-    /// @param collateralToken cToken which was used as collateral
+    /// @notice Checks if the seizing of `collateralToken` by repayment of
+    ///         `debtToken` should be allowed.
+    /// @param collateralToken The Curvance token which was used as collateral
     ///                        and will be seized.
-    /// @param debtToken cToken which the account has outstanding debt to.
-    function canSeize(address collateralToken, address debtToken) external view {
+    /// @param debtToken The Curvance token which has outstanding debt to and
+    ///                  would be repaid during `collateralToken` seizure.
+    function canSeize(
+        address collateralToken,
+        address debtToken
+    ) external view {
         if (seizePaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
@@ -657,20 +664,20 @@ contract MarketManagerIsolated is
     /// @notice Checks if the account should be allowed to transfer collateral
     ///         tokens in the given market.
     /// @param cToken The Curvance token to verify the transfer of.
-    /// @param from The account which will transfer the tokens.
-    /// @param balanceOf The current balance that `from` has of `cToken`
+    /// @param shares The amount of `cToken` to transfer.
+    /// @param account The account which will transfer `shares`.
+    /// @param balanceOf The current balance that `account` has of `cToken`
     ///                  shares.
     /// @param collateralPosted The amount of `cToken` shares posted as
-    ///                         collateral by `from`.
-    /// @param amount The amount of `cToken` to transfer.
+    ///                         collateral by `account`.
     /// @param isCollateral Boolean indicating whether the token is currently
     ///                     being used as collateral.
     function canTransfer(
         address cToken,
-        address from,
+        uint256 shares,
+        address account,
         uint256 balanceOf,
         uint256 collateralPosted,
-        uint256 amount,
         bool isCollateral
     ) external returns (uint256) {
         _checkIsToken(cToken);
@@ -680,10 +687,10 @@ contract MarketManagerIsolated is
 
         return _canRedeemWithCollateralRemoval(
             cToken,
-            from,
+            shares,
+            account,
             balanceOf,
             collateralPosted,
-            amount,
             isCollateral,
             false
         );
@@ -713,12 +720,12 @@ contract MarketManagerIsolated is
         tokenData[token0].isListed = true;
         tokenData[token1].isListed = true;
 
-        // Immediately deposit into the cToken to prevent any rounding
-        // exploits.
-        if (!ICToken(token0).startMarket(msg.sender)) {
+        // Immediately deposits into the cToken before anyone else can to
+        // prevent any rounding exploits.
+        if (!ICToken(token0).initializeDeposits(msg.sender)) {
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
-        if (!ICToken(token1).startMarket(msg.sender)) {
+        if (!ICToken(token1).initializeDeposits(msg.sender)) {
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
 
@@ -1204,15 +1211,15 @@ contract MarketManagerIsolated is
     ///      loan less than `MIN_ACTIVE_LOAN_SIZE`, set in `LiquidityManager`.
     ///      May emit a {PositionUpdated} event.
     /// @param debtToken The token to borrow from.
+    /// @param assets The amount of underlying the account would borrow.
     /// @param account The account which would borrow the asset.
     /// @param newNetDebt The amount of assets that would be
     ///                   outstanding debt in total if allowed. 
-    /// @param amount The amount of underlying the account would borrow.
     function _canBorrow(
         address debtToken,
+        uint256 assets,
         address account,
-        uint256 newNetDebt,
-        uint256 amount
+        uint256 newNetDebt
     ) internal {
         _checkIsToken(debtToken);
         _checkIsListedToken(debtToken);
@@ -1249,7 +1256,7 @@ contract MarketManagerIsolated is
                 HypotheticalAction({
                     cTokenModified: debtToken,
                     redemptionShares: 0,
-                    borrowAssets: amount,
+                    borrowAssets: assets,
                     errorCodeBreakpoint: 1
                 })
             );
@@ -1270,13 +1277,13 @@ contract MarketManagerIsolated is
     /// @notice Helper function for checking if the account should be allowed
     ///         to redeem `amount` of `cToken` in the given market state.
     /// @param cToken The Curvance token to verify the redemption of.
-    /// @param account The account which would redeem the tokens.
     /// @param shares The number of `cToken` shares to redeem for
     ///               the underlying asset.
+    /// @param account The account which would redeem `shares`.
     function _canRedeem(
         address cToken,
-        address account,
-        uint256 shares
+        uint256 shares,
+        address account
     ) internal view returns (uint256, bool[] memory) {
         if (redeemPaused == 2) {
             _revert(_PAUSED_SELECTOR);
@@ -1328,22 +1335,22 @@ contract MarketManagerIsolated is
     ///         in the given market, and then redeems.
     /// @dev This can only be called by the cToken itself.
     /// @param cToken The token to verify the redemption against.
-    /// @param account The account which would redeem the tokens.
+    /// @param shares The number of cToken shares to redeem for the
+    ///               underlying asset in the market.
+    /// @param account The account which would redeem `shares`.
     /// @param balanceOf The current cToken share balance of `account`.
     /// @param collateralPosted The current cToken shares posted as
     ///                         collateral by `account`.
-    /// @param amount The number of cToken shares to redeem for the
-    ///               underlying asset in the market.
     /// @param isCollateral Boolean indicating whether the token is currently
     ///                     being used as collateral.
     /// @param forceRedeemCollateral Whether the collateral should be force
     ///                              reduced, used if isCollateral is true.
     function _canRedeemWithCollateralRemoval(
         address cToken,
+        uint256 shares,
         address account,
         uint256 balanceOf,
         uint256 collateralPosted,
-        uint256 amount,
         bool isCollateral,
         bool forceRedeemCollateral
     ) internal returns (uint256 collateralToRemove) {
@@ -1351,15 +1358,15 @@ contract MarketManagerIsolated is
             // If collateral is being directly removed by user intention,
             // or liquidation we can skip balance checks.
             if (forceRedeemCollateral) {
-                collateralToRemove = amount;
+                collateralToRemove = shares;
             } else {
                 // If they want to redeem more `cToken` shares than they have
                 // idle, calculate how much collateral will be redeemed from
                 // the delta. Otherwise collateralToRemove default value of 0
                 // is correct.
-                if (collateralPosted + amount >= balanceOf) {
+                if (collateralPosted + shares >= balanceOf) {
                     collateralToRemove =
-                        collateralPosted + amount - balanceOf;
+                        collateralPosted + shares - balanceOf;
                 }
             }
         }
@@ -1393,10 +1400,10 @@ contract MarketManagerIsolated is
     ///         liquidation parameters. Computes liquidation amounts,
     ///         collateral seizure, and potential bad debt based on `account`
     ///         health.
+    /// @param debtAmount The amount of debt to repay, used only if
+    ///                   `liquidateExact` is true, in assets.
     /// @param account The address of the account being evaluated for
     ///                liquidation.
-    /// @param debtAmount The amount of debt to liquidate, used only if
-    ///                   `liquidateExact` is true.
     /// @param cachedData A CachedLiqData struct containing:
     ///                   collateralToken The token which is used as
     ///                                   collateral by `account` and may
@@ -1450,20 +1457,20 @@ contract MarketManagerIsolated is
     ///                             liquidation.
     /// @param liquidateExact If true, liquidate exactly `debtAmount`; if
     ///                       false, liquidate maximum possible.
-    /// @return collateralLiquidated The amount of `cachedData.collateralToken`
+    /// @return liquidatedShares The amount of `cachedData.collateralToken`
     ///                              that will be seized as collateral.
     /// @return uint256 The amount of `debtToken` outstanding debt that will be
     ///                 repaid.
     /// @return badDebt The amount of bad debt to recognize as part of the
     ///                 liquidation (if any).
     function _canLiquidate(
-        address account,
         uint256 debtAmount,
+        address account,
         CachedLiqData memory cachedData,
         AuctionLiqData memory auctionData,
         bool liquidateExact
     ) internal view returns (
-        uint256 collateralLiquidated,
+        uint256 liquidatedShares,
         uint256,
         uint256 badDebt
     ) {
@@ -1509,7 +1516,7 @@ contract MarketManagerIsolated is
         
         // Calculate how many tokens should be liquidated, adjusting decimals
         // if necessary.
-        collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
+        liquidatedShares = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
 
         // Cache `account`'s collateral posted of `cachedData.collateralToken`.
         uint256 collateralAvailable = ICToken(
@@ -1522,20 +1529,20 @@ contract MarketManagerIsolated is
         if (liquidateExact) {
             if (
                 debtAmount > maxAmount ||
-                collateralLiquidated > collateralAvailable
+                liquidatedShares > collateralAvailable
             ) {
                 // Make sure that the liquidation limit,
                 // and collateral posted >= amount.
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
         } else {
-            if (collateralLiquidated > collateralAvailable) {
+            if (liquidatedShares > collateralAvailable) {
                 debtAmount = FixedPointMathLib.mulDivUp(
                     debtAmount,
                     collateralAvailable,
-                    collateralLiquidated
+                    liquidatedShares
                 );
-                collateralLiquidated = collateralAvailable;
+                liquidatedShares = collateralAvailable;
             }
         }
 
@@ -1552,7 +1559,7 @@ contract MarketManagerIsolated is
             // we round down bad debt and thus are in favor of the protocol.
             badDebt = (auctionData.debtBalance - debtAmount) -
             FixedPointMathLib.mulDivUp(
-                ((collateralAvailable - collateralLiquidated) *
+                ((collateralAvailable - liquidatedShares) *
                     cachedData.collateralExchangeRate) / WAD,
                 cachedData.collateralUnderlyingPrice,
                 (cachedData.debtUnderlyingPrice * WAD) /
@@ -1563,7 +1570,7 @@ contract MarketManagerIsolated is
         // Calculate the maximum amount of debt that can be liquidated
         // and what collateral will be received. As well as any bad debt
         // to recognize.
-        return (collateralLiquidated, debtAmount, badDebt);
+        return (liquidatedShares, debtAmount, badDebt);
     }
 
     /// @notice Retrieves and caches liquidation configuration data for a

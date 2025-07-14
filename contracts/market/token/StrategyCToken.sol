@@ -264,9 +264,9 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     ///      although, we protect against them in many ways,
     ///      better safe than sorry.
     /// @dev Emits a {Deposit} event.
-    /// @param by The account initializing the cToken market.
-    function _startMarket(address by) internal override {
-        super._startMarket(by);
+    /// @param by The account initializing deposits.
+    function _initializeDeposits(address by) internal override {
+        super._initializeDeposits(by);
 
         // Deposit into strategy, shares parameter is unused so we can just
         // pass 0.

@@ -208,11 +208,13 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         address liquidityProvider = address(user2);
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareWBTC(liquidityProvider, 10 ether);
-        // mint eUSDC
+
+        // Mint borrowable cUSDC.
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
-        // mint cBALETH
+
+        // Mint cBALETH.
         wbtc.approve(address(simpleCWBTC), 10 ether);
         simpleCWBTC.deposit(10 ether, liquidityProvider);
         vm.stopPrank();

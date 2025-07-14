@@ -207,14 +207,16 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         // _prepareUSDC(liquidityProvider, 200000e6);
         _prepareWBTC(liquidityProvider, 10 ether);
         _prepareWETH(liquidityProvider, 200000 ether);
-        // mint eUSDC
+        // Mint borrowable cUSDC.
         vm.startPrank(liquidityProvider);
         // usdc.approve(address(borrowableCUSDC), 200000e6);
         // borrowableCUSDC.mint(200000e6);
-        // mint borrowableCWETH
+
+        // Mint borrowable cWETH.
         weth.approve(address(borrowableCWETH), 200000e6);
         borrowableCWETH.deposit(200000e6, liquidityProvider);
-        // mint cWBTC
+        
+        // Mint cWBTC.
         wbtc.approve(address(cWBTC), 10 ether);
         cWBTC.deposit(10 ether, liquidityProvider);
         vm.stopPrank();

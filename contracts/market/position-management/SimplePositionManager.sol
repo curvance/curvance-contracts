@@ -39,7 +39,7 @@ contract SimplePositionManager is BasePositionManager {
     ///                        leverage action.
     function _swapBorrowUnderlyingToCollateral(
         LeverageStruct memory leverageData,
-        address /* recipient */
+        address /* receiver */
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.debtToken.asset();
@@ -50,7 +50,7 @@ contract SimplePositionManager is BasePositionManager {
         }
 
         if (swapData.call.length == 0) {
-            revert BasePositionManager__InvalidSwapperParam();
+            revert BasePositionManager__InvalidParam();
         }
 
         if (
@@ -59,7 +59,7 @@ contract SimplePositionManager is BasePositionManager {
             swapData.outputToken != collateralUnderlying ||
             swapData.inputAmount != leverageData.borrowAmount
         ) {
-            revert BasePositionManager__InvalidSwapperParam();
+            revert BasePositionManager__InvalidParam();
         }
 
         // Swap borrow underlying to collateral underlying.
@@ -91,7 +91,7 @@ contract SimplePositionManager is BasePositionManager {
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         if (deleverageData.swapData.length != 1) {
-            revert BasePositionManager__InvalidSwapperParam();
+            revert BasePositionManager__InvalidParam();
         }
 
         SwapperLib.Swap memory swapData = deleverageData.swapData[0];
@@ -105,7 +105,7 @@ contract SimplePositionManager is BasePositionManager {
         }
 
         if (swapData.call.length == 0) {
-            revert BasePositionManager__InvalidSwapperParam();
+            revert BasePositionManager__InvalidParam();
         }
 
         if (
@@ -114,7 +114,7 @@ contract SimplePositionManager is BasePositionManager {
             swapData.outputToken != borrowUnderlying ||
             swapData.inputAmount != deleverageData.collateralAmount
         ) {
-            revert BasePositionManager__InvalidSwapperParam();
+            revert BasePositionManager__InvalidParam();
         }
 
         // Swap collateral underlying to borrow underlying.

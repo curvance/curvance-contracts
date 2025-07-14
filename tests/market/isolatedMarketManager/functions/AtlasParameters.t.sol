@@ -173,7 +173,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         amountsToLiquidate[0] = 250e6;
 
         usdc.approve(address(borrowableCUSDC), 250e6);
-        borrowableCUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(strategyCBALRETH));
+        borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(strategyCBALRETH));
         vm.stopPrank();
 
         console2.log("done liquidating");
@@ -236,7 +236,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         amountsToLiquidate[0] = 250e6;
 
         usdc.approve(address(borrowableCUSDC), 250e6);
-        borrowableCUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(strategyCBALRETH));
+        borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(strategyCBALRETH));
         vm.stopPrank();
 
         uint256 liquidatorcTokenBalance = strategyCBALRETH.balanceOf(user3);
@@ -269,7 +269,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
         usdc.approve(address(borrowableCUSDC), 250e6);
         vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedCollateral.selector);
-        borrowableCUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(strategyCBALRETH));
+        borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(strategyCBALRETH));
         vm.stopPrank();
     }
 

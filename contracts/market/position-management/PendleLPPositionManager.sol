@@ -57,7 +57,7 @@ contract PendleLPPositionManager is BasePositionManager {
     ///                        leverage action.
     function _swapBorrowUnderlyingToCollateral(
         LeverageStruct memory leverageData,
-        address /* recipient */
+        address /* receiver */
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.debtToken.asset();
@@ -67,7 +67,7 @@ contract PendleLPPositionManager is BasePositionManager {
         if (swapData.call.length == 0) {
             // check if borrow underlying is already in the form of sy input token
             if (!sy.isValidTokenIn(borrowUnderlying)) {
-                revert BasePositionManager__InvalidSwapperParam();
+                revert BasePositionManager__InvalidParam();
             }
         } else {
             // check if swapData is valid
@@ -77,7 +77,7 @@ contract PendleLPPositionManager is BasePositionManager {
                 swapData.inputAmount != leverageData.borrowAmount ||
                 !sy.isValidTokenIn(swapData.outputToken)
             ) {
-                revert BasePositionManager__InvalidSwapperParam();
+                revert BasePositionManager__InvalidParam();
             }
 
             // swap borrow underlying to sy input token
@@ -131,7 +131,7 @@ contract PendleLPPositionManager is BasePositionManager {
             tokenOut = borrowUnderlying;
         } else {
             if (deleverageData.swapData.length == 0) {
-                revert BasePositionManager__InvalidSwapperParam();
+                revert BasePositionManager__InvalidParam();
             }
             SwapperLib.Swap memory swapData = deleverageData.swapData[0];
             tokenOut = swapData.inputToken;
@@ -161,7 +161,7 @@ contract PendleLPPositionManager is BasePositionManager {
                 deleverageData.swapData[length - 1].outputToken !=
                 borrowUnderlying
             ) {
-                revert BasePositionManager__InvalidSwapperParam();
+                revert BasePositionManager__InvalidParam();
             }
 
             // Swap sy output token for borrow underlying.

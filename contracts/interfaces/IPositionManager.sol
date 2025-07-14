@@ -9,7 +9,7 @@ interface IPositionManager {
     /// TYPES ///
 
     /// @param debtToken Curvance token that will be borrowed from.
-    /// @param borrowAmount The amount of underlying tokens from `debtToken`
+    /// @param borrowAssets The amount of underlying tokens from `debtToken`
     ///                     that will be borrowed.
     /// @param collateralToken Curvance token that borrowed funds will be
     ///                        routed into.
@@ -20,7 +20,7 @@ interface IPositionManager {
     ///                action.
     struct LeverageStruct {
         IBorrowableCToken debtToken;
-        uint256 borrowAmount;
+        uint256 borrowAssets;
         ICToken collateralToken;
         SwapperLib.Swap swapData;
         bytes auxData;
@@ -28,23 +28,23 @@ interface IPositionManager {
 
     /// @param collateralToken Curvance token that will be routed into
     ///                        `debtToken` underlying to repay outstanding debt.
-    /// @param collateralAmount The amount of `collateralToken` that will be
+    /// @param collateralAssets The amount of `collateralToken` that will be
     ///                         deleveraged.
     /// @param debtToken Address of Curvance token that will have outstanding
     ///                  debt repaid.
     /// @param swapData Optional struct containing instructions on how to
     ///                 handle swapping into debt token to facilitate
     ///                 deleveraging.
-    /// @param repayAmount The amount of debt tokens that will be
-    ///                    repaid to lenders.
+    /// @param repayAssets The amount of assets that will be repaid to
+    ///                    lenders.
     /// @param auxData Optional auxiliary data for execution of a deleverage
     ///                action.
     struct DeleverageStruct {
         ICToken collateralToken;
-        uint256 collateralAmount;
+        uint256 collateralAssets;
         IBorrowableCToken debtToken;
+        uint256 repayAssets;
         SwapperLib.Swap[] swapData;
-        uint256 repayAmount;
         bytes auxData;
     }
 
@@ -54,9 +54,9 @@ interface IPositionManager {
     /// @dev Measures slippage after this callback validating that `borrower`
     ///      is still within acceptable liquidity requirements.
     /// @param debtToken The borrow token borrowed from.
-    /// @param borrower The account borrowing that will be swapped into
-    ///                 collateral assets deposited into Curvance.
-    /// @param borrowAmount The amount of `debtToken`'s underlying borrowed.
+    /// @param assets The amount of `debtToken`'s underlying borrowed.
+    /// @param owner The account borrowing that will be swapped into
+    ///              collateral assets deposited into Curvance.
     /// @param leverageData Struct containing information on the desired
     ///                     leverage action to execute. Containing values:
     ///                     1. Address of `debtToken` that will be borrowed
@@ -72,8 +72,8 @@ interface IPositionManager {
     ///                        leverage action.
     function onBorrow(
         address debtToken,
-        address borrower,
-        uint256 borrowAmount,
+        uint256 assets,
+        address owner,
         LeverageStruct memory leverageData
     ) external;
 
@@ -83,10 +83,9 @@ interface IPositionManager {
     /// @dev Measures slippage after this callback validating that `redeemer`
     ///      is still within acceptable liquidity requirements.
     /// @param collateralToken The Curvance token redeemed for its underlying.
-    /// @param redeemer The account redeeming collateral that will be used to
-    ///                 repay their active debt.
-    /// @param collateralAmount The amount of `collateralToken` underlying
-    ///                         redeemed.
+    /// @param assets The amount of `collateralToken` underlying redeemed.
+    /// @param owner The account redeeming collateral that will be used to
+    ///              repay their active debt.
     /// @param deleverageData Struct containing information on the desired
     ///                       deleverage action to execute. Containing values:
     ///                       1. Address of the Curvance token that will be 
@@ -105,8 +104,8 @@ interface IPositionManager {
     ///                          deleverage action.
     function onRedeem(
         address collateralToken,
-        address redeemer,
-        uint256 collateralAmount,
+        uint256 assets,
+        address owner,
         DeleverageStruct memory deleverageData
     ) external;
 }
