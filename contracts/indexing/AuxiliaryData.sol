@@ -92,7 +92,7 @@ contract AuxiliaryData {
         string underlyingName;
         string underlyingSymbol;
         uint8 underlyingDecimal;
-        uint256 totalPositionTokens;
+        uint256 totalCollateralTokens;
         uint256 totalCollateralPosted;
         uint256 collateralCap;
         uint256 sharePrice;
@@ -450,7 +450,7 @@ contract AuxiliaryData {
             cTokenData.underlyingName = token.name();
             cTokenData.underlyingSymbol = token.symbol();
             cTokenData.underlyingDecimal = token.decimals();
-            cTokenData.totalPositionTokens =
+            cTokenData.totalCollateralTokens =
                 marketToken.totalSupply() -
                 MARKET_ASSET_RESERVE;
             cTokenData.totalCollateralPosted = ICToken(pTokens[i]).marketCollateralPosted();

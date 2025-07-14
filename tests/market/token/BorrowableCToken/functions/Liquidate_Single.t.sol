@@ -117,11 +117,11 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
     // Helper function to calculate debtToCollateralMultiplier
     function calculateDebtToCollateralMultiplier(
         uint256 auctionLiqIncentive,
-        uint256 earnTokenPrice,
-        uint256 positionTokenPrice
+        uint256 debtTokenPrice,
+        uint256 collateralTokenPrice
     ) internal view returns (uint256) {
         uint256 exchangeRate = strategyCBALRETH.exchangeRate();
-        return (((auctionLiqIncentive * earnTokenPrice * WAD) / (positionTokenPrice * exchangeRate)) * 10 ** 18) / 10 ** 6;
+        return (((auctionLiqIncentive * debtTokenPrice * WAD) / (collateralTokenPrice * exchangeRate)) * 10 ** 18) / 10 ** 6;
     }
 
     // Helper function to calculate debtAmount with collateral adjustment
@@ -144,7 +144,7 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         (,,,, uint256 liqBaseIncentive, uint256 liqCurve,,,,, uint256 baseCFactor, uint256 cFactorCurve) = 
             marketManagerIsolated.tokenData(address(strategyCBALRETH));
         
-        (uint256 lFactor, uint256 positionTokenPrice, uint256 earnTokenPrice) = 
+        (uint256 lFactor, uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
             marketManagerIsolated.liquidationStatusOf(user, address(strategyCBALRETH), address(borrowableCUSDC));
 
         uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
@@ -153,8 +153,8 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         // Calculate debt-to-collateral multiplier using helper function
         uint256 debtToCollateralMultiplier = calculateDebtToCollateralMultiplier(
             auctionLiqIncentive,
-            earnTokenPrice,
-            positionTokenPrice
+            debtTokenPrice,
+            collateralTokenPrice
         );
         
         uint256 maxAmount = (auctionCFactor * borrowableCUSDC.debtBalance(user)) / WAD;

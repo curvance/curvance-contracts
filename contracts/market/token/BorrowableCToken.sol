@@ -516,7 +516,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param owner The account with the debt being paid down.
     /// @return The assets of underlying token debt repaid for `account`.
     function _repay(
-        uint256 assets
+        uint256 assets,
         address payer,
         address owner
     ) internal returns (uint256) {

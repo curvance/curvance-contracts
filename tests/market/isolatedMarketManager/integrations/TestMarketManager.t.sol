@@ -45,7 +45,7 @@
 //         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfCollateralTokens
 //         );
-//         EToken[] memory eTokens = new EToken[](noOfDebtTokens);
+//         EToken[] memory debtTokens = new EToken[](noOfDebtTokens);
 //         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfCollateralTokens
 //         );
@@ -53,7 +53,7 @@
 //             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfCollateralTokens
 //             );
-//         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory debtTokensAgg = new MockV3Aggregator[](
 //             noOfDebtTokens
 //         );
 
@@ -62,7 +62,7 @@
 //             cTokensAgg,
 //             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-//         (eTokens, eTokensAgg) = _genEarnToken(noOfDebtTokens);
+//         (debtTokens, debtTokensAgg) = _genDebtToken(noOfDebtTokens);
 
 //         _genCollateral(users[0], cTokens[0], 100e18);
 //         _postCollateral(users[0], cTokens[0], 100e18);
@@ -73,11 +73,11 @@
 //         _genCollateral(users[2], cTokens[1], 100e18);
 //         _postCollateral(users[2], cTokens[1], 100e18);
 
-//         _supplyEToken(users[2], eTokens[0], 300e18);
+//         _supplyEToken(users[2], debtTokens[0], 300e18);
 
-//         _borrow(users[0], eTokens[0], 70e18);
-//         _borrow(users[1], eTokens[0], 70e18);
-//         _borrow(users[2], eTokens[0], 70e18);
+//         _borrow(users[0], debtTokens[0], 70e18);
+//         _borrow(users[1], debtTokens[0], 70e18);
+//         _borrow(users[2], debtTokens[0], 70e18);
 
 //         for (uint256 i = 0; i < noOfCollateralTokens; i++) {
 //             skip(20 minutes);
@@ -113,7 +113,7 @@
 //         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfCollateralTokens
 //         );
-//         EToken[] memory eTokens = new EToken[](noOfDebtTokens);
+//         EToken[] memory debtTokens = new EToken[](noOfDebtTokens);
 //         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfCollateralTokens
 //         );
@@ -121,7 +121,7 @@
 //             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfCollateralTokens
 //             );
-//         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory debtTokensAgg = new MockV3Aggregator[](
 //             noOfDebtTokens
 //         );
 
@@ -130,7 +130,7 @@
 //             cTokensAgg,
 //             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-//         (eTokens, eTokensAgg) = _genEarnToken(noOfDebtTokens);
+//         (debtTokens, debtTokensAgg) = _genDebtToken(noOfDebtTokens);
 
 //         _genCollateral(users[0], cTokens[0], 1 ether);
 
@@ -168,7 +168,7 @@
 //         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfCollateralTokens
 //         );
-//         EToken[] memory eTokens = new EToken[](noOfDebtTokens);
+//         EToken[] memory debtTokens = new EToken[](noOfDebtTokens);
 //         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfCollateralTokens
 //         );
@@ -176,7 +176,7 @@
 //             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfCollateralTokens
 //             );
-//         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory debtTokensAgg = new MockV3Aggregator[](
 //             noOfDebtTokens
 //         );
 
@@ -185,7 +185,7 @@
 //             cTokensAgg,
 //             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-//         (eTokens, eTokensAgg) = _genEarnToken(noOfDebtTokens);
+//         (debtTokens, debtTokensAgg) = _genDebtToken(noOfDebtTokens);
 
 //         _genCollateral(users[0], cTokens[0], 1 ether);
 //         _postCollateral(users[0], cTokens[0], 1 ether);
@@ -222,7 +222,7 @@
 //         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfCollateralTokens
 //         );
-//         EToken[] memory eTokens = new EToken[](noOfDebtTokens);
+//         EToken[] memory debtTokens = new EToken[](noOfDebtTokens);
 //         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfCollateralTokens
 //         );
@@ -230,7 +230,7 @@
 //             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfCollateralTokens
 //             );
-//         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory debtTokensAgg = new MockV3Aggregator[](
 //             noOfDebtTokens
 //         );
 
@@ -239,7 +239,7 @@
 //             cTokensAgg,
 //             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-//         (eTokens, eTokensAgg) = _genEarnToken(noOfDebtTokens);
+//         (debtTokens, debtTokensAgg) = _genDebtToken(noOfDebtTokens);
 
 //         _genCollateral(users[0], cTokens[0], 1 ether);
 //         _postCollateral(users[0], cTokens[0], 1 ether);
@@ -269,7 +269,7 @@
 //         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfCollateralTokens
 //         );
-//         EToken[] memory eTokens = new EToken[](noOfDebtTokens);
+//         EToken[] memory debtTokens = new EToken[](noOfDebtTokens);
 //         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfCollateralTokens
 //         );
@@ -277,7 +277,7 @@
 //             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfCollateralTokens
 //             );
-//         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory debtTokensAgg = new MockV3Aggregator[](
 //             noOfDebtTokens
 //         );
 
@@ -286,7 +286,7 @@
 //             cTokensAgg,
 //             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-//         (eTokens, eTokensAgg) = _genEarnToken(noOfDebtTokens);
+//         (debtTokens, debtTokensAgg) = _genDebtToken(noOfDebtTokens);
 
 //         _genCollateral(users[0], cTokens[0], 1 ether);
 //         _postCollateral(users[0], cTokens[0], 1 ether);
@@ -334,7 +334,7 @@
 //         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfCollateralTokens
 //         );
-//         EToken[] memory eTokens = new EToken[](noOfDebtTokens);
+//         EToken[] memory debtTokens = new EToken[](noOfDebtTokens);
 //         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfCollateralTokens
 //         );
@@ -342,7 +342,7 @@
 //             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfCollateralTokens
 //             );
-//         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory debtTokensAgg = new MockV3Aggregator[](
 //             noOfDebtTokens
 //         );
 
@@ -351,7 +351,7 @@
 //             cTokensAgg,
 //             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-//         (eTokens, eTokensAgg) = _genEarnToken(noOfDebtTokens);
+//         (debtTokens, debtTokensAgg) = _genDebtToken(noOfDebtTokens);
 
 //         _genCollateral(users[0], cTokens[0], 1 ether);
 //         _postCollateral(users[0], cTokens[0], 1 ether);
@@ -399,7 +399,7 @@
 //         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
 //             noOfCollateralTokens
 //         );
-//         EToken[] memory eTokens = new EToken[](noOfDebtTokens);
+//         EToken[] memory debtTokens = new EToken[](noOfDebtTokens);
 //         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
 //             noOfCollateralTokens
 //         );
@@ -407,7 +407,7 @@
 //             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
 //                 noOfCollateralTokens
 //             );
-//         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+//         MockV3Aggregator[] memory debtTokensAgg = new MockV3Aggregator[](
 //             noOfDebtTokens
 //         );
 
@@ -416,16 +416,16 @@
 //             cTokensAgg,
 //             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-//         (eTokens, eTokensAgg) = _genEarnToken(noOfDebtTokens);
+//         (debtTokens, debtTokensAgg) = _genDebtToken(noOfDebtTokens);
 
 //         _genCollateral(users[0], cTokens[0], 500e18);
 //         _postCollateral(users[0], cTokens[0], 500e18);
 
-//         _supplyEToken(users[2], eTokens[0], 1_500e18);
-//         _borrow(users[0], eTokens[0], 300e18);
+//         _supplyEToken(users[2], debtTokens[0], 1_500e18);
+//         _borrow(users[0], debtTokens[0], 300e18);
 
-//         _supplyEToken(users[2], eTokens[1], 1_500e18);
-//         _borrow(users[0], eTokens[1], 50e18);
+//         _supplyEToken(users[2], debtTokens[1], 1_500e18);
+//         _borrow(users[0], debtTokens[1], 50e18);
 
 //         skip(20 minutes);
 //         _updateRoundData(cTokensAgg[0], 0, 0.9e8);
@@ -448,16 +448,16 @@
 //         assertTrue(hasPosition);
 //         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
 //             users[0],
-//             address(eTokens[0])
+//             address(debtTokens[0])
 //         );
 //         assertTrue(hasPosition);
 //         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
 //             users[0],
-//             address(eTokens[1])
+//             address(debtTokens[1])
 //         );
 //         assertTrue(hasPosition);
 
-//         _liquidate(eTokens[0], cTokens[0], users[0], true);
+//         _liquidate(debtTokens[0], cTokens[0], users[0], true);
 
 //         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
 //             .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
@@ -473,16 +473,16 @@
 //         assertTrue(hasPosition);
 //         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
 //             users[0],
-//             address(eTokens[0])
+//             address(debtTokens[0])
 //         );
 //         assertTrue(hasPosition);
 //         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
 //             users[0],
-//             address(eTokens[1])
+//             address(debtTokens[1])
 //         );
 //         assertTrue(hasPosition);
-//         vm.prank(address(eTokens[1]));
-//         marketManagerIsolated.canBorrow(address(eTokens[1]), users[0], 0);
+//         vm.prank(address(debtTokens[1]));
+//         marketManagerIsolated.canBorrow(address(debtTokens[1]), users[0], 0);
 //         vm.prank(users[0]);
 
 //         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
@@ -498,12 +498,12 @@
 //         assertTrue(hasPosition);
 //         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
 //             users[0],
-//             address(eTokens[0])
+//             address(debtTokens[0])
 //         );
 //         assertFalse(hasPosition);
 //         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
 //             users[0],
-//             address(eTokens[1])
+//             address(debtTokens[1])
 //         );
 //         assertTrue(hasPosition);
 //     }

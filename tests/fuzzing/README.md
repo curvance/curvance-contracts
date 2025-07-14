@@ -223,7 +223,7 @@
 | LIQ-8  | If cfactor is bound between 0 and WAD, non-inclusive, the maxAmount is bound between 0, debtBalanceCached.        | Passed |
 | LIQ-9  | If the position token has less decimals than the debt token, amountAdjusted should be less than the debt balance. | Passed |
 | LIQ-10 | If the position token has more decimals than the debt token, amountAdjusted > debtBalanceCached.                  | Passed |
-| LIQ-11 | If position token decimals has less decimals than the earnTokenDecimals, amountAdjusted < debtBalanceCached.      | Passed |
+| LIQ-11 | If position token decimals has less decimals than the debtTokenDecimals, amountAdjusted < debtBalanceCached.      | Passed |
 | LIQ-12 | If amountAdjusted==0, tokens to be liquidated should be equal to 0.                                               | Passed |
 | LIQ-13 | If debtToCollateralRatio==0, tokens to be liquidated should be equal to 0.                                        | Passed |
 
@@ -307,33 +307,33 @@ Tips and tricks:
     function _check_liquidate_preconditions(
         address account,
         address eToken,
-        address positionToken
+        address collateralToken
     ) internal view {
         _isSupportedEToken(eToken);
         require(account != msg.sender);
         require(marketManager.isListed(eToken));
         require(
             EToken(eToken).marketManager() ==
-                EToken(positionToken).marketManager()
+                EToken(collateralToken).marketManager()
         );
-        require(IMToken(positionToken).isPToken());
-        require(marketManager.collateralPosted(positionToken) > 0);
+        require(IMToken(collateralToken).isPToken());
+        require(marketManager.collateralPosted(collateralToken) > 0);
         require(marketManager.seizePaused() != 2);
         (
             uint256 lfactor,
-            uint256 earnTokenPrice,
-            uint256 positionTokenPrice
+            uint256 debtTokenPrice,
+            uint256 collateralTokenPrice
         ) = marketManager.liquidationStatusOf(
                 account,
                 eToken,
-                positionToken
+                collateralToken
             );
         require(lfactor > 0);
     }
 
     function _bound_liquidate_values(
         uint256 amount,
-        address positionToken
+        address collateralToken
     ) internal returns (uint256 clampedAmount) {
         (
             ,
@@ -345,7 +345,7 @@ Tips and tricks:
             ,
             ,
 
-        ) = marketManager.tokenData(address(positionToken));
+        ) = marketManager.tokenData(address(collateralToken));
         require(collRatio > 0);
         uint256 maxValue = amount * collReqSoft;
         uint256 minValue = amount * collReqHard;

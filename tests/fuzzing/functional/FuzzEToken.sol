@@ -458,7 +458,7 @@
 //     /// @custom:limitation missing collateralPostedFor assertion difference checks
 //     function liquidate_should_succeed_with_non_exact(uint256 amount) public {
 //         address eToken = address(borrowableCDAI);
-//         address positionToken = address(pUSDC);
+//         address collateralToken = address(pUSDC);
 //         require(marketManager.seizePaused() != 2);
 //         address account = address(this);
 //         _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
@@ -469,7 +469,7 @@
 //             uint256 seizedForLiquidation // number of position tokens to be seized for the liquidator
 //         ) = marketManager.canLiquidate(
 //                 eToken,
-//                 positionToken,
+//                 collateralToken,
 //                 account,
 //                 0, // unused as a non-exact liquidation will liquidate the maximum soft liquidation amount possible
 //                 false // false represents a non-exact liquidation
@@ -480,27 +480,27 @@
 //         {
 //             uint256 senderBalanceUnderlying = IERC20(underlyingEToken)
 //                 .balanceOf(msg.sender);
-//             uint256 collateralBalanceBefore = ICToken(positionToken).balanceOf(
+//             uint256 collateralBalanceBefore = ICToken(collateralToken).balanceOf(
 //                 address(this)
 //             );
 //             uint256 priorDebt = EToken(eToken).debtBalance(
 //                 address(this)
 //             );
-//             uint256 preSenderCollateral = IERC20(positionToken).balanceOf(
+//             uint256 preSenderCollateral = IERC20(collateralToken).balanceOf(
 //                 msg.sender
 //             );
 
 //             hevm.prank(msg.sender);
-//             try EToken(eToken).liquidate(account, positionToken) {
+//             try EToken(eToken).liquidate(account, collateralToken) {
 //                 // After a non-exact (maximum) liquidation, the user should no longer have a position in the position token.
 //                 assertWithMsg(
-//                     !_hasPosition(positionToken),
+//                     !_hasPosition(collateralToken),
 //                     "DTOK-20 soft liquidate entire account should clear position for collateral"
 //                 );
 
 //                 // The amount of collateral posted for a user must be zero.
 //                 assertEq(
-//                     _collateralPostedFor(positionToken),
+//                     _collateralPostedFor(collateralToken),
 //                     0,
 //                     "DTOK-21 soft liquidate entire account should zero out collateral posted for the user"
 //                 );
@@ -520,11 +520,11 @@
 //                 );
 //                 emit LogUint256(
 //                     "current bal",
-//                     ICToken(positionToken).balanceOf(address(this))
+//                     ICToken(collateralToken).balanceOf(address(this))
 //                 );
 //                 assertEq(
 //                     collateralBalanceBefore -
-//                         ICToken(positionToken).balanceOf(address(this)),
+//                         ICToken(collateralToken).balanceOf(address(this)),
 //                     seizedForLiquidation,
 //                     "DTOK-23 soft liquidate should decrease collateral balance for account"
 //                 );
@@ -540,12 +540,12 @@
 //                 // Therefore, the liquidator's position token balance must be equivalent to their previous balance + their allocation of tokens
 //                 {
 //                     // The # of tokens allocated to the liquidator is equivalent to the total number of tokens seized for liquidation
-//                     uint256 positionTokensForLiquidator = seizedForLiquidation;
+//                     uint256 collateralTokensForLiquidator = seizedForLiquidation;
 //                     emit LogAddress("msg.sender", msg.sender);
 
 //                     assertEq(
-//                         IERC20(positionToken).balanceOf(msg.sender),
-//                         preSenderCollateral + positionTokensForLiquidator,
+//                         IERC20(collateralToken).balanceOf(msg.sender),
+//                         preSenderCollateral + collateralTokensForLiquidator,
 //                         "DTOK-25 soft liquidate: position token balance of sender must increase by (amount seized by liquidation - amount seized for protocol)"
 //                     );
 //                 }
@@ -572,12 +572,12 @@
 //     /// @custom:precondition eToken must be listed in the marketmanager
 //     function liquidate_should_fail_with_exact_with_zero(
 //         address eToken,
-//         address positionToken
+//         address collateralToken
 //     ) public {
 //         require(marketManager.seizePaused() != 2);
 
 //         address account = address(this);
-//         _isSupportedPToken(positionToken);
+//         _isSupportedPToken(collateralToken);
 //         _isSupportedEToken(eToken);
 //         uint256 amount = 0;
 
@@ -586,7 +586,7 @@
 
 //         hevm.prank(msg.sender);
 //         try
-//             EToken(eToken).liquidateExact(account, amount, positionToken)
+//             EToken(eToken).liquidateExact(account, amount, collateralToken)
 //         {} catch (bytes memory revertData) {
 //             uint256 errorSelector = extractErrorSelector(revertData);
 //             // liquidating 0 tokens SHOULD fail with one of these two error messages
@@ -611,9 +611,9 @@
 //     /// @custom:limitation missing check for position token balance of account
 //     function liquidate_should_succeed_with_exact(uint256 amount) public {
 //         address eToken = address(borrowableCDAI);
-//         address positionToken = address(pUSDC);
+//         address collateralToken = address(pUSDC);
 //         address account = address(this);
-//         uint256 priorCollateral = _collateralPostedFor(address(positionToken));
+//         uint256 priorCollateral = _collateralPostedFor(address(collateralToken));
 //         EToken(eToken).accrueInterest();
 //         uint256 priorDebt = EToken(eToken).debtBalance(address(this));
 //         amount = _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
@@ -621,7 +621,7 @@
 //         (uint256 debtToLiquidate, uint256 seizedForLiquidation) = marketManager
 //             .canLiquidate(
 //                 eToken,
-//                 positionToken,
+//                 collateralToken,
 //                 account,
 //                 amount, // specifying this particular amount
 //                 true // liquidate an exact amount
@@ -633,16 +633,16 @@
 //             {
 //                 uint256 senderBalanceUnderlying = IERC20(underlyingEToken)
 //                     .balanceOf(msg.sender);
-//                 uint256 preSenderCollateral = IERC20(positionToken).balanceOf(
+//                 uint256 preSenderCollateral = IERC20(collateralToken).balanceOf(
 //                     msg.sender
 //                 );
 
 //                 hevm.prank(msg.sender);
-//                 EToken(eToken).liquidateExact(account, amount, positionToken);
+//                 EToken(eToken).liquidateExact(account, amount, collateralToken);
 
 //                 // The user's previous collateral balance - post collateral balance must equal the total amount that was seized for liquidation
 //                 assertEq(
-//                     priorCollateral - _collateralPostedFor(positionToken),
+//                     priorCollateral - _collateralPostedFor(collateralToken),
 //                     seizedForLiquidation,
 //                     "DTOK-26 soft liquidation exact should result in priorCollateral - current collateral = seized for liquidation"
 //                 );
@@ -667,10 +667,10 @@
 //                 // Therefore, the liquidator's position token balance must be equivalent to their previous balance + their allocation of tokens
 //                 {
 //                     // The # of tokens allocated to the liquidator is equivalent to the total number of tokens seized for liquidation
-//                     uint256 positionTokensForLiquidator = seizedForLiquidation;
+//                     uint256 collateralTokensForLiquidator = seizedForLiquidation;
 //                     assertEq(
-//                         IERC20(positionToken).balanceOf(msg.sender),
-//                         preSenderCollateral + positionTokensForLiquidator,
+//                         IERC20(collateralToken).balanceOf(msg.sender),
+//                         preSenderCollateral + collateralTokensForLiquidator,
 //                         "DTOK-29 soft liquidate: position token balance of sender must increase by (amount sized by liquidation - amount seized for protocol)"
 //                     );
 //                 }

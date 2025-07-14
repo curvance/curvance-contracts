@@ -43,7 +43,7 @@
 
 //     function setup() public {
 //         setUpFeeds();
-//         marketManager.updatePositionToken(
+//         marketManager.updateCollateralToken(
 //             address(pUSDC),
 //             7000,
 //             4000,
@@ -199,18 +199,18 @@
 //         }
 //     }
 
-//     /// @custom:property market-5 – Calling updatePositionToken with variables in correct bounds should succeed.
-//     /// @custom:property market-6 - calling updatePositionToken for token prices that deviate too much results in a PriceError
-//     /// @custom:property market-7 - calling updatePositionToken for token prices that are <0 results in a PriceError
-//     /// @custom:property market-8 - calling updatePositionToken again with a pre-CR != 0 with new CR=0 should revert
+//     /// @custom:property market-5 – Calling updateCollateralToken with variables in correct bounds should succeed.
+//     /// @custom:property market-6 - calling updateCollateralToken for token prices that deviate too much results in a PriceError
+//     /// @custom:property market-7 - calling updateCollateralToken for token prices that are <0 results in a PriceError
+//     /// @custom:property market-8 - calling updateCollateralToken again with a pre-CR != 0 with new CR=0 should revert
 //     /// @custom:precondition price feed must be recent
 //     /// @custom:precondition price feed must be setup
 //     /// @custom:precondition address(this) must have dao permissions
 //     /// @custom:precondition cap is bound between [1, uint256.max], inclusive
 //     /// @custom:precondition cToken must be listed in the marketManager
 //     /// @custom:precondition _getSafeUpdateCollateralBounds must be in correct bounds
-//     /// TODO: Logic to not allow updatePositionToken to be re-called with a 0 CR was added after, and needs to be acounted for in these tests
-//     function updatePositionToken_should_succeed(
+//     /// TODO: Logic to not allow updateCollateralToken to be re-called with a 0 CR was added after, and needs to be acounted for in these tests
+//     function updateCollateralToken_should_succeed(
 //         address cToken,
 //         uint256 collRatio,
 //         uint256 collReqSoft,
@@ -244,7 +244,7 @@
 //             }
 //         }
 //         try
-//             marketManager.updatePositionToken(
+//             marketManager.updateCollateralToken(
 //                 address(cToken),
 //                 safeBounds.collRatio,
 //                 safeBounds.collReqSoft,
@@ -263,23 +263,23 @@
 //                     assertWithMsg(
 //                         errorSelector ==
 //                             marketManager_invalidParameterSelectorHash,
-//                         "MARKET-8 updatePositionToken expected to fail if trying to zero a non-zero CR"
+//                         "MARKET-8 updateCollateralToken expected to fail if trying to zero a non-zero CR"
 //                     );
 //                 } else if (divergenceTooLarge) {
 //                     assertWithMsg(
 //                         errorSelector == marketManager_priceErrorSelectorHash,
-//                         "MARKET-6 expected updatePositionToken to fail if price diverge too much or encounters error"
+//                         "MARKET-6 expected updateCollateralToken to fail if price diverge too much or encounters error"
 //                     );
 //                 } else if (priceError) {
 //                     assertWithMsg(
 //                         errorSelector == marketManager_priceErrorSelectorHash,
-//                         "MARKET-7 expected updatePositionToken to fail if price diverge too much or encounters error"
+//                         "MARKET-7 expected updateCollateralToken to fail if price diverge too much or encounters error"
 //                     );
 //                 } else {
 //                     // market-5
 //                     assertWithMsg(
 //                         false,
-//                         "MARKET-5 updatePositionToken should succeed"
+//                         "MARKET-5 updateCollateralToken should succeed"
 //                     );
 //                 }
 //             }
@@ -333,12 +333,12 @@
 //         collateralCapsUpdated[cToken] = true;
 //     }
 
-//     /// @custom:property market-8 – updatePositionToken should revert if the price feed is out of date
+//     /// @custom:property market-8 – updateCollateralToken should revert if the price feed is out of date
 //     /// @custom:precondition price feed is out of date
 //     /// @custom:precondition cap is bound between [1, uint256.max], inclusive
 //     /// @custom:precondition cToken must be listed in marketManager
 //     /// @custom:precondition cToken must be one of: pDAI, pUSDC
-//     function updatePositionToken_should_revert_if_price_feed_out_of_date(
+//     function updateCollateralToken_should_revert_if_price_feed_out_of_date(
 //         address cToken,
 //         uint256 collRatio,
 //         uint256 collReqSoft,
@@ -387,7 +387,7 @@
 //             }
 //         }
 //         try
-//             marketManager.updatePositionToken(
+//             marketManager.updateCollateralToken(
 //                 address(cToken),
 //                 safeBounds.collRatio,
 //                 safeBounds.collReqSoft,
@@ -399,7 +399,7 @@
 //         {
 //             assertWithMsg(
 //                 false,
-//                 "MARKET-12 updatePositionToken should not have succeeded with out of date price feeds"
+//                 "MARKET-12 updateCollateralToken should not have succeeded with out of date price feeds"
 //             );
 //         } catch {}
 //     }
@@ -1112,7 +1112,7 @@
 //             }
 //             // If collateral ratio of PUSDC is 0, update the market manager to increase collateral ratio
 //             if (pUSDC_cr == 0) {
-//                 updatePositionToken_should_succeed(
+//                 updateCollateralToken_should_succeed(
 //                     address(pUSDC),
 //                     1000e18,
 //                     0,

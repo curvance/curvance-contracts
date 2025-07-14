@@ -19,8 +19,8 @@
 //     uint256 public constant MAX_TOKENS = 10;
 //     uint256 public constant MAX_USERS = 20;
 
-//     uint256 public noOfPositionTokens;
-//     uint256 public noOfEarnTokens;
+//     uint256 public noOfCollateralTokens;
+//     uint256 public noOfDebtTokens;
 //     uint256 public noOfUsersCollateral;
 
 //     uint256 public noOfUsersDebt;
@@ -36,7 +36,7 @@
 
 //     uint256[MAX_TOKENS] public colRatios;
 
-//     function _genEarnToken(
+//     function _genDebtToken(
 //         uint256 _noOfTokens
 //     ) internal returns (EToken[] memory, MockV3Aggregator[] memory) {
 //         EToken[] memory eTokens = new EToken[](_noOfTokens);
@@ -44,7 +44,7 @@
 //             _noOfTokens
 //         );
 //         for (uint256 i = 0; i < _noOfTokens; i++) {
-//             EToken eToken = _deployEarnToken();
+//             EToken eToken = _deployDebtToken();
 //             eTokens[i] = eToken;
 //             eTokensAgg[i] = _deployOracleManagerForToken(eToken.underlying());
 //         }
@@ -71,17 +71,17 @@
 //         return SimpleCToken;
 //     }
 
-//     function _deployEarnToken() internal returns (EToken) {
+//     function _deployDebtToken() internal returns (EToken) {
 //         // start market for eToken
 //         MockERC20Token mockUnderlying = new MockERC20Token();
 //         vm.label(address(mockUnderlying), "tokenDebt");
-//         EToken earnToken = _deployBorrowableCToken(address(mockUnderlying));
-//         vm.label(address(earnToken), "eToken");
+//         EToken debtToken = _deployBorrowableCToken(address(mockUnderlying));
+//         vm.label(address(debtToken), "eToken");
 //         uint256 startAmount = 42069;
 //         mockUnderlying.mint(address(this), startAmount);
-//         mockUnderlying.approve(address(earnToken), startAmount);
-//         marketManagerIsolated.listToken(address(earnToken));
-//         return earnToken;
+//         mockUnderlying.approve(address(debtToken), startAmount);
+//         marketManagerIsolated.listToken(address(debtToken));
+//         return debtToken;
 //     }
 
 //     function _deployOracleManagerForToken(
@@ -93,10 +93,10 @@
 //         return oneUsd;
 //     }
 
-//     function _setCollateralData(address positionToken) internal {
+//     function _setCollateralData(address collateralToken) internal {
 //         // set collateral factor
-//         marketManagerIsolated.updatePositionToken(
-//             positionToken,
+//         marketManagerIsolated.updateCollateralToken(
+//             collateralToken,
 //             7000,
 //             4000,
 //             3000,
@@ -105,7 +105,7 @@
 //             1000
 //         );
 //         address[] memory tokens = new address[](1);
-//         tokens[0] = address(positionToken);
+//         tokens[0] = address(collateralToken);
 //         uint256[] memory caps = new uint256[](1);
 //         caps[0] = 100_000e18;
 //         marketManagerIsolated.setCollateralCaps(tokens, caps);
@@ -263,17 +263,17 @@
 
 //         ) = marketManagerIsolated.tokenData(address(_cToken));
 
-//         PriceReturnData memory earnTokenData = chainlinkAdaptor.getPrice(
+//         PriceReturnData memory debtTokenData = chainlinkAdaptor.getPrice(
 //             _eToken.underlying(),
 //             true,
 //             true
 //         );
-//         uint256 earnTokenPrice = uint256(earnTokenData.price);
-//         console2.log("earnTokenPrice %s", earnTokenPrice);
+//         uint256 debtTokenPrice = uint256(debtTokenData.price);
+//         console2.log("debtTokenPrice %s", debtTokenPrice);
 //         console2.log("incentive %s %s", liqBaseIncentive, liqCurve);
 
 //         uint256 incentive = liqBaseIncentive + liqCurve;
-//         uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
+//         uint256 debtToCollateralRatio = (incentive * debtTokenPrice * WAD) /
 //             (price * _cToken.exchangeRateCached());
 //         uint256 amountAdjusted = (debtAmount * (10 ** _cToken.decimals())) /
 //             (10 ** _eToken.decimals());
@@ -322,7 +322,7 @@
 //     ) internal {
 //         console2.log("_liquidateExact");
 //         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
-//             for (uint256 j = 0; j < noOfPositionTokens; j++) {
+//             for (uint256 j = 0; j < noOfCollateralTokens; j++) {
 //                 if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(cTokens[j]))) {
 //                     console2.log(
 //                         "user %s not flagged for liquidation",
@@ -333,7 +333,7 @@
 //                 if (cTokens[j].balanceOf(users[i]) == 0) {
 //                     continue;
 //                 }
-//                 for (uint256 k = 0; k < noOfEarnTokens; k++) {
+//                 for (uint256 k = 0; k < noOfDebtTokens; k++) {
 //                     if (
 //                         IERC20(eTokens[k].underlying()).balanceOf(users[i]) ==
 //                         0
@@ -359,7 +359,7 @@
 //     ) internal {
 //         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
 //             console2.log("user %s", users[i]);
-//             for (uint256 j = 0; j < noOfPositionTokens; j++) {
+//             for (uint256 j = 0; j < noOfCollateralTokens; j++) {
 //                 if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(cTokens[j]))) {
 //                     console2.log(
 //                         "user %s not flagged for liquidation",
@@ -370,7 +370,7 @@
 //                 if (cTokens[j].balanceOf(users[i]) == 0) {
 //                     continue;
 //                 }
-//                 for (uint256 k = 0; k < noOfEarnTokens; k++) {
+//                 for (uint256 k = 0; k < noOfDebtTokens; k++) {
 //                     if (
 //                         IERC20(eTokens[k].underlying()).balanceOf(users[i]) ==
 //                         0

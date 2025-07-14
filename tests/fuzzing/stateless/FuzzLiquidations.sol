@@ -7,9 +7,9 @@
 
 // contract FuzzLiquidations is StatefulBaseMarket {
 //     /// @notice the position token to be used in liquidations
-//     address positionToken;
+//     address collateralToken;
 //     /// @notice the debt token to be used in liquidations
-//     address earnToken;
+//     address debtToken;
 //     /// @notice the state of the entire system at the time of liquidation
 //     struct LiquidationData {
 //         bool isListed;
@@ -21,8 +21,8 @@
 //         uint256 baseCFactor;
 //         uint256 cFactorCurve;
 //         uint256 lFactor;
-//         uint256 earnTokenPrice;
-//         uint256 positionTokenPrice;
+//         uint256 debtTokenPrice;
+//         uint256 collateralTokenPrice;
 //         uint256 debtBalance;
 //         uint256 exchangeRateCached;
 //     }
@@ -43,8 +43,8 @@
 //     IntermediateValues calculated;
 
 //     constructor() {
-//         positionToken = address(pUSDC);
-//         earnToken = address(borrowableCDAI);
+//         collateralToken = address(pUSDC);
+//         debtToken = address(borrowableCDAI);
 //     }
 
 //     /// @notice stores failed steps and error codes
@@ -74,8 +74,8 @@
 //             uint256 _canLiq_debt,
 //             uint256 _canLiq_liquidatedTokens
 //         ) = marketManager.canLiquidate(
-//                 earnToken,
-//                 positionToken,
+//                 debtToken,
+//                 collateralToken,
 //                 address(this),
 //                 amount,
 //                 liquidateExact
@@ -118,20 +118,20 @@
 //             uint256 liqCurve,
 //             uint256 baseCFactor,
 //             uint256 cfactorCurve
-//         ) = marketManager.tokenData(positionToken);
+//         ) = marketManager.tokenData(collateralToken);
 //         (
 //             uint256 lFactor,
-//             uint256 earnTokenPrice,
-//             uint256 positionTokenPrice
+//             uint256 debtTokenPrice,
+//             uint256 collateralTokenPrice
 //         ) = marketManager.liquidationStatusOf(
 //                 address(this),
-//                 earnToken,
-//                 positionToken
+//                 debtToken,
+//                 collateralToken
 //             );
-//         uint256 debtBalance = IBorrowableCToken(earnToken).debtBalance(
+//         uint256 debtBalance = IBorrowableCToken(debtToken).debtBalance(
 //             address(this)
 //         );
-//         uint256 exchangeRateCached = IBorrowableCToken(earnToken).exchangeRateCached();
+//         uint256 exchangeRateCached = IBorrowableCToken(debtToken).exchangeRateCached();
 
 //         data = LiquidationData(
 //             isListed,
@@ -143,8 +143,8 @@
 //             baseCFactor,
 //             cfactorCurve,
 //             lFactor,
-//             earnTokenPrice,
-//             positionTokenPrice,
+//             debtTokenPrice,
+//             collateralTokenPrice,
 //             debtBalance,
 //             exchangeRateCached
 //         );
@@ -264,40 +264,40 @@
 //         // No Preconditions
 
 //         uint256 debtToCollateralRatio = (calculated.incentive *
-//             data.earnTokenPrice *
-//             WAD) / (data.positionTokenPrice * data.exchangeRateCached);
+//             data.debtTokenPrice *
+//             WAD) / (data.collateralTokenPrice * data.exchangeRateCached);
 
 //         // No Postconditions
 //         calculated.debtToCollateralRatio = debtToCollateralRatio;
 //     }
 
 //     /// @custom:property liq-9 if position token and debt token have the same number of decimals, amountAdjusted = debtBalance
-//     /// @custom:property liq-10 if position token decimals > earnTokenDecimals, amountAdjusted > debtBalance
-//     /// @custom:property liq-11 if position token decimals < earnTokenDecimals, amountAdjusted < debtBalance
+//     /// @custom:property liq-10 if position token decimals > debtTokenDecimals, amountAdjusted > debtBalance
+//     /// @custom:property liq-11 if position token decimals < debtTokenDecimals, amountAdjusted < debtBalance
 //     function _calculateAmountAdjusted() private {
 //         // Saves state
-//         uint256 positionTokenDecimals = ICToken(positionToken).decimals();
-//         uint256 earnTokenDecimals = IBorrowableCToken(earnToken).decimals();
+//         uint256 collateralTokenDecimals = ICToken(collateralToken).decimals();
+//         uint256 debtTokenDecimals = IBorrowableCToken(debtToken).decimals();
 
 //         uint256 amountAdjusted = (data.debtBalance *
-//             10 ** positionTokenDecimals) / (10 ** earnTokenDecimals);
+//             10 ** collateralTokenDecimals) / (10 ** debtTokenDecimals);
 
 //         // Postconditions
-//         if (positionTokenDecimals == earnTokenDecimals) {
+//         if (collateralTokenDecimals == debtTokenDecimals) {
 //             if (amountAdjusted != data.debtBalance) {
 //                 errors[9] = HasError(
 //                     true,
 //                     "LIQ-9 - when collat token dec == debt token dec, amountAdjusted = debtAmount"
 //                 );
 //             }
-//         } else if (positionTokenDecimals > earnTokenDecimals) {
+//         } else if (collateralTokenDecimals > debtTokenDecimals) {
 //             if (amountAdjusted <= data.debtBalance) {
 //                 errors[10] = HasError(
 //                     true,
 //                     "LIQ-10 - amountAdjusted > debtBalance when position token < debt token decimals"
 //                 );
 //             }
-//         } else if (positionTokenDecimals < earnTokenDecimals) {
+//         } else if (collateralTokenDecimals < debtTokenDecimals) {
 //             if (amountAdjusted >= data.debtBalance) {
 //                 errors[11] = HasError(
 //                     true,

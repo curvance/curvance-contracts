@@ -63,7 +63,7 @@
 //     }
 
 //     function _setCollateralDataWithEntropy(
-//         address positionToken,
+//         address collateralToken,
 //         uint256 index,
 //         uint256 randomEntropy
 //     ) internal {
@@ -96,8 +96,8 @@
 //                 1;
 //         }
 
-//         marketManagerIsolated.updatePositionToken(
-//             positionToken,
+//         marketManagerIsolated.updateCollateralToken(
+//             collateralToken,
 //             collRatio,
 //             collReqA,
 //             collReqB,
@@ -106,7 +106,7 @@
 //             1000
 //         );
 //         address[] memory tokens = new address[](1);
-//         tokens[0] = address(positionToken);
+//         tokens[0] = address(collateralToken);
 //         uint256[] memory caps = new uint256[](1);
 //         caps[0] = 100_000e18;
 //         marketManagerIsolated.setCollateralCaps(tokens, caps);
@@ -132,18 +132,18 @@
 //     function _selectBorrow(
 //         uint256 i,
 //         EToken[] memory eTokens,
-//         uint256 noOfEarnTokens
+//         uint256 noOfDebtTokens
 //     ) internal view returns (bool, EToken, uint256) {
 //         console2.log("select borrow");
 //         EToken borrowToken = eTokens[
-//             _genRandom(i, entropy, 0, noOfEarnTokens)
+//             _genRandom(i, entropy, 0, noOfDebtTokens)
 //         ];
 //         uint256 underlyingHeld = borrowToken.marketUnderlyingHeld();
 //         uint256 amount = underlyingHeld - BASE_UNDERLYING_RESERVE;
 
 //         console2.log("amount %s", amount);
 //         if (amount < uint256(borrowToken.decimals()) * 100) {
-//             for (uint256 j = 0; j < noOfEarnTokens; j++) {
+//             for (uint256 j = 0; j < noOfDebtTokens; j++) {
 //                 if (
 //                     eTokens[j].marketUnderlyingHeld() >
 //                     uint256(eTokens[j].decimals()) * 100
@@ -168,7 +168,7 @@
 //         uint256 amount;
 //         //uint256 borrowToken;
 
-//         for (uint256 i = 0; i < noOfPositionTokens; i++) {
+//         for (uint256 i = 0; i < noOfCollateralTokens; i++) {
 //             console2.log("col token %s col ratio %s", i, colRatios[i]);
 //         }
 
@@ -191,7 +191,7 @@
 //                 (, EToken borrowToken, uint256 avail) = _selectBorrow(
 //                     i,
 //                     eTokens,
-//                     noOfEarnTokens
+//                     noOfDebtTokens
 //                 );
 
 //                 console2.log("avail %s amount %s", avail, amount);

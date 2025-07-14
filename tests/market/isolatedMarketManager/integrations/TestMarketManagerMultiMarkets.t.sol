@@ -87,7 +87,7 @@
 //             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfCollateralTokens, entropy);
 
-//         (cTokens, cTokensAgg) = _genEarnToken(noOfDebtTokens);
+//         (cTokens, cTokensAgg) = _genDebtToken(noOfDebtTokens);
 //         return (
 //             cTokens,
 //             cTokens,
@@ -178,7 +178,7 @@
 //             cTokensAgg,
 //             cTokensUnderlyingAgg
 //         ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-//         (cTokens, cTokensAgg) = _genEarnToken(noOfDebtTokens);
+//         (cTokens, cTokensAgg) = _genDebtToken(noOfDebtTokens);
 
 //         _genCollateral(users[0], cTokens[0], 100e18);
 //         _postCollateral(users[0], cTokens[0], 100e18);
