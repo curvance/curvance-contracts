@@ -223,7 +223,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             user
         );
         assertGt(strategyCTokenSTETHSnapshot.collateralPosted, 2 ether);
-        assertEq(strategyCTokenSTETHBorrowed, 0 ether);
+        assertEq(strategyCTokenSTETHSnapshot.debtBalance, 0 ether);
 
         vm.stopPrank();
     }
@@ -282,7 +282,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             user
         );
         assertGt(strategyCTokenSTETHSnapshot.collateralPosted, 2 ether);
-        assertEq(strategyCTokenSTETHBorrowed, 0 ether);
+        assertEq(strategyCTokenSTETHSnapshot.debtBalance, 0 ether);
 
         vm.stopPrank();
     }
@@ -347,7 +347,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             strategyCTokenSTETHSnapshot.collateralPosted,
             strategyCTokenSTETHCollateralBefore - deleverageData.collateralAmount
         );
-        assertEq(strategyCTokenSTETHBorrowed, 0);
+        assertEq(strategyCTokenSTETHSnapshot.debtBalance, 0);
 
         vm.stopPrank();
     }
@@ -421,7 +421,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             user
         );
         assertGt(strategyCTokenSTETHSnapshot.collateralPosted, 2 ether);
-        assertEq(strategyCTokenSTETHBorrowed, 0 ether);
+        assertEq(strategyCTokenSTETHSnapshot.debtBalance, 0 ether);
     }
 
     function testDeLeverageFor() public {
@@ -488,6 +488,6 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             strategyCTokenSTETHSnapshot.collateralPosted,
             strategyCTokenSTETHCollateralBefore - deleverageData.collateralAmount
         );
-        assertEq(strategyCTokenSTETHBorrowed, 0);
+        assertEq(strategyCTokenSTETHSnapshot.debtBalance, 0);
     }
 }
