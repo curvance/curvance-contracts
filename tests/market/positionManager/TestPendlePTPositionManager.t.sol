@@ -210,14 +210,14 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
 
         positionManager.leverage(leverageData, 0.05e18); // 5% slippage
 
-        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAIBorrowed, 100 ether + amountForLeverage);
+        assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
-        (,,,, uint256 cPendlePTSTETHBalance, uint256 cPendlePTSTETHBorrowed ) = cPendlePTSTETH
+        AccountSnapshot memory cPendlePTSTETHSnapshot = cPendlePTSTETH
             .getSnapshot(user);
-        assertGt(cPendlePTSTETHBalance, 2 ether);
-        assertEq(cPendlePTSTETHBorrowed, 0 ether);
+        assertGt(cPendlePTSTETHSnapshot.collateralPosted, 2 ether);
+        assertEq(cPendlePTSTETHSnapshot.debtBalance, 0 ether);
 
         vm.stopPrank();
     }
@@ -231,8 +231,8 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
 
         vm.startPrank(user);
         PendlePTPositionManager.DeleverageStruct memory deleverageData;
-        (,,,,, uint256 borrowableCDAIBorrowedBefore ) = borrowableCDAI.getSnapshot(user);
-        (,,,, uint256 cPendlePTSTETHBalanceBefore, ) = cPendlePTSTETH.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory cPendlePTSTETHBeforeSnapshot = cPendlePTSTETH.getSnapshot(user);
 
         deleverageData.collateralToken = ICToken(address(cPendlePTSTETH));
         deleverageData.collateralAmount = 1 ether;
@@ -259,20 +259,20 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         cPendlePTSTETH.approve(address(positionManager), type(uint256).max);
         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
-        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
-            borrowableCDAIBorrowed,
-            borrowableCDAIBorrowedBefore - deleverageData.repayAmount
+            borrowableCDAISnapshot.debtBalance,
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
         );
 
-        (,,,, uint256 cPendlePTSTETHBalance, uint256 cPendlePTSTETHBorrowed ) = cPendlePTSTETH
+        AccountSnapshot memory cPendlePTSTETHSnapshot = cPendlePTSTETH
             .getSnapshot(user);
         assertEq(
-            cPendlePTSTETHBalance,
-            cPendlePTSTETHBalanceBefore - deleverageData.collateralAmount
+            cPendlePTSTETHSnapshot.collateralPosted,
+            cPendlePTSTETHBeforeSnapshot.collateralPosted - deleverageData.collateralAmount
         );
-        assertEq(cPendlePTSTETHBorrowed, 0);
+        assertEq(cPendlePTSTETHSnapshot.debtBalance, 0);
 
         vm.stopPrank();
     }
@@ -333,14 +333,14 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManager.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
-        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAIBorrowed, 100 ether + amountForLeverage);
+        assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
-        (,,,, uint256 cPendlePTSTETHBalance, uint256 cPendlePTSTETHBorrowed ) = cPendlePTSTETH
+        AccountSnapshot memory cPendlePTSTETHSnapshot = cPendlePTSTETH
             .getSnapshot(user);
-        assertGt(cPendlePTSTETHBalance, 2 ether);
-        assertEq(cPendlePTSTETHBorrowed, 0 ether);
+        assertGt(cPendlePTSTETHSnapshot.collateralPosted, 2 ether);
+        assertEq(cPendlePTSTETHSnapshot.debtBalance, 0 ether);
 
         vm.stopPrank();
     }
@@ -354,8 +354,8 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
 
         vm.startPrank(user);
         PendlePTPositionManager.DeleverageStruct memory deleverageData;
-        (,,,,, uint256 borrowableCDAIBorrowedBefore ) = borrowableCDAI.getSnapshot(user);
-        (,,,, uint256 cPendlePTSTETHBalanceBefore, ) = cPendlePTSTETH.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory cPendlePTSTETHBeforeSnapshot = cPendlePTSTETH.getSnapshot(user);
 
         deleverageData.collateralToken = ICToken(address(cPendlePTSTETH));
         deleverageData.collateralAmount = 1 ether;
@@ -386,20 +386,20 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManager.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
-        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
-            borrowableCDAIBorrowed,
-            borrowableCDAIBorrowedBefore - deleverageData.repayAmount
+            borrowableCDAISnapshot.debtBalance,
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
         );
 
-        (,,,, uint256 cPendlePTSTETHBalance, uint256 cPendlePTSTETHBorrowed ) = cPendlePTSTETH
+        AccountSnapshot memory cPendlePTSTETHSnapshot = cPendlePTSTETH
             .getSnapshot(user);
         assertEq(
-            cPendlePTSTETHBalance,
-            cPendlePTSTETHBalanceBefore - deleverageData.collateralAmount
+            cPendlePTSTETHSnapshot.collateralPosted,
+            cPendlePTSTETHBeforeSnapshot.collateralPosted - deleverageData.collateralAmount
         );
-        assertEq(cPendlePTSTETHBorrowed, 0);
+        assertEq(cPendlePTSTETHSnapshot.debtBalance, 0);
 
         vm.stopPrank();
     }

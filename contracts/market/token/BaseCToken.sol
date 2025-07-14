@@ -470,7 +470,7 @@ abstract contract BaseCToken is
                 isCollateral: true, // Defaults to true, only overridden in BorrowableCToken.
                 exchangeRate: _convertToAssets(WAD, _getTotalAssets()),
                 collateralPosted: collateralPosted[account],
-                debtOutstanding: 0 // Defaults to zero, only overridden in BorrowableCToken.
+                debtBalance: 0 // Defaults to zero, only overridden in BorrowableCToken.
             })
         );
     }

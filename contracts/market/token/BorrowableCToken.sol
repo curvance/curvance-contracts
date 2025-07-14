@@ -371,7 +371,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 isCollateral: outstandingDebt > 0 ? false : true,
                 exchangeRate: _convertToAssets(WAD, _getTotalAssets()),
                 collateralPosted: collateralPosted[account],
-                debtOutstanding: outstandingDebt
+                debtBalance: outstandingDebt
             })
         );
     }

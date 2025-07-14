@@ -236,7 +236,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAISnapshot.debtOutstanding, 100 ether + amountForLeverage);
+        assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
@@ -318,8 +318,8 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
-            borrowableCDAISnapshot.debtOutstanding,
-            borrowableCDAISnapshotBefore.debtOutstanding - deleverageData.repayAmount
+            borrowableCDAISnapshot.debtBalance,
+            borrowableCDAISnapshotBefore.debtBalance - deleverageData.repayAmount
         );
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);

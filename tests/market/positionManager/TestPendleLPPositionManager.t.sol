@@ -215,14 +215,14 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
 
         positionManager.leverage(leverageData, 0.05e18); // 5% slippage
 
-        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAIBorrowed, 100 ether + amountForLeverage);
+        assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
-        (,,,, uint256 strategyCTokenSTETHBalance, uint256 strategyCTokenSTETHBorrowed ) = strategyCTokenSTETH.getSnapshot(
+        AccountSnapshot memory strategyCTokenSTETHSnapshot = strategyCTokenSTETH.getSnapshot(
             user
         );
-        assertGt(strategyCTokenSTETHBalance, 2 ether);
+        assertGt(strategyCTokenSTETHSnapshot.collateralPosted, 2 ether);
         assertEq(strategyCTokenSTETHBorrowed, 0 ether);
 
         vm.stopPrank();
@@ -274,14 +274,14 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
 
         positionManager.depositAndLeverage(1 ether, leverageData, 0.05e18); // 5% slippage
 
-        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAIBorrowed, amountForLeverage);
+        assertEq(borrowableCDAISnapshot.debtBalance, amountForLeverage);
 
-        (,,,, uint256 strategyCTokenSTETHBalance, uint256 strategyCTokenSTETHBorrowed ) = strategyCTokenSTETH.getSnapshot(
+        AccountSnapshot memory strategyCTokenSTETHSnapshot = strategyCTokenSTETH.getSnapshot(
             user
         );
-        assertGt(strategyCTokenSTETHBalance, 2 ether);
+        assertGt(strategyCTokenSTETHSnapshot.collateralPosted, 2 ether);
         assertEq(strategyCTokenSTETHBorrowed, 0 ether);
 
         vm.stopPrank();
@@ -296,8 +296,8 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
 
         vm.startPrank(user);
         PendleLPPositionManager.DeleverageStruct memory deleverageData;
-        (,,,,, uint256 borrowableCDAIBorrowedBefore ) = borrowableCDAI.getSnapshot(user);
-        uint256 strategyCTokenSTETHBalanceBefore = strategyCTokenSTETH.balanceOf(user);
+        AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
+        uint256 strategyCTokenSTETHCollateralBefore = strategyCTokenSTETH.collateralPosted(user);
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
         deleverageData.collateralAmount = 1 ether;
@@ -333,19 +333,19 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         strategyCTokenSTETH.approve(address(positionManager), type(uint256).max);
         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
-        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
-            borrowableCDAIBorrowed,
-            borrowableCDAIBorrowedBefore - deleverageData.repayAmount
+            borrowableCDAISnapshot.debtBalance,
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
         );
 
-        (,,,, uint256 strategyCTokenSTETHBalance, uint256 strategyCTokenSTETHBorrowed ) = strategyCTokenSTETH.getSnapshot(
+        AccountSnapshot memory strategyCTokenSTETHSnapshot = strategyCTokenSTETH.getSnapshot(
             user
         );
         assertEq(
-            strategyCTokenSTETHBalance,
-            strategyCTokenSTETHBalanceBefore - deleverageData.collateralAmount
+            strategyCTokenSTETHSnapshot.collateralPosted,
+            strategyCTokenSTETHCollateralBefore - deleverageData.collateralAmount
         );
         assertEq(strategyCTokenSTETHBorrowed, 0);
 
@@ -413,14 +413,14 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManager.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
-        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAIBorrowed, 100 ether + amountForLeverage);
+        assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
-        (,,,, uint256 strategyCTokenSTETHBalance, uint256 strategyCTokenSTETHBorrowed ) = strategyCTokenSTETH.getSnapshot(
+        AccountSnapshot memory strategyCTokenSTETHSnapshot = strategyCTokenSTETH.getSnapshot(
             user
         );
-        assertGt(strategyCTokenSTETHBalance, 2 ether);
+        assertGt(strategyCTokenSTETHSnapshot.collateralPosted, 2 ether);
         assertEq(strategyCTokenSTETHBorrowed, 0 ether);
     }
 
@@ -433,8 +433,8 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
 
         vm.startPrank(user);
         PendleLPPositionManager.DeleverageStruct memory deleverageData;
-        (,,,,, uint256 borrowableCDAIBorrowedBefore ) = borrowableCDAI.getSnapshot(user);
-        uint256 strategyCTokenSTETHBalanceBefore = strategyCTokenSTETH.balanceOf(user);
+        AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
+        uint256 strategyCTokenSTETHCollateralBefore = strategyCTokenSTETH.collateralPosted(user);
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
         deleverageData.collateralAmount = 1 ether;
@@ -474,19 +474,19 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManager.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
-        (,,,,, uint256 borrowableCDAIBorrowed ) = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
-            borrowableCDAIBorrowed,
-            borrowableCDAIBorrowedBefore - deleverageData.repayAmount
+            borrowableCDAISnapshot.debtBalance,
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
         );
 
-        (,,,, uint256 strategyCTokenSTETHBalance, uint256 strategyCTokenSTETHBorrowed ) = strategyCTokenSTETH.getSnapshot(
+        AccountSnapshot memory strategyCTokenSTETHSnapshot = strategyCTokenSTETH.getSnapshot(
             user
         );
         assertEq(
-            strategyCTokenSTETHBalance,
-            strategyCTokenSTETHBalanceBefore - deleverageData.collateralAmount
+            strategyCTokenSTETHSnapshot.collateralPosted,
+            strategyCTokenSTETHCollateralBefore - deleverageData.collateralAmount
         );
         assertEq(strategyCTokenSTETHBorrowed, 0);
     }

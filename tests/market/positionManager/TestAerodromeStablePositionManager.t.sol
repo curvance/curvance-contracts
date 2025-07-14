@@ -200,7 +200,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAISnapshot.debtOutstanding, 100 ether + amountForLeverage);
+        assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
@@ -244,7 +244,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAISnapshot.debtOutstanding, amountForLeverage);
+        assertEq(borrowableCDAISnapshot.debtBalance, amountForLeverage);
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
@@ -302,7 +302,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAISnapshot.debtOutstanding, amountForLeverage + 500 ether);
+        assertEq(borrowableCDAISnapshot.debtBalance, amountForLeverage + 500 ether);
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.0034 ether);
@@ -360,7 +360,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAISnapshot.debtOutstanding, amountForLeverage + 500 ether);
+        assertEq(borrowableCDAISnapshot.debtBalance, amountForLeverage + 500 ether);
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.0027 ether);
@@ -415,8 +415,8 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
-            borrowableCDAISnapshot.debtOutstanding,
-            borrowableCDAISnapshotBefore.debtOutstanding - deleverageData.repayAmount
+            borrowableCDAISnapshot.debtBalance,
+            borrowableCDAISnapshotBefore.debtBalance - deleverageData.repayAmount
         );
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
@@ -471,7 +471,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAISnapshot.debtOutstanding, 100 ether + amountForLeverage);
+        assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
@@ -530,8 +530,8 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
-            borrowableCDAISnapshot.debtOutstanding,
-            borrowableCDAISnapshotBefore.debtOutstanding - deleverageData.repayAmount
+            borrowableCDAISnapshot.debtBalance,
+            borrowableCDAISnapshotBefore.debtBalance - deleverageData.repayAmount
         );
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);

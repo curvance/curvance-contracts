@@ -11,7 +11,7 @@ struct AccountSnapshot {
     bool isCollateral;
     uint256 exchangeRate;
     uint256 collateralPosted;
-    uint256 debtOutstanding;
+    uint256 debtBalance;
 }
 
 interface ICToken {

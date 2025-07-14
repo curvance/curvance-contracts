@@ -158,11 +158,13 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         address liquidityProvider = address(new User());
         _prepareUSDC(liquidityProvider, 200000e6);
         _preparePT(liquidityProvider, 10 ether);
-        // Deposit borrowable cUSDC.
+
+        // Mint borrowable cUSDC.
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
-        // Deposit cBALETH.
+
+        // Mint cBALETH.
         pendlePT.approve(address(cPendlePT), 10 ether);
         cPendlePT.deposit(10 ether, liquidityProvider);
         vm.stopPrank();
@@ -248,7 +250,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         skip(20 minutes);
 
         // Try partial repayment.
-        (, uint256 borrowBalanceBefore, uint256 exchangeRateBefore) = eUSDC
+        (,,, uint256 exchangeRateBefore,, uint256 borrowBalanceBefore) = borrowableCUSDC
             .getSnapshot(user1);
         _prepareUSDC(user1, 200e6);
         usdc.approve(address(borrowableCUSDC), 200e6);
@@ -261,7 +263,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         skip(30 minutes);
 
         // Try full repayment.
-        (, borrowBalanceBefore, exchangeRateBefore) = borrowableCUSDC.getSnapshot(user1);
+        (,,, exchangeRateBefore,, borrowBalanceBefore) = borrowableCUSDC.getSnapshot(user1);
         _prepareUSDC(user1, borrowBalanceBefore);
         usdc.approve(address(borrowableCUSDC), borrowBalanceBefore);
         borrowableCUSDC.repay(borrowBalanceBefore);

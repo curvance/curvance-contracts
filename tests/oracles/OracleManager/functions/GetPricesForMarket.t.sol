@@ -109,7 +109,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
                 ICToken(assets[i]).balanceOf(address(this)),
                 borrowableCUSDC.balanceOf(address(this))
             );
-            assertEq(snapshots[i].debtOutstanding, 0);
+            assertEq(snapshots[i].debtBalance, 0);
             assertEq(snapshots[i].exchangeRate, 0);
         }
     }

@@ -272,9 +272,9 @@ abstract contract LiquidityManagerIsolated {
                     WAD;
             } else {
                 // If they have a debt balance, increment their debt.
-                if (snapshot.debtOutstanding > 0) {
+                if (snapshot.debtBalance > 0) {
                     debt += _assetValue(
-                        snapshot.debtOutstanding,
+                        snapshot.debtBalance,
                         underlyingPrices[i],
                         10 ** snapshot.decimals,
                         false
@@ -354,9 +354,9 @@ abstract contract LiquidityManagerIsolated {
                 }
             } else {
                 // If they have a debt balance, increment their debt.
-                if (snapshot.debtOutstanding > 0) {
+                if (snapshot.debtBalance > 0) {
                     newDebt += _assetValue(
-                        snapshot.debtOutstanding,
+                        snapshot.debtBalance,
                         underlyingPrices[i],
                         10 ** snapshot.decimals,
                         false
@@ -511,9 +511,9 @@ abstract contract LiquidityManagerIsolated {
 
                 // If they have a debt balance,
                 // we need to document collateral requirements.
-                if (snapshot.debtOutstanding > 0) {
+                if (snapshot.debtBalance > 0) {
                     accountData.debt += _assetValue(
-                        snapshot.debtOutstanding,
+                        snapshot.debtBalance,
                         underlyingPrices[i],
                         10 ** snapshot.decimals,
                         false
