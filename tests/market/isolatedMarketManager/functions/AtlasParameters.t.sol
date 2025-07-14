@@ -113,17 +113,17 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     // pass incentive == 0
     // maxAmount = 1000000762
     // debtToCollateralRatio =
-    // (1.20e18 (incentive 20%) *  2000000000000000000 (data.earnTokenPrice) * WAD) /
-    // (1677420866257185401796 (data.positionTokenPrice) * 1000000000000000000 (data.exchangeRate))
+    // (1.20e18 (incentive 20%) *  2000000000000000000 (data.debtTokenPrice) * WAD) /
+    // (1677420866257185401796 (data.collateralTokenPrice) * 1000000000000000000 (data.exchangeRate))
 
     // amountAdjusted = 250000000 (debtamount) * 1e18 / 1e6  // convert from USDC 6 decimals to 18 decimals
     
-    // liquidatedTokens = amountAdjusted * debtToCollateralRatio / WAD
+    // collateralLiquidated = amountAdjusted * debtToCollateralRatio / WAD
     function _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndLiquidate() public view returns (uint256) {
         uint256 WAD_SQUARED = 1e36;
 
         uint256 incentive = 1.15e18; 
-        uint256 earnTokenPrice = 2e18; 
+        uint256 debtTokenPrice = 2e18; 
         uint256 cTokenPrice;
         uint256 exchangeRate = strategyCBALRETH.exchangeRate();
         
@@ -137,12 +137,12 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         uint256 debtDecimals = 10**6;
         uint256 debtAmount = 250e6;
         
-        uint256 debtToCollateralMultiplier = (((incentive * earnTokenPrice * WAD_SQUARED) /
+        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_SQUARED) /
             (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
         
-        uint256 liquidatedTokens = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
+        uint256 collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
         
-        return liquidatedTokens;
+        return collateralLiquidated;
     }
 
     function testLiquidateExactWithDynamicPenalty() public {
@@ -190,7 +190,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         uint256 WAD = 1e18;
         uint256 WAD_SQUARED = 1e36;
 
-        uint256 earnTokenPrice = 2e18; 
+        uint256 debtTokenPrice = 2e18; 
         uint256 cTokenPrice;
         uint256 exchangeRate = strategyCBALRETH.exchangeRate();
         
@@ -215,12 +215,12 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         uint256 debtDecimals = 10**6;
         uint256 debtAmount = 250e6;
         
-        uint256 debtToCollateralMultiplier = (((incentive * earnTokenPrice * WAD_SQUARED) /
+        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_SQUARED) /
             (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
         
-        uint256 liquidatedTokens = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
+        uint256 collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
         
-        return liquidatedTokens;
+        return collateralLiquidated;
     }
 
     function testLiquidationWithDefaultPenalty() public {
@@ -319,7 +319,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         uint256 WAD_SQUARED = 1e36;
 
         uint256 incentive = 1.15e18; 
-        uint256 earnTokenPrice = 2e18; 
+        uint256 debtTokenPrice = 2e18; 
         uint256 cTokenPrice;
         uint256 exchangeRate = strategyCBALRETH.exchangeRate();
         uint256 closeFactor = 0.30e18;
@@ -336,12 +336,12 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         // Calculate maxAmount
         uint256 maxAmount = (closeFactor * debtBalance) / WAD;
         
-        uint256 debtToCollateralMultiplier = (((incentive * earnTokenPrice * WAD_SQUARED) /
+        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_SQUARED) /
             (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
         
-        uint256 liquidatedTokens = (maxAmount * debtToCollateralMultiplier) / WAD_SQUARED;
+        uint256 collateralLiquidated = (maxAmount * debtToCollateralMultiplier) / WAD_SQUARED;
         
-        return liquidatedTokens;
+        return collateralLiquidated;
     }
 
     function _setUpMarketNonLiquidation() internal {
