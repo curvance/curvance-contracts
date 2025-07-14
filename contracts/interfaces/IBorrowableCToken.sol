@@ -47,7 +47,7 @@ interface IBorrowableCToken is ICToken {
     /// @param owner The account who will have their assets borrowed
     ///              against.
     function borrowFor(
-        uint256 assets
+        uint256 assets,
         address receiver,
         address owner
     ) external;

@@ -378,16 +378,16 @@ abstract contract BaseCToken is
         _removeCollateral(shares, owner);
     }
 
-    /// @notice Transfers collateralized cToken shares from `account`
-    ///         to `liquidator` due to a liquidation.
+    /// @notice Transfers collateralized cToken shares from `accounts`
+    ///         to `liquidator` as part of a liquidation.
     /// @dev Will fail unless called by a different listed cToken
     ///      during the process of liquidation.
     ///      May emit {CollateralUpdated} and {Liquidated} events.
     /// @param liquidatedShares An array containing the number of
-    ///                         collateralized cTokens to seize, in shares
-    /// @param liquidator The account receiving seized collateralized cTokens.
-    /// @param accounts An array containing the accounts having
-    ///                 collateral seized.
+    ///                         collateralized cTokens to seize, in shares.
+    /// @param liquidator The account receiving `liquidatedShares` cTokens.
+    /// @param accounts An array containing the accounts having collateral
+    ///                 seized.
     function seize(
         uint256[] calldata liquidatedShares,
         address liquidator,
@@ -396,9 +396,9 @@ abstract contract BaseCToken is
         // Fails if seizure not allowed.
         marketManager.canSeize(address(this), msg.sender);
 
-        // We know that accounts and shares arrays are the same length since
-        // its validated inside the other listed token getting debt repaid
-        // within.
+        // We know that `accounts` and `liquidatedShares` arrays are the same
+        // length since we validate it inside the cToken getting debt repaid
+        // as part of this liquidation.
 
         uint256 numAccounts = accounts.length;
         uint256 totalShares;
@@ -406,7 +406,7 @@ abstract contract BaseCToken is
         address account;
         for (uint256 i; i < numAccounts; ++i) {
             shares = liquidatedShares[i];
-            // If theres no debt to repay for this user can
+            // If theres no shares to liquidate for this account can
             // skip them.
             if (shares == 0) {
                 continue;
@@ -414,23 +414,22 @@ abstract contract BaseCToken is
 
             account = accounts[i];
 
-            // Execute any prior liquidation actions.
+            // Execute any prior liquidation action.
             _beforeLiquidationAction(shares, liquidator, account);
             totalShares += shares;
 
-            // Remove liquidated account's collateral.
-            // Update user collateral posted invariant.
+            // Update `account` collateral posted invariant and transfer
+            // their collateral shares.
             collateralPosted[account] = collateralPosted[account] - shares;
             emit CollateralUpdated(shares, false, account);
 
-            // Efficiently transfer liquidated tokens from `account`
-            // to `liquidator`.
+            // Transfer liquidated shares from `account` to `liquidator`.
             _transferFromWithoutAllowance(account, liquidator, shares);
             emit Liquidated(shares, liquidator, account);
         }
 
-        // Update market collateral posted invariant for all the accounts
-        // liquidated.
+        // Update market collateral posted invariant for the liquidated
+        // shares.
         marketCollateralPosted = marketCollateralPosted - totalShares;
     }
 

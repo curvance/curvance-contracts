@@ -212,7 +212,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param owner The account address to borrow on behalf of.
     function borrowForPositionManager(
         uint256 assets,
-        address owner
+        address owner,
         IPositionManager.LeverageStruct memory leverageData
     ) external nonReentrant {
         if (!marketManager.isPositionManager(msg.sender)) {

@@ -14,7 +14,7 @@ import "tests/market/TestBaseMarketIsolated.sol";
 
 contract User {}
 
-contract TestPendlePTSimpleCToken.t is TestBaseMarketIsolated {
+contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
     address public owner;
 
     address internal constant _PT_ORACLE =
