@@ -381,8 +381,8 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         uint256 _collateralAvailable,
         uint256 _collateralRequired,
         uint256 _liquidatedCollateral,
-        uint256 _cTokenUnderlyingPrice,
-        uint256 _eTokenUnderlyingPrice,
+        uint256 _collateralTokenUnderlyingPrice,
+        uint256 _debtTokenUnderlyingPrice,
         uint256 _cTokenExchangeRate
     ) internal pure returns (uint256 expectedBadDebt) {
 
@@ -391,8 +391,8 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         expectedBadDebt = (_debtBalance - _debtAmount) -
         FixedPointMathLib.mulDivUp(
             ((_collateralAvailable - _liquidatedCollateral) * _cTokenExchangeRate) / WAD,
-            _cTokenUnderlyingPrice,
-            (_eTokenUnderlyingPrice * WAD) / 1e6
+            _collateralTokenUnderlyingPrice,
+            (_debtTokenUnderlyingPrice * WAD) / 1e6
         );
 
         } else {

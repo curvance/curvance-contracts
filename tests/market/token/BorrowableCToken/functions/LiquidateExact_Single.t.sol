@@ -21,8 +21,8 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
     uint256 debtBalancesPreLiquidation;
     uint256 collateralAmounts;
     uint256 expectedBadDebt;
-    uint256 eTokenPrice;
-    uint256 cTokenPrice;
+    uint256 debtTokenPrice;
+    uint256 collateralTokenPrice;
 
     uint256 lFactorsPreLiquidation;
 
@@ -54,12 +54,12 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         lFactorsPreLiquidation = _getLFactorsPreLiquidation(user1);
         debtBalancesPreLiquidation = _getDebtBalancePreLiquidation(user1);
         
-        (cTokenPrice, ) = oracleManager.getPrice(
+        (collateralTokenPrice, ) = oracleManager.getPrice(
             address(balRETH),
             true,
             true
         );
-        (eTokenPrice,) = oracleManager.getPrice(
+        (debtTokenPrice,) = oracleManager.getPrice(
             address(usdc),
             true,
             true
@@ -78,8 +78,8 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
             collateralAmounts,
             collateralRequired,
             collateralLiquidated,
-            cTokenPrice,
-            eTokenPrice,
+            collateralTokenPrice,
+            debtTokenPrice,
             cTokenExchangeRate
         );
 
@@ -241,13 +241,13 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
 
         console2.log("calculating highPrecisionD2C");
         console2.log("auctionLiqIncentive", auctionLiqIncentive);
-        console2.log("eTokenPrice", eTokenPrice);
-        console2.log("cTokenPrice", cTokenPrice);
+        console2.log("debtTokenPrice", debtTokenPrice);
+        console2.log("collateralTokenPrice", collateralTokenPrice);
         console2.log("cTokenExchangeRate", cTokenExchangeRate);
         
         uint256 debtToCollateralMultiplier = (((auctionLiqIncentive *
-            eTokenPrice * WAD_SQUARED) /
-            (cTokenPrice * cTokenExchangeRate)) *
+            debtTokenPrice * WAD_SQUARED) /
+            (collateralTokenPrice * cTokenExchangeRate)) *
             1e18) / 1e6;
         
         maxAmount = (auctionCFactor * debtBalance) / WAD_SQUARED;

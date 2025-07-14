@@ -132,8 +132,8 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
     ) internal view returns (uint256) {
         (, , uint256 collateralAvailable) = auxiliaryData.tokenDataOf(user, address(strategyCBALRETH));
         uint256 debtAmount = maxAmount;
-        uint256 liquidatedPTokens = (debtAmount * debtToCollateralMultiplier) / WAD;
-        if (liquidatedPTokens > collateralAvailable) {
+        uint256 collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD;
+        if (collateralLiquidated > collateralAvailable) {
             debtAmount = FixedPointMathLib.mulDivUp(collateralAvailable, WAD, debtToCollateralMultiplier);
         }
         return debtAmount;
