@@ -30,8 +30,8 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
             109,
             _REWARDER,
             _AURA_BOOSTER,
-            200,
-            1 days
+            1 days,
+            200
         );
     }
 
@@ -46,8 +46,8 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
             109,
             _REWARDER,
             _AURA_BOOSTER,
-            200,
-            1 days
+            1 days,
+            200
         );
     }
 
@@ -71,8 +71,8 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
             109,
             _REWARDER,
             _AURA_BOOSTER,
-            200,
-            1 days
+            1 days,
+            200
         );
     }
 
@@ -91,8 +91,8 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
             109,
             _REWARDER,
             _AURA_BOOSTER,
-            201,
-            1 days
+            1 days,
+            201
         );
     }
 
@@ -104,8 +104,8 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
             109,
             _REWARDER,
             _AURA_BOOSTER,
-            200,
-            1 days
+            1 days,
+            200
         );
 
         assertEq(

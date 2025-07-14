@@ -58,14 +58,14 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
         uint256 pid_,
         address rewarder_,
         address booster_,
-        uint256 exitFee_,
-        uint256 vestPeriod_
+        uint256 vestingPeriod_,
+        uint256 exitFee_
     )
         StrategyCTokenWithExitFee(
             centralRegistry_,
             asset_,
             marketManager_,
-            vestPeriod_,
+            vestingPeriod_,
             exitFee_
         )
     {

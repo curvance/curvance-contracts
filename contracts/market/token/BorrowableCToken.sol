@@ -286,7 +286,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         address collateralToken
     ) external nonReentrant {
         uint256 numAccounts = accounts.length;
-        if (numAccounts != assets.length) {
+        if (numAccounts != debtAmounts.length) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
