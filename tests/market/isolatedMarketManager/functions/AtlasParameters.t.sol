@@ -5,6 +5,8 @@ import { TestBaseMarketManagerIsolated } from "tests/market/isolatedMarketManage
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
+import { console2 } from "forge-std/console2.sol";
+
 
 contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     address dappControlUser = makeAddr("dappControlUser");
@@ -15,7 +17,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
     }
 
-    function testsetAuctionParameters() public {
+    function testSetAuctionParameters() public {
         _setUpMarketNonLiquidation();
         // Only dapp control can set penalty
         vm.startPrank(dappControlUser);
@@ -32,7 +34,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
     }
     
-    function testsetAuctionParametersUnauthorized() public {
+    function testSetAuctionParametersUnauthorized() public {
         _setUpMarketNonLiquidation();
 
         // // Non-dapp control user should not be able to set penalty
@@ -44,7 +46,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
     }
     
-    function testsetAuctionParametersInvalidValue() public {
+    function testSetAuctionParametersInvalidValue() public {
         _setUpMarketNonLiquidation();
         
         vm.startPrank(dappControlUser);
@@ -117,89 +119,132 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     // amountAdjusted = 250000000 (debtamount) * 1e18 / 1e6  // convert from USDC 6 decimals to 18 decimals
     
     // liquidatedTokens = amountAdjusted * debtToCollateralRatio / WAD
-    function _calculateExpectedLiquidatedTokensWithDynamicPenalty() public pure returns (uint256) {
-        uint256 WAD = 1e18;
+    function _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndLiquidate() public view returns (uint256) {
+        uint256 WAD_SQUARED = 1e36;
 
         uint256 incentive = 1.15e18; 
         uint256 earnTokenPrice = 2e18; 
-        uint256 cTokenPrice = 1677420866257185401796; 
-        uint256 exchangeRate = 1e18;  
+        uint256 cTokenPrice;
+        uint256 exchangeRate = strategyCBALRETH.exchangeRate();
         
-        uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
-            (cTokenPrice * exchangeRate);
+        (, cTokenPrice, ) = marketManagerIsolated.liquidationStatusOf(
+            user1,
+            address(strategyCBALRETH),
+            address(borrowableCUSDC)
+        );
         
-        uint256 amountAdjusted = (250000000 * 10**18) / 10**6;
+        uint256 collateralDecimals = 10**18;
+        uint256 debtDecimals = 10**6;
+        uint256 debtAmount = 250e6;
         
-        uint256 liquidatedTokens = (amountAdjusted * debtToCollateralRatio) / WAD;
+        uint256 debtToCollateralMultiplier = (((incentive * earnTokenPrice * WAD_SQUARED) /
+            (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
+        
+        uint256 liquidatedTokens = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
         
         return liquidatedTokens;
     }
 
-    // function testLiquidationWithDynamicPenalty() public {
-    //     _prepareLiquidationIsolated();
+    function testLiquidateExactWithDynamicPenalty() public {
+        _prepareLiquidation();
 
-    //     testsetAuctionParameters();
+        dappControlUser = makeAddr("dappControlUser");
+        vm.startPrank(centralRegistry.daoAddress());
+        centralRegistry.addAuctionPermissions(dappControlUser);
+        vm.stopPrank();
 
-    //     _prepareUSDC(user3, 250e6);
-    //     vm.startPrank(user3);
+        _prepareUSDC(user3, 250e6);
 
-    //     address[] memory usersToLiquidate = new address[](1);   
-    //     usersToLiquidate[0] = user1;
-    //     uint256[] memory amountsToLiquidate = new uint256[](1);
-    //     amountsToLiquidate[0] = 250e6;
+        vm.startPrank(dappControlUser);
 
-    //     usdc.approve(address(borrowableCUSDC), 250e6);
-    //     borrowableCUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(strategyCBALRETH));
-    //     vm.stopPrank();
+        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
+        
+        // Set auction parameters
+        uint256 validPenalty = 1.15e18;
+        uint256 closeFactor = 0.30e18;
+        marketManagerIsolated.setAuctionParameters(address(strategyCBALRETH), validPenalty, closeFactor);
+        
+        vm.stopPrank();
+        
+        vm.startPrank(user3);
+        address[] memory usersToLiquidate = new address[](1);   
+        usersToLiquidate[0] = user1;
+        uint256[] memory amountsToLiquidate = new uint256[](1);
+        amountsToLiquidate[0] = 250e6;
 
-    //     uint256 liquidatorcTokenBalance = strategyCBALRETH.balanceOf(user3);
-    //     assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenalty());
+        usdc.approve(address(borrowableCUSDC), 250e6);
+        borrowableCUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(strategyCBALRETH));
+        vm.stopPrank();
 
-    //     uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
-    //     assertEq(liquidatorUSDCBalance, 0);
+        console2.log("done liquidating");
 
-    // }
+        uint256 liquidatorcTokenBalance = strategyCBALRETH.balanceOf(user3);
+        assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndLiquidate(), 
+        "Liquidator cToken balance should match expected");
 
-    function _calculateExpectedLiquidatedTokensWithDefaultPenalty() public pure returns (uint256) {
+        uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
+        assertEq(liquidatorUSDCBalance, 0, "Liquidator USDC balance should be 0");
+    }
+
+    function _calculateExpectedLiquidatedTokensWithDefaultPenalty() public view returns (uint256) {
         uint256 WAD = 1e18;
+        uint256 WAD_SQUARED = 1e36;
 
-        uint256 incentive = 1.10e18; // Default 10% penalty
         uint256 earnTokenPrice = 2e18; 
-        uint256 cTokenPrice = 1677420866257185401796; 
-        uint256 exchangeRate = 1e18;  
+        uint256 cTokenPrice;
+        uint256 exchangeRate = strategyCBALRETH.exchangeRate();
         
-        uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
-            (cTokenPrice * exchangeRate);
+        (, cTokenPrice, ) = marketManagerIsolated.liquidationStatusOf(
+            user1,
+            address(strategyCBALRETH),
+            address(borrowableCUSDC)
+        );
         
-        uint256 amountAdjusted = (250000000 * 10**18) / 10**6;
+        (uint256 lFactor,,) = marketManagerIsolated.liquidationStatusOf(
+            user1,
+            address(strategyCBALRETH),
+            address(borrowableCUSDC)
+        );
         
-        uint256 liquidatedTokens = (amountAdjusted * debtToCollateralRatio) / WAD;
+        uint256 liqBaseIncentive = 1.1e18;
+        uint256 liqCurve = 5e16;
+        
+        uint256 incentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
+        
+        uint256 collateralDecimals = 10**18;
+        uint256 debtDecimals = 10**6;
+        uint256 debtAmount = 250e6;
+        
+        uint256 debtToCollateralMultiplier = (((incentive * earnTokenPrice * WAD_SQUARED) /
+            (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
+        
+        uint256 liquidatedTokens = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
         
         return liquidatedTokens;
     }
 
-    // function testLiquidationWithDefaultPenalty() public {
-    //     _prepareLiquidationIsolated();
+    function testLiquidationWithDefaultPenalty() public {
+        _prepareLiquidation();
 
-    //     _prepareUSDC(user3, 250e6);
+        _prepareUSDC(user3, 250e6);
 
-    //     vm.startPrank(user3);
+        vm.startPrank(user3);
 
-    //     address[] memory usersToLiquidate = new address[](1);   
-    //     usersToLiquidate[0] = user1;
-    //     uint256[] memory amountsToLiquidate = new uint256[](1);
-    //     amountsToLiquidate[0] = 250e6;
+        address[] memory usersToLiquidate = new address[](1);   
+        usersToLiquidate[0] = user1;
+        uint256[] memory amountsToLiquidate = new uint256[](1);
+        amountsToLiquidate[0] = 250e6;
 
-    //     usdc.approve(address(borrowableCUSDC), 250e6);
-    //     borrowableCUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(strategyCBALRETH));
-    //     vm.stopPrank();
+        usdc.approve(address(borrowableCUSDC), 250e6);
+        borrowableCUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(strategyCBALRETH));
+        vm.stopPrank();
 
-    //     uint256 liquidatorcTokenBalance = strategyCBALRETH.balanceOf(user3);
-    //     assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDefaultPenalty());
+        uint256 liquidatorcTokenBalance = strategyCBALRETH.balanceOf(user3);
+        assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDefaultPenalty());
 
-    //     uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
-    //     assertEq(liquidatorUSDCBalance, 0);
-    // }
+        uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
+        assertEq(liquidatorUSDCBalance, 0);
+    }
 
     function testLiquidationFailureWithDifferentUnlockedCollateral() public {
         _prepareLiquidation();
@@ -228,7 +273,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
     }
 
-    function testLiquidationWithDynamicPenaltyAndCloseFactor() public {
+    function testLiquidateWithDynamicPenalty() public {
         _prepareLiquidation();
 
         // Create a dapp control user
@@ -262,30 +307,40 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         borrowableCUSDC.liquidate(usersToLiquidate, address(strategyCBALRETH));
         vm.stopPrank();
 
-        // uint256 liquidatorcTokenBalance = strategyCBALRETH.balanceOf(user3);
-        // assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(debtBalance));
+        uint256 liquidatorcTokenBalance = strategyCBALRETH.balanceOf(user3);
+        assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndLiquidate(debtBalance));
 
-        // uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
-        // assertEq(liquidatorUSDCBalance, debtBalance - closeBalance);
+        uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
+        assertEq(liquidatorUSDCBalance, debtBalance - closeBalance);
     }
 
-    function _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(uint256 debtBalance) public pure returns (uint256) {
+    function _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndLiquidate(uint256 debtBalance) public view returns (uint256) {
         uint256 WAD = 1e18;
+        uint256 WAD_SQUARED = 1e36;
 
         uint256 incentive = 1.15e18; 
         uint256 earnTokenPrice = 2e18; 
-        uint256 cTokenPrice = 1677420866257185401796; 
-        uint256 exchangeRate = 1e18;
-        uint256 closeFactor = 1e18;
+        uint256 cTokenPrice;
+        uint256 exchangeRate = strategyCBALRETH.exchangeRate();
+        uint256 closeFactor = 0.30e18;
         
-        uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
-            (cTokenPrice * exchangeRate);
+        (, cTokenPrice, ) = marketManagerIsolated.liquidationStatusOf(
+            user1,
+            address(strategyCBALRETH),
+            address(borrowableCUSDC)
+        );
         
+        uint256 collateralDecimals = 10**18; 
+        uint256 debtDecimals = 10**6;  
+        
+        // Calculate maxAmount
         uint256 maxAmount = (closeFactor * debtBalance) / WAD;
-        uint256 amountAdjusted = (maxAmount * 10**18) / 10**6;
         
-        uint256 liquidatedTokens = (amountAdjusted * debtToCollateralRatio) / WAD;
-
+        uint256 debtToCollateralMultiplier = (((incentive * earnTokenPrice * WAD_SQUARED) /
+            (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
+        
+        uint256 liquidatedTokens = (maxAmount * debtToCollateralMultiplier) / WAD_SQUARED;
+        
         return liquidatedTokens;
     }
 
