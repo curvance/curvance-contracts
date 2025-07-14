@@ -370,7 +370,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
         );
 
-        AccountSnapshot memory borrowableCUSDCBeforeSnapshot = borrowableCUSDC.getSnapshot(
+        AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
             user
         );
         assertEq(
