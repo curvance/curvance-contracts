@@ -85,27 +85,27 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
 
-        MarketManagerIsolated.TokenConfig memory tokenConfigs;
-        tokenConfigs.cToken = address(strategyCBALRETH);
-        tokenConfigs.collRatio = 7000;
-        tokenConfigs.collReqSoft = 4000;
-        tokenConfigs.collReqHard = 3000;
-        tokenConfigs.liqIncBase = 1000;
-        tokenConfigs.liqIncHard = 1500;
-        tokenConfigs.liqIncMin = 500;
-        tokenConfigs.liqIncMax = 2000;
-        tokenConfigs.minEffectiveCloseFactor = 2000;
-        tokenConfigs.maxEffectiveCloseFactor = 3000;
-        tokenConfigs.baseCFactor = 1000;
-        tokenConfigs.collateralCap = 100e8;
-        tokenConfigs.debtCap = 0;
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 7000;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 3000;
+        tokenConfig.baseCFactor = 1000;
+        tokenConfig.collateralCap = 100e8;
+        tokenConfig.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-        tokenConfigs.cToken = address(borrowableCDAI);
-        tokenConfigs.debtCap = 100_000e6;
+        tokenConfig.cToken = address(borrowableCDAI);
+        tokenConfig.debtCap = 100_000e6;
 
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();
@@ -125,7 +125,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    // function testLiquidateRevertWhenBelowColReqA() public {
+    // function testLiquidateRevertWhenBelowColReqSoft() public {
     //     _prepareBALRETH(user1, 1 ether);
 
     //     // try mint()
@@ -170,7 +170,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
     //         address(strategyCBALRETH));
     // }
 
-    // function testLiquidateWorksWhenAboveColReqA() public {
+    // function testLiquidateWorksWhenAboveColReqSoft() public {
     //     _prepareBALRETH(user1, 1 ether);
 
     //     // try mint()

@@ -629,12 +629,57 @@ contract TestBaseMarketIsolated is TestBase {
         uint256 collateralCap,
         uint256 debtCap
     ) internal initMainVariables {
-
         MarketManagerIsolated.TokenConfig memory tokenConfig;
         tokenConfig.cToken = cToken;
         tokenConfig.collRatio = 7000;
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = collateralCap;
+        tokenConfig.debtCap = debtCap;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
+
+    function _setCTokenConfigLowValues(
+        address cToken,
+        uint256 collateralCap,
+        uint256 debtCap
+    ) internal initMainVariables {
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = cToken;
+        tokenConfig.collRatio = 700;
+        tokenConfig.collReqSoft = 400;
+        tokenConfig.collReqHard = 300;
+        tokenConfig.liqIncBase = 100;
+        tokenConfig.liqIncHard = 150;
+        tokenConfig.liqIncMin = 50;
+        tokenConfig.liqIncMax = 200;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = collateralCap;
+        tokenConfig.debtCap = debtCap;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
+
+    function _setCTokenConfigHighValues(
+        address cToken,
+        uint256 collateralCap,
+        uint256 debtCap
+    ) internal initMainVariables {
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = cToken;
+        tokenConfig.collRatio = 9600;
+        tokenConfig.collReqSoft = 8000;
+        tokenConfig.collReqHard = 6000;
         tokenConfig.liqIncBase = 1000;
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;

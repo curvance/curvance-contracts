@@ -535,7 +535,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         tokenConfigs.collateralCap = 0;
         tokenConfigs.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
         // tokenConfigs.cToken = address(borrowableCDAI);
         // tokenConfigs.debtCap = 100_000e18;

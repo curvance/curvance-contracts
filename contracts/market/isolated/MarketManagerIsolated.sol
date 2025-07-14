@@ -1120,7 +1120,7 @@ contract MarketManagerIsolated is
             newPenalty < cTokenData.liqMinIncentive ||
             newPenalty > cTokenData.liqMaxIncentive
             ) {
-            revert MarketManager__InvalidParameter();
+            _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Validate new Close Factor value.
@@ -1128,7 +1128,7 @@ contract MarketManagerIsolated is
             newCloseFactor < cTokenData.minEffectiveCloseFactor ||
             newCloseFactor > cTokenData.maxEffectiveCloseFactor
             ) {
-            revert MarketManager__InvalidParameter();
+            _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Set new Risk Parameters in transient storage. 

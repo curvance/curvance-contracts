@@ -33,7 +33,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     MockDataFeed public mockStethFeed;
 
     SimpleCToken public simpleCWBTC;
-    SimplePositionManager public positionManagement;
+    SimplePositionManager public positionManager;
 
     receive() external payable {}
 
@@ -111,7 +111,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             redstonePayload
         );
 
-        // Securely getting oracle value
+        // Securely get oracle value
         (bool success, ) = address(adapter).call(
             encodedFunctionWithRedstonePayload
         );
@@ -119,7 +119,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
         oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adapter));
 
-        // start epoch
+        // Start gauge system epoch
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
@@ -132,7 +132,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         // Deploy borrowableCUSDC
         {
             _deployBorrowableCUSDC();
-            // support market
+
             _prepareUSDC(owner, 200000e6);
             usdc.approve(address(borrowableCUSDC), 200000e6);
             // Add cToken support on Oracle Manager.
@@ -149,7 +149,6 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
                 address(marketManagerIsolated)
             );
 
-            // support market
             _prepareWBTC(owner, 1e8);
             wbtc.approve(address(simpleCWBTC), 1e8);
             // add CToken support on oracle manager
@@ -158,39 +157,39 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(simpleCWBTC),address(borrowableCUSDC));
 
-        MarketManagerIsolated.TokenConfig memory tokenConfigs;
-        tokenConfigs.cToken = address(simpleCWBTC);
-        tokenConfigs.collRatio = 7000;
-        tokenConfigs.collReqSoft = 4000;
-        tokenConfigs.collReqHard = 3000;
-        tokenConfigs.liqIncBase = 1000;
-        tokenConfigs.liqIncHard = 1500;
-        tokenConfigs.liqIncMin = 500;
-        tokenConfigs.liqIncMax = 2000;
-        tokenConfigs.minEffectiveCloseFactor = 2000;
-        tokenConfigs.maxEffectiveCloseFactor = 3000;
-        tokenConfigs.baseCFactor = 1000;
-        tokenConfigs.collateralCap = 100e8;
-        tokenConfigs.debtCap = 0;
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(simpleCWBTC);
+        tokenConfig.collRatio = 7000;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 3000;
+        tokenConfig.baseCFactor = 1000;
+        tokenConfig.collateralCap = 100e8;
+        tokenConfig.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-        tokenConfigs.cToken = address(borrowableCUSDC);
-        tokenConfigs.debtCap = 100_000e6;
+        tokenConfig.cToken = address(borrowableCUSDC);
+        tokenConfig.debtCap = 100_000e6;
 
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-        // provide enough liquidity
+        // Provide enough liquidity for leveraging.
         provideEnoughLiquidityForLeverage();
 
-        // setup position management
+        // Setup position manager
         {
-            positionManagement = new SimplePositionManager(
+            positionManager = new SimplePositionManager(
                 ICentralRegistry(address(centralRegistry)),
                 address(marketManagerIsolated),
                 _WETH_ADDRESS
             );
-            marketManagerIsolated.addPositionManager(address(positionManagement));
+            marketManagerIsolated.addPositionManager(address(positionManager));
         }
 
         centralRegistry.setExternalCalldataChecker(
@@ -200,7 +199,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
         address[] memory multicallProviders = new address[](3);
         multicallProviders[0] = address(simpleCWBTC);
-        multicallProviders[1] = address(positionManagement);
+        multicallProviders[1] = address(positionManager);
         multicallProviders[2] = address(borrowableCUSDC);
         centralRegistry.setMulticallProviders(multicallProviders, true);
     }
@@ -321,7 +320,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         simpleCWBTC.postCollateral(0.1e8);
         assertEq(simpleCWBTC.balanceOf(user1), 0.1e8);
 
-        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
             user1,
             address(borrowableCUSDC)
         ) * 50) / 100;
@@ -339,7 +338,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         params.tokenIn = _USDC_ADDRESS;
         params.tokenOut = _WBTC_ADDRESS;
         params.fee = 3000;
-        params.recipient = address(positionManagement);
+        params.recipient = address(positionManager);
         params.deadline = block.timestamp;
         params.amountIn = amountForLeverage;
         params.amountOutMinimum = 0;
@@ -370,15 +369,15 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         calls[0].data = encodedFunctionWithRedstonePayload;
         calls[0].isPriceUpdate = true;
 
-        calls[1].target = address(positionManagement);
+        calls[1].target = address(positionManager);
         calls[1].data = abi.encodeWithSelector(
-            positionManagement.leverage.selector,
+            positionManager.leverage.selector,
             leverageData
         );
 
         // try leverage()
         vm.prank(user1);
-        positionManagement.multicall(calls);
+        positionManager.multicall(calls);
     }
 
     function testCheckCalldata() public {
