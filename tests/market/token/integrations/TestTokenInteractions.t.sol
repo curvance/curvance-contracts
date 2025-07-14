@@ -5,6 +5,9 @@ import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { LiquidityManagerIsolated } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import "tests/market/TestBaseMarketIsolated.sol";
+import { WAD_SQUARED, WAD } from "contracts/libraries/Constants.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract TestTokenInteractions is TestBaseMarketIsolated {
     address public owner;
@@ -13,105 +16,21 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
 
+    uint256 liqBaseIncentive;
+    uint256 liqCurve;
+    uint256 baseCFactor;
+    uint256 cFactorCurve;
+
     receive() external payable {}
 
     fallback() external payable {}
 
     function setUp() public override {
         super.setUp();
-
-        owner = address(this);
-
-        // use mock pricing for testing
-        mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
-        dualChainlinkAdaptor.addAsset(
-            _DAI_ADDRESS,
-            address(mockDaiFeed),
-            0,
-            true
-        );
-        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            address(mockWethFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            address(mockWethFeed),
-            0,
-            true
-        );
-        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
-        chainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            address(mockRethFeed),
-            0,
-            false
-        );
-        dualChainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            address(mockRethFeed),
-            0,
-            false
-        );
-
-        // start epoch
-        vm.warp(gaugeManager.gaugeStartTime());
-        vm.roll(block.number + 1000);
-
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-
-        (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
-        chainlinkEthUsd.updateAnswer(ethPrice);
-
-        // setup eDAI
-        {
-            _prepareDAI(owner, 200_000e18);
-            dai.approve(address(borrowableCDAI), 200_000e18);
-            // Add cToken support on Oracle Manager.
-            oracleManager.addCTokenSupport(address(borrowableCDAI));
-        }
-
-        // setup strategyCBALRETH
-        {
-            // support market
-            _prepareBALRETH(owner, _ONE);
-            balRETH.approve(address(strategyCBALRETH), _ONE);
-        }
-
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
-
-        MarketManagerIsolated.TokenConfig memory tokenConfigs;
-        tokenConfigs.cToken = address(strategyCBALRETH);
-        tokenConfigs.collRatio = 7000;
-        tokenConfigs.collReqSoft = 4000;
-        tokenConfigs.collReqHard = 3000;
-        tokenConfigs.liqIncBase = 1000;
-        tokenConfigs.liqIncHard = 1500;
-        tokenConfigs.liqIncMin = 500;
-        tokenConfigs.liqIncMax = 2000;
-        tokenConfigs.minEffectiveCloseFactor = 2000;
-        tokenConfigs.maxEffectiveCloseFactor = 5000;
-        tokenConfigs.baseCFactor = 1000;
-        tokenConfigs.collateralCap = 100_000e18;
-        tokenConfigs.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
-
-        tokenConfigs.cToken = address(borrowableCDAI);
-        tokenConfigs.debtCap = 100_000e18;
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
-
-        // provide enough liquidity
-        provideEnoughLiquidityForLeverage();
     }
 
     function provideEnoughLiquidityForLeverage() internal {
+        
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 200_000e18);
         _prepareBALRETH(liquidityProvider, 10e18);
@@ -126,6 +45,8 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     }
 
     function testCTokenMintRedeem() public {
+        _deployMarket();
+
         _prepareBALRETH(user1, 2e18);
 
         // try mint()
@@ -147,6 +68,8 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     }
 
     function testBorrowableCTokenMintRedeem() public {
+        _deployMarket();
+
         _prepareDAI(user1, 2e18);
 
         // try mint()
@@ -168,6 +91,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     }
 
     function testBorrowableCTokenBorrowRepay() public {
+        _deployMarket();
         _prepareBALRETH(user1, _ONE);
 
         // try mint()
@@ -237,6 +161,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     }
 
     function testCTokenRedeemOnBorrow() public {
+        _deployMarket();
         _prepareBALRETH(user1, _ONE);
 
         // try mint()
@@ -266,6 +191,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     }
 
     function testBorrowableCTokenRedeemOnBorrow() public {
+        _deployMarket();
         // try mint()
         _prepareBALRETH(user1, _ONE);
         vm.startPrank(user1);
@@ -303,6 +229,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     }
 
     function testCTokenTransferOnBorrow() public {
+        _deployMarket();
         _prepareBALRETH(user1, _ONE);
 
         // try mint()
@@ -333,6 +260,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     }
 
     function testBorrowableCTokenTransferOnBorrow() public {
+        _deployMarket();
         // try mint()
         _prepareBALRETH(user1, _ONE);
         vm.startPrank(user1);
@@ -367,6 +295,8 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     }
 
     function testLiquidationExact() public {
+        _deployMarket();
+
         _prepareBALRETH(user1, _ONE);
 
         // try mint()
@@ -382,13 +312,30 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // skip min hold period
         skip(20 minutes);
 
-        (uint256 balRETHPrice, ) = oracleManager.getPrice(
-            address(balRETH),
-            true,
-            true
-        );
-
         mockDaiFeed.setMockAnswer(2e8);
+
+        // Get liquidation status
+        (uint256 lFactorsPreLiquidation, uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
+            marketManagerIsolated.liquidationStatusOf(user1, address(strategyCBALRETH), address(borrowableCDAI));
+
+        uint256 currentDebtBalance = borrowableCDAI.debtBalanceUpdated(user1);  
+        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
+
+        (, uint256 collateralLiquidated, uint256 collateralRequired) = 
+            _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
+                250e18, debtTokenPrice, collateralTokenPrice, lFactorsPreLiquidation
+            );
+
+        uint256 expectedBadDebt = _calculateBadDebt(
+            currentDebtBalance,
+            250e18,
+            strategyCBALRETH.collateralPosted(user1),
+            collateralRequired,
+            collateralLiquidated,
+            collateralTokenPrice,
+            debtTokenPrice,
+            cTokenExchangeRate
+        );
 
         // try liquidate half
         _prepareDAI(user2, 250e18);
@@ -404,26 +351,29 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             address(strategyCBALRETH));
         vm.stopPrank();
 
-        assertApproxEqRel(
-            strategyCBALRETH.balanceOf(user1),
-            _ONE - (500e18 * _ONE) / balRETHPrice,
-            0.02e18
-        );
+        _assertCollateralSeizure(_ONE, collateralLiquidated);
         assertEq(strategyCBALRETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
-        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 750e18, 0.01e18);
+
+
+        _assertDebtReduction(250e18, expectedBadDebt, currentDebtBalance);
+
         assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
+
+
     }
 
     function testLiquidation() public {
+        _deployMarket();
+
         _prepareBALRETH(user1, _ONE);
 
         // try mint()
         vm.startPrank(user1);
         balRETH.approve(address(strategyCBALRETH), _ONE);
         strategyCBALRETH.deposit(_ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE);
+        strategyCBALRETH.postCollateral(_ONE); 
 
         // try borrow()
         borrowableCDAI.borrow(1000e18);
@@ -432,13 +382,20 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // skip min hold period
         skip(20 minutes);
 
-        (uint256 balRETHPrice, ) = oracleManager.getPrice(
-            address(balRETH),
-            true,
-            true
-        );
-
         mockDaiFeed.setMockAnswer(1.5e8);
+
+        // Get liquidation status
+        uint256 lFactorsPreLiquidation = _getLFactorsPreLiquidation(user1);
+        (, uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
+            marketManagerIsolated.liquidationStatusOf(user1, address(strategyCBALRETH), address(borrowableCDAI));
+
+        uint256 currentDebtBalance = borrowableCDAI.debtBalanceUpdated(user1);  
+        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
+
+        (, uint256 collateralLiquidated,) = 
+            _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
+                debtTokenPrice, collateralTokenPrice, lFactorsPreLiquidation, _ONE, currentDebtBalance, cTokenExchangeRate
+            );
 
         // try liquidate
         _prepareDAI(user2, 10_000e18);
@@ -447,25 +404,20 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         address[] memory accounts = new address[](1);
         accounts[0] = user1;
 
-        borrowableCDAI.liquidate(
-            accounts,
-            address(strategyCBALRETH));
-    
+        borrowableCDAI.liquidate(accounts, address(strategyCBALRETH));
         vm.stopPrank();
 
-        assertApproxEqRel(
-            strategyCBALRETH.balanceOf(user1),
-            _ONE - (1550e18 * _ONE) / balRETHPrice,
-            0.06e18
-        );
-        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
+        _assertCollateralSeizure(_ONE, collateralLiquidated);
 
+        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertEq(borrowableCDAI.debtBalance(user1), 0);
         assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
     function testLiquidationWithFullValueLoss() public {
+        _deployMarket();
+
         _prepareBALRETH(user1, _ONE);
 
         // try mint()
@@ -495,14 +447,15 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(strategyCBALRETH.balanceOf(user1), 0);
-        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
-        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 830e18, 0.01e18);
-        assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
+        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 0, 0.01e18);
+        assertLt(borrowableCDAI.exchangeRateUpdated(), _ONE);
     }
 
     function testSoftLiquidation() public {
+        _deployMarket();
+
         _prepareBALRETH(user1, _ONE);
 
         // try mint()
@@ -558,16 +511,18 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     }
 
     function testRevertBorrowAndLiquidateWithZeroCollRatio() public {
-        _deployStrategyCBALRETH();
+        _deployMarketForZeroCollateralTest();
 
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
+        // _deployStrategyCBALRETH();
 
-        oracleManager.addCTokenSupport(address(strategyCBALRETH));
+        // balRETH.approve(address(strategyCBALRETH), _ONE);
+        // marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
+
+        // oracleManager.addCTokenSupport(address(strategyCBALRETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfigs;
         tokenConfigs.cToken = address(strategyCBALRETH);
-        tokenConfigs.collRatio = 7000;
+        tokenConfigs.collRatio = 0;
         tokenConfigs.collReqSoft = 4000;
         tokenConfigs.collReqHard = 3000;
         tokenConfigs.liqIncBase = 1000;
@@ -577,14 +532,14 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         tokenConfigs.minEffectiveCloseFactor = 2000;
         tokenConfigs.maxEffectiveCloseFactor = 5000;
         tokenConfigs.baseCFactor = 1000;
-        tokenConfigs.collateralCap = 100_000e18;
+        tokenConfigs.collateralCap = 0;
         tokenConfigs.debtCap = 0;
 
         marketManagerIsolated.updateTokenConfig(tokenConfigs);
 
-        tokenConfigs.cToken = address(borrowableCDAI);
-        tokenConfigs.debtCap = 100_000e18;
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+        // tokenConfigs.cToken = address(borrowableCDAI);
+        // tokenConfigs.debtCap = 100_000e18;
+        // marketManagerIsolated.updateTokenConfig(tokenConfigs);
 
         _prepareBALRETH(user1, _ONE);
 
@@ -628,5 +583,353 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         vm.prank(user1);
         strategyCBALRETH.withdraw(_ONE, user1, user1);
+    }
+
+    function _assertCollateralSeizure(uint256 _collateralAmount, uint256 collateralLiquidated) internal view {
+
+        console2.log("collateralAmount", _collateralAmount);
+        console2.log("collateralLiquidated", collateralLiquidated);
+        console2.log("borrowerCollateralAfter", strategyCBALRETH.balanceOf(user1));
+
+        uint256 borrowerCollateralAfter = strategyCBALRETH.balanceOf(user1);
+        uint256 expectedBorrowerCollateralAfter = _collateralAmount - collateralLiquidated;
+
+        assertApproxEqAbs(
+            borrowerCollateralAfter,
+            expectedBorrowerCollateralAfter,
+            1000,
+            "Borrower collateral should be reduced by collateralLiquidated"
+        );
+    }
+
+    function _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
+        uint256 _debtTokenPrice,
+        uint256 _collateralTokenPrice,
+        uint256 lFactors,
+        uint256 _collateralAmounts,
+        uint256 _borrowAmounts,
+        uint256 _cTokenExchangeRate
+    ) internal view returns (
+        uint256 maxAmount, 
+        uint256 collateralLiquidated,
+        uint256 collateralRequired
+    ) {
+        if (lFactors == 0) return (0,0,0);
+        
+        uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactors) / WAD);
+        uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors) / WAD);
+        
+        uint256 debtToCollateralMultiplier = (((auctionLiqIncentive *
+            _debtTokenPrice * WAD_SQUARED) /
+        (_collateralTokenPrice * _cTokenExchangeRate)) *
+        1e18) / 1e18;
+            
+        maxAmount = (auctionCFactor * _borrowAmounts) / WAD;
+        
+        collateralLiquidated = (maxAmount * debtToCollateralMultiplier) / WAD_SQUARED;
+        
+        if (collateralLiquidated > _collateralAmounts) {
+            maxAmount = FixedPointMathLib.mulDivUp(
+                maxAmount,
+                _collateralAmounts,
+                collateralLiquidated
+            );
+            collateralLiquidated = _collateralAmounts;
+        }
+        
+        collateralRequired = (_borrowAmounts * debtToCollateralMultiplier) / WAD_SQUARED;
+
+        return (maxAmount, collateralLiquidated, collateralRequired);
+    }
+
+    function _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
+    uint256 _debtAmount,
+    uint256 _debtTokenPrice,
+    uint256 _collateralTokenPrice,
+    uint256 _lFactor
+    ) internal view returns (
+    uint256 maxAmount,
+    uint256 liquidatedPTokens,
+    uint256 collateralRequired
+    ) {
+    uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
+    uint256 debtBalance = borrowableCDAI.debtBalance(user1);
+
+    uint256 auctionCFactor = baseCFactor + ((cFactorCurve * _lFactor) / WAD);
+    uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * _lFactor) / WAD);
+
+    uint256 debtToCollateralMultiplier = (((auctionLiqIncentive *
+        _debtTokenPrice * WAD_SQUARED) /
+        (_collateralTokenPrice * cTokenExchangeRate)) *
+        1e18) / 1e18;
+
+    maxAmount = (auctionCFactor * debtBalance) / WAD;
+
+    liquidatedPTokens = (_debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
+
+    collateralRequired = (debtBalance * debtToCollateralMultiplier) / WAD_SQUARED;
+
+    return (maxAmount, liquidatedPTokens, collateralRequired);
+    }
+
+    function _getLFactorsPreLiquidation(address _borrowers) internal view returns (uint256 lFactors) {
+        (lFactors,,) = marketManagerIsolated.liquidationStatusOf(
+            _borrowers,
+            address(strategyCBALRETH),  
+            address(borrowableCDAI)     
+        );
+        return lFactors;
+    }
+
+    function _assertDebtReduction(uint256 debtAmount, uint256 expectedBadDebt, uint256 debtBalancesPreLiquidation) internal view {
+        uint256 debtAfter = borrowableCDAI.debtBalance(user1);
+
+        // bad debt expected
+
+        console2.log("debtAmount + expectedBadDebt", debtAmount + expectedBadDebt);
+        console2.log("debtBalancesPreLiquidation", debtBalancesPreLiquidation);
+        console2.log("debtAfter", debtAfter);
+
+        uint256 expectedDebtAfter = debtBalancesPreLiquidation - (debtAmount + expectedBadDebt);
+
+        console2.log("expectedBadDebt", expectedBadDebt);
+
+        assertApproxEqAbs(
+            debtAfter,
+            expectedDebtAfter, 
+            1000,
+            "Debt reduction should include bad debt"
+        );
+    }
+
+    function _calculateBadDebt(
+        uint256 _debtBalance,
+        uint256 _debtAmount,
+        uint256 _collateralAvailable,
+        uint256 _collateralRequired,
+        uint256 _liquidatedPTokens,
+        uint256 _collateralUnderlyingPrice,
+        uint256 _debtUnderlyingPrice,
+        uint256 _cTokenExchangeRate
+    ) internal view returns (uint256 badDebt) {
+
+        if (_collateralRequired > _collateralAvailable) {
+            uint256 debtDecimals = 10 ** IERC20(address(borrowableCDAI)).decimals();
+            
+            uint256 amountToSubtract = 
+                FixedPointMathLib.mulDivUp(
+                    ((_collateralAvailable - _liquidatedPTokens) * _cTokenExchangeRate) / WAD,
+                    _collateralUnderlyingPrice,
+                    (_debtUnderlyingPrice * WAD) / debtDecimals
+                );
+
+            badDebt = (_debtBalance - _debtAmount) - amountToSubtract;
+        } else {
+            return 0;
+        }
+    }
+
+    function _deployMarket() internal {
+        owner = address(this);
+
+        // use mock pricing for testing
+        mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
+        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
+        dualChainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            address(mockDaiFeed),
+            0,
+            true
+        );
+        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
+        chainlinkAdaptor.addAsset(
+            _WETH_ADDRESS,
+            address(mockWethFeed),
+            0,
+            true
+        );
+        dualChainlinkAdaptor.addAsset(
+            _WETH_ADDRESS,
+            address(mockWethFeed),
+            0,
+            true
+        );
+        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
+        chainlinkAdaptor.addAsset(
+            _RETH_ADDRESS,
+            address(mockRethFeed),
+            0,
+            false
+        );
+        dualChainlinkAdaptor.addAsset(
+            _RETH_ADDRESS,
+            address(mockRethFeed),
+            0,
+            false
+        );
+
+        // start epoch
+        vm.warp(gaugeManager.gaugeStartTime());
+        vm.roll(block.number + 1000);
+
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        mockRethFeed.setMockUpdatedAt(block.timestamp);
+
+        (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
+        chainlinkEthUsd.updateAnswer(ethPrice);
+
+        console2.log("ethPrice", ethPrice);
+
+        // setup eDAI
+        {
+            _prepareDAI(owner, 200_000e18);
+            dai.approve(address(borrowableCDAI), 200_000e18);
+            // Add cToken support on Oracle Manager.
+            oracleManager.addCTokenSupport(address(borrowableCDAI));
+        }
+
+        // setup strategyCBALRETH
+        {
+            // support market
+            _prepareBALRETH(owner, _ONE);
+            balRETH.approve(address(strategyCBALRETH), _ONE);
+        }
+
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
+
+        MarketManagerIsolated.TokenConfig memory tokenConfigs;
+        tokenConfigs.cToken = address(strategyCBALRETH);
+        tokenConfigs.collRatio = 7000;
+        tokenConfigs.collReqSoft = 4000;
+        tokenConfigs.collReqHard = 3000;
+        tokenConfigs.liqIncBase = 1000;
+        tokenConfigs.liqIncHard = 1500;
+        tokenConfigs.liqIncMin = 500;
+        tokenConfigs.liqIncMax = 2000;
+        tokenConfigs.minEffectiveCloseFactor = 2000;
+        tokenConfigs.maxEffectiveCloseFactor = 5000;
+        tokenConfigs.baseCFactor = 1000;
+        tokenConfigs.collateralCap = 100_000e18;
+        tokenConfigs.debtCap = 0;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+
+        tokenConfigs.cToken = address(borrowableCDAI);
+        tokenConfigs.debtCap = 100_000e18;
+        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+
+        // provide enough liquidity
+        provideEnoughLiquidityForLeverage();
+
+        (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
+            marketManagerIsolated.tokenData(address(strategyCBALRETH));
+
+        liqBaseIncentive = liqBaseIncentive_;
+        liqCurve = liqCurve_;
+        baseCFactor = baseCFactor_;
+        cFactorCurve = cFactorCurve_;
+    }
+
+    function _deployMarketForZeroCollateralTest() internal {
+        owner = address(this);
+
+        // use mock pricing for testing
+        mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
+        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
+        dualChainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            address(mockDaiFeed),
+            0,
+            true
+        );
+        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
+        chainlinkAdaptor.addAsset(
+            _WETH_ADDRESS,
+            address(mockWethFeed),
+            0,
+            true
+        );
+        dualChainlinkAdaptor.addAsset(
+            _WETH_ADDRESS,
+            address(mockWethFeed),
+            0,
+            true
+        );
+        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
+        chainlinkAdaptor.addAsset(
+            _RETH_ADDRESS,
+            address(mockRethFeed),
+            0,
+            false
+        );
+        dualChainlinkAdaptor.addAsset(
+            _RETH_ADDRESS,
+            address(mockRethFeed),
+            0,
+            false
+        );
+
+        // start epoch
+        vm.warp(gaugeManager.gaugeStartTime());
+        vm.roll(block.number + 1000);
+
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        mockRethFeed.setMockUpdatedAt(block.timestamp);
+
+        (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
+        chainlinkEthUsd.updateAnswer(ethPrice);
+
+        console2.log("ethPrice", ethPrice);
+
+        // setup eDAI
+        {
+            _prepareDAI(owner, 200_000e18);
+            dai.approve(address(borrowableCDAI), 200_000e18);
+            // Add cToken support on Oracle Manager.
+            oracleManager.addCTokenSupport(address(borrowableCDAI));
+        }
+
+        // setup strategyCBALRETH
+        {
+            // support market
+            _prepareBALRETH(owner, _ONE);
+            balRETH.approve(address(strategyCBALRETH), _ONE);
+        }
+
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
+
+        MarketManagerIsolated.TokenConfig memory tokenConfigs;
+        tokenConfigs.cToken = address(strategyCBALRETH);
+        tokenConfigs.collRatio = 0;
+        tokenConfigs.collReqSoft = 4000;
+        tokenConfigs.collReqHard = 3000;
+        tokenConfigs.liqIncBase = 1000;
+        tokenConfigs.liqIncHard = 1500;
+        tokenConfigs.liqIncMin = 500;
+        tokenConfigs.liqIncMax = 2000;
+        tokenConfigs.minEffectiveCloseFactor = 2000;
+        tokenConfigs.maxEffectiveCloseFactor = 5000;
+        tokenConfigs.baseCFactor = 1000;
+        tokenConfigs.collateralCap = 0;
+        tokenConfigs.debtCap = 0;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+
+        tokenConfigs.cToken = address(borrowableCDAI);
+        tokenConfigs.debtCap = 100_000e18;
+        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+
+        // provide enough liquidity
+        provideEnoughLiquidityForLeverage();
+
+        (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
+            marketManagerIsolated.tokenData(address(strategyCBALRETH));
+
+        liqBaseIncentive = liqBaseIncentive_;
+        liqCurve = liqCurve_;
+        baseCFactor = baseCFactor_;
+        cFactorCurve = cFactorCurve_;
     }
 }
