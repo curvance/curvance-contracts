@@ -175,7 +175,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         
         // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leverage with 50% of max.
@@ -263,7 +263,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         strategyCTokenUSDCDAI.postCollateral(0.001 ether);
         assertEq(strategyCTokenUSDCDAI.balanceOf(user), 0.001 ether);
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
-        borrowableCDAI.borrow(500 ether);
+        borrowableCDAI.borrow(500 ether, user);
         assertEq(balanceBeforeBorrow + 500 ether, dai.balanceOf(user));
 
         // deposit and leverage
@@ -321,7 +321,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         strategyCTokenUSDCDAI.postCollateral(0.001 ether);
         assertEq(strategyCTokenUSDCDAI.balanceOf(user), 0.001 ether);
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
-        borrowableCDAI.borrow(500 ether);
+        borrowableCDAI.borrow(500 ether, user);
         assertEq(balanceBeforeBorrow + 500 ether, dai.balanceOf(user));
 
         // deposit and leverage
@@ -443,7 +443,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         
         // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leverage with 50% of max.

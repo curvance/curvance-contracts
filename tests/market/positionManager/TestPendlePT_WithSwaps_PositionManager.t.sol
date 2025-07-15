@@ -143,7 +143,6 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
     event debugUint(string, uint256);
 
     function _createLeverage() public {
-
         _setUpMarket(1);
 
         vm.startPrank(user);
@@ -159,7 +158,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         
         // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leverage with 20% of max.
@@ -246,7 +245,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         
         // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leverage with 20% of max.

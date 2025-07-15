@@ -198,7 +198,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         
         // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leverage with 50% of max.
@@ -265,7 +265,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         
         // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leverage with 50% of max.
@@ -517,7 +517,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 
         // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leverage with 50% of max.

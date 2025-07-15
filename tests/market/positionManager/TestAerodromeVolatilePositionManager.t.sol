@@ -316,7 +316,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         strategyCTokenWETHUSDC.postCollateral(0.0001 ether);
         assertEq(strategyCTokenWETHUSDC.balanceOf(user), 0.0001 ether);
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // deposit and leverage
@@ -390,7 +390,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         strategyCTokenWETHUSDC.postCollateral(0.0001 ether);
         assertEq(strategyCTokenWETHUSDC.balanceOf(user), 0.0001 ether);
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // deposit and leverage
@@ -545,7 +545,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         
         // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leverage with 50% of max.

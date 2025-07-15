@@ -104,7 +104,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
 
-        // Deposit borrowable cUSDC.
+        // Mint borrowable cUSDC.
         assertGt(borrowableCUSDC.deposit(1000e6, user), 0);
         borrowableCUSDC.postCollateral(1000e6);
         assertEq(borrowableCUSDC.balanceOf(user), 1000e6);
@@ -112,7 +112,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         
         // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
         // Try leverage with 50% of max.
@@ -265,15 +265,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
 
-        // Deposit borrowable cDAI.
+        // Mint borrowable cUSDC.
         assertGt(borrowableCUSDC.deposit(1000e6, user), 0);
         borrowableCUSDC.postCollateral(1000e6);
         assertEq(borrowableCUSDC.balanceOf(user), 1000e6);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
 
-        // Borrow cDAI.
-        borrowableCDAI.borrow(100 ether);
+        // Borrow borrowable cDAI.
+        borrowableCDAI.borrow(100 ether, user);
         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
         // Try leverage with 50% of max.
@@ -388,11 +388,12 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         
+        // Mint borrowable cUSDC.
         borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
         
-        // Borrow cDAI.
-        borrowableCDAI.borrow(100 ether);
+        // Borrow borrowable cDAI.
+        borrowableCDAI.borrow(100 ether, user);
         
         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
             user,
@@ -473,11 +474,12 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         
+        // Mint borrowable cUSDC.
         borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
         
-        // Borrow cDAI.
-        borrowableCDAI.borrow(100 ether);
+        // Borrow borrowable cDAI.
+        borrowableCDAI.borrow(100 ether, user);
         
         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
             user,
@@ -558,11 +560,12 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         
+        // Mint borrowable cUSDC.
         borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
         
-        // Borrow cDAI.
-        borrowableCDAI.borrow(100 ether);
+        // Borrow borrowable cDAI.
+        borrowableCDAI.borrow(100 ether, user);
         
         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
             user,
@@ -604,11 +607,12 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         
+        // Mint borrowable cUSDC.
         borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
         
-        // Borrow cDAI.
-        borrowableCDAI.borrow(100 ether);
+        // Borrow borrowable cDAI.
+        borrowableCDAI.borrow(100 ether, user);
         
         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
             user,
@@ -689,11 +693,12 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         
+        // Mint borrowable cUSDC.
         borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
         
-        // Borrow cDAI.
-        borrowableCDAI.borrow(100 ether);
+        // Borrow borrowable cDAI.
+        borrowableCDAI.borrow(100 ether, user);
         
         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
             user,
@@ -747,12 +752,12 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         
-        // Mint borrowable CUSDC.
+        // Mint borrowable cUSDC.
         borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
         
         // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         
         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
             user,
@@ -795,9 +800,13 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         // Set up the collateral position.
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
+
+        // Mint borrowable cUSDC.
         borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
-        borrowableCDAI.borrow(100 ether);
+
+        // Borrow borrowable cDAI.
+        borrowableCDAI.borrow(100 ether, user);
         
         // Do not set delegate approval for user2.
 
@@ -898,7 +907,9 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         usdc.approve(address(borrowableCUSDC), 1000e6);
         borrowableCUSDC.deposit(1000e6, user);
         borrowableCUSDC.postCollateral(1000e6);
-        borrowableCDAI.borrow(100 ether);
+
+        // Borrow borrowable cDAI.
+        borrowableCDAI.borrow(100 ether, user);
         
         vm.stopPrank();
 

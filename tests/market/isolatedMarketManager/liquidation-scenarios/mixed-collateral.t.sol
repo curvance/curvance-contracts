@@ -141,8 +141,8 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
             collateralToken: address(strategyCBALRETH),
             numAccounts: 4,
             liquidateExact: false,
+            liquidatedShares: 0,
             debtRepaid: 0,
-            collateralLiquidated: 0,
             badDebt: 0
         });
 

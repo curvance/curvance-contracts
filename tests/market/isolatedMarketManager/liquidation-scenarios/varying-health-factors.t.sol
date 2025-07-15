@@ -146,8 +146,8 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
             collateralToken: address(strategyCBALRETH),
             numAccounts: 5,
             liquidateExact: false,
+            liquidatedShares: 0,
             debtRepaid: 0,
-            collateralLiquidated: 0,
             badDebt: 0
         });
 

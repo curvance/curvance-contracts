@@ -172,7 +172,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         
         // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leverage with 50% of max.
@@ -291,7 +291,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         
         // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leverage with 50% of max.
@@ -416,7 +416,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         cPendlePTSTETH.postCollateral(1 ether);
         
         // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         
         // Try leverage with 50% of max.
         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
@@ -469,7 +469,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         cPendlePTSTETH.postCollateral(1 ether);
         
         // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether);
+        borrowableCDAI.borrow(100 ether, user);
         
         // Calculate leverage amount
         uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
