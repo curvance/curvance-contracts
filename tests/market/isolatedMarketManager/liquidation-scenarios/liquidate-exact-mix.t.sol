@@ -14,13 +14,13 @@ import "forge-std/console2.sol";
 
 // ## Scenario 4: Mixed Auction and Regular Liquidations, with a mix of liquidateExact() and liquidate()
 // - Setup: 4 users with varying positions
-// - User 1: 1.9 simpleCBALRETH ($2,850), 2500 USDC debt
+// - User 1: 1.9 strategyCBALRETH ($2,850), 2500 USDC debt
 // - Action 1: Price drop by to ~$1,300, 
 // - Action 2: User 1 is liquidated via regular liquidation using liquidateExact() 1/4 of their total debt
 // - Action 3: User 1 is liquidated via regular liquidation using liquidateExact() 1/4 of their remaining debt
 // - Action 3: User 1 has the rest of their debt liquidated via regular liquidation using liquidate()
 
-contract MixedAuction is TestBaseMarketManagerIsolated {
+contract LiquidateExactMix is TestBaseMarketManagerIsolated {
 
     address borrower1 = makeAddr("borrower1");
 
@@ -81,32 +81,32 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         vm.prank(user1);
         usdc.approve(address(borrowableCUSDC), _ONE);
-        balRETH.approve(address(simpleCBALRETH), _ONE + 77777);
+        balRETH.approve(address(strategyCBALRETH), _ONE + 77777);
 
-        marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        borrowableCUSDC.depositReserves(1000e6);
+        // Update position token parameters using modern TokenConfig approach
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 9200;    // collRatio 92%
+        tokenConfig.collReqSoft = 830;   // collReqSoft 8.3%
+        tokenConfig.collReqHard = 650;   // collReqHard 6.5%
+        tokenConfig.liqIncBase = 500;    // liqIncBase 5%
+        tokenConfig.liqIncHard = 550;    // liqIncHard 5.5%
+        tokenConfig.liqIncMin = 300;     // liqIncMin 3%
+        tokenConfig.liqIncMax = 550;     // liqIncMax 5.5%
+        tokenConfig.minEffectiveCloseFactor = 1000;  // minEffectiveCFactor 10%
+        tokenConfig.maxEffectiveCloseFactor = 5000;  // maxEffectiveCFactor 50%
+        tokenConfig.baseCFactor = 2000;  // baseCFactor 20%
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 0;
 
-        // Update position token parameters
-        marketManagerIsolated.updatePositionToken(
-            9200,    // collRatio 92%
-            830,     // collReqSoft 8.3%
-            650,     // collReqHard 6.5%
-            500,     // liqIncBase 5%
-            550,     // liqIncHard 5.5%
-            300,     // liqIncMin 3%
-            550,     // liqIncMax 5.5% 
-            1000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(simpleCBALRETH);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setCollateralCaps(tokens, caps);
+        // Set up debt cap for borrowable token
+        tokenConfig.cToken = address(borrowableCUSDC);
+        tokenConfig.debtCap = 100_000e6;
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
@@ -114,10 +114,10 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         // mint borrowableCUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
-        borrowableCUSDC.mint(200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // mint cBALETH
-        balRETH.approve(address(simpleCBALRETH), 10e18);
-        simpleCBALRETH.deposit(10e18, liquidityProvider);
+        balRETH.approve(address(strategyCBALRETH), 10e18);
+        strategyCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
         _createPositions();
 
@@ -125,7 +125,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         mockRethFeed.setMockAnswer(1300e8);
 
         (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
-            marketManagerIsolated.tokenData(address(simpleCBALRETH));
+            marketManagerIsolated.tokenData(address(strategyCBALRETH));
 
         liqBaseIncentive = liqBaseIncentive_;
         liqCurve = liqCurve_;
@@ -144,21 +144,27 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     uint256 debtTokenPrice;
     uint256 collateralTokenPrice;
     uint256 quarterRatio = 0.25e18;
+    uint256 cTokenExchangeRate;
+    uint256 debtBalancesPreLiquidation;
+    uint256 lFactorsPreLiquidation;
 
     function test_liquidateExactMix() public {
 
         // ===== Cache general liquidation values =====
 
-        uint256 cTokenExchangeRate = simpleCBALRETH.exchangeRate();
+        cTokenExchangeRate = strategyCBALRETH.exchangeRate();
 
-        totalBorrowsBefore = borrowableCUSDC.totalBorrows();
+        totalBorrowsBefore = borrowableCUSDC.marketOutstandingDebt();
 
-        uint256 debtBalancesPreLiquidation = _getDebtBalancePreLiquidation(borrower1);
+        debtBalancesPreLiquidation = _getDebtBalancePreLiquidation(borrower1);
 
-        uint256 lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower1);
+        lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower1);
 
-        (,debtTokenPrice, collateralTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(borrower1, address(borrowableCUSDC), address(simpleCBALRETH));
+        (,collateralTokenPrice, debtTokenPrice) = 
+            marketManagerIsolated.liquidationStatusOf(borrower1, address(strategyCBALRETH), address(borrowableCUSDC));
+
+        console2.log("debtTokenPrice", debtTokenPrice);
+        console2.log("collateralTokenPrice", collateralTokenPrice);
 
         // ===== Cache first liquidation values =====
         amountToRepayPartial = new uint256[](1);
@@ -166,18 +172,23 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         // repay a quarter of the total debt
         amountToRepayPartial[0] = (debtBalancesPreLiquidation * quarterRatio) / WAD;
 
+        console2.log("calculating first liquidation values");
         (uint256 maxAmount_liquidateExact_1, uint256 collateralLiquidated_liquidateExact_first, uint256 collateralRequired_liquidateExact_1) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
                 debtTokenPrice, 
                 collateralTokenPrice, 
                 lFactorsPreLiquidation,
-                collateralAmountStart, 
-                amountToRepayPartial[0]
+                amountToRepayPartial[0],
+                debtBalancesPreLiquidation
             );
+
+        console2.log("maxAmount_liquidateExact_1", maxAmount_liquidateExact_1);
+        console2.log("collateralLiquidated_liquidateExact_first", collateralLiquidated_liquidateExact_first);
+        console2.log("collateralRequired_liquidateExact_1", collateralRequired_liquidateExact_1);
 
         uint256 badDebt_expected_liquidateExact_1 = _calculateBadDebt(
             debtBalancesPreLiquidation,
-            maxAmount_liquidateExact_1,
+            amountToRepayPartial[0],
             collateralAmountStart,
             collateralRequired_liquidateExact_1,
             collateralLiquidated_liquidateExact_first,
@@ -186,16 +197,23 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             cTokenExchangeRate
         );
 
+        console2.log("badDebt_expected_liquidateExact_1", badDebt_expected_liquidateExact_1);
+
         uint256 totalDebtPaid_first = amountToRepayPartial[0] + badDebt_expected_liquidateExact_1;
 
+        console2.log("totalDebtPaid_first", totalDebtPaid_first);
+
         uint256 remainingDebt_after_first = debtBalancesPreLiquidation - totalDebtPaid_first;
+
+        console2.log("remainingDebt_after_first", remainingDebt_after_first);
 
         // ===== First liquidation using liquidateExact() =====
 
         address first_liquidator = makeAddr("first_liquidator");
-        _prepareUSDC(first_liquidator, 100_000e6);
+        _prepareUSDC(first_liquidator, amountToRepayPartial[0]);
 
         vm.startPrank(first_liquidator);
+        usdc.approve(address(borrowableCUSDC), amountToRepayPartial[0]);
 
         // expect bad debt emit and debt repaid
         vm.expectEmit();
@@ -203,9 +221,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         emit Repay(first_liquidator, borrower1, totalDebtPaid_first);
 
         borrowableCUSDC.liquidateExact(
-            amountToRepayPartial,
             borrowers,
-            address(simpleCBALRETH)
+            amountToRepayPartial,
+            address(strategyCBALRETH)
         );
 
         vm.stopPrank();
@@ -226,13 +244,13 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
                 debtTokenPrice, 
                 collateralTokenPrice, 
                 lFactorsPreLiquidation,
-                collateralAmount_after_first, 
-                amountToRepayPartial[0]
+                amountToRepayPartial[0],
+                remainingDebt_after_first
             );
 
         uint256 badDebt_expected_liquidateExact_2 = _calculateBadDebt(
-            debtBalancesPreLiquidation,
-            maxAmount_liquidateExact_2,
+            remainingDebt_after_first,
+            amountToRepayPartial[0],
             collateralAmount_after_first,
             collateralRequired_liquidateExact_2,
             collateralLiquidated_liquidateExact_2,
@@ -251,6 +269,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         _prepareUSDC(second_liquidator, 100_000e6);
 
         vm.startPrank(second_liquidator);
+        usdc.approve(address(borrowableCUSDC), amountToRepayPartial[0]);
 
         // expect bad debt emit and debt repaid
         vm.expectEmit();
@@ -260,9 +279,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         // The second liquidation should have the same expected result as the first
 
         borrowableCUSDC.liquidateExact(
-            amountToRepayPartial,
             borrowers,
-            address(simpleCBALRETH)
+            amountToRepayPartial,
+            address(strategyCBALRETH)
         );
 
         vm.stopPrank();
@@ -274,25 +293,22 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         // Update expected remaining collateral
         uint256 collateralAmount_after_second = collateralAmount_after_first - collateralLiquidated_liquidateExact_2;
-
-        // ====== Third liquidation using liquidate ======
-        // third liquidation should liquidate all remaining debt
-
-        // repay the remaining debt
-        amountToRepayPartial[0] = remainingDebt_after_second;
-
+        
         (uint256 maxAmount_liquidateExact_3, uint256 collateralLiquidated_liquidateExact_3, uint256 collateralRequired_liquidateExact_3) = 
-            _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
+            _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
                 debtTokenPrice, 
                 collateralTokenPrice, 
                 lFactorsPreLiquidation,
-                collateralAmount_after_second, 
-                amountToRepayPartial[0]
+                collateralAmount_after_second,  
+                remainingDebt_after_second     
             );
 
+        // For liquidate(), the actual debt amount liquidated is maxAmount_liquidateExact_3
+        uint256 actualDebtToLiquidate_3 = maxAmount_liquidateExact_3;
+
         uint256 badDebt_expected_liquidateExact_3 = _calculateBadDebt(
-            debtBalancesPreLiquidation,
-            maxAmount_liquidateExact_3,
+            remainingDebt_after_second,  
+            actualDebtToLiquidate_3,    // Use the actual debt amount that will be liquidated
             collateralAmount_after_second,
             collateralRequired_liquidateExact_3,
             collateralLiquidated_liquidateExact_3,
@@ -301,7 +317,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
             cTokenExchangeRate
         );
 
-        uint256 totalDebtPaid_third = amountToRepayPartial[0] + badDebt_expected_liquidateExact_3;
+        uint256 totalDebtPaid_third = actualDebtToLiquidate_3 + badDebt_expected_liquidateExact_3;
 
         uint256 remainingDebt_after_third = remainingDebt_after_second - totalDebtPaid_third;
 
@@ -309,6 +325,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         _prepareUSDC(third_liquidator, 100_000e6);
 
         vm.startPrank(third_liquidator);
+        usdc.approve(address(borrowableCUSDC), 100_000e6);
 
         // expect bad debt emit and debt repaid
         vm.expectEmit();
@@ -317,7 +334,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         borrowableCUSDC.liquidate(
             borrowers,
-            address(simpleCBALRETH)
+            address(strategyCBALRETH)
         );
 
        vm.stopPrank();
@@ -328,17 +345,17 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         assertEq(borrowableCUSDC.debtBalance(borrower1), 0, "Borrower1 should have zero debt remaining");
 
         // Verify borrower1's collateral is fully liquidated
-        assertEq(simpleCBALRETH.balanceOf(borrower1), 0, "Borrower1 should have zero collateral remaining");
+        assertEq(strategyCBALRETH.balanceOf(borrower1), 0, "Borrower1 should have zero collateral remaining");
 
         // Verify total borrows decreased appropriately
-        uint256 totalBorrowsAfter = borrowableCUSDC.totalBorrows();
+        uint256 totalBorrowsAfter = borrowableCUSDC.marketOutstandingDebt();
         assertLt(totalBorrowsAfter, totalBorrowsBefore, "Total borrows should have decreased");
 
         // Verify the position is no longer liquidatable
         (uint256 lFactorFinal,,) = marketManagerIsolated.liquidationStatusOf(
             borrower1,
-            address(borrowableCUSDC),
-            address(simpleCBALRETH)
+            address(strategyCBALRETH),
+            address(borrowableCUSDC)
         );
         assertEq(lFactorFinal, 0, "Position should no longer be liquidatable");
 
@@ -352,8 +369,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         _prepareBALRETH(borrower1, collateralAmountStart);
 
         vm.startPrank(borrower1);
-        balRETH.approve(address(simpleCBALRETH), collateralAmountStart);
-        simpleCBALRETH.depositAsCollateral(collateralAmountStart, borrower1);
+        balRETH.approve(address(strategyCBALRETH), collateralAmountStart);
+        strategyCBALRETH.depositAsCollateral(collateralAmountStart, borrower1);
         borrowableCUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
@@ -363,8 +380,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
             (lFactors,,) = marketManagerIsolated.liquidationStatusOf(
                 _borrowers,
-                address(borrowableCUSDC),
-                address(simpleCBALRETH)
+                address(strategyCBALRETH),
+                address(borrowableCUSDC)
             );
 
         return lFactors;
@@ -387,7 +404,6 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256 collateralLiquidated,
         uint256 collateralRequired
     ) {
-        uint256 cTokenExchangeRate = simpleCBALRETH.exchangeRate();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
@@ -429,31 +445,27 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256 _collateralTokenPrice,
         uint256 lFactor,
         uint256 _debtAmount,
-        uint256 _collateralAmount
+        uint256 _currentDebtBalance 
     ) internal view returns (
         uint256 maxAmount,
         uint256 collateralLiquidated,
         uint256 collateralRequired
     ) {
-        uint256 cTokenExchangeRate = simpleCBALRETH.exchangeRate();
-        
-        // Keep original values but use higher precision for calculations
-        uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
-            
-        // Follow the contract's exact calculations but with higher precision
         uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
         uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
         
-        // Calculate with extra precision
-        uint256 highPrecisionD2C = (((auctionLiqIncentive * _debtTokenPrice * WAD * PRECISION_FACTOR) /
+        // Match contract's exact calculation
+        uint256 debtToCollateralMultiplier = (((auctionLiqIncentive * _debtTokenPrice * WAD_SQUARED) /
             (_collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
-
-        maxAmount = (auctionCFactor * _debtAmount) / WAD;
-
-        // Calculate with extra precision
-        collateralLiquidated = (maxAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
         
-        collateralRequired = (_debtAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
+        // Use the current debt balance instead of hardcoded debtBalancesPreLiquidation
+        maxAmount = (auctionCFactor * _currentDebtBalance) / WAD;
+        
+        // collateralLiquidated should use the actual debt amount being liquidated
+        collateralLiquidated = (_debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
+        
+        // collateralRequired should use the current debt balance
+        collateralRequired = (_currentDebtBalance * debtToCollateralMultiplier) / WAD_SQUARED;
     }
 
     function _calculateBadDebt(
@@ -462,8 +474,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256 _collateralAvailable,
         uint256 _collateralRequired,
         uint256 _collateralLiquidated,
-        uint256 _collateralTokenUnderlyingPrice,
-        uint256 _debtTokenUnderlyingPrice,
+        uint256 _cTokenUnderlyingPrice,
+        uint256 _eTokenUnderlyingPrice,
         uint256 _cTokenExchangeRate
     ) internal pure returns (uint256 badDebt) {
 
@@ -472,8 +484,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         badDebt = (_debtBalance - _debtAmount) -
         FixedPointMathLib.mulDivUp(
             ((_collateralAvailable - _collateralLiquidated) * _cTokenExchangeRate) / WAD,
-            _collateralTokenUnderlyingPrice,
-            (_debtTokenUnderlyingPrice * WAD) / 1e6
+            _cTokenUnderlyingPrice,
+            (_eTokenUnderlyingPrice * WAD) / 1e6
         );
 
         } else {
