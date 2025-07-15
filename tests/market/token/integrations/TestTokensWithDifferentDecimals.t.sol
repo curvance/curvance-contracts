@@ -122,7 +122,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
-        // mint cBALETH
+        // Mint cBALETH.
         balRETH.approve(address(strategyCBALRETH), 10 ether);
         strategyCBALRETH.deposit(10 ether, liquidityProvider);
         vm.stopPrank();

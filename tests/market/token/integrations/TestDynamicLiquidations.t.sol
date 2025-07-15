@@ -136,11 +136,11 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 200000e18);
         _prepareBALRETH(liquidityProvider, 10 ether);
-        // mint eDAI
+        // Mint borrowable cDAI.
         vm.startPrank(liquidityProvider);
         dai.approve(address(borrowableCDAI), 200000 ether);
         borrowableCDAI.mint(200000 ether, liquidityProvider);
-        // mint cBALETH
+        // Mint cBALETH.
         balRETH.approve(address(strategyCBALRETH), 10 ether);
         strategyCBALRETH.deposit(10 ether, liquidityProvider);
         vm.stopPrank();

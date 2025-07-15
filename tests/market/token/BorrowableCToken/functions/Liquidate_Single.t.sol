@@ -90,7 +90,7 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
-        // mint cBALETH
+        // Mint cBALETH.
         balRETH.approve(address(strategyCBALRETH), 10e18);
         strategyCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();

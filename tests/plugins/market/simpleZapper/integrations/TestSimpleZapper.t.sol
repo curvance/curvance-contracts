@@ -80,7 +80,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         _prepareDAI(liquidityProvider, 1000 ether);
         _prepareUSDC(liquidityProvider, 100e6);
         vm.startPrank(liquidityProvider);
-        // mint eDAI
+        // Mint borrowable cDAI.
         dai.approve(address(borrowableCDAI), 1000 ether);
         borrowableCDAI.deposit(1000 ether, liquidityProvider);
         // mint simpleCUSDC
@@ -219,7 +219,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
     function testRedeemAndSwapEToken() public {
         vm.startPrank(user1);
 
-        // mint eDAI
+        // Mint borrowable cDAI.
         _prepareDAI(user1, 10 ether);
         dai.approve(address(borrowableCDAI), 10 ether);
         borrowableCDAI.deposit(10 ether, user1);
