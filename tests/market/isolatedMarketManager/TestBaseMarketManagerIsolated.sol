@@ -128,7 +128,7 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
-        borrowableCUSDC.borrow(1000e6);
+        borrowableCUSDC.borrow(1000e6, user1);
         vm.stopPrank();
 
         // skip min hold period
@@ -191,7 +191,7 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
 
     //     vm.startPrank(user1);
 
-    //     borrowableCUSDC.borrow(1000e6);
+    //     borrowableCUSDC.borrow(1000e6, user1);
     //     vm.stopPrank();
         
     //     skip(20 minutes);

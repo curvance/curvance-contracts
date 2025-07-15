@@ -782,7 +782,7 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
         wbtc.approve(address(cWBTC), 100e8);
         cWBTC.deposit(100e8, user2);
         cWBTC.postCollateral(100e8);
-        borrowableCWETH.borrow(50e18);
+        borrowableCWETH.borrow(50e18, user2);
 
         vm.stopPrank();
 

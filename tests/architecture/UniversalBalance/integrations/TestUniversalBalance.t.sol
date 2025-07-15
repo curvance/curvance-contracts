@@ -493,7 +493,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         wbtc.approve(address(simpleCWBTC), 100e8);
         simpleCWBTC.mint(100e8, user2);
         simpleCWBTC.postCollateral(100e8);
-        borrowableCUSDC.borrow(50e6);
+        borrowableCUSDC.borrow(50e6, user2);
 
         vm.stopPrank();
 

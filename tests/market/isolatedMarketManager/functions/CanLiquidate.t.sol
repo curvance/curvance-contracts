@@ -27,7 +27,7 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
-            collateralLiquidated: 0,
+            liquidatedShares: 0,
             debtRepaid: 0,
             badDebt: 0
         });
@@ -36,10 +36,11 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.canLiquidate(
+            debtAmounts,
             address(this),
             accounts,
-            debtAmounts,
-            liqInstructions);
+            liqInstructions
+        );
     }
 
     function test_canLiquidate_fail_whenCTokenNotListed() public {
@@ -49,7 +50,7 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
-            collateralLiquidated: 0,
+            liquidatedShares: 0,
             debtRepaid: 0,
             badDebt: 0
         });
@@ -58,10 +59,11 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.canLiquidate(
+            debtAmounts,
             address(this),
             accounts,
-            debtAmounts,
-            liqInstructions);
+            liqInstructions
+        );
     }
 
     function test_canLiquidate_fail_whenCollRatioZero() public {
@@ -78,7 +80,7 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
-            collateralLiquidated: 0,
+            liquidatedShares: 0,
             debtRepaid: 0,
             badDebt: 0
         });
@@ -89,10 +91,11 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
             MarketManagerIsolated.MarketManager__InvalidParameter.selector
         );
         marketManagerIsolated.canLiquidate(
+            debtAmounts,
             address(this),
             accounts,
-            debtAmounts,
-            liqInstructions);
+            liqInstructions
+        );
     }
 
     function test_canLiquidate_fail_whenUserHasNotEnteredAnyMarket() public {
@@ -111,7 +114,7 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
-            collateralLiquidated: 0,
+            liquidatedShares: 0,
             debtRepaid: 0,
             badDebt: 0
         });
@@ -122,10 +125,11 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
         );
         marketManagerIsolated.canLiquidate(
+            debtAmounts,
             address(this),
             accounts,
-            debtAmounts,
-            liqInstructions);
+            liqInstructions
+        );
     }
 
     function test_canLiquidate_fail_whenAccountHasNoBorrowsAndCollateralPosted()
@@ -146,7 +150,7 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
-            collateralLiquidated: 0,
+            liquidatedShares: 0,
             debtRepaid: 0,
             badDebt: 0
         });
@@ -157,10 +161,11 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
         );
         marketManagerIsolated.canLiquidate(
+            debtAmounts,
             address(this),
             accounts,
-            debtAmounts,
-            liqInstructions);
+            liqInstructions
+        );
     }
 
     function test_canLiquidate_fail_whenShortfallInsufficient() public {
@@ -209,7 +214,7 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
-            collateralLiquidated: 0,
+            liquidatedShares: 0,
             debtRepaid: 0,
             badDebt: 0
         });
@@ -220,10 +225,11 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
         );
         marketManagerIsolated.canLiquidate(
+            debtAmounts,
             address(this),
             accounts,
-            debtAmounts,
-            liqInstructions);
+            liqInstructions
+        );
     }
 
     event DebugUint256(string message, uint256 value);
@@ -247,7 +253,7 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
-            collateralLiquidated: 0,
+            liquidatedShares: 0,
             debtRepaid: 0,
             badDebt: 0
         });
@@ -263,16 +269,17 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
             IMarketManager.LiqResults memory liqResults,
             uint256[] memory debtAmountsReturned
         ) = marketManagerIsolated.canLiquidate(
+            debtAmounts,
             address(this),
             accounts,
-            debtAmounts,
-            liqInstructions);
+            liqInstructions
+        );
 
         
 
         // print out all values returned by canLiquidate
         console2.log("==== CanLiquidate Results ====");
-        console2.log("liqResults.liquidatedAmounts[0]", liqResults.liquidatedAmounts[0]);
+        console2.log("liqResults.liquidatedShares[0]", liqResults.liquidatedShares[0]);
         console2.log("liqResults.debtRepaid", liqResults.debtRepaid);
         console2.log("liqResults.badDebtRealized", liqResults.badDebtRealized);
         console2.log("debtAmounts", debtAmountsReturned[0]);
@@ -287,17 +294,17 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
             cTokenPrice
         );
 
-        // validate liqResults.liquidatedAmounts[0]
+        // Validate liqResults.liquidatedShares[0]
         assertEq(
-            liqResults.liquidatedAmounts[0],
+            liqResults.liquidatedShares[0],
             collateralAvailable, 
-            "liquidatedAmounts = collateralAvailable mismatch"
+            "liquidatedShares = collateralAvailable mismatch"
         );
 
         assertEq(
-            liqResults.liquidatedAmounts[0],
+            liqResults.liquidatedShares[0],
             expectedCollateralSeized,
-            "liquidatedAmounts[0] = expectedCollateralSeized mismatch"
+            "liquidatedShares[0] = expectedCollateralSeized mismatch"
         );
 
         // validate liqResults.debtRepaid

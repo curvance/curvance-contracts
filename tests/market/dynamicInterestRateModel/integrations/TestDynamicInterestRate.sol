@@ -121,7 +121,7 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
 
     function testWhenUtilizationIsBelowVertexStartingPoint() public {
         vm.startPrank(user);
-        // given
+
         // Set up collateral for borrowing
         _prepareUSDC(user, 100000e6);
         usdc.approve(address(simpleCUSDC), 100000e6);
@@ -137,11 +137,9 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
             borrowableCDAI.marketOutstandingDebt()
         );
 
-        // when
         // Borrow amount that keeps utilization below vertex point
-        borrowableCDAI.borrow(BORROW_AMOUNT_BELOW_VERTEX);
+        borrowableCDAI.borrow(BORROW_AMOUNT_BELOW_VERTEX, user);
 
-        // then
         uint256 newUtilization = interestRateModel.utilizationRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
@@ -194,7 +192,6 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
     function testWhenUtilizationIsAboveVertexStartingPoint() public {
         vm.startPrank(user);
 
-        // given
         // Set up collateral for borrowing
         _prepareUSDC(user, 1000000e6);
         usdc.approve(address(simpleCUSDC), 1000000e6);
@@ -214,11 +211,9 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
 
         skip(1);
 
-        // when
         // Borrow amount that pushes utilization above vertex point
-        borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX);
+        borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX, user);
 
-        // then
         uint256 newUtilization = interestRateModel.utilizationRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
@@ -286,7 +281,7 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
 
     function testVertexMultiplierIncreaseAboveThreshold() public {
         vm.startPrank(user);
-        // given
+
         // Set up collateral for borrowing
         _prepareUSDC(user, 1000000e6);
         usdc.approve(address(simpleCUSDC), 1000000e6);
@@ -308,9 +303,8 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
 
         ) = interestRateModel.ratesConfig();
 
-        // when
         // Borrow enough to push utilization above increaseThreshold
-        borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX);
+        borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX, user);
 
         // Move time forward to trigger multiplier update
         vm.warp(block.timestamp + adjustmentRate);
@@ -318,7 +312,6 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         // Force an interest rate update
         borrowableCDAI.accrueIfNeeded();
 
-        // then
         uint256 newMultiplier = interestRateModel.vertexMultiplier();
         uint256 utilization = interestRateModel.utilizationRate(
             borrowableCDAI.assetsHeld(),
@@ -397,7 +390,7 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
 
     function testVertexMultiplierMaximumCap() public {
         vm.startPrank(user);
-        // given
+
         // Set up collateral for borrowing
         _prepareUSDC(user, 2000000e6);
         usdc.approve(address(simpleCUSDC), 2000000e6);
@@ -418,7 +411,7 @@ contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
         ) = interestRateModel.ratesConfig();
 
         // Borrow to push utilization very high
-        borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX);
+        borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX, user);
 
         // Move time forward multiple periods to allow multiplier to increase
         for (uint256 i = 0; i < 10; i++) {

@@ -71,9 +71,9 @@ contract CCTPBorrowZapper is ReentrancyGuard {
 
         // Borrow on behalf of caller.
         IBorrowableCToken(borrowableCToken).borrowFor(
-            msg.sender,
+            borrowAmount,
             address(this),
-            borrowAmount
+            msg.sender
         );
 
         address underlying = IBorrowableCToken(borrowableCToken).asset();
