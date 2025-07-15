@@ -23,7 +23,7 @@ contract BorrowableCTokenRepayForTest is TestBaseBorrowableCToken {
         borrowableCUSDC.mint(100e6, address(this));
         vm.stopPrank();
 
-        borrowableCUSDC.borrow(100e6);
+        borrowableCUSDC.borrow(100e6, address(this));
 
         skip(20 minutes);
     }
@@ -41,7 +41,7 @@ contract BorrowableCTokenRepayForTest is TestBaseBorrowableCToken {
         vm.startPrank(user2);
         usdc.approve(address(borrowableCUSDC), currentDebt);
         
-        borrowableCUSDC.repayFor(address(this), currentDebt);
+        borrowableCUSDC.repayFor(currentDebt, address(this));
 
         uint256 newDebt = borrowableCUSDC.debtBalance(address(this));
         

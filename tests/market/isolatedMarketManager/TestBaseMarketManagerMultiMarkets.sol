@@ -274,7 +274,7 @@
 
 //         uint256 incentive = liqBaseIncentive + liqCurve;
 //         uint256 debtToCollateralRatio = (incentive * debtTokenPrice * WAD) /
-//             (price * _cToken.exchangeRateCached());
+//             (price * _cToken.exchangeRate());
 //         uint256 amountAdjusted = (debtAmount * (10 ** _cToken.decimals())) /
 //             (10 ** _eToken.decimals());
 //         uint256 expectedLiquidatedTokens = (amountAdjusted *

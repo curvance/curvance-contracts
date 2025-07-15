@@ -24,7 +24,7 @@
 //         uint256 debtTokenPrice;
 //         uint256 collateralTokenPrice;
 //         uint256 debtBalance;
-//         uint256 exchangeRateCached;
+//         uint256 exchangeRate;
 //     }
 //     LiquidationData data;
 //     /// @notice how much the liquidator is intending to liquidate
@@ -131,7 +131,7 @@
 //         uint256 debtBalance = IBorrowableCToken(debtToken).debtBalance(
 //             address(this)
 //         );
-//         uint256 exchangeRateCached = IBorrowableCToken(debtToken).exchangeRateCached();
+//         uint256 exchangeRate = IBorrowableCToken(debtToken).exchangeRate();
 
 //         data = LiquidationData(
 //             isListed,
@@ -146,7 +146,7 @@
 //             debtTokenPrice,
 //             collateralTokenPrice,
 //             debtBalance,
-//             exchangeRateCached
+//             exchangeRate
 //         );
 //     }
 
@@ -265,7 +265,7 @@
 
 //         uint256 debtToCollateralRatio = (calculated.incentive *
 //             data.debtTokenPrice *
-//             WAD) / (data.collateralTokenPrice * data.exchangeRateCached);
+//             WAD) / (data.collateralTokenPrice * data.exchangeRate);
 
 //         // No Postconditions
 //         calculated.debtToCollateralRatio = debtToCollateralRatio;

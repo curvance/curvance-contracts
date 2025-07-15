@@ -233,8 +233,8 @@
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
 | DTOK-1  | Calling EToken.mint should succeed with correct preconditions.                                                                                                                       | Passed |
 | DTOK-2  | Underlying balance for sender EToken should decrease by amount after minting EToken.                                                                                                 | Passed |
-| DTOK-3  | Balance of the recipient after minting EToken should increase by amount \* WAD/exchangeRateCached()                                                                                  | Passed |
-| DTOK-4  | EToken totalSupply should increase by amount \* WAD/exchangeRateCached() after calling EToken mint.                                                                                  | Passed |
+| DTOK-3  | Balance of the recipient after minting EToken should increase by amount \* WAD/exchangeRate()                                                                                  | Passed |
+| DTOK-4  | EToken totalSupply should increase by amount \* WAD/exchangeRate() after calling EToken mint.                                                                                  | Passed |
 | DTOK-5  | The borrow function should succeed with proper preconditions, when not accruing interest.                                                                                            | Passed |
 | DTOK-6  | If interest has not accrued, totalBorrows should increase after calling borrow.                                                                                                      | Passed |
 | DTOK-7  | If interest has not accrued, the underlying balance of the caller should increase by amount                                                                                          | Passed |

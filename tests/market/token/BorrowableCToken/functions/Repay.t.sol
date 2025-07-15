@@ -23,7 +23,7 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
         borrowableCUSDC.mint(100e6, address(this));
         vm.stopPrank();
 
-        borrowableCUSDC.borrow(100e6);
+        borrowableCUSDC.borrow(100e6, user1);
 
         skip(20 minutes);
     }
@@ -119,7 +119,7 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
             deal(address(strategyCBALRETH), user, 1e18);
             vm.startPrank(user);
             strategyCBALRETH.postCollateral(1e18 - 1);
-            borrowableCUSDC.borrow(100e6);
+            borrowableCUSDC.borrow(100e6, user);
             vm.stopPrank();
         }
 

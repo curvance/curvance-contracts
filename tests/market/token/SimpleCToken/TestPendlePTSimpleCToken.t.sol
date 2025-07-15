@@ -232,19 +232,19 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         cPendlePT.postCollateral(1 ether);
 
         // Try borrow().
-        borrowableCUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6, user1);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertEq(borrowableCUSDC.debtBalance(user1), 500e6);
-        assertEq(borrowableCUSDC.exchangeRateCached(), 1 ether);
+        assertEq(borrowableCUSDC.exchangeRate(), 1 ether);
 
         // Try borrow().
         skip(1200);
 
-        borrowableCUSDC.borrow(100e6);
+        borrowableCUSDC.borrow(100e6, user1);
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertGt(borrowableCUSDC.debtBalance(user1), 600e6);
-        assertGt(borrowableCUSDC.exchangeRateCached(), 1 ether);
+        assertGt(borrowableCUSDC.exchangeRate(), 1 ether);
 
         // Warp until repayment cooldown period ends.
         skip(20 minutes);
@@ -257,7 +257,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         borrowableCUSDC.repay(200e6);
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertGt(borrowableCUSDC.debtBalance(user1), borrowBalanceBefore - 200e6);
-        assertGt(borrowableCUSDC.exchangeRateCached(), exchangeRateBefore);
+        assertGt(borrowableCUSDC.exchangeRate(), exchangeRateBefore);
 
         // Warp more to simulate interest being applied on debt.
         skip(30 minutes);
@@ -270,7 +270,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         vm.stopPrank();
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertGt(borrowableCUSDC.debtBalance(user1), 0);
-        assertGt(borrowableCUSDC.exchangeRateCached(), exchangeRateBefore);
+        assertGt(borrowableCUSDC.exchangeRate(), exchangeRateBefore);
     }
 
     function testCTokenRedeemOnBorrow() public {
@@ -284,7 +284,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         cPendlePT.postCollateral(1 ether);
 
         // Try borrow().
-        borrowableCUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6, user1);
 
         // Warp until collateralization cooldown period ends.
         skip(20 minutes);
@@ -317,7 +317,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         borrowableCUSDC.deposit(1000e6, user1);
 
         // Try borrow().
-        borrowableCUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6, user1);
 
         // Test that redemption before minimum holding period should not be possible.
         vm.expectRevert(
@@ -337,7 +337,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertGt(borrowableCUSDC.debtBalance(user1), 500e6);
-        assertGt(borrowableCUSDC.exchangeRateCached(), 1 ether);
+        assertGt(borrowableCUSDC.exchangeRate(), 1 ether);
     }
 
     function testCTokenTransferOnBorrow() public {
@@ -351,7 +351,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         cPendlePT.postCollateral(1 ether);
 
         // Try borrow().
-        borrowableCUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6, user1);
 
         // Warp until collateralization cooldown period ends.
         skip(20 minutes);
@@ -387,7 +387,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         borrowableCUSDC.deposit(1000e6, user1);
 
         // Try borrow().
-        borrowableCUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6, user1);
 
         // Warp until collateralization cooldown period ends.
         skip(20 minutes);
@@ -404,7 +404,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         assertEq(borrowableCUSDC.balanceOf(user2), 1000e6);
         assertEq(borrowableCUSDC.debtBalance(user2), 0);
-        assertEq(borrowableCUSDC.exchangeRateCached(), 1 ether);
+        assertEq(borrowableCUSDC.exchangeRate(), 1 ether);
     }
 
     function testLiquidationExact() public {
@@ -418,7 +418,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         cPendlePT.postCollateral(1 ether);
 
         // Try borrow().
-        borrowableCUSDC.borrow(1000e6);
+        borrowableCUSDC.borrow(1000e6, user1);
         vm.stopPrank();
 
         // Warp time to simulate interest being applied on debt.
@@ -455,11 +455,11 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
             1 ether - (liquidatedAmount * 12e11 * 1 ether) / pendlePTPrice,
             0.03e18
         );
-        assertEq(cPendlePT.exchangeRateCached(), 1 ether);
+        assertEq(cPendlePT.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertApproxEqRel(borrowableCUSDC.debtBalance(user1), 750e6, 0.01e18);
-        assertApproxEqRel(borrowableCUSDC.exchangeRateCached(), 1 ether, 0.01e18);
+        assertApproxEqRel(borrowableCUSDC.exchangeRate(), 1 ether, 0.01e18);
     }
 
     function testLiquidationFull() public {
@@ -473,7 +473,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         cPendlePT.postCollateral(1 ether);
 
         // Try borrow().
-        borrowableCUSDC.borrow(1000e6);
+        borrowableCUSDC.borrow(1000e6, user1);
         vm.stopPrank();
 
         // Warp time to simulate interest being applied on debt.
@@ -517,6 +517,6 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
             1000e6 - liquidatedAmount,
             0.01e18
         );
-        assertApproxEqRel(borrowableCUSDC.exchangeRateCached(), 1 ether, 0.01e18);
+        assertApproxEqRel(borrowableCUSDC.exchangeRate(), 1 ether, 0.01e18);
     }
 }

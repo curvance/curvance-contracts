@@ -16,8 +16,8 @@
 
 //     /// @custom:property dtok-1 calling EToken.mint should succeed with correct preconditions
 //     /// @custom:property dtok-2 underlying balance for sender EToken should decrease by amount
-//     /// @custom:property dtok-3  balance should increase by `amount * WAD/exchangeRateCached()`
-//     /// @custom:property dtok-4 EToken totalSupply should increase by `amount * WAD/exchangeRateCached()`
+//     /// @custom:property dtok-3  balance should increase by `amount * WAD/exchangeRate()`
+//     /// @custom:property dtok-4 EToken totalSupply should increase by `amount * WAD/exchangeRate()`
 //     /// @custom:proeprty dtok-18 If amount * WAD / exchange_rate = 0 , the mint function should revert when trying to deposit to GaugePool.
 //     /// @custom:precondition amount bound between [1, uint256.max]
 //     function mint_should_actually_succeed(
@@ -39,13 +39,13 @@
 //             .balanceOf(address(this));
 //         uint256 preETokenBalance = EToken(eToken).balanceOf(address(this));
 //         uint256 preETokenTotalSupply = EToken(eToken).totalSupply();
-//         // uint256 er = EToken(eToken).exchangeRateCached();
+//         // uint256 er = EToken(eToken).exchangeRate();
 
 //         try EToken(eToken).mint(amount) {
 //             uint256 postETokenBalance = EToken(eToken).balanceOf(
 //                 address(this)
 //             );
-//             uint256 new_er = EToken(eToken).exchangeRateCached();
+//             uint256 new_er = EToken(eToken).exchangeRate();
 
 //             // The new_er needs to be used here because the _mint function first accrues interest, therefore we need the updated exchange rate
 //             uint256 adjustedNumberOfTokens = (amount * WAD) / new_er;
@@ -77,7 +77,7 @@
 //             // We need to accrue interest to get the most recent exchange rates that was used in this calculation
 //             EToken(eToken).accrueInterest();
 
-//             uint256 new_er = EToken(eToken).exchangeRateCached();
+//             uint256 new_er = EToken(eToken).exchangeRate();
 //             uint256 adjustedNumberOfTokens = (amount * WAD) / new_er;
 //             emit LogUint256(
 //                 "adjusted number of tokens",
@@ -233,7 +233,7 @@
 //             address(this)
 //         );
 //         // Old exchange rate may be useful when determining the amount of interest that was accrued
-//         // uint256 er = EToken(eToken).exchangeRateCached();
+//         // uint256 er = EToken(eToken).exchangeRate();
 
 //         try EToken(eToken).borrow(amount) {
 //             // Interest is accrued
@@ -698,7 +698,7 @@
 //         uint256 old_er,
 //         address eToken
 //     ) private view returns (uint256) {
-//         uint256 new_er = EToken(eToken).exchangeRateCached();
+//         uint256 new_er = EToken(eToken).exchangeRate();
 //         return new_er > old_er ? new_er - old_er : old_er - new_er;
 //     }
 // }
