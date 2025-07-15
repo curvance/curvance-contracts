@@ -5,7 +5,7 @@ import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 
 contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
-    event Repay(address payer, address borrower, uint256 repayAmount);
+    event Repay(uint256 repayAmount, address payer, address borrower);
 
     function setUp() public override {
         super.setUp();
@@ -53,7 +53,7 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
         uint256 totalBorrows = borrowableCUSDC.marketOutstandingDebt();
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC)    );
-        emit Repay(address(this), address(this), 100e6);
+        emit Repay(100e6, address(this), address(this));
 
         borrowableCUSDC.repay(100e6);
 
@@ -81,7 +81,7 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
         }
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Repay(address(this), address(this), debtBalance);
+        emit Repay(debtBalance, address(this), address(this));
 
         borrowableCUSDC.repay(0);
         
