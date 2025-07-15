@@ -143,14 +143,11 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
         SwapperLib.Swap[] memory swapData; // empty swap data
         
         // we aren't using this struct, only for required arguments
-        DeleverageStruct memory deleverageData = DeleverageStruct({
-            collateralToken: ICToken(address(strategyCBALRETHWithExitFee)),
-            collateralAmount: 0,
-            debtToken: IBorrowableCToken(address(borrowableCUSDC)),
-            swapData: swapData,
-            repayAmount: 0,
-            auxData: ""
-        });
+        IPositionManager.DeleverageStruct memory deleverageData;
+        deleverageData.collateralToken = ICToken(address(strategyCBALRETHWithExitFee));
+        deleverageData.debtToken = IBorrowableCToken(address(borrowableCUSDC));
+        deleverageData.swapData = swapData;
+
         vm.stopPrank();
 
         vm.warp(block.timestamp + 21 minutes);
