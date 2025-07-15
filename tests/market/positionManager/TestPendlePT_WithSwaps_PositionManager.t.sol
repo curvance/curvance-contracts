@@ -119,6 +119,8 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
 
         }
 
+        marketManagerIsolated.listTokens(address(cPendlePTSTETH), address(borrowableCDAI));
+
          _setCTokenConfigBasic(address(cPendlePTSTETH), 100_000e18, 0);
          _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
 
