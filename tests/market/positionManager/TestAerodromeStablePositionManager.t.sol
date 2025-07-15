@@ -204,7 +204,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
-        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, 0.0001 ether);
+        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, strategyCTokenUSDCDAI.balanceOf(user));
 
         vm.stopPrank();
     }
@@ -248,7 +248,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
-        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, 0.0001 ether);
+        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted,strategyCTokenUSDCDAI.balanceOf(user));
 
         vm.stopPrank();
     }
@@ -306,7 +306,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.0034 ether);
-        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, 0.002 ether);
+        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, strategyCTokenUSDCDAI.balanceOf(user));
 
         vm.stopPrank();
     }
@@ -364,7 +364,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.0027 ether);
-        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, 0.002 ether);
+        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, strategyCTokenUSDCDAI.balanceOf(user));
 
         vm.stopPrank();
     }
@@ -416,15 +416,21 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAISnapshotBefore.debtBalance - deleverageData.repayAssets
+            borrowableCDAISnapshotBefore.debtBalance - deleverageData.repayAssets,
+            "debt balance mismatch"
         );
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
             strategyCTokenUSDCDAI.balanceOf(user),
-            strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets
+            strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets,
+            "strategyCTokenUSDCDAIBalance mismatch"
         );
-        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, 0.0001 ether - deleverageData.collateralAssets);
+        assertEq(
+            strategyCTokenUSDCDAISnapshot.collateralPosted,
+            strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets,
+            "strategyCTokenUSDCDAISnapshot.collateralPosted mismatch"
+        );
 
         vm.stopPrank();
     }
@@ -475,7 +481,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
-        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, 0.0001 ether);
+        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, strategyCTokenUSDCDAI.balanceOf(user));
 
         vm.stopPrank();
     }
@@ -539,7 +545,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
             strategyCTokenUSDCDAI.balanceOf(user),
             strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets
         );
-        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, 0.0001 ether - deleverageData.collateralAssets);
+        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets);
 
         vm.stopPrank();
     }
