@@ -61,8 +61,10 @@ contract TestAddRemovePositionManager is TestBaseMarketIsolated {
 
     function testAddPositionManager_Unauthorized() public {
         address unauthorizedAddress = makeAddr("unauthorizedAddress");
+        vm.startPrank(unauthorizedAddress);
         vm.expectRevert(bytes4(keccak256("MarketManager__Unauthorized()")));
-        marketManagerIsolated.addPositionManager(unauthorizedAddress);
+        marketManagerIsolated.addPositionManager(address(positionManager));
+        vm.stopPrank();
 
     }
 
@@ -74,8 +76,10 @@ contract TestAddRemovePositionManager is TestBaseMarketIsolated {
 
     function testRemovePositionManager_Unauthorized() public {
         address unauthorizedAddress = makeAddr("unauthorizedAddress");
+        vm.startPrank(unauthorizedAddress);
         vm.expectRevert(bytes4(keccak256("MarketManager__Unauthorized()")));
-        marketManagerIsolated.removePositionManager(unauthorizedAddress);
+        marketManagerIsolated.removePositionManager(address(positionManager));
+        vm.stopPrank();
     }
     
     function testRemovePositionManager_NotAdded() public {
