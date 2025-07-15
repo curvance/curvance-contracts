@@ -351,8 +351,8 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
-            strategyCTokenUSDCDAI.balanceOf(user),
-            strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets
+            strategyCTokenUSDCDAI.collateralPosted(user),
+            strategyCTokenUSDCDAIBeforeSnapshot.collateralPosted - deleverageData.collateralAssets
         );
         assertEq(strategyCTokenUSDCDAISnapshot.debtBalance, 0);
 
@@ -419,8 +419,8 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
-            strategyCTokenUSDCDAI.balanceOf(user),
-            strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets
+            strategyCTokenUSDCDAI.collateralPosted(user),
+            strategyCTokenUSDCDAIBeforeSnapshot.collateralPosted - deleverageData.collateralAssets
         );
         assertEq(strategyCTokenUSDCDAISnapshot.debtBalance, 0);
 
@@ -555,8 +555,8 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
-            strategyCTokenUSDCDAI.balanceOf(user),
-            strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets
+            strategyCTokenUSDCDAI.collateralPosted(user),
+            strategyCTokenUSDCDAIBeforeSnapshot.collateralPosted - deleverageData.collateralAssets
         );
         assertEq(strategyCTokenUSDCDAISnapshot.debtBalance, 0);
     }
