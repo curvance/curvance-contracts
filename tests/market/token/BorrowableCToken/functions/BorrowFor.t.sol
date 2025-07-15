@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
@@ -36,8 +37,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
         vm.prank(user2);
 
-        // bytes4(keccak256(bytes("PluginDelegable__Unauthorized()")))
-        vm.expectRevert(0xcfdc5602);
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
         borrowableCUSDC.borrowFor(100e6, user1, user1);
 
         vm.stopPrank();
