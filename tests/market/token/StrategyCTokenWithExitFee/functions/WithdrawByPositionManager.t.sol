@@ -109,9 +109,9 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(tokenConfig);
 
         // TODO write a mockPositionManager and assign it here.
-        addPositionManager();
+        // addPositionManager();
 
-        // deposit reserves
+        // Mint borrowable cUSDC.
         borrowableCUSDC.deposit(1000e6, address(this));
 
         address liquidityProvider = makeAddr("liquidityProvider");

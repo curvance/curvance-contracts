@@ -107,7 +107,7 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
         tokenConfig.debtCap = 100_000e6;
         marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-        // deposit reserves
+        // Mint borrowable cUSDC.
         borrowableCUSDC.deposit(1000e6, address(this));
 
         // TODO write a mockPositionManager and assign it here.
