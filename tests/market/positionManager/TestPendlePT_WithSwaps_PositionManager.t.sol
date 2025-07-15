@@ -401,7 +401,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         );
         assertEq(
             cPendlePTSTETHSnapshot.collateralPosted,
-            PTBalanceBefore - deleverageData.collateralAmount
+            cPendlePTSTETHBeforeSnapshot.collateralPosted - deleverageData.collateralAmount
         );
         assertEq(cPendlePTSTETHSnapshot.debtBalance, 0);
 
