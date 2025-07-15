@@ -86,7 +86,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         _delegateToUser();
 
         // Provide liquidity in borrowable cUSDC.
-        vm.prank(user1);
+        vm.startPrank(user1);
         _prepareUSDC(user1, 10e6);
         usdc.approve(address(borrowableCUSDC), 10e6);
         borrowableCUSDC.depositAsCollateral(10e6, user1);
@@ -175,7 +175,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         _prepareBALRETH(user1, 10e18);
 
         // Mint and collateralize strategyCBALRETH.
-        vm.prank(user1);
+        vm.startPrank(user1);
         balRETH.approve(address(strategyCBALRETH), 1e18);
         strategyCBALRETH.depositAsCollateral(1e18,  user1);
         vm.stopPrank();

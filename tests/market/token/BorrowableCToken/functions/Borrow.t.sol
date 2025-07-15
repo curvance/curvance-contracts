@@ -92,10 +92,12 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         uint256 totalSupply = borrowableCUSDC.totalSupply();
         uint256 totalBorrows = borrowableCUSDC.marketOutstandingDebt();
 
-        borrowableCUSDC.borrow(100e6, address(this));
-
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Borrow(100e6, address(this));
+
+        borrowableCUSDC.borrow(100e6, address(this));
+
+
 
         assertEq(usdc.balanceOf(address(this)), underlyingBalance + 100e6);
         assertEq(borrowableCUSDC.balanceOf(address(this)), balance);
