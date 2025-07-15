@@ -215,7 +215,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         // Mint borrowable cWETH.
         weth.approve(address(borrowableCWETH), 200000e6);
         borrowableCWETH.deposit(200000e6, liquidityProvider);
-        
+
         // Mint cWBTC.
         wbtc.approve(address(cWBTC), 10 ether);
         cWBTC.deposit(10 ether, liquidityProvider);
@@ -320,7 +320,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
 
         SimplePositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCWETH));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(cWBTC));
         leverageData.swapData.inputToken = _WETH_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;

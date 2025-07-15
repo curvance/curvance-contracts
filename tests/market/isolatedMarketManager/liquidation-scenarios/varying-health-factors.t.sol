@@ -279,31 +279,31 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         vm.startPrank(borrower1);
         balRETH.approve(address(strategyCBALRETH), _ONE);
         strategyCBALRETH.depositAsCollateral(_ONE, borrower1);
-        borrowableCUSDC.borrow(borrowAmounts[0]);
+        borrowableCUSDC.borrow(borrowAmounts[0], borrower1);
         vm.stopPrank();
 
         vm.startPrank(borrower2);
         balRETH.approve(address(strategyCBALRETH), _ONE);
         strategyCBALRETH.depositAsCollateral(_ONE, borrower2);
-        borrowableCUSDC.borrow(borrowAmounts[1]);
+        borrowableCUSDC.borrow(borrowAmounts[1], borrower2);
         vm.stopPrank();
 
         vm.startPrank(borrower3);
         balRETH.approve(address(strategyCBALRETH), _ONE);
         strategyCBALRETH.depositAsCollateral(_ONE, borrower3);
-        borrowableCUSDC.borrow(borrowAmounts[2]);
+        borrowableCUSDC.borrow(borrowAmounts[2], borrower3);
         vm.stopPrank();
 
         vm.startPrank(borrower4);
         balRETH.approve(address(strategyCBALRETH), _ONE);
         strategyCBALRETH.depositAsCollateral(_ONE, borrower4);
-        borrowableCUSDC.borrow(borrowAmounts[3]);
+        borrowableCUSDC.borrow(borrowAmounts[3], borrower4);
         vm.stopPrank();
 
         vm.startPrank(borrower5);
         balRETH.approve(address(strategyCBALRETH), _ONE);
         strategyCBALRETH.depositAsCollateral(_ONE, borrower5);
-        borrowableCUSDC.borrow(borrowAmounts[4]);
+        borrowableCUSDC.borrow(borrowAmounts[4], borrower5);
         vm.stopPrank();
     }
 

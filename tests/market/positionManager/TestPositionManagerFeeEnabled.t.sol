@@ -223,7 +223,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
 
         VelodromePositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = swapInputAmount;
@@ -300,7 +300,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             );
 
             deleverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
-            deleverageData.collateralAmount = collateralAmount;
+            deleverageData.collateralAssets = collateralAmount;
             deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
             deleverageData.swapData = new SwapperLib.Swap[](1);
             deleverageData.swapData[0].inputToken = _USDC_ADDRESS;
@@ -325,7 +325,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
             strategyCTokenUSDCDAI.balanceOf(user),
-            strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAmount
+            strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets
         );
         assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, 0);
 

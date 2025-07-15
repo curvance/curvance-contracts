@@ -221,8 +221,8 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
         emit Repay(first_liquidator, borrower1, totalDebtPaid_first);
 
         borrowableCUSDC.liquidateExact(
-            borrowers,
             amountToRepayPartial,
+            borrowers,
             address(strategyCBALRETH)
         );
 
@@ -279,8 +279,8 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
         // The second liquidation should have the same expected result as the first
 
         borrowableCUSDC.liquidateExact(
-            borrowers,
             amountToRepayPartial,
+            borrowers,
             address(strategyCBALRETH)
         );
 
@@ -371,7 +371,7 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
         vm.startPrank(borrower1);
         balRETH.approve(address(strategyCBALRETH), collateralAmountStart);
         strategyCBALRETH.depositAsCollateral(collateralAmountStart, borrower1);
-        borrowableCUSDC.borrow(borrowAmount);
+        borrowableCUSDC.borrow(borrowAmount, borrower1);
         vm.stopPrank();
 
     }

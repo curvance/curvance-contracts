@@ -183,7 +183,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
 
         PendleLPPositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
@@ -242,7 +242,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
 
         PendleLPPositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
@@ -300,7 +300,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         uint256 strategyCTokenSTETHCollateralBefore = strategyCTokenSTETH.collateralPosted(user);
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
-        deleverageData.collateralAmount = 1 ether;
+        deleverageData.collateralAssets = 1 ether;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
         deleverageData.swapData = new SwapperLib.Swap[](1);
@@ -345,7 +345,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         );
         assertEq(
             strategyCTokenSTETHSnapshot.collateralPosted,
-            strategyCTokenSTETHCollateralBefore - deleverageData.collateralAmount
+            strategyCTokenSTETHCollateralBefore - deleverageData.collateralAssets
         );
         assertEq(strategyCTokenSTETHSnapshot.debtBalance, 0);
 
@@ -377,7 +377,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
 
         PendleLPPositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
@@ -437,7 +437,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         uint256 strategyCTokenSTETHCollateralBefore = strategyCTokenSTETH.collateralPosted(user);
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
-        deleverageData.collateralAmount = 1 ether;
+        deleverageData.collateralAssets = 1 ether;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
         deleverageData.swapData = new SwapperLib.Swap[](1);
@@ -486,7 +486,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         );
         assertEq(
             strategyCTokenSTETHSnapshot.collateralPosted,
-            strategyCTokenSTETHCollateralBefore - deleverageData.collateralAmount
+            strategyCTokenSTETHCollateralBefore - deleverageData.collateralAssets
         );
         assertEq(strategyCTokenSTETHSnapshot.debtBalance, 0);
     }

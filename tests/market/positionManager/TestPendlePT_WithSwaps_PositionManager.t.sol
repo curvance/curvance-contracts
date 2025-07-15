@@ -170,7 +170,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
 
         PendlePTPositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(cPendlePTSTETH));
         PendleLib.PendleData memory data;
         data.approx.guessMin = 0.001e18;
@@ -292,7 +292,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
 
         PendlePTPositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(cPendlePTSTETH));
         PendleLib.PendleData memory data;
         data.approx.guessMin = 0.001e18;
@@ -344,7 +344,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory cPendlePTSTETHBeforeSnapshot = cPendlePTSTETH.getSnapshot(user);
 
         deleverageData.collateralToken = ICToken(address(cPendlePTSTETH));
-        deleverageData.collateralAmount = 1 ether;
+        deleverageData.collateralAssets = 1 ether;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
         deleverageData.swapData = new SwapperLib.Swap[](1);
@@ -401,7 +401,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         );
         assertEq(
             cPendlePTSTETHSnapshot.collateralPosted,
-            cPendlePTSTETHBeforeSnapshot.collateralPosted - deleverageData.collateralAmount
+            cPendlePTSTETHBeforeSnapshot.collateralPosted - deleverageData.collateralAssets
         );
         assertEq(cPendlePTSTETHSnapshot.debtBalance, 0);
 

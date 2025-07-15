@@ -146,7 +146,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
         }
 
         _borrowAmount = bound(_borrowAmount, MINIMUM_BORROW_AMOUNT, maxBorrowAmount);
-        borrowableCUSDC.borrow(_borrowAmount);
+        borrowableCUSDC.borrow(_borrowAmount, borrower);
         vm.stopPrank();
 
         mockWethFeed.setMockAnswer(_oraclePrice);

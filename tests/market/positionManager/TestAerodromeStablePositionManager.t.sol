@@ -186,7 +186,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
         leverageData.swapData.inputToken = address(0x0);
         leverageData.swapData.inputAmount = 0;
@@ -226,7 +226,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
         leverageData.swapData.inputToken = address(0x0);
         leverageData.swapData.inputAmount = 0;
@@ -284,7 +284,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
         leverageData.swapData.inputToken = address(0x0);
         leverageData.swapData.inputAmount = 0;
@@ -342,7 +342,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
         leverageData.swapData.inputToken = address(0x0);
         leverageData.swapData.inputAmount = 0;
@@ -384,7 +384,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         uint256 strategyCTokenUSDCDAIBalanceBefore = strategyCTokenUSDCDAI.balanceOf(user);
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
-        deleverageData.collateralAmount = 0.00003 ether;
+        deleverageData.collateralAssets = 0.00003 ether;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
         uint256 usdcAmount = 28430000;
@@ -422,9 +422,9 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
             strategyCTokenUSDCDAI.balanceOf(user),
-            strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAmount
+            strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets
         );
-        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, 0.0001 ether - deleverageData.collateralAmount);
+        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, 0.0001 ether - deleverageData.collateralAssets);
 
         vm.stopPrank();
     }
@@ -453,7 +453,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         ) * 50) / 100;
         AerodromePositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
         leverageData.swapData.inputToken = address(0x0);
         leverageData.swapData.inputAmount = 0;
@@ -495,7 +495,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         uint256 strategyCTokenUSDCDAIBalanceBefore = strategyCTokenUSDCDAI.balanceOf(user);
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
-        deleverageData.collateralAmount = 0.00003 ether;
+        deleverageData.collateralAssets = 0.00003 ether;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
         uint256 usdcAmount = 28430000;
@@ -537,9 +537,9 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
             strategyCTokenUSDCDAI.balanceOf(user),
-            strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAmount
+            strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets
         );
-        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, 0.0001 ether - deleverageData.collateralAmount);
+        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, 0.0001 ether - deleverageData.collateralAssets);
 
         vm.stopPrank();
     }

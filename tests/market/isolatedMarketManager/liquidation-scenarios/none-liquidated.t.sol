@@ -144,19 +144,19 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         vm.startPrank(borrower1);
         balRETH.approve(address(strategyCBALRETH), collateralAmounts[0]);
         strategyCBALRETH.depositAsCollateral(collateralAmounts[0], borrower1);
-        borrowableCUSDC.borrow(borrowAmount);
+        borrowableCUSDC.borrow(borrowAmount, borrower1);
         vm.stopPrank();
 
         vm.startPrank(borrower2);
         balRETH.approve(address(strategyCBALRETH), collateralAmounts[1]);
         strategyCBALRETH.depositAsCollateral(collateralAmounts[1], borrower2);
-        borrowableCUSDC.borrow(borrowAmount);
+        borrowableCUSDC.borrow(borrowAmount, borrower2);
         vm.stopPrank();
 
         vm.startPrank(borrower3);
         balRETH.approve(address(strategyCBALRETH), collateralAmounts[2]);
         strategyCBALRETH.depositAsCollateral(collateralAmounts[2], borrower3);
-        borrowableCUSDC.borrow(borrowAmount);
+        borrowableCUSDC.borrow(borrowAmount, borrower3);
         vm.stopPrank();
     }
 

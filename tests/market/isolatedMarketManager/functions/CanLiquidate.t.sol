@@ -342,7 +342,7 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
 
         // Borrow eUSDC with strategyCBALRETH as collateral
         _prepareUSDC(address(borrowableCUSDC), 100_000e6);
-        borrowableCUSDC.borrow(1000e6);
+        borrowableCUSDC.borrow(1000e6, user1);
         vm.stopPrank();
 
         assertEq(usdc.balanceOf(user1), 1000e6);

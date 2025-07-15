@@ -24,7 +24,7 @@ contract SetTransferPausedTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
         vm.prank(address(borrowableCUSDC));
-        marketManagerIsolated.canTransfer(address(borrowableCUSDC), address(this), 100, 0, 1, false);
+        marketManagerIsolated.canTransfer(address(borrowableCUSDC), 100, address(this), 0, 1, false);
 
         assertEq(marketManagerIsolated.transferPaused(), 1);
 
@@ -36,7 +36,7 @@ contract SetTransferPausedTest is TestBaseMarketManagerIsolated {
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
 
         vm.prank(address(borrowableCUSDC));
-        marketManagerIsolated.canTransfer(address(borrowableCUSDC), address(this), 100, 0, 1, false);
+        marketManagerIsolated.canTransfer(address(borrowableCUSDC), 100, address(this), 0, 1, false);
 
         assertEq(marketManagerIsolated.transferPaused(), 2);
 

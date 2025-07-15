@@ -209,7 +209,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         VelodromePositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenWETHUSDC));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
@@ -285,7 +285,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         VelodromePositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenWETHUSDC));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage - leverageFee;
@@ -347,7 +347,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         uint256 strategyCTokenWETHUSDCBalanceBefore = strategyCTokenWETHUSDC.balanceOf(user);
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenWETHUSDC));
-        deleverageData.collateralAmount = 0.00003 ether;
+        deleverageData.collateralAssets = 0.00003 ether;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
         deleverageData.swapData = new SwapperLib.Swap[](2);
@@ -403,7 +403,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         (,,,,, uint256 strategyCTokenWETHUSDCBorrowed ) = strategyCTokenWETHUSDC.getSnapshot(user);
         assertEq(
             strategyCTokenWETHUSDC.balanceOf(user),
-            strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAmount
+            strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAssets
         );
         assertEq(strategyCTokenWETHUSDCBorrowed, 0);
 
@@ -433,7 +433,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             .balanceOf(centralRegistry.daoAddress());
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenWETHUSDC));
-        deleverageData.collateralAmount = collateralAmount;
+        deleverageData.collateralAssets = collateralAmount;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
         deleverageData.swapData = new SwapperLib.Swap[](2);
@@ -489,7 +489,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         (,,,,, uint256 strategyCTokenWETHUSDCBorrowed ) = strategyCTokenWETHUSDC.getSnapshot(user);
         assertEq(
             strategyCTokenWETHUSDC.balanceOf(user),
-            strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAmount
+            strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAssets
         );
         assertEq(strategyCTokenWETHUSDCBorrowed, 0);
 
@@ -528,7 +528,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         VelodromePositionManager.LeverageStruct memory leverageData;
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAmount = amountForLeverage;
+        leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenWETHUSDC));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
@@ -584,7 +584,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         uint256 strategyCTokenWETHUSDCBalanceBefore = strategyCTokenWETHUSDC.balanceOf(user);
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenWETHUSDC));
-        deleverageData.collateralAmount = 0.00003 ether;
+        deleverageData.collateralAssets = 0.00003 ether;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
         deleverageData.swapData = new SwapperLib.Swap[](2);
@@ -643,7 +643,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         (,,,,, uint256 strategyCTokenWETHUSDCBorrowed ) = strategyCTokenWETHUSDC.getSnapshot(user);
         assertEq(
             strategyCTokenWETHUSDC.balanceOf(user),
-            strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAmount
+            strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAssets
         );
         assertEq(strategyCTokenWETHUSDCBorrowed, 0);
 
