@@ -825,7 +825,7 @@ abstract contract BasePositionManager is
         return centralRegistry;
     }
 
-    /// FUNCTIONS TO OVERRIDE ///
+    /// INTERNAL FUNCTIONS TO OVERRIDE ///
 
     /// @notice Callback function on borrowing tokens from a Curvance token
     ///         providing instant liquidity in the debt token underlying which

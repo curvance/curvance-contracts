@@ -35,7 +35,7 @@ library VelodromeLib {
     ///      100 = 1%.
     uint256 public constant VELODROME_ADD_LIQUIDITY_SLIPPAGE = 100;
 
-    /// FUNCTIONS ///
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Enters a Velodrome position based on parameters.
     /// @param router The Velodrome router address to enter through.

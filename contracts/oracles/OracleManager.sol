@@ -159,7 +159,7 @@ contract OracleManager is IOracleManager {
         centralRegistry = centralRegistry_;
     }
 
-    /// FUNCTIONS ///
+    /// EXTERNAL FUNCTIONS ///
 
     /// @notice Adds a new price feed for a specific asset.
     /// @dev Requires that the feed address is an approved adaptor,

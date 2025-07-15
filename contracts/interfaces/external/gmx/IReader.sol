@@ -48,7 +48,7 @@ interface IReader {
         uint256 impactPoolAmount;
     }
 
-    /// FUNCTIONS ///
+    /// EXTERNAL FUNCTIONS ///
 
     function getMarket(
         address dataStore,

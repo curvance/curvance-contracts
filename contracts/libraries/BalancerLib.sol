@@ -20,7 +20,7 @@ library BalancerLib {
     );
     error BalancerLib__InvalidPoolInvariantError();
 
-    /// FUNCTIONS ///
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Enter a Balancer position.
     /// @param balancerVault The Balancer vault address.

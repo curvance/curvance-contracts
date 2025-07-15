@@ -33,7 +33,7 @@ library PendleLib {
         LimitOrderData limit;
     }
 
-    /// FUNCTIONS ///
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Enters a Pendle position.
     /// @param router The Pendle router address.

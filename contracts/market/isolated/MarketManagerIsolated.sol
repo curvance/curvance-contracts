@@ -738,7 +738,7 @@ contract MarketManagerIsolated is
         }
 
         // No need to check whether tokens were listed before since this
-        // function can only be called once due to numTokens == 0 check.
+        // function can only be called once.
 
         // Update frontend array/emit events.
         tokensListed.push(token0);

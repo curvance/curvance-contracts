@@ -134,7 +134,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         }
     }
 
-    /// FUNCTIONS TO OVERRIDE ///
+    /// EXTERNAL FUNCTIONS TO OVERRIDE ///
 
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact

@@ -21,7 +21,7 @@ library CurveLib {
     error CurveLib__InvalidPoolInvariantError();
     error CurveLib__InvalidPoolType();
 
-    /// FUNCTIONS ///
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Enter a Curve lp token position.
     /// @param lpMinter The minter address of the Curve lp token.
