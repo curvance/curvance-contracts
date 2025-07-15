@@ -7,7 +7,7 @@ import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
