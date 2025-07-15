@@ -240,7 +240,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
-        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, 0 ether);
+        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, strategyCTokenUSDCDAI.balanceOf(user));
 
         uint256 protocolBalanceAfterLeverage = dai.balanceOf(
             centralRegistry.daoAddress()
@@ -327,7 +327,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             strategyCTokenUSDCDAI.balanceOf(user),
             strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets
         );
-        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, 0);
+        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets);
 
         uint256 protocolBalanceAfterDeLeverage = IERC20(_VELODROME_DAI_USDC)
             .balanceOf(centralRegistry.daoAddress());
