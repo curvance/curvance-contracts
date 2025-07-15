@@ -236,8 +236,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Callback to position folding to execute additional action.
         IPositionManager(msg.sender).onBorrow(
             address(this),
-            owner,
             assets,
+            owner,
             leverageData
         );
 
@@ -808,7 +808,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // Cache the current dao address then mint shares to the dao.
             address daoAddress = centralRegistry.daoAddress();
             _mint(daoAddress, protocolFees);
-            _afterDepositAction(daoAddress, protocolFees);
+            _afterDepositAction(protocolFees, daoAddress);
         }
 
         // Vest pending yield, if there is any.

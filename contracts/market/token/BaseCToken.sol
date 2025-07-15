@@ -840,7 +840,7 @@ abstract contract BaseCToken is
         );
 
         if (collateralToRemove > 0) {
-            _removeCollateral(owner, collateralToRemove);
+            _removeCollateral(collateralToRemove, owner);
         }
 
         // Execute withdrawal.
@@ -906,7 +906,7 @@ abstract contract BaseCToken is
         );
 
         if (collateralToRemove > 0) {
-            _removeCollateral(owner, collateralToRemove);
+            _removeCollateral(collateralToRemove, owner);
         }
 
         // Execute withdrawal.
@@ -1078,8 +1078,8 @@ abstract contract BaseCToken is
         // Callback to position manager that executes cToken specific logic.
         IPositionManager(msg.sender).onRedeem(
             address(this),
-            owner,
             assets,
+            owner,
             deleverageData
         );
 
@@ -1094,7 +1094,7 @@ abstract contract BaseCToken is
         );
 
         if (collateralToRemove > 0) {
-            _removeCollateral(owner, collateralToRemove);
+            _removeCollateral(collateralToRemove, owner);
         }
     }
 
@@ -1384,7 +1384,7 @@ abstract contract BaseCToken is
         );
 
         if (collateralToRemove > 0) {
-            _removeCollateral(owner, collateralToRemove);
+            _removeCollateral(collateralToRemove, owner);
         }
         
         _beforeTransferAction(shares, receiver, owner);

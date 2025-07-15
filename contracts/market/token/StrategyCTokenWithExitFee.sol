@@ -125,7 +125,7 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
         IPositionManager.DeleverageStruct memory deleverageData
     ) internal override {
         assets = _removeExitFeeFromAssets(assets);
-        deleverageData.collateralAmount = assets;
+        deleverageData.collateralAssets = assets;
         super._processPositionManagerRedemption(
             assets,
             shares,
