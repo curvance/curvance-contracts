@@ -451,8 +451,8 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         leverageData.swapData.inputAmount = 1 ether;
         leverageData.swapData.outputToken = address(420); // Invalid output token
         leverageData.auxData = abi.encode(_LP_STETH, 1, data);
-        // Expect the call to revert with BasePositionManager__InvalidSwapperParam
-        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
+        // Expect the call to revert with BasePositionManager__InvalidParam
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
         positionManager.leverage(leverageData, 0.05e18);
         
         vm.stopPrank();
@@ -504,8 +504,8 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         // Encode with the different PT market 
         leverageData.auxData = abi.encode(differentPTMarket, 1, data);
         
-        // This call should revert with BasePositionManager__InvalidSwapperParam
-        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
+        // This call should revert with BasePositionManager__InvalidParam
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
         positionManager.leverage(leverageData, 0.05e18); // 5% slippage
         
         vm.stopPrank();

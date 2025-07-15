@@ -423,7 +423,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.swapData.slippage = 0.3e18;
         
         // Should revert with `InvalidSwapperParam`.
-        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
         positionManager.leverage(leverageData, 0.05e18);
         
         vm.stopPrank();
@@ -462,7 +462,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageData.repayAssets = 890 ether;
         
         // Should revert with `InvalidSwapperParam`.
-        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
         positionManager.deleverage(deleverageData, 0.05e18);
         
         vm.stopPrank();
@@ -509,7 +509,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.swapData.slippage = 0.3e18;
         
         // This should revert with `InvalidSwapperParam`.
-        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
         positionManager.leverage(leverageData, 0.05e18);
         
         vm.stopPrank();
@@ -548,7 +548,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageData.repayAssets = 890 ether;
         
         // Should revert with `InvalidSwapperParam`.
-        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
         positionManager.deleverage(deleverageData, 0.05e18);
         
         vm.stopPrank();
@@ -595,7 +595,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.swapData.slippage = 0.3e18;
         
         // Should revert with `InvalidSwapperParam`.
-        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
         positionManager.leverage(leverageData, 0.05e18);
         
         vm.stopPrank();
@@ -642,7 +642,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.swapData.slippage = 0.3e18;
         
         // Should revert with `InvalidSwapperParam`.
-        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
         positionManager.leverage(leverageData, 0.05e18);
         
         vm.stopPrank();
@@ -681,7 +681,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageData.repayAssets = 890 ether;
         
         // Should revert with InvalidSwapperParam
-        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
         positionManager.deleverage(deleverageData, 0.05e18);
         
         vm.stopPrank();
@@ -717,7 +717,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.swapData.slippage = 0.3e18;
         
         // Should revert with `InvalidSwapperParam`.
-        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
         positionManager.leverage(leverageData, 0.05e18);
         
         vm.stopPrank();
@@ -740,7 +740,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageData.repayAssets = 890 ether;
         
         // Should revert with InvalidSwapperParam
-        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
         positionManager.deleverage(deleverageData, 0.05e18);
         
         vm.stopPrank();
