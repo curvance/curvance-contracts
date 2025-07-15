@@ -89,12 +89,12 @@ contract TestBaseBorrowableCToken is TestBaseMarketIsolated {
         cTokenConfig.cToken = address(borrowableCUSDC);
         cTokenConfig.debtCap = 100_000e6;
         marketManagerIsolated.updateTokenConfig(cTokenConfig);
-        
-        address liquidityProvider = makeAddr("liquidityProvider");
+
         strategyCBALRETH.mint(_ONE, address(this));
     }
 
     function _prepareLiquidation() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareBALRETH(liquidityProvider, 10e18);
         // mint eUSDC

@@ -156,6 +156,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     }
 
     function _provideLiquidity() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 100e6);
 
         // Mint borrowableCUSDC.
