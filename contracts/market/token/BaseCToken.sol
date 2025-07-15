@@ -605,14 +605,14 @@ abstract contract BaseCToken is
     }
 
     /// @notice Transfers `amount` tokens from caller to `to`.
-    /// @param shares The number of shares to transfer from caller to
-    ///               `receiver`.
     /// @param receiver The address of the destination account to receive
     ///                 `shares` shares.
+    /// @param shares The number of shares to transfer from caller to
+    ///               `receiver`.
     /// @return Whether or not the transfer succeeded or not.
     function transfer(
-        uint256 shares,
-        address receiver
+        address receiver,
+        uint256 shares
     ) public override nonReentrant returns (bool) {
         _checkTransfer(shares, receiver, msg.sender);
 
@@ -621,18 +621,18 @@ abstract contract BaseCToken is
         return true;
     }
 
-    /// @notice Transfers `amount` tokens from `from` to `to`.
-    /// @param shares The number of shares to transfer from `owner` to
-    ///               `receiver`.
-    /// @param receiver The address of the destination account to receive
-    ///                 `shares` shares.y
+    /// @notice Transfers `amount` tokens from `owner` to `receiver`.
     /// @param owner The address of the account transferring `shares`
     ///              shares from.
+    /// @param receiver The address of the destination account to receive
+    ///                 `shares` shares.
+    /// @param shares The number of shares to transfer from `owner` to
+    ///               `receiver`.
     /// @return Whether or not the transfer succeeded or not.
     function transferFrom(
-        uint256 shares,
+        address owner,
         address receiver,
-        address owner
+        uint256 shares
     ) public override nonReentrant returns (bool) {
         _checkTransfer(shares, receiver, owner);
 

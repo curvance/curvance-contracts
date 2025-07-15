@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
 
-contract StrategyCTokenWithExitFeeApproveTest is
+contract ApproveTest is
     TestBaseStrategyCTokenWithExitFee
 {
     event Approval(

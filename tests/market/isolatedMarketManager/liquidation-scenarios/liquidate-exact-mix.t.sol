@@ -140,13 +140,13 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
         console2.log("SETUP COMPLETE");
     }
 
-    uint256 totalBorrowsBefore;
+    uint256 outstandingDebtBefore;
     uint256 debtTokenPrice;
     uint256 collateralTokenPrice;
     uint256 quarterRatio = 0.25e18;
     uint256 cTokenExchangeRate;
     uint256 debtBalancesPreLiquidation;
-    uint256 lFactorsPreLiquidation;
+    uint256 lFactorPreLiquidation;
 
     function test_liquidateExactMix() public {
 
@@ -154,11 +154,11 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
 
         cTokenExchangeRate = strategyCBALRETH.exchangeRate();
 
-        totalBorrowsBefore = borrowableCUSDC.marketOutstandingDebt();
+        outstandingDebtBefore = borrowableCUSDC.marketOutstandingDebt();
 
         debtBalancesPreLiquidation = _getDebtBalancePreLiquidation(borrower1);
 
-        lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower1);
+        lFactorPreLiquidation = _getLFactorPreLiquidation(borrower1);
 
         (,collateralTokenPrice, debtTokenPrice) = 
             marketManagerIsolated.liquidationStatusOf(borrower1, address(strategyCBALRETH), address(borrowableCUSDC));
@@ -177,7 +177,7 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
             _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
                 debtTokenPrice, 
                 collateralTokenPrice, 
-                lFactorsPreLiquidation,
+                lFactorPreLiquidation,
                 amountToRepayPartial[0],
                 debtBalancesPreLiquidation
             );
@@ -230,11 +230,11 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
 
         // ===== Cache second liquidation values =====
 
-        // repay a quarter of the remaining debt
+        // Repay a quarter of the remaining debt.
         amountToRepayPartial[0] = (remainingDebt_after_first * quarterRatio) / WAD;
 
-        // Update lFactor (shouldn't change much)
-        lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower1);
+        // Update lFactor (shouldn't change much).
+        lFactorPreLiquidation = _getLFactorPreLiquidation(borrower1);
 
         // Update expected remaining collateral
         uint256 collateralAmount_after_first = collateralAmountStart - collateralLiquidated_liquidateExact_first;
@@ -243,7 +243,7 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
             _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
                 debtTokenPrice, 
                 collateralTokenPrice, 
-                lFactorsPreLiquidation,
+                lFactorPreLiquidation,
                 amountToRepayPartial[0],
                 remainingDebt_after_first
             );
@@ -288,36 +288,36 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
 
         // ===== Cache third liquidation values =====
 
-        // Update lFactor (shouldn't change much)
-        lFactorsPreLiquidation = _getLFactorsPreLiquidation(borrower1);
+        // Update lFactor (shouldn't change much).
+        lFactorPreLiquidation = _getLFactorPreLiquidation(borrower1);
 
-        // Update expected remaining collateral
+        // Update expected remaining collateral.
         uint256 collateralAmount_after_second = collateralAmount_after_first - collateralLiquidated_liquidateExact_2;
         
-        (uint256 maxAmount_liquidateExact_3, uint256 collateralLiquidated_liquidateExact_3, uint256 collateralRequired_liquidateExact_3) = 
+        (uint256 maxAmount_liquidate_3, uint256 collateralLiquidated_liquidate_3, uint256 collateralRequired_liquidate_3) = 
             _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
                 debtTokenPrice, 
                 collateralTokenPrice, 
-                lFactorsPreLiquidation,
+                lFactorPreLiquidation,
                 collateralAmount_after_second,  
                 remainingDebt_after_second     
             );
 
-        // For liquidate(), the actual debt amount liquidated is maxAmount_liquidateExact_3
-        uint256 actualDebtToLiquidate_3 = maxAmount_liquidateExact_3;
+        // For liquidate(), the actual debt amount liquidated is maxAmount_liquidate_3
+        uint256 actualDebtToLiquidate_3 = maxAmount_liquidate_3;
 
-        uint256 badDebt_expected_liquidateExact_3 = _calculateBadDebt(
+        uint256 badDebt_expected_liquidate_3 = _calculateBadDebt(
             remainingDebt_after_second,  
             actualDebtToLiquidate_3,    // Use the actual debt amount that will be liquidated
             collateralAmount_after_second,
-            collateralRequired_liquidateExact_3,
-            collateralLiquidated_liquidateExact_3,
+            collateralRequired_liquidate_3,
+            collateralLiquidated_liquidate_3,
             collateralTokenPrice,
             debtTokenPrice,
             cTokenExchangeRate
         );
 
-        uint256 totalDebtPaid_third = actualDebtToLiquidate_3 + badDebt_expected_liquidateExact_3;
+        uint256 totalDebtPaid_third = actualDebtToLiquidate_3 + badDebt_expected_liquidate_3;
 
         uint256 remainingDebt_after_third = remainingDebt_after_second - totalDebtPaid_third;
 
@@ -329,7 +329,7 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
 
         // expect bad debt emit and debt repaid
         vm.expectEmit();
-        emit BadDebtRecognized(third_liquidator, badDebt_expected_liquidateExact_3);
+        emit BadDebtRecognized(third_liquidator, badDebt_expected_liquidate_3);
         emit Repay(third_liquidator, borrower1, totalDebtPaid_third);
 
         borrowableCUSDC.liquidate(
@@ -341,17 +341,17 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
 
         // ===== Final Assertions =====
 
-        // Verify borrower1's debt is fully liquidated
+        // Verify borrower1's debt is fully liquidated.
         assertEq(borrowableCUSDC.debtBalance(borrower1), 0, "Borrower1 should have zero debt remaining");
 
-        // Verify borrower1's collateral is fully liquidated
+        // Verify borrower1's collateral is fully liquidated.
         assertEq(strategyCBALRETH.balanceOf(borrower1), 0, "Borrower1 should have zero collateral remaining");
 
-        // Verify total borrows decreased appropriately
-        uint256 totalBorrowsAfter = borrowableCUSDC.marketOutstandingDebt();
-        assertLt(totalBorrowsAfter, totalBorrowsBefore, "Total borrows should have decreased");
+        // Verify total outstanding debt decreased appropriately.
+        uint256 outstandingDebtAfter = borrowableCUSDC.marketOutstandingDebt();
+        assertLt(outstandingDebtAfter, outstandingDebtBefore, "Total outstanding debt should have decreased");
 
-        // Verify the position is no longer liquidatable
+        // Verify the position is no longer liquidatable.
         (uint256 lFactorFinal,,) = marketManagerIsolated.liquidationStatusOf(
             borrower1,
             address(strategyCBALRETH),
@@ -376,27 +376,24 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
 
     }
 
-    function _getLFactorsPreLiquidation(address _borrowers) internal view returns (uint256 lFactors) {
-
-            (lFactors,,) = marketManagerIsolated.liquidationStatusOf(
-                _borrowers,
+    function _getLFactorPreLiquidation(address _borrower) internal view returns (uint256 lFactor) {
+            (lFactor,,) = marketManagerIsolated.liquidationStatusOf(
+                _borrower,
                 address(strategyCBALRETH),
                 address(borrowableCUSDC)
             );
 
-        return lFactors;
+        return lFactor;
     }
 
     function _getDebtBalancePreLiquidation(address _borrower) internal view returns (uint256 debtBalance) {
-
         debtBalance = borrowableCUSDC.debtBalance(_borrower);
-
     }
 
     function _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
         uint256 _debtTokenPrice,
         uint256 _collateralTokenPrice,
-        uint256 lFactors,
+        uint256 _lFactor,
         uint256 _collateralAmounts,
         uint256 _borrowAmounts
     ) internal view returns (
@@ -408,11 +405,11 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
     
-            if (lFactors == 0) return (0,0,0);
+            if (_lFactor == 0) return (0,0,0);
             
             // Follow the contract's exact calculations but with higher precision
-            uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactors / WAD));
-            uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors) / WAD);
+            uint256 auctionCFactor = baseCFactor + ((cFactorCurve * _lFactor / WAD));
+            uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * _lFactor) / WAD);
             
             // Calculate with extra precision
             uint256 highPrecisionD2C = (((auctionLiqIncentive * _debtTokenPrice * WAD * PRECISION_FACTOR) /
@@ -443,7 +440,7 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
     function _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
         uint256 _debtTokenPrice,
         uint256 _collateralTokenPrice,
-        uint256 lFactor,
+        uint256 _lFactor,
         uint256 _debtAmount,
         uint256 _currentDebtBalance 
     ) internal view returns (
@@ -451,8 +448,8 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
         uint256 collateralLiquidated,
         uint256 collateralRequired
     ) {
-        uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
-        uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
+        uint256 auctionCFactor = baseCFactor + ((cFactorCurve * _lFactor) / WAD);
+        uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * _lFactor) / WAD);
         
         // Match contract's exact calculation
         uint256 debtToCollateralMultiplier = (((auctionLiqIncentive * _debtTokenPrice * WAD_SQUARED) /
@@ -474,18 +471,18 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
         uint256 _collateralAvailable,
         uint256 _collateralRequired,
         uint256 _collateralLiquidated,
-        uint256 _cTokenUnderlyingPrice,
-        uint256 _eTokenUnderlyingPrice,
-        uint256 _cTokenExchangeRate
+        uint256 _collateralTokenUnderlyingPrice,
+        uint256 _debtTokenUnderlyingPrice,
+        uint256 _collateralTokenExchangeRate
     ) internal pure returns (uint256 badDebt) {
 
         if(_collateralRequired > _collateralAvailable) {
     
         badDebt = (_debtBalance - _debtAmount) -
         FixedPointMathLib.mulDivUp(
-            ((_collateralAvailable - _collateralLiquidated) * _cTokenExchangeRate) / WAD,
-            _cTokenUnderlyingPrice,
-            (_eTokenUnderlyingPrice * WAD) / 1e6
+            ((_collateralAvailable - _collateralLiquidated) * _collateralTokenExchangeRate) / WAD,
+            _collateralTokenUnderlyingPrice,
+            (_debtTokenUnderlyingPrice * WAD) / 1e6
         );
 
         } else {

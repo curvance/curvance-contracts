@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
-contract StrategyCTokenWithExitFeeRedeemTest is
+contract RedeemTest is
     TestBaseStrategyCTokenWithExitFee
 {
     event Transfer(address indexed from, address indexed to, uint256 amount);

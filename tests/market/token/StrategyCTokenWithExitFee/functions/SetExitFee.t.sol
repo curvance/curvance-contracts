@@ -5,9 +5,7 @@ import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWith
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { StrategyCTokenWithExitFee } from "contracts/market/token/StrategyCTokenWithExitFee.sol";
 
-contract StrategyCTokenWithExitFeeSetExitFeeTest is
-    TestBaseStrategyCTokenWithExitFee
-{
+contract SetExitFeeTest is TestBaseStrategyCTokenWithExitFee {
     event ExitFeeSet(uint256 oldExitFee, uint256 newExitFee);
 
     function test_strategyCTokenWithExitFeeSetExitFee_fail_whenCallerIsNotAuthorized()

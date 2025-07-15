@@ -5,7 +5,7 @@ import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract StrategyCTokenRedeemTest is TestBaseStrategyCToken {
+contract RedeemTest is TestBaseStrategyCToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function test_strategyCTokenRedeem_fail_whenNoEnoughToRedeem() public {

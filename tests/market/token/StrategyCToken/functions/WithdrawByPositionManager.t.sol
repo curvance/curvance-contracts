@@ -14,16 +14,7 @@ import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-// This test contract acts as a position management contract to 
-// check the withdrawByPositionManager function in the
-// StrategyCToken contract.
-// We are checking to see if this contract can properly call 
-// the withdrawByPositionManager function in the StrategyCToken contract
-contract StrategyCTokenWithdrawByPositionManagerTest is
-    TestBaseMarketIsolated,
-    IPositionManager,
-    ERC165
-{
+contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
 
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
@@ -83,11 +74,9 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
-        // list eUSDC
         _prepareUSDC(address(this), _ONE);
         usdc.approve(address(borrowableCUSDC), _ONE);
 
-        // list strategyCBALRETH
         _prepareBALRETH(address(this), 77777);
         
         SafeTransferLib.safeApprove(
@@ -121,7 +110,8 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
         // deposit reserves
         borrowableCUSDC.deposit(1000e6, address(this));
 
-        addPositionManagement();
+        // TODO write a mockPositionManager and assign it here.
+        // addPositionManager();
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
@@ -136,7 +126,6 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
     }
 
     function test_strategyCTokenWithdrawByPositionManager_success() public {
-
         _prepareBALRETH(user1, 1000e18);
 
         vm.startPrank(user1);
@@ -170,52 +159,13 @@ contract StrategyCTokenWithdrawByPositionManagerTest is
 
         strategyCBALRETH.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageData);
 
-        // a usual workflow would swap the collateral for the borrowToken, repay the borrowToken
-        // we are checking that withdraw can be called on the pToken
+        // A usual workflow would swap the collateral for the borrowToken,
+        // repay the borrowToken we are checking that withdraw can be called
+        // on the cToken.
         
         uint256 balRETHBalanceAfter = balRETH.balanceOf(address(this));
 
         assert(balRETHBalanceAfter == collateralRemoveAmount);       
     }
 
-    function addPositionManagement() public {
-        // Set this contract as a position management handler in the MarketManager
-        marketManagerIsolated.addPositionManager(address(this));
-    }
-
-    /// @inheritdoc IPositionManager
-    function onBorrow(
-        address borrowToken,
-        address borrower,
-        uint256 borrowAmount,
-        LeverageStruct memory leverageData
-    ) external override {
-        // Implementation not required for the test
-    }
-
-    /// @inheritdoc IPositionManager
-    function onRedeem(
-        address collateralToken,
-        address redeemer,
-        uint256 collateralAmount,
-        DeleverageStruct memory deleverageData
-    ) external override {
-        // Implementation not required for the test
-        // we would usually ensure:
-        // 1. if the positionManagement contract has >= deleveragedata.collateralAmount
-        // 2. if the collateralToken is the same as deleverageData.collateralToken
-        // 3. if the collateralAmount argument is the same as deleverageData.collateralAmount argument
-        // 4. then take a protocol fee if necessary
-
-        // we would then swap the collateral for the borrowToken, repay the borrowToken
-        // and transfer any remaining borrowed tokens to the user
-        // and transfer any remaining tokenOut tokens to the user
-    }
-
-    /// @inheritdoc ERC165
-    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
-        return
-            interfaceId == type(IPositionManager).interfaceId ||
-            super.supportsInterface(interfaceId);
-    }
 }

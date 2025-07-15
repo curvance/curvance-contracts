@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
-// mock CVE for testing
+// Mock CVE for testing.
 contract MockCve is ERC20 {
     string private _name;
     string private _symbol;

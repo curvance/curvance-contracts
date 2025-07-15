@@ -7,7 +7,7 @@ import { StrategyCToken } from "contracts/market/token/StrategyCToken.sol";
 // NOTES:
 // [FAIL: assertion failed: 76319 != 41325] expected redeem quote to be 41325, but got 76319
 
-contract StrategyCTokenWithExitFeePreviewRedeemTest is
+contract PreviewRedeemTest is
     TestBaseStrategyCTokenWithExitFee
 {
     event Transfer(address indexed from, address indexed to, uint256 amount);

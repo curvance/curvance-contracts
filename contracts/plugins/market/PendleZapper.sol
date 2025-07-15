@@ -57,7 +57,7 @@ contract PendleZapper is ZapperBase {
     ///                       into `strategyCToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
-    /// @param recipient Address that should receive Zapped deposit.
+    /// @param receiver Address that should receive Zapped deposit.
     /// @return outAmount The output amount received from Zapping.
     function enterPendle(
         address strategyCToken,
@@ -68,7 +68,7 @@ contract PendleZapper is ZapperBase {
         PendleLib.PendleData calldata data,
         uint256 expectedShares,
         bool collateralize,
-        address recipient
+        address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
         // Swap input token for underlyings.
         _swapForUnderlyings(
@@ -94,7 +94,7 @@ contract PendleZapper is ZapperBase {
             outAmount,
             expectedShares,
             collateralize,
-            recipient
+            receiver
         );
     }
 
@@ -107,7 +107,7 @@ contract PendleZapper is ZapperBase {
     ///             and limit order data.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param swapData Array of swap instruction data to execute the Zap.
-    /// @param recipient Address that should receive Zapped withdrawal.
+    /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function exitPendle(
         address router,
@@ -116,7 +116,7 @@ contract PendleZapper is ZapperBase {
         PendleLib.PendleData calldata data,
         ZapperData calldata zapData,
         SwapperLib.Swap[] calldata swapData,
-        address recipient
+        address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Transfer the Pendle market to the Zapper.
         SafeTransferLib.safeTransferFrom(
@@ -134,7 +134,7 @@ contract PendleZapper is ZapperBase {
             data,
             zapData,
             swapData,
-            recipient
+            receiver
         );
     }
 
@@ -154,7 +154,7 @@ contract PendleZapper is ZapperBase {
     ///             and limit order data.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param swapData Array of swap instruction data to execute the Zap.
-    /// @param recipient Address that should receive Zapped withdrawal.
+    /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitPendle(
         RedemptionData calldata redemptionData,
@@ -164,7 +164,7 @@ contract PendleZapper is ZapperBase {
         PendleLib.PendleData calldata data,
         ZapperData calldata zapData,
         SwapperLib.Swap[] calldata swapData,
-        address recipient
+        address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
@@ -173,7 +173,7 @@ contract PendleZapper is ZapperBase {
             redemptionData.shares,
             zapData.inputAmount,
             redemptionData.forceRedeemCollateral,
-            recipient
+            receiver
         );
 
         // Exit Pendle position.
@@ -184,7 +184,7 @@ contract PendleZapper is ZapperBase {
             data,
             zapData,
             swapData,
-            recipient
+            receiver
         );
     }
 
@@ -197,7 +197,7 @@ contract PendleZapper is ZapperBase {
     /// @param underlyingToken The underlying token address of the SY.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param swapData Array of swap instruction data to execute the Zap.
-    /// @param recipient Address that should receive Zapped withdrawal.
+    /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function _exitPendle(
         address router,
@@ -206,7 +206,7 @@ contract PendleZapper is ZapperBase {
         PendleLib.PendleData calldata data,
         ZapperData calldata zapData,
         SwapperLib.Swap[] calldata swapData,
-        address recipient
+        address receiver
     ) internal returns (uint256 outAmount) {
         // Exit Pendle position.
         PendleLib._exitPendle(
@@ -232,8 +232,8 @@ contract PendleZapper is ZapperBase {
             revert PendleZapper__SlippageError();
         }
 
-        // Transfer output tokens to `recipient`.
-        _transferToRecipient(zapData.outputToken, recipient, outAmount);
+        // Transfer output tokens to `receiver`.
+        _transferToRecipient(zapData.outputToken, receiver, outAmount);
     }
 
     /// @notice Swap `inputToken` into desired underlying tokens.

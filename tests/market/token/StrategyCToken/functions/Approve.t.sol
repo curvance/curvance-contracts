@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
 
-contract StrategyCTokenApproveTest is TestBaseStrategyCToken {
+contract ApproveTest is TestBaseStrategyCToken {
     event Approval(
         address indexed owner,
         address indexed spender,

@@ -5,10 +5,7 @@ import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWith
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-
-contract StrategyCTokenWithExitFeeTransferFromTest is
-    TestBaseStrategyCTokenWithExitFee
-{
+contract TransferFromTest is TestBaseStrategyCTokenWithExitFee {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function setUp() public override {

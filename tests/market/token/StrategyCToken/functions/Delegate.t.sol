@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
 
-contract StrategyCTokenDelegateTest is TestBaseStrategyCToken {
+contract DelegateTest is TestBaseStrategyCToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function test_strategyCTokenDelegateDeposit_success() public {

@@ -6,7 +6,7 @@ import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWith
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract StrategyCTokenWithExitFeeMintTest is
+contract MintTest is
     TestBaseStrategyCTokenWithExitFee
 {
     event Transfer(address indexed from, address indexed to, uint256 amount);

@@ -5,7 +5,7 @@ import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-contract StrategyCTokenInitializeDepositsTest is TestBaseStrategyCToken {
+contract InitializeDepositsTest is TestBaseStrategyCToken {
     function test_strategyCTokenInitializeDeposits_fail_whenCallerIsNotMarketManager()
         public
     {

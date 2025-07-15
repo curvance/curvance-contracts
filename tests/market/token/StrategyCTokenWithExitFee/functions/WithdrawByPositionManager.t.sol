@@ -14,11 +14,7 @@ import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
-    TestBaseMarketIsolated,
-    IPositionManager,
-    ERC165
-{
+contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
 
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
@@ -78,12 +74,9 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
-        // list eUSDC
         _prepareUSDC(address(this), _ONE);
         usdc.approve(address(borrowableCUSDC), _ONE);
 
-
-        // list strategyCBALRETHWithExitFee
         _prepareBALRETH(address(this), 77777);
         
         SafeTransferLib.safeApprove(
@@ -115,7 +108,8 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         tokenConfig.debtCap = 1_000_000e6;
         marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-        addPositionManagement();
+        // TODO write a mockPositionManager and assign it here.
+        addPositionManager();
 
         // deposit reserves
         borrowableCUSDC.deposit(1000e6, address(this));
@@ -176,11 +170,6 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         assert(balRETHBalanceAfter == collateralReceivedWithExitFee);       
     }
 
-    function addPositionManagement() public {
-        // Set this contract as a position management handler in the MarketManager
-        marketManagerIsolated.addPositionManager(address(this));
-    }
-
     // the same logic from the StrategyCTokenWithExitFee contract which removes the exit fee
     function _removeExitFeeFromAssets(
         uint256 assets
@@ -192,39 +181,4 @@ contract StrategyCTokenWithExitFeeWithdrawByPositionManager is
         return assets - FixedPointMathLib.mulDivUp(exitFee, assets, WAD);
     }
 
-    /// @inheritdoc IPositionManager
-    function onBorrow(
-        address borrowToken,
-        address borrower,
-        uint256 borrowAmount,
-        LeverageStruct memory leverageData
-    ) external override {
-        // Implementation not required for the test
-    }
-
-    /// @inheritdoc IPositionManager
-    function onRedeem(
-        address positionToken,
-        address redeemer,
-        uint256 collateralAmount,
-        DeleverageStruct memory deleverageData
-    ) external override {
-        // Implementation not required for the test
-        // we would usually ensure:
-        // 1. if the positionManagement contract has >= deleveragedata.collateralAmount
-        // 2. if the positionToken is the same as deleverageData.postionToken
-        // 3. if the collateralAmount argument is the same as deleverageData.collateralAmount argument
-        // 4. then take a protocol fee if necessary
-
-        // we would then swap the collateral for the borrowToken, repay the borrowToken
-        // and transfer any remaining borrowed tokens to the user
-        // and transfer any remaining tokenOut tokens to the user
-    }
-
-    /// @inheritdoc ERC165
-    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
-        return
-            interfaceId == type(IPositionManager).interfaceId ||
-            super.supportsInterface(interfaceId);
-    }
 }

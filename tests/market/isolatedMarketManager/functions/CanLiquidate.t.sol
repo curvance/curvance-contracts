@@ -9,7 +9,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import "forge-std/console2.sol";
 
-contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
+contract CanLiquidateTest is TestBaseMarketManagerIsolated {
     
     address[] accounts = new address[](1);
     uint256[] debtAmounts = new uint256[](1);

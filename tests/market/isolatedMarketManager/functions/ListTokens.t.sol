@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
 
-contract ListTokens is TestBaseMarketManagerIsolated {
+contract ListTokensTest is TestBaseMarketManagerIsolated {
 
     function setUp() public override {
         super.setUp();

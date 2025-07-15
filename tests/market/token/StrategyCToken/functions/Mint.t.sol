@@ -6,7 +6,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
-contract StrategyCTokenMintTest is TestBaseStrategyCToken {
+contract MintTest is TestBaseStrategyCToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function test_strategyCTokenMint_fail_whenTransferZeroAmount() public {

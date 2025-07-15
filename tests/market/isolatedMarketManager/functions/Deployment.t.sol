@@ -5,7 +5,7 @@ import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract MarketManagerDeploymentTest is TestBaseMarketManagerIsolated {
+contract IsolatedMarketManagerDeploymentTest is TestBaseMarketManagerIsolated {
     function test_marketManagerDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {

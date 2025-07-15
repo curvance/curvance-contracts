@@ -6,7 +6,7 @@ import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 
-contract StrategyCTokenTransferTest is TestBaseStrategyCToken {
+contract TransferTest is TestBaseStrategyCToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function setUp() public override {

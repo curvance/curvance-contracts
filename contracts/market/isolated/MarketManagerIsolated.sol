@@ -554,9 +554,9 @@ contract MarketManagerIsolated is
     ///                       will be realized as part of a particular
     ///                       liquidation.
     /// @return results A LiqResults struct containing:
-    ///                 liquidatedAmounts An array containing the collateral
-    ///                                   amounts to liquidate from
-    ///                                   `accounts`.
+    ///                 liquidatedShares An array containing the collateral
+    ///                                  amounts to liquidate from
+    ///                                  `accounts`.
     ///                 debtRepaid The total amount of debt to repay from
     ///                            `accounts`.
     ///                 badDebtRealized The total amount of debt to realize as
@@ -586,7 +586,7 @@ contract MarketManagerIsolated is
         address cachedAccount;
         // Amounts array is empty since the max amount possible
         // will be liquidated.
-        results.liquidatedAmounts = new uint256[](instructions.numAccounts);
+        results.liquidatedShares = new uint256[](instructions.numAccounts);
         for (uint256 i; i < instructions.numAccounts; ++i) {
             cachedAccount = accounts[i];
             
@@ -610,8 +610,7 @@ contract MarketManagerIsolated is
             // If the user is being liquidated update relevant values.
             if (instructions.liquidatedShares > 0) {
                 results.debtRepaid += instructions.debtRepaid;
-                results.liquidatedAmounts[i] =
-                    instructions.liquidatedShares;
+                results.liquidatedShares[i] = instructions.liquidatedShares;
 
                 if (instructions.badDebt > 0) {
                     results.badDebtRealized += instructions.badDebt;
