@@ -102,9 +102,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             redstoneSignerKeys
         );
         bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool)",
+            "writePrice(address,bool,uint128)",
             _WBTC_ADDRESS,
-            true
+            true,
+            uint128(block.timestamp * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
@@ -235,9 +236,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             redstoneSignerKeys
         );
         bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool)",
+            "writePrice(address,bool,uint128)",
             _WBTC_ADDRESS,
-            true
+            true,
+            uint128(block.timestamp * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
@@ -281,14 +283,21 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             redstoneSignerKeys
         );
         bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool)",
+            "writePrice(address,bool,uint128)",
             _WBTC_ADDRESS,
-            true
+            true,
+            uint128(block.timestamp * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
             redstonePayload
         );
+
+        // check if writePrice works
+        // vm.prank(user1);
+        // (bool success, ) = address(adapter).call(encodedFunctionWithRedstonePayload);
+        // assertTrue(success, "writePrice should work");
+
         calls[0].data = encodedFunctionWithRedstonePayload;
         calls[0].isPriceUpdate = true;
 
@@ -360,9 +369,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             redstoneSignerKeys
         );
         bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool)",
+            "writePrice(address,bool,uint128)",
             _WBTC_ADDRESS,
-            true
+            true,
+            uint128(block.timestamp * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
@@ -389,9 +399,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
                 redstoneSignerKeys
             );
             bytes memory encodedFunction = abi.encodeWithSignature(
-                "writePrice(address,bool)",
+                "writePrice(address,bool,uint128)",
                 _WBTC_ADDRESS,
-                true
+                true,
+                uint128(block.timestamp * 1000)
             );
             bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
                 encodedFunction,
