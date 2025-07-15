@@ -114,7 +114,7 @@
 //         address liquidityProvider = makeAddr("liquidityProvider");
 //         _prepareUSDC(liquidityProvider, 200000e6);
 //         _prepareBALRETH(liquidityProvider, 10e18);
-//         // mint eUSDC
+//         // Mint borrowable cUSDC.
 //         vm.startPrank(liquidityProvider);
 //         usdc.approve(address(eUSDC), 200000e6);
 //         eUSDC.mint(200000e6);

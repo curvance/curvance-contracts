@@ -111,6 +111,11 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         _depositCollateral();
         _delegateToUser();
 
+        uint256 underlyingBalance = usdc.balanceOf(user1);
+        uint256 balance = borrowableCUSDC.balanceOf(user1);
+        uint256 totalSupply = borrowableCUSDC.totalSupply();
+        uint256 totalDebt = borrowableCUSDC.marketOutstandingDebt();
+
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Borrow(100e6, user1);
 

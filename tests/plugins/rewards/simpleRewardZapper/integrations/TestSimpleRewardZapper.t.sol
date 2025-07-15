@@ -125,7 +125,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         address liquidityProvider = makeAddr("Liquidity_provider");
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareWETH(liquidityProvider, 10 ether);
-        // mint eUSDC
+        // Mint borrowable cUSDC.
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
