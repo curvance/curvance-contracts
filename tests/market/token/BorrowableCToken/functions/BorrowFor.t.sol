@@ -14,7 +14,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
         _delegateToUser();
 
-        vm.prank(user2);
+        vm.startPrank(user2);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         borrowableCUSDC.borrowFor(100e6, user2, user1);
@@ -28,7 +28,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         _provideLiquidity();
         _depositCollateral();
 
-        vm.prank(user2);
+        vm.startPrank(user2);
 
         vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
         borrowableCUSDC.borrowFor(100e6, user1, user1);
@@ -47,7 +47,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
         uint256 assetsHeld = borrowableCUSDC.assetsHeld();
 
-        vm.prank(user2);
+        vm.startPrank(user2);
 
         vm.expectRevert(
             BorrowableCToken.BorrowableCToken__InsufficientAssetsHeld.selector
@@ -68,7 +68,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 0);
 
-        vm.prank(user2);
+        vm.startPrank(user2);
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__CapReached.selector
@@ -94,7 +94,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
         _delegateToUser();
         vm.stopPrank();
-        vm.prank(user2);
+        vm.startPrank(user2);
 
         vm.expectRevert(
             BorrowableCToken.BorrowableCToken__InvalidParameter.selector
@@ -119,7 +119,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Borrow(100e6, user1);
 
-        vm.prank(user2);
+        vm.startPrank(user2);
         borrowableCUSDC.borrowFor(100e6, user1, user1);
         vm.stopPrank();
 
@@ -144,7 +144,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Borrow(100e6, user1);
 
-        vm.prank(user2);
+        vm.startPrank(user2);
         borrowableCUSDC.borrowFor(100e6, user2, user1);
         vm.stopPrank();
 
