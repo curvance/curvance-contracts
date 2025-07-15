@@ -113,10 +113,10 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.expectRevert(
             LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector
         );
-        borrowableCDAI.borrow(minimumBorrowAmount - 1);
+        borrowableCDAI.borrow(minimumBorrowAmount - 1, user1);
 
         // try borrow()
-        borrowableCDAI.borrow(minimumBorrowAmount);
+        borrowableCDAI.borrow(minimumBorrowAmount, user1);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertEq(borrowableCDAI.debtBalance(user1), minimumBorrowAmount);
@@ -124,7 +124,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // try borrow()
         skip(1200);
-        borrowableCDAI.borrow(100e18);
+        borrowableCDAI.borrow(100e18, user1);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertGt(borrowableCDAI.debtBalance(user1), minimumBorrowAmount + 100e18);
@@ -171,7 +171,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(_ONE);
 
         // try borrow()
-        borrowableCDAI.borrow(500e18);
+        borrowableCDAI.borrow(500e18, user1);
 
         // skip min hold period
         skip(20 minutes);
@@ -205,7 +205,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         borrowableCDAI.mint(1000e18, user1);
 
         // try borrow()
-        borrowableCDAI.borrow(500e18);
+        borrowableCDAI.borrow(500e18, user1);
 
         // fail to redeem before minimum hold time pass
         vm.expectRevert(
@@ -239,7 +239,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(_ONE);
 
         // try borrow()
-        borrowableCDAI.borrow(500e18);
+        borrowableCDAI.borrow(500e18, user1);
 
         // skip min hold period
         skip(20 minutes);
@@ -274,7 +274,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         borrowableCDAI.deposit(1000e18, user1);
 
         // try borrow()
-        borrowableCDAI.borrow(500e18);
+        borrowableCDAI.borrow(500e18, user1);
 
         // skip min hold period
         skip(20 minutes);
@@ -306,7 +306,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(_ONE);
 
         // try borrow()
-        borrowableCDAI.borrow(1000e18);
+        borrowableCDAI.borrow(1000e18, user1);
         vm.stopPrank();
 
         // skip min hold period
@@ -346,8 +346,8 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         uint256[] memory debtAmounts = new uint256[](1);
         debtAmounts[0] = 250e18;
         borrowableCDAI.liquidateExact(
-            accounts,
             debtAmounts,
+            accounts,
             address(strategyCBALRETH));
         vm.stopPrank();
 
@@ -376,7 +376,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(_ONE); 
 
         // try borrow()
-        borrowableCDAI.borrow(1000e18);
+        borrowableCDAI.borrow(1000e18, user1);
         vm.stopPrank();
 
         // skip min hold period
@@ -427,7 +427,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(_ONE);
 
         // try borrow()
-        borrowableCDAI.borrow(1000e18);
+        borrowableCDAI.borrow(1000e18, user1);
         vm.stopPrank();
 
         // skip min hold period
@@ -465,7 +465,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(_ONE);
 
         // try borrow()
-        borrowableCDAI.borrow(1000e18);
+        borrowableCDAI.borrow(1000e18, user1);
         vm.stopPrank();
 
         // skip min hold period
@@ -557,7 +557,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
-        borrowableCDAI.borrow(1000e18);
+        borrowableCDAI.borrow(1000e18, user1);
         vm.stopPrank();
 
         // skip min hold period

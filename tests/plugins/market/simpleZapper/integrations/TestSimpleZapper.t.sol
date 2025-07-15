@@ -133,7 +133,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         simpleCUSDC.postCollateral(2e9);
 
         // try borrow()
-        borrowableCDAI.borrow(500 ether);
+        borrowableCDAI.borrow(500 ether, user1);
         vm.stopPrank();
 
         assertEq(dai.balanceOf(user1), 500 ether);

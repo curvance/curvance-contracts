@@ -151,7 +151,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         assertEq(rewarder.earned(address(cSTETH)), 0);
         assertEq(cSTETH.balanceOf(user1), 1_000e18);
 
-        borrowableCUSDC.borrow(10_000e6);
+        borrowableCUSDC.borrow(10_000e6, user1);
         vm.stopPrank();
 
         assertEq(

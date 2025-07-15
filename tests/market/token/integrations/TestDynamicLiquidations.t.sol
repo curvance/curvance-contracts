@@ -156,7 +156,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(1 ether - 1);
 
         // try borrow()
-        borrowableCDAI.borrow(1000 ether);
+        borrowableCDAI.borrow(1000 ether, user1);
         vm.stopPrank();
 
         // skip min hold period
@@ -186,8 +186,8 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         debtAmounts[0] = 250 ether;
 
         borrowableCDAI.liquidateExact(
-            accounts,
             debtAmounts, 
+            accounts,
             address(strategyCBALRETH));
     }
 
@@ -204,7 +204,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(1 ether - 1);
 
         // try borrow()
-        borrowableCDAI.borrow(1000 ether);
+        borrowableCDAI.borrow(1000 ether, user1);
         vm.stopPrank();
 
         // skip min hold period
@@ -253,8 +253,8 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         debtAmounts[0] = 250 ether;
         
         borrowableCDAI.liquidateExact(
+            debtAmounts, 
             accounts,
-            debtAmounts,
             address(strategyCBALRETH)
         );
         vm.stopPrank();

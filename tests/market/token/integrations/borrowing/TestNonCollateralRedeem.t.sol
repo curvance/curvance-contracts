@@ -51,10 +51,11 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
         strategyCBALRETH.deposit(1e18, address(this));
         // Deposit & Collateralize 1 strategyCBALRETH
         strategyCBALRETH.depositAsCollateral(1e18, address(this));
-        // Lend so there is something to borrow
+        // Lend so there is something to borrow.
         borrowableCUSDC.deposit(100_000e6, address(this));
-        // Do a partial borrow
-        borrowableCUSDC.borrow(750e6);
+
+        // Do a partial borrow.
+        borrowableCUSDC.borrow(750e6, address(this));
         // Fast forward to get past minimum hold
         vm.warp(block.timestamp + 1 days);
         // Withdraw 1 strategyCBALRETH (which has not been collateralized yet)

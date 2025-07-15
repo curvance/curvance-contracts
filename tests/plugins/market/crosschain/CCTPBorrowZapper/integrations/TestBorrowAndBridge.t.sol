@@ -184,7 +184,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
             42161,
             0
         );
-        borrowableCDAI.borrow(500e18);
+        borrowableCDAI.borrow(500e18, user1);
 
         vm.stopPrank();
     }

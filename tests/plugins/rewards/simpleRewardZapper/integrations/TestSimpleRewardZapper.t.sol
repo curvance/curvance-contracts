@@ -292,7 +292,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         simpleCWETH.mint(1 ether, user1);
         simpleCWETH.postCollateral(1 ether);
         // borrow
-        borrowableCUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
         simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);

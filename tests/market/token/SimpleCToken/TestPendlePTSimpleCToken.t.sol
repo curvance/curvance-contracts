@@ -250,27 +250,28 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         skip(20 minutes);
 
         // Try partial repayment.
-        (,,, uint256 exchangeRateBefore,, uint256 borrowBalanceBefore) = borrowableCUSDC
-            .getSnapshot(user1);
+        AccountSnapshot memory borrowableCUSDCSnapshot;
+        borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(user1);
         _prepareUSDC(user1, 200e6);
         usdc.approve(address(borrowableCUSDC), 200e6);
         borrowableCUSDC.repay(200e6);
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
-        assertGt(borrowableCUSDC.debtBalance(user1), borrowBalanceBefore - 200e6);
-        assertGt(borrowableCUSDC.exchangeRate(), exchangeRateBefore);
+        assertGt(borrowableCUSDC.debtBalance(user1), borrowableCUSDCSnapshot.debtBalance - 200e6);
+        assertGt(borrowableCUSDC.exchangeRate(), borrowableCUSDCSnapshot.exchangeRate);
 
         // Warp more to simulate interest being applied on debt.
         skip(30 minutes);
 
         // Try full repayment.
-        (,,, exchangeRateBefore,, borrowBalanceBefore) = borrowableCUSDC.getSnapshot(user1);
-        _prepareUSDC(user1, borrowBalanceBefore);
-        usdc.approve(address(borrowableCUSDC), borrowBalanceBefore);
-        borrowableCUSDC.repay(borrowBalanceBefore);
+        borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(user1);
+        _prepareUSDC(user1, borrowableCUSDCSnapshot.debtBalance);
+        usdc.approve(address(borrowableCUSDC), borrowableCUSDCSnapshot.debtBalance);
+        borrowableCUSDC.repay(borrowableCUSDCSnapshot.debtBalance);
         vm.stopPrank();
+
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
-        assertGt(borrowableCUSDC.debtBalance(user1), 0);
-        assertGt(borrowableCUSDC.exchangeRate(), exchangeRateBefore);
+        assertEq(borrowableCUSDC.debtBalance(user1), 0);
+        assertGt(borrowableCUSDC.exchangeRate(), borrowableCUSDCSnapshot.exchangeRate);
     }
 
     function testCTokenRedeemOnBorrow() public {
@@ -323,13 +324,13 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
-        borrowableCUSDC.redeem(1000e6, address(this));
+        borrowableCUSDC.redeem(1000e6, user1, user1);
 
         // Warp until repayment cooldown period ends.
         skip(20 minutes);
 
         // Test full redemption.
-        borrowableCUSDC.redeem(1000e6, address(this));
+        borrowableCUSDC.redeem(1000e6, user1, user1);
         vm.stopPrank();
 
         assertEq(cPendlePT.balanceOf(user1), 1 ether);
@@ -443,8 +444,8 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         debtAmounts[0] = 250e6;
 
         borrowableCUSDC.liquidateExact(
-            accounts,
             debtAmounts,
+            accounts,
             address(cPendlePT)
         );
         vm.stopPrank();

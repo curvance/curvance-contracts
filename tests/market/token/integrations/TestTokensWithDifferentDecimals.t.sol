@@ -187,7 +187,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
 
         // try borrow()
-        borrowableCUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6, user1);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertEq(borrowableCUSDC.debtBalance(user1), 500e6);
@@ -195,7 +195,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         // try borrow()
         skip(1200);
-        borrowableCUSDC.borrow(100e6);
+        borrowableCUSDC.borrow(100e6, user1);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertGt(borrowableCUSDC.debtBalance(user1), 600e6);
@@ -241,7 +241,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(1 ether);
 
         // try borrow()
-        borrowableCUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6, user1);
 
         // skip min hold period
         skip(20 minutes);
@@ -274,7 +274,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         borrowableCUSDC.deposit(1000e6, user1);
 
         // try borrow()
-        borrowableCUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6, user1);
 
         // fail to redeem before minimum hold time pass
         vm.expectRevert(
@@ -307,7 +307,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(1 ether);
 
         // try borrow()
-        borrowableCUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6, user1);
 
         // skip min hold period
         skip(20 minutes);
@@ -341,7 +341,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         borrowableCUSDC.deposit(1000e6, user1);
 
         // try borrow()
-        borrowableCUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6, user1);
 
         // skip min hold period
         skip(20 minutes);
@@ -372,7 +372,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(1 ether);
 
         // try borrow()
-        borrowableCUSDC.borrow(1000e6);
+        borrowableCUSDC.borrow(1000e6, user1);
         vm.stopPrank();
 
         // skip min hold period
@@ -397,8 +397,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         debtAmounts[0] = 250e6;
 
         borrowableCUSDC.liquidateExact(
-            accounts,
             debtAmounts,
+            accounts,
             address(strategyCBALRETH));
         vm.stopPrank();
 
@@ -424,7 +424,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(1 ether);
 
         // try borrow()
-        borrowableCUSDC.borrow(1000e6);
+        borrowableCUSDC.borrow(1000e6, user1);
         vm.stopPrank();
 
         // skip min hold period

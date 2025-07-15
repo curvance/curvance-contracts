@@ -147,7 +147,7 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
 
         // try borrow()
         vm.prank(user2);
-        borrowableCDAI.borrowFor(user1, user2, 500 ether);
+        borrowableCDAI.borrowFor(500 ether, user2, user1);
 
         assertEq(dai.balanceOf(user1), 0);
         assertEq(dai.balanceOf(user2), 500 ether);

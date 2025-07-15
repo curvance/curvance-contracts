@@ -138,7 +138,7 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
 
         strategyCBALRETHWithExitFee.postCollateral(100e18);
 
-        borrowableCUSDC.borrow(100e6);
+        borrowableCUSDC.borrow(100e6, user1);
 
         SwapperLib.Swap[] memory swapData; // empty swap data
         
