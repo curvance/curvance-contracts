@@ -155,7 +155,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     }
 
     function _delegateToUser() internal {
-        vm.prank(user1);
+        vm.startPrank(user1);
         borrowableCUSDC.setDelegateApproval(user2, true);
         vm.stopPrank();
     }
