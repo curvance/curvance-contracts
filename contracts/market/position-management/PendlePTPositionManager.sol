@@ -91,7 +91,7 @@ contract PendlePTPositionManager is BasePositionManager {
             if (
                 swapData.target == address(0) ||
                 swapData.inputToken != borrowUnderlying ||
-                swapData.inputAmount != leverageData.borrowAmount ||
+                swapData.inputAmount != leverageData.borrowAssets ||
                 swapData.outputToken != pendleData.input.tokenIn
             ) {
                 revert BasePositionManager__InvalidParam();

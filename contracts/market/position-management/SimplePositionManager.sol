@@ -57,7 +57,7 @@ contract SimplePositionManager is BasePositionManager {
             swapData.target == address(0) ||
             swapData.inputToken != borrowUnderlying ||
             swapData.outputToken != collateralUnderlying ||
-            swapData.inputAmount != leverageData.borrowAmount
+            swapData.inputAmount != leverageData.borrowAssets
         ) {
             revert BasePositionManager__InvalidParam();
         }

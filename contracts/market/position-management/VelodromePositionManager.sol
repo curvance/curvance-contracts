@@ -83,7 +83,7 @@ contract VelodromePositionManager is BasePositionManager {
                 swapData.inputToken != borrowUnderlying ||
                 (swapData.outputToken != token0 &&
                     swapData.outputToken != token1) ||
-                swapData.inputAmount != leverageData.borrowAmount
+                swapData.inputAmount != leverageData.borrowAssets
             ) {
                 revert BasePositionManager__InvalidParam();
             }

@@ -1375,7 +1375,7 @@ contract MarketManagerIsolated is
             (
                 uint256 positionClosureNeeded,
                 bool[] memory positionsToClose
-            ) = _canRedeem(cToken, account, collateralToRemove);
+            ) = _canRedeem(cToken, collateralToRemove, account);
             _closePositionsIfNeeded(
                 positionClosureNeeded,
                 account,

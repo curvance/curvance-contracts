@@ -686,20 +686,20 @@ abstract contract BasePositionManager is
         address account
     ) internal {
         IBorrowableCToken debtToken = leverageData.debtToken;
-        uint256 borrowAmount = leverageData.borrowAmount;
-        uint256 maxBorrowAmount = maxRemainingLeverageOf(
+        uint256 borrowAssets = leverageData.borrowAssets;
+        uint256 maxBorrowAssets = maxRemainingLeverageOf(
             account,
             address(debtToken)
         );
 
         // Validate that the desired borrow amount is within bounds of what
         // will be allowed by the Market Manager.
-        if (borrowAmount > maxBorrowAmount) {
+        if (borrowAssets > maxBorrowAssets) {
             revert BasePositionManager__ExceedsMaximumBorrowAllowed();
         }
 
         debtToken.borrowForPositionManager(
-            borrowAmount,
+            borrowAssets,
             account,
             leverageData
         );
