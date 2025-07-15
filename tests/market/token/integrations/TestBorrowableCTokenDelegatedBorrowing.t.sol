@@ -127,7 +127,7 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 1000 ether);
         _prepareBALRETH(liquidityProvider, 10 ether);
-        // mint eDAI
+        // Mint borrowable cDAI.
         vm.startPrank(liquidityProvider);
         dai.approve(address(borrowableCDAI), 1000 ether);
         borrowableCDAI.mint(1000 ether, liquidityProvider);

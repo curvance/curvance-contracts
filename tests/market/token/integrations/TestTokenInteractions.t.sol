@@ -34,11 +34,11 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 200_000e18);
         _prepareBALRETH(liquidityProvider, 10e18);
-        // mint eDAI
+        // Mint borrowable cDAI.
         vm.startPrank(liquidityProvider);
         dai.approve(address(borrowableCDAI), 200_000e18);
         borrowableCDAI.deposit(200_000e18, liquidityProvider);
-        // mint cBALETH
+        // Mint cBALETH.
         balRETH.approve(address(strategyCBALRETH), 10e18);
         strategyCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();

@@ -193,11 +193,11 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 200000e18);
         _prepareBALRETH(liquidityProvider, 10e18);
-        // mint eDAI
+        // Mint borrowable cDAI.
         vm.startPrank(liquidityProvider);
         dai.approve(address(borrowableCDAI), 200000e18);
         borrowableCDAI.deposit(200000e18, liquidityProvider);
-        // mint cBALETH
+        // Mint cBALETH.
         balRETH.approve(address(strategyCBALRETH), 10e18);
         strategyCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();

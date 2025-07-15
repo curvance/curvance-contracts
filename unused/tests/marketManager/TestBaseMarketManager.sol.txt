@@ -118,7 +118,7 @@
 //         vm.startPrank(liquidityProvider);
 //         usdc.approve(address(eUSDC), 200000e6);
 //         eUSDC.mint(200000e6);
-//         // mint cBALETH
+//         // Mint cBALETH.
 //         balRETH.approve(address(simpleCBALRETH), 10e18);
 //         simpleCBALRETH.deposit(10e18, liquidityProvider);
 //         vm.stopPrank();
