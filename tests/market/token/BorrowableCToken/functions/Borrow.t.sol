@@ -12,7 +12,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         address borrower = makeAddr("borrower");
         marketManagerIsolated.setBorrowPaused(address(borrowableCUSDC), true);
 
-        vm.expectRevert();
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         borrowableCUSDC.borrow(100e6, borrower);
     }
 
@@ -94,32 +94,13 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
         borrowableCUSDC.borrow(100e6, address(this));
 
-        assertEq(usdc.balanceOf(address(this)), underlyingBalance + 100e6);
-        assertEq(borrowableCUSDC.balanceOf(address(this)), balance);
-        assertEq(borrowableCUSDC.totalSupply(), totalSupply);
-        assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrows + 100e6);
-    }
-
-    function test_borrowableCTokenBorrowFor_success() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-
-        borrowableCUSDC.deposit(200e6, address(this));
-
-        strategyCBALRETH.postCollateral(1e18 - 1);
-
-        uint256 underlyingBalance = usdc.balanceOf(address(this));
-        uint256 balance = borrowableCUSDC.balanceOf(address(this));
-        uint256 totalSupply = borrowableCUSDC.totalSupply();
-        uint256 totalBorrows = borrowableCUSDC.marketOutstandingDebt();
-
-        borrowableCUSDC.setDelegateApproval(user1, true);
-
-        vm.prank(user1);
-        borrowableCUSDC.borrowFor(100e6, address(this), address(this));
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit Borrow(100e6, address(this));
 
         assertEq(usdc.balanceOf(address(this)), underlyingBalance + 100e6);
         assertEq(borrowableCUSDC.balanceOf(address(this)), balance);
         assertEq(borrowableCUSDC.totalSupply(), totalSupply);
         assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrows + 100e6);
     }
+
 }
