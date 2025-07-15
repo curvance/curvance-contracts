@@ -222,6 +222,8 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     }
 
     function testCTokenMintMulticall() public {
+        vm.warp(block.timestamp + 60); // advance by 1 minute
+
         _prepareWBTC(user1, 2 ether);
 
         vm.prank(user1);
@@ -269,6 +271,9 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     }
 
     function testBorrowableCTokenMintWithMulticall() public {
+        
+        vm.warp(block.timestamp + 60); // advance by 1 minute
+
         _prepareUSDC(user1, 2e6);
 
         vm.prank(user1);
