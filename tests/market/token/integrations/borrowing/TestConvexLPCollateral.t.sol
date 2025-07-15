@@ -9,7 +9,7 @@ import "tests/market/TestBaseMarketIsolated.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract TestConvexLPCollateral is TestBaseMarketIsolated {
-    event Repay(address payer, address borrower, uint256 repayAmount);
+    event Repay(uint256 repayAmount, address payer, address borrower);
 
     address internal constant _STETH_ADDRESS =
         0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
@@ -190,7 +190,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         borrowableCUSDC.accrueIfNeeded();
         uint256 debtWithInterest = borrowableCUSDC.debtBalance(user1);
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Repay(user1, user1, debtWithInterest);
+        emit Repay(debtWithInterest, user1, user1);
         borrowableCUSDC.repay(0);
         vm.stopPrank();
 
