@@ -26,10 +26,16 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
     function test_borrowableCTokenBorrowFor_fail_whenDelegationIsNotApproved() public {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        address liquidityProvider = makeAddr("liquidityProvider");
+        _prepareUSDC(liquidityProvider, 100e6);
+
+        // Mint borrowableCUSDC.
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 100e6);
+        borrowableCUSDC.deposit(100e6, liquidityProvider);
+        vm.stopPrank();
 
         vm.prank(user1);
-
-        borrowableCUSDC.deposit(200e6, user1);
 
         strategyCBALRETH.postCollateral(1e18 - 1);
 
@@ -79,7 +85,8 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     function test_borrowableCTokenBorrowFor_fail_whenBorrowAmountExceedsDebtCap() public {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 100e6);
-        // mint borrowableCUSDC
+
+        // Mint borrowableCUSDC.
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 100e6);
         borrowableCUSDC.deposit(100e6, liquidityProvider);
@@ -109,12 +116,18 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenBorrowFor_fail_whenCollateralPostedInBorrowableCToken() public {
+        address liquidityProvider = makeAddr("liquidityProvider");
+        _prepareUSDC(liquidityProvider, 100e6);
+
+        // Mint borrowableCUSDC.
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 100e6);
+        borrowableCUSDC.deposit(100e6, liquidityProvider);
+        vm.stopPrank();
 
         vm.prank(user1);
-        borrowableCUSDC.deposit(200e6, user1);
 
         strategyCBALRETH.postCollateral(1e18 - 1);
-        borrowableCUSDC.postCollateral(100e6 - 1);
 
         _delegateToUser();
         vm.stopPrank();
@@ -130,10 +143,17 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
     function test_borrowableCTokenBorrowForSendToDelegater_success() public {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        address liquidityProvider = makeAddr("liquidityProvider");
+
+        _prepareUSDC(liquidityProvider, 100e6);
+
+        // Mint borrowableCUSDC.
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 100e6);
+        borrowableCUSDC.deposit(100e6, liquidityProvider);
+        vm.stopPrank();
 
         vm.prank(user1);
-
-        borrowableCUSDC.deposit(200e6, user1);
 
         strategyCBALRETH.postCollateral(1e18 - 1);
 
@@ -160,10 +180,17 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
     function test_borrowableCTokenBorrowForSendToDelegatee_success() public {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        address liquidityProvider = makeAddr("liquidityProvider");
+
+        _prepareUSDC(liquidityProvider, 100e6);
+
+        // Mint borrowableCUSDC.
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 100e6);
+        borrowableCUSDC.deposit(100e6, liquidityProvider);
+        vm.stopPrank();
 
         vm.prank(user1);
-
-        borrowableCUSDC.deposit(200e6, user1);
 
         strategyCBALRETH.postCollateral(1e18 - 1);
 
