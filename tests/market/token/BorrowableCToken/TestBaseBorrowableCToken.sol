@@ -114,7 +114,7 @@ contract TestBaseBorrowableCToken is TestBaseMarketIsolated {
         strategyCBALRETH.deposit(_ONE, user1);
         strategyCBALRETH.postCollateral(_ONE - 1);
 
-        borrowableCUSDC.borrow(1000e6);
+        borrowableCUSDC.borrow(1000e6, user1);
         vm.stopPrank();
 
         // skip min hold period

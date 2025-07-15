@@ -212,9 +212,9 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
-        (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
-        assertEq(strategyCTokenUSDCDAIBorrowed, 0 ether);
+        assertEq(strategyCTokenUSDCDAISnapshot.debtBalance, 0 ether);
 
         vm.stopPrank();
     }
@@ -284,9 +284,9 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
-        (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
-        assertEq(strategyCTokenUSDCDAIBorrowed, 0 ether);
+        assertEq(strategyCTokenUSDCDAISnapshot.debtBalance, 0 ether);
 
         uint256 protocolBalanceAfterLeverage = dai.balanceOf(
             centralRegistry.daoAddress()
@@ -311,7 +311,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
-        (,,,, uint256 strategyCTokenUSDCDAIBalanceBefore, ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        AccountSnapshot memory strategyCTokenUSDCDAIBeforeSnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
         deleverageData.collateralAssets = 0.00003 ether;
@@ -349,12 +349,12 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
             borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
-        (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
             strategyCTokenUSDCDAI.balanceOf(user),
             strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets
         );
-        assertEq(strategyCTokenUSDCDAIBorrowed, 0);
+        assertEq(strategyCTokenUSDCDAISnapshot.debtBalance, 0);
 
         vm.stopPrank();
     }
@@ -374,7 +374,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
-        (,,,, uint256 strategyCTokenUSDCDAIBalanceBefore, ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        AccountSnapshot memory strategyCTokenUSDCDAIBeforeSnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
 
         uint256 collateralAmount = 0.00003 ether;
         uint256 leverageFee = collateralAmount / 100;
@@ -417,12 +417,12 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
             borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
-        (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
             strategyCTokenUSDCDAI.balanceOf(user),
             strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets
         );
-        assertEq(strategyCTokenUSDCDAIBorrowed, 0);
+        assertEq(strategyCTokenUSDCDAISnapshot.debtBalance, 0);
 
         uint256 protocolBalanceAfterDeLeverage = IERC20(_VELODROME_DAI_USDC)
             .balanceOf(centralRegistry.daoAddress());
@@ -491,9 +491,10 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
-        (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        
+        AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertGt(strategyCTokenUSDCDAI.balanceOf(user), 0.00013 ether);
-        assertEq(strategyCTokenUSDCDAIBorrowed, 0 ether);
+        assertEq(strategyCTokenUSDCDAISnapshot.debtBalance, 0 ether);
 
         vm.stopPrank();
     }
@@ -510,7 +511,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
-        (,,,, uint256 strategyCTokenUSDCDAIBalanceBefore, ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        AccountSnapshot memory strategyCTokenUSDCDAIBeforeSnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
         deleverageData.collateralAssets = 0.00003 ether;
@@ -552,12 +553,12 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
             borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
-        (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);
+        AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
             strategyCTokenUSDCDAI.balanceOf(user),
             strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets
         );
-        assertEq(strategyCTokenUSDCDAIBorrowed, 0);
+        assertEq(strategyCTokenUSDCDAISnapshot.debtBalance, 0);
     }
 
     function _provideEnoughLiquidityForLeverage() internal {

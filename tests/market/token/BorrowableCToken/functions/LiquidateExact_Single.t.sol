@@ -100,8 +100,8 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         vm.startPrank(user2);
         usdc.approve(address(borrowableCUSDC), debtAmounts[0]);
         borrowableCUSDC.liquidateExact(
-            accounts,
             debtAmounts,
+            accounts,
             address(strategyCBALRETH)
         );
         vm.stopPrank();

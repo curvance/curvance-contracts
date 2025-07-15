@@ -241,9 +241,9 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
-        (,,,,, uint256 strategyCTokenWETHUSDCBorrowed ) = strategyCTokenWETHUSDC.getSnapshot(user);
+        AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertGt(strategyCTokenWETHUSDC.balanceOf(user), 0.000245 ether);
-        assertEq(strategyCTokenWETHUSDCBorrowed, 0 ether);
+        assertEq(strategyCTokenWETHUSDCSnapshot.debtBalance, 0 ether);
 
         vm.stopPrank();
     }
@@ -317,9 +317,9 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
-        (,,,,, uint256 strategyCTokenWETHUSDCBorrowed ) = strategyCTokenWETHUSDC.getSnapshot(user);
+        AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertGt(strategyCTokenWETHUSDC.balanceOf(user), 0.00024 ether);
-        assertEq(strategyCTokenWETHUSDCBorrowed, 0 ether);
+        assertEq(strategyCTokenWETHUSDCSnapshot.debtBalance, 0 ether);
 
         uint256 protocolBalanceAfterLeverage = dai.balanceOf(
             centralRegistry.daoAddress()
@@ -344,7 +344,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
-        uint256 strategyCTokenWETHUSDCBalanceBefore = strategyCTokenWETHUSDC.balanceOf(user);
+        uint256 strategyCTokenWETHUSDCBalanceBefore = strategyCTokenWETHUSDC.collateralPosted(user);
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenWETHUSDC));
         deleverageData.collateralAssets = 0.00003 ether;
@@ -400,12 +400,12 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
-        (,,,,, uint256 strategyCTokenWETHUSDCBorrowed ) = strategyCTokenWETHUSDC.getSnapshot(user);
+        AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertEq(
             strategyCTokenWETHUSDC.balanceOf(user),
             strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAssets
         );
-        assertEq(strategyCTokenWETHUSDCBorrowed, 0);
+        assertEq(strategyCTokenWETHUSDCSnapshot.debtBalance, 0);
 
         vm.stopPrank();
     }
@@ -425,7 +425,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
-        uint256 strategyCTokenWETHUSDCBalanceBefore = strategyCTokenWETHUSDC.balanceOf(user);
+        uint256 strategyCTokenWETHUSDCBalanceBefore = strategyCTokenWETHUSDC.collateralPosted(user);
 
         uint256 collateralAmount = 0.00003 ether;
         uint256 leverageFee = collateralAmount / 100;
@@ -486,12 +486,12 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
-        (,,,,, uint256 strategyCTokenWETHUSDCBorrowed ) = strategyCTokenWETHUSDC.getSnapshot(user);
+        AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertEq(
             strategyCTokenWETHUSDC.balanceOf(user),
             strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAssets
         );
-        assertEq(strategyCTokenWETHUSDCBorrowed, 0);
+        assertEq(strategyCTokenWETHUSDCSnapshot.debtBalance, 0);
 
         uint256 protocolBalanceAfterDeLeverage = IERC20(_VELODROME_WETH_USDC)
             .balanceOf(centralRegistry.daoAddress());
@@ -564,9 +564,9 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
-        (,,,,, uint256 strategyCTokenWETHUSDCBorrowed ) = strategyCTokenWETHUSDC.getSnapshot(user);
+        AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertGt(strategyCTokenWETHUSDC.balanceOf(user), 0.00013 ether);
-        assertEq(strategyCTokenWETHUSDCBorrowed, 0 ether);
+        assertEq(strategyCTokenWETHUSDCSnapshot.debtBalance, 0 ether);
     }
 
     function testDeLeverageFor() public {
@@ -581,7 +581,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         VelodromePositionManager.DeleverageStruct memory deleverageData;
 
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
-        uint256 strategyCTokenWETHUSDCBalanceBefore = strategyCTokenWETHUSDC.balanceOf(user);
+        uint256 strategyCTokenWETHUSDCBalanceBefore = strategyCTokenWETHUSDC.collateralPosted(user);
 
         deleverageData.collateralToken = ICToken(address(strategyCTokenWETHUSDC));
         deleverageData.collateralAssets = 0.00003 ether;
@@ -640,12 +640,12 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
-        (,,,,, uint256 strategyCTokenWETHUSDCBorrowed ) = strategyCTokenWETHUSDC.getSnapshot(user);
+        AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertEq(
             strategyCTokenWETHUSDC.balanceOf(user),
             strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAssets
         );
-        assertEq(strategyCTokenWETHUSDCBorrowed, 0);
+        assertEq(strategyCTokenWETHUSDCSnapshot.debtBalance, 0);
 
         vm.stopPrank();
     }

@@ -37,22 +37,22 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
             collateralToken: address(strategyCBALRETH),
             numAccounts: 1,
             liquidateExact: false,
+            liquidatedShares: 0,
             debtRepaid: 0,
-            collateralLiquidated: 0,
             badDebt: 0
         });
 
         (IMarketManager.LiqResults memory results, uint256[] memory debtAmountReturned) = marketManagerIsolated.canLiquidate(
+            debtAmounts,
             user2,
             accounts,
-            debtAmounts,
             instructions
         );
 
         uint256 expectedRepayAmount = _calculateExpectedRepayAmountNotExact(user1);
 
         // Hard liquidation, should have lost all collateral
-        assertEq(results.liquidatedAmounts[0], _ONE - 1, "Liquidated amount mismatch");
+        assertEq(results.liquidatedShares[0], _ONE - 1, "Liquidated amount mismatch");
         borrowableCUSDC.liquidate(
             accounts,
             address(strategyCBALRETH)
@@ -62,7 +62,7 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         console2.log("borrowableCUSDC.debtBalance(user1)", borrowableCUSDC.debtBalance(user1));
         console2.log("borrowableCUSDC.exchangeRate()", borrowableCUSDC.exchangeRate());
         console2.log("Debt amount returned", debtAmountReturned[0]);
-        console2.log("LiqResults.liquidatedAmounts[0]", results.liquidatedAmounts[0]);
+        console2.log("LiqResults.liquidatedShares[0]", results.liquidatedShares[0]);
         console2.log("LiqResults.debtRepaid", results.debtRepaid);
         console2.log("LiqResults.badDebtRealized", results.badDebtRealized);
 
@@ -132,8 +132,8 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
     ) internal view returns (uint256) {
         (, , uint256 collateralAvailable) = auxiliaryData.tokenDataOf(user, address(strategyCBALRETH));
         uint256 debtAmount = maxAmount;
-        uint256 collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD;
-        if (collateralLiquidated > collateralAvailable) {
+        uint256 liquidatedShares = (debtAmount * debtToCollateralMultiplier) / WAD;
+        if (liquidatedShares > collateralAvailable) {
             debtAmount = FixedPointMathLib.mulDivUp(collateralAvailable, WAD, debtToCollateralMultiplier);
         }
         return debtAmount;

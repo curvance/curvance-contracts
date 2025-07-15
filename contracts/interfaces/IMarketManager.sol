@@ -177,9 +177,9 @@ interface IMarketManager {
     ///                       will be realized as part of a particular
     ///                       liquidation.
     /// @return results A LiqResults struct containing:
-    ///                 liquidatedAmounts An array containing the collateral
-    ///                                   amounts to liquidate from
-    ///                                   `accounts`.
+    ///                 liquidatedShares An array containing the collateral
+    ///                                  amounts to liquidate from
+    ///                                  `accounts`.
     ///                 debtRepaid The total amount of debt to repay from
     ///                            `accounts`.
     ///                 badDebtRealized The total amount of debt to realize as
