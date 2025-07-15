@@ -42,20 +42,4 @@ contract CanSeizeTest is TestBaseMarketManagerIsolated {
 
         marketManagerIsolated.canSeize(address(strategyCBALRETH), address(borrowableCUSDC));
     }
-
-    // not possible to reach this code path
-    // function test_canSeize_fail_whenMarketManagersMismatch() public {
-    //     marketManagerIsolated.listToken(address(strategyCBALRETH));
-    //     marketManagerIsolated.listToken(address(borrowableCUSDC));
-
-    //     MarketManager newMarketManager = new MarketManager(
-    //         ICentralRegistry(address(centralRegistry)),
-    //         address(gaugeManager)
-    //     );
-    //     centralRegistry.addLendingMarket(address(newMarketManager), 1000);
-    //     borrowableCUSDC.setMarketManager(address(newMarketManager));
-
-    //     vm.expectRevert(MarketManagerIsolated.MarketManager__MarketManagerMismatch.selector);
-    //     marketManagerIsolated.canSeize(address(strategyCBALRETH), address(borrowableCUSDC));
-    // }
 }

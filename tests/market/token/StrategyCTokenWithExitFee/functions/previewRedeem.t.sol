@@ -36,15 +36,4 @@ contract PreviewRedeemTest is
 
     }
 
-    // can't withdraw more than total supply
-    // function test_strategyCTokenWithExitFeeRedeem_MoreThanTotalSupply() public {
-    //     strategyCBALRETHWithExitFee.mint(100, address(this));
-
-    //     uint256 underlyingBalance = balRETH.balanceOf(address(this));
-    //     uint256 balance = strategyCBALRETHWithExitFee.balanceOf(address(this));
-    //     uint256 totalSupply = strategyCBALRETHWithExitFee.totalSupply();
-
-    //     uint256 redeemQuote = strategyCBALRETHWithExitFee.previewRedeem(totalSupply + 1);
-       
-    // }
 }
