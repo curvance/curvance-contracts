@@ -48,8 +48,8 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
 
     uint256[] badDebt = [0,0,0,0,0];
 
-    event BadDebtRecognized(address liquidator, uint256 amount);
-    event Repay(address liquidator, address borrower, uint256 amount);
+    event Repay(uint256 assets, address payer, address account);
+    event BadDebtRecognized(uint256 assets, address liquidator);
 
     function setUp() public override {
         super.setUp();
@@ -195,10 +195,10 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit();
-        emit BadDebtRecognized(address(this), expectedTotalBadDebt);
-        emit Repay(address(this), borrowers[2], maxAmount[2] + badDebt[2]);
-        emit Repay(address(this), borrowers[3], maxAmount[3] + badDebt[3]);
-        emit Repay(address(this), borrowers[4], maxAmount[4] + badDebt[4]);
+        emit BadDebtRecognized(expectedTotalBadDebt, address(this));
+        emit Repay(maxAmount[2] + badDebt[2], address(this), borrowers[2]);
+        emit Repay(maxAmount[3] + badDebt[3], address(this), borrowers[3]);
+        emit Repay(maxAmount[4] + badDebt[4], address(this), borrowers[4]);
 
         borrowableCUSDC.liquidate(
             borrowers,

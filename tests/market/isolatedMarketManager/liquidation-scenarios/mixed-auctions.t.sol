@@ -54,9 +54,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
     uint256 validPenalty = 1.04e18;
     uint256 closeFactor = 0.50e18;
 
-    event BadDebtRecognized(address liquidator, uint256 amount);
-    event Repay(address liquidator, address account, uint256 amount);
-
+    event Repay(uint256 assets, address payer, address account);
+    event BadDebtRecognized(uint256 assets, address liquidator);
 
     function setUp() public override {
         super.setUp();
@@ -252,9 +251,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit();
-        emit BadDebtRecognized(dappControlUser, totalBadDebtAuction);
-        emit Repay(dappControlUser, auctionBorrowers[0], maxAmount_auction[0] + badDebt_auction[0]);
-        emit Repay(dappControlUser, auctionBorrowers[1], maxAmount_auction[1] + badDebt_auction[1]);
+        emit BadDebtRecognized(totalBadDebtAuction, dappControlUser);
+        emit Repay(maxAmount_auction[0] + badDebt_auction[0],dappControlUser, auctionBorrowers[0]);
+        emit Repay(maxAmount_auction[1] + badDebt_auction[1],dappControlUser, auctionBorrowers[1]);
 
         borrowableCUSDC.liquidate(
             auctionBorrowers,
@@ -268,9 +267,9 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit();
-        emit BadDebtRecognized(address(this), totalBadDebtRegular);
-        emit Repay(address(this), regularBorrowers[0], maxAmount_regular[0] + badDebt_regular[0]);
-        emit Repay(address(this), regularBorrowers[1], maxAmount_regular[1] + badDebt_regular[1]);
+        emit BadDebtRecognized(totalBadDebtRegular, address(this));
+        emit Repay(maxAmount_regular[0] + badDebt_regular[0],address(this), regularBorrowers[0] );
+        emit Repay(maxAmount_regular[1] + badDebt_regular[1],address(this), regularBorrowers[1]);
 
         borrowableCUSDC.liquidate(
             regularBorrowers,

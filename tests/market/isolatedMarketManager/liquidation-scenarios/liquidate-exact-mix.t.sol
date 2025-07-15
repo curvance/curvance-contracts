@@ -45,8 +45,8 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
 
     uint256[] amountToRepayPartial;
 
-    event BadDebtRecognized(address liquidator, uint256 amount);
-    event Repay(address liquidator, address account, uint256 amount);
+    event BadDebtRecognized(uint256 amount, address account);
+    event Repay(uint256 amount, address payer, address account);
 
     function setUp() public override {
         super.setUp();
@@ -217,8 +217,8 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
 
         // expect bad debt emit and debt repaid
         vm.expectEmit();
-        emit BadDebtRecognized(first_liquidator, badDebt_expected_liquidateExact_1);
-        emit Repay(first_liquidator, borrower1, totalDebtPaid_first);
+        emit BadDebtRecognized(badDebt_expected_liquidateExact_1, first_liquidator);
+        emit Repay(totalDebtPaid_first, first_liquidator, borrower1);
 
         borrowableCUSDC.liquidateExact(
             amountToRepayPartial,
@@ -273,8 +273,8 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
 
         // expect bad debt emit and debt repaid
         vm.expectEmit();
-        emit BadDebtRecognized(second_liquidator, badDebt_expected_liquidateExact_2);
-        emit Repay(second_liquidator, borrower1, totalDebtPaid_second);
+        emit BadDebtRecognized(badDebt_expected_liquidateExact_2, second_liquidator);
+        emit Repay(totalDebtPaid_second, second_liquidator, borrower1);
 
         // The second liquidation should have the same expected result as the first
 
@@ -329,8 +329,8 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
 
         // expect bad debt emit and debt repaid
         vm.expectEmit();
-        emit BadDebtRecognized(third_liquidator, badDebt_expected_liquidate_3);
-        emit Repay(third_liquidator, borrower1, totalDebtPaid_third);
+        emit BadDebtRecognized(badDebt_expected_liquidate_3, third_liquidator);
+        emit Repay(totalDebtPaid_third, third_liquidator, borrower1);
 
         borrowableCUSDC.liquidate(
             borrowers,
