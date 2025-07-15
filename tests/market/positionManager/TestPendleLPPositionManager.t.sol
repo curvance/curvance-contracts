@@ -321,7 +321,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             block.timestamp
         );
         deleverageData.swapData[0].slippage = 0.6e18;
-        deleverageData.repayAmount = 6500e18;
+        deleverageData.repayAssets = 6500e18;
         PendleLib.PendleData memory data;
         data.approx.guessMin = 1e10;
         data.approx.guessMax = 1e18;
@@ -337,7 +337,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
         AccountSnapshot memory strategyCTokenSTETHSnapshot = strategyCTokenSTETH.getSnapshot(
@@ -458,7 +458,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             block.timestamp
         );
         deleverageData.swapData[0].slippage = 0.6e18;
-        deleverageData.repayAmount = 6500e18;
+        deleverageData.repayAssets = 6500e18;
         PendleLib.PendleData memory data;
         data.approx.guessMin = 1e10;
         data.approx.guessMax = 1e18;
@@ -478,7 +478,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
         AccountSnapshot memory strategyCTokenSTETHSnapshot = strategyCTokenSTETH.getSnapshot(

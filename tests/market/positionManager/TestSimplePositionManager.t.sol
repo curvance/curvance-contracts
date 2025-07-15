@@ -237,14 +237,14 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             block.timestamp
         );
         deleverageData.swapData[0].slippage = 0.3e18;
-        deleverageData.repayAmount = 890 ether;
+        deleverageData.repayAssets = 890 ether;
         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
         AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
@@ -354,7 +354,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             block.timestamp
         );
         deleverageData.swapData[0].slippage = 0.3e18;
-        deleverageData.repayAmount = 890 ether;
+        deleverageData.repayAssets = 890 ether;
         borrowableCUSDC.approve(address(positionManager), type(uint256).max);
 
         positionManager.setDelegateApproval(address(user2), true);
@@ -367,7 +367,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
         AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
@@ -459,7 +459,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             block.timestamp
         );
         deleverageData.swapData[0].slippage = 0.3e18;
-        deleverageData.repayAmount = 890 ether;
+        deleverageData.repayAssets = 890 ether;
         
         // Should revert with `InvalidSwapperParam`.
         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
@@ -545,7 +545,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             block.timestamp
         );
         deleverageData.swapData[0].slippage = 0.3e18;
-        deleverageData.repayAmount = 890 ether;
+        deleverageData.repayAssets = 890 ether;
         
         // Should revert with `InvalidSwapperParam`.
         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
@@ -678,7 +678,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             block.timestamp
         );
         deleverageData.swapData[0].slippage = 0.3e18;
-        deleverageData.repayAmount = 890 ether;
+        deleverageData.repayAssets = 890 ether;
         
         // Should revert with InvalidSwapperParam
         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
@@ -737,7 +737,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageData.collateralAssets = 900e6;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         deleverageData.swapData = new SwapperLib.Swap[](0); // Empty array
-        deleverageData.repayAmount = 890 ether;
+        deleverageData.repayAssets = 890 ether;
         
         // Should revert with InvalidSwapperParam
         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSwapperParam()")));
@@ -878,7 +878,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             block.timestamp
         );
         deleverageData.swapData[0].slippage = 0.3e18;
-        deleverageData.repayAmount = 890 ether;
+        deleverageData.repayAssets = 890 ether;
         borrowableCUSDC.approve(address(positionManager), type(uint256).max);
         
         // Do not set delegate approval for user2.

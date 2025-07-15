@@ -367,9 +367,9 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
 
         deleverageData.swapData[0].slippage = 0.6e18; // 60% slippage
 
-        deleverageData.repayAmount = (borrowableCDAIBeforeSnapshot.debtBalance * 95) / 100;
+        deleverageData.repayAssets = (borrowableCDAIBeforeSnapshot.debtBalance * 95) / 100;
         deleverageData.swapData[0].slippage = 0.6e18;
-        deleverageData.repayAmount = (borrowableCDAIBeforeSnapshot.debtBalance * 95) / 100;
+        deleverageData.repayAssets = (borrowableCDAIBeforeSnapshot.debtBalance * 95) / 100;
         PendleLib.PendleData memory data;
         data.approx.guessMin = 1e10;
         data.approx.guessMax = 1e18;
@@ -392,7 +392,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
         AccountSnapshot memory cPendlePTSTETHSnapshot = cPendlePTSTETH.getSnapshot(

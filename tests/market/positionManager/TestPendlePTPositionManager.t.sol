@@ -237,7 +237,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         deleverageData.collateralToken = ICToken(address(cPendlePTSTETH));
         deleverageData.collateralAssets = 1 ether;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageData.repayAmount = 3.141e21;
+        deleverageData.repayAssets = 3.141e21;
 
         PendleLib.PendleData memory data;
         data.output.tokenOut = _DAI_ADDRESS;
@@ -263,7 +263,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
         AccountSnapshot memory cPendlePTSTETHSnapshot = cPendlePTSTETH
@@ -360,7 +360,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         deleverageData.collateralToken = ICToken(address(cPendlePTSTETH));
         deleverageData.collateralAssets = 1 ether;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageData.repayAmount = 3.141e21;
+        deleverageData.repayAssets = 3.141e21;
 
         PendleLib.PendleData memory data;
         data.output.tokenOut = _DAI_ADDRESS;
@@ -390,7 +390,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
         AccountSnapshot memory cPendlePTSTETHSnapshot = cPendlePTSTETH

@@ -337,7 +337,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             type(uint256).max
         );
-        deleverageData.repayAmount = 60e18;
+        deleverageData.repayAssets = 60e18;
 
         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
@@ -346,7 +346,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
         (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);
@@ -405,7 +405,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             type(uint256).max
         );
-        deleverageData.repayAmount = 59.3e18;
+        deleverageData.repayAssets = 59.3e18;
 
         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
@@ -414,7 +414,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
         (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);
@@ -536,7 +536,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             type(uint256).max
         );
-        deleverageData.repayAmount = 60e18;
+        deleverageData.repayAssets = 60e18;
 
         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
         positionManager.setDelegateApproval(address(user2), true);
@@ -549,7 +549,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAmount
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
         );
 
         (,,,,, uint256 strategyCTokenUSDCDAIBorrowed ) = strategyCTokenUSDCDAI.getSnapshot(user);

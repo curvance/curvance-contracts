@@ -309,7 +309,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             deleverageData.swapData[0].target = address(odosRouterV2);
             deleverageData.swapData[0].slippage = 0.005e18; // 0.5%
             deleverageData.swapData[0].call = odosCallData;
-            deleverageData.repayAmount = daiOutAmount + (minDaiOut / 10) * 9;
+            deleverageData.repayAssets = daiOutAmount + (minDaiOut / 10) * 9;
         }
 
         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
@@ -319,7 +319,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAISnapshotBefore.debtBalance - deleverageData.repayAmount
+            borrowableCDAISnapshotBefore.debtBalance - deleverageData.repayAssets
         );
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);

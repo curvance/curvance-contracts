@@ -407,7 +407,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageData.repayAmount = 59.56e18;
+        deleverageData.repayAssets = 59.56e18;
 
         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
@@ -416,7 +416,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAISnapshotBefore.debtBalance - deleverageData.repayAmount
+            borrowableCDAISnapshotBefore.debtBalance - deleverageData.repayAssets
         );
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
@@ -518,7 +518,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageData.repayAmount = 59.56e18;
+        deleverageData.repayAssets = 59.56e18;
 
         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
         positionManager.setDelegateApproval(address(user2), true);
@@ -531,7 +531,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAISnapshotBefore.debtBalance - deleverageData.repayAmount
+            borrowableCDAISnapshotBefore.debtBalance - deleverageData.repayAssets
         );
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
