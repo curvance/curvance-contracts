@@ -241,7 +241,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertGt(strategyCTokenWETHUSDC.balanceOf(user), 0.00013 ether);
-        assertEq(strategyCTokenWETHUSDCSnapshot.collateralPosted, 0 ether);
+        assertEq(strategyCTokenWETHUSDCSnapshot.collateralPosted, strategyCTokenWETHUSDC.balanceOf(user));
 
         vm.stopPrank();
     }
@@ -301,7 +301,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertGt(strategyCTokenWETHUSDC.balanceOf(user), 0.00013 ether);
-        assertEq(strategyCTokenWETHUSDCSnapshot.collateralPosted, 0 ether);
+        assertEq(strategyCTokenWETHUSDCSnapshot.collateralPosted, strategyCTokenWETHUSDC.balanceOf(user));
 
         vm.stopPrank();
     }
@@ -375,7 +375,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertGt(strategyCTokenWETHUSDC.balanceOf(user), 0.00042 ether);
-        assertEq(strategyCTokenWETHUSDCSnapshot.collateralPosted, 0 ether);
+        assertEq(strategyCTokenWETHUSDCSnapshot.collateralPosted, strategyCTokenWETHUSDC.balanceOf(user));
 
         vm.stopPrank();
     }
@@ -449,7 +449,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertGt(strategyCTokenWETHUSDC.balanceOf(user), 0.00031 ether);
-        assertEq(strategyCTokenWETHUSDCSnapshot.collateralPosted, 0 ether);
+        assertEq(strategyCTokenWETHUSDCSnapshot.collateralPosted, strategyCTokenWETHUSDC.balanceOf(user));
 
         vm.stopPrank();
     }
@@ -526,7 +526,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             strategyCTokenWETHUSDC.balanceOf(user),
             strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAssets
         );
-        assertEq(strategyCTokenWETHUSDCSnapshot.collateralPosted, 0 ether);
+        assertEq(strategyCTokenWETHUSDCSnapshot.collateralPosted, strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAssets);
 
         vm.stopPrank();
     }
@@ -594,7 +594,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertGt(strategyCTokenWETHUSDC.balanceOf(user), 0.00013 ether);
-        assertEq(strategyCTokenWETHUSDCSnapshot.collateralPosted, 0 ether);
+        assertEq(strategyCTokenWETHUSDCSnapshot.collateralPosted, strategyCTokenWETHUSDC.balanceOf(user));
     }
 
     function testDeLeverageFor() public {
@@ -673,7 +673,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             strategyCTokenWETHUSDC.balanceOf(user),
             strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAssets
         );
-        assertEq(strategyCTokenWETHUSDCSnapshot.collateralPosted, 0);
+        assertEq(strategyCTokenWETHUSDCSnapshot.collateralPosted, strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAssets);
 
         vm.stopPrank();
     }
