@@ -145,7 +145,7 @@ abstract contract BasePositionManager is
     ///                     1. Address of `debtToken` that will be borrowed
     ///                        and swapped.
     ///                     2. The amount of underlying tokens from
-    ///                        `debtToken` that will be borrowed.
+    ///                        `debtToken` that will be borrowed, in assets.
     ///                     3. Curvance token that borrowed funds will be
     ///                        swapped into.
     ///                     4. Struct containing instructions on how
@@ -194,7 +194,7 @@ abstract contract BasePositionManager is
     ///                     1. Address of `debtToken` that will be borrowed
     ///                        and swapped.
     ///                     2. The amount of underlying tokens from
-    ///                        `debtToken` that will be borrowed.
+    ///                        `debtToken` that will be borrowed, in assets.
     ///                     3. Curvance token that borrowed funds will be
     ///                        swapped into.
     ///                     4. Struct containing instructions on how
@@ -223,7 +223,7 @@ abstract contract BasePositionManager is
     ///                     1. Address of `debtToken` that will be borrowed
     ///                        and swapped.
     ///                     2. The amount of underlying tokens from
-    ///                        `debtToken` that will be borrowed.
+    ///                        `debtToken` that will be borrowed, in assets.
     ///                     3. Curvance token that borrowed funds will be
     ///                        swapped into.
     ///                     4. Struct containing instructions on how
@@ -257,7 +257,7 @@ abstract contract BasePositionManager is
     ///                          routed into debt token underlying to repay
     ///                          outstanding debt.
     ///                       2. The amount of `collateralToken` that will be
-    ///                          deleveraged.
+    ///                          deleveraged, in assets.
     ///                       3. Address of Curvance token that will have its
     ///                          outstanding debt repaid.
     ///                       4. Optional struct containing instructions on
@@ -286,7 +286,7 @@ abstract contract BasePositionManager is
     ///                          routed into debt token underlying to repay
     ///                          outstanding debt.
     ///                       2. The amount of `collateralToken` that will be
-    ///                          deleveraged.
+    ///                          deleveraged, in assets.
     ///                       3. Address of Curvance token that will have its
     ///                          outstanding debt repaid.
     ///                       4. Optional struct containing instructions on
@@ -323,7 +323,7 @@ abstract contract BasePositionManager is
     ///                     1. Address of `debtToken` that will be borrowed
     ///                        and swapped.
     ///                     2. The amount of underlying tokens from
-    ///                        `debtToken` that will be borrowed.
+    ///                        `debtToken` that will be borrowed, in assets.
     ///                     3. Curvance token that borrowed funds will be
     ///                        swapped into.
     ///                     4. Struct containing instructions on how
@@ -411,7 +411,7 @@ abstract contract BasePositionManager is
     ///                          routed into debt token underlying to repay
     ///                          outstanding debt.
     ///                       2. The amount of `collateralToken` that will be
-    ///                          deleveraged.
+    ///                          deleveraged, in assets.
     ///                       3. Address of Curvance token that will have its
     ///                          outstanding debt repaid.
     ///                       4. Optional struct containing instructions on
@@ -671,7 +671,7 @@ abstract contract BasePositionManager is
     ///                     1. Address of `debtToken` that will be borrowed
     ///                        and swapped.
     ///                     2. The amount of underlying tokens from
-    ///                        `debtToken` that will be borrowed.
+    ///                        `debtToken` that will be borrowed, in assets.
     ///                     3. Curvance token that borrowed funds will be
     ///                        swapped into.
     ///                     4. Struct containing instructions on how
@@ -713,7 +713,7 @@ abstract contract BasePositionManager is
     ///                          routed into debt token underlying to repay
     ///                          outstanding debt.
     ///                       2. The amount of `collateralToken` that will be
-    ///                          deleveraged.
+    ///                          deleveraged, in assets.
     ///                       3. Address of Curvance token that will have its
     ///                          outstanding debt repaid.
     ///                       4. Optional struct containing instructions on
@@ -730,8 +730,8 @@ abstract contract BasePositionManager is
         address account
     ) internal {
         deleverageData.collateralToken.withdrawByPositionManager(
-            account,
             deleverageData.collateralAssets,
+            account,
             deleverageData
         );
     }

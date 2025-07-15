@@ -29,7 +29,7 @@ contract SimplePositionManager is BasePositionManager {
     ///                     1. Address of `debtToken` that will be borrowed
     ///                        and swapped.
     ///                     2. The amount of underlying tokens from
-    ///                        `debtToken` that will be borrowed.
+    ///                        `debtToken` that will be borrowed, in assets.
     ///                     3. Curvance token that borrowed funds will be
     ///                        swapped into.
     ///                     4. Struct containing instructions on how
@@ -77,7 +77,7 @@ contract SimplePositionManager is BasePositionManager {
     ///                          routed into debt token underlying to repay
     ///                          outstanding debt.
     ///                       2. The amount of `collateralToken` that will be
-    ///                          deleveraged.
+    ///                          deleveraged, in assets.
     ///                       3. Address of Curvance token that will have its
     ///                          outstanding debt repaid.
     ///                       4. Optional struct containing instructions on
@@ -112,7 +112,7 @@ contract SimplePositionManager is BasePositionManager {
             swapData.target == address(0) ||
             swapData.inputToken != collateralUnderlying ||
             swapData.outputToken != borrowUnderlying ||
-            swapData.inputAmount != deleverageData.collateralAmount
+            swapData.inputAmount != deleverageData.collateralAssets
         ) {
             revert BasePositionManager__InvalidParam();
         }

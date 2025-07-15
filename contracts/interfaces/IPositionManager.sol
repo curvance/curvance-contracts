@@ -10,7 +10,7 @@ interface IPositionManager {
 
     /// @param debtToken Curvance token that will be borrowed from.
     /// @param borrowAssets The amount of underlying tokens from `debtToken`
-    ///                     that will be borrowed.
+    ///                     that will be borrowed, in assets.
     /// @param collateralToken Curvance token that borrowed funds will be
     ///                        routed into.
     /// @param swapData Swapperlib swapping struct containing instructions
@@ -29,7 +29,7 @@ interface IPositionManager {
     /// @param collateralToken Curvance token that will be routed into
     ///                        `debtToken` underlying to repay outstanding debt.
     /// @param collateralAssets The amount of `collateralToken` that will be
-    ///                         deleveraged.
+    ///                         deleveraged, in assets.
     /// @param debtToken Address of Curvance token that will have outstanding
     ///                  debt repaid.
     /// @param swapData Optional struct containing instructions on how to

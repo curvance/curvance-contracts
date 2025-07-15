@@ -47,7 +47,7 @@ contract PendleLPPositionManager is BasePositionManager {
     ///                     1. Address of `debtToken` that will be borrowed
     ///                        and swapped.
     ///                     2. The amount of underlying tokens from
-    ///                        `debtToken` that will be borrowed.
+    ///                        `debtToken` that will be borrowed, in assets.
     ///                     3. Curvance token that borrowed funds will be
     ///                        swapped into.
     ///                     4. Struct containing instructions on how
@@ -109,7 +109,7 @@ contract PendleLPPositionManager is BasePositionManager {
     ///                          routed into debt token underlying to repay
     ///                          outstanding debt.
     ///                       2. The amount of `collateralToken` that will be
-    ///                          deleveraged.
+    ///                          deleveraged, in assets.
     ///                       3. Address of Curvance token that will have its
     ///                          outstanding debt repaid.
     ///                       4. Optional struct containing instructions on
@@ -137,18 +137,18 @@ contract PendleLPPositionManager is BasePositionManager {
             tokenOut = swapData.inputToken;
         }
 
-        // decode pendle data
+        // Decode Pendle data.
         (uint256 minTokenOut, PendleLib.PendleData memory pendleData) = abi
             .decode(deleverageData.auxData, (uint256, PendleLib.PendleData));
 
-        // exit pendle
+        // Exit Pendle position.
         PendleLib._exitPendle(
             address(router),
             false,
             tokenOut,
             pendleData,
             lpToken,
-            deleverageData.collateralAmount,
+            deleverageData.collateralAssets,
             minTokenOut
         );
 

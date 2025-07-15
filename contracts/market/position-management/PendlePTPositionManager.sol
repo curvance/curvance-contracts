@@ -46,7 +46,7 @@ contract PendlePTPositionManager is BasePositionManager {
     ///                     1. Address of `debtToken` that will be borrowed
     ///                        and swapped.
     ///                     2. The amount of underlying tokens from
-    ///                        `debtToken` that will be borrowed.
+    ///                        `debtToken` that will be borrowed, in assets.
     ///                     3. Curvance token that borrowed funds will be
     ///                        swapped into.
     ///                     4. Struct containing instructions on how
@@ -121,7 +121,7 @@ contract PendlePTPositionManager is BasePositionManager {
     ///                          routed into debt token underlying to repay
     ///                          outstanding debt.
     ///                       2. The amount of `collateralToken` that will be
-    ///                          deleveraged.
+    ///                          deleveraged, in assets.
     ///                       3. Address of Curvance token that will have its
     ///                          outstanding debt repaid.
     ///                       4. Optional struct containing instructions on
@@ -137,7 +137,7 @@ contract PendlePTPositionManager is BasePositionManager {
         address ptToken = deleverageData.collateralToken.asset();
         address borrowUnderlying = deleverageData.debtToken.asset();
 
-        // decode pendle data
+        // Decode Pendle data.
         (address lpToken, PendleLib.PendleData memory pendleData) = abi.decode(
             deleverageData.auxData,
             (address, PendleLib.PendleData)
@@ -164,7 +164,7 @@ contract PendlePTPositionManager is BasePositionManager {
             ptToken,
             pendleData,
             lpToken,
-            deleverageData.collateralAmount,
+            deleverageData.collateralAssets,
             0 // don't need for PT
         );
 
