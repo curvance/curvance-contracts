@@ -14,11 +14,15 @@ import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
+import { MockPositionManager } from "contracts/mocks/MockPositionManager.sol";
+
+contract WithdrawByPositionManagerWithExitFeeTest is TestBaseMarketIsolated {
 
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
+
+    MockPositionManager public mockPositionManager;
 
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
@@ -108,8 +112,8 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
         tokenConfig.debtCap = 1_000_000e6;
         marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-        // TODO write a mockPositionManager and assign it here.
-        // addPositionManager();
+        mockPositionManager = new MockPositionManager();
+        marketManagerIsolated.addPositionManager(address(mockPositionManager));
 
         // Mint borrowable cUSDC.
         borrowableCUSDC.deposit(1000e6, address(this));
@@ -152,17 +156,15 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
 
         vm.warp(block.timestamp + 21 minutes);
 
-        uint256 balRETHBalanceBefore = balRETH.balanceOf(address(this));
-
         uint256 collateralRemoveAmount = 5e18;
         uint256 collateralReceivedWithExitFee = _removeExitFeeFromAssets(collateralRemoveAmount);
 
-
+        vm.prank(address(mockPositionManager));
         strategyCBALRETHWithExitFee.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageData);
 
         // a usual workflow would swap the collateral for the borrowToken, repay the borrowToken
         // we are checking that the exit fee is applied
-        uint256 balRETHBalanceAfter = balRETH.balanceOf(address(this));
+        uint256 balRETHBalanceAfter = balRETH.balanceOf(address(mockPositionManager));
 
         assert(balRETHBalanceAfter == collateralReceivedWithExitFee);       
     }

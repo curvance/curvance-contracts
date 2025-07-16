@@ -14,11 +14,15 @@ import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
+import { MockPositionManager } from "contracts/mocks/MockPositionManager.sol";
+
 contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
 
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
+
+    MockPositionManager public mockPositionManager;
 
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
@@ -110,8 +114,8 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
         // Mint borrowable cUSDC.
         borrowableCUSDC.deposit(1000e6, address(this));
 
-        // TODO write a mockPositionManager and assign it here.
-        // addPositionManager();
+        mockPositionManager = new MockPositionManager();
+        marketManagerIsolated.addPositionManager(address(mockPositionManager));
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
@@ -150,17 +154,12 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
 
         vm.warp(block.timestamp + 21 minutes);
 
-        uint256 balRETHBalanceBefore = balRETH.balanceOf(address(this));
-
         uint256 collateralRemoveAmount = 5e18;
 
+        vm.prank(address(mockPositionManager));
         strategyCBALRETH.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageData);
-
-        // A usual workflow would swap the collateral for the borrowToken,
-        // repay the borrowToken we are checking that withdraw can be called
-        // on the cToken.
         
-        uint256 balRETHBalanceAfter = balRETH.balanceOf(address(this));
+        uint256 balRETHBalanceAfter = balRETH.balanceOf(address(mockPositionManager));
 
         assert(balRETHBalanceAfter == collateralRemoveAmount);       
     }

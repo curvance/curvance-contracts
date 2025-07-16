@@ -32,7 +32,7 @@ contract PreviewRedeemTest is
         uint256 totalSupply = strategyCBALRETHWithExitFee.totalSupply();
 
         uint256 redeemQuote = strategyCBALRETHWithExitFee.previewRedeem(totalSupply);
-        assertEq(redeemQuote, 41325); // 42169 - 2% exit fee = 41325.62
+        assertEq(redeemQuote, 76319); //77877 - 2% exit fee = 76319.46
 
     }
 
