@@ -13,7 +13,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 import { LiquidityManagerIsolated } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
-
+import { console2 } from "forge-std/console2.sol";
 
 import "tests/market/TestBaseMarketIsolated.sol";
 
@@ -496,7 +496,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         // cache liquidation values
 
         (uint256 lFactor, uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(user1, address(borrowableCUSDC), address(cPendlePT));
+            marketManagerIsolated.liquidationStatusOf(user1, address(cPendlePT), address(borrowableCUSDC));
 
         (uint256 maxAmount, uint256 liquidatedCollateral, uint256 collateralRequired) = _getLiquidationValuesWithHigherPrecision_NonAuction(
             debtTokenPrice,
@@ -506,7 +506,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
             borrowableCUSDC.debtBalance(user1)
         );
 
-        uint256 badDebt = _calculateBadDebt(
+        uint256 expectedBadDebt = _calculateBadDebt(
             borrowableCUSDC.debtBalance(user1),
             maxAmount,
             cPendlePT.balanceOf(user1),
@@ -536,7 +536,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         AccountSnapshot memory snapshot = cPendlePT.getSnapshot(user1);
         assertApproxEqRel(
             cPendlePT.balanceOf(user1),
-            1 ether - (liquidatedAmount * 12e11 * 1 ether) / pendlePTPrice,
+            1 ether - liquidatedCollateral,
             0.03e18, 
             "balance of user1 mismatch"
         );
@@ -546,8 +546,9 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertApproxEqRel(
             borrowableCUSDC.debtBalance(user1),
-            1000e6 - liquidatedAmount,
-            0.01e18
+            1000e6 - (maxAmount + expectedBadDebt),
+            0.01e18, 
+            "debt balance of user1 mismatch"
         );
         assertApproxEqRel(borrowableCUSDC.exchangeRate(), 1 ether, 0.01e18);
     }
@@ -563,9 +564,32 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         uint256 liquidatedCollateral,
         uint256 collateralRequired
     ) {
-        uint256 cTokenExchangeRate = cPendlePT.exchangeRate();
 
             if (lFactor == 0) return (0, 0, 0);
+
+        (uint256 highPrecisionD2C, uint256 auctionCFactor) = _getDebtToCollateralMultiplierAndAuctionCFactor(lFactor, debtTokenPrice, collateralTokenPrice);
+                
+            maxAmount = (auctionCFactor * borrowAmount) / WAD;
+            
+            // Calculate with extra precision
+            liquidatedCollateral = (maxAmount * highPrecisionD2C) / (WAD_SQUARED);
+            
+            if (liquidatedCollateral > collateralAmount) {
+                // Use the contract's exact formula
+                maxAmount = FixedPointMathLib.mulDivUp(
+                    maxAmount,
+                    collateralAmount,
+                    liquidatedCollateral
+                );
+                liquidatedCollateral = collateralAmount;
+            }
+            
+            // Use the contract's exact formula
+            collateralRequired = (borrowAmount * highPrecisionD2C) / (WAD_SQUARED);
+    }
+
+    function _getDebtToCollateralMultiplierAndAuctionCFactor(uint256 lFactor, uint256 debtTokenPrice, uint256 collateralTokenPrice) internal view returns (uint256, uint256) {
+        uint256 cTokenExchangeRate = cPendlePT.exchangeRate();
 
             (
         ,
@@ -585,29 +609,18 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
             // Follow the contract's exact calculations but with higher precision
             uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
             uint256 auctionLiqIncentive = liqIncBase + ((liqIncCurve * lFactor) / WAD);
+
+            console2.log("auctionLiqIncentive", auctionLiqIncentive);
+            console2.log("debtTokenPrice", debtTokenPrice);
+            console2.log("collateralTokenPrice", collateralTokenPrice);
+            console2.log("cTokenExchangeRate", cTokenExchangeRate);
             
             // Calculate with extra precision
             uint256 highPrecisionD2C = (((auctionLiqIncentive * debtTokenPrice * WAD_SQUARED) /
                 (collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
-                
-            maxAmount = (auctionCFactor * borrowAmount) / WAD;
-            
-            // Calculate with extra precision
-            liquidatedCollateral = (maxAmount * highPrecisionD2C) / (WAD_SQUARED);
-            
-            if (liquidatedCollateral > collateralAmount) {
-                // Use the contract's exact formula
-                maxAmount = FixedPointMathLib.mulDivUp(
-                    maxAmount,
-                    collateralAmount,
-                    liquidatedCollateral
-                );
-                liquidatedCollateral = collateralAmount;
-            }
-            
-            // Use the contract's exact formula
-            collateralRequired = (borrowAmount * highPrecisionD2C) / (WAD_SQUARED);
-        }
+
+        return (highPrecisionD2C, auctionCFactor);
+    }
 
     function _calculateBadDebt(
         uint256 _debtBalance,
