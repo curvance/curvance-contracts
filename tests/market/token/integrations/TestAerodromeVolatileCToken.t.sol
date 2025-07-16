@@ -50,6 +50,8 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(aeroRouter)))
         );
 
+        _deployBorrowableCUSDC();
+
         pWETHUSDC = new AerodromeVolatileCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_AERODROME_WETH_USDC),
@@ -186,8 +188,11 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
         assertApproxEqRel(updatedPrice, price, 0.0001e18);
 
         deal(_AERODROME_WETH_USDC, address(this), 77777);
+        deal(_USDC_ADDRESS, address(this), 77777);
 
         IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 77777);
+        IERC20(_USDC_ADDRESS).approve(address(borrowableCUSDC), 77777);
+        
         marketManagerIsolated.listTokens(address(pWETHUSDC),address(borrowableCUSDC));
 
         vm.prank(user1);

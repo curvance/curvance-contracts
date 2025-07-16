@@ -62,6 +62,8 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             1 days
         );
 
+        _deployBorrowableCDAI();
+
         vm.warp(veCVE.nextEpochStartTime());
 
         _deployOracleManager();
@@ -185,8 +187,10 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
         assertApproxEqRel(updatedPrice, price, 0.0001e18);
 
         deal(_AERODROME_DAI_USDC, address(this), 77777);
+        deal(_DAI_ADDRESS, address(this), 77777);
 
         IERC20(_AERODROME_DAI_USDC).approve(address(cUSDCDAI), 77777);
+        dai.approve(address(borrowableCDAI), 77777);
         marketManagerIsolated.listTokens(address(cUSDCDAI), address(borrowableCDAI));
 
         vm.prank(user1);
@@ -243,7 +247,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             "Total Assets should equal user deposit plus initial mint."
         );
 
-        vm.warp(block.timestamp + 8 days);
+        skip(8 days);
         chainlinkAERO.updateAnswer(chainlinkAERO.latestAnswer());
         chainlinkDAI.updateAnswer(chainlinkDAI.latestAnswer());
 
@@ -261,7 +265,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
         );
         cUSDCDAI.harvest(abi.encode(swapData, 1e4));
 
-        vm.warp(block.timestamp + 7 days);
+        skip(7 days);
         chainlinkAERO.updateAnswer(chainlinkAERO.latestAnswer());
         chainlinkDAI.updateAnswer(chainlinkDAI.latestAnswer());
 
