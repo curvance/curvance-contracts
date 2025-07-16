@@ -63,7 +63,7 @@ contract AuxiliaryData {
         uint256 cFactorCurve;
     }
 
-    struct MarketETokenData {
+    struct MarketBorrowableCTokens {
         address assetAddress;
         address marketAddress;
         address underlyingAddress;
@@ -84,7 +84,7 @@ contract AuxiliaryData {
         AccountAssetPosition userTokenPosition;
     }
 
-    struct MarketcTokenData {
+    struct MarketCTokenData {
         address assetAddress;
         address marketAddress;
         address underlyingAddress;
@@ -103,8 +103,8 @@ contract AuxiliaryData {
 
     struct AllMarketData {
         MarketData marketData;
-        MarketETokenData[] eTokenData;
-        MarketcTokenData[] cTokenData;
+        MarketBorrowableCTokens[] eTokenData;
+        MarketCTokenData[] cTokenData;
     }
 
     /// CONSTANTS ///
@@ -359,8 +359,8 @@ contract AuxiliaryData {
 
         for (uint256 i; i < numMarkets; i++) {
             (
-                MarketETokenData[] memory eTokenData,
-                MarketcTokenData[] memory cTokenData
+                MarketBorrowableCTokens[] memory eTokenData,
+                MarketCTokenData[] memory cTokenData
             ) = this.getMarketAssetData(markets[i], account);
             results[i] = AllMarketData(
                 this.getMarketData(markets[i], account),
@@ -410,26 +410,28 @@ contract AuxiliaryData {
     /// @notice Returns market asset data for a specific market.
     /// @param market The market to get asset data for.
     /// @param account The account to get asset data for.
-    /// @return eTokenData An array of MarketETokenData structs containing asset data for all eTokens.
-    /// @return cTokenData An array of MarketcTokenData structs containing asset data for all pTokens.
+    /// @return An array of MarketBorrowableCTokens structs
+    ///         containing asset data for all borrowableCTokens.
+    /// @return An array of MarketCTokenData structs containing
+    ///         asset data for all collateralTokens.
     function getMarketAssetData(
         address market,
         address account
     )
         public
         view
-        returns (MarketETokenData[] memory, MarketcTokenData[] memory)
+        returns (MarketBorrowableCTokens[] memory, MarketCTokenData[] memory)
     {
         IMarketManager mm = IMarketManager(market);
-        address[] memory pTokens = getMarketCollateralAssets(market);
-        uint256 numTokens = pTokens.length;
-        MarketcTokenData[] memory pTokenMarketData = new MarketcTokenData[](
+        address[] memory collateralTokens = getMarketCollateralAssets(market);
+        uint256 numTokens = collateralTokens.length;
+        MarketCTokenData[] memory pTokenMarketData = new MarketCTokenData[](
             numTokens
         );
         for (uint256 i; i < numTokens; i++) {
-            ICToken marketToken = ICToken(pTokens[i]);
+            ICToken marketToken = ICToken(collateralTokens[i]);
             IERC20 token = IERC20(marketToken.asset());
-            MarketcTokenData memory cTokenData;
+            MarketCTokenData memory cTokenData;
 
             if (account != address(0)) {
                 cTokenData.underlyingBalance = token.balanceOf(account);
@@ -438,13 +440,13 @@ contract AuxiliaryData {
                     cTokenData.userTokenPosition.hasPosition,
                     cTokenData.userTokenPosition.shareAmount,
                     cTokenData.userTokenPosition.collateralOrDebtAmount
-                ) = getAccountTokenData(account, pTokens[i]);
+                ) = getAccountTokenData(account, collateralTokens[i]);
 
                 cTokenData.userTokenPosition.tokenAmount = marketToken
                     .convertToAssets(cTokenData.userTokenPosition.shareAmount);
             }
 
-            cTokenData.assetAddress = pTokens[i];
+            cTokenData.assetAddress = collateralTokens[i];
             cTokenData.marketAddress = market;
             cTokenData.underlyingAddress = address(token);
             cTokenData.underlyingName = token.name();
@@ -453,23 +455,23 @@ contract AuxiliaryData {
             cTokenData.totalCollateralTokens =
                 marketToken.totalSupply() -
                 MARKET_ASSET_RESERVE;
-            cTokenData.totalCollateralPosted = ICToken(pTokens[i]).marketCollateralPosted();
-            cTokenData.collateralCap = mm.collateralCaps(pTokens[i]);
-            cTokenData.sharePrice = _getTokenPrice(pTokens[i], true);
+            cTokenData.totalCollateralPosted = ICToken(collateralTokens[i]).marketCollateralPosted();
+            cTokenData.collateralCap = mm.collateralCaps(collateralTokens[i]);
+            cTokenData.sharePrice = _getTokenPrice(collateralTokens[i], true);
             cTokenData.tokenPrice = _getTokenPrice(address(token), true);
-            cTokenData.config = _getTokenConfig(pTokens[i], ILiquidityManager(address(mm)));
+            cTokenData.config = _getTokenConfig(collateralTokens[i], ILiquidityManager(address(mm)));
 
             pTokenMarketData[i] = cTokenData;
         }
 
-        address[] memory eTokens = getMarketDebtAssets(market);
-        numTokens = eTokens.length;
-        MarketETokenData[] memory eTokenMarketData = new MarketETokenData[](
+        address[] memory borrowableCTokens = getMarketDebtAssets(market);
+        numTokens = borrowableCTokens.length;
+        MarketBorrowableCTokens[] memory eTokenMarketData = new MarketBorrowableCTokens[](
             numTokens
         );
         for (uint256 i; i < numTokens; ++i) {
-            MarketETokenData memory eTokenData;
-            IBorrowableCToken marketToken = IBorrowableCToken(eTokens[i]);
+            MarketBorrowableCTokens memory eTokenData;
+            IBorrowableCToken marketToken = IBorrowableCToken(borrowableCTokens[i]);
             IERC20 token = IERC20(marketToken.asset());
 
             if (account != address(0)) {
@@ -478,28 +480,28 @@ contract AuxiliaryData {
                     eTokenData.userTokenPosition.hasPosition,
                     eTokenData.userTokenPosition.shareAmount,
                     eTokenData.userTokenPosition.collateralOrDebtAmount
-                ) = getAccountTokenData(account, eTokens[i]);
+                ) = getAccountTokenData(account, borrowableCTokens[i]);
 
                 eTokenData.userTokenPosition.tokenAmount = marketToken
                     .convertToAssets(eTokenData.userTokenPosition.shareAmount);
             }
 
-            eTokenData.assetAddress = eTokens[i];
+            eTokenData.assetAddress = borrowableCTokens[i];
             eTokenData.marketAddress = market;
             eTokenData.underlyingAddress = address(token);
             eTokenData.underlyingName = token.name();
             eTokenData.underlyingSymbol = token.symbol();
             eTokenData.underlyingDecimal = token.decimals();
-            eTokenData.tvl = getTokenTVL(eTokens[i], false);
-            eTokenData.borrows = getTokenBorrows(eTokens[i]);
-            eTokenData.supplyRatePerYear = getSupplyRatePerYear(eTokens[i]);
-            eTokenData.borrowRatePerYear = getBorrowRatePerYear(eTokens[i]);
+            eTokenData.tvl = getTokenTVL(borrowableCTokens[i], false);
+            eTokenData.borrows = getTokenBorrows(borrowableCTokens[i]);
+            eTokenData.supplyRatePerYear = getSupplyRatePerYear(borrowableCTokens[i]);
+            eTokenData.borrowRatePerYear = getBorrowRatePerYear(borrowableCTokens[i]);
             eTokenData.predictedBorrowRatePerYear = this
-                .getPredictedBorrowRatePerYear(eTokens[i]);
-            eTokenData.utilizationRate = getUtilizationRate(eTokens[i]);
-            eTokenData.sharePrice = _getTokenPrice(eTokens[i], false);
+                .getPredictedBorrowRatePerYear(borrowableCTokens[i]);
+            eTokenData.utilizationRate = getUtilizationRate(borrowableCTokens[i]);
+            eTokenData.sharePrice = _getTokenPrice(borrowableCTokens[i], false);
             eTokenData.tokenPrice = _getTokenPrice(address(token), false);
-            eTokenData.config = _getTokenConfig(eTokens[i], ILiquidityManager(address(mm)));
+            eTokenData.config = _getTokenConfig(borrowableCTokens[i], ILiquidityManager(address(mm)));
 
             if (eTokenData.tvl > eTokenData.borrows) {
                 eTokenData.liquidityAvailable =
