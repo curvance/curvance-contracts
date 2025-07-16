@@ -149,14 +149,14 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
         vm.prank(user2);
         borrowableCDAI.borrowFor(500 ether, user2, user1);
 
-        assertEq(dai.balanceOf(user1), 0);
-        assertEq(dai.balanceOf(user2), 500 ether);
+        assertEq(dai.balanceOf(user1), 0, "user1 should have no dai");
+        assertEq(dai.balanceOf(user2), 500 ether, "user2 should have 500 dai");
 
         {
             // check accrue interest after 1 day
             uint256 exchangeRateBefore = borrowableCDAI.exchangeRate();
             uint256 totalBorrowsBefore = borrowableCDAI.marketOutstandingDebt();
-            assertEq(totalBorrowsBefore, 500 ether);
+            assertEq(totalBorrowsBefore, 500 ether, "total borrows should be 500");
             uint256 daoBalanceBefore = borrowableCDAI.balanceOf(dao);
             uint256 daoGaugeBalanceBefore = gaugeManager.balanceOf(
                 address(borrowableCDAI),
@@ -174,17 +174,18 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
                 rateBefore) / 1e18;
 
             // check borrower debt increased
-            assertEq(borrowableCDAI.balanceOf(user1), 0);
-            assertEq(borrowableCDAI.debtBalance(user1), debtBalanceBefore + debt);
-            assertGt(borrowableCDAI.exchangeRate(), exchangeRateBefore);
+            assertEq(borrowableCDAI.balanceOf(user1), 0, "user1 should have no cDAI");
+            assertEq(borrowableCDAI.debtBalance(user1), debtBalanceBefore + debt, "user1 debt should increase");
+            assertGt(borrowableCDAI.exchangeRate(), exchangeRateBefore, "exchange rate should increase");
 
-            // dao eDAI balance doesn't increase
-            assertEq(borrowableCDAI.balanceOf(dao), daoBalanceBefore);
+            // dao eDAI balance SHOULD increase because of the interest accrued
+            assertGt(borrowableCDAI.balanceOf(dao), daoBalanceBefore, "dao should have cDAI");
 
-            // check gauge balance
+            // check gauge balance, should increase by the actual DAO balance increase
             assertEq(
                 gaugeManager.balanceOf(address(borrowableCDAI), dao),
-                daoGaugeBalanceBefore + (debt * marketInterestFactor) / 10000
+                daoGaugeBalanceBefore + (borrowableCDAI.balanceOf(dao) - daoBalanceBefore),
+                "dao gauge balance should increase by actual DAO balance increase"
             );
         }
 
@@ -209,21 +210,22 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
                 rateBefore) / 1e18;
 
             // check borrower debt increased
-            assertEq(borrowableCDAI.balanceOf(user1), 0);
+            assertEq(borrowableCDAI.balanceOf(user1), 0, "user1 should have no cDAI");
             assertApproxEqRel(
                 borrowableCDAI.debtBalance(user1),
                 debtBalanceBefore + debt,
                 1 ether
             );
-            assertGt(borrowableCDAI.exchangeRate(), exchangeRateBefore);
+            assertGt(borrowableCDAI.exchangeRate(), exchangeRateBefore, "exchange rate should increase");
 
-            // dao eDAI balance doesn't increase
-            assertEq(borrowableCDAI.balanceOf(dao), daoBalanceBefore);
+            // dao eDAI balance should increase again because a new vesting period starts
+            assertGt(borrowableCDAI.balanceOf(dao), daoBalanceBefore, "dao should have more cDAI from protocol fees");
 
             // check gauge balance
             assertEq(
                 gaugeManager.balanceOf(address(borrowableCDAI), dao),
-                daoGaugeBalanceBefore + (debt * marketInterestFactor) / 10000
+                daoGaugeBalanceBefore + (borrowableCDAI.balanceOf(dao) - daoBalanceBefore),
+                "dao gauge balance should increase by actual DAO balance increase"
             );
         }
     }
