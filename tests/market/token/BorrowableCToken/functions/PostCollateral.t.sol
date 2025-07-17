@@ -54,12 +54,13 @@ contract PostCollateralTest is TestBaseBorrowableCToken {
 
     function test_borrowableCTokenBorrow_fail_whenDebtInBorrowableCToken() public {
         _prepareUSDC(address(this), _ONE + _ONE);
+        usdc.approve(address(borrowableCUSDC), _ONE + _ONE);
         borrowableCUSDC.deposit(_ONE, address(this));
 
         _prepareBALRETH(user1, _ONE + _ONE);
 
         vm.startPrank(user1);
-        usdc.approve(address(strategyCBALRETH), _ONE + _ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
         strategyCBALRETH.deposit(_ONE + _ONE, user1);
         strategyCBALRETH.postCollateral(_ONE);
         
