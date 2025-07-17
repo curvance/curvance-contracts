@@ -20,7 +20,7 @@ contract PostCollateralTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenCollateralize_fail_whenCollateralizationIsNotAllowed() public {
-        marketManagerIsolated.setBorrowPaused(address(strategyCBALRETH), true);
+        marketManagerIsolated.setCollateralizationPaused(address(strategyCBALRETH), true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         _postBalRETHCollateral(0.1e18);

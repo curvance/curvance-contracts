@@ -22,7 +22,7 @@ contract PostCollateralTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenCollateralize_fail_whenCollateralizationIsNotAllowed() public {
-        marketManagerIsolated.setBorrowPaused(address(borrowableCUSDC), true);
+        marketManagerIsolated.setCollateralizationPaused(address(borrowableCUSDC), true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         _postBorrowableCUSDCCollateral(0.1e18);
@@ -53,8 +53,8 @@ contract PostCollateralTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenBorrow_fail_whenDebtInBorrowableCToken() public {
-        _prepareBALRETH(address(this), _ONE + _ONE);
-        borrowableCUSDC.deposit(200e6, address(this));
+        _prepareUSDC(address(this), _ONE + _ONE);
+        borrowableCUSDC.deposit(_ONE, address(this));
 
         _prepareBALRETH(user1, _ONE + _ONE);
 
