@@ -77,10 +77,10 @@ contract SimpleRewardZapper is ZapperBase {
         }
 
         // Claim caller rewards and cache reward amount.
-        uint256 rewards = _processRewards(msg.sender);
+        outAmount = _processRewards(msg.sender);
 
         // Validate swap input amount equals rewards received.
-        if (swapData.inputAmount != rewards) {
+        if (swapData.inputAmount != outAmount) {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
 
@@ -150,7 +150,7 @@ contract SimpleRewardZapper is ZapperBase {
         outAmount = _enterCurvanceSafe(
             cToken,
             swapData.outputToken,
-            rewards,
+            outAmount,
             expectedShares,
             collateralize,
             receiver
