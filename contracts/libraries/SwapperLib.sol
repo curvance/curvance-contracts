@@ -78,7 +78,7 @@ library SwapperLib {
         address outputToken = swapData.outputToken;
         uint256 balance = CommonLib._getTokenBalance(outputToken);
 
-        uint256 value = CommonLib._isETH(swapData.inputToken)
+        uint256 value = CommonLib._isNative(swapData.inputToken)
             ? swapData.inputAmount
             : 0;
 
@@ -153,7 +153,7 @@ library SwapperLib {
         }
 
         uint256 value = (price * amount) /
-            (10 ** (CommonLib._isETH(token) ? 18 : IERC20(token).decimals()));
+            (10 ** (CommonLib._isNative(token) ? 18 : IERC20(token).decimals()));
 
         return value;
     }
@@ -167,7 +167,7 @@ library SwapperLib {
         address spender,
         uint256 amount
     ) internal {
-        if (!CommonLib._isETH(token)) {
+        if (!CommonLib._isNative(token)) {
             SafeTransferLib.safeApprove(token, spender, amount);
         }
     }
@@ -176,7 +176,7 @@ library SwapperLib {
     /// @param token The token address to remove approval.
     /// @param spender The spender address.
     function _removeApprovalIfNeeded(address token, address spender) internal {
-        if (!CommonLib._isETH(token)) {
+        if (!CommonLib._isNative(token)) {
             if (IERC20(token).allowance(address(this), spender) > 0) {
                 SafeTransferLib.safeApprove(token, spender, 0);
             }

@@ -64,7 +64,7 @@ abstract contract ZapperBase is ReentrancyGuard {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Allows contract to receive native gas tokens.
+    /// @notice Allows contract to receive native tokens.
     receive() external payable {}
 
     /// INTERNAL FUNCTIONS ///
@@ -81,7 +81,40 @@ abstract contract ZapperBase is ReentrancyGuard {
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param receiver Address that should receive Curvance cTokens.
-    /// @return The output amount of shares received.
+    /// @return shares The output amount of shares received.
+    function _enterCurvanceSafe(
+        address cToken,
+        address underlying,
+        uint256 assets,
+        uint256 expectedShares,
+        bool collateralize,
+        address receiver
+    ) internal returns (uint256 shares) {
+        _checkAddresses(cToken, underlying);
+
+        shares = _enterCurvance(
+            cToken,
+            underlying,
+            assets,
+            expectedShares,
+            collateralize,
+            receiver
+        );
+    }
+
+    /// @notice Routes `underlying` token into a Curvance token contract.
+    /// @param cToken The Curvance cToken address.
+    /// @param underlying The input token address, should match
+    ///                   `cToken`.asset().
+    /// @param assets The amount of `underlying` to deposit into cToken
+    ///               position.
+    /// @param expectedShares The minimum expected amount of shares received
+    ///                       from depositing `assets` of `underlying` into
+    ///                       `cToken` position.
+    /// @param collateralize Whether the zapped deposit should be
+    ///                      collateralized afterwards.
+    /// @param receiver Address that should receive Curvance cTokens.
+    /// @return shares The output amount of shares received.
     function _enterCurvance(
         address cToken,
         address underlying,
@@ -89,22 +122,9 @@ abstract contract ZapperBase is ReentrancyGuard {
         uint256 expectedShares,
         bool collateralize,
         address receiver
-    ) internal returns (uint256) {
-        // Validate `cToken` exists, otherwise transfer their tokens
-        // back and return.
-        if (cToken == address(0)) {
-            SafeTransferLib.safeTransfer(underlying, receiver, assets);
-            return assets;
-        }
-
-        // Validate `underlying` matches underlying token of cToken contract.
-        if (ICToken(cToken).asset() != underlying) {
-            revert ZapperBase__UnderlyingTokenIsNotInputToken();
-        }
-
+    ) internal returns (uint256 shares) {
         // Approve `cToken` to take `underlying`.
         SwapperLib._approveTokenIfNeeded(underlying, cToken, assets);
-        uint256 shares;
 
         // The user is trusting this plugin to not use their delegation
         // approval for nefarious reasons such as keeping them stuck in
@@ -142,9 +162,35 @@ abstract contract ZapperBase is ReentrancyGuard {
 
         // Remove any leftover approval.
         SwapperLib._removeApprovalIfNeeded(underlying, cToken);
+    }
 
-        // Bubble up how many cTokens `receiver` received.
-        return shares;
+    /// @notice Exits a Curvance position.
+    /// @param cToken The address of the cToken to be redeemed from.
+    /// @param underlying The expected underlying token of `cToken`.
+    /// @param shares The amount of shares to redeemed.
+    /// @param expectedAssets The amount of assets expected to be redeemed
+    ///                       on exiting Curvance position.
+    /// @param forceRedeemCollateral Whether the collateral should be always
+    ///                              reduced from callers collateralPosted.
+    /// @param receiver Address that should receive redeemed assets.
+    function _exitCurvanceSafe(
+        address cToken,
+        address underlying,
+        uint256 shares,
+        uint256 expectedAssets,
+        bool forceRedeemCollateral,
+        address receiver
+    ) internal {
+        _checkAddresses(cToken, underlying);
+
+        _exitCurvance(
+            cToken,
+            underlying,
+            shares,
+            expectedAssets,
+            forceRedeemCollateral,
+            receiver
+        );
     }
 
     /// @notice Exits a Curvance position.
@@ -164,11 +210,6 @@ abstract contract ZapperBase is ReentrancyGuard {
         bool forceRedeemCollateral,
         address receiver
     ) internal {
-        // Validate `underlying` matches underlying token of cToken contract.
-        if (ICToken(cToken).asset() != underlying) {
-            revert ZapperBase__ExecutionError();
-        }
-
         uint256 assets;
 
         // Transfer tokens exited to the Zapper.
@@ -259,7 +300,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         uint256 inputAmount,
         bool depositAsWrappedNative
     ) internal {
-        if (CommonLib._isETH(inputToken)) {
+        if (CommonLib._isNative(inputToken)) {
             // Validate message has gas token attached.
             if (inputAmount != msg.value) {
                 revert ZapperBase__ExecutionError();
@@ -279,6 +320,27 @@ abstract contract ZapperBase is ReentrancyGuard {
         );
     }
 
+    /// @notice Checks whether address parameters for a particular zapper action on valid.
+    /// @param cToken The Curvance cToken address.
+    /// @param underlying The input token address, should match `cToken`.asset().
+    function _checkAddresses(
+        address cToken,
+        address underlying
+    ) internal view returns (address asset) {
+        // Validate `cToken` exists, otherwise transfer their tokens
+        // back and return.
+        if (cToken == address(0)) {
+            revert ZapperBase__ExecutionError ();
+        }
+
+        asset = ICToken(cToken).asset();
+
+        // Validate `underlying` matches underlying token of cToken contract.
+        if (asset != underlying) {
+            revert ZapperBase__UnderlyingTokenIsNotInputToken();
+        }
+    }
+
     /// @notice Helper function for efficiently transferring tokens
     ///         to desired user.
     /// @param token The token to transfer to `receiver`,
@@ -290,7 +352,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         address receiver,
         uint256 amount
     ) internal {
-        if (CommonLib._isETH(token)) {
+        if (CommonLib._isNative(token)) {
             return SafeTransferLib.safeTransferETH(receiver, amount);
         }
 

@@ -51,7 +51,7 @@ library CurveLib {
             balances[i] = CommonLib._getTokenBalance(tokens[i]);
             SwapperLib._approveTokenIfNeeded(tokens[i], lpMinter, balances[i]);
 
-            if (CommonLib._isETH(tokens[i])) {
+            if (CommonLib._isNative(tokens[i])) {
                 // If eth is somehow contained in a pool twice,
                 // something is wrong and we need to halt execution.
                 if (containsEth) {

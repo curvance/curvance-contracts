@@ -840,7 +840,7 @@ contract ComplexZapper is ZapperBase {
         // Swap `inputToken` into desired pToken underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
             if (
-                CommonLib._isETH(swapData[i].inputToken) &&
+                CommonLib._isNative(swapData[i].inputToken) &&
                 depositAsWrappedNative
             ) {
                 // Switch inputToken to wrapped native token address.

@@ -10,7 +10,7 @@ library CommonLib {
     ///         or not.
     /// @param token The address to inspect.
     /// @return Whether `token` is referring to network gas token or not.
-    function _isETH(address token) internal pure returns (bool) {
+    function _isNative(address token) internal pure returns (bool) {
         return
             token == address(0) ||
             token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -20,7 +20,7 @@ library CommonLib {
     /// @param token The token address to query balance of.
     /// @return The balance of `token` inside address(this).
     function _getTokenBalance(address token) internal view returns (uint256) {
-        if (_isETH(token)) {
+        if (_isNative(token)) {
             return address(this).balance;
         }
 
