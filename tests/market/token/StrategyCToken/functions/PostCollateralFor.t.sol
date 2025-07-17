@@ -88,4 +88,10 @@ contract PostCollateralForTest is TestBaseStrategyCToken {
         assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral + newCollateral);
     }
 
+    function _postBalRETHCollateralForUser1(uint256 shares) internal {
+        vm.startPrank(user2);
+        strategyCBALRETH.postCollateralFor(shares, user1);
+        vm.stopPrank();
+    }
+
 }

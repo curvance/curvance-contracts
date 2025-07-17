@@ -18,21 +18,21 @@ contract PostCollateralTest is TestBaseStrategyCToken {
         vm.stopPrank();
     }
 
-    function test_strategyCTokenCollateralize_fail_whenCollateralizationIsNotAllowed() public {
+    function test_strategyCTokenPostCollateral_fail_whenCollateralizationIsNotAllowed() public {
         marketManagerIsolated.setCollateralizationPaused(address(strategyCBALRETH), true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         _postBalRETHCollateral(0.1e18);
     }
 
-    function test_strategyCTokenCollateralize_fail_whenZeroAmount() public {
+    function test_strategyCTokenPostCollateral_fail_whenZeroAmount() public {
         marketManagerIsolated.setBorrowPaused(address(strategyCBALRETH), true);
 
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
         _postBalRETHCollateral(0);
     }
 
-    function test_strategyCTokenCollateralize_fail_whenCollateralAmountExceedsCTokens() public {
+    function test_strategyCTokenPostCollateral_fail_whenCollateralAmountExceedsCTokens() public {
         vm.expectRevert(
             BaseCToken.BaseCToken__InsufficientLiquidity.selector
         );
@@ -40,7 +40,7 @@ contract PostCollateralTest is TestBaseStrategyCToken {
         _postBalRETHCollateral(10e18);
     }
 
-    function test_strategyCTokenCollateralize_fail_whenCollateralAmountExceedsCollateralCap() public {
+    function test_strategyCTokenPostCollateral_fail_whenCollateralAmountExceedsCollateralCap() public {
         _setCTokenConfigBasic(address(strategyCBALRETH), 1, 0);
 
         vm.expectRevert(
@@ -50,7 +50,7 @@ contract PostCollateralTest is TestBaseStrategyCToken {
         _postBalRETHCollateral(_ONE);
     }
 
-    function test_strategyCTokenCollateralize_success() public {
+    function test_strategyCTokenPostCollateral_success() public {
         uint256 balanceBefore = strategyCBALRETH.balanceOf(user1);
         uint256 userCollateral = strategyCBALRETH.collateralPosted(user1);
         uint256 totalCollateral = strategyCBALRETH.marketCollateralPosted();
@@ -70,6 +70,12 @@ contract PostCollateralTest is TestBaseStrategyCToken {
 
         // Market collateral should go up by `newCollateral`.
         assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral + newCollateral);
+    }
+
+    function _postBalRETHCollateral(uint256 shares) internal {
+        vm.startPrank(user1);
+        strategyCBALRETH.postCollateral(shares);
+        vm.stopPrank();
     }
 
 }

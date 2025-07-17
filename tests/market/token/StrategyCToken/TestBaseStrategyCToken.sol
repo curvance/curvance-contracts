@@ -102,16 +102,5 @@ contract TestBaseStrategyCToken is TestBaseMarketIsolated {
         tokenConfig.debtCap = 100_000e18;
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
-
-    function _postBalRETHCollateral(uint256 shares) internal {
-        vm.startPrank(user1);
-        strategyCBALRETH.postCollateral(shares);
-        vm.stopPrank();
-    }
-
-    function _postBalRETHCollateralForUser1(uint256 shares) internal {
-        vm.startPrank(user2);
-        strategyCBALRETH.postCollateralFor(shares, user1);
-        vm.stopPrank();
-    }
+    
 }

@@ -124,16 +124,4 @@ contract TestBaseBorrowableCToken is TestBaseMarketIsolated {
         _prepareUSDC(user2, 250e6);
     }
 
-    function _postBorrowableCUSDCCollateral(uint256 shares) internal {
-        vm.startPrank(user1);
-        borrowableCUSDC.postCollateral(shares);
-        vm.stopPrank();
-    }
-
-    function _postBorrowableCUSDCCollateralForUser1(uint256 shares) internal {
-        vm.startPrank(user2);
-        borrowableCUSDC.postCollateralFor(shares, user1);
-        vm.stopPrank();
-    }
-
 }

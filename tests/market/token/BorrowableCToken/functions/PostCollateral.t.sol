@@ -96,4 +96,10 @@ contract PostCollateralTest is TestBaseBorrowableCToken {
         assertEq(borrowableCUSDC.marketCollateralPosted(), totalCollateral + newCollateral);
     }
 
+    function _postBorrowableCUSDCCollateral(uint256 shares) internal {
+        vm.startPrank(user1);
+        borrowableCUSDC.postCollateral(shares);
+        vm.stopPrank();
+    }
+
 }
