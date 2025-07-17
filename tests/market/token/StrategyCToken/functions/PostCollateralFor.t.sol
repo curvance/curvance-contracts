@@ -17,13 +17,12 @@ contract PostCollateralForTest is TestBaseStrategyCToken {
         vm.startPrank(user1);
         balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
         strategyCBALRETH.deposit(_ONE + _ONE, user1);
+
+        // Approve delegated collateral deposits for `user1` by `user2`.
+        strategyCBALRETH.setDelegateApproval(user2, true);
         vm.stopPrank();
 
         _prepareBALRETH(user1, _ONE + _ONE);
-
-        vm.startPrank(user1);
-        strategyCBALRETH.setDelegateApproval(user2, true);
-        vm.stopPrank();
     }
 
     function test_strategyCTokenPostCollateralFor_fail_whenNotDelegated() public {
