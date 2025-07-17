@@ -3,9 +3,11 @@ pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
+import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract PostCollateralTest is TestBaseStrategyCToken {
+contract PostCollateralForTest is TestBaseStrategyCToken {
     event CollateralUpdated(uint256 shares, bool increased, address account);
 
     function setUp() public override {
@@ -16,41 +18,55 @@ contract PostCollateralTest is TestBaseStrategyCToken {
         balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
         strategyCBALRETH.deposit(_ONE + _ONE, user1);
         vm.stopPrank();
+
+        _prepareBALRETH(user1, _ONE + _ONE);
+
+        vm.startPrank(user1);
+        strategyCBALRETH.setDelegateApproval(user2, true);
+        vm.stopPrank();
     }
 
-    function test_strategyCTokenCollateralize_fail_whenCollateralizationIsNotAllowed() public {
+    function test_strategyCTokenPostCollateralFor_fail_whenNotDelegated() public {
+        vm.startPrank(user1);
+        strategyCBALRETH.setDelegateApproval(user2, false);
+        vm.stopPrank();
+
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
+        _postBalRETHCollateralForUser1(0.1e18);
+    }
+
+    function test_strategyCTokenPostCollateralFor_fail_whenCollateralizationIsNotAllowed() public {
         marketManagerIsolated.setCollateralizationPaused(address(strategyCBALRETH), true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        _postBalRETHCollateral(0.1e18);
+        _postBalRETHCollateralForUser1(0.1e18);
     }
 
-    function test_strategyCTokenCollateralize_fail_whenZeroAmount() public {
-        marketManagerIsolated.setBorrowPaused(address(strategyCBALRETH), true);
-
+    function test_strategyCTokenPostCollateralFor_fail_whenZeroAmount() public {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-        _postBalRETHCollateral(0);
+
+        _postBalRETHCollateralForUser1(0);
     }
 
-    function test_strategyCTokenCollateralize_fail_whenCollateralAmountExceedsCTokens() public {
+    function test_strategyCTokenPostCollateralFor_fail_whenCollateralAmountExceedsCTokens() public {
         vm.expectRevert(
             BaseCToken.BaseCToken__InsufficientLiquidity.selector
         );
 
-        _postBalRETHCollateral(10e18);
+        _postBalRETHCollateralForUser1(10e18);
     }
 
-    function test_strategyCTokenCollateralize_fail_whenCollateralAmountExceedsCollateralCap() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 1, 0);
+    function test_strategyCTokenPostCollateralFor_fail_whenCollateralAmountExceedsCollateralCap() public {
+        _setCTokenConfigBasic(address(strategyCBALRETH), 1, 100_000e18);
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__CapReached.selector
         );
 
-        _postBalRETHCollateral(_ONE);
+        _postBalRETHCollateralForUser1(_ONE);
     }
 
-    function test_strategyCTokenCollateralize_success() public {
+    function test_strategyCTokenPostCollateralFor_success() public {
         uint256 balanceBefore = strategyCBALRETH.balanceOf(user1);
         uint256 userCollateral = strategyCBALRETH.collateralPosted(user1);
         uint256 totalCollateral = strategyCBALRETH.marketCollateralPosted();
@@ -60,7 +76,7 @@ contract PostCollateralTest is TestBaseStrategyCToken {
 
         uint256 newCollateral = _ONE;
 
-        _postBalRETHCollateral(newCollateral);
+        _postBalRETHCollateralForUser1(newCollateral);
 
         // Balance should not have changed.
         assertEq(strategyCBALRETH.balanceOf(user1), balanceBefore);

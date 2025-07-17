@@ -7,7 +7,7 @@ import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract PostCollateralTest is TestBaseBorrowableCToken {
+contract PostCollateralForTest is TestBaseBorrowableCToken {
     event CollateralUpdated(uint256 shares, bool increased, address account);
 
     function setUp() public override {
