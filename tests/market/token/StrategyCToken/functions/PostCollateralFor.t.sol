@@ -57,7 +57,7 @@ contract PostCollateralForTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenPostCollateralFor_fail_whenCollateralAmountExceedsCollateralCap() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 1, 100_000e18);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 1, 0);
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__CapReached.selector

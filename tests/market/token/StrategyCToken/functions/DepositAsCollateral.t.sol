@@ -69,7 +69,7 @@ contract DepositAsCollateralTest is TestBaseStrategyCToken {
 
     function test_strategyCTokenDepositAsCollateral_success() public {
         uint256 balanceBefore = strategyCBALRETH.balanceOf(user1);
-        uint256 supplyBefore = borrowableCUSDC.totalSupply();
+        uint256 supplyBefore = strategyCBALRETH.totalSupply();
         uint256 userCollateral = strategyCBALRETH.collateralPosted(user1);
         uint256 totalCollateral = strategyCBALRETH.marketCollateralPosted();
 
