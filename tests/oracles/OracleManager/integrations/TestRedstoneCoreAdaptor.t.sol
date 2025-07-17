@@ -46,8 +46,8 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             3,
             "ETH"
         );
-        adaptor.addAsset(_WBTC_ADDRESS, true, 8, 12 hours);
-        adaptor.addAsset(_WBTC_ADDRESS, false, 18, 12 hours);
+        adaptor.addAsset(_WBTC_ADDRESS, true, 8, 10 minutes);
+        adaptor.addAsset(_WBTC_ADDRESS, false, 18, 10 minutes);
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
@@ -62,10 +62,12 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
 
         (, bytes32 symbolHash, , , ) = adaptor.adaptorData(_WBTC_ADDRESS, true);
         assertEq(symbolHash, bytes32("WBTC"));
+        
         bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool)",
+            "writePrice(address,bool,uint128)",
             _WBTC_ADDRESS,
-            true
+            true,
+            uint128(block.timestamp * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
@@ -77,7 +79,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             encodedFunctionWithRedstonePayload
         );
         assertTrue(success);
-
+        
         oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
 
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
@@ -100,9 +102,10 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         (, bytes32 symbolHash, , , ) = adaptor.adaptorData(_WETH_ADDRESS, true);
         assertEq(symbolHash, bytes32("WETH"));
         bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool)",
+            "writePrice(address,bool,uint128)",
             _WETH_ADDRESS,
-            true
+            true,
+            uint128(block.timestamp * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
@@ -166,9 +169,10 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         );
 
         bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool)",
+            "writePrice(address,bool,uint128)",
             _WBTC_ADDRESS,
-            true
+            true,
+            uint128(block.timestamp * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
@@ -206,9 +210,10 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         );
 
         bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool)",
+            "writePrice(address,bool,uint128)",
             _WBTC_ADDRESS,
-            true
+            true,
+            uint128(block.timestamp * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
