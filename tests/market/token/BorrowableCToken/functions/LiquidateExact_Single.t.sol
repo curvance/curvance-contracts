@@ -233,7 +233,6 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
             address(borrowableCUSDC)
         );
         
-        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
         uint256 debtBalance = borrowableCUSDC.debtBalance(user1);
         
         uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);

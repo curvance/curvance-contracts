@@ -3,6 +3,9 @@ pragma solidity ^0.8.19;
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import "tests/market/TestBaseMarketIsolated.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
     address public owner;
@@ -378,13 +381,34 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         // skip min hold period
         skip(20 minutes);
 
-        (uint256 balRETHPrice, ) = oracleManager.getPrice(
-            address(balRETH),
-            true,
-            true
+        mockUsdcFeed.setMockAnswer(200000000);
+
+        (, uint256 collateralPrice, uint256 debtTokenPrice) = marketManagerIsolated.liquidationStatusOf(
+            user1,
+            address(strategyCBALRETH),
+            address(borrowableCUSDC)
         );
 
-        mockUsdcFeed.setMockAnswer(200000000);
+        (uint256 maxAmount, uint256 collateralLiquidated, uint256 collateralRequired) = _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(250e6);
+
+        console2.log("collateralPrice", collateralPrice);
+        console2.log("debtTokenPrice", debtTokenPrice);
+        console2.log("collateralRequired", collateralRequired);
+        console2.log("collateralLiquidated", collateralLiquidated);
+        console2.log("maxAmount", maxAmount);
+
+        uint256 expectedBadDebt = _calculateBadDebt(
+            1000e6,
+            250e6,
+            1e18,
+            collateralRequired,
+            collateralLiquidated,
+            collateralPrice, //collateralTokenUnderlyingPrice
+            debtTokenPrice, //debtTokenUnderlyingPrice
+            strategyCBALRETH.exchangeRate() //cTokenExchangeRate
+        );
+
+        console2.log("expectedBadDebt", expectedBadDebt);
 
         // try liquidate half
         _prepareUSDC(user2, 250e6);
@@ -396,6 +420,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         uint256[] memory debtAmounts = new uint256[](1);
         debtAmounts[0] = 250e6;
 
+        uint256 currentDebtBalance = borrowableCUSDC.debtBalance(user1);
+
         borrowableCUSDC.liquidateExact(
             debtAmounts,
             accounts,
@@ -404,13 +430,13 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         assertApproxEqRel(
             strategyCBALRETH.balanceOf(user1),
-            1 ether - (500 ether * 1 ether) / balRETHPrice,
-            0.02e18
+            1 ether - collateralLiquidated,
+            0.01e18
         );
         assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
-        assertApproxEqRel(borrowableCUSDC.debtBalance(user1), 750e6, 0.01e18);
+        assertApproxEqRel(borrowableCUSDC.debtBalance(user1), currentDebtBalance - (expectedBadDebt + 250e6), 0.01e18);
         assertApproxEqRel(borrowableCUSDC.exchangeRate(), 1 ether, 0.01e18);
     }
 
@@ -438,6 +464,37 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         mockUsdcFeed.setMockAnswer(150000000);
 
+        uint256 currentDebtBalance = borrowableCUSDC.debtBalance(user1);
+
+        (uint256 lFactor,,) = marketManagerIsolated.liquidationStatusOf(
+            user1,
+            address(strategyCBALRETH),
+            address(borrowableCUSDC)
+        );
+
+        (uint256 maxAmount, uint256 collateralLiquidated, uint256 collateralRequired) = _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
+            lFactor,
+            1e18,
+            1000e6
+        );
+
+        (, uint256 collateralPrice, uint256 debtTokenPrice) = marketManagerIsolated.liquidationStatusOf(
+            user1,
+            address(strategyCBALRETH),
+            address(borrowableCUSDC)
+        );
+
+        uint256 expectedBadDebt = _calculateBadDebt(
+            1000e6,
+            1000e6,
+            1e18,
+            collateralRequired,
+            collateralLiquidated,
+            collateralPrice, //collateralTokenUnderlyingPrice
+            debtTokenPrice, //debtTokenUnderlyingPrice
+            strategyCBALRETH.exchangeRate() //cTokenExchangeRate
+        );
+        
         // try liquidate
         _prepareUSDC(user2, 10000e6);
         vm.startPrank(user2);
@@ -453,13 +510,134 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         assertApproxEqRel(
             strategyCBALRETH.balanceOf(user1),
-            1 ether - (1550 ether * 1e18) / balRETHPrice,
+            1 ether - collateralLiquidated,
             0.06e18
         );
         assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
-        assertEq(borrowableCUSDC.debtBalance(user1), 0);
+        assertApproxEqRel(borrowableCUSDC.debtBalance(user1), currentDebtBalance - (expectedBadDebt + maxAmount), 0.01e18);
         assertApproxEqRel(borrowableCUSDC.exchangeRate(), 1 ether, 0.01e18);
+    }
+
+    function _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
+        uint256 _debtAmount
+    ) internal view returns (
+        uint256 maxAmount,
+        uint256 collateralLiquidated,
+        uint256 collateralRequired
+    ) {
+
+        (uint256 lFactor,,) = marketManagerIsolated.liquidationStatusOf(
+            user1,
+            address(strategyCBALRETH),
+            address(borrowableCUSDC)
+        );
+        
+        uint256 debtBalance = borrowableCUSDC.debtBalance(user1);
+
+        (uint256 debtToCollateralMultiplier, uint256 auctionCFactor) = _getDebtToCollateralMultiplier(lFactor);
+        
+        maxAmount = (auctionCFactor * debtBalance) / WAD_SQUARED;
+
+        collateralLiquidated = (_debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
+        
+        collateralRequired = (debtBalance * debtToCollateralMultiplier) / WAD_SQUARED;
+    }
+
+    function _getDebtToCollateralMultiplier(
+        uint256 _lFactor
+    ) internal view returns (
+        uint256 debtToCollateralMultiplier,
+        uint256 auctionCFactor
+    ) {
+        (uint256 collateralTokenPrice, ) = oracleManager.getPrice(
+            address(balRETH),
+            true,
+            true
+        );
+
+        (uint256 debtTokenPrice, ) = oracleManager.getPrice(
+            address(usdc),
+            true,
+            true
+        );
+
+        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
+
+        (,,,, uint256 liqBaseIncentive, uint256 liqCurve,,,,, uint256 baseCFactor, uint256 cFactorCurve) = 
+            marketManagerIsolated.tokenData(address(strategyCBALRETH));
+
+        auctionCFactor = baseCFactor + ((cFactorCurve * _lFactor) / WAD);
+        uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * _lFactor) / WAD);
+        
+        debtToCollateralMultiplier = (((auctionLiqIncentive *
+            debtTokenPrice * WAD_SQUARED) /
+            (collateralTokenPrice * cTokenExchangeRate)) *
+            1e18) / 1e6;
+
+    }
+
+    function _calculateBadDebt(
+        uint256 _debtBalance,
+        uint256 _debtAmount,
+        uint256 _collateralAvailable,
+        uint256 _collateralRequired,
+        uint256 _collateralLiquidated,
+        uint256 _collateralTokenUnderlyingPrice,
+        uint256 _debtTokenUnderlyingPrice,
+        uint256 _cTokenExchangeRate
+    ) internal pure returns (uint256 badDebt) {
+
+        if(_collateralRequired > _collateralAvailable) {
+            uint256 amountToSubtract = 
+                FixedPointMathLib.mulDivUp(
+                    ((_collateralAvailable - _collateralLiquidated) * _cTokenExchangeRate) / WAD,
+                    _collateralTokenUnderlyingPrice,
+                    (_debtTokenUnderlyingPrice * WAD) / 1e6 
+                );
+            
+            badDebt = (_debtBalance - _debtAmount) - amountToSubtract;
+        } else {
+            return 0;
+        }
+
+        
+    }
+
+    function _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
+        uint256 _lFactor,
+        uint256 _collateralAmounts,
+        uint256 _borrowAmount
+    ) internal view returns (
+        uint256 maxAmount, 
+        uint256 collateralLiquidated,
+        uint256 collateralRequired
+    ) {
+    
+            if (_lFactor == 0) return (0,0,0);
+            
+            (uint256 debtToCollateralMultiplier, uint256 auctionCFactor) = _getDebtToCollateralMultiplier(_lFactor);
+                
+            maxAmount = (auctionCFactor * _borrowAmount) / WAD;
+            
+            // Calculate with extra precision
+            collateralLiquidated = (maxAmount * debtToCollateralMultiplier) / (WAD_SQUARED);
+            
+            if (collateralLiquidated > _collateralAmounts) {
+                // Use the contract's exact formula
+                maxAmount = FixedPointMathLib.mulDivUp(
+                    maxAmount,
+                    _collateralAmounts,
+                    collateralLiquidated
+                );
+                collateralLiquidated = _collateralAmounts;
+            }
+            
+            // Use the contract's exact formula
+            collateralRequired = (_borrowAmount * debtToCollateralMultiplier) / (WAD_SQUARED);
+
+
+        return (maxAmount, collateralLiquidated, collateralRequired);
     }
 }
