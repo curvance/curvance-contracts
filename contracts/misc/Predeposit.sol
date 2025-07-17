@@ -179,7 +179,7 @@ contract Predeposit {
             revert Predeposit__InvalidParameters();
         }
 
-        if (CommonLib._isETH(swapData.inputToken)) {
+        if (CommonLib._isNative(swapData.inputToken)) {
             // Validate message has gas token attached.
             if (swapData.inputAmount != msg.value) {
                 revert Predeposit__InvalidSwapData();

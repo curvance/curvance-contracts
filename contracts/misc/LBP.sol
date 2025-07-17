@@ -210,7 +210,7 @@ contract LBP {
             revert LBP__InvalidSwapData();
         }
 
-        if (CommonLib._isETH(swapperData.inputToken)) {
+        if (CommonLib._isNative(swapperData.inputToken)) {
             // Validate message has gas token attached.
             if (swapperData.inputAmount != msg.value) {
                 revert LBP__InvalidSwapData();

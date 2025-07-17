@@ -337,7 +337,7 @@ contract Convex3PoolCToken is StrategyCToken {
             underlyingToken = strategyData.underlyingTokens[i];
             amounts[i] = CommonLib._getTokenBalance(underlyingToken);
 
-            if (CommonLib._isETH(underlyingToken)) {
+            if (CommonLib._isNative(underlyingToken)) {
                 value = amounts[i];
             }
 

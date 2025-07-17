@@ -52,8 +52,9 @@ contract SimpleRewardZapper is ZapperBase {
     /// @notice Claims Reward Manager rewards, then swaps and transfers
     ///         `swapData.outputToken` to `receiver`.
     /// @param swapData Swap instruction data.
-    /// @param receiver Address that should receive swapped output.
-    /// @return outAmount The output amount received from swapping.
+    /// @param receiver Address that should receive `swapData.outputToken`.
+    /// @return outAmount The amount of `swapData.outputToken` that was
+    ///                   received by `receiver`.
     function claimAndSwap(
         SwapperLib.Swap memory swapData,
         address receiver
@@ -107,19 +108,19 @@ contract SimpleRewardZapper is ZapperBase {
     ///                       `swapData.outputToken` into `cToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
-    /// @param receiver Address that should receive Zapped deposit.
-    /// @return The output amount of cToken shares received from Zapping.
+    /// @param receiver Address that should receive `cToken` shares.
+    /// @return outAmount The `cToken` output shares received by `receiver`.
     function claimSwapAndDeposit(
         address cToken,
         SwapperLib.Swap memory swapData,
         uint256 expectedShares,
         bool collateralize,
         address receiver
-    ) external nonReentrant returns (uint256) {
+    ) external nonReentrant returns (uint256 outAmount) {
         // Normally in swappers we check whether the input is a network's gas
         // token, but the Reward Manager is built with non gas token
         // stablecoins as reward tokens. Thus we do not need to check
-        // CommonLib._isETH here.
+        // CommonLib._isNative here.
 
         // Swap input token must match the fee token from the Reward
         // Manager, rather than hardcoding input here this also acts as check
@@ -132,29 +133,28 @@ contract SimpleRewardZapper is ZapperBase {
         // cTokens are natively authorized.
 
         // Claim caller rewards and cache reward amount.
-        uint256 rewards = _processRewards(msg.sender);
+        outAmount = _processRewards(msg.sender);
         // Validate Zap input amount equals rewards received.
-        if (swapData.inputAmount != rewards) {
+        if (swapData.inputAmount != outAmount) {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
 
         if (swapData.inputToken == swapData.outputToken) {
-            rewards = swapData.inputAmount;
+            outAmount = swapData.inputAmount;
         } else {
             // Execute swap into cToken underlying.
-            rewards = SwapperLib._swapUnsafe(centralRegistry, swapData);
+            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapData);
         }
 
         // Enter Curvance cToken position.
-        return
-            _enterCurvance(
-                cToken,
-                swapData.outputToken,
-                rewards,
-                expectedShares,
-                collateralize,
-                receiver
-            );
+        outAmount = _enterCurvanceSafe(
+            cToken,
+            swapData.outputToken,
+            rewards,
+            expectedShares,
+            collateralize,
+            receiver
+        );
     }
 
     /// @notice Claims Reward Manager rewards, then may swap, then repays
@@ -166,18 +166,18 @@ contract SimpleRewardZapper is ZapperBase {
     /// @param borrowableCToken The Curvance token address to repay debt to.
     /// @param repayAmount The amount of debt to be repaid.
     /// @param receiver Address that should have its outstanding debt repaid.
-    /// @return The excess amount of debt token that was returned to
-    ///         `receiver`.
+    /// @return outAmount The excess amount of debt token that was returned to
+    ///                   `receiver`.
     function claimSwapAndRepay(
         SwapperLib.Swap memory swapData,
         address borrowableCToken,
         uint256 repayAmount,
         address receiver
-    ) external nonReentrant returns (uint256) {
+    ) external nonReentrant returns (uint256 outAmount) {
         // Normally in swappers we check whether the input is a network's gas
         // token, but the Reward Manager is built with non gas token
         // stablecoins as reward tokens. Thus we do not need to check
-        // CommonLib._isETH here.
+        // CommonLib._isNative here.
 
         address rewardToken = _getFeeToken();
 
@@ -214,14 +214,13 @@ contract SimpleRewardZapper is ZapperBase {
         }
 
         // Repay `repayAmount` outstanding debt.
-        return
-            _repayDebt(
-                borrowableCToken,
-                debtToken,
-                swapData.inputAmount,
-                repayAmount,
-                receiver
-            );
+        outAmount = _repayDebt(
+            borrowableCToken,
+            debtToken,
+            swapData.inputAmount,
+            repayAmount,
+            receiver
+        );
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///

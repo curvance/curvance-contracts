@@ -58,7 +58,8 @@ contract PendleZapper is ZapperBase {
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param receiver Address that should receive Zapped deposit.
-    /// @return outAmount The output amount received from Zapping.
+    /// @return outAmount The `strategyCToken` output shares received by
+    ///                   `receiver`.
     function enterPendle(
         address strategyCToken,
         ZapperData calldata zapData,
@@ -88,7 +89,7 @@ contract PendleZapper is ZapperBase {
         );
 
         // Enter Curvance position.
-        outAmount = _enterCurvance(
+        outAmount = _enterCurvanceSafe(
             strategyCToken,
             zapData.outputToken,
             outAmount,
@@ -167,7 +168,7 @@ contract PendleZapper is ZapperBase {
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
-        _exitCurvance(
+        _exitCurvanceSafe(
             redemptionData.cToken,
             zapData.inputToken,
             redemptionData.shares,
@@ -256,7 +257,7 @@ contract PendleZapper is ZapperBase {
         // Swap `inputToken` into desired underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
             if (
-                CommonLib._isETH(swapData[i].inputToken) &&
+                CommonLib._isNative(swapData[i].inputToken) &&
                 depositAsWrappedNative
             ) {
                 // Switch inputToken to wrapped native token address.
