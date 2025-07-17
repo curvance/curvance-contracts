@@ -150,8 +150,8 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     /// @return pendingYield The calculated pending yield, in assets.
     function _getPendingYield(
         uint256 vestingRate,
-        uint256 lastVestingClaim,
-        uint256 vestingPeriodEnd
+        uint256 vestingPeriodEnd,
+        uint256 lastVestingClaim
     )
         internal
         view

@@ -725,8 +725,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
         uint256 pendingYieldToVest = _getPendingYield(
             vestingRate,
             outstandingDebt,
-            lastVestingClaim,
-            vestingPeriodEnd
+            vestingPeriodEnd,
+            lastVestingClaim
         );
 
         // Update last claim timestamp, stopping at vesting end if vesting
@@ -794,8 +794,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
         pendingYieldToVest += _getPendingYield(
             vestingRate,
             outstandingDebt,
-            lastVestingClaim,
-            vestingPeriodEnd
+            vestingPeriodEnd,
+            lastVestingClaim
         );
 
         // If theres fees we need to mint new shares for the protocol.
@@ -971,8 +971,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
     function _getPendingYield(
         uint256 vestingRate,
         uint256 outstandingDebt,
-        uint256 lastVestingClaim,
-        uint256 vestingPeriodEnd
+        uint256 vestingPeriodEnd,
+        uint256 lastVestingClaim
     )
         internal
         view
