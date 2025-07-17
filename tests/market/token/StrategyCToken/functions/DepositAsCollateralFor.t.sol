@@ -12,11 +12,13 @@ contract DepositAsCollateralForTest is TestBaseStrategyCToken {
 
     function setUp() public override {
         super.setUp();
-        _prepareBALRETH(user1, _ONE + _ONE);
+        _prepareBALRETH(user2, _ONE + _ONE);
 
-        vm.startPrank(user1);
+        vm.startPrank(user2);
         balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
+        vm.stopPrank();
         
+        vm.startPrank(user1);
         // Approve delegated collateral deposits for `user1` by `user2`.
         strategyCBALRETH.setDelegateApproval(user2, true);
         vm.stopPrank();
