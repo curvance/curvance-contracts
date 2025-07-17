@@ -103,7 +103,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         for (uint256 i = 0; i < numAssets; i++) {
             assertEq(underlyingPrices[i], uint256(usdcPrice) * 1e10);
             assertEq(snapshots[i].asset, address(borrowableCUSDC));
-            assertFalse(snapshots[i].isCollateral);
+            assertTrue(snapshots[i].isCollateral);
             assertEq(snapshots[i].decimals, usdc.decimals());
             assertEq(
                 ICToken(assets[i]).balanceOf(address(this)),
