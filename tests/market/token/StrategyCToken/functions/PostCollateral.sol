@@ -14,7 +14,7 @@ contract PostCollateralTest is TestBaseStrategyCToken {
 
         vm.startPrank(user1);
         balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
-        strategyCBALRETH.deposit(_ONE + _ONE, user1, user1);
+        strategyCBALRETH.deposit(_ONE + _ONE, user1);
         vm.stopPrank();
     }
 
