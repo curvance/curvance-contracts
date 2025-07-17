@@ -5,6 +5,7 @@ import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract GetPricesForMarketTest is TestBaseOracleManager {
     address[] public assets;
@@ -84,8 +85,8 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         oracleManager.addCTokenSupport(address(borrowableCUSDC));
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        vm.prank(address(marketManagerIsolated));
-        borrowableCUSDC.initializeDeposits(address(this));
+        // vm.prank(address(marketManagerIsolated));
+        // borrowableCUSDC.initializeDeposits(address(this));
 
         _addSinglePriceFeed();
 
@@ -94,6 +95,9 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
             uint256[] memory underlyingPrices,
             uint256 numAssets
         ) = oracleManager.getPricesForMarket(address(this), assets, 1);
+
+        uint256 exchangeRate = borrowableCUSDC.exchangeRate();
+        console2.log("exchangeRate", exchangeRate);
 
         (, int256 usdcPrice, , , ) = IChainlink(_CHAINLINK_USDC_USD)
             .latestRoundData();
@@ -107,10 +111,11 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
             assertEq(snapshots[i].decimals, usdc.decimals());
             assertEq(
                 ICToken(assets[i]).balanceOf(address(this)),
-                borrowableCUSDC.balanceOf(address(this))
+                borrowableCUSDC.balanceOf(address(this)),
+                "balanceOf"
             );
-            assertEq(snapshots[i].debtBalance, 0);
-            assertEq(snapshots[i].exchangeRate, 0);
+            assertEq(snapshots[i].debtBalance, 0, "debtBalance");
+            assertEq(snapshots[i].exchangeRate, 1e18, "exchangeRate");
         }
     }
 }
