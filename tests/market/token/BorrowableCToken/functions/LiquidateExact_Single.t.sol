@@ -234,6 +234,8 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         );
         
         uint256 debtBalance = borrowableCUSDC.debtBalance(user1);
+
+
         
         uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
         uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
@@ -246,7 +248,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         
         uint256 debtToCollateralMultiplier = (((auctionLiqIncentive *
             debtTokenPrice * WAD_SQUARED) /
-            (collateralTokenPrice * cTokenExchangeRate)) *
+            (collateralTokenPrice * 1e18)) *
             1e18) / 1e6;
         
         maxAmount = (auctionCFactor * debtBalance) / WAD_SQUARED;
