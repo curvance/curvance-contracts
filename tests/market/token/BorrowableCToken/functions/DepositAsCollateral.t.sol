@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
