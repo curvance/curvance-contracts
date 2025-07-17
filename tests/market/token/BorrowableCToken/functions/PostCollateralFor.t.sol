@@ -82,7 +82,7 @@ contract PostCollateralForTest is TestBaseBorrowableCToken {
         vm.stopPrank();
 
         vm.expectRevert(
-            BorrowableCToken.BorrowableCToken__InvalidParameter.selector
+            BorrowableCToken.BorrowableCToken__DebtPositionActive.selector
         );
 
         _postBorrowableCUSDCCollateralForUser1(_ONE);

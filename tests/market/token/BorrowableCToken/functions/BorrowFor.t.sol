@@ -97,7 +97,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         vm.startPrank(user2);
 
         vm.expectRevert(
-            BorrowableCToken.BorrowableCToken__InvalidParameter.selector
+            BorrowableCToken.BorrowableCToken__CollateralPositionActive.selector
         );
 
         borrowableCUSDC.borrowFor(20e6, user2, user1);
