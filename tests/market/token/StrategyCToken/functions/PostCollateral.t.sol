@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
-import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract PostCollateralTest is TestBaseStrategyCToken {
@@ -11,6 +10,8 @@ contract PostCollateralTest is TestBaseStrategyCToken {
 
     function setUp() public override {
         super.setUp();
+
+        _prepareBALRETH(user1, _ONE + _ONE);
 
         vm.startPrank(user1);
         balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
