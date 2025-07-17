@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract PostCollateralTest is TestBaseBorrowableCToken {
@@ -19,40 +20,53 @@ contract PostCollateralTest is TestBaseBorrowableCToken {
         vm.stopPrank();
 
         _prepareBALRETH(user1, _ONE + _ONE);
+
+        vm.startPrank(user1);
+        borrowableCUSDC.setDelegateApproval(user2, true);
+        vm.stopPrank();
     }
 
-    function test_borrowableCTokenPostCollateral_fail_whenCollateralizationIsNotAllowed() public {
+    function test_borrowableCTokenPostCollateralFor_fail_whenNotDelegated() public {
+        vm.startPrank(user1);
+        borrowableCUSDC.setDelegateApproval(user2, false);
+        vm.stopPrank();
+
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
+        _postBorrowableCUSDCCollateralForUser1(0.1e18);
+    }
+
+    function test_borrowableCTokenPostCollateralFor_fail_whenCollateralizationIsNotAllowed() public {
         marketManagerIsolated.setCollateralizationPaused(address(borrowableCUSDC), true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        _postBorrowableCUSDCCollateral(0.1e18);
+        _postBorrowableCUSDCCollateralForUser1(0.1e18);
     }
 
-    function test_borrowableCTokenPostCollateral_fail_whenZeroAmount() public {
+    function test_borrowableCTokenPostCollateralFor_fail_whenZeroAmount() public {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
 
-        _postBorrowableCUSDCCollateral(0);
+        _postBorrowableCUSDCCollateralForUser1(0);
     }
 
-    function test_borrowableCTokenPostCollateral_fail_whenCollateralAmountExceedsCTokens() public {
+    function test_borrowableCTokenPostCollateralFor_fail_whenCollateralAmountExceedsCTokens() public {
         vm.expectRevert(
             BaseCToken.BaseCToken__InsufficientLiquidity.selector
         );
 
-        _postBorrowableCUSDCCollateral(10e18);
+        _postBorrowableCUSDCCollateralForUser1(10e18);
     }
 
-    function test_borrowableCTokenPostCollateral_fail_whenCollateralAmountExceedsCollateralCap() public {
+    function test_borrowableCTokenPostCollateralFor_fail_whenCollateralAmountExceedsCollateralCap() public {
         _setCTokenConfigBasic(address(borrowableCUSDC), 1, 100_000e18);
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__CapReached.selector
         );
 
-        _postBorrowableCUSDCCollateral(_ONE);
+        _postBorrowableCUSDCCollateralForUser1(_ONE);
     }
 
-    function test_borrowableCTokenPostCollateral_fail_whenDebtInBorrowableCToken() public {
+    function test_borrowableCTokenBorrow_fail_whenDebtInBorrowableCToken() public {
         _prepareUSDC(address(this), _ONE + _ONE);
         usdc.approve(address(borrowableCUSDC), _ONE + _ONE);
         borrowableCUSDC.deposit(_ONE, address(this));
@@ -71,10 +85,10 @@ contract PostCollateralTest is TestBaseBorrowableCToken {
             BorrowableCToken.BorrowableCToken__InvalidParameter.selector
         );
 
-        _postBorrowableCUSDCCollateral(_ONE);
+        _postBorrowableCUSDCCollateralForUser1(_ONE);
     }
 
-    function test_borrowableCTokenPostCollateral_success() public {
+    function test_borrowableCTokenPostCollateralFor_success() public {
         uint256 balanceBefore = borrowableCUSDC.balanceOf(user1);
         uint256 userCollateral = borrowableCUSDC.collateralPosted(user1);
         uint256 totalCollateral = borrowableCUSDC.marketCollateralPosted();
@@ -84,7 +98,7 @@ contract PostCollateralTest is TestBaseBorrowableCToken {
 
         uint256 newCollateral = _ONE;
 
-        _postBorrowableCUSDCCollateral(newCollateral);
+        _postBorrowableCUSDCCollateralForUser1(newCollateral);
 
         // Balance should not have changed.
         assertEq(borrowableCUSDC.balanceOf(user1), balanceBefore);
