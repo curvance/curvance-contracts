@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract RemoveCollateralTest is TestBaseStrategyCToken {
