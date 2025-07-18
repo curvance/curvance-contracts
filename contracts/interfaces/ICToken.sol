@@ -96,7 +96,7 @@ interface ICToken {
     /// @notice Caller deposits assets into the market, `receiver` receives
     ///         shares, and turns on collateralization of the assets.
     /// @dev The caller must be depositing for themselves, or be managing
-    ///      their position through the position folding contract.
+    ///      their position through a Position Manager contract.
     ///      If the caller is not approved to collateralize the function will
     ///      simply deposit assets on behalf of `receiver`.
     /// @param assets The amount of the underlying assets to deposit.

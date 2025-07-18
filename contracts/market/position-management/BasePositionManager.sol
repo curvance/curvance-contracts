@@ -63,9 +63,8 @@ abstract contract BasePositionManager is
 
     /// MODIFIERS ///
 
-    /// @dev Checks slippage on position folding prior and after
-    ///      leverage/deleverage action, works similar to reentryguard
-    ///      with pre and post checks.
+    /// @dev Checks slippage prior to and after leverage/deleverage action,
+    ///      works similar to reentryguard with pre and post checks.
     /// @param slippage Slippage accepted by the user for execution of
     ///                 `leverageData` leverage action, in WAD (1e18).
     modifier checkSlippage(address account, uint256 slippage) {

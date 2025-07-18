@@ -235,7 +235,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         _borrow(assets, msg.sender, owner);
 
-        // Callback to position folding to execute additional action.
+        // Callback to a Position Manager to execute additional action.
         IPositionManager(msg.sender).onBorrow(
             address(this),
             assets,

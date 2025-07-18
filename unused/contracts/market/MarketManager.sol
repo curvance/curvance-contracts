@@ -1054,7 +1054,7 @@
 //         emit ActionPaused("Seize Paused", state);
 //     }
 
-//     /// @notice Used to set the position folding address to allow
+//     /// @notice Used to set the Position Manager address to allow
 //     ///         complex position actions.
 //     /// @dev Requires timelock authority.
 //     ///      Emits a {NewPositionManagementContract} event.
@@ -1071,7 +1071,7 @@
 //             _revert(_INVALID_PARAMETER_SELECTOR);
 //         }
 
-//         // Assign new position folding contract.
+//         // Assign new Position Manager contract.
 //         isPositionManager[newPositionManagement] = true;
 
 //         emit NewPositionManagementContract(newPositionManagement);
