@@ -193,7 +193,7 @@ contract RedeemTest is TestBaseBorrowableCToken {
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
-        _redeemBorrowableCDai(1000e18);
+        _redeemBorrowableCDaiForUser1(1000e18);
     }
 
     function test_borrowableCTokenRedeemFor_success() public {
