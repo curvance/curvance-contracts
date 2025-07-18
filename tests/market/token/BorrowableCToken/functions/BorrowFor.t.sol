@@ -22,7 +22,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         vm.stopPrank();
     }
 
-    function test_borrowableCTokenBorrowFor_fail_whenDelegationIsNotApproved() public {
+    function test_borrowableCTokenBorrowFor_fail_whenNotDelegated() public {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
 
         _provideLiquidity();
@@ -97,7 +97,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         vm.startPrank(user2);
 
         vm.expectRevert(
-            BorrowableCToken.BorrowableCToken__InvalidParameter.selector
+            BorrowableCToken.BorrowableCToken__CollateralPositionActive.selector
         );
 
         borrowableCUSDC.borrowFor(20e6, user2, user1);

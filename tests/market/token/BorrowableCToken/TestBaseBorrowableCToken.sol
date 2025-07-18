@@ -123,4 +123,5 @@ contract TestBaseBorrowableCToken is TestBaseMarketIsolated {
 
         _prepareUSDC(user2, 250e6);
     }
+
 }

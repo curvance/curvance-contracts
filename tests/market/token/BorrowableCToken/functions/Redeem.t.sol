@@ -8,7 +8,7 @@ import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 contract BorrowableCTokenRedeemTest is TestBaseBorrowableCToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    function test_borrowableCTokenRedeem_fail_whenNoEnoughToRedeem() public {
+    function test_borrowableCTokenRedeem_fail_whenNotEnoughToRedeem() public {
         vm.prank(address(1));
 
         vm.expectRevert();

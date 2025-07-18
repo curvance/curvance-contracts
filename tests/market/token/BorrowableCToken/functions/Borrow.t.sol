@@ -75,7 +75,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         borrowableCUSDC.postCollateral(100e6 - 1);
 
         vm.expectRevert(
-            BorrowableCToken.BorrowableCToken__InvalidParameter.selector
+            BorrowableCToken.BorrowableCToken__CollateralPositionActive.selector
         );
 
         borrowableCUSDC.borrow(20e6, address(this));

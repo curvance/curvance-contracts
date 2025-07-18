@@ -9,7 +9,7 @@ contract RedeemTest is
 {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    function test_strategyCTokenWithExitFeeRedeem_fail_whenNoEnoughToRedeem()
+    function test_strategyCTokenWithExitFeeRedeem_fail_whenNotEnoughToRedeem()
         public
     {
         vm.prank(address(1));

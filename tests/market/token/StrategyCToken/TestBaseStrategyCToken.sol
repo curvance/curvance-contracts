@@ -67,7 +67,6 @@ contract TestBaseStrategyCToken is TestBaseMarketIsolated {
         chainlinkEthUsd.updateAnswer(ethPrice);
         _prepareBALRETH(user1, _ONE);
 
-        // deploy eDAI
         {
             _prepareDAI(owner, 200000e18);
             dai.approve(address(borrowableCDAI), 200000e18);
@@ -75,9 +74,7 @@ contract TestBaseStrategyCToken is TestBaseMarketIsolated {
             oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
-        // deploy PBALRETH
         {
-            // support market
             _prepareBALRETH(owner, 1 ether);
             balRETH.approve(address(strategyCBALRETH), 1 ether);
         }
@@ -104,6 +101,6 @@ contract TestBaseStrategyCToken is TestBaseMarketIsolated {
         tokenConfig.cToken = address(borrowableCDAI);
         tokenConfig.debtCap = 100_000e18;
         marketManagerIsolated.updateTokenConfig(tokenConfig);
-
     }
+    
 }

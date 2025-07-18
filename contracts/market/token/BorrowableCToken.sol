@@ -80,6 +80,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// ERRORS ///
 
+    error BorrowableCToken__CollateralPositionActive();
+    error BorrowableCToken__DebtPositionActive();
     error BorrowableCToken__InvalidParameter();
     error BorrowableCToken__InsufficientAssetsHeld();
 
@@ -489,7 +491,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Cannot borrow if `account` already has posted collateral in this
         // market.
         if (collateralPosted[owner] > 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+            revert BorrowableCToken__CollateralPositionActive();
         }
 
         // Calculate current account debt then add `assets`.
@@ -699,7 +701,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Cannot post collateral if `owner` already has outstanding debt
         // in this token.
         if (uint176(_debtOf[owner]) > 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+            revert BorrowableCToken__DebtPositionActive();
         }
 
         super._postCollateral(shares, owner);

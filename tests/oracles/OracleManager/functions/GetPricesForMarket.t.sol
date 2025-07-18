@@ -85,9 +85,6 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         oracleManager.addCTokenSupport(address(borrowableCUSDC));
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        // vm.prank(address(marketManagerIsolated));
-        // borrowableCUSDC.initializeDeposits(address(this));
-
         _addSinglePriceFeed();
 
         (
