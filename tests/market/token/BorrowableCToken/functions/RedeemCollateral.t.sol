@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract RedeemCollateralTest is TestBaseBorrowableCToken {
