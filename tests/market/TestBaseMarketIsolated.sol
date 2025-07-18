@@ -40,6 +40,8 @@ import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract TestBaseMarketIsolated is TestBase {
     struct PerChainData {
@@ -851,142 +853,192 @@ contract TestBaseMarketIsolated is TestBase {
 
     // Liquidation helpers
 
+    struct LiquidationParams {
+        address borrower;
+        address collateralToken;
+        address borrowedToken;
+        bool isLiquidateExact;
+        uint256 liquidateExactAmount;
+        bool isAuction;
+        bool isMultiMarketTest;
+        uint256 marketManagerId;
+    }
+
+    struct ExpectedLiquidationValues {
+        uint256 debtRepaid;
+        uint256 collateralLiquidated;
+        uint256 badDebt;
+        uint256 collateralRequired;
+    }
+
     function _calculateExpectedLiquidationValues(
-        address _borrower,
-        address _collateralToken,
-        address _borrowedToken,
-        bool _isLiquidateExact,
-        uint256 _liquidateExactAmount,
-        bool _isAuction,
-        bool _isMultiMarketTest,
-        uint256 _marketManagerId
+        LiquidationParams memory params
     ) internal view returns (
-        uint256 debtRepaid,
-        uint256 collateralLiquidated,
-        uint256 badDebt
+       ExpectedLiquidationValues memory expectedLiquidationValues
     ) {
 
         uint256 lFactor;
-        uint256 collateralTokenPrice;
-        uint256 borrowableTokenPrice;
+        MarketManagerIsolated marketManager_;
 
-        if(_isMultiMarketTest) {
-
-            (lFactor, collateralTokenPrice, borrowableTokenPrice) = 
-                marketManagersIsolated[_marketManagerId].liquidationStatusOf(_borrower, _collateralToken, _borrowedToken);
+        if(params.isMultiMarketTest) {
+            marketManager_ = marketManagersIsolated[params.marketManagerId];
+            (lFactor,,) = 
+                marketManagersIsolated[params.marketManagerId].liquidationStatusOf(params.borrower, params.collateralToken, params.borrowedToken);
 
         } else {
-
-            (lFactor, collateralTokenPrice, borrowableTokenPrice) = 
-                marketManagerIsolated.liquidationStatusOf(_borrower, _collateralToken, _borrowedToken);
+            marketManager_ = marketManagerIsolated;
+            (lFactor,,) = 
+                marketManagerIsolated.liquidationStatusOf(params.borrower, params.collateralToken, params.borrowedToken);
         }
 
         if(lFactor == 0) {
-            return (0, 0, 0);
+            return ExpectedLiquidationValues({
+                debtRepaid: 0,
+                collateralLiquidated: 0,
+                badDebt: 0,
+                collateralRequired: 0
+            });
         }
 
         // calculate auctionCFactor & debtToCollateralMultiplier
 
         (uint256 debtToCollateralMultiplier, uint256 cFactor) = 
             _calculateAuctionCFactorAndDebtToCollateralMultiplier(
-                lFactor,
-                _collateralToken,
-                _borrowedToken,
-                collateralTokenPrice,
-                borrowableTokenPrice,
-                _isAuction
+                params.borrower,
+                params.collateralToken,
+                params.borrowedToken,
+                params.isAuction,
+                marketManager_
             );
 
-        uint256 debtBalance = borrowableCUSDC.debtBalance(_borrower);
+        uint256 debtBalance = IBorrowableCToken(params.borrowedToken).debtBalance(params.borrower);
         uint256 maxAmount = (cFactor * debtBalance) / WAD;
 
-        debtRepaid;
+        uint256 collateralAvailable = ICToken(params.collateralToken).collateralPosted(params.borrower);
 
-        uint256 collateralAvailable = borrowableCUSDC.collateralPosted(_borrower);
-
-        if(_isLiquidateExact) {
-            debtRepaid = _liquidateExactAmount;
+        if(params.isLiquidateExact) {
+            expectedLiquidationValues.debtRepaid = params.liquidateExactAmount;
         } else {
-            debtRepaid = maxAmount;
+            expectedLiquidationValues.debtRepaid = maxAmount;
         }
 
-        collateralLiquidated = (debtRepaid * debtToCollateralMultiplier) / WAD_SQUARED;
+        console2.log("debtRepaid after if(params.isLiquidateExact) ", expectedLiquidationValues.debtRepaid);
 
-        if (collateralLiquidated > collateralAvailable) {
-            debtRepaid = FixedPointMathLib.mulDivUp(
-                debtRepaid,
+        expectedLiquidationValues.collateralLiquidated = (expectedLiquidationValues.debtRepaid * debtToCollateralMultiplier) / WAD_SQUARED;
+
+        console2.log("collateralLiquidated", expectedLiquidationValues.collateralLiquidated);
+        console2.log("collateralAvailable", collateralAvailable);
+
+        if (expectedLiquidationValues.collateralLiquidated > collateralAvailable) {
+            expectedLiquidationValues.debtRepaid = FixedPointMathLib.mulDivUp(
+                expectedLiquidationValues.debtRepaid,
                 collateralAvailable,
-                collateralLiquidated
+                expectedLiquidationValues.collateralLiquidated
             );
-            collateralLiquidated = collateralAvailable;
+            expectedLiquidationValues.collateralLiquidated = collateralAvailable;
         }
 
-        uint256 collateralRequired = (debtBalance * debtToCollateralMultiplier) / WAD_SQUARED;
+        console2.log("debtRepaid after collateralLiquidated > collateralAvailable ", expectedLiquidationValues.debtRepaid);
 
-        badDebt = _calculateBadDebt(
-            debtBalance,
-            debtRepaid,
-            collateralAvailable,
-            collateralRequired,
-            collateralLiquidated,
-            collateralTokenPrice,
-            borrowableTokenPrice,
-            strategyCBALRETH.exchangeRate()
+        expectedLiquidationValues.collateralRequired = (debtBalance * debtToCollateralMultiplier) / WAD_SQUARED;
+
+        expectedLiquidationValues.badDebt = _calculateExpectedBadDebt(
+            params.borrower,
+            expectedLiquidationValues.debtRepaid,
+            expectedLiquidationValues.collateralRequired,
+            expectedLiquidationValues.collateralLiquidated,
+            params.collateralToken,
+            params.borrowedToken
         );
 
+    }
+    
+
+    struct LiquidationCalcData {
+        uint256 liqBaseIncentive;
+        uint256 liqCurve;
+        uint256 baseCFactor;
+        uint256 cFactorCurve;
+        uint256 liqIncentive;
+        uint256 lFactor;
+        uint256 collateralTokenPrice;
+        uint256 debtTokenPrice;
+        uint256 collateralTokenDecimals;
+        uint256 debtTokenDecimals;
     }
 
     function _calculateAuctionCFactorAndDebtToCollateralMultiplier(
-        uint256 _lFactor,
+        address _borrower,
         address _collateralToken,
         address _debtToken,
-        uint256 _collateralTokenPrice,
-        uint256 _debtTokenPrice,
-        bool _isAuction
+        bool _isAuction,
+        MarketManagerIsolated _marketManager
     ) internal view 
     returns (uint256 debtToCollateralMultiplier, uint256 cFactor) {
 
-        (,,,, uint256 liqBaseIncentive, uint256 liqCurve,,,,, uint256 baseCFactor, uint256 cFactorCurve) = 
-            marketManagerIsolated.tokenData(address(strategyCBALRETH));
+        LiquidationCalcData memory data;
 
-        uint256 liqIncentive;
+        (,,,, data.liqBaseIncentive, data.liqCurve,,,,, data.baseCFactor, data.cFactorCurve) = 
+            _marketManager.tokenData(address(_collateralToken));
+
+        (data.lFactor, data.collateralTokenPrice, data.debtTokenPrice) = 
+            _marketManager.liquidationStatusOf(_borrower, _collateralToken, _debtToken);
 
         if (_isAuction) {
-            (liqIncentive, cFactor) = marketManagerIsolated.getLatestAuctionParameters();
+            (data.liqIncentive, cFactor) = _marketManager.getLatestAuctionParameters();
         } else {
-            cFactor = baseCFactor + ((cFactorCurve * _lFactor) / WAD);
-            liqIncentive = liqBaseIncentive + ((liqCurve * _lFactor) / WAD);
+            cFactor = data.baseCFactor + ((data.cFactorCurve * data.lFactor) / WAD);
+            data.liqIncentive = data.liqBaseIncentive + ((data.liqCurve * data.lFactor) / WAD);
         }
 
-        uint256 collateralTokenDecimals = ICToken(_collateralToken).decimals();
-        uint256 debtTokenDecimalsDecimals = ICToken(_debtToken).decimals();
+        data.collateralTokenDecimals = 10 ** ICToken(_collateralToken).decimals();
+        data.debtTokenDecimals = 10 ** ICToken(_debtToken).decimals();
 
-        debtToCollateralMultiplier = (((liqIncentive *
-            _debtTokenPrice * WAD_SQUARED) /
-            (_collateralTokenPrice * collateralTokenDecimals)) *
-            collateralTokenDecimals) / debtTokenDecimalsDecimals;
+        uint256 collateralExchangeRate = ICToken(_collateralToken).exchangeRate();
+        
+        debtToCollateralMultiplier = (((data.liqIncentive *
+            data.debtTokenPrice * WAD_SQUARED) /
+            (data.collateralTokenPrice * collateralExchangeRate)) * 
+            data.collateralTokenDecimals) / data.debtTokenDecimals;
     }
 
-    function _calculateBadDebt(
-        uint256 _debtBalance,
+    function _calculateExpectedBadDebt(
+        address _borrower,
         uint256 _debtAmount,
-        uint256 _collateralAvailable,
         uint256 _collateralRequired,
         uint256 _collateralLiquidated,
-        uint256 _collateralTokenUnderlyingPrice,
-        uint256 _debtTokenUnderlyingPrice,
-        uint256 _cTokenExchangeRate
-    ) internal pure returns (uint256 badDebt) {
+        address _collateralToken,
+        address _debtToken
+    ) internal view returns (uint256 badDebt) {
 
-        if(_collateralRequired > _collateralAvailable) {
-    
-        badDebt = (_debtBalance - _debtAmount) -
-        FixedPointMathLib.mulDivUp(
-            ((_collateralAvailable - _collateralLiquidated) * _cTokenExchangeRate) / WAD,
-            _collateralTokenUnderlyingPrice,
-            (_debtTokenUnderlyingPrice * WAD) / 1e6
-        );
+        console2.log("INSIDE OF _calculateExpectedBadDebt");
+        console2.log("debtAmount", _debtAmount);
+        console2.log("collateralRequired", _collateralRequired);
+        console2.log("collateralLiquidated", _collateralLiquidated);
+        console2.log("collateralToken", _collateralToken);
+        console2.log("debtToken", _debtToken);
 
+        uint256 debtTokenDecimals = 10 ** ICToken(_debtToken).decimals();
+        uint256 collateralTokenExchangeRate = ICToken(_collateralToken).exchangeRate();
+
+        uint256 collateralAvailable = ICToken(_collateralToken).collateralPosted(_borrower);
+        (uint256 collateralTokenUnderlyingPrice, ) = oracleManager.getPrice(_collateralToken, true, true);
+        (uint256 debtTokenUnderlyingPrice,) = oracleManager.getPrice(_debtToken, true, false);
+
+        uint256 debtBalance = IBorrowableCToken(_debtToken).debtBalance(_borrower);
+
+        if(_collateralRequired > collateralAvailable) {
+            
+            uint256 remainingCollateralValue = FixedPointMathLib.mulDivUp(
+                ((collateralAvailable - _collateralLiquidated) * collateralTokenExchangeRate) / WAD,
+                collateralTokenUnderlyingPrice,
+                (debtTokenUnderlyingPrice * WAD) / debtTokenDecimals
+            );
+
+            console2.log("remainingCollateralValue", remainingCollateralValue);
+            console2.log("debtBalance - _debtAmount", debtBalance - _debtAmount);
+            
+            badDebt = (debtBalance - _debtAmount) - remainingCollateralValue;
         } else {
             return 0;
         }

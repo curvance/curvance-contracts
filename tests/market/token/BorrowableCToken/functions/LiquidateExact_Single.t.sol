@@ -9,22 +9,7 @@ import { console2 } from "forge-std/console2.sol";
 
 contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
     
-    // Storage to avoid stack too deep
-    uint256 liqBaseIncentive;
-    uint256 liqCurve;
-    uint256 baseCFactor;
-    uint256 cFactorCurve;
-    uint256 maxAmount;
-    uint256 collateralLiquidated;
-    uint256 collateralRequired;
-    uint256 cTokenExchangeRate;
-    uint256 debtBalancesPreLiquidation;
-    uint256 collateralAmounts;
-    uint256 expectedBadDebt;
-    uint256 debtTokenPrice;
-    uint256 collateralTokenPrice;
-
-    uint256 lFactorsPreLiquidation;
+    uint256 debtBalancePreLiquidation;
 
     event BadDebtRecognized(address liquidator, uint256 amount);
     event Repay(address payer, address account, uint256 amount);
@@ -34,14 +19,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
 
         _prepareLiquidation();
 
-        // Cache liquidation parameters
-        (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
-            marketManagerIsolated.tokenData(address(strategyCBALRETH));
-
-        liqBaseIncentive = liqBaseIncentive_;
-        liqCurve = liqCurve_;
-        baseCFactor = baseCFactor_;
-        cFactorCurve = cFactorCurve_;
+        debtBalancePreLiquidation = borrowableCUSDC.debtBalance(user1);
     }
 
     // Test a single liquidation
@@ -51,50 +29,33 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         uint256[] memory debtAmounts = new uint256[](1);
         debtAmounts[0] = 250e6;
 
-        lFactorsPreLiquidation = _getLFactorsPreLiquidation(user1);
-        debtBalancesPreLiquidation = _getDebtBalancePreLiquidation(user1);
-        
-        (collateralTokenPrice, ) = oracleManager.getPrice(
-            address(balRETH),
-            true,
-            true
-        );
-        (debtTokenPrice,) = oracleManager.getPrice(
-            address(usdc),
-            true,
-            true
-        );
-
-        (maxAmount, collateralLiquidated, collateralRequired) = _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
-            debtAmounts[0]
-        );
-
-        cTokenExchangeRate = strategyCBALRETH.exchangeRate();
-        collateralAmounts = strategyCBALRETH.collateralPosted(user1);
-        
-        expectedBadDebt = _calculateBadDebt(
-            debtBalancesPreLiquidation,
-            debtAmounts[0],
-            collateralAmounts,
-            collateralRequired,
-            collateralLiquidated,
-            collateralTokenPrice,
-            debtTokenPrice,
-            cTokenExchangeRate
-        );
-
-        _performLiquidationAndAssert(accounts, debtAmounts, lFactorsPreLiquidation);
+        _performLiquidationAndAssert(accounts, debtAmounts);
     }
 
     function _performLiquidationAndAssert(
         address[] memory accounts, 
-        uint256[] memory debtAmounts,
-        uint256 lFactorsPreLiquidation
+        uint256[] memory debtAmounts
     ) internal {
         // Cache values before liquidation
         uint256 liquidatorBalanceBefore = strategyCBALRETH.balanceOf(user2);
         uint256 totalBorrowsBefore = borrowableCUSDC.marketOutstandingDebt();
         uint256 borrowerCollateralBefore = strategyCBALRETH.balanceOf(user1);
+
+        LiquidationParams memory params = LiquidationParams({   
+            borrower: accounts[0],
+            collateralToken: address(strategyCBALRETH),
+            borrowedToken: address(borrowableCUSDC),
+            isLiquidateExact: true,
+            liquidateExactAmount: debtAmounts[0],
+            isAuction: false,
+            isMultiMarketTest: false,
+            marketManagerId: 0
+        });
+
+        ExpectedLiquidationValues memory expectedLiquidationValues = 
+            _calculateExpectedLiquidationValues(
+                params
+            );
 
         // Execute liquidation
         vm.startPrank(user2);
@@ -107,26 +68,27 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         vm.stopPrank();
 
         // Run all assertions
-        _assertDebtReduction(debtAmounts[0]);
-        _assertCollateralSeizure(borrowerCollateralBefore);
-        _assertLiquidatorRewards(liquidatorBalanceBefore);
-        _assertMarketAccounting(totalBorrowsBefore, debtAmounts[0]);
+        _assertDebtReduction(debtAmounts[0], expectedLiquidationValues.badDebt);
+        _assertCollateralSeizure(borrowerCollateralBefore, expectedLiquidationValues.collateralLiquidated);
+        _assertLiquidatorRewards(liquidatorBalanceBefore, expectedLiquidationValues.collateralLiquidated);
+        _assertMarketAccounting(totalBorrowsBefore, debtAmounts[0], expectedLiquidationValues.badDebt);
         // partial liquidation will not improve health factor
         // _assertHealthFactorImprovement(lFactorsPreLiquidation);
-        _assertBadDebtHandling();
+        _assertBadDebtHandling(expectedLiquidationValues.badDebt, expectedLiquidationValues.collateralRequired, borrowerCollateralBefore);
         _assertInvariants();
     }
 
-    function _assertDebtReduction(uint256 debtAmount) internal view {
+    function _assertDebtReduction(uint256 debtAmount, uint256 expectedBadDebt) internal view {
         uint256 debtAfter = borrowableCUSDC.debtBalance(user1);
 
         // bad debt expected
 
-        console2.log("debtAmount + expectedBadDebt", debtAmount + expectedBadDebt);
-        console2.log("debtBalancesPreLiquidation", debtBalancesPreLiquidation);
         console2.log("debtAfter", debtAfter);
+        console2.log("debtBalancePreLiquidation", debtBalancePreLiquidation);
+        console2.log("debtAmount", debtAmount);
+        console2.log("expectedBadDebt", expectedBadDebt);
 
-        uint256 expectedDebtAfter = debtBalancesPreLiquidation - (debtAmount + expectedBadDebt);
+        uint256 expectedDebtAfter = debtBalancePreLiquidation - (debtAmount + expectedBadDebt);
 
         console2.log("expectedBadDebt", expectedBadDebt);
 
@@ -138,7 +100,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         );
     }
 
-    function _assertCollateralSeizure(uint256 _collateralAmount) internal view {
+    function _assertCollateralSeizure(uint256 _collateralAmount, uint256 collateralLiquidated) internal view {
         uint256 borrowerCollateralAfter = strategyCBALRETH.balanceOf(user1);
         uint256 expectedBorrowerCollateralAfter = _collateralAmount - collateralLiquidated;
         
@@ -150,7 +112,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         );
     }
 
-    function _assertLiquidatorRewards(uint256 liquidatorBalanceBefore) internal view {
+    function _assertLiquidatorRewards(uint256 liquidatorBalanceBefore, uint256 collateralLiquidated) internal view {
         uint256 liquidatorBalanceAfter = strategyCBALRETH.balanceOf(user2);
         
         assertApproxEqAbs(
@@ -161,7 +123,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         );
     }
 
-    function _assertMarketAccounting(uint256 totalBorrowsBefore, uint256 debtAmount) internal view {
+    function _assertMarketAccounting(uint256 totalBorrowsBefore, uint256 debtAmount, uint256 expectedBadDebt) internal view {
         uint256 totalBorrowsAfter = borrowableCUSDC.marketOutstandingDebt();
         uint256 expectedTotalDebtReduction = debtAmount + expectedBadDebt;
         
@@ -173,7 +135,11 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         );
     }
 
-    function _assertBadDebtHandling() internal view {
+    function _assertBadDebtHandling(uint256 expectedBadDebt, uint256 collateralRequired, uint256 collateralAmounts) internal pure {
+        console2.log("expectedBadDebt", expectedBadDebt);
+        console2.log("collateralRequired", collateralRequired);
+        console2.log("collateralAmounts", collateralAmounts);
+
         if (expectedBadDebt > 0) {
             assertTrue(expectedBadDebt > 0, "Expected bad debt should be greater than 0 for hard liquidations");
             assertTrue(
@@ -193,7 +159,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         // Verify collateral exchange rate didn't change
         assertEq(
             strategyCBALRETH.exchangeRate(),
-            cTokenExchangeRate,
+            1e18,
             "Exchange rate should remain constant during liquidation"
         );
 
@@ -204,90 +170,5 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
             0.01e18,
             "USDC exchange rate should remain close to 1"
         );
-    }
-
-    function _getLFactorsPreLiquidation(address _borrower) internal view returns (uint256 lFactors) {
-        (lFactors,,) = marketManagerIsolated.liquidationStatusOf(
-            _borrower,
-            address(strategyCBALRETH),
-            address(borrowableCUSDC)
-        );
-        return lFactors;
-    }
-
-    function _getDebtBalancePreLiquidation(address _borrower) internal view returns (uint256 debtBalance) {
-        debtBalance = borrowableCUSDC.debtBalance(_borrower);
-    }
-
-    function _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
-        uint256 _debtAmount
-    ) internal view returns (
-        uint256 maxAmount,
-        uint256 collateralLiquidated,
-        uint256 collateralRequired
-    ) {
-
-        (uint256 lFactor,,) = marketManagerIsolated.liquidationStatusOf(
-            user1,
-            address(strategyCBALRETH),
-            address(borrowableCUSDC)
-        );
-        
-        uint256 debtBalance = borrowableCUSDC.debtBalance(user1);
-
-
-        
-        uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
-        uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
-        
-        uint256 debtToCollateralMultiplier = (((auctionLiqIncentive *
-            debtTokenPrice * WAD_SQUARED) /
-            (collateralTokenPrice * 1e18)) *
-            1e18) / 1e6;
-        
-        maxAmount = (auctionCFactor * debtBalance) / WAD_SQUARED;
-
-        collateralLiquidated = (_debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
-        
-        collateralRequired = (debtBalance * debtToCollateralMultiplier) / WAD;
-    }
-
-    function _calculateBadDebt(
-        uint256 _debtBalance,
-        uint256 _debtAmount,
-        uint256 _collateralAvailable,
-        uint256 _collateralRequired,
-        uint256 _collateralLiquidated,
-        uint256 _collateralTokenUnderlyingPrice,
-        uint256 _debtTokenUnderlyingPrice,
-        uint256 _cTokenExchangeRate
-    ) internal pure returns (uint256 badDebt) {
-        console2.log("BAD DEBT CALCULATION");
-        console2.log("_collateralRequired", _collateralRequired);
-        console2.log("_collateralAvailable", _collateralAvailable);
-        console2.log("_debtBalance", _debtBalance);
-        console2.log("_debtAmount", _debtAmount);
-        console2.log("_collateralLiquidated", _collateralLiquidated);
-        console2.log("_collateralTokenUnderlyingPrice", _collateralTokenUnderlyingPrice);
-        console2.log("_debtTokenUnderlyingPrice", _debtTokenUnderlyingPrice);
-        console2.log("_cTokenExchangeRate", _cTokenExchangeRate);
-
-        if(_collateralRequired > _collateralAvailable) {
-            uint256 amountToSubtract = 
-                FixedPointMathLib.mulDivUp(
-                    ((_collateralAvailable - _collateralLiquidated) * _cTokenExchangeRate) / WAD,
-                    _collateralTokenUnderlyingPrice,
-                    (_debtTokenUnderlyingPrice * WAD) / 1e6 
-                );
-
-            console2.log("amountToSubtract", amountToSubtract);
-            console2.log("(_debtBalance - _debtAmount)", (_debtBalance - _debtAmount));
-            
-            badDebt = (_debtBalance - _debtAmount) - amountToSubtract;
-        } else {
-            return 0;
-        }
-
-        
     }
 }
