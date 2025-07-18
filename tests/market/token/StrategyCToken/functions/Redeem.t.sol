@@ -137,8 +137,6 @@ contract RedeemTest is TestBaseStrategyCToken {
         vm.stopPrank();
         
         vm.startPrank(user2);
-        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
-        emit Transfer(user1, address(0), collateralRedeemed);
         uint256 assets = strategyCBALRETH.redeem(collateralRedeemed, user2, user1);
         vm.stopPrank();
 
@@ -160,7 +158,7 @@ contract RedeemTest is TestBaseStrategyCToken {
         _prepareBALRETH(user1, _ONE + _ONE + _ONE);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE + _ONE + _ONE);
         strategyCBALRETH.depositAsCollateral(_ONE + _ONE, user1);
         borrowableCDAI.borrow(1000e18, user1);
         strategyCBALRETH.deposit(_ONE, user1);

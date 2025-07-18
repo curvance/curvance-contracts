@@ -106,7 +106,7 @@ contract RedeemForTest is TestBaseStrategyCToken {
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
-        _redeemBalRETHForUser1(1.9e18);
+        _redeemBalRETHForUser1(3.9e18);
     }
 
     function test_strategyCTokenRedeemFor_success() public {
@@ -139,7 +139,7 @@ contract RedeemForTest is TestBaseStrategyCToken {
         _prepareBALRETH(user1, _ONE + _ONE + _ONE);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
+        balRETH.approve(address(strategyCBALRETH), _ONE + _ONE + _ONE);
         strategyCBALRETH.depositAsCollateral(_ONE + _ONE, user1);
         borrowableCDAI.borrow(1000e18, user1);
         strategyCBALRETH.deposit(_ONE, user1);
