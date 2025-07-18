@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
