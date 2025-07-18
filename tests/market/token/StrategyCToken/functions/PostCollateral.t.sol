@@ -26,8 +26,6 @@ contract PostCollateralTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenPostCollateral_fail_whenZeroAmount() public {
-        marketManagerIsolated.setBorrowPaused(address(strategyCBALRETH), true);
-
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
         _postBalRETHCollateral(0);
     }

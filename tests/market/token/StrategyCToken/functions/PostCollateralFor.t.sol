@@ -43,7 +43,6 @@ contract PostCollateralForTest is TestBaseStrategyCToken {
 
     function test_strategyCTokenPostCollateralFor_fail_whenZeroAmount() public {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-
         _postBalRETHCollateralForUser1(0);
     }
 

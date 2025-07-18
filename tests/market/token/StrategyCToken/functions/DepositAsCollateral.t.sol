@@ -41,8 +41,6 @@ contract DepositAsCollateralTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenDepositAsCollateral_fail_whenZeroAmount() public {
-        marketManagerIsolated.setBorrowPaused(address(strategyCBALRETH), true);
-
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
         _depositAndPostBalRETHCollateral(0);
     }

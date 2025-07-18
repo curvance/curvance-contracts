@@ -42,8 +42,6 @@ contract DepositAsCollateralTest is TestBaseBorrowableCToken {
     }
 
     function test_strategyCTokenDepositAsCollateral_fail_whenZeroAmount() public {
-        marketManagerIsolated.setBorrowPaused(address(borrowableCUSDC), true);
-
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
         _depositAndPostBorrowableCUSDCCollateral(0);
     }
