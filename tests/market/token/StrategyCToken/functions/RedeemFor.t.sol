@@ -127,11 +127,6 @@ contract RedeemForTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenRedeemFor_success_whenCollateralIsInUse() public {
-        uint256 underlyingBalance = balRETH.balanceOf(user1);
-        uint256 balance = strategyCBALRETH.balanceOf(user1);
-        uint256 totalSupply = strategyCBALRETH.totalSupply();
-        uint256 collateralRedeemed = 0.5e18;
-
         _prepareDAI(address(this), 2000e18);
         dai.approve(address(borrowableCDAI), 2000e18);
         borrowableCDAI.deposit(2000e18, address(this));
@@ -146,6 +141,11 @@ contract RedeemForTest is TestBaseStrategyCToken {
         vm.stopPrank();
 
         skip(20 minutes);
+
+        uint256 underlyingBalance = balRETH.balanceOf(user1);
+        uint256 balance = strategyCBALRETH.balanceOf(user1);
+        uint256 totalSupply = strategyCBALRETH.totalSupply();
+        uint256 collateralRedeemed = 0.5e18;
 
         vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
         emit Transfer(user1, address(0), collateralRedeemed);
