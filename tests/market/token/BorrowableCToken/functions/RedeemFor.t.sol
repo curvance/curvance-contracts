@@ -213,7 +213,48 @@ contract RedeemTest is TestBaseBorrowableCToken {
         assertEq(borrowableCDAI.totalSupply(), totalSupply - collateralRedeemed);
     }
 
-    function test_borrowableCTokenRedeemFor_success_whenCollateralIsInUse() public {
+    function test_borrowableCTokenRedeemFor_success_redeemNonCollateralWhenCollateralIsInUse() public {
+        uint256 newTokensDeposited = 500e18;
+        uint256 tokensRedeemed = 500e18;
+        uint256 collateralRedeemed = tokensRedeemed - newTokensDeposited; // This equals 0.
+
+        _prepareUSDC(address(this), 200e6);
+        usdc.approve(address(borrowableCUSDC), 200e6);
+        borrowableCUSDC.deposit(200e6, address(this));
+
+        _prepareDAI(user1, newTokensDeposited * 2);
+
+        vm.startPrank(user1);
+        dai.approve(address(borrowableCDAI), newTokensDeposited * 2);
+        borrowableCDAI.depositAsCollateral(newTokensDeposited, user1);
+        borrowableCUSDC.borrow(100e6, user1);
+        borrowableCDAI.deposit(newTokensDeposited, user1);
+        vm.stopPrank();
+
+        skip(20 minutes);
+
+        uint256 underlyingBalance = dai.balanceOf(user1);
+        uint256 balance = borrowableCDAI.balanceOf(user1);
+        uint256 totalSupply = borrowableCDAI.totalSupply();
+        uint256 collateral = borrowableCDAI.collateralPosted(user1);
+        uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
+
+        vm.expectEmit(true, true, true, true, address(borrowableCDAI));
+        emit Transfer(user1, address(0), tokensRedeemed);
+        uint256 assets = _redeemBorrowableCDaiForUser1(tokensRedeemed);
+
+        assertEq(dai.balanceOf(user1), underlyingBalance + assets);
+        assertEq(borrowableCDAI.balanceOf(user1), balance - tokensRedeemed);
+        assertEq(borrowableCDAI.totalSupply(), totalSupply - tokensRedeemed);
+        assertEq(borrowableCDAI.collateralPosted(user1), collateral - collateralRedeemed);
+        assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - collateralRedeemed);
+    }
+
+    function test_borrowableCTokenRedeemFor_success_redeemNonCollateralAndCollateralWhenCollateralIsInUse() public {
+        uint256 newTokensDeposited = 500e18;
+        uint256 tokensRedeemed = 600e18;
+        uint256 collateralRedeemed = tokensRedeemed - newTokensDeposited;
+
         _prepareUSDC(address(this), 200e6);
         usdc.approve(address(borrowableCUSDC), 200e6);
         borrowableCUSDC.deposit(200e6, address(this));
@@ -222,9 +263,9 @@ contract RedeemTest is TestBaseBorrowableCToken {
 
         vm.startPrank(user1);
         dai.approve(address(borrowableCDAI), 1000e18);
-        borrowableCDAI.depositAsCollateral(500e18, user1);
+        borrowableCDAI.depositAsCollateral(newTokensDeposited, user1);
         borrowableCUSDC.borrow(100e6, user1);
-        borrowableCDAI.deposit(500e18, user1);
+        borrowableCDAI.deposit(newTokensDeposited, user1);
         vm.stopPrank();
 
         skip(20 minutes);
@@ -232,15 +273,18 @@ contract RedeemTest is TestBaseBorrowableCToken {
         uint256 underlyingBalance = dai.balanceOf(user1);
         uint256 balance = borrowableCDAI.balanceOf(user1);
         uint256 totalSupply = borrowableCDAI.totalSupply();
-        uint256 collateralRedeemed = 0.5e18;
+        uint256 collateral = borrowableCDAI.collateralPosted(user1);
+        uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
 
         vm.expectEmit(true, true, true, true, address(borrowableCDAI));
-        emit Transfer(user1, address(0), collateralRedeemed);
-        uint256 assets = _redeemBorrowableCDaiForUser1(collateralRedeemed);
+        emit CollateralUpdated(user1, address(0), collateralRedeemed);
+        uint256 assets = _redeemBorrowableCDaiForUser1(tokensRedeemed);
 
         assertEq(dai.balanceOf(user1), underlyingBalance + assets);
-        assertEq(borrowableCDAI.balanceOf(user1), balance - collateralRedeemed);
-        assertEq(borrowableCDAI.totalSupply(), totalSupply - collateralRedeemed);
+        assertEq(borrowableCDAI.balanceOf(user1), balance - tokensRedeemed);
+        assertEq(borrowableCDAI.totalSupply(), totalSupply - tokensRedeemed);
+        assertEq(borrowableCDAI.collateralPosted(user1), collateral - collateralRedeemed);
+        assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - collateralRedeemed);
     }
 
     function _redeemBorrowableCDaiForUser1(uint256 shares) internal returns (uint256 assets) {
