@@ -16,6 +16,15 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 
+/// @dev KNOWN ISSUE - REWARD CALCULATION ROUNDING:
+///      Integer division in reward distribution causes small rounding differences.
+///      Example: User with 400 tokens out of 900 total should get 400/900 * 30000 = 13333.33
+///      tokens, but receives either 13333 or 13334 due to truncation. Over multiple periods,
+///      expected 40784 but actual 40785 (accumulated +1 rounding errors). These differences
+///      can lead to unfair distribution over time. Future iterations should implement
+///      improved precision handling or alternative distribution mechanisms.
+///
+
 /// @title Curvance Gauge Manager.
 /// @notice A market specific system for distributing rewards to Curvance
 ///        market users inside the Curvance Protocol.

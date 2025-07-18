@@ -12,7 +12,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract User {}
 
-contract TestGaugeManager is TestBaseMarketIsolated {
+contract TestGaugeManager_SingleGauge is TestBaseMarketIsolated {
     address public owner;
     address public collateralToken;
     address public borrowableToken;
@@ -329,107 +329,6 @@ contract TestGaugeManager is TestBaseMarketIsolated {
 
         vm.prank(users[0]);
         gaugeManager.claim(new address[](0), users[0]);
-    }
-
-    function testRewardRatioOfDifferentPools() public {
-
-        require(false, "update test to use multiple gauge tokens");
-
-        // // user0 deposit 100 borrowableToken
-        // vm.prank(users[0]);
-        // IBorrowableCToken(borrowableToken).deposit(100 ether, users[0]);
-
-        // // user2 deposit 100 borrowableToken
-        // vm.prank(users[2]);
-        // IBorrowableCToken(borrowableToken).deposit(100 ether, users[2]);
-
-        // vm.warp(gaugeManager.gaugeStartTime());
-        // _skipEpochDuration(1);
-        // vm.roll(block.number + 1000);
-
-        // // set gauge weights
-        // address[] memory tokensParam = new address[](1);
-        // tokensParam[0] = borrowableToken;
-        // uint256[] memory poolWeights = new uint256[](1);
-        // poolWeights[0] = 300 * 2 weeks;
-        
-        // vm.prank(address(messagingHub));
-        // gaugeManager.setEmissionRates(1, tokensParam, poolWeights);
-        // vm.prank(address(messagingHub));
-        // cve.mintGaugeEmissions(address(gaugeManager), 300 * 2 weeks);
-
-        // mockDaiFeed.setMockUpdatedAt(block.timestamp);
-
-        // // check pending rewards after 100 seconds
-        // vm.warp(block.timestamp + 100);
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[0]), 14999); // 50% of rewards
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[2]), 14999); // 50% of rewards
-
-        // // user1 deposit 400 borrowableToken
-        // vm.prank(users[1]);
-        // IBorrowableCToken(borrowableToken).deposit(400 ether, users[1]);
-
-        // // check pending rewards after 100 seconds
-        // vm.warp(block.timestamp + 100);
-
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[0]), 0); 
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[1]), 0); 
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[2]), 0); 
-
-        // // user0, user3 claims
-
-        // vm.prank(users[0]);
-        // gaugeManager.claim(_makeTokenArray(borrowableToken), users[0]);
-        // vm.prank(users[3]);
-        // gaugeManager.claim(_makeTokenArray(borrowableToken), users[3]);
-
-        // assertEq(cve.balanceOf(users[0]), 19999);
-        // assertEq(cve.balanceOf(users[3]), 19999);
-
-        // // check pending rewards after 100 seconds
-        // vm.warp(block.timestamp + 100);
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[0]), 0);
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[1]), 0);
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[2]), 0);
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[3]), 0);
-
-        // // user0 withdraw half
-        // vm.prank(users[0]);
-        // IBorrowableCToken(borrowableToken).redeem(50 ether, users[0], users[0]);
-
-        // // user2 deposit 2x
-        // vm.prank(users[2]);
-        // IBorrowableCToken(borrowableToken).deposit(100 ether, users[2]);
-
-        // // check pending rewards after 100 seconds
-        // vm.warp(block.timestamp + 100);
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[0]), 0);
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[1]), 0);
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[2]), 0);
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[3]), 0);
-
-        // // user0, user1, user2, user3 claims
-
-        // vm.prank(users[0]);
-        // gaugeManager.claim(_makeTokenArray(borrowableToken), users[0]);
-        // vm.prank(users[1]);
-        // gaugeManager.claim(_makeTokenArray(borrowableToken), users[1]);
-        // vm.prank(users[2]);
-        // gaugeManager.claim(_makeTokenArray(borrowableToken), users[2]);
-        // vm.prank(users[3]);
-        // gaugeManager.claim(_makeTokenArray(borrowableToken), users[3]);
-
-        // assertEq(cve.balanceOf(users[0]), 0);
-        // assertEq(cve.balanceOf(users[1]), 0);
-        // assertEq(cve.balanceOf(users[2]), 0);
-        // assertEq(cve.balanceOf(users[3]), 0);
-
-        // // check pending rewards after 100 seconds
-        // vm.warp(block.timestamp + 100);
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[0]), 0);
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[1]), 0);
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[2]), 0);
-        // assertEq(gaugeManager.pendingRewards(borrowableToken, users[3]), 0);
     }
 
     function testRewardCalculationWithDifferentEpoch() public {
@@ -892,71 +791,6 @@ contract TestGaugeManager is TestBaseMarketIsolated {
         gaugeManager.claim(listedTokens, users[3]);
 
         assertEq(cve.balanceOf(users[4]), 33333 + 13334);
-    }
-
-    function testZach_RevertOnSecondDeposit() public {
-        // set up emission rates and fund the gauge pool with cve
-        address cToken = collateralToken;
-        address[] memory tokensParam = new address[](1);
-        tokensParam[0] = cToken;
-        uint256[] memory poolWeights = new uint256[](1);
-        poolWeights[0] = 1e18;
-        vm.prank(address(messagingHub));
-        gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
-        _prepareCVE(address(gaugeManager), 1e18);
-
-        vm.startPrank(cToken);
-
-        // make a deposit before start time
-        gaugeManager.deposit(cToken, address(this), 100 ether);
-
-        // make a withdrawal before start time
-        gaugeManager.withdraw(cToken, address(this), 100 ether);
-
-        // fast forward to after start time
-        vm.warp(gaugeManager.gaugeStartTime() + 2 weeks);
-
-        // make a deposit after start time
-        gaugeManager.deposit(cToken, address(this), 100 ether);
-
-        // make a withdrawal after start time
-        gaugeManager.withdraw(cToken, address(this), 100 ether);
-
-        vm.stopPrank();
-    }
-
-    function testZach_ZeroCollRatio() public {
-        require(false, "not sure if we need this test because we already configure the collateral factor to 0 in setUp()");
-        _prepareBALRETH(address(this), 1 ether);
-
-
-        // set up emission rates and fund the gauge pool with cve
-        address[] memory tokensParam = new address[](1);
-        tokensParam[0] = address(strategyCBALRETH);
-        uint256[] memory poolWeights = new uint256[](1);
-        poolWeights[0] = 1e18;
-        vm.prank(address(messagingHub));
-        gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
-        _prepareCVE(address(gaugeManager), 1e18);
-
-        vm.startPrank(address(strategyCBALRETH));
-
-        // make a deposit before start time
-        gaugeManager.deposit(address(strategyCBALRETH), address(this), 1 ether);
-
-        // make a withdrawal before start time
-        gaugeManager.withdraw(address(strategyCBALRETH), address(this), 1 ether);
-
-        // fast forward to after start time
-        vm.warp(gaugeManager.gaugeStartTime() + 2 weeks);
-
-        // make a deposit after start time
-        gaugeManager.deposit(address(strategyCBALRETH), address(this), 1 ether);
-
-        // make a withdrawal after start time
-        gaugeManager.withdraw(address(strategyCBALRETH), address(this), 1 ether);
-
-        vm.stopPrank();
     }
 
     function testRedeemRevertInvalidAmount() public {
