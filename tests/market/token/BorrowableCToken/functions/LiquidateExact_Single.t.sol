@@ -239,12 +239,6 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         
         uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
         uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
-
-        console2.log("calculating highPrecisionD2C");
-        console2.log("auctionLiqIncentive", auctionLiqIncentive);
-        console2.log("debtTokenPrice", debtTokenPrice);
-        console2.log("collateralTokenPrice", collateralTokenPrice);
-        console2.log("cTokenExchangeRate", cTokenExchangeRate);
         
         uint256 debtToCollateralMultiplier = (((auctionLiqIncentive *
             debtTokenPrice * WAD_SQUARED) /
