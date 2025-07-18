@@ -8,7 +8,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { WAD } from "contracts/libraries/Constants.sol";
 import "forge-std/console2.sol";
 
-// TODO: canLiquidate is no longer callable by anyone!
+// NOTE: Test also uses canLiquidate for extra accounting checks
 
 contract LiquidateSingleTest is TestBaseBorrowableCToken {
 
@@ -49,7 +49,18 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
             instructions
         );
 
-        uint256 expectedRepayAmount = _calculateExpectedRepayAmountNotExact(user1);
+        ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: user1,
+                collateralToken: address(strategyCBALRETH),
+                borrowedToken: address(borrowableCUSDC),
+                isLiquidateExact: false,
+                liquidateExactAmount: 0,
+                isAuction: false,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            })
+        );
 
         // Hard liquidation, should have lost all collateral
         assertEq(results.liquidatedShares[0], _ONE - 1, "Liquidated amount mismatch");
@@ -59,20 +70,13 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         );
         vm.stopPrank();
 
-        console2.log("borrowableCUSDC.debtBalance(user1)", borrowableCUSDC.debtBalance(user1));
-        console2.log("borrowableCUSDC.exchangeRate()", borrowableCUSDC.exchangeRate());
-        console2.log("Debt amount returned", debtAmountReturned[0]);
-        console2.log("LiqResults.liquidatedShares[0]", results.liquidatedShares[0]);
-        console2.log("LiqResults.debtRepaid", results.debtRepaid);
-        console2.log("LiqResults.badDebtRealized", results.badDebtRealized);
-
         // Hard liquidation, should have lost all collateral
         assertEq(
             strategyCBALRETH.balanceOf(user1),
             1, "Borrower strategyCBALRETH balance mismatch"
         );
 
-        assertEq(expectedRepayAmount, results.debtRepaid, "Debt repaid mismatch");
+        assertEq(expectedLiquidationValues.debtRepaid, results.debtRepaid, "Debt repaid mismatch");
 
         assertEq(borrowableCUSDC.debtBalance(user1), 0, "eUSDC debt balance mismatch");
         assertEq(strategyCBALRETH.exchangeRate(), _ONE, "strategyCBALRETH exchange rate mismatch");
@@ -112,56 +116,6 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         mockRethFeed.setMockAnswer(1000e8);
 
         _prepareUSDC(user2, 250e6);
-    }
-
-    // Helper function to calculate debtToCollateralMultiplier
-    function calculateDebtToCollateralMultiplier(
-        uint256 auctionLiqIncentive,
-        uint256 debtTokenPrice,
-        uint256 collateralTokenPrice
-    ) internal view returns (uint256) {
-        uint256 exchangeRate = strategyCBALRETH.exchangeRate();
-        return (((auctionLiqIncentive * debtTokenPrice * WAD) / (collateralTokenPrice * exchangeRate)) * 10 ** 18) / 10 ** 6;
-    }
-
-    // Helper function to calculate debtAmount with collateral adjustment
-    function calculateDebtAmount(
-        address user,
-        uint256 maxAmount,
-        uint256 debtToCollateralMultiplier
-    ) internal view returns (uint256) {
-        (, , uint256 collateralAvailable) = auxiliaryData.tokenDataOf(user, address(strategyCBALRETH));
-        uint256 debtAmount = maxAmount;
-        uint256 liquidatedShares = (debtAmount * debtToCollateralMultiplier) / WAD;
-        if (liquidatedShares > collateralAvailable) {
-            debtAmount = FixedPointMathLib.mulDivUp(collateralAvailable, WAD, debtToCollateralMultiplier);
-        }
-        return debtAmount;
-    }
-
-    // Main function refactored to avoid stack too deep
-    function _calculateExpectedRepayAmountNotExact(address user) internal view returns (uint256) {
-        (,,,, uint256 liqBaseIncentive, uint256 liqCurve,,,,, uint256 baseCFactor, uint256 cFactorCurve) = 
-            marketManagerIsolated.tokenData(address(strategyCBALRETH));
-        
-        (uint256 lFactor, uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(user, address(strategyCBALRETH), address(borrowableCUSDC));
-
-        uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
-        uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
-        
-        // Calculate debt-to-collateral multiplier using helper function
-        uint256 debtToCollateralMultiplier = calculateDebtToCollateralMultiplier(
-            auctionLiqIncentive,
-            debtTokenPrice,
-            collateralTokenPrice
-        );
-        
-        uint256 maxAmount = (auctionCFactor * borrowableCUSDC.debtBalance(user)) / WAD;
-        
-        uint256 debtAmount = calculateDebtAmount(user, maxAmount, debtToCollateralMultiplier);
-        
-        return debtAmount;
     }
 
 
