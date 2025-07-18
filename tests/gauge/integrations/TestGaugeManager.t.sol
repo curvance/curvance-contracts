@@ -925,40 +925,6 @@ contract TestGaugeManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testZach_ZeroCollRatio() public {
-        require(false, "not sure if we need this test because we already configure the collateral factor to 0 in setUp()");
-        _prepareBALRETH(address(this), 1 ether);
-
-
-        // set up emission rates and fund the gauge pool with cve
-        address[] memory tokensParam = new address[](1);
-        tokensParam[0] = address(strategyCBALRETH);
-        uint256[] memory poolWeights = new uint256[](1);
-        poolWeights[0] = 1e18;
-        vm.prank(address(messagingHub));
-        gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
-        _prepareCVE(address(gaugeManager), 1e18);
-
-        vm.startPrank(address(strategyCBALRETH));
-
-        // make a deposit before start time
-        gaugeManager.deposit(address(strategyCBALRETH), address(this), 1 ether);
-
-        // make a withdrawal before start time
-        gaugeManager.withdraw(address(strategyCBALRETH), address(this), 1 ether);
-
-        // fast forward to after start time
-        vm.warp(gaugeManager.gaugeStartTime() + 2 weeks);
-
-        // make a deposit after start time
-        gaugeManager.deposit(address(strategyCBALRETH), address(this), 1 ether);
-
-        // make a withdrawal after start time
-        gaugeManager.withdraw(address(strategyCBALRETH), address(this), 1 ether);
-
-        vm.stopPrank();
-    }
-
     function testRedeemRevertInvalidAmount() public {
         // user0 deposit 100 collateralToken
         vm.prank(users[0]);

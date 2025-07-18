@@ -158,7 +158,7 @@ contract RemoveCollateralForTest is TestBaseBorrowableCToken {
         assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral - newCollateral);
     }
 
-    function _removeBorrowableCDAICollateralForUser1ForUser1(uint256 shares) internal {
+    function _removeBorrowableCDAICollateralForUser1(uint256 shares) internal {
         vm.startPrank(user2);
         borrowableCDAI.removeCollateralFor(shares, user1);
         vm.stopPrank();
