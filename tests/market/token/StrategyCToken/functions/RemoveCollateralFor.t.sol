@@ -57,13 +57,7 @@ contract RemoveCollateralForTest is TestBaseStrategyCToken {
         dai.approve(address(borrowableCDAI), 2000e18);
         borrowableCDAI.deposit(2000e18, address(this));
 
-        _prepareBALRETH(user1, _ONE + _ONE);
-
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
-        strategyCBALRETH.deposit(_ONE + _ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE);
-        
         borrowableCDAI.borrow(1000e18, user1);
         vm.stopPrank();
 
@@ -73,7 +67,7 @@ contract RemoveCollateralForTest is TestBaseStrategyCToken {
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
-        _removeBalRETHCollateralForUser1(1.5e18);
+        _removeBalRETHCollateralForUser1(1.9e18);
     }
 
     function test_strategyCTokenRemoveCollateralFor_success() public {

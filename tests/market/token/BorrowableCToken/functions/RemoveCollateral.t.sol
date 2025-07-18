@@ -140,6 +140,8 @@ contract RemoveCollateralTest is TestBaseBorrowableCToken {
         uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
         uint256 newCollateral = _ONE;
 
+        skip(20 minutes);
+
         vm.expectEmit(true, true, true, true, address(borrowableCDAI));
         emit CollateralUpdated(newCollateral, false, user1);
 
