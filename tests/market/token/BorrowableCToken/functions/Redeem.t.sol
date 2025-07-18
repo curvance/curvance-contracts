@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract RedeemTest is TestBaseBorrowableCToken {
@@ -90,7 +91,7 @@ contract RedeemTest is TestBaseBorrowableCToken {
         vm.stopPrank();
     }
 
-    function test_strategyCTokenRedeem_fail_whenTransferIsDisabled() public {
+    function test_borrowableCTokenRedeem_fail_whenTransferIsDisabled() public {
         skip(20 minutes);
 
         vm.startPrank(user1);
@@ -101,7 +102,7 @@ contract RedeemTest is TestBaseBorrowableCToken {
         _redeemBorrowableCDai(_ONE);
     }
 
-    function test_strategyCTokenRedeem_fail_whenUser2Unauthorized() public {
+    function test_borrowableCTokenRedeem_fail_whenUser2Unauthorized() public {
         skip(20 minutes);
 
         vm.expectRevert(ERC20.InsufficientAllowance.selector);
@@ -111,7 +112,7 @@ contract RedeemTest is TestBaseBorrowableCToken {
         vm.stopPrank();
     }
 
-    function test_strategyCTokenRedeem_fail_whenCooldownIsNotEnded() public {
+    function test_borrowableCTokenRedeem_fail_whenCooldownIsNotEnded() public {
         skip(20 minutes);
 
         vm.startPrank(user1);
@@ -124,7 +125,7 @@ contract RedeemTest is TestBaseBorrowableCToken {
         _redeemBorrowableCDai(_ONE);
     }
 
-    function test_strategyCTokenRedeem_fail_whenAmountIsZero() public {
+    function test_borrowableCTokenRedeem_fail_whenAmountIsZero() public {
         skip(20 minutes);
 
         vm.expectRevert(
@@ -134,14 +135,14 @@ contract RedeemTest is TestBaseBorrowableCToken {
         _redeemBorrowableCDai(0);
     }
 
-    function test_strategyCTokenRedeem_fail_whenRedeemAmountExceedsCTokens() public {
+    function test_borrowableCTokenRedeem_fail_whenRedeemAmountExceedsCTokens() public {
         skip(20 minutes);
 
         vm.expectRevert(BaseCToken.BaseCToken__InsufficientLiquidity.selector);
         _redeemBorrowableCDai(10e18);
     }
 
-    function test_strategyCTokenRedeem_fail_whenCooldownActive() public {
+    function test_borrowableCTokenRedeem_fail_whenCooldownActive() public {
         _prepareDAI(user1, _ONE + _ONE);
 
         vm.startPrank(user1);
@@ -156,7 +157,7 @@ contract RedeemTest is TestBaseBorrowableCToken {
         _redeemBorrowableCDai(_ONE);
     }
 
-    function test_strategyCTokenRedeem_fail_whenCollateralIsRequired() public {
+    function test_borrowableCTokenRedeem_fail_whenCollateralIsRequired() public {
         _prepareDAI(address(this), 2000e18);
         dai.approve(address(borrowableCDAI), 2000e18);
         borrowableCDAI.deposit(2000e18, address(this));
@@ -178,7 +179,7 @@ contract RedeemTest is TestBaseBorrowableCToken {
         _redeemBorrowableCDai(3.9e18);
     }
 
-    function test_strategyCTokenRedeem_success() public {
+    function test_borrowableCTokenRedeem_success() public {
         skip(20 minutes);
 
         uint256 underlyingBalance = dai.balanceOf(user1);
@@ -195,7 +196,7 @@ contract RedeemTest is TestBaseBorrowableCToken {
         assertEq(borrowableCDAI.totalSupply(), totalSupply - collateralRedeemed);
     }
 
-    function test_strategyCTokenRedeem_success_User2WithApproval() public {
+    function test_borrowableCTokenRedeem_success_User2WithApproval() public {
         skip(20 minutes);
 
         uint256 underlyingBalance = dai.balanceOf(user1);
@@ -216,7 +217,7 @@ contract RedeemTest is TestBaseBorrowableCToken {
         assertEq(borrowableCDAI.totalSupply(), totalSupply - collateralRedeemed);
     }
 
-    function test_strategyCTokenRedeem_success_whenCollateralIsInUse() public {
+    function test_borrowableCTokenRedeem_success_whenCollateralIsInUse() public {
         _prepareDAI(address(this), 2000e18);
         dai.approve(address(borrowableCDAI), 2000e18);
         borrowableCDAI.deposit(2000e18, address(this));
