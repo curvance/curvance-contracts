@@ -8,6 +8,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 
 contract RedeemTest is TestBaseStrategyCToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
+    event CollateralUpdated(uint256 shares, bool increased, address account);
 
     function setUp() public override {
         super.setUp();
@@ -209,7 +210,7 @@ contract RedeemTest is TestBaseStrategyCToken {
         uint256 totalCollateral = strategyCBALRETH.marketCollateralPosted();
 
         vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
-        emit Transfer(user1, address(0), collateralRedeemed);
+        emit CollateralUpdated(user1, address(0), collateralRedeemed);
         uint256 assets = _redeemBalRETH(tokensRedeemed);
 
         assertEq(balRETH.balanceOf(user1), underlyingBalance + assets);

@@ -8,6 +8,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 
 contract RedeemForTest is TestBaseStrategyCToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
+    event CollateralUpdated(uint256 shares, bool increased, address account);
 
     function setUp() public override {
         super.setUp();

@@ -10,6 +10,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 
 contract RedeemTest is TestBaseBorrowableCToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
+    event CollateralUpdated(uint256 shares, bool increased, address account);
 
     MockDataFeed public mockDaiFeed;
 
