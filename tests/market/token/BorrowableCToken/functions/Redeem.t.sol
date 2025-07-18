@@ -158,16 +158,17 @@ contract RedeemTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenRedeem_fail_whenCollateralIsRequired() public {
-        _prepareDAI(address(this), 2000e18);
-        dai.approve(address(borrowableCDAI), 2000e18);
-        borrowableCDAI.deposit(2000e18, address(this));
+        _prepareUSDC(address(this), 200e6);
+        usdc.approve(address(borrowableCUSDC), 200e6);
+        borrowableCUSDC.deposit(200e6, address(this));
 
-        _prepareDAI(user1, _ONE + _ONE);
+        _prepareDAI(user1, 1000e18);
 
         vm.startPrank(user1);
-        dai.approve(address(borrowableCDAI), _ONE + _ONE);
-        borrowableCDAI.depositAsCollateral(_ONE + _ONE, user1);
-        borrowableCDAI.borrow(1000e18, user1);
+        dai.approve(address(borrowableCDAI), 1000e18);
+        borrowableCDAI.depositAsCollateral(500e18, user1);
+        borrowableCUSDC.borrow(100e6, user1);
+        borrowableCDAI.deposit(500e18, user1);
         vm.stopPrank();
 
         skip(20 minutes);
@@ -176,7 +177,7 @@ contract RedeemTest is TestBaseBorrowableCToken {
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
-        _redeemBorrowableCDai(3.9e18);
+        _redeemBorrowableCDai(1000e18);
     }
 
     function test_borrowableCTokenRedeem_success() public {
@@ -218,17 +219,17 @@ contract RedeemTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenRedeem_success_whenCollateralIsInUse() public {
-        _prepareDAI(address(this), 2000e18);
-        dai.approve(address(borrowableCDAI), 2000e18);
-        borrowableCDAI.deposit(2000e18, address(this));
+        _prepareUSDC(address(this), 200e6);
+        usdc.approve(address(borrowableCUSDC), 200e6);
+        borrowableCUSDC.deposit(200e6, address(this));
 
-        _prepareDAI(user1, _ONE + _ONE + _ONE);
+        _prepareDAI(user1, 1000e18);
 
         vm.startPrank(user1);
-        dai.approve(address(borrowableCDAI), _ONE + _ONE + _ONE);
-        borrowableCDAI.depositAsCollateral(_ONE + _ONE, user1);
-        borrowableCDAI.borrow(1000e18, user1);
-        borrowableCDAI.deposit(_ONE, user1);
+        dai.approve(address(borrowableCDAI), 1000e18);
+        borrowableCDAI.depositAsCollateral(500e18, user1);
+        borrowableCUSDC.borrow(100e6, user1);
+        borrowableCDAI.deposit(500e18, user1);
         vm.stopPrank();
 
         skip(20 minutes);
