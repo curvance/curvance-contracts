@@ -1663,6 +1663,10 @@ contract MarketManagerIsolated is
         cachedData.debtToken = debtToken;
         cachedData.debtDecimals = 10 ** IERC20(debtToken).decimals();
 
+        // This will revert if it is an Atlas tx and a liquidator is trying to liquidate
+        // on a market they have not placed a bid specifically for.
+        _checkMarketUnlocked();
+
         // Will revert if during auction transaction and liquidator has chosen
         // incorrect collateral.
         cachedData.auctionBuffer = _checkCollateralUnlocked(collateralToken);
@@ -1835,6 +1839,12 @@ contract MarketManagerIsolated is
         returns (ICentralRegistry)
     {
         return centralRegistry;
+    }
+
+    /// @notice Will revert and block liquidations of markets that are not
+    ///         currently allowed by Auction, only if this is an Auction tx.
+    function _checkMarketUnlocked() internal view {
+        centralRegistry.isMarketUnlocked();
     }
 
     /// @notice Will revert and block liquidations of collateral that are not

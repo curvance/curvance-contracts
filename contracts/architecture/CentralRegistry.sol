@@ -157,6 +157,11 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Protocol slippage limit for safe swap.
     uint256 public slippageLimit = 1000 * 1e14;
 
+    // ATLAS PARAMETER
+    // Controls which markets Atlas liquidators can act on
+    bytes32 internal constant _TRANSIENT_MARKET_UNLOCKED_KEY
+        = 0x3456789012345678901234567890123456789012345678901234567890123457;
+
     // CROSSCHAIN CONFIGURATION DATA
 
     /// @notice Address of Crosschain Core contract on this chain.
@@ -1254,6 +1259,42 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         _removeForeignChainId(chainId);
         emit RemovedChain(chainId, expectedMessagingHub, expectedVotingHub);
+    }
+
+    /// ATLAS LOGIC
+
+    // Allows Atlas to control which individual markets are open for liquidation
+    function unlockAuctionForMarket(address marketToUnlock) external {
+        // TODO: decide how to implement this check
+        // _checkAuctionPermissions();
+
+        uint256 collateralToUnlockUint = uint256(uint160(marketToUnlock));
+        /// @solidity memory-safe-assembly
+        assembly {
+            tstore(_TRANSIENT_MARKET_UNLOCKED_KEY, marketToUnlock)
+        }
+    }
+
+    // called during _getLiquidationConfig() to enforce Atlas liquidators only
+    // liquidate on the market they have placed a specific liquidation bonus for.
+    function isMarketUnlocked() public view {
+        uint256 result;
+        /// @solidity memory-safe-assembly
+        assembly {
+            result := tload(_TRANSIENT_MARKET_UNLOCKED_KEY)
+        }
+
+        // CASE: This is not an Auction tx, so allow all markets,
+        // and return no buffer. 
+        if (result == 0) {
+            return;
+        }
+
+        // called by MarketManagerIsolated during liquidation.
+        uint256 marketCalling = uint256(uint160(msg.sender));
+
+        // Market Manager calling this function needs to have been unlocked by Atlas.
+        require(result == marketCalling);
     }
 
     /// CONTRACT MAPPING LOGIC

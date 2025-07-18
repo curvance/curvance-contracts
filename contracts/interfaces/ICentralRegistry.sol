@@ -220,6 +220,9 @@ interface ICentralRegistry {
         uint256 era
     ) external view returns (uint256);
 
+    /// @notice Checks if a market is unlocked for auction operations.
+    function isMarketUnlocked() external view;
+
     /// @notice Sets the amount of token rewards allocated on this chain,
     ///         for an epoch.
     /// @dev Only callable by the Voting Hub.
