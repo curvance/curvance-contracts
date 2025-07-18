@@ -9,8 +9,79 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 contract RedeemCollateralTest is TestBaseBorrowableCToken {
     event CollateralUpdated(uint256 shares, bool increased, address account);
 
+    MockDataFeed public mockDaiFeed;
+
     function setUp() public override {
-        super.setUp();
+        _fork(18031848);
+
+        _init();
+
+        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            address(mockUsdcFeed),
+            0,
+            true
+        );
+        dualChainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            address(mockUsdcFeed),
+            0,
+            true
+        );
+        mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
+        chainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            address(mockDaiFeed),
+            0,
+            true
+        );
+        dualChainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            address(mockDaiFeed),
+            0,
+            true
+        );
+
+        vm.warp(gaugeManager.gaugeStartTime());
+        vm.roll(block.number + 1000);
+
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
+
+        oracleManager.addCTokenSupport(address(borrowableCDAI));
+
+        _prepareUSDC(address(this), _ONE + 77777);
+        _prepareDAI(address(this), 10e18 + 77777);
+        
+        usdc.approve(address(borrowableCUSDC), _ONE + 77777);
+        dai.approve(address(borrowableCDAI), 10e18 + 77777);
+
+        marketManagerIsolated.listTokens(address(borrowableCDAI), address(borrowableCUSDC));
+
+        MarketManagerIsolated.TokenConfig memory cTokenConfig;
+        cTokenConfig.cToken = address(borrowableCDAI);
+        cTokenConfig.collRatio = 7000;
+        cTokenConfig.collReqSoft = 4000;
+        cTokenConfig.collReqHard = 3000;
+        cTokenConfig.liqIncBase = 1000;
+        cTokenConfig.liqIncHard = 1500;
+        cTokenConfig.liqIncMin = 500;
+        cTokenConfig.liqIncMax = 2000;
+        cTokenConfig.minEffectiveCloseFactor = 2000;
+        cTokenConfig.maxEffectiveCloseFactor = 3000;
+        cTokenConfig.baseCFactor = 1000;
+        cTokenConfig.collateralCap = 100_000e18;
+        cTokenConfig.debtCap = 100_000e18;
+
+        marketManagerIsolated.updateTokenConfig(cTokenConfig);
+
+        cTokenConfig.cToken = address(borrowableCUSDC);
+        cTokenConfig.debtCap = 100_000e6;
+        marketManagerIsolated.updateTokenConfig(cTokenConfig);
+
+        borrowableCDAI.mint(_ONE, address(this));
+
         _prepareDAI(user1, 2000e18);
 
         vm.startPrank(user1);
