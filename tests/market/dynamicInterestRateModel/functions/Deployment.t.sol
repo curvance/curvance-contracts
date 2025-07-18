@@ -49,6 +49,46 @@ contract DynamicInterestRateModelDeploymentTest is
         );
     }
 
+    function test_dynamicInterestRateModelDeployment_fail_whenBaseInterestRateExceedsMaximum()
+        public
+    {
+        vm.expectRevert(
+            DynamicInterestRateModel
+                .DynamicInterestRateModel__InvalidInterestRatePerYear
+                .selector
+        );
+        new DynamicInterestRateModel(
+            ICentralRegistry(address(centralRegistry)),
+            15001,
+            1000,
+            5000,
+            12 hours,
+            5000,
+            100000000,
+            100
+        );
+    }
+
+    function test_dynamicInterestRateModelDeployment_fail_whenVertexInterestRateExceedsMaximum()
+        public
+    {
+        vm.expectRevert(
+            DynamicInterestRateModel
+                .DynamicInterestRateModel__InvalidInterestRatePerYear
+                .selector
+        );
+        new DynamicInterestRateModel(
+            ICentralRegistry(address(centralRegistry)),
+            1000,
+            20001,
+            5000,
+            12 hours,
+            5000,
+            100000000,
+            100
+        );
+    }
+
     function test_dynamicInterestRateModelDeployment_fail_whenAdjustmentVelocityIsBelowMinimum()
         public
     {
