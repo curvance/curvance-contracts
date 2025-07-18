@@ -19,7 +19,7 @@ contract WithdrawCollateralTest is TestBaseStrategyCToken {
         vm.stopPrank();
     }
 
-    function test_strategyCTokenRedeemCollateral_fail_whenTransferIsDisabled() public {
+    function test_strategyCTokenWithdrawCollateral_fail_whenTransferIsDisabled() public {
         skip(20 minutes);
 
         vm.startPrank(user1);
@@ -30,7 +30,7 @@ contract WithdrawCollateralTest is TestBaseStrategyCToken {
         _withdrawCollateralBalRETH(_ONE);
     }
 
-    function test_strategyCTokenRedeemCollateral_fail_whenUser2Unauthorized() public {
+    function test_strategyCTokenWithdrawCollateral_fail_whenUser2Unauthorized() public {
         skip(20 minutes);
 
         vm.expectRevert(ERC20.InsufficientAllowance.selector);
@@ -40,7 +40,7 @@ contract WithdrawCollateralTest is TestBaseStrategyCToken {
         vm.stopPrank();
     }
 
-    function test_strategyCTokenRedeemCollateral_fail_whenCooldownIsNotEnded() public {
+    function test_strategyCTokenWithdrawCollateral_fail_whenCooldownIsNotEnded() public {
         skip(20 minutes);
 
         vm.startPrank(user1);
@@ -53,7 +53,7 @@ contract WithdrawCollateralTest is TestBaseStrategyCToken {
         _withdrawCollateralBalRETH(_ONE);
     }
 
-    function test_strategyCTokenRedeemCollateral_fail_whenAmountIsZero() public {
+    function test_strategyCTokenWithdrawCollateral_fail_whenAmountIsZero() public {
         skip(20 minutes);
 
         vm.expectRevert(
@@ -63,14 +63,14 @@ contract WithdrawCollateralTest is TestBaseStrategyCToken {
         _withdrawCollateralBalRETH(0);
     }
 
-    function test_strategyCTokenRedeemCollateral_fail_whenRedeemAmountExceedsCTokens() public {
+    function test_strategyCTokenWithdrawCollateral_fail_whenRedeemAmountExceedsCTokens() public {
         skip(20 minutes);
 
         vm.expectRevert(BaseCToken.BaseCToken__InsufficientLiquidity.selector);
         _withdrawCollateralBalRETH(10e18);
     }
 
-    function test_strategyCTokenRedeemCollateral_fail_whenCooldownActive() public {
+    function test_strategyCTokenWithdrawCollateral_fail_whenCooldownActive() public {
         _prepareBALRETH(user1, _ONE + _ONE);
 
         vm.startPrank(user1);
@@ -85,7 +85,7 @@ contract WithdrawCollateralTest is TestBaseStrategyCToken {
         _withdrawCollateralBalRETH(_ONE);
     }
 
-    function test_strategyCTokenRedeemCollateral_fail_whenCollateralIsRequired() public {
+    function test_strategyCTokenWithdrawCollateral_fail_whenCollateralIsRequired() public {
         _prepareDAI(address(this), 2000e18);
         dai.approve(address(borrowableCDAI), 2000e18);
         borrowableCDAI.deposit(2000e18, address(this));
@@ -107,7 +107,7 @@ contract WithdrawCollateralTest is TestBaseStrategyCToken {
         _withdrawCollateralBalRETH(3.9e18);
     }
 
-    function test_strategyCTokenRedeemCollateral_success() public {
+    function test_strategyCTokenWithdrawCollateral_success() public {
         skip(20 minutes);
 
         uint256 underlyingBalance = balRETH.balanceOf(user1);
@@ -124,7 +124,7 @@ contract WithdrawCollateralTest is TestBaseStrategyCToken {
         assertEq(strategyCBALRETH.totalSupply(), totalSupply - collateralRedeemed);
     }
 
-    function test_strategyCTokenRedeemCollateral_success_User2WithApproval() public {
+    function test_strategyCTokenWithdrawCollateral_success_User2WithApproval() public {
         skip(20 minutes);
 
         uint256 underlyingBalance = balRETH.balanceOf(user1);
@@ -145,7 +145,7 @@ contract WithdrawCollateralTest is TestBaseStrategyCToken {
         assertEq(strategyCBALRETH.totalSupply(), totalSupply - collateralRedeemed);
     }
 
-    function test_strategyCTokenRedeemCollateral_success_whenCollateralIsInUse() public {
+    function test_strategyCTokenWithdrawCollateral_success_whenCollateralIsInUse() public {
         uint256 newTokensDeposited = 2e18;
         uint256 tokensRedeemed = 1e18;
 
@@ -181,7 +181,7 @@ contract WithdrawCollateralTest is TestBaseStrategyCToken {
         assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - tokensRedeemed);
     }
 
-    function test_strategyCTokenRedeemCollateral_success_whenCollateralNotIsInUse() public {
+    function test_strategyCTokenWithdrawCollateral_success_whenCollateralNotIsInUse() public {
         uint256 newTokensDeposited = 2e18;
         uint256 collateralRedeemed = newTokensDeposited * 2;
 
@@ -212,9 +212,9 @@ contract WithdrawCollateralTest is TestBaseStrategyCToken {
         assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - collateralRedeemed);
     }
 
-    function _withdrawCollateralBalRETH(uint256 shares) internal returns (uint256 assets) {
+    function _withdrawCollateralBalRETH(uint256 assets) internal returns (uint256 shares) {
         vm.startPrank(user1);
-        assets = strategyCBALRETH.withdrawCollateral(shares, user1, user1);
+        shares = strategyCBALRETH.withdrawCollateral(assets, user1, user1);
         vm.stopPrank();
     }
 }
