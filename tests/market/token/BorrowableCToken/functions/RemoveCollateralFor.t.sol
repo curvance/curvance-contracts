@@ -90,25 +90,33 @@ contract RemoveCollateralForTest is TestBaseBorrowableCToken {
         borrowableCDAI.depositAsCollateral(_ONE + _ONE, user1);
 
         // Approve delegated collateral removal for `user1` by `user2`.
-        strategyCBALRETH.setDelegateApproval(user2, true);
+        borrowableCDAI.setDelegateApproval(user2, true);
         vm.stopPrank();
     }
 
-    function test_strategyCTokenRemoveCollateralFor_fail_whenNotDelegated() public {
+    function test_borrowableCTokenRemoveCollateralFor_fail_whenNotDelegated() public {
         vm.startPrank(user1);
-        strategyCBALRETH.setDelegateApproval(user2, false);
+        borrowableCDAI.setDelegateApproval(user2, false);
         vm.stopPrank();
 
         vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
         _removeBorrowableCDAICollateralForUser1(0.1e18);
     }
 
-    function test_borrowableCTokenRemoveCollateral_fail_whenZeroAmount() public {
+    function test_borrowableCTokenRemoveCollateralFor_fail_whenZeroAmount() public {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
         _removeBorrowableCDAICollateralForUser1(0);
     }
 
-    function test_borrowableCTokenRemoveCollateral_fail_whenCollateralAmountExceedsCTokens() public {
+    function test_borrowableCTokenRemoveCollateralFor_fail_whenCooldownActive() public {
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
+        );
+
+        _removeBorrowableCDAICollateralForUser1(_ONE);
+    }
+
+    function test_borrowableCTokenRemoveCollateralFor_fail_whenCollateralAmountExceedsCTokens() public {
         vm.expectRevert(
             BaseCToken.BaseCToken__InsufficientLiquidity.selector
         );
@@ -116,7 +124,7 @@ contract RemoveCollateralForTest is TestBaseBorrowableCToken {
         _removeBorrowableCDAICollateralForUser1(10e18);
     }
 
-    function test_borrowableCTokenRemoveCollateral_fail_whenCollateralIsRequired() public {
+    function test_borrowableCTokenRemoveCollateralFor_fail_whenCollateralIsRequired() public {
         _prepareUSDC(address(this), _ONE + _ONE);
         usdc.approve(address(borrowableCUSDC), _ONE + _ONE);
         borrowableCUSDC.deposit(_ONE, address(this));
@@ -130,6 +138,8 @@ contract RemoveCollateralForTest is TestBaseBorrowableCToken {
         borrowableCUSDC.borrow(200e6, user1);
         vm.stopPrank();
 
+        skip(20 minutes);
+
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
@@ -137,11 +147,13 @@ contract RemoveCollateralForTest is TestBaseBorrowableCToken {
         _removeBorrowableCDAICollateralForUser1(400e18);
     }
 
-    function test_borrowableCTokenRemoveCollateral_success() public {
+    function test_borrowableCTokenRemoveCollateralFor_success() public {
         uint256 balanceBefore = borrowableCDAI.balanceOf(user1);
         uint256 userCollateral = borrowableCDAI.collateralPosted(user1);
         uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
         uint256 newCollateral = _ONE;
+
+        skip(20 minutes);
 
         vm.expectEmit(true, true, true, true, address(borrowableCDAI));
         emit CollateralUpdated(newCollateral, false, user1);

@@ -95,6 +95,14 @@ contract RemoveCollateralTest is TestBaseBorrowableCToken {
         _removeBorrowableCDAICollateral(0);
     }
 
+    function test_borrowableCTokenRemoveCollateral_fail_whenCooldownActive() public {
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
+        );
+
+        _removeBorrowableCDAICollateral(_ONE);
+    }
+
     function test_borrowableCTokenRemoveCollateral_fail_whenCollateralAmountExceedsCTokens() public {
         vm.expectRevert(
             BaseCToken.BaseCToken__InsufficientLiquidity.selector
@@ -116,6 +124,8 @@ contract RemoveCollateralTest is TestBaseBorrowableCToken {
         
         borrowableCUSDC.borrow(200e6, user1);
         vm.stopPrank();
+
+        skip(20 minutes);
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector

@@ -23,6 +23,14 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
         _removeBalRETHCollateral(0);
     }
 
+    function test_strategyCTokenRemoveCollateral_fail_whenCooldownActive() public {
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
+        );
+
+        _removeBalRETHCollateral(_ONE);
+    }
+
     function test_strategyCTokenRemoveCollateral_fail_whenCollateralAmountExceedsCTokens() public {
         vm.expectRevert(
             BaseCToken.BaseCToken__InsufficientLiquidity.selector
@@ -46,6 +54,8 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
         borrowableCDAI.borrow(1000e18, user1);
         vm.stopPrank();
 
+        skip(20 minutes);
+
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
@@ -58,6 +68,8 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
         uint256 userCollateral = strategyCBALRETH.collateralPosted(user1);
         uint256 totalCollateral = strategyCBALRETH.marketCollateralPosted();
         uint256 newCollateral = _ONE;
+
+        skip(20 minutes);
 
         vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
         emit CollateralUpdated(newCollateral, false, user1);
