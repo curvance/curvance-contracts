@@ -43,7 +43,7 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
         strategyCBALRETH.deposit(_ONE + _ONE, user1);
         strategyCBALRETH.postCollateral(_ONE);
         
-        borrowableCDAI.borrow(1000e6, user1);
+        borrowableCDAI.borrow(1000e18, user1);
         vm.stopPrank();
 
         vm.expectRevert(
