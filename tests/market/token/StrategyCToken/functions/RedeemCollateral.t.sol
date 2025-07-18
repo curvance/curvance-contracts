@@ -183,8 +183,7 @@ contract RedeemTest is TestBaseStrategyCToken {
 
     function test_strategyCTokenRedeemCollateral_success_redeemNonCollateralAndCollateralWhenCollateralIsInUse() public {
         uint256 newTokensDeposited = 2e18;
-        uint256 tokensRedeemed = 5e18;
-        uint256 collateralRedeemed = 4e18;
+        uint256 collateralRedeemed = newTokensDeposited * 2;
 
         _prepareBALRETH(user1, newTokensDeposited * 2);
 
@@ -204,11 +203,11 @@ contract RedeemTest is TestBaseStrategyCToken {
 
         vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
         emit CollateralUpdated(collateralRedeemed, false, user1);
-        uint256 assets = _redeemCollateralBalRETH(tokensRedeemed);
+        uint256 assets = _redeemCollateralBalRETH(collateralRedeemed);
 
         assertEq(balRETH.balanceOf(user1), underlyingBalance + assets);
-        assertEq(strategyCBALRETH.balanceOf(user1), balance - tokensRedeemed);
-        assertEq(strategyCBALRETH.totalSupply(), totalSupply - tokensRedeemed);
+        assertEq(strategyCBALRETH.balanceOf(user1), balance - collateralRedeemed);
+        assertEq(strategyCBALRETH.totalSupply(), totalSupply - collateralRedeemed);
         assertEq(strategyCBALRETH.collateralPosted(user1), collateral - collateralRedeemed);
         assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - collateralRedeemed);
     }
