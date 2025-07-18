@@ -283,7 +283,7 @@ contract RedeemTest is TestBaseBorrowableCToken {
         uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
 
         vm.expectEmit(true, true, true, true, address(borrowableCDAI));
-        emit CollateralUpdated(user1, address(0), collateralRedeemed);
+        emit CollateralUpdated(collateralRedeemed, false, user1);
         uint256 assets = _redeemBorrowableCDai(tokensRedeemed);
 
         assertEq(dai.balanceOf(user1), underlyingBalance + assets);

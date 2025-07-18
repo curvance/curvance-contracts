@@ -191,7 +191,7 @@ contract RedeemForTest is TestBaseStrategyCToken {
         uint256 totalCollateral = strategyCBALRETH.marketCollateralPosted();
 
         vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
-        emit Transfer(user1, address(0), collateralRedeemed);
+        emit CollateralUpdated(collateralRedeemed, false, user1);
         uint256 assets = _redeemBalRETHForUser1(tokensRedeemed);
 
         assertEq(balRETH.balanceOf(user1), underlyingBalance + assets);
