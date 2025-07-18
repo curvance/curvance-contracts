@@ -34,9 +34,11 @@ contract RedeemForTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenRedeemFor_fail_whenTransferIsDisabled() public {
-        centralRegistry.setTransferableStatus(true);
-
         skip(20 minutes);
+
+        vm.startPrank(user1);
+        centralRegistry.setTransferableStatus(true);
+        vm.stopPrank();
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         _redeemBalRETHForUser1(_ONE);
@@ -45,8 +47,10 @@ contract RedeemForTest is TestBaseStrategyCToken {
     function test_strategyCTokenRedeemFor_fail_whenCooldownIsNotEnded() public {
         skip(20 minutes);
 
+        vm.startPrank(user1);
         centralRegistry.setCooldown(10 days);
         centralRegistry.setCooldown(5 days);
+        vm.stopPrank();
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
 
@@ -138,7 +142,7 @@ contract RedeemForTest is TestBaseStrategyCToken {
         balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
         strategyCBALRETH.depositAsCollateral(_ONE + _ONE, user1);
         borrowableCDAI.borrow(1000e18, user1);
-        strategyCBALRETH.deposit(_ONE + _ONE, user1);
+        strategyCBALRETH.deposit(_ONE, user1);
         vm.stopPrank();
 
         skip(20 minutes);
@@ -154,7 +158,7 @@ contract RedeemForTest is TestBaseStrategyCToken {
 
     function _redeemBalRETHForUser1(uint256 shares) internal returns (uint256 assets) {
         vm.startPrank(user2);
-        assets = strategyCBALRETH.redeem(shares, user1, user1);
+        assets = strategyCBALRETH.redeemFor(shares, user1, user1);
         vm.stopPrank();
     }
 }

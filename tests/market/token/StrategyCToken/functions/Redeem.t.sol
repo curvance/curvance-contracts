@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
+import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract RedeemTest is TestBaseStrategyCToken {
@@ -19,18 +20,20 @@ contract RedeemTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenRedeem_fail_whenTransferIsDisabled() public {
-        centralRegistry.setTransferableStatus(true);
-
         skip(20 minutes);
+
+        vm.startPrank(user1);
+        centralRegistry.setTransferableStatus(true);
+        vm.stopPrank();
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         _redeemBalRETH(_ONE);
     }
 
     function test_strategyCTokenRedeem_fail_whenUser2Unauthorized() public {
-        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-
         skip(20 minutes);
+
+        vm.expectRevert(ERC20.InsufficientAllowance.selector);
 
         vm.startPrank(user2);
         strategyCBALRETH.redeem(_ONE, user1, user1);
@@ -40,8 +43,10 @@ contract RedeemTest is TestBaseStrategyCToken {
     function test_strategyCTokenRedeem_fail_whenCooldownIsNotEnded() public {
         skip(20 minutes);
 
+        vm.startPrank(user1);
         centralRegistry.setCooldown(10 days);
         centralRegistry.setCooldown(5 days);
+        vm.stopPrank();
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
 
@@ -99,7 +104,7 @@ contract RedeemTest is TestBaseStrategyCToken {
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
-        _redeemBalRETH(1.9e18);
+        _redeemBalRETH(3.9e18);
     }
 
     function test_strategyCTokenRedeem_success() public {
@@ -158,7 +163,7 @@ contract RedeemTest is TestBaseStrategyCToken {
         balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
         strategyCBALRETH.depositAsCollateral(_ONE + _ONE, user1);
         borrowableCDAI.borrow(1000e18, user1);
-        strategyCBALRETH.deposit(_ONE + _ONE, user1);
+        strategyCBALRETH.deposit(_ONE, user1);
         vm.stopPrank();
 
         skip(20 minutes);
