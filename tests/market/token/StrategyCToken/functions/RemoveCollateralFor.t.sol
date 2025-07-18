@@ -90,7 +90,7 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
 
     function _removeBalRETHCollateralForUser1(uint256 shares) internal {
         vm.startPrank(user2);
-        strategyCBALRETH.removeCollateral(shares);
+        strategyCBALRETH.removeCollateralFor(shares, user1);
         vm.stopPrank();
     }
 
