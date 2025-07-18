@@ -19,21 +19,21 @@ contract DepositAsCollateralTest is TestBaseBorrowableCToken {
         vm.stopPrank();
     }
 
-    function test_strategyCTokenDepositAsCollateral_fail_whenMintingIsNotAllowed() public {
+    function test_borrowableCTokenDepositAsCollateral_fail_whenMintingIsNotAllowed() public {
         marketManagerIsolated.setMintPaused(address(borrowableCUSDC), true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         _depositAndPostBorrowableCUSDCCollateral(0.1e18);
     }
 
-    function test_strategyCTokenDepositAsCollateral_fail_whenCollateralizationIsNotAllowed() public {
+    function test_borrowableCTokenDepositAsCollateral_fail_whenCollateralizationIsNotAllowed() public {
         marketManagerIsolated.setCollateralizationPaused(address(borrowableCUSDC), true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         _depositAndPostBorrowableCUSDCCollateral(0.1e18);
     }
 
-    function test_strategyCTokenDepositAsCollateral_fail_whenNotApproved() public {
+    function test_borrowableCTokenDepositAsCollateral_fail_whenNotApproved() public {
         // Prepare extra to try to deposit meaning approval is the restriction.
         _prepareUSDC(user1, _ONE + _ONE);
 
@@ -41,12 +41,12 @@ contract DepositAsCollateralTest is TestBaseBorrowableCToken {
         _depositAndPostBorrowableCUSDCCollateral(3e18);
     }
 
-    function test_strategyCTokenDepositAsCollateral_fail_whenZeroAmount() public {
+    function test_borrowableCTokenDepositAsCollateral_fail_whenZeroAmount() public {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
         _depositAndPostBorrowableCUSDCCollateral(0);
     }
 
-    function test_strategyCTokenDepositAsCollateral_fail_whenDepositAmountExceedsAssetsHeld() public {
+    function test_borrowableCTokenDepositAsCollateral_fail_whenDepositAmountExceedsAssetsHeld() public {
         // Approve extra to try to deposit meaning assets held is the restriction.
         vm.startPrank(user1);
         usdc.approve(address(borrowableCUSDC), 5e18);
@@ -56,7 +56,7 @@ contract DepositAsCollateralTest is TestBaseBorrowableCToken {
         _depositAndPostBorrowableCUSDCCollateral(5e18);
     }
 
-    function test_strategyCTokenDepositAsCollateral_fail_whenCollateralAmountExceedsCollateralCap() public {
+    function test_borrowableCTokenDepositAsCollateral_fail_whenCollateralAmountExceedsCollateralCap() public {
         _setCTokenConfigBasic(address(borrowableCUSDC), 1, 0);
 
         vm.expectRevert(
@@ -88,7 +88,7 @@ contract DepositAsCollateralTest is TestBaseBorrowableCToken {
         _depositAndPostBorrowableCUSDCCollateral(_ONE);
     }
 
-    function test_strategyCTokenDepositAsCollateral_success() public {
+    function test_borrowableCTokenDepositAsCollateral_success() public {
         uint256 balanceBefore = borrowableCUSDC.balanceOf(user1);
         uint256 supplyBefore = borrowableCUSDC.totalSupply();
         uint256 userCollateral = borrowableCUSDC.collateralPosted(user1);

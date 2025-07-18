@@ -6,7 +6,7 @@ import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract RedeemTest is TestBaseStrategyCToken {
+contract RedeemCollateralTest is TestBaseStrategyCToken {
     event CollateralUpdated(uint256 shares, bool increased, address account);
 
     function setUp() public override {
@@ -145,7 +145,7 @@ contract RedeemTest is TestBaseStrategyCToken {
         assertEq(strategyCBALRETH.totalSupply(), totalSupply - collateralRedeemed);
     }
 
-    function test_strategyCTokenRedeemCollateral_success_redeemCollateralWhenCollateralIsInUse() public {
+    function test_strategyCTokenRedeemCollateral_success_whenCollateralIsInUse() public {
         uint256 newTokensDeposited = 2e18;
         uint256 tokensRedeemed = 1e18;
 
@@ -181,7 +181,7 @@ contract RedeemTest is TestBaseStrategyCToken {
         assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - tokensRedeemed);
     }
 
-    function test_strategyCTokenRedeemCollateral_success_redeemNonCollateralAndCollateralWhenCollateralIsInUse() public {
+    function test_strategyCTokenRedeemCollateral_success_whenCollateralNotIsInUse() public {
         uint256 newTokensDeposited = 2e18;
         uint256 collateralRedeemed = newTokensDeposited * 2;
 
