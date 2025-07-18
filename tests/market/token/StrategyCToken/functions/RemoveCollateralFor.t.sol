@@ -6,7 +6,7 @@ import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract RemoveCollateralTest is TestBaseStrategyCToken {
+contract RemoveCollateralForTest is TestBaseStrategyCToken {
     event CollateralUpdated(uint256 shares, bool increased, address account);
 
     function setUp() public override {
@@ -36,6 +36,14 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
         _removeBalRETHCollateralForUser1(0);
     }
 
+    function test_strategyCTokenRemoveCollateralFor_fail_whenCooldownActive() public {
+        vm.expectRevert(
+            MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
+        );
+
+        _removeBalRETHCollateralForUser1(_ONE);
+    }
+
     function test_strategyCTokenRemoveCollateralFor_fail_whenCollateralAmountExceedsCTokens() public {
         vm.expectRevert(
             BaseCToken.BaseCToken__InsufficientLiquidity.selector
@@ -45,47 +53,44 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenRemoveCollateralFor_fail_whenCollateralIsRequired() public {
-        _prepareDAI(address(this), _ONE + _ONE);
-        dai.approve(address(borrowableCDAI), _ONE + _ONE);
-        borrowableCDAI.deposit(_ONE, address(this));
-
-        _prepareBALRETH(user1, _ONE + _ONE);
+        _prepareDAI(address(this), 2000e18);
+        dai.approve(address(borrowableCDAI), 2000e18);
+        borrowableCDAI.deposit(2000e18, address(this));
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
-        strategyCBALRETH.deposit(_ONE + _ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE);
-        
-        borrowableCDAI.borrow(1000e6, user1);
+        borrowableCDAI.borrow(1000e18, user1);
         vm.stopPrank();
+
+        skip(20 minutes);
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
-        _removeBalRETHCollateralForUser1(1.5e18);
+        _removeBalRETHCollateralForUser1(1.9e18);
     }
 
     function test_strategyCTokenRemoveCollateralFor_success() public {
         uint256 balanceBefore = strategyCBALRETH.balanceOf(user1);
         uint256 userCollateral = strategyCBALRETH.collateralPosted(user1);
         uint256 totalCollateral = strategyCBALRETH.marketCollateralPosted();
+        uint256 collateralRemoved = _ONE;
+
+        skip(20 minutes);
 
         vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
-        emit CollateralUpdated(_ONE, false, user1);
+        emit CollateralUpdated(collateralRemoved, false, user1);
 
-        uint256 newCollateral = _ONE;
-
-        _removeBalRETHCollateralForUser1(newCollateral);
+        _removeBalRETHCollateralForUser1(collateralRemoved);
 
         // Balance should not have changed.
         assertEq(strategyCBALRETH.balanceOf(user1), balanceBefore);
 
-        // User collateral should go up by `newCollateral`.
-        assertEq(strategyCBALRETH.collateralPosted(user1), userCollateral - newCollateral);
+        // User collateral should go up by `collateralRemoved`.
+        assertEq(strategyCBALRETH.collateralPosted(user1), userCollateral - collateralRemoved);
 
-        // Market collateral should go up by `newCollateral`.
-        assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - newCollateral);
+        // Market collateral should go up by `collateralRemoved`.
+        assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - collateralRemoved);
     }
 
     function _removeBalRETHCollateralForUser1(uint256 shares) internal {
