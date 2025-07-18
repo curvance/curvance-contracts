@@ -144,11 +144,14 @@ contract TestGaugeManager_DoubleGauge is TestBaseMarketIsolated {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
 
-        // This assert is off due to rounding, should be 11110.
         // user0 usdc: 9999 + (29,999 * ((100/900) * (100/300))) = 1111 + 9999 = 11110
         // user0 dai: 19999 + (29,999 * ((100/100) * (200/300))) = 19999 + 19999 = 39998
+
+        // This assert is off due to rounding, should be 11110.
         assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[0]), 11103);
-        assertEq(gaugeManager.pendingRewards(borrowableCDAIWithGauge, users[0]), 39998);
+
+        // This assert is off due to rounding, should be 39998.
+        assertEq(gaugeManager.pendingRewards(borrowableCDAIWithGauge, users[0]), 39999);
 
         // user1 usdc: (29,999 * ((400/900) * (100/300))) = 4444
         // user2 usdc: (29,999 * ((400/900) * (100/300))) = 4444

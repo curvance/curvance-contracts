@@ -8,8 +8,7 @@ import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract RedeemTest is TestBaseBorrowableCToken {
-    event Transfer(address indexed from, address indexed to, uint256 amount);
+contract RedeemCollateralForTest is TestBaseBorrowableCToken {
     event CollateralUpdated(uint256 shares, bool increased, address account);
 
     MockDataFeed public mockDaiFeed;
@@ -85,19 +84,18 @@ contract RedeemTest is TestBaseBorrowableCToken {
 
         borrowableCDAI.mint(_ONE, address(this));
 
-        _prepareDAI(user1, _ONE + _ONE);
+        _prepareDAI(user1, 2000e18);
 
         vm.startPrank(user1);
-        dai.approve(address(borrowableCDAI), _ONE + _ONE);
-        borrowableCDAI.depositAsCollateral(_ONE + _ONE, user1);
+        dai.approve(address(borrowableCDAI), 2000e18);
+        borrowableCDAI.depositAsCollateral(2000e18, user1);
 
-        
         // Approve delegated collateral removal for `user1` by `user2`.
         borrowableCDAI.setDelegateApproval(user2, true);
         vm.stopPrank();
     }
 
-    function test_borrowableCTokenRedeemFor_fail_whenNotDelegated() public {
+    function test_borrowableCTokenRedeemCollateralFor_fail_whenNotDelegated() public {
         vm.startPrank(user1);
         borrowableCDAI.setDelegateApproval(user2, false);
         vm.stopPrank();
@@ -105,10 +103,10 @@ contract RedeemTest is TestBaseBorrowableCToken {
         skip(20 minutes);
 
         vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
-        _redeemBorrowableCDaiForUser1(_ONE);
+        _redeemCollateralBorrowableCDaiForUser1(_ONE);
     }
 
-    function test_borrowableCTokenRedeemFor_fail_whenTransferIsDisabled() public {
+    function test_borrowableCTokenRedeemCollateral_fail_whenTransferIsDisabled() public {
         skip(20 minutes);
 
         vm.startPrank(user1);
@@ -116,10 +114,10 @@ contract RedeemTest is TestBaseBorrowableCToken {
         vm.stopPrank();
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        _redeemBorrowableCDaiForUser1(_ONE);
+        _redeemCollateralBorrowableCDaiForUser1(_ONE);
     }
 
-    function test_borrowableCTokenRedeemFor_fail_whenUser2Unauthorized() public {
+    function test_borrowableCTokenRedeemCollateral_fail_whenUser2Unauthorized() public {
         skip(20 minutes);
 
         vm.expectRevert(ERC20.InsufficientAllowance.selector);
@@ -129,7 +127,7 @@ contract RedeemTest is TestBaseBorrowableCToken {
         vm.stopPrank();
     }
 
-    function test_borrowableCTokenRedeemFor_fail_whenCooldownIsNotEnded() public {
+    function test_borrowableCTokenRedeemCollateral_fail_whenCooldownIsNotEnded() public {
         skip(20 minutes);
 
         vm.startPrank(user1);
@@ -139,27 +137,27 @@ contract RedeemTest is TestBaseBorrowableCToken {
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
 
-        _redeemBorrowableCDaiForUser1(_ONE);
+        _redeemCollateralBorrowableCDaiForUser1(_ONE);
     }
 
-    function test_borrowableCTokenRedeemFor_fail_whenAmountIsZero() public {
+    function test_borrowableCTokenRedeemCollateral_fail_whenAmountIsZero() public {
         skip(20 minutes);
 
         vm.expectRevert(
             BaseCToken.BaseCToken__ZeroAmount.selector
         );
 
-        _redeemBorrowableCDaiForUser1(0);
+        _redeemCollateralBorrowableCDaiForUser1(0);
     }
 
-    function test_borrowableCTokenRedeemFor_fail_whenRedeemAmountExceedsCTokens() public {
+    function test_borrowableCTokenRedeemCollateral_fail_whenRedeemAmountExceedsCTokens() public {
         skip(20 minutes);
 
         vm.expectRevert(BaseCToken.BaseCToken__InsufficientLiquidity.selector);
-        _redeemBorrowableCDaiForUser1(10e18);
+        _redeemCollateralBorrowableCDaiForUser1(10000e18);
     }
 
-    function test_borrowableCTokenRedeemFor_fail_whenCooldownActive() public {
+    function test_borrowableCTokenRedeemCollateral_fail_whenCooldownActive() public {
         _prepareDAI(user1, _ONE + _ONE);
 
         vm.startPrank(user1);
@@ -171,21 +169,20 @@ contract RedeemTest is TestBaseBorrowableCToken {
             MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
 
-        _redeemBorrowableCDaiForUser1(_ONE);
+        _redeemCollateralBorrowableCDaiForUser1(_ONE);
     }
 
-    function test_borrowableCTokenRedeemFor_fail_whenCollateralIsRequired() public {
-        _prepareUSDC(address(this), 200e6);
-        usdc.approve(address(borrowableCUSDC), 200e6);
-        borrowableCUSDC.deposit(200e6, address(this));
+    function test_borrowableCTokenRedeemCollateral_fail_whenCollateralIsRequired() public {
+        _prepareUSDC(address(this), 2000e6);
+        usdc.approve(address(borrowableCUSDC), 2000e6);
+        borrowableCUSDC.deposit(2000e6, address(this));
 
-        _prepareDAI(user1, 1000e18);
+        _prepareDAI(user1, 2000e18);
 
         vm.startPrank(user1);
-        dai.approve(address(borrowableCDAI), 1000e18);
-        borrowableCDAI.depositAsCollateral(500e18, user1);
-        borrowableCUSDC.borrow(100e6, user1);
-        borrowableCDAI.deposit(500e18, user1);
+        dai.approve(address(borrowableCDAI), 2000e18);
+        borrowableCDAI.depositAsCollateral(2000e18, user1);
+        borrowableCUSDC.borrow(1000e6, user1);
         vm.stopPrank();
 
         skip(20 minutes);
@@ -194,10 +191,10 @@ contract RedeemTest is TestBaseBorrowableCToken {
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
-        _redeemBorrowableCDaiForUser1(1000e18);
+        _redeemCollateralBorrowableCDaiForUser1(3900e18);
     }
 
-    function test_borrowableCTokenRedeemFor_success() public {
+    function test_borrowableCTokenRedeemCollateral_success() public {
         skip(20 minutes);
 
         uint256 underlyingBalance = dai.balanceOf(user1);
@@ -206,29 +203,49 @@ contract RedeemTest is TestBaseBorrowableCToken {
         uint256 collateralRedeemed = _ONE;
 
         vm.expectEmit(true, true, true, true, address(borrowableCDAI));
-        emit Transfer(user1, address(0), collateralRedeemed);
-        uint256 assets = _redeemBorrowableCDaiForUser1(collateralRedeemed);
+        emit CollateralUpdated(collateralRedeemed, false, user1);
+        uint256 assets = _redeemCollateralBorrowableCDaiForUser1(collateralRedeemed);
 
         assertEq(dai.balanceOf(user1), underlyingBalance + assets);
         assertEq(borrowableCDAI.balanceOf(user1), balance - collateralRedeemed);
         assertEq(borrowableCDAI.totalSupply(), totalSupply - collateralRedeemed);
     }
 
-    function test_borrowableCTokenRedeemFor_success_redeemNonCollateralWhenCollateralIsInUse() public {
-        uint256 newTokensDeposited = 500e18;
-        uint256 tokensRedeemed = 500e18;
-        uint256 collateralRedeemed = tokensRedeemed - newTokensDeposited; // This equals 0.
+    function test_borrowableCTokenRedeemCollateral_success_User2WithApproval() public {
+        skip(20 minutes);
 
-        _prepareUSDC(address(this), 200e6);
-        usdc.approve(address(borrowableCUSDC), 200e6);
-        borrowableCUSDC.deposit(200e6, address(this));
+        uint256 underlyingBalance = dai.balanceOf(user1);
+        uint256 balance = borrowableCDAI.balanceOf(user1);
+        uint256 totalSupply = borrowableCDAI.totalSupply();
+        uint256 collateralRedeemed = _ONE;
+
+        vm.startPrank(user1);
+        borrowableCDAI.approve(user2, collateralRedeemed);
+        vm.stopPrank();
+        
+        vm.startPrank(user2);
+        uint256 assets = borrowableCDAI.redeem(collateralRedeemed, user2, user1);
+        vm.stopPrank();
+
+        assertEq(dai.balanceOf(user2), underlyingBalance + assets);
+        assertEq(borrowableCDAI.balanceOf(user1), balance - collateralRedeemed);
+        assertEq(borrowableCDAI.totalSupply(), totalSupply - collateralRedeemed);
+    }
+
+    function test_borrowableCTokenRedeemCollateral_success_whenCollateralIsInUse() public {
+        uint256 newTokensDeposited = 2000e18;
+        uint256 tokensRedeemed = 1000e18;
+
+        _prepareUSDC(address(this), 2000e6);
+        usdc.approve(address(borrowableCUSDC), 2000e6);
+        borrowableCUSDC.deposit(2000e6, address(this));
 
         _prepareDAI(user1, newTokensDeposited * 2);
 
         vm.startPrank(user1);
         dai.approve(address(borrowableCDAI), newTokensDeposited * 2);
         borrowableCDAI.depositAsCollateral(newTokensDeposited, user1);
-        borrowableCUSDC.borrow(100e6, user1);
+        borrowableCUSDC.borrow(1000e6, user1);
         borrowableCDAI.deposit(newTokensDeposited, user1);
         vm.stopPrank();
 
@@ -241,31 +258,25 @@ contract RedeemTest is TestBaseBorrowableCToken {
         uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
 
         vm.expectEmit(true, true, true, true, address(borrowableCDAI));
-        emit Transfer(user1, address(0), tokensRedeemed);
-        uint256 assets = _redeemBorrowableCDaiForUser1(tokensRedeemed);
+        emit CollateralUpdated(tokensRedeemed, false, user1);
+        uint256 assets = _redeemCollateralBorrowableCDaiForUser1(tokensRedeemed);
 
         assertEq(dai.balanceOf(user1), underlyingBalance + assets);
         assertEq(borrowableCDAI.balanceOf(user1), balance - tokensRedeemed);
         assertEq(borrowableCDAI.totalSupply(), totalSupply - tokensRedeemed);
-        assertEq(borrowableCDAI.collateralPosted(user1), collateral - collateralRedeemed);
-        assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral - collateralRedeemed);
+        assertEq(borrowableCDAI.collateralPosted(user1), collateral - tokensRedeemed);
+        assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral - tokensRedeemed);
     }
 
-    function test_borrowableCTokenRedeemFor_success_redeemNonCollateralAndCollateralWhenCollateralIsInUse() public {
-        uint256 newTokensDeposited = 500e18;
-        uint256 tokensRedeemed = 600e18;
-        uint256 collateralRedeemed = tokensRedeemed - newTokensDeposited;
+    function test_borrowableCTokenRedeemCollateral_success_whenCollateralNotIsInUse() public {
+        uint256 newTokensDeposited = 2000e18;
+        uint256 collateralRedeemed = newTokensDeposited * 2;
 
-        _prepareUSDC(address(this), 200e6);
-        usdc.approve(address(borrowableCUSDC), 200e6);
-        borrowableCUSDC.deposit(200e6, address(this));
-
-        _prepareDAI(user1, 1000e18);
+        _prepareDAI(user1, newTokensDeposited * 2);
 
         vm.startPrank(user1);
-        dai.approve(address(borrowableCDAI), 1000e18);
+        dai.approve(address(borrowableCDAI), newTokensDeposited * 2);
         borrowableCDAI.depositAsCollateral(newTokensDeposited, user1);
-        borrowableCUSDC.borrow(100e6, user1);
         borrowableCDAI.deposit(newTokensDeposited, user1);
         vm.stopPrank();
 
@@ -279,18 +290,18 @@ contract RedeemTest is TestBaseBorrowableCToken {
 
         vm.expectEmit(true, true, true, true, address(borrowableCDAI));
         emit CollateralUpdated(collateralRedeemed, false, user1);
-        uint256 assets = _redeemBorrowableCDaiForUser1(tokensRedeemed);
+        uint256 assets = _redeemCollateralBorrowableCDaiForUser1(collateralRedeemed);
 
         assertEq(dai.balanceOf(user1), underlyingBalance + assets);
-        assertEq(borrowableCDAI.balanceOf(user1), balance - tokensRedeemed);
-        assertEq(borrowableCDAI.totalSupply(), totalSupply - tokensRedeemed);
+        assertEq(borrowableCDAI.balanceOf(user1), balance - collateralRedeemed);
+        assertEq(borrowableCDAI.totalSupply(), totalSupply - collateralRedeemed);
         assertEq(borrowableCDAI.collateralPosted(user1), collateral - collateralRedeemed);
         assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral - collateralRedeemed);
     }
 
-    function _redeemBorrowableCDaiForUser1(uint256 shares) internal returns (uint256 assets) {
+    function _redeemCollateralBorrowableCDaiForUser1(uint256 shares) internal returns (uint256 assets) {
         vm.startPrank(user2);
-        assets = borrowableCDAI.redeemFor(shares, user1, user1);
+        assets = borrowableCDAI.redeemCollateralFor(shares, user1, user1);
         vm.stopPrank();
     }
 }
