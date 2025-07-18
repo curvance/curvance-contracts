@@ -191,7 +191,6 @@ contract RedeemTest is TestBaseStrategyCToken {
         vm.startPrank(user1);
         balRETH.approve(address(strategyCBALRETH), newTokensDeposited * 2);
         strategyCBALRETH.depositAsCollateral(newTokensDeposited, user1);
-        borrowableCDAI.borrow(1000e18, user1);
         strategyCBALRETH.deposit(newTokensDeposited, user1);
         vm.stopPrank();
 

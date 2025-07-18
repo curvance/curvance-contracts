@@ -248,7 +248,7 @@ contract RedeemTest is TestBaseBorrowableCToken {
         assertEq(borrowableCDAI.balanceOf(user1), balance - tokensRedeemed);
         assertEq(borrowableCDAI.totalSupply(), totalSupply - tokensRedeemed);
         assertEq(borrowableCDAI.collateralPosted(user1), collateral - collateralRedeemed);
-        assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - collateralRedeemed);
+        assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral - collateralRedeemed);
     }
 
     function test_borrowableCTokenRedeemFor_success_redeemNonCollateralAndCollateralWhenCollateralIsInUse() public {
@@ -285,7 +285,7 @@ contract RedeemTest is TestBaseBorrowableCToken {
         assertEq(borrowableCDAI.balanceOf(user1), balance - tokensRedeemed);
         assertEq(borrowableCDAI.totalSupply(), totalSupply - tokensRedeemed);
         assertEq(borrowableCDAI.collateralPosted(user1), collateral - collateralRedeemed);
-        assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - collateralRedeemed);
+        assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral - collateralRedeemed);
     }
 
     function _redeemBorrowableCDaiForUser1(uint256 shares) internal returns (uint256 assets) {
