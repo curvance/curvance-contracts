@@ -32,9 +32,9 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenRemoveCollateral_fail_whenCollateralIsRequired() public {
-        _prepareDAI(address(this), _ONE + _ONE);
-        dai.approve(address(borrowableCDAI), _ONE + _ONE);
-        borrowableCDAI.deposit(_ONE, address(this));
+        _prepareDAI(address(this), 2000e18);
+        dai.approve(address(borrowableCDAI), 2000e18);
+        borrowableCDAI.deposit(2000e18, address(this));
 
         _prepareBALRETH(user1, _ONE + _ONE);
 

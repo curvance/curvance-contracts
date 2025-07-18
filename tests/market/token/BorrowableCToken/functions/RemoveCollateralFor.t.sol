@@ -4,9 +4,10 @@ pragma solidity ^0.8.19;
 import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract RemoveCollateralTest is TestBaseBorrowableCToken {
+contract RemoveCollateralForTest is TestBaseBorrowableCToken {
     event CollateralUpdated(uint256 shares, bool increased, address account);
 
     MockDataFeed public mockDaiFeed;
@@ -87,12 +88,24 @@ contract RemoveCollateralTest is TestBaseBorrowableCToken {
         vm.startPrank(user1);
         dai.approve(address(borrowableCDAI), _ONE + _ONE);
         borrowableCDAI.depositAsCollateral(_ONE + _ONE, user1);
+
+        // Approve delegated collateral removal for `user1` by `user2`.
+        strategyCBALRETH.setDelegateApproval(user2, true);
         vm.stopPrank();
+    }
+
+    function test_strategyCTokenRemoveCollateralFor_fail_whenNotDelegated() public {
+        vm.startPrank(user1);
+        strategyCBALRETH.setDelegateApproval(user2, false);
+        vm.stopPrank();
+
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
+        _removeBorrowableCDAICollateralForUser1(0.1e18);
     }
 
     function test_borrowableCTokenRemoveCollateral_fail_whenZeroAmount() public {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-        _removeBorrowableCDAICollateral(0);
+        _removeBorrowableCDAICollateralForUser1(0);
     }
 
     function test_borrowableCTokenRemoveCollateral_fail_whenCollateralAmountExceedsCTokens() public {
@@ -100,7 +113,7 @@ contract RemoveCollateralTest is TestBaseBorrowableCToken {
             BaseCToken.BaseCToken__InsufficientLiquidity.selector
         );
 
-        _removeBorrowableCDAICollateral(10e18);
+        _removeBorrowableCDAICollateralForUser1(10e18);
     }
 
     function test_borrowableCTokenRemoveCollateral_fail_whenCollateralIsRequired() public {
@@ -121,7 +134,7 @@ contract RemoveCollateralTest is TestBaseBorrowableCToken {
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
-        _removeBorrowableCDAICollateral(400e18);
+        _removeBorrowableCDAICollateralForUser1(400e18);
     }
 
     function test_borrowableCTokenRemoveCollateral_success() public {
@@ -133,7 +146,7 @@ contract RemoveCollateralTest is TestBaseBorrowableCToken {
         vm.expectEmit(true, true, true, true, address(borrowableCDAI));
         emit CollateralUpdated(newCollateral, false, user1);
 
-        _removeBorrowableCDAICollateral(newCollateral);
+        _removeBorrowableCDAICollateralForUser1(newCollateral);
 
         // Balance should not have changed.
         assertEq(borrowableCDAI.balanceOf(user1), balanceBefore);
@@ -145,9 +158,9 @@ contract RemoveCollateralTest is TestBaseBorrowableCToken {
         assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral - newCollateral);
     }
 
-    function _removeBorrowableCDAICollateral(uint256 shares) internal {
-        vm.startPrank(user1);
-        borrowableCDAI.removeCollateral(shares);
+    function _removeBorrowableCDAICollateralForUser1ForUser1(uint256 shares) internal {
+        vm.startPrank(user2);
+        borrowableCDAI.removeCollateralFor(shares, user1);
         vm.stopPrank();
     }
 

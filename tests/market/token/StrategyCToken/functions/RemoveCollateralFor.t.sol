@@ -6,7 +6,7 @@ import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract RemoveCollateralTest is TestBaseStrategyCToken {
+contract RemoveCollateralForTest is TestBaseStrategyCToken {
     event CollateralUpdated(uint256 shares, bool increased, address account);
 
     function setUp() public override {
@@ -45,9 +45,9 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenRemoveCollateralFor_fail_whenCollateralIsRequired() public {
-        _prepareDAI(address(this), _ONE + _ONE);
-        dai.approve(address(borrowableCDAI), _ONE + _ONE);
-        borrowableCDAI.deposit(_ONE, address(this));
+        _prepareDAI(address(this), 2000e18);
+        dai.approve(address(borrowableCDAI), 2000e18);
+        borrowableCDAI.deposit(2000e18, address(this));
 
         _prepareBALRETH(user1, _ONE + _ONE);
 
