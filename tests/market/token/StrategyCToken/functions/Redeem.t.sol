@@ -8,7 +8,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 contract RedeemTest is TestBaseStrategyCToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    function test_strategyCTokenRedeem_fail_whenNoEnoughToRedeem() public {
+    function test_strategyCTokenRedeem_fail_whenNotEnoughToRedeem() public {
         vm.prank(address(1));
 
         vm.expectRevert();

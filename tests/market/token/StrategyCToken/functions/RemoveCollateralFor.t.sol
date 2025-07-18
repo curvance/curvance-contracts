@@ -15,23 +15,35 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
         vm.startPrank(user1);
         balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
         strategyCBALRETH.depositAsCollateral(_ONE + _ONE, user1);
+
+        // Approve delegated collateral removal for `user1` by `user2`.
+        strategyCBALRETH.setDelegateApproval(user2, true);
         vm.stopPrank();
     }
 
-    function test_strategyCTokenRemoveCollateral_fail_whenZeroAmount() public {
-        vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-        _removeBalRETHCollateral(0);
+    function test_strategyCTokenRemoveCollateralFor_fail_whenNotDelegated() public {
+        vm.startPrank(user1);
+        strategyCBALRETH.setDelegateApproval(user2, false);
+        vm.stopPrank();
+
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
+        _removeBalRETHCollateralForUser1(0.1e18);
     }
 
-    function test_strategyCTokenRemoveCollateral_fail_whenCollateralAmountExceedsCTokens() public {
+    function test_strategyCTokenRemoveCollateralFor_fail_whenZeroAmount() public {
+        vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
+        _removeBalRETHCollateralForUser1(0);
+    }
+
+    function test_strategyCTokenRemoveCollateralFor_fail_whenCollateralAmountExceedsCTokens() public {
         vm.expectRevert(
             BaseCToken.BaseCToken__InsufficientLiquidity.selector
         );
 
-        _removeBalRETHCollateral(10e18);
+        _removeBalRETHCollateralForUser1(10e18);
     }
 
-    function test_strategyCTokenRemoveCollateral_fail_whenCollateralIsRequired() public {
+    function test_strategyCTokenRemoveCollateralFor_fail_whenCollateralIsRequired() public {
         _prepareDAI(address(this), _ONE + _ONE);
         dai.approve(address(borrowableCDAI), _ONE + _ONE);
         borrowableCDAI.deposit(_ONE, address(this));
@@ -50,19 +62,20 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
-        _removeBalRETHCollateral(1.5e18);
+        _removeBalRETHCollateralForUser1(1.5e18);
     }
 
-    function test_strategyCTokenRemoveCollateral_success() public {
+    function test_strategyCTokenRemoveCollateralFor_success() public {
         uint256 balanceBefore = strategyCBALRETH.balanceOf(user1);
         uint256 userCollateral = strategyCBALRETH.collateralPosted(user1);
         uint256 totalCollateral = strategyCBALRETH.marketCollateralPosted();
-        uint256 newCollateral = _ONE;
 
         vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
-        emit CollateralUpdated(newCollateral, false, user1);
+        emit CollateralUpdated(_ONE, false, user1);
 
-        _removeBalRETHCollateral(newCollateral);
+        uint256 newCollateral = _ONE;
+
+        _removeBalRETHCollateralForUser1(newCollateral);
 
         // Balance should not have changed.
         assertEq(strategyCBALRETH.balanceOf(user1), balanceBefore);
@@ -74,9 +87,9 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
         assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - newCollateral);
     }
 
-    function _removeBalRETHCollateral(uint256 shares) internal {
-        vm.startPrank(user1);
-        strategyCBALRETH.removeCollateral(shares);
+    function _removeBalRETHCollateralForUser1(uint256 shares) internal {
+        vm.startPrank(user2);
+        strategyCBALRETH.removeCollateral(shares, user1);
         vm.stopPrank();
     }
 

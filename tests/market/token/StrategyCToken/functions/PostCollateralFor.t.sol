@@ -18,7 +18,7 @@ contract PostCollateralForTest is TestBaseStrategyCToken {
         balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
         strategyCBALRETH.deposit(_ONE + _ONE, user1);
 
-        // Approve delegated collateral deposits for `user1` by `user2`.
+        // Approve delegated collateral posting for `user1` by `user2`.
         strategyCBALRETH.setDelegateApproval(user2, true);
         vm.stopPrank();
 
