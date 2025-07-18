@@ -21,6 +21,8 @@ contract RedeemTest is TestBaseStrategyCToken {
     function test_strategyCTokenRedeem_fail_whenTransferIsDisabled() public {
         centralRegistry.setTransferableStatus(true);
 
+        skip(20 minutes);
+
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         _redeemBalRETH(_ONE);
     }
@@ -28,12 +30,16 @@ contract RedeemTest is TestBaseStrategyCToken {
     function test_strategyCTokenRedeem_fail_whenUser2Unauthorized() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
 
+        skip(20 minutes);
+
         vm.startPrank(user2);
         strategyCBALRETH.redeem(_ONE, user1, user1);
         vm.stopPrank();
     }
 
     function test_strategyCTokenRedeem_fail_whenCooldownIsNotEnded() public {
+        skip(20 minutes);
+
         centralRegistry.setCooldown(10 days);
         centralRegistry.setCooldown(5 days);
 
@@ -43,6 +49,8 @@ contract RedeemTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenRedeem_fail_whenAmountIsZero() public {
+        skip(20 minutes);
+
         vm.expectRevert(
             BaseCToken.BaseCToken__ZeroAmount.selector
         );
@@ -51,6 +59,8 @@ contract RedeemTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenRedeem_fail_whenRedeemAmountExceedsCTokens() public {
+        skip(20 minutes);
+
         vm.expectRevert(BaseCToken.BaseCToken__InsufficientLiquidity.selector);
         _redeemBalRETH(10e18);
     }
@@ -93,42 +103,51 @@ contract RedeemTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenRedeem_success() public {
+        skip(20 minutes);
+
         uint256 underlyingBalance = balRETH.balanceOf(user1);
         uint256 balance = strategyCBALRETH.balanceOf(user1);
         uint256 totalSupply = strategyCBALRETH.totalSupply();
-
-        uint256 newCollateral = _ONE;
+        uint256 collateralRedeemed = _ONE;
 
         vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
-        emit Transfer(user1, address(0), _ONE);
-
-        uint256 assets = _redeemBalRETH(_ONE);
+        emit Transfer(user1, address(0), collateralRedeemed);
+        uint256 assets = _redeemBalRETH(collateralRedeemed);
 
         assertEq(balRETH.balanceOf(user1), underlyingBalance + assets);
-        assertEq(strategyCBALRETH.balanceOf(user1), balance - assets);
-        assertEq(strategyCBALRETH.totalSupply(), totalSupply - assets);
+        assertEq(strategyCBALRETH.balanceOf(user1), balance - collateralRedeemed);
+        assertEq(strategyCBALRETH.totalSupply(), totalSupply - collateralRedeemed);
     }
 
     function test_strategyCTokenRedeem_success_User2WithApproval() public {
+        skip(20 minutes);
+
         uint256 underlyingBalance = balRETH.balanceOf(user1);
         uint256 balance = strategyCBALRETH.balanceOf(user1);
         uint256 totalSupply = strategyCBALRETH.totalSupply();
+        uint256 collateralRedeemed = 0.5e18;
 
         vm.startPrank(user1);
         borrowableCDAI.approve(user2, _ONE);
         vm.stopPrank();
         
         vm.startPrank(user2);
-        emit Transfer(user1, address(0), 0.5e18);
-        strategyCBALRETH.redeem(_ONE, user2, user1);
+        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
+        emit Transfer(user1, address(0), collateralRedeemed);
+        uint256 assets = strategyCBALRETH.redeem(collateralRedeemed, user2, user1);
         vm.stopPrank();
 
         assertEq(balRETH.balanceOf(user2), underlyingBalance + assets);
-        assertEq(strategyCBALRETH.balanceOf(user1), balance - assets);
-        assertEq(strategyCBALRETH.totalSupply(), totalSupply - assets);
+        assertEq(strategyCBALRETH.balanceOf(user1), balance - collateralRedeemed);
+        assertEq(strategyCBALRETH.totalSupply(), totalSupply - collateralRedeemed);
     }
 
     function test_strategyCTokenRedeem_success_whenCollateralIsInUse() public {
+        uint256 underlyingBalance = balRETH.balanceOf(user1);
+        uint256 balance = strategyCBALRETH.balanceOf(user1);
+        uint256 totalSupply = strategyCBALRETH.totalSupply();
+        uint256 collateralRedeemed = 0.5e18;
+
         _prepareDAI(address(this), 2000e18);
         dai.approve(address(borrowableCDAI), 2000e18);
         borrowableCDAI.deposit(2000e18, address(this));
@@ -142,8 +161,15 @@ contract RedeemTest is TestBaseStrategyCToken {
         strategyCBALRETH.deposit(_ONE + _ONE, user1);
         vm.stopPrank();
 
-        emit Transfer(user1, address(0), 0.5e18);
-        _redeemBalRETH(0.5e18);
+        skip(20 minutes);
+
+        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
+        emit Transfer(user1, address(0), collateralRedeemed);
+        uint256 assets = _redeemBalRETH(collateralRedeemed);
+
+        assertEq(balRETH.balanceOf(user1), underlyingBalance + assets);
+        assertEq(strategyCBALRETH.balanceOf(user1), balance - collateralRedeemed);
+        assertEq(strategyCBALRETH.totalSupply(), totalSupply - collateralRedeemed);
     }
 
     function _redeemBalRETH(uint256 shares) internal returns (uint256 assets) {

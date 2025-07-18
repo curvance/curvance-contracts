@@ -74,23 +74,23 @@ contract RemoveCollateralForTest is TestBaseStrategyCToken {
         uint256 balanceBefore = strategyCBALRETH.balanceOf(user1);
         uint256 userCollateral = strategyCBALRETH.collateralPosted(user1);
         uint256 totalCollateral = strategyCBALRETH.marketCollateralPosted();
-        uint256 newCollateral = _ONE;
+        uint256 collateralRemoved = _ONE;
 
         skip(20 minutes);
 
         vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
-        emit CollateralUpdated(newCollateral, false, user1);
+        emit CollateralUpdated(collateralRemoved, false, user1);
 
-        _removeBalRETHCollateralForUser1(newCollateral);
+        _removeBalRETHCollateralForUser1(collateralRemoved);
 
         // Balance should not have changed.
         assertEq(strategyCBALRETH.balanceOf(user1), balanceBefore);
 
-        // User collateral should go up by `newCollateral`.
-        assertEq(strategyCBALRETH.collateralPosted(user1), userCollateral - newCollateral);
+        // User collateral should go up by `collateralRemoved`.
+        assertEq(strategyCBALRETH.collateralPosted(user1), userCollateral - collateralRemoved);
 
-        // Market collateral should go up by `newCollateral`.
-        assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - newCollateral);
+        // Market collateral should go up by `collateralRemoved`.
+        assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - collateralRemoved);
     }
 
     function _removeBalRETHCollateralForUser1(uint256 shares) internal {

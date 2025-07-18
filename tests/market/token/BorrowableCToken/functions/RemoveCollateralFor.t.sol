@@ -151,23 +151,23 @@ contract RemoveCollateralForTest is TestBaseBorrowableCToken {
         uint256 balanceBefore = borrowableCDAI.balanceOf(user1);
         uint256 userCollateral = borrowableCDAI.collateralPosted(user1);
         uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
-        uint256 newCollateral = _ONE;
+        uint256 collateralRemoved = _ONE;
 
         skip(20 minutes);
 
         vm.expectEmit(true, true, true, true, address(borrowableCDAI));
-        emit CollateralUpdated(newCollateral, false, user1);
+        emit CollateralUpdated(collateralRemoved, false, user1);
 
-        _removeBorrowableCDAICollateralForUser1(newCollateral);
+        _removeBorrowableCDAICollateralForUser1(collateralRemoved);
 
         // Balance should not have changed.
         assertEq(borrowableCDAI.balanceOf(user1), balanceBefore);
 
-        // User collateral should go up by `newCollateral`.
-        assertEq(borrowableCDAI.collateralPosted(user1), userCollateral - newCollateral);
+        // User collateral should go up by `collateralRemoved`.
+        assertEq(borrowableCDAI.collateralPosted(user1), userCollateral - collateralRemoved);
 
-        // Market collateral should go up by `newCollateral`.
-        assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral - newCollateral);
+        // Market collateral should go up by `collateralRemoved`.
+        assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral - collateralRemoved);
     }
 
     function _removeBorrowableCDAICollateralForUser1(uint256 shares) internal {
