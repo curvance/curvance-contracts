@@ -296,6 +296,20 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         uint256 closeBalance = (debtBalance * 0.30e18) / 1e18;
 
         _prepareUSDC(user3, debtBalance);
+
+        ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: user1,
+                collateralToken: address(strategyCBALRETH),
+                borrowedToken: address(borrowableCUSDC),
+                isLiquidateExact: false,
+                liquidateExactAmount: 0,
+                isAuction: true,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            })
+        );
+
         vm.startPrank(user3);
 
         address[] memory usersToLiquidate = new address[](1);   
@@ -308,40 +322,10 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         uint256 liquidatorcTokenBalance = strategyCBALRETH.balanceOf(user3);
-        assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndLiquidate(debtBalance));
+        assertEq(liquidatorcTokenBalance, expectedLiquidationValues.collateralLiquidated);
 
         uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
         assertEq(liquidatorUSDCBalance, debtBalance - closeBalance);
-    }
-
-    function _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndLiquidate(uint256 debtBalance) public view returns (uint256) {
-        uint256 WAD = 1e18;
-        uint256 WAD_SQUARED = 1e36;
-
-        uint256 incentive = 1.15e18; 
-        uint256 debtTokenPrice = 2e18; 
-        uint256 cTokenPrice;
-        uint256 exchangeRate = strategyCBALRETH.exchangeRate();
-        uint256 closeFactor = 0.30e18;
-        
-        (, cTokenPrice, ) = marketManagerIsolated.liquidationStatusOf(
-            user1,
-            address(strategyCBALRETH),
-            address(borrowableCUSDC)
-        );
-        
-        uint256 collateralDecimals = 10**18; 
-        uint256 debtDecimals = 10**6;  
-        
-        // Calculate maxAmount
-        uint256 maxAmount = (closeFactor * debtBalance) / WAD;
-        
-        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_SQUARED) /
-            (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
-        
-        uint256 collateralLiquidated = (maxAmount * debtToCollateralMultiplier) / WAD_SQUARED;
-        
-        return collateralLiquidated;
     }
 
     function _setUpMarketNonLiquidation() internal {
