@@ -1268,10 +1268,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
         // TODO: decide how to implement this check
         // _checkAuctionPermissions();
 
-        uint256 collateralToUnlockUint = uint256(uint160(marketToUnlock));
+        uint256 marketToUnlockUint = uint256(uint160(marketToUnlock));
         /// @solidity memory-safe-assembly
         assembly {
-            tstore(_TRANSIENT_MARKET_UNLOCKED_KEY, marketToUnlock)
+            tstore(_TRANSIENT_MARKET_UNLOCKED_KEY, marketToUnlockUint)
         }
     }
 
