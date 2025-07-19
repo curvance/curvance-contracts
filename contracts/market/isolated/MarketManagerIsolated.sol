@@ -716,7 +716,13 @@ contract MarketManagerIsolated is
     function listTokens(address token0, address token1) external {
         _checkMarketPermissions();
 
+        // The same token cannot be listed twice in the same market.
+        if (token0 == token1) external {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
         uint256 numTokens = tokensListed.length;
+        // Validate that tokens have not been listed already.
         if (numTokens != 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -742,9 +748,6 @@ contract MarketManagerIsolated is
             ) {
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
-
-        // No need to check whether tokens were listed before since this
-        // function can only be called once.
 
         // Update frontend array/emit events.
         tokensListed.push(token0);
