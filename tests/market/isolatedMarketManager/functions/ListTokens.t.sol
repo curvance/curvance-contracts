@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
 contract ListTokensTest is TestBaseMarketManagerIsolated {
