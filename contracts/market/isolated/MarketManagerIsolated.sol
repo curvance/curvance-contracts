@@ -747,13 +747,14 @@ contract MarketManagerIsolated is
         emit TokenListed(token1);
     }
 
-    /// @notice Sets market liquidity configuration values for a position
-    ///         token inside this market.
+    /// @notice Sets token liquidity configuration values for `config.cToken`
+    ///         a listed cToken inside this market.
     /// @dev Emits a {TokenConfigUpdated} event.
     /// @param config A TokenConfig struct containing:
-    ///               cToken The Curvance token to update configuration of.
+    ///               cToken The Curvance token to update liquidity 
+    ///                      configuration values of.
     ///               collRatio The ratio at which $1 of collateral
-    ///                         can be borrowed against, for `cToken`,
+    ///                         can be borrowed against, for `config.cToken`,
     ///                         in basis points.
     ///               collReqSoft The premium of excess collateral
     ///                           required to avoid soft liquidation,
@@ -762,13 +763,13 @@ contract MarketManagerIsolated is
     ///                           required to avoid hard liquidation,
     ///                           in basis points.
     ///               liqIncBase The default liquidation incentive for
-    ///                          `cToken`, in basis points.
-    ///               liqIncHard The hard liquidation incentive for `cToken`,
-    ///                          in basis points.
+    ///                          `config.cToken`, in basis points.
+    ///               liqIncHard The hard liquidation incentive for
+    ///                          `config.cToken`, in basis points.
     ///               liqIncMin The minimum possible liquidation incentive for
-    ///                         `cToken`, in basis points.
+    ///                         `config.cToken`, in basis points.
     ///               liqIncMax The maximum possible liquidation incentive for
-    ///                         `cToken`, in basis points.
+    ///                         `config.cToken`, in basis points.
     function updateTokenConfig(TokenConfig memory config) external {
         _checkMarketPermissions();
 
@@ -924,20 +925,20 @@ contract MarketManagerIsolated is
         // so we can quickly scale between [base, 100%] based on lFactor.
         curvanceToken.liqCurve = config.liqIncHard - config.liqIncBase;
 
-        // Assign the base cFactor
+        // Assign the base cFactor.
         curvanceToken.baseCFactor = config.baseCFactor;
         // Store the distance between base cFactor and 100%,
         // that way we can quickly scale between [base, 100%] based on lFactor.
         curvanceToken.cFactorCurve = WAD - config.baseCFactor;
 
-        // Assign the min and max effective closeFactor
+        // Assign the min and max effective closeFactor.
         curvanceToken.minEffectiveCloseFactor = config.minEffectiveCloseFactor;
         curvanceToken.maxEffectiveCloseFactor = config.maxEffectiveCloseFactor;
 
-        // Assign the collateral cap
+        // Assign the collateral posted cap of `config.cToken`.
         collateralCaps[config.cToken] = config.collateralCap;
 
-        // Assign the debt cap
+        // Assign the outstanding debt cap of `config.cToken`.
         debtCaps[config.cToken] = config.debtCap;
 
         emit TokenConfigUpdated(config);

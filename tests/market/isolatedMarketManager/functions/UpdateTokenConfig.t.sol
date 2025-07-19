@@ -21,12 +21,8 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
     function test_updateTokenConfig_fail_whenCallerIsNotAuthorized() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
 
-        address cToken = address(borrowableCUSDC);
-        uint256 collateralCap = 1_000_000e6;
-        uint256 debtCap = 1_000_000e6;
-        
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = cToken;
+        tokenConfig.cToken = address(borrowableCUSDC);
         tokenConfig.collRatio = 7000;
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -37,24 +33,17 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 2000;
-        tokenConfig.collateralCap = collateralCap;
-        tokenConfig.debtCap = debtCap;
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = 1_000_000e6;
 
         vm.prank(user2);
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);
-
     }
 
-    function test_updateTokenConfig_fail_whenTokenIsNotBorrowable() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
-
-        address cToken = address(strategyCBALRETH);
-        uint256 collateralCap = 1_000_000e6;
-        uint256 debtCap = 1_000_000e6;
-        
+    function test_updateTokenConfig_fail_whenCTokenIsNotListed() public {
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = cToken;
+        tokenConfig.cToken = address(borrowableCUSDC);
         tokenConfig.collRatio = 7000;
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -65,23 +54,19 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 2000;
-        tokenConfig.collateralCap = collateralCap;
-        tokenConfig.debtCap = debtCap;
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = 1_000_000e6;
 
-        vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
+        marketManagerIsolated.updateTokenConfig(tokenConfig); 
     }
 
     function test_updateTokenConfig_fail_whenCollRatioIsTooHigh() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
 
-        address cToken = address(strategyCBALRETH);
-        uint256 collateralCap = 1_000_000e6;
-        uint256 debtCap = 0;
-        
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = cToken;
-        tokenConfig.collRatio = 23500;    // collRatio 235% (above max)
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 9950;    // collRatio 99.5% (above max of 97.5)
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
         tokenConfig.liqIncBase = 1000;
@@ -91,8 +76,30 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 2000;
-        tokenConfig.collateralCap = collateralCap;
-        tokenConfig.debtCap = debtCap;
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = 0;
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
+
+    function test_updateTokenConfig_fail_whenSoftReqIsTooHigh() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 7000; 
+        tokenConfig.collReqSoft = 23500;    // collReqSoft 235% (above max of 234%)
+        tokenConfig.collReqHard = 5000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = 0;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);
@@ -101,12 +108,8 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
     function test_updateTokenConfig_fail_whenHardReqHigherThanSoftReq() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
 
-        address cToken = address(strategyCBALRETH);
-        uint256 collateralCap = 1_000_000e6;
-        uint256 debtCap = 0;
-        
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = cToken;
+        tokenConfig.cToken = address(strategyCBALRETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 5000;     //(should be < collReqSoft)
@@ -117,22 +120,40 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 2000;
-        tokenConfig.collateralCap = collateralCap;
-        tokenConfig.debtCap = debtCap;
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = 0;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
-    function test_updateTokenConfig_fail_whenLiqIncBaseIsLargerThanMax() public {
+    function test_updateTokenConfig_fail_whenLiqIncBaseIsLargerThanLiqIncHard() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
 
-        address cToken = address(strategyCBALRETH);
-        uint256 collateralCap = 1_000_000e6;
-        uint256 debtCap = 0;
-        
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = cToken;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 7000; 
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1500;
+        tokenConfig.liqIncHard = 1400; //      (should be >=liqIncBase)
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = 0;
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
+
+    function test_updateTokenConfig_fail_whenLiqIncBaseIsLargerThanLiqIncMax() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -143,33 +164,40 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 2000;
-        tokenConfig.collateralCap = collateralCap;
-        tokenConfig.debtCap = debtCap;
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = 0;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
 
+    function test_updateTokenConfig_fail_whenLiqIncMinIsLargerThanLiqIncMax() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
-        tokenConfig.liqIncBase = 1000; //   (should be >= liqInMin)
+        tokenConfig.liqIncBase = 1500;
         tokenConfig.liqIncHard = 1500;
-        tokenConfig.liqIncMin = 1500;
-        tokenConfig.liqIncMax = 2000;
+        tokenConfig.liqIncMin = 2100;
+        tokenConfig.liqIncMax = 2000; //      (should be >=liqIncMin)
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = 0;
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
     function test_updateTokenConfig_fail_whenLiqIncMaxIsTooHigh() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
 
-        address cToken = address(strategyCBALRETH);
-        uint256 collateralCap = 1_000_000e6;
-        uint256 debtCap = 0;
-        
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = cToken;
+        tokenConfig.cToken = address(strategyCBALRETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -180,48 +208,40 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 2000;
-        tokenConfig.collateralCap = collateralCap;
-        tokenConfig.debtCap = debtCap;
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = 0;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
-    function test_updateTokenConfig_fail_whenLiqMinGreaterThanLiqMax() public {
+    function test_updateTokenConfig_fail_CollateralBufferIsTooLowFromliqIncHard() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
 
-        address cToken = address(strategyCBALRETH);
-        uint256 collateralCap = 1_000_000e6;
-        uint256 debtCap = 0;
-        
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = cToken;
+        tokenConfig.cToken = address(strategyCBALRETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
-        tokenConfig.collReqHard = 3000;   
-        tokenConfig.liqIncBase = 1000;
-        tokenConfig.liqIncHard = 1500;
-        tokenConfig.liqIncMin = 2001; //    (should be < liqIncMax)
-        tokenConfig.liqIncMax = 2000;
+        tokenConfig.collReqHard = 1000;  
+        tokenConfig.liqIncBase = 700;
+        tokenConfig.liqIncHard = 900; //     9% ((9 + 1.5% buffer) = 10.5%) > 10% collReqHard
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 1500;
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 2000;
-        tokenConfig.collateralCap = collateralCap;
-        tokenConfig.debtCap = debtCap;
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = 0;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
-    function test_updateTokenConfig_fail_CollateralBufferIsTooLow() public {
+    function test_updateTokenConfig_fail_CollateralBufferIsTooLowFromLiqIncMax() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
 
-        address cToken = address(strategyCBALRETH);
-        uint256 collateralCap = 1_000_000e6;
-        uint256 debtCap = 0;
-        
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = cToken;
+        tokenConfig.cToken = address(strategyCBALRETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 1000;  
@@ -232,8 +252,8 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 2000;
-        tokenConfig.collateralCap = collateralCap;
-        tokenConfig.debtCap = debtCap;
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = 0;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);
@@ -242,12 +262,8 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
     function test_updateTokenConfig_fail_whenBaseCFactorisTooLow() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
 
-        address cToken = address(strategyCBALRETH);
-        uint256 collateralCap = 1_000_000e6;
-        uint256 debtCap = 0;
-        
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = cToken;
+        tokenConfig.cToken = address(strategyCBALRETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -258,13 +274,18 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 900;      // baseCFactor is 9% (min is 10%)
-        tokenConfig.collateralCap = collateralCap;
-        tokenConfig.debtCap = debtCap;
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = -;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
 
-        tokenConfig.cToken = cToken;
+    function test_updateTokenConfig_fail_whenBaseCFactorisTooHigh() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -275,21 +296,62 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 5100;      // baseCFactor 51% (max is 50%)
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = 0;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);
-
     }
 
-    function test_updateTokenConfig_fail_TurnOffCollateralization() public {
+    function test_updateTokenConfig_fail_whenCollReqSoftCollateralPremiumTooHighVersusCollRatio() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
 
-        address cToken = address(strategyCBALRETH);
-        uint256 collateralCap = 1000e18;
-        uint256 debtCap = 0;
-        
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = cToken;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 7000; 
+        tokenConfig.collReqSoft = 20000; // 200% collateral requirement to avoid liquidation, not possible with 70% collRatio.
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = 0;
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
+
+    function test_updateTokenConfig_fail_whenDebtCapAboveZeroWhenCTokenIsNotBorrowable() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 7000;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = 1_000_000e6;
+        tokenConfig.debtCap = 1_000_000e6;
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
+
+    function test_updateTokenConfig_fail_debtCapAboveMaxDebtCap() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(borrowableCDAI);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -300,39 +362,22 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 2000;
-        tokenConfig.collateralCap = collateralCap;
-        tokenConfig.debtCap = debtCap;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 100e55; // Cap for debt limits in 2^168-1 or 3.74e50.
 
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
-
-
-        tokenConfig.cToken = cToken;
-        tokenConfig.collRatio = 0; 
-        tokenConfig.collReqSoft = 4000;
-        tokenConfig.collReqHard = 3000;
-        tokenConfig.liqIncBase = 1000;
-        tokenConfig.liqIncHard = 1500;
-        tokenConfig.liqIncMin = 500;
-        tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
-
-        // will fail because coll ratio != 0 to start off
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
-        function test_updateTokenConfig_success_turnOffCollateralization_whenCollRatioStartsZero() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+    function test_updateTokenConfig_fail_whenPriceFeedError() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
 
-        address cToken = address(strategyCBALRETH);
-        uint256 collateralCap = 0;
-        uint256 debtCap = 0;
-        
+        // Remove cToken support from Oracle Manager so pricing will fail.
+        oracleManager.removeCTokenSupport(address(borrowableCDAI));
+
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = cToken;
-        tokenConfig.collRatio = 0; 
+        tokenConfig.cToken = address(borrowableCDAI);
+        tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
         tokenConfig.liqIncBase = 1000;
@@ -342,28 +387,116 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 2000;
-        tokenConfig.collateralCap = collateralCap;
-        tokenConfig.debtCap = debtCap;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 100_000e18;
 
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
-
-
-        tokenConfig.cToken = cToken;
-        tokenConfig.collRatio = 0; 
-        tokenConfig.collReqSoft = 4000;
-        tokenConfig.collReqHard = 3000;
-        tokenConfig.liqIncBase = 1000;
-        tokenConfig.liqIncHard = 1500;
-        tokenConfig.liqIncMin = 500;
-        tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
-
-        // will succeed because coll ratio is already 0
+        // We expect an errorCode == 2 failure here on call.
+        vm.expectRevert(MarketManagerIsolated.MarketManager__PriceError.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
+    function test_updateTokenConfig_fail_whenCollateralCapTurnedOnWithoutCollateralization() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
 
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 0; 
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 0;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+
+        // Will fail because collateralization should not be possible with
+        // coll ratio set to 0.
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
+
+    function test_updateTokenConfig_fail_TurnOffCollateralization() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 7000; 
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = 1000e18;
+        tokenConfig.debtCap = 0;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+
+        tokenConfig.collRatio = 0; 
+
+        // Will fail because coll ratio cannot be set to 0 after being set above 0.
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
+
+    function test_updateTokenConfig_success_strategyCTokenAndBorrowableCToken() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 7000; 
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 0;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+
+        tokenConfig.cToken = address(borrowableCUSDC);
+        tokenConfig.debtCap = 100_000e18;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
+
+    function test_updateTokenConfig_success_twoBorrowableCTokens() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(borrowableCDAI);
+        tokenConfig.collRatio = 7000; 
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 100_000e18;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+
+        tokenConfig.cToken = address(borrowableCUSDC);
+
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
 
 }
