@@ -717,7 +717,7 @@ contract MarketManagerIsolated is
         _checkMarketPermissions();
 
         // The same token cannot be listed twice in the same market.
-        if (token0 == token1) external {
+        if (token0 == token1) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
