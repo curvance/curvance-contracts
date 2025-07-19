@@ -66,7 +66,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     event InterestAccrualUpdate(uint256 debtPerSecond, uint256 vestingPeriod);
     event Borrow(uint256 assets, address account);
     event Repay(uint256 assets, address payer, address account);
-    event Flashloan(uint256 assets, uint256 assetsReturned, address account);
+    event Flashloan(uint256 assets, uint256 assetsFee, address account);
     event BadDebtRecognized(uint256 assets, address liquidator);
     event NewMarketInterestRateModel(
         address oldInterestRateModel,
@@ -235,7 +235,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         _borrow(assets, msg.sender, owner);
 
-        // Callback to position folding to execute additional action.
+        // Callback to a Position Manager to execute additional action.
         IPositionManager(msg.sender).onBorrow(
             address(this),
             assets,
@@ -336,11 +336,14 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param data Arbitrary calldata passed to flashloan callback to execute
     ///             desired action during the flashloan.
     function flashLoan(uint256 assets, bytes calldata data) external {
+        _accrueIfNeeded();
+
         _checkZeroAmount(assets);
         _checkAssetsHeld(assets);
 
         address token = address(_asset);
-        uint256 assetsReturned = assets + flashFee(assets);
+        uint256 fee = flashFee(assets);
+        uint256 assetsReturned = assets + fee;
         
         SafeTransferLib.safeTransfer(token, msg.sender, assets);
 
@@ -353,7 +356,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
             assetsReturned
         );
 
-        emit Flashloan(assets, assetsReturned, msg.sender);
+        _totalAssets = _totalAssets + fee;
+
+        emit Flashloan(assets, fee, msg.sender);
     }
 
     /// @notice Get a snapshot of the cToken and `account` data.

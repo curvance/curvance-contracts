@@ -25,7 +25,7 @@ import "forge-std/console2.sol";
 // Clean up testing of Maximum/minimum vertex rates
 // Clean up testing of Decay rate being applied
 //
-contract TestDynamictyyInterestRate is TestBaseMarketIsolated {
+contract TestDynamicInterestRate is TestBaseMarketIsolated {
     DynamicInterestRateModel public interestRateModel;
 
     address public owner;
