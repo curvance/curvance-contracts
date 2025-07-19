@@ -727,9 +727,14 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // List the tokens.
-        tokenData[token0].isListed = true;
-        tokenData[token1].isListed = true;
+        // At least one of the two tokens has to be borrowable or the
+        // market does not make any sense to create.
+        if (
+            !ICToken(token0).isBorrowable() &&
+            !ICToken(token1).isBorrowable()
+            ) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
 
         // Immediately deposits into the cToken before anyone else can to
         // prevent any rounding exploits.
@@ -740,14 +745,9 @@ contract MarketManagerIsolated is
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
 
-        // At least one of the two tokens has to be borrowable or the
-        // market does not make any sense to create.
-        if (
-            !ICToken(token0).isBorrowable() &&
-            !ICToken(token1).isBorrowable()
-            ) {
-            _revert(_INVARIANT_ERROR_SELECTOR);
-        }
+        // List the tokens.
+        tokenData[token0].isListed = true;
+        tokenData[token1].isListed = true;
 
         // Update frontend array/emit events.
         tokensListed.push(token0);

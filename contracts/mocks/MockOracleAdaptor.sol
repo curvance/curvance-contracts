@@ -23,7 +23,7 @@ contract MockOracleAdaptor is BaseOracleAdaptor {
     function getPrice(
         address asset,
         bool inUSD,
-        bool getLower
+        bool
     ) external view override returns (PriceReturnData memory) {
         if (!hasSetPrice[asset]) {
             revert("Price not set by MockOracle");

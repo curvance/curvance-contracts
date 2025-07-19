@@ -1158,16 +1158,16 @@ abstract contract BaseCToken is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
+        address cTokenAddress = address(this);
         uint256 assets = _BASE_UNDERLYING_RESERVE;
-        address market = address(this);
-
-        SafeTransferLib.safeTransferFrom(asset(), by, market, assets);
+        
+        SafeTransferLib.safeTransferFrom(asset(), by, cTokenAddress, assets);
 
         // Because nobody can deposit into the market before initializeDeposits()
         // is called, this will always be the initial call.
         uint256 shares = _initialConvertToShares(assets);
 
-        _mint(market, shares);
+        _mint(cTokenAddress, shares);
         _totalAssets = assets;
 
         assembly {
@@ -1179,12 +1179,12 @@ abstract contract BaseCToken is
                 0x00,
                 0x40,
                 _DEPOSIT_EVENT_SIGNATURE,
-                and(m, market),
-                and(m, market)
+                and(m, cTokenAddress),
+                and(m, cTokenAddress)
             )
         }
 
-        _afterDepositAction(shares, market);
+        _afterDepositAction(shares, cTokenAddress);
     }
 
     /// @notice Updates the allowance for the caller.
