@@ -1534,10 +1534,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///      is allowed.
     ///      Requires a minimum lock size of 1 CVE, in `WAD`.
     function _canLock(uint256 amount) internal view {
+        /// @solidity memory-safe-assembly
         assembly {
             if lt(amount, WAD) {
                 mstore(0x0, _INVALID_LOCK_SELECTOR)
-                // return bytes 29-32 for the selector
+                // Return bytes 29-32 for the selector.
                 revert(0x1c, 0x04)
             }
         }
@@ -1559,6 +1560,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///      any other caller opens the protocol up to reentry.
     function _validateCallbackFromRewardManager() internal view {
         address rewardManager = address(_getRewardManager());
+
+        /// @solidity memory-safe-assembly
         assembly {
             if iszero(eq(caller(), rewardManager)) {
                 mstore(0x00, _UNAUTHORIZED_SELECTOR)

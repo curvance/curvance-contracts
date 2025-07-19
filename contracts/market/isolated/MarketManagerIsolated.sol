@@ -397,7 +397,17 @@ contract MarketManagerIsolated is
         _checkIsToken(collateralToken);
         // Can skip token listing check since collateralCaps[collateralToken]
         // can only be set above 0 if `debtToken` is listed already, so we
-        // only need to check that `newNetCollateral` != 0 instead.
+        // only need to check that `newNetCollateral` != 0 instead, which
+        // should be impossible but only costs 2 gas.
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            if iszero(newNetCollateral) {
+                mstore(0x00, _INVARIANT_ERROR_SELECTOR)
+                // Return bytes 29-32 for the selector.
+                revert(0x1c, 0x04)
+            }
+        }
 
         if (collateralizationPaused[collateralToken] == 2) {
             _revert(_PAUSED_SELECTOR);
@@ -406,10 +416,7 @@ contract MarketManagerIsolated is
         // This also acts as a check that collateralization ratio is > 0,
         // since collateralCaps can only be raised above zero if the
         // its collateralization ratio is > 0.
-        if (
-            newNetCollateral == 0 ||
-            newNetCollateral > collateralCaps[collateralToken]
-            ) {
+        if (newNetCollateral > collateralCaps[collateralToken]) {
             revert MarketManager__CapReached();
         }
 
@@ -1234,7 +1241,17 @@ contract MarketManagerIsolated is
         _checkIsToken(debtToken);
         // Can skip token listing check since debtCaps[debtToken] can only
         // be set above 0 if `debtToken` is listed already, so we only need
-        // to check that `newNetDebt` != 0 instead.
+        // to check that `newNetDebt` != 0 instead, which should be impossible
+        // but only costs 2 gas.
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            if iszero(newNetDebt) {
+                mstore(0x00, _INVARIANT_ERROR_SELECTOR)
+                // Return bytes 29-32 for the selector.
+                revert(0x1c, 0x04)
+            }
+        }
 
         if (borrowPaused[debtToken] == 2) {
             _revert(_PAUSED_SELECTOR);
@@ -1242,7 +1259,7 @@ contract MarketManagerIsolated is
 
         // Validates that newNetDebt is not an empty value and this borrow
         // action will not push net debt above the debt limit.
-        if (newNetDebt == 0 || newNetDebt > debtCaps[debtToken]) {
+        if (newNetDebt > debtCaps[debtToken]) {
             revert MarketManager__CapReached();
         }
 

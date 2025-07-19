@@ -1418,8 +1418,13 @@ abstract contract BaseCToken is
 
     /// @notice Checks to make sure an action is not an empty action.
     function _checkZeroAmount(uint256 assets) internal pure {
-        if (assets == 0) {
-            revert BaseCToken__ZeroAmount();
+        /// @solidity memory-safe-assembly
+        assembly {
+            if iszero(assets) {
+                mstore(0x00, 0xc0883a55) // Revert BaseCToken__ZeroAmount().
+                // Return bytes 29-32 for the selector.
+                revert(0x1c, 0x04)
+            }
         }
     }
 

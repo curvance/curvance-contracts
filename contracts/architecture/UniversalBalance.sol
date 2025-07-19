@@ -713,8 +713,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
     /// @notice Checks to make sure an action is not an empty action.
     function _checkZeroAmount(uint256 amount) internal pure {
-        if (amount == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+        /// @solidity memory-safe-assembly
+        assembly {
+            if iszero(amount) {
+                mstore(0x00, _INVALID_PARAMETER_SELECTOR)
+                // Return bytes 29-32 for the selector.
+                revert(0x1c, 0x04)
+            }
         }
     }
 
