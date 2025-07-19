@@ -275,7 +275,7 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 900;      // baseCFactor is 9% (min is 10%)
         tokenConfig.collateralCap = 1_000_000e6;
-        tokenConfig.debtCap = -;
+        tokenConfig.debtCap = 0;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);

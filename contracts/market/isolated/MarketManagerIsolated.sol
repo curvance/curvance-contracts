@@ -771,6 +771,7 @@ contract MarketManagerIsolated is
     ///               liqIncMax The maximum possible liquidation incentive for
     ///                         `config.cToken`, in basis points.
     function updateTokenConfig(TokenConfig memory config) external {
+        _checkIsListedToken(config.cToken);
         _checkMarketPermissions();
 
         // Convert the parameters from basis points to `WAD` format.
