@@ -96,4 +96,15 @@ interface IOracleManager {
     /// @notice Check whether L2 sequencer is valid or down.
     /// @return True if sequencer is valid.
     function isSequencerValid() external view returns (bool);
+
+    /// @notice Returns the types of adaptors pricing `asset` uses.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    /// @param  asset The asset whose adaptor types should be returned.
+    /// @return A tuple containing the types of adaptors pricing `asset`
+    ///         uses, a value of 0 indicates an unsupported or empty
+    ///         adaptor slot.
+    function getAdaptorTypes(
+        address asset
+    ) external view returns (uint256, uint256);
 }
