@@ -513,17 +513,17 @@ contract TestGaugeManager_SingleGauge is TestBaseMarketIsolated {
         // New total (100 + 100 + 400 + 400) = 10,000 tokens
         vm.warp(block.timestamp + 100);
 
-        // User0:(100 / 10,000) * 30,000 = 300 + 15000
-        // User1:(400 / 10,000) * 30,000 = 1200
-        // User2:(100 / 10,000) * 30,000 = 300 + 15000
-        // User3:(400 / 10,000) * 30,000 = 1200
+        // User0:(100 / 1000) * 30,000 = 300 + 15000
+        // User1:(400 / 1000) * 30,000 = 1200
+        // User2:(100 / 1000) * 30,000 = 300 + 15000
+        // User3:(400 / 1000) * 30,000 = 1200
 
         // This assert is off due to rounding, should be 18000.
         assertEq(gaugeManager.pendingRewards(borrowableToken, users[0]), 17999);
         // This assert is off due to rounding, should be 18000.
-        assertEq(gaugeManager.pendingRewards(borrowableToken, users[1]), 1200);
+        assertEq(gaugeManager.pendingRewards(borrowableToken, users[1]), 12000);
         assertEq(gaugeManager.pendingRewards(borrowableToken, users[2]), 17999);
-        assertEq(gaugeManager.pendingRewards(borrowableToken, users[3]), 1200);
+        assertEq(gaugeManager.pendingRewards(borrowableToken, users[3]), 12000);
 
         gaugeManager.updatePool(borrowableToken);
 
@@ -533,20 +533,20 @@ contract TestGaugeManager_SingleGauge is TestBaseMarketIsolated {
         vm.prank(users[3]);
         gaugeManager.claim(_makeTokenArray(borrowableToken), users[3]);
 
-        assertEq(cve.balanceOf(users[0]), 18000);
-        assertEq(cve.balanceOf(users[3]), 1200);
+        assertEq(cve.balanceOf(users[0]), 17999);
+        assertEq(cve.balanceOf(users[3]), 12000);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
 
-        // User0:(100 / 10,000) * 30,000 = 300
-        // User1:(400 / 10,000) * 30,000 = 1200 + 1200
-        // User2:(100 / 10,000) * 30,000 = 300 + 18000
-        // User3:(400 / 10,000) * 30,000 = 1200 + 1200
-        assertEq(gaugeManager.pendingRewards(borrowableToken, users[0]), 300);
-        assertEq(gaugeManager.pendingRewards(borrowableToken, users[1]), 2400);
-        assertEq(gaugeManager.pendingRewards(borrowableToken, users[2]), 18300);
-        assertEq(gaugeManager.pendingRewards(borrowableToken, users[3]), 2400);
+        // User0:(100 / 1000) * 30,000 = 3000
+        // User1:(400 / 1000) * 30,000 = 12000 + 12000 = 24000
+        // User2:(100 / 1000) * 30,000 = 3000 + 18000 = 21000
+        // User3:(400 / 1000) * 30,000 = 12000 
+        assertEq(gaugeManager.pendingRewards(borrowableToken, users[0]), 3000);
+        assertEq(gaugeManager.pendingRewards(borrowableToken, users[1]), 24000);
+        assertEq(gaugeManager.pendingRewards(borrowableToken, users[2]), 20999); // rounds up
+        assertEq(gaugeManager.pendingRewards(borrowableToken, users[3]), 12000);
 
         // user0 withdraw half
         vm.prank(users[0]);
@@ -561,14 +561,14 @@ contract TestGaugeManager_SingleGauge is TestBaseMarketIsolated {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
 
-        // User0: (50 / 9500) * 30,000 = 157.89 + 300 
-        // User1: (400 / 9500) * 30,000 = 1263.15 + 2400
-        // User2: (200 / 9500) * 30,000 = 631.57 + 18300 
-        // User3: (400 / 9500) * 30,000 = 1263.15 + 2400
-        assertEq(gaugeManager.pendingRewards(borrowableToken, users[0]), 457);
-        assertEq(gaugeManager.pendingRewards(borrowableToken, users[1]), 3663);
-        assertEq(gaugeManager.pendingRewards(borrowableToken, users[2]), 18931);
-        assertEq(gaugeManager.pendingRewards(borrowableToken, users[3]), 3663);
+        // User0: (50 / 1050) * 30,000 = 1428.57 + 3000 = 4428.57 
+        // User1: (400 / 1050) * 30,000 = 11428.57 + 24000 = 35428.57
+        // User2: (200 / 1050) * 30,000 = 5714.28 + 20999 = 26713.28
+        // User3: (400 / 1050) * 30,000 = 11428.57 + 12000 = 23428.57
+        assertEq(gaugeManager.pendingRewards(borrowableToken, users[0]), 4429); // rounds up
+        assertEq(gaugeManager.pendingRewards(borrowableToken, users[1]), 35429); // rounds up
+        assertEq(gaugeManager.pendingRewards(borrowableToken, users[2]), 26714);
+        assertEq(gaugeManager.pendingRewards(borrowableToken, users[3]), 23429);
 
         // user0, user1, user2, user3 claims
         vm.prank(users[0]);
@@ -580,10 +580,10 @@ contract TestGaugeManager_SingleGauge is TestBaseMarketIsolated {
         vm.prank(users[3]);
         gaugeManager.claim(_makeTokenArray(borrowableToken), users[3]);
 
-        assertEq(cve.balanceOf(users[0]), 457);
-        assertEq(cve.balanceOf(users[1]), 3663);
-        assertEq(cve.balanceOf(users[2]), 18931);
-        assertEq(cve.balanceOf(users[3]), 3663);
+        assertEq(cve.balanceOf(users[0]), 22428); // 17999 + 4429
+        assertEq(cve.balanceOf(users[1]), 35429);
+        assertEq(cve.balanceOf(users[2]), 26714);
+        assertEq(cve.balanceOf(users[3]), 35429);
 
         gaugeManager.updatePool(borrowableToken);
 
@@ -592,14 +592,14 @@ contract TestGaugeManager_SingleGauge is TestBaseMarketIsolated {
 
         gaugeManager.updatePool(borrowableToken);
 
-        // User0: (50 / 9500) * 30,000 = 157.89
-        // User1: (400 / 9500) * 30,000 = 1263.15
-        // User2: (200 / 9500) * 30,000 = 631.57
-        // User3: (400 / 9500) * 30,000 = 1263.15
-        assertEq(gaugeManager.pendingRewards(borrowableToken, users[0]), 157);
-        assertEq(gaugeManager.pendingRewards(borrowableToken, users[1]), 1263);
-        assertEq(gaugeManager.pendingRewards(borrowableToken, users[2]), 631);
-        assertEq(gaugeManager.pendingRewards(borrowableToken, users[3]), 1263);
+        // User0: (50 / 1050) * 30,000 = 1428.57
+        // User1: (400 / 1050) * 30,000 = 11428.57 
+        // User2: (200 / 1050) * 30,000 = 5714.28 
+        // User3: (400 / 1050) * 30,000 = 11428.57 
+        assertEq(gaugeManager.pendingRewards(borrowableToken, users[0]), 1429);
+        assertEq(gaugeManager.pendingRewards(borrowableToken, users[1]), 11429);
+        assertEq(gaugeManager.pendingRewards(borrowableToken, users[2]), 5714);
+        assertEq(gaugeManager.pendingRewards(borrowableToken, users[3]), 11429);
     }
 
     function testClaim() public {

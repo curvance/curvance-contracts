@@ -869,6 +869,7 @@ contract TestBaseMarketIsolated is TestBase {
         uint256 collateralLiquidated;
         uint256 badDebt;
         uint256 collateralRequired;
+        uint256 maxAmountRepaid;
     }
 
     function _calculateExpectedLiquidationValues(
@@ -896,7 +897,8 @@ contract TestBaseMarketIsolated is TestBase {
                 debtRepaid: 0,
                 collateralLiquidated: 0,
                 badDebt: 0,
-                collateralRequired: 0
+                collateralRequired: 0,
+                maxAmountRepaid: 0
             });
         }
 
@@ -913,6 +915,8 @@ contract TestBaseMarketIsolated is TestBase {
 
         uint256 debtBalance = IBorrowableCToken(params.borrowedToken).debtBalance(params.borrower);
         uint256 maxAmount = (cFactor * debtBalance) / WAD;
+        
+        expectedLiquidationValues.maxAmountRepaid = maxAmount;
 
         uint256 collateralAvailable = ICToken(params.collateralToken).collateralPosted(params.borrower);
 

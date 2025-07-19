@@ -177,12 +177,12 @@ contract TestGaugeManager_DoubleGauge is TestBaseMarketIsolated {
         // user0 usdc: (29,999 * ((100/900) * (100/300))) = 1111
         // user0 dai: (29,999 * ((100/100) * (200/300))) = 19999
         assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[0]), 1111);
-        assertEq(gaugeManager.pendingRewards(borrowableCDAIWithGauge, users[0]), 19999);
+        assertEq(gaugeManager.pendingRewards(borrowableCDAIWithGauge, users[0]), 20000); // rounds up to 20000
 
         // user1 usdc: 4444 + (29,999 * ((400/900) * (100/300))) = 4444 + 4444 = 8888
         // user2 usdc: (29,999 * ((400/900) * (100/300))) = 4444
-        assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[1]), 8888);
-        assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[2]), 4444);
+        assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[1]), 8889); // rounds up to 8889
+        assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[2]), 4445); // rounds up to 4445
 
         // user0 withdraw half
         vm.prank(users[0]);
@@ -194,43 +194,48 @@ contract TestGaugeManager_DoubleGauge is TestBaseMarketIsolated {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
 
-        
-        assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[0]), 0);
-        assertEq(gaugeManager.pendingRewards(borrowableCDAIWithGauge, users[0]), 0);
+        // user0: 1111 + (29,999 * ((50/850) * (100/300))) = 588 + 111 = 1699
+        // user0: 19999 + (29,999 * ((100/100) * (200/300))) = 19999 + 19999 = 39998
+        assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[0]), 1699);
+        assertEq(gaugeManager.pendingRewards(borrowableCDAIWithGauge, users[0]), 40000); // rounds to 40000
 
-        assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[1]), 0);
-        assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[2]), 0);
+        // user1: 8888 + (29,999 * ((400/850) * (100/300))) = 4705 + 8888 = 13593
+        // user2: 4444 + (29,999 * ((400/850) * (100/300))) = 4705 + 4444 = 9150
+        assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[1]), 13594); // rounds to 13594
+        assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[2]), 9150);
 
-        // // user0, user1, user3 claims
-        // vm.prank(users[0]);
-        // gaugeManager.claim(listedTokens, users[0]);
-        // vm.prank(users[1]);
-        // gaugeManager.claim(listedTokens, users[1]);
-        // vm.prank(users[3]);
-        // gaugeManager.claim(listedTokens, users[3]);
+        // user0, user1, user3 claims
+        vm.prank(users[0]);
+        gaugeManager.claim(tokensParam, users[0]);
+        vm.prank(users[1]);
+        gaugeManager.claim(tokensParam, users[1]);
+        vm.prank(users[3]);
+        gaugeManager.claim(tokensParam, users[3]);
 
-        // // User0: 33333 + 5098 = 38431
-        // // User1: 26667 + 14118 = 40785
-        // // User2: 13334 + 27451 = 40785
-        // assertEq(cve.balanceOf(users[0]), 38431); 
-        // assertEq(cve.balanceOf(users[1]), 40785); 
-        // assertEq(cve.balanceOf(users[3]), 40785); 
+        // User0: 51102 + 41699 = 92801
+        assertEq(cve.balanceOf(users[0]), 92801); 
+        assertEq(cve.balanceOf(users[1]), 13594); 
+        assertEq(cve.balanceOf(users[2]), 4444);
+        assertEq(cve.balanceOf(users[3]), 0); 
 
-        // gaugeManager.updatePool(borrowableCDAIWithGauge);
-        // gaugeManager.updatePool(borrowableCUSDCWithGauge);
+        gaugeManager.updatePool(borrowableCDAIWithGauge);
+        gaugeManager.updatePool(borrowableCUSDCWithGauge);
 
-        // // check pending rewards after 100 seconds
-        // vm.warp(block.timestamp + 100);
+        // check pending rewards after 100 seconds
+        vm.warp(block.timestamp + 100);
 
-        // gaugeManager.updatePool(borrowableCDAIWithGauge);
-        // gaugeManager.updatePool(borrowableCUSDCWithGauge);
+        gaugeManager.updatePool(borrowableCDAIWithGauge);
+        gaugeManager.updatePool(borrowableCUSDCWithGauge);
 
-        // // User0: ((50/(50+400+400)) * 30000) = 1764.70 (rounds down)
-        // // User1: ((400/(50+400+400)) * 30000) = 14117.64
-        // // User2: ((400/(50+400+400)) * 30000) = 14117.64
-        // assertEq(gaugeManager.pendingRewards(borrowableCDAIWithGauge, users[0]), 1764); 
-        // assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[1]), 14117); 
-        // assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[3]), 14117); 
+        // user0 USDC: (50/850) * 10,000 = 588.235 (rounds down to 588)
+        // user0 DAI: (100/100) * 20,000 = 20,000 (exact)
+        assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[0]), 588);
+        assertEq(gaugeManager.pendingRewards(borrowableCDAIWithGauge, users[0]), 20000);
+
+        // user1 USDC: (400/850) * 10,000 = 4705.882 (rounds down to 4705)
+        // user2 USDC: 9150 (unclaimed) + (400/850) * 10,000 = 9150 + 4705.882 = 13855.882 (rounds down to 13855)
+        assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[1]), 4705); 
+        assertEq(gaugeManager.pendingRewards(borrowableCUSDCWithGauge, users[2]), 13855);
     }
 
 }
