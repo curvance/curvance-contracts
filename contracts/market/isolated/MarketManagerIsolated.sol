@@ -385,38 +385,44 @@ contract MarketManagerIsolated is
     ///         their shares of the given market.
     ///         Prunes unused positions in `account` data.
     /// @dev May emit a {PositionUpdated} event.
-    /// @param cToken The token to verify collateralization of.
+    /// @param collateralToken The token to verify collateralization of.
     /// @param account The account which would collateralize the asset.
     /// @param newNetCollateral The amount of shares that would be
     ///                         collateralized in total if allowed.
     function canCollateralize(
-        address cToken,
+        address collateralToken,
         address account,
         uint256 newNetCollateral
     ) external {
-        _checkIsToken(cToken);
-        _checkIsListedToken(cToken);
+        _checkIsToken(collateralToken);
+        // Can skip token listing check since collateralCaps[collateralToken]
+        // can only be set above 0 if `debtToken` is listed already, so we
+        // only need to check that `newNetCollateral` != 0 instead.
 
-        if (collateralizationPaused[cToken] == 2) {
+        if (collateralizationPaused[collateralToken] == 2) {
             _revert(_PAUSED_SELECTOR);
         }
 
         // This also acts as a check that collateralization ratio is > 0,
         // since collateralCaps can only be raised above zero if the
         // its collateralization ratio is > 0.
-        if (newNetCollateral > collateralCaps[cToken]) {
+        if (
+            newNetCollateral == 0 ||
+            newNetCollateral > collateralCaps[collateralToken]
+            ) {
             revert MarketManager__CapReached();
         }
 
         // On collateral posting:
         // We need to flip their cooldown flag to prevent flashloan attacks.
         accountAssets[account].cooldownTimestamp = block.timestamp;
-        // If `account` does not have a position in `cToken`, open one.
-        if (accountPositions[cToken][account] != 2) {
-            accountPositions[cToken][account] = 2;
-            accountAssets[account].assets.push(cToken);
+        // If `account` does not have a position in `collateralToken`,
+        // open one.
+        if (accountPositions[collateralToken][account] != 2) {
+            accountPositions[collateralToken][account] = 2;
+            accountAssets[account].assets.push(collateralToken);
 
-            emit PositionUpdated(cToken, account, true);
+            emit PositionUpdated(collateralToken, account, true);
         }
     }
 
@@ -710,7 +716,13 @@ contract MarketManagerIsolated is
     function listTokens(address token0, address token1) external {
         _checkMarketPermissions();
 
+        // The same token cannot be listed twice in the same market.
+        if (token0 == token1) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
         uint256 numTokens = tokensListed.length;
+        // Validate that tokens have not been listed already.
         if (numTokens != 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -736,9 +748,6 @@ contract MarketManagerIsolated is
             ) {
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
-
-        // No need to check whether tokens were listed before since this
-        // function can only be called once.
 
         // Update frontend array/emit events.
         tokensListed.push(token0);
@@ -1223,15 +1232,17 @@ contract MarketManagerIsolated is
         uint256 newNetDebt
     ) internal {
         _checkIsToken(debtToken);
-        _checkIsListedToken(debtToken);
+        // Can skip token listing check since debtCaps[debtToken] can only
+        // be set above 0 if `debtToken` is listed already, so we only need
+        // to check that `newNetDebt` != 0 instead.
 
         if (borrowPaused[debtToken] == 2) {
             _revert(_PAUSED_SELECTOR);
         }
 
-        // Validates that this borrow action will not push net debt
-        // above the debt limit.
-        if (newNetDebt > debtCaps[debtToken]) {
+        // Validates that newNetDebt is not an empty value and this borrow
+        // action will not push net debt above the debt limit.
+        if (newNetDebt == 0 || newNetDebt > debtCaps[debtToken]) {
             revert MarketManager__CapReached();
         }
 

@@ -28,12 +28,12 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         );
     }
 
-    function test_canBorrowWithNotify_fail_whenCallerCTokenIsNotListed()
+    function test_canBorrowWithNotify_fail_whenCallerCTokenIsNotListedWithNoDebtCapSet()
         public
     {
         vm.prank(address(borrowableCDAI));
 
-        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
         marketManagerIsolated.canBorrowWithNotify(
             address(borrowableCDAI),
             100e6,
