@@ -108,7 +108,7 @@ contract TestPredeposit is TestBasePredeposit {
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
-    function test_swapAndDeposit_migrate_withPToken_withCollateralize_success()
+    function test_swapAndDeposit_migrate_withCollateralize_success()
         public
     {
         vm.startPrank(user1);
@@ -153,7 +153,7 @@ contract TestPredeposit is TestBasePredeposit {
         assertEq(strategyCBALRETH.balanceOf(user1), 0.1e18);
     }
 
-    function test_swapAndDeposit_migrate_withPToken_withoutCollateralize_success()
+    function test_swapAndDeposit_migrate_withoutCollateralize_success()
         public
     {
         vm.startPrank(user1);
@@ -198,7 +198,7 @@ contract TestPredeposit is TestBasePredeposit {
         assertEq(strategyCBALRETH.balanceOf(user1), 0.1e18);
     }
 
-    function test_swapAndDeposit_migrate_withBorrowableToken_success() public {
+    function test_swapAndDeposit_migrate_withBorrowableCToken_success() public {
         vm.startPrank(user1);
 
         weth.approve(address(predeposit), _ONE);
