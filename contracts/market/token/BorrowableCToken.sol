@@ -493,6 +493,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ) internal {
         _checkZeroAmount(assets);
         _checkAssetsHeld(assets);
+        
         // Cannot borrow if `account` already has posted collateral in this
         // market.
         if (collateralPosted[owner] > 0) {

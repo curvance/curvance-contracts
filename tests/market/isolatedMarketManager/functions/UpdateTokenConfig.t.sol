@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import { TestBaseMarketManagerIsolated } from "tests/market/isolatedMarketManager/TestBaseMarketManagerIsolated.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
 contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
 
@@ -369,7 +370,7 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
-    function test_updateTokenConfig_fail_whenPriceFeedError() public {
+    function test_updateTokenConfig_fail_whenOracleManagerCannotPriceCToken() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
 
         // Remove cToken support from Oracle Manager so pricing will fail.
@@ -390,8 +391,8 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         tokenConfig.collateralCap = 100_000e18;
         tokenConfig.debtCap = 100_000e18;
 
-        // We expect an errorCode == 2 failure here on call.
-        vm.expectRevert(MarketManagerIsolated.MarketManager__PriceError.selector);
+        // We expect pricing failure here on call.
+        vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
@@ -413,15 +414,40 @@ contract UpdateTokenConfigTest is TestBaseMarketManagerIsolated {
         tokenConfig.collateralCap = 100_000e18;
         tokenConfig.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
-
         // Will fail because collateralization should not be possible with
         // coll ratio set to 0.
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
-    function test_updateTokenConfig_fail_TurnOffCollateralization() public {
+    function test_updateTokenConfig_fail_TurnOffCollateralizationWithoutCollateralCap() public {
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 7000; 
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = 0;
+        tokenConfig.debtCap = 0;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+
+        tokenConfig.collRatio = 0; 
+
+        // Will fail because coll ratio cannot be set to 0 after being set above 0.
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
+
+    function test_updateTokenConfig_fail_TurnOffCollateralizationWithCollateralCap() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
