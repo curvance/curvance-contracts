@@ -41,11 +41,6 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
 
     uint256 collateralAvailable = WAD;
 
-    uint256 liqBaseIncentive;
-    uint256 liqCurve;
-    uint256 baseCFactor;
-    uint256 cFactorCurve;
-
     uint256[] badDebt = [0,0,0,0,0];
 
     event Repay(uint256 assets, address payer, address account);
@@ -126,30 +121,11 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         mockWethFeed.setMockAnswer(1380e8);
         mockRethFeed.setMockAnswer(1380e8);
 
-        (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
-            marketManagerIsolated.tokenData(address(strategyCBALRETH));
-
-        liqBaseIncentive = liqBaseIncentive_;
-        liqCurve = liqCurve_;
-        baseCFactor = baseCFactor_;
-        cFactorCurve = cFactorCurve_;
-
         // vm.warp(block.timestamp + 20 minutes); skipping so no interest accrues which keeps it simple
 
     }
 
     function test_multipleUsersLiquidatedWithVaryingHealthFactors() public {
-
-        IMarketManager.LiqInstructions memory liqInstructions;
-        liqInstructions = IMarketManager.LiqInstructions({
-            debtToken: address(borrowableCUSDC),
-            collateralToken: address(strategyCBALRETH),
-            numAccounts: 5,
-            liquidateExact: false,
-            liquidatedShares: 0,
-            debtRepaid: 0,
-            badDebt: 0
-        });
 
         _prepareUSDC(address(this), 100000e6);
 
@@ -158,32 +134,30 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         uint256[] memory lFactorsPreLiquidation = _getLFactorsPreLiquidation();
         uint256[] memory debtBalancesPreLiquidation = _getDebtBalancePreLiquidation();
 
-        (,uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(
-                borrowers[0],
-                address(strategyCBALRETH), 
-                address(borrowableCUSDC)
-            );
-
-        (uint256[] memory maxAmount, uint256[] memory collateralLiquidated, uint256[] memory collateralRequired) = 
-            _getLiquidationValuesWithHigherPrecision_NonAuction(
-                debtTokenPrice, collateralTokenPrice, lFactorsPreLiquidation
-            );
-
+        uint256[] memory maxAmount = new uint256[](5);
+        uint256[] memory collateralLiquidated = new uint256[](5);
+        uint256[] memory collateralRequired = new uint256[](5);
         uint256 expectedTotalBadDebt;
-        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
 
         for(uint i; i < 5; i++) {
-            badDebt[i] = _calculateBadDebt(
-                debtBalancesPreLiquidation[i],
-                maxAmount[i],
-                collateralAvailable,
-                collateralRequired[i],
-                collateralLiquidated[i],
-                collateralTokenPrice,
-                debtTokenPrice,
-                cTokenExchangeRate
+
+            ExpectedLiquidationValues memory expectedValues = _calculateExpectedLiquidationValues(
+                LiquidationParams({
+                    borrower: borrowers[i],
+                    collateralToken: address(strategyCBALRETH),
+                    borrowedToken: address(borrowableCUSDC),
+                    isLiquidateExact: false,
+                    liquidateExactAmount: 0,
+                    isAuction: false,
+                    isMultiMarketTest: false,
+                    marketManagerId: 0
+                })
             );
+
+            maxAmount[i] = expectedValues.maxAmountRepaid;
+            collateralLiquidated[i] = expectedValues.collateralLiquidated;
+            collateralRequired[i] = expectedValues.collateralRequired;
+            badDebt[i] = expectedValues.badDebt;
             expectedTotalBadDebt += badDebt[i];
         }
 
@@ -327,83 +301,6 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
             debtBalances[i] = borrowableCUSDC.debtBalance(borrowers[i]);
         }
         return debtBalances;
-    }
-
-    function _getLiquidationValuesWithHigherPrecision_NonAuction(
-        uint256 debtTokenPrice,
-        uint256 collateralTokenPrice,
-        uint256[] memory lFactors
-    ) internal view returns (
-        uint256[] memory maxAmount, 
-        uint256[] memory collateralLiquidated,
-        uint256[] memory collateralRequired
-    ) {
-        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
-        
-        // Keep original values but use higher precision for calculations
-        uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
-        
-        maxAmount = new uint256[](5);
-        collateralLiquidated = new uint256[](5);
-        collateralRequired = new uint256[](5);
-
-        for (uint i; i < 5; i++) {
-            if (lFactors[i] == 0) continue;
-            
-            // Follow the contract's exact calculations but with higher precision
-            uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactors[i]) / WAD);
-            uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors[i]) / WAD);
-            
-            // Calculate with extra precision
-            uint256 highPrecisionD2C = (((auctionLiqIncentive * debtTokenPrice * WAD * PRECISION_FACTOR) /
-                (collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
-                
-            maxAmount[i] = (auctionCFactor * borrowAmounts[i]) / WAD;
-            
-            // Calculate with extra precision
-            collateralLiquidated[i] = (maxAmount[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
-            
-            if (collateralLiquidated[i] > collateralAvailable) {
-                // Use the contract's exact formula
-                maxAmount[i] = FixedPointMathLib.mulDivUp(
-                    maxAmount[i],
-                    collateralAvailable,
-                    collateralLiquidated[i]
-                );
-                collateralLiquidated[i] = collateralAvailable;
-            }
-            
-            // Use the contract's exact formula
-            collateralRequired[i] = (borrowAmounts[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
-        }
-
-        return (maxAmount, collateralLiquidated, collateralRequired);
-    }
-
-    function _calculateBadDebt(
-        uint256 _debtBalance,
-        uint256 _debtAmount,
-        uint256 _collateralAvailable,
-        uint256 _collateralRequired,
-        uint256 _collateralLiquidated,
-        uint256 _collateralTokenUnderlyingPrice,
-        uint256 _debtTokenUnderlyingPrice,
-        uint256 _cTokenExchangeRate
-    ) internal pure returns (uint256 badDebt) {
-
-        if(_collateralRequired > _collateralAvailable) {
-    
-        badDebt = (_debtBalance - _debtAmount) -
-        FixedPointMathLib.mulDivUp(
-            ((_collateralAvailable - _collateralLiquidated) * _cTokenExchangeRate) / WAD,
-            _collateralTokenUnderlyingPrice,
-            (_debtTokenUnderlyingPrice * WAD) / 1e6
-        );
-
-        } else {
-            return 0;
-        }
-        
     }
 
 }

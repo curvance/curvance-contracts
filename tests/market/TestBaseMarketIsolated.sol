@@ -999,11 +999,12 @@ contract TestBaseMarketIsolated is TestBase {
         data.debtTokenDecimals = 10 ** ICToken(_debtToken).decimals();
 
         uint256 collateralExchangeRate = ICToken(_collateralToken).exchangeRate();
-        
+
         debtToCollateralMultiplier = (((data.liqIncentive *
             data.debtTokenPrice * WAD_SQUARED) /
             (data.collateralTokenPrice * collateralExchangeRate)) * 
             data.collateralTokenDecimals) / data.debtTokenDecimals;
+            
     }
 
     function _calculateExpectedBadDebt(
@@ -1014,13 +1015,6 @@ contract TestBaseMarketIsolated is TestBase {
         address _collateralToken,
         address _debtToken
     ) internal view returns (uint256 badDebt) {
-
-        console2.log("INSIDE OF _calculateExpectedBadDebt");
-        console2.log("debtAmount", _debtAmount);
-        console2.log("collateralRequired", _collateralRequired);
-        console2.log("collateralLiquidated", _collateralLiquidated);
-        console2.log("collateralToken", _collateralToken);
-        console2.log("debtToken", _debtToken);
 
         uint256 debtTokenDecimals = 10 ** ICToken(_debtToken).decimals();
         uint256 collateralTokenExchangeRate = ICToken(_collateralToken).exchangeRate();
@@ -1038,9 +1032,6 @@ contract TestBaseMarketIsolated is TestBase {
                 collateralTokenUnderlyingPrice,
                 (debtTokenUnderlyingPrice * WAD) / debtTokenDecimals
             );
-
-            console2.log("remainingCollateralValue", remainingCollateralValue);
-            console2.log("debtBalance - _debtAmount", debtBalance - _debtAmount);
             
             badDebt = (debtBalance - _debtAmount) - remainingCollateralValue;
         } else {
