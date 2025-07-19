@@ -109,6 +109,14 @@ contract AuxiliaryData {
         MarketCTokenData[] cTokenData;
     }
 
+    struct LookupAccountState {
+        address account;
+        address[] markets;
+        address[][] pTokensForPosition;
+        address[][] eTokensForPosition;
+        address[] tokensForBalance;
+    }
+
     /// CONSTANTS ///
     uint256 public constant MARKET_ASSET_RESERVE = 77777;
 
@@ -191,6 +199,102 @@ contract AuxiliaryData {
     }
 
     /// TOKEN-SPECIFIC FUNCTIONS ///
+    function getAccountState(
+        LookupAccountState calldata lookup
+    )
+        external
+        view
+        returns (
+            AccountMarketPosition[] memory marketPositions,
+            AccountAssetPosition[][] memory eTokenPositions,
+            AccountAssetPosition[][] memory pTokenPositions,
+            uint256[] memory tokenBalances
+        )
+    {
+        if (lookup.account == address(0)) {
+            revert("An account is required to query state");
+        }
+
+        marketPositions = new AccountMarketPosition[](lookup.markets.length);
+        eTokenPositions = new AccountAssetPosition[][](lookup.markets.length);
+        pTokenPositions = new AccountAssetPosition[][](lookup.markets.length);
+        tokenBalances = new uint256[](lookup.tokensForBalance.length);
+
+        // For each market in the marketplace
+        for (uint256 i; i < lookup.markets.length; i++) {
+            address market = lookup.markets[i];
+
+            try IMarketManager(market).statusOf(lookup.account) returns (
+                uint256 collateral,
+                uint256 maxDebt,
+                uint256 debt
+            ) {
+                marketPositions[i] = AccountMarketPosition({
+                    collateral: collateral,
+                    maxDebt: maxDebt,
+                    debt: debt
+                });
+            } catch {}
+
+            // Find the position for each token in the market
+            if (i < lookup.eTokensForPosition.length) {
+                address[] memory eTokens = lookup.eTokensForPosition[i];
+                eTokenPositions[i] = new AccountAssetPosition[](
+                    eTokens.length
+                );
+                for (uint256 j; j < eTokens.length; j++) {
+                    IBorrowableCToken token = IBorrowableCToken(eTokens[j]);
+
+                    AccountAssetPosition memory position;
+                    (
+                        position.hasPosition,
+                        position.shareAmount,
+                        position.collateralOrDebtAmount
+                    ) = this.getAccountTokenData(
+                        lookup.account,
+                        address(token)
+                    );
+                    position.tokenAmount = token.convertToAssets(
+                        position.shareAmount
+                    );
+
+                    eTokenPositions[i][j] = position;
+                }
+            }
+
+            // Find the position for each token in the market
+            if (i < lookup.pTokensForPosition.length) {
+                address[] memory pTokens = lookup.pTokensForPosition[i];
+                pTokenPositions[i] = new AccountAssetPosition[](
+                    pTokens.length
+                );
+                for (uint256 j; j < pTokens.length; j++) {
+                    ICToken token = ICToken(pTokens[j]);
+
+                    AccountAssetPosition memory position;
+                    (
+                        position.hasPosition,
+                        position.shareAmount,
+                        position.collateralOrDebtAmount
+                    ) = this.getAccountTokenData(
+                        lookup.account,
+                        address(token)
+                    );
+                    position.tokenAmount = token.convertToAssets(
+                        position.shareAmount
+                    );
+
+                    pTokenPositions[i][j] = position;
+                }
+            }
+        }
+
+        // Find the balance for each token in the marketplace
+        for (uint256 i; i < lookup.tokensForBalance.length; i++) {
+            IERC20 token = IERC20(lookup.tokensForBalance[i]);
+            tokenBalances[i] = token.balanceOf(lookup.account);
+        }
+    }
 
     /// @notice Returns if an account has an active position in `token`,
     /// @notice Returns if an account has an active position in `token`,
