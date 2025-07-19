@@ -327,8 +327,8 @@ abstract contract BaseCToken is
     }
 
     /// @notice Posts `shares` as collateral inside this market.
-    /// @dev The position token must have collateralization
-    ///      enabled (collRatio > 0).
+    /// @dev The cToken must have collateralization enabled (collRatio > 0),
+    ///      and its collateral cap set (above 0).
     /// @param shares The amount of shares to post as collateral.
     function postCollateral(uint256 shares) external nonReentrant {
         _checkPostCollateral(shares, msg.sender);
@@ -338,8 +338,8 @@ abstract contract BaseCToken is
 
     /// @notice Posts `shares` as collateral inside this market
     ///         for `account`.
-    /// @dev The position token must have collateralization
-    ///      enabled (collRatio > 0).
+    /// @dev The cToken must have collateralization enabled (collRatio > 0),
+    ///      and its collateral cap set (above 0).
     /// @param shares The number of shares to post as collateral from `owner`.
     /// @param owner The address of the account posting `shares`
     ///              as collateral.

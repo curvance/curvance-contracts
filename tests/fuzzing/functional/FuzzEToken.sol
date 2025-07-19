@@ -440,12 +440,12 @@
 //     // SOFT liquidation
 
 //     // by default, this should just liquidate the maximum amount, assuming nonexist liquidation
-//     /// @custom:property dtok-20 liquidating a non-exact amount should remove the user's position in the position token
-//     /// @custom:property dtok-21  liquidating a non-exact amount should zero out the collateral posted for a user in the position token
+//     /// @custom:property dtok-20 liquidating a non-exact amount should remove the user's position in the cToken
+//     /// @custom:property dtok-21  liquidating a non-exact amount should zero out the collateral posted for a user in the cToken
 //     /// @custom:property dtok-22 liquidating a non-exact amount should zero out the debt balance of the respective debt token
 //     /// @custom:property dtok-23 liquidating a non-exact amount should decrease collateral balance for an account
 //     /// @custom:property dtok-24 liquidating a non-exact amount should decrease the liquidator's underlying eTokenBalance by `debtToLiquidate`
-//     /// @custom:property dtok-25 liquidating a non-exact amount should increase the position token balance by (amount seized by liquidation - amount seized by protocol)
+//     /// @custom:property dtok-25 liquidating a non-exact amount should increase the cToken balance by (amount seized by liquidation - amount seized by protocol)
 //     /// @custom:precondition liquidating an account's maximum
 //     /// @custom:precondition eToken is supported
 //     /// @custom:precondition cToken is supported
@@ -466,7 +466,7 @@
 //         EToken(eToken).accrueInterest();
 //         (
 //             uint256 debtToLiquidate, // debt tokens to be repaid on liquidation
-//             uint256 seizedForLiquidation // number of position tokens to be seized for the liquidator
+//             uint256 seizedForLiquidation // number of cTokens to be seized for the liquidator
 //         ) = marketManager.canLiquidate(
 //                 eToken,
 //                 collateralToken,
@@ -492,7 +492,7 @@
 
 //             hevm.prank(msg.sender);
 //             try EToken(eToken).liquidate(account, collateralToken) {
-//                 // After a non-exact (maximum) liquidation, the user should no longer have a position in the position token.
+//                 // After a non-exact (maximum) liquidation, the user should no longer have a position in the cToken.
 //                 assertWithMsg(
 //                     !_hasPosition(collateralToken),
 //                     "DTOK-20 soft liquidate entire account should clear position for collateral"
@@ -513,7 +513,7 @@
 //                     "DTOK-22 soft liquidate entire account should zero out debt balance for user"
 //                 );
 
-//                 // The position token balance for the liquidated account should decrease by `seizedForLiquidation`
+//                 // The cToken balance for the liquidated account should decrease by `seizedForLiquidation`
 //                 emit LogUint256(
 //                     "collateralBalanceBefore",
 //                     collateralBalanceBefore
@@ -537,7 +537,7 @@
 //                 );
 
 //                 // When liquidating, the liquidator should receive the user's COLLATERAL token in exchange
-//                 // Therefore, the liquidator's position token balance must be equivalent to their previous balance + their allocation of tokens
+//                 // Therefore, the liquidator's cToken balance must be equivalent to their previous balance + their allocation of tokens
 //                 {
 //                     // The # of tokens allocated to the liquidator is equivalent to the total number of tokens seized for liquidation
 //                     uint256 collateralTokensForLiquidator = seizedForLiquidation;
@@ -546,7 +546,7 @@
 //                     assertEq(
 //                         IERC20(collateralToken).balanceOf(msg.sender),
 //                         preSenderCollateral + collateralTokensForLiquidator,
-//                         "DTOK-25 soft liquidate: position token balance of sender must increase by (amount seized by liquidation - amount seized for protocol)"
+//                         "DTOK-25 soft liquidate: cToken balance of sender must increase by (amount seized by liquidation - amount seized for protocol)"
 //                     );
 //                 }
 //             } catch (bytes memory revertData) {
@@ -602,13 +602,13 @@
 //     /// @custom:property dtok-26 liquidating an exact amount should result in the priorCollateral - currentCollateral being equal to the amount seized for liquidation.
 //     /// @custom:property dtok-27 Liquidating an exact amount should result in account debt decreasing by debtToLiquidate.
 //     /// @custom:property dtok-28 Liquidating an exact amount should result in the underlying token balance of msg.sender after liquidation being equal to the previous underlying balance + debt to liquidate.
-//     /// @custom:property dtok-29 Liquidating an exact amount should result in position token balance of the sender increasing by (amount seized by liquidation - amount seized by the protocol)
+//     /// @custom:property dtok-29 Liquidating an exact amount should result in cToken balance of the sender increasing by (amount seized by liquidation - amount seized by the protocol)
 //     /// @custom:precondition eToken being liquidated is eDAI
 //     /// @custom:precondition cToken being liquidated is pUSDC
 //     /// @custom:precondition account being liquidated is address(this)
 //     /// @custom:limitation once posting of collateral etc can be done by any address, open up to any account can be liquidated
 //     /// @custom:limitation current uses a constant for dai and usdc price to push the position into an liquidatable state, see liquidateAccount in marketManager for dynamic generation
-//     /// @custom:limitation missing check for position token balance of account
+//     /// @custom:limitation missing check for cToken balance of account
 //     function liquidate_should_succeed_with_exact(uint256 amount) public {
 //         address eToken = address(borrowableCDAI);
 //         address collateralToken = address(pUSDC);
@@ -664,14 +664,14 @@
 //                 );
 
 //                 // When liquidating, the liquidator should receive the user's COLLATERAL token in exchange
-//                 // Therefore, the liquidator's position token balance must be equivalent to their previous balance + their allocation of tokens
+//                 // Therefore, the liquidator's cToken balance must be equivalent to their previous balance + their allocation of tokens
 //                 {
 //                     // The # of tokens allocated to the liquidator is equivalent to the total number of tokens seized for liquidation
 //                     uint256 collateralTokensForLiquidator = seizedForLiquidation;
 //                     assertEq(
 //                         IERC20(collateralToken).balanceOf(msg.sender),
 //                         preSenderCollateral + collateralTokensForLiquidator,
-//                         "DTOK-29 soft liquidate: position token balance of sender must increase by (amount sized by liquidation - amount seized for protocol)"
+//                         "DTOK-29 soft liquidate: cToken balance of sender must increase by (amount sized by liquidation - amount seized for protocol)"
 //                     );
 //                 }
 //             }

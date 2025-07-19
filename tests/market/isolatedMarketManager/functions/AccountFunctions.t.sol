@@ -10,45 +10,8 @@ contract AccountFunctionsTest is TestBaseMarketManagerIsolated {
 
     function setUp() public override {
         super.setUp();
-        
-        // // Setup market with tokens
-        // deal(address(balRETH), address(this), 77777);
-        // balRETH.approve(address(simpleCBALRETH), 77777);
-
-        // deal(address(_USDC_ADDRESS), address(this), 77777);
-        // usdc.approve(address(borrowableCUSDC), 77777);
-        
-        // // List tokens in the market
-        // marketManager.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
-        
-        // // Set position token parameters
-        // marketManager.updatePositionToken(
-        //     7000,    // collRatio 70%
-        //     4000,    // collReqSoft 40%
-        //     3000,    // collReqHard 25%
-        //     1000,    // liqIncBase 10%
-        //     1500,    // liqIncHard 15%
-        //     500,     // liqIncMin 5%
-        //     2000,    // liqIncMax 20%
-        //     2000,    // minEffectiveCFactor 20%
-        //     5000,    // maxEffectiveCFactor 50%
-        //     2000     // baseCFactor 20%
-        // );
-
-        // // Create a dapp control user
-        // dappControlUser = makeAddr("dappControlUser");
-        // vm.startPrank(centralRegistry.daoAddress());
-        // centralRegistry.addAuctionPermissions(dappControlUser);
-        // vm.stopPrank();
-
-        // address[] memory tokens = new address[](1);
-        // tokens[0] = address(simpleCBALRETH);
-        // uint256[] memory caps = new uint256[](1);
-        // caps[0] = 100_000e18;
-        // marketManager.setCollateralCaps(tokens, caps);
 
         _prepareLiquidation();
-
     }
 
     function test_assetsOf() public {

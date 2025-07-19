@@ -150,7 +150,6 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             wbtc.approve(address(cWBTC), 1e8);
             // add CToken support on oracle manager
             oracleManager.addCTokenSupport(address(cWBTC));
-            // set position token configuration
         }
 
         marketManagerIsolated.listTokens(address(cWBTC), address(borrowableCWETH));

@@ -167,7 +167,7 @@ contract SimpleZapper is ZapperBase {
     ///         desired token (swapData.outputToken) and then deposits
     ///         it into a new position.
     /// @dev Requires plugin approval for redemption.
-    /// @param cToken The Curvance position token (cToken) address.
+    /// @param cToken The Curvance token (cToken) address.
     /// @param redemptionData Struct containing information on redemption
     ///                       action to execute. Containing values:
     ///                       1. The address of the cToken corresponding to

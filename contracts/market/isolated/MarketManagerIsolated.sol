@@ -1803,7 +1803,7 @@ contract MarketManagerIsolated is
 
     /// @dev Checks whether `account` has token transfers enabled.
     function _checkTransfersAllowed(address account) internal view {
-        if ((centralRegistry).checkTransfersDisabled(account)) {
+        if (centralRegistry.checkTransfersDisabled(account)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
