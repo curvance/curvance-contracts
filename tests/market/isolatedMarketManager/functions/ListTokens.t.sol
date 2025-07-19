@@ -3,7 +3,6 @@ pragma solidity 0.8.26;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 contract ListTokensTest is TestBaseMarketManagerIsolated {
@@ -33,7 +32,7 @@ contract ListTokensTest is TestBaseMarketManagerIsolated {
         balRETH.approve(address(strategyCBALRETH), 0);
         usdc.approve(address(borrowableCUSDC), 0);
 
-        vm.expectRevert(ERC20.InsufficientAllowance.selector);
+        vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
     }
 
@@ -51,7 +50,7 @@ contract ListTokensTest is TestBaseMarketManagerIsolated {
         balRETH.approve(address(strategyCBALRETH), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        vm.expectRevert(ERC20.InsufficientBalance.selector);
+        vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
     }
 
