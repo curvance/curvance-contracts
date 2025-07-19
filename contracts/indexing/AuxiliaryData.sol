@@ -31,6 +31,7 @@ contract AuxiliaryData {
         uint256 debt;
         uint256 collateral;
         uint256 maxDebt;
+        uint256 healthFactor;
     }
 
     struct MarketData {
@@ -230,6 +231,9 @@ contract AuxiliaryData {
                 uint256 debt
             ) {
                 marketPositions[i] = AccountMarketPosition({
+                    healthFactor: debt > 0
+                        ? _calculateHealthFactor(market, lookup.account)
+                        : 0,
                     collateral: collateral,
                     maxDebt: maxDebt,
                     debt: debt
@@ -497,6 +501,14 @@ contract AuxiliaryData {
                 result.userMarketPosition.maxDebt = maxDebt;
                 result.userMarketPosition.debt = debt;
             } catch {}
+
+            if (result.userMarketPosition.debt > 0) {
+                result
+                    .userMarketPosition
+                    .healthFactor = _calculateHealthFactor(market, account);
+            } else {
+                result.userMarketPosition.healthFactor = 0;
+            }
         }
 
         result.marketAddress = market;
@@ -837,6 +849,12 @@ contract AuxiliaryData {
     }
 
     /// PUBLIC TOKEN-SPECIFIC FUNCTIONS ///
+    function getHealthFactor(
+        address market,
+        address account
+    ) public view returns (uint256) {
+        return _calculateHealthFactor(market, account);
+    }
 
     /// @notice Returns the current TVL inside an MToken token.
     /// @param token The token to query TVL for.
@@ -876,6 +894,16 @@ contract AuxiliaryData {
     }
 
     /// INTERNAL FUNCTIONS ///
+    function _calculateHealthFactor(
+        address market,
+        address account
+    ) internal view returns (uint256) {
+        IMarketManager mm = IMarketManager(market);
+        (uint256 accountCollateralSoft, , uint256 accountDebt) = mm
+            .liquidationValuesOf(account);
+        return (accountCollateralSoft * WAD) / accountDebt;
+    }
+
     function _getTokenConfig(
         address token,
         ILiquidityManager mm

@@ -8,7 +8,7 @@ interface IMarketManager {
     ///         scenario to review based on current liquidity levels.
     /// @param collateralToken The token which was used as collateral
     ///                        by `account` and may be seized.
-    /// @param debtToken The token to potentially repay which has 
+    /// @param debtToken The token to potentially repay which has
     ///                  outstanding debt by `account`.
     /// @param numAccounts The number of accounts to be, potentially,
     ///                    liquidated.
@@ -160,7 +160,7 @@ interface IMarketManager {
     /// @param instructions A LiqInstructions struct containing:
     ///               collateralToken The token which is used as collateral
     ///                               by `account` and may be seized.
-    ///               debtToken The token to potentially repay which has 
+    ///               debtToken The token to potentially repay which has
     ///                         outstanding debt by `account`.
     ///               numAccounts The number of accounts to be, potentially,
     ///                           liquidated.
@@ -199,10 +199,7 @@ interface IMarketManager {
     ///                        and will be seized.
     /// @param debtToken The Curvance token which has outstanding debt to and
     ///                  would be repaid during `collateralToken` seizure.
-    function canSeize(
-        address collateralToken,
-        address debtToken
-    ) external;
+    function canSeize(address collateralToken, address debtToken) external;
 
     /// @notice Checks if the account should be allowed to transfer collateral
     ///         tokens in the given market.
@@ -297,4 +294,16 @@ interface IMarketManager {
     function isPositionManager(
         address addressToCheck
     ) external view returns (bool);
+
+    /// @notice Determine `account`'s current collateral and debt values
+    ///         in the market.
+    /// @param account The account to calculate liquidation values for.
+    /// @return The total market value of `account`'s collateral offset
+    /// by soft liquidation requirements.
+    /// @return The total market value of `account`'s collateral offset
+    /// by hard liquidation requirements.
+    /// @return The total outstanding debt value of `account`.
+    function liquidationValuesOf(
+        address account
+    ) external view returns (uint256, uint256, uint256);
 }

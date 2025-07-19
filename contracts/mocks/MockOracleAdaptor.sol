@@ -56,7 +56,7 @@ contract MockOracleAdaptor is BaseOracleAdaptor {
         isSupportedAsset[asset] = true;
     }
 
-    function adaptorType() external override returns (uint256) {
+    function adaptorType() external view virtual override returns (uint256) {
         return 1337;
     }
 
