@@ -57,7 +57,7 @@ contract SetCooldownTest is TestBaseMarketIsolated {
         
         skip(1 hours);
 
-        // set cooldown to 0, triggering 
+        // Set cooldown to 0, triggering cooldown. 
         vm.expectEmit(true, true, true, true);
         emit CooldownSet(user1, 0);
         centralRegistry.setCooldown(0 minutes);
@@ -66,13 +66,48 @@ contract SetCooldownTest is TestBaseMarketIsolated {
 
         skip(9 days);
 
-        // transfer lock and delegation lock should still be active
+        // Transfer and delegation locks should still be active after 9 days.
         assertTrue(centralRegistry.checkTransfersDisabled(user1));
         assertTrue(centralRegistry.checkDelegationDisabled(user1));
 
         skip(1 days);
 
-        // locks should expire
+        // Locks should expire now that 10 days have passed.
+        assertFalse(centralRegistry.checkTransfersDisabled(user1));
+        assertFalse(centralRegistry.checkDelegationDisabled(user1));
+    }
+
+    // User tries to decrease cooldown when there's an active lock,
+    // Triggering new later transfer and delegation lock
+    function test_setCooldown_success_protectionAppliesWhenDecreasingCooldownMultipleTimes() public {
+        vm.startPrank(user1);
+
+        vm.expectEmit(true, true, true, true);
+        emit CooldownSet(user1, 10 days);
+        centralRegistry.setCooldown(10 days);
+        
+        skip(1 hours);
+
+        // Set cooldown to 5 days, triggering cooldown.
+        vm.expectEmit(true, true, true, true);
+        emit CooldownSet(user1, 5 days);
+        centralRegistry.setCooldown(5 days);
+
+        // Try to set cooldown to 0, but cooldown is already active.
+        vm.expectRevert(ActionRegistry.ActionRegistry__CooldownActive.selector);
+        centralRegistry.setCooldown(0 minutes);
+
+        vm.stopPrank();
+
+        skip(9 days);
+
+        // Transfer and delegation locks should still be active after 9 days.
+        assertTrue(centralRegistry.checkTransfersDisabled(user1));
+        assertTrue(centralRegistry.checkDelegationDisabled(user1));
+
+        skip(1 days);
+
+        // Locks should expire now that 10 days have passed.
         assertFalse(centralRegistry.checkTransfersDisabled(user1));
         assertFalse(centralRegistry.checkDelegationDisabled(user1));
 
@@ -100,13 +135,13 @@ contract SetCooldownTest is TestBaseMarketIsolated {
         
         centralRegistry.setCooldown(15 days);
         
-        // use transfer lock to trigger cooldown
+        // Use transfer lock to trigger cooldown.
         centralRegistry.setTransferableStatus(true);  // enable transfer lock
         centralRegistry.setTransferableStatus(false); // unlock triggers cooldown
         
         assertTrue(centralRegistry.checkTransfersDisabled(user1));
         
-        // try to decrease cooldown while transfer cooldown is active
+        // Try to decrease cooldown while transfer cooldown is active.
         vm.expectRevert(ActionRegistry.ActionRegistry__CooldownActive.selector);
         centralRegistry.setCooldown(5 days);
         
