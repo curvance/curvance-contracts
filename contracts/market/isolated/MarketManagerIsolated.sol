@@ -743,6 +743,11 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        // List the tokens, we do this prior since some _afterDeposit
+        // hooks could require listing.
+        tokenData[token0].isListed = true;
+        tokenData[token1].isListed = true;
+
         // Immediately deposits into the cToken before anyone else can to
         // prevent any rounding exploits.
         if (!ICToken(token0).initializeDeposits(msg.sender)) {
@@ -752,14 +757,12 @@ contract MarketManagerIsolated is
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
 
-        // List the tokens.
-        tokenData[token0].isListed = true;
-        tokenData[token1].isListed = true;
-
-        // Update frontend array/emit events.
+        // Update `tokenListed` array and emit events for any frontends that
+        // need this information.
         tokensListed.push(token0);
-        emit TokenListed(token0);
         tokensListed.push(token1);
+        
+        emit TokenListed(token0);
         emit TokenListed(token1);
     }
 
