@@ -134,9 +134,9 @@ contract NativeUniversalBalanceShiftBalanceTest is
         );
         uint256 userUSDCBalance = weth.balanceOf(user1);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, false, true, address(nativeUniversalBalance));
         emit Withdraw(user1, user1, user1, shiftAmount, fromLent);
-        vm.expectEmit();
+        vm.expectEmit(true, true, false, true, address(nativeUniversalBalance));
         emit Deposit(user1, user1, shiftAmount, !fromLent);
 
         vm.prank(user1);

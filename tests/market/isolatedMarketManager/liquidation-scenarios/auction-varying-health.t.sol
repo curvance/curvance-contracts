@@ -103,7 +103,7 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
         usersToLiquidate[1] = borrower2;
         usersToLiquidate[2] = borrower3;
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit BadDebtRecognized(
             expectedLiquidationValuesBorrower1.badDebt,
             address(this));

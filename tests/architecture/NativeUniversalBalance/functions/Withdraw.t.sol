@@ -114,7 +114,7 @@ contract NativeUniversalBalanceWithdrawTest is TestBaseNativeUniversalBalance {
         );
         uint256 userWETHBalance = weth.balanceOf(user2);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(nativeUniversalBalance));
         emit Withdraw(user1, user2, user1, withdrawAmount, true);
 
         vm.prank(user1);
@@ -159,7 +159,7 @@ contract NativeUniversalBalanceWithdrawTest is TestBaseNativeUniversalBalance {
         );
         uint256 userWETHBalance = weth.balanceOf(user1);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(nativeUniversalBalance));
         emit Withdraw(user1, user2, user1, withdrawAmount, false);
 
         vm.prank(user1);

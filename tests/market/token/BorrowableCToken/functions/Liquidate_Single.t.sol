@@ -78,9 +78,9 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
 
         assertEq(expectedLiquidationValues.debtRepaid, results.debtRepaid, "Debt repaid mismatch");
 
-        assertEq(borrowableCUSDC.debtBalance(user1), 0, "eUSDC debt balance mismatch");
+        assertEq(borrowableCUSDC.debtBalance(user1), 0, "borrowableCUSDC debt balance mismatch");
         assertEq(strategyCBALRETH.exchangeRate(), _ONE, "strategyCBALRETH exchange rate mismatch");
-        assertLt(borrowableCUSDC.exchangeRate(), _ONE, "eUSDC exchange rate mismatch, there should be bad debt");
+        assertLt(borrowableCUSDC.exchangeRate(), _ONE, "borrowableCUSDC exchange rate mismatch, there should be bad debt");
         assertEq(strategyCBALRETH.balanceOf(user2), _ONE - 1, "Liquidator strategyCBALRETH balance mismatch");
         assertEq(usdc.balanceOf(user2), 1000e6 - results.debtRepaid, "Liquidator USDC balance mismatch");
        

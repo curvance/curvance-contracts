@@ -113,7 +113,7 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
 
         vm.prank(user1);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(universalBalance));
         emit Withdraw(user1, user2, user1, withdrawAmount, true);
 
         universalBalance.withdraw(withdrawAmount, true, user2);
@@ -155,7 +155,7 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
         uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user2);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(universalBalance));
         emit Withdraw(user1, user2, user1, withdrawAmount, false);
 
         vm.prank(user1);

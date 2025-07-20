@@ -130,7 +130,7 @@ contract NativeUniversalBalanceDepositForTest is
 
         weth.approve(address(nativeUniversalBalance), amount);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(nativeUniversalBalance));
         emit Deposit(user1, user2, amount, true);
 
         nativeUniversalBalance.depositFor(amount, true, user2);
@@ -167,7 +167,7 @@ contract NativeUniversalBalanceDepositForTest is
 
         weth.approve(address(nativeUniversalBalance), amount);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(nativeUniversalBalance));
         emit Deposit(user1, user2, amount, false);
 
         nativeUniversalBalance.depositFor(amount, false, user2);

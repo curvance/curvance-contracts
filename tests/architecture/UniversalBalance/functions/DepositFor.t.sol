@@ -122,7 +122,7 @@ contract UniversalBalanceDepositForTest is TestBaseUniversalBalance {
 
         usdc.approve(address(universalBalance), amount);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(universalBalance));
         emit Deposit(user1, user2, amount, true);
 
         universalBalance.depositFor(amount, true, user2);
@@ -157,7 +157,7 @@ contract UniversalBalanceDepositForTest is TestBaseUniversalBalance {
 
         usdc.approve(address(universalBalance), amount);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(universalBalance));
         emit Deposit(user1, user2, amount, false);
 
         universalBalance.depositFor(amount, false, user2);

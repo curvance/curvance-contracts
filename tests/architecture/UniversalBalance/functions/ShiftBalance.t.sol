@@ -128,9 +128,9 @@ contract UniversalBalanceShiftBalanceTest is TestBaseUniversalBalance {
         uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user1);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, false, true, address(universalBalance));
         emit Withdraw(user1, user1, user1, shiftAmount, fromLent);
-        vm.expectEmit();
+        vm.expectEmit(true, true, false, true, address(universalBalance));
         emit Deposit(user1, user1, shiftAmount, !fromLent);
 
         vm.prank(user1);

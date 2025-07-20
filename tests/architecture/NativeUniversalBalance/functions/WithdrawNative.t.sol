@@ -83,7 +83,7 @@ contract WithdrawNativeTest is TestBaseNativeUniversalBalance {
 
         vm.prank(user1);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(nativeUniversalBalance));
         emit Withdraw(user1, user2, user1, withdrawAmount, true);
 
         nativeUniversalBalance.withdrawNative(withdrawAmount, true, user2);
@@ -129,7 +129,7 @@ contract WithdrawNativeTest is TestBaseNativeUniversalBalance {
 
         vm.prank(user1);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(nativeUniversalBalance));
         emit Withdraw(user1, user2, user1, withdrawAmount, false);
 
         nativeUniversalBalance.withdrawNative(withdrawAmount, false, user2);

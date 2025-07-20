@@ -232,8 +232,6 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
         );
     }
 
-    event DebugUint256(string message, uint256 value);
-
     function test_canLiquidate_success() public {
         deal(address(balRETH), address(this), 77777);
         balRETH.approve(address(strategyCBALRETH), 77777);
@@ -274,8 +272,6 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
             accounts,
             liqInstructions
         );
-
-        
 
         // print out all values returned by canLiquidate
         console2.log("==== CanLiquidate Results ====");

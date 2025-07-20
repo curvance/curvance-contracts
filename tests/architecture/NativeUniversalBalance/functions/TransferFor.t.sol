@@ -164,7 +164,7 @@ contract NativeUniversalBalanceTransferForTest is
         );
         uint256 userWETHBalance = weth.balanceOf(user2);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, false, true, address(nativeUniversalBalance));
         emit Withdraw(
             user2,
             user2,
@@ -172,7 +172,7 @@ contract NativeUniversalBalanceTransferForTest is
             transferAmount,
             forceLentRedemption
         );
-        vm.expectEmit();
+        vm.expectEmit(true, true, false, true, address(nativeUniversalBalance));
         emit Deposit(user2, user2, transferAmount, willLend);
 
         vm.prank(user2);

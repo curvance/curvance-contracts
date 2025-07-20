@@ -93,7 +93,7 @@ contract DepositNativeForTest is TestBaseNativeUniversalBalance {
         );
         uint256 userETHBalance = user1.balance;
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(nativeUniversalBalance));
         emit Deposit(user1, user2, amount, true);
 
         vm.prank(user1);
@@ -127,7 +127,7 @@ contract DepositNativeForTest is TestBaseNativeUniversalBalance {
         );
         uint256 userETHBalance = user1.balance;
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(nativeUniversalBalance));
         emit Deposit(user1, user2, amount, false);
 
         vm.prank(user1);

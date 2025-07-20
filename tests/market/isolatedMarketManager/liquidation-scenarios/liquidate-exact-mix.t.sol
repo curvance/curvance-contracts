@@ -215,7 +215,7 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
         usdc.approve(address(borrowableCUSDC), amountToRepayPartial[0]);
 
         // expect bad debt emit and debt repaid
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit BadDebtRecognized(badDebt_expected_liquidateExact_1, first_liquidator);
         emit Repay(totalDebtPaid_first, first_liquidator, borrower1);
 
@@ -271,7 +271,7 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
         usdc.approve(address(borrowableCUSDC), amountToRepayPartial[0]);
 
         // expect bad debt emit and debt repaid
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit BadDebtRecognized(badDebt_expected_liquidateExact_2, second_liquidator);
         emit Repay(totalDebtPaid_second, second_liquidator, borrower1);
 
@@ -327,7 +327,7 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
         usdc.approve(address(borrowableCUSDC), 100_000e6);
 
         // expect bad debt emit and debt repaid
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit BadDebtRecognized(badDebt_expected_liquidate_3, third_liquidator);
         emit Repay(totalDebtPaid_third, third_liquidator, borrower1);
 

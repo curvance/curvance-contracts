@@ -187,7 +187,7 @@ contract LiquidationFuzzedTest is TestBaseMarketManagerIsolated {
 
         uint256 liquidatorUSDCBalanceBefore = usdc.balanceOf(liquidator);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit BadDebtRecognized(liquidator, expectedValues.badDebt);
         emit Repay(liquidator, borrower, expectedValues.debtRepaid);
 

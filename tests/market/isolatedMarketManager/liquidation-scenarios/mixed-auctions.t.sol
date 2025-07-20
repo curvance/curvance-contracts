@@ -250,7 +250,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit BadDebtRecognized(totalBadDebtAuction, dappControlUser);
         emit Repay(maxAmount_auction[0] + badDebt_auction[0],dappControlUser, auctionBorrowers[0]);
         emit Repay(maxAmount_auction[1] + badDebt_auction[1],dappControlUser, auctionBorrowers[1]);
@@ -266,7 +266,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         usdc.approve(address(borrowableCUSDC), 100000e6);
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit BadDebtRecognized(totalBadDebtRegular, address(this));
         emit Repay(maxAmount_regular[0] + badDebt_regular[0],address(this), regularBorrowers[0] );
         emit Repay(maxAmount_regular[1] + badDebt_regular[1],address(this), regularBorrowers[1]);

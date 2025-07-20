@@ -168,7 +168,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         borrowableCUSDC.approve(address(marketManagerIsolated), 100000e6);
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit BadDebtRecognized(expectedTotalBadDebt, address(this));
         emit Repay(maxAmount[2] + badDebt[2], address(this), borrowers[2]);
         emit Repay(maxAmount[3] + badDebt[3], address(this), borrowers[3]);
