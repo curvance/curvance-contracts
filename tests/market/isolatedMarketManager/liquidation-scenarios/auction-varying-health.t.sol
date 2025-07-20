@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import { TestBaseMarketManagerIsolated } from "tests/market/isolatedMarketManager/TestBaseMarketManagerIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { console2 } from "forge-std/console2.sol";
 
 // 3 liquidations, all are auctions, 2 are soft liquidated, 1 is hard liquidated
 // also harvest positions before liquidation
@@ -15,19 +16,121 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
 
     address dappControlUser = makeAddr("dappControlUser");
 
+    event Repay(uint256 assets, address payer, address account);
+    event BadDebtRecognized(uint256 assets, address liquidator);
+
     function setUp() public override {
         super.setUp();
 
         // set up positions
         _setUpMarketPreLiquidation();
         _setUpBorrowerCollateral();
-        // _setUpBorrowerDebt();
-        _harvestAuraStrategyRewards();
-        
+        _setUpBorrowerDebt();
+        _harvestAuraStrategyRewards(2 weeks);
+
+        // set mock prices
+        mockWethFeed.setMockAnswer(1185e8);
+        mockRethFeed.setMockAnswer(1185e8);
+
+        // accrue interest
+        borrowableCUSDC.accrueIfNeeded();
+        strategyCBALRETH.accrueIfNeeded();
     }
 
-    function testNothing() public {
-        
+    function testMultipleLiquidationsWithOnlyAuctions() public {
+
+        // set auction parameters
+        _setAuctionParams();
+
+        // cache the expected liquidation values
+        ExpectedLiquidationValues memory expectedLiquidationValuesBorrower1 = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+            borrower: borrower1,
+            collateralToken: address(strategyCBALRETH),
+            borrowedToken: address(borrowableCUSDC),
+            isLiquidateExact: false,
+            liquidateExactAmount: 0,
+            isAuction: true,
+            isMultiMarketTest: false,
+            marketManagerId: 0
+        }));
+
+        ExpectedLiquidationValues memory expectedLiquidationValuesBorrower2 = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: borrower2,
+                collateralToken: address(strategyCBALRETH),
+                borrowedToken: address(borrowableCUSDC),
+                isLiquidateExact: false,
+                liquidateExactAmount: 0,
+                isAuction: true,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            })
+        );
+
+        ExpectedLiquidationValues memory expectedLiquidationValuesBorrower3 = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: borrower3,
+                collateralToken: address(strategyCBALRETH),
+                borrowedToken: address(borrowableCUSDC),
+                isLiquidateExact: false,
+                liquidateExactAmount: 0,
+                isAuction: true,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            })
+        );
+
+        // cache total debt
+        uint256 totalDebtBefore = borrowableCUSDC.marketOutstandingDebt();
+
+        // user1 debt and collateral before liquidation
+        uint256 user1DebtBefore = borrowableCUSDC.debtBalance(borrower1);
+        uint256 user1CollateralBefore = strategyCBALRETH.collateralPosted(borrower1);
+
+        // user2 debt and collateral before liquidation
+        uint256 user2DebtBefore = borrowableCUSDC.debtBalance(borrower2);
+        uint256 user2CollateralBefore = strategyCBALRETH.collateralPosted(borrower2);
+
+        // user3 debt and collateral before liquidation
+        uint256 user3DebtBefore = borrowableCUSDC.debtBalance(borrower3);
+        uint256 user3CollateralBefore = strategyCBALRETH.collateralPosted(borrower3);
+
+        _prepareUSDC(address(this), 1_000_000e6);
+        usdc.approve(address(borrowableCUSDC), 1_000_000e6);
+
+        address[] memory usersToLiquidate = new address[](3);   
+        usersToLiquidate[0] = borrower1;
+        usersToLiquidate[1] = borrower2;
+        usersToLiquidate[2] = borrower3;
+
+        vm.expectEmit();
+        emit BadDebtRecognized(
+            expectedLiquidationValuesBorrower1.badDebt,
+            address(this));
+        emit Repay(expectedLiquidationValuesBorrower1.debtRepaid, address(this), borrower1);
+        emit Repay(expectedLiquidationValuesBorrower2.debtRepaid, address(this), borrower2);
+        emit Repay(expectedLiquidationValuesBorrower3.debtRepaid, address(this), borrower3);
+
+        borrowableCUSDC.liquidate(usersToLiquidate, address(strategyCBALRETH));
+
+        // Use helper functions to reduce stack depth
+        _assertDebtReductions(
+            expectedLiquidationValuesBorrower1,
+            expectedLiquidationValuesBorrower2, 
+            expectedLiquidationValuesBorrower3,
+            totalDebtBefore
+        );
+
+        _assertUserDebtAndCollateralChanges(borrower1, user1DebtBefore, user1CollateralBefore, expectedLiquidationValuesBorrower1);
+        _assertUserDebtAndCollateralChanges(borrower2, user2DebtBefore, user2CollateralBefore, expectedLiquidationValuesBorrower2);  
+        _assertUserDebtAndCollateralChanges(borrower3, user3DebtBefore, user3CollateralBefore, expectedLiquidationValuesBorrower3);
+
+        _assertLiquidatorCollateralSeizure(
+            expectedLiquidationValuesBorrower1,
+            expectedLiquidationValuesBorrower2,
+            expectedLiquidationValuesBorrower3
+        );
     }
 
     function _setUpMarketPreLiquidation() internal {
@@ -79,18 +182,69 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
     function _setUpBorrowerDebt() internal {
         // high ltv, trigger hard liquidation
         vm.startPrank(borrower1);
-        borrowableCUSDC.borrow(1600e8, borrower1);
+        borrowableCUSDC.borrow(1150e6, borrower1);
         vm.stopPrank();
 
         // medium ltv, trigger soft liquidation
         vm.startPrank(borrower2);
-        borrowableCUSDC.borrow(0, borrower2);
+        borrowableCUSDC.borrow(900e6, borrower2);
         vm.stopPrank();
 
         // slightly lower than medium ltv, trigger soft liquidation
         vm.startPrank(borrower3);
-        borrowableCUSDC.borrow(0, borrower3);
+        borrowableCUSDC.borrow(880e6, borrower3);
         vm.stopPrank();
     }
 
+    function _setAuctionParams() internal {
+        vm.startPrank(dappControlUser);
+        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
+        uint256 validPenalty = 1.10e18; //10%
+        uint256 closeFactor = 0.30e18; // 30%
+        marketManagerIsolated.setAuctionParameters(address(strategyCBALRETH), validPenalty, closeFactor);
+        vm.stopPrank();
+    }
+
+    function _assertDebtReductions(
+        ExpectedLiquidationValues memory expectedBorrower1,
+        ExpectedLiquidationValues memory expectedBorrower2, 
+        ExpectedLiquidationValues memory expectedBorrower3,
+        uint256 totalDebtBefore
+    ) internal {
+        // Assert total market debt reduction
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), 
+            totalDebtBefore - 
+            (expectedBorrower1.debtRepaid + expectedBorrower1.badDebt +
+            expectedBorrower2.debtRepaid + 
+            expectedBorrower3.debtRepaid)
+        );
+    }
+
+    function _assertUserDebtAndCollateralChanges(
+        address user,
+        uint256 userDebtBefore,
+        uint256 userCollateralBefore,
+        ExpectedLiquidationValues memory expected
+    ) internal {
+        // Assert user debt reduction (including bad debt for underwater positions)
+        uint256 expectedDebtReduction = expected.debtRepaid + expected.badDebt;
+        assertEq(borrowableCUSDC.debtBalance(user), 
+            userDebtBefore - expectedDebtReduction);
+
+        // Assert user collateral reduction
+        assertEq(strategyCBALRETH.collateralPosted(user), 
+            userCollateralBefore - expected.collateralLiquidated);
+    }
+
+    function _assertLiquidatorCollateralSeizure(
+        ExpectedLiquidationValues memory expectedBorrower1,
+        ExpectedLiquidationValues memory expectedBorrower2,
+        ExpectedLiquidationValues memory expectedBorrower3
+    ) internal {
+        assertEq(strategyCBALRETH.balanceOf(address(this)), 
+            (expectedBorrower1.collateralLiquidated + 
+            expectedBorrower2.collateralLiquidated + 
+            expectedBorrower3.collateralLiquidated)
+        );
+    }
 }

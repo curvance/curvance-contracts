@@ -1567,20 +1567,21 @@ contract MarketManagerIsolated is
         uint256 collateralRequired = 
             (auctionData.debtBalance * debtToCollateralMultiplier) / WAD_SQUARED;
         if (collateralRequired > collateralAvailable) {
-            // Get prior ratio between debt/collateral before any
-            // liquidation = Shortfall Ratio
-            // Bad Debt = End debt - (end collateral * shortfall ratio)
-            // NOTE: We round UP on expected user outstanding debt meaning
-            // we round down bad debt and thus are in favor of the protocol.
-            badDebt = (auctionData.debtBalance - debtAmount) -
-            FixedPointMathLib.mulDivUp(
-                ((collateralAvailable - liquidatedShares) *
-                    cachedData.collateralExchangeRate) / WAD,
-                cachedData.collateralUnderlyingPrice,
-                (cachedData.debtUnderlyingPrice * WAD) /
-                    cachedData.debtDecimals
-            );
-        }
+                    // Get the ratio at which `account` is undercollateralized
+                    // by looking at the ratio of collateralAvailable vs
+                    // collateralRequired.
+                    // E.g. collateralAvailable = collateralRequired / 2 means 50%
+                    // of debt repaid is recognized as bad debt.
+                    badDebt = FixedPointMathLib.mulDiv(
+                        debtAmount,
+                        WAD_SQUARED - ((WAD_SQUARED * collateralAvailable) / collateralRequired),
+                        WAD_SQUARED
+                    );
+
+                    if (badDebt + debtAmount > auctionData.debtBalance) {
+                        _revert(_INVARIANT_ERROR_SELECTOR);
+                    }
+                }
 
         // Calculate the maximum amount of debt that can be liquidated
         // and what collateral will be received. As well as any bad debt

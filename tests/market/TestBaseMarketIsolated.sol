@@ -643,7 +643,7 @@ contract TestBaseMarketIsolated is TestBase {
         tokenConfig.collReqHard = 3000;
         tokenConfig.liqIncBase = 1000;
         tokenConfig.liqIncHard = 1500;
-        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMin = 10;
         tokenConfig.liqIncMax = 2000;
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
@@ -893,6 +893,7 @@ contract TestBaseMarketIsolated is TestBase {
         }
 
         if(lFactor == 0) {
+            console2.log("lFactor is 0");
             return ExpectedLiquidationValues({
                 debtRepaid: 0,
                 collateralLiquidated: 0,
@@ -995,6 +996,9 @@ contract TestBaseMarketIsolated is TestBase {
             data.liqIncentive = data.liqBaseIncentive + ((data.liqCurve * data.lFactor) / WAD);
         }
 
+        console2.log("data.liqIncentive from auction", data.liqIncentive);
+        console2.log("cFactor from auction", cFactor);
+
         data.collateralTokenDecimals = 10 ** ICToken(_collateralToken).decimals();
         data.debtTokenDecimals = 10 ** ICToken(_debtToken).decimals();
 
@@ -1020,22 +1024,41 @@ contract TestBaseMarketIsolated is TestBase {
         uint256 collateralTokenExchangeRate = ICToken(_collateralToken).exchangeRate();
 
         uint256 collateralAvailable = ICToken(_collateralToken).collateralPosted(_borrower);
-        (uint256 collateralTokenUnderlyingPrice, ) = oracleManager.getPrice(_collateralToken, true, true);
-        (uint256 debtTokenUnderlyingPrice,) = oracleManager.getPrice(_debtToken, true, false);
+        (uint256 collateralTokenUnderlyingPrice, uint256 debtTokenUnderlyingPrice) = oracleManager.getPriceIsolatedPair(
+            _collateralToken,
+            _debtToken,
+            2
+        );
 
         uint256 debtBalance = IBorrowableCToken(_debtToken).debtBalance(_borrower);
 
-        if(_collateralRequired > collateralAvailable) {
-            
-            uint256 remainingCollateralValue = FixedPointMathLib.mulDivUp(
-                ((collateralAvailable - _collateralLiquidated) * collateralTokenExchangeRate) / WAD,
-                collateralTokenUnderlyingPrice,
-                (debtTokenUnderlyingPrice * WAD) / debtTokenDecimals
-            );
-            
-            badDebt = (debtBalance - _debtAmount) - remainingCollateralValue;
-        } else {
-            return 0;
+        console2.log("debtBalance", debtBalance);
+        console2.log("debtTokenUnderlyingPrice", debtTokenUnderlyingPrice);
+        console2.log("collateralTokenExchangeRate", collateralTokenExchangeRate);
+        console2.log("collateralTokenUnderlyingPrice", collateralTokenUnderlyingPrice);
+        console2.log("collateralAvailable", collateralAvailable);
+        console2.log("collateralRequired", _collateralRequired);
+        console2.log("collateralLiquidated", _collateralLiquidated);
+        console2.log("remaining debt", debtBalance - _debtAmount);
+        console2.log("remaining collateral shares", collateralAvailable - _collateralLiquidated);
+        
+        if (_collateralRequired > collateralAvailable) {
+                    // Get the ratio at which `account` is undercollateralized
+                    // by looking at the ratio of collateralAvailable vs
+                    // collateralRequired.
+                    // E.g. collateralAvailable = collateralRequired / 2 means 50%
+                    // of debt repaid is recognized as bad debt.
+                    badDebt = FixedPointMathLib.mulDiv(
+                        _debtAmount,
+                        (WAD_SQUARED - ((WAD_SQUARED * collateralAvailable) / _collateralRequired)),
+                        WAD_SQUARED
+                    );
+
+                    console2.log("badDebt", badDebt);
+
+                    if (badDebt + _debtAmount > debtBalance) {
+                        revert("Bad debt exceeds debt balance");
+                    }
         }
         
     }

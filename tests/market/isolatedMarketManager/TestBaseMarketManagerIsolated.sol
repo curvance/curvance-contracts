@@ -69,6 +69,8 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
             0,
             true
         );
+
+        _setMockRewardConfig();
     }
 
     function _prepareLiquidation() internal {
@@ -152,13 +154,11 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         _prepareUSDC(user2, 1000e6);
     }
 
-    function _harvestAuraStrategyRewards() internal {
+    function _harvestAuraStrategyRewards(uint256 time) internal {
 
         IBooster(_AURA_BOOSTER).earmarkRewards(109);
 
-        skip(7 days);
-
-        _setMockRewardConfig();
+        skip(time);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockUpdatedAt(block.timestamp);
