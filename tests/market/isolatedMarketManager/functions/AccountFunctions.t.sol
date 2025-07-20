@@ -6,7 +6,6 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 contract AccountFunctionsTest is TestBaseMarketManagerIsolated {
-    address dappControlUser = makeAddr("dappControlUser");
 
     function setUp() public override {
         super.setUp();

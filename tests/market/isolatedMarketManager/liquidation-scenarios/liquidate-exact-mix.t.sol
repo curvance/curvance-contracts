@@ -37,8 +37,6 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
     uint256 baseCFactor;
     uint256 cFactorCurve;
 
-    address dappControlUser = makeAddr("dappControlUser");
-
     // Auction parameters
     uint256 validPenalty = 1.04e18;
     uint256 closeFactor = 0.50e18;

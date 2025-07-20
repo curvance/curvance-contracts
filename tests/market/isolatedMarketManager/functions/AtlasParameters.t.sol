@@ -9,8 +9,6 @@ import { console2 } from "forge-std/console2.sol";
 
 
 contract AtlasParametersTest is TestBaseMarketManagerIsolated {
-    address dappControlUser = makeAddr("dappControlUser");
-
 
     function setUp() public override {
         super.setUp();
