@@ -130,6 +130,13 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
             expectedLiquidationValuesBorrower2,
             expectedLiquidationValuesBorrower3
         );
+
+        _assertUSDCTransfer(
+            borrowableCUSDCBalanceBefore,
+            expectedLiquidationValuesBorrower1,
+            expectedLiquidationValuesBorrower2,
+            expectedLiquidationValuesBorrower3
+        );
     }
 
     function _setUpMarketPreLiquidation() internal {
@@ -230,5 +237,18 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
             expectedBorrower2.collateralLiquidated + 
             expectedBorrower3.collateralLiquidated)
         );
+    }
+
+    function _assertUSDCTransfer(
+        uint256 borrowableCUSDCBalanceBefore,
+        ExpectedLiquidationValues memory expectedBorrower1,
+        ExpectedLiquidationValues memory expectedBorrower2,
+        ExpectedLiquidationValues memory expectedBorrower3
+    ) internal {
+        assertEq(usdc.balanceOf(address(borrowableCUSDC)), 
+        borrowableCUSDCBalanceBefore + 
+        expectedBorrower1.debtRepaid + 
+        expectedBorrower2.debtRepaid + 
+        expectedBorrower3.debtRepaid);
     }
 }

@@ -156,6 +156,8 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
 
     function _harvestAuraStrategyRewards(uint256 time) internal {
 
+        uint256 exchangeRateBefore = strategyCBALRETH.exchangeRate();
+
         IBooster(_AURA_BOOSTER).earmarkRewards(109);
 
         skip(time);
@@ -168,11 +170,15 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
 
         IBaseRewardPool rewarder = IBaseRewardPool(_REWARDERS[1]);
         uint256 earnedBAL = rewarder.earned(address(strategyCBALRETH));
+        console2.log("Earned BAL:", earnedBAL);
 
         uint256 protocolFee = centralRegistry.protocolHarvestFee();
         uint256 netHarvestAmount = (earnedBAL * (WAD - protocolFee)) / WAD;
+        console2.log("Protocol fee:", protocolFee);
+        console2.log("Net harvest amount:", netHarvestAmount);
 
         if (netHarvestAmount > 0) {
+            console2.log("Proceeding with harvest, netHarvestAmount > 0");
 
             SwapperLib.Swap[] memory swaps = new SwapperLib.Swap[](1);
             swaps[0].slippage = 0.3e18;
@@ -194,11 +200,30 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
                 block.timestamp
             );
 
+            console2.log("About to call harvest()");
+
             strategyCBALRETH.harvest(abi.encode(swaps, 1e8));
+            
+            // Wait for vesting period
+            uint256 vestingPeriod = 1 days;
+            skip(vestingPeriod);
+            
+            // Update mock feeds
+            mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+            mockWethFeed.setMockUpdatedAt(block.timestamp);
+            mockRethFeed.setMockUpdatedAt(block.timestamp);
+            mockBALFeed.setMockUpdatedAt(block.timestamp);
+            mockAURAFeed.setMockUpdatedAt(block.timestamp);
+            
+            // Accrue the vested yield
+            strategyCBALRETH.accrueIfNeeded();
 
+            console2.log("Harvest() call completed");
+        } else {
+            console2.log("Skipping harvest - netHarvestAmount is 0");
         }
-    
 
+        uint256 exchangeRateAfter = strategyCBALRETH.exchangeRate();
     }
 
     function _setMockRewardConfig() internal {
