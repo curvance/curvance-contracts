@@ -85,7 +85,6 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        // Update position token parameters using modern TokenConfig approach
         MarketManagerIsolated.TokenConfig memory tokenConfig;
         tokenConfig.cToken = address(strategyCBALRETH);
         tokenConfig.collRatio = 9200;    // collRatio 92%

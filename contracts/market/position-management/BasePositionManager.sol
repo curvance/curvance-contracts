@@ -517,7 +517,7 @@ abstract contract BasePositionManager is
 
     /// @notice Calculates the hypothetical maximum amount of `debtToken`
     ///         `account` can borrow for maximum leverage based on a new
-    ///         position token deposit and collateralized.
+    ///         `collateralToken` collateralized deposit.
     /// @dev Applies a minor dampening effect to calculated maximum leverage
     ///      via `MAX_LEVERAGE`. Offsets maximum borrowable debt amount if
     ///      there is insufficient liquidity to borrow in the target market.
@@ -564,7 +564,7 @@ abstract contract BasePositionManager is
         uint256 collRatio = marketManager.collateralizationRatio(
             collateralToken
         );
-        // If the position token cannot be borrowed against the hypothetical
+        // If the collateral token cannot be borrowed against the hypothetical
         // leverage check will result in 0 meaning nothing new to leverage
         // against.
         if (collRatio == 0) {

@@ -89,7 +89,7 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
             balRETH.approve(address(strategyCBALRETH), 1 ether);
         }
 
-        // First, list the tokens before updating position token parameters
+        // List the tokens.
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;

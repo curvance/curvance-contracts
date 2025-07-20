@@ -723,14 +723,13 @@ contract MarketManagerIsolated is
     function listTokens(address token0, address token1) external {
         _checkMarketPermissions();
 
-        // The same token cannot be listed twice in the same market.
+        // The same token cannot be listed twice in a market.
         if (token0 == token1) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        uint256 numTokens = tokensListed.length;
-        // Validate that tokens have not been listed already.
-        if (numTokens != 0) {
+        // Validate that tokens are not already listed inside this market.
+        if (tokensListed.length != 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -748,11 +747,12 @@ contract MarketManagerIsolated is
         tokenData[token0].isListed = true;
         tokenData[token1].isListed = true;
 
-        // Immediately deposits into the cToken before anyone else can to
-        // prevent any rounding exploits.
+        // Immediately deposits into the cToken before anyone else can,
+        // preventing any rounding attack vectors.
         if (!ICToken(token0).initializeDeposits(msg.sender)) {
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
+        
         if (!ICToken(token1).initializeDeposits(msg.sender)) {
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
@@ -1322,16 +1322,7 @@ contract MarketManagerIsolated is
         }
 
         _checkIsListedToken(cToken);
-
-        if (
-            IActionRegistry(address(centralRegistry)).checkTransfersDisabled(
-                account
-            )
-        ) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        _checkHoldPeriod(account);
+        _checkTransfersAllowed(account);
 
         // If the account does not have an active position in the token,
         // then we can bypass the liquidity check.
@@ -1416,15 +1407,7 @@ contract MarketManagerIsolated is
             );
         } else {
             _checkIsListedToken(cToken);
-
-            if (
-                IActionRegistry(address(centralRegistry))
-                    .checkTransfersDisabled(account)
-            ) {
-                _revert(_UNAUTHORIZED_SELECTOR);
-            }
-
-            _checkHoldPeriod(account);
+            _checkTransfersAllowed(account);
         }
     }
 
@@ -1743,7 +1726,7 @@ contract MarketManagerIsolated is
 
         // Cache asset array characteristics.
         uint256 numAssets = userAssets.length;
-        uint256 lastAssetIndex = userAssets.length - 1;
+        uint256 lastAssetIndex = numAssets - 1;
         address token;
 
         // Copy last item in list to location of item to be removed.
@@ -1816,6 +1799,15 @@ contract MarketManagerIsolated is
                 revert(0x1c, 0x04)
             }
         }
+    }
+
+    /// @dev Checks whether `account` has token transfers enabled.
+    function _checkTransfersAllowed(address account) internal view {
+        if (centralRegistry.checkTransfersDisabled(account)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        _checkHoldPeriod(account);
     }
 
     /// @dev Checks whether the caller has sufficient permissions.
