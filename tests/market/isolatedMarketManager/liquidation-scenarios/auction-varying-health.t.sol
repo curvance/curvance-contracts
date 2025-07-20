@@ -8,6 +8,9 @@ import { console2 } from "forge-std/console2.sol";
 // 3 liquidations, all are auctions, 2 are soft liquidated, 1 is hard liquidated
 // also harvest positions before liquidation
 
+/// @dev NOTE: BORROWER 1 IS HARD LIQUIDATED, BUT ONLY ACCRUES BAD DEBT BECAUSE OF THE LIQUIDATION PENALTY WHICH PUSHES
+///           IT FROM HARD LIQUIDATION TO BAD DEBT TERRITORY.
+
 contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
     address borrower1 = makeAddr("borrower1");
     address borrower2 = makeAddr("borrower2");
