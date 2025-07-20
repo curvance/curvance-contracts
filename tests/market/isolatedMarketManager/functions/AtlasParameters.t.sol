@@ -12,7 +12,6 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
     function setUp() public override {
         super.setUp();
-
     }
 
     function testSetAuctionParameters() public {
@@ -145,12 +144,6 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
     function testLiquidateExactWithDynamicPenalty() public {
         _prepareLiquidation();
-
-        dappControlUser = makeAddr("dappControlUser");
-        vm.startPrank(centralRegistry.daoAddress());
-        centralRegistry.addAuctionPermissions(dappControlUser);
-        vm.stopPrank();
-
         _prepareUSDC(user3, 250e6);
 
         vm.startPrank(dappControlUser);
@@ -246,14 +239,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
     function testLiquidationFailureWithDifferentUnlockedCollateral() public {
         _prepareLiquidation();
-
         _prepareUSDC(user3, 250e6);
-
-        // Create a dapp control user
-        dappControlUser = makeAddr("dappControlUser");
-        vm.startPrank(centralRegistry.daoAddress());
-        centralRegistry.addAuctionPermissions(dappControlUser);
-        vm.stopPrank();
 
         vm.prank(dappControlUser);
         marketManagerIsolated.unlockAuctionCollateral(address(1));
@@ -273,12 +259,6 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
     function testLiquidateWithDynamicPenalty() public {
         _prepareLiquidation();
-
-        // Create a dapp control user
-        dappControlUser = makeAddr("dappControlUser");
-        vm.startPrank(centralRegistry.daoAddress());
-        centralRegistry.addAuctionPermissions(dappControlUser);
-        vm.stopPrank();
 
         // Set a valid penalty (WAD + 15%)
         vm.startPrank(dappControlUser);
@@ -339,11 +319,5 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
-        
-        // Create a dapp control user
-        dappControlUser = makeAddr("dappControlUser");
-        vm.startPrank(centralRegistry.daoAddress());
-        centralRegistry.addAuctionPermissions(dappControlUser);
-        vm.stopPrank();
     }
 }

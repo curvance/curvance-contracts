@@ -140,11 +140,6 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         baseCFactor = baseCFactor_;
         cFactorCurve = cFactorCurve_;
 
-        // Create a dapp control user
-        vm.startPrank(centralRegistry.daoAddress());
-        centralRegistry.addAuctionPermissions(dappControlUser);
-        vm.stopPrank();
-
         console2.log("SETUP COMPLETE");
     }
 
