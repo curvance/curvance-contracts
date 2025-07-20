@@ -661,13 +661,13 @@ contract TestBaseMarketIsolated is TestBase {
     ) internal initMainVariables {
         MarketManagerIsolated.TokenConfig memory tokenConfig;
         tokenConfig.cToken = cToken;
-        tokenConfig.collRatio = 700;
-        tokenConfig.collReqSoft = 400;
-        tokenConfig.collReqHard = 300;
-        tokenConfig.liqIncBase = 100;
-        tokenConfig.liqIncHard = 150;
-        tokenConfig.liqIncMin = 50;
-        tokenConfig.liqIncMax = 200;
+        tokenConfig.collRatio = 5000;
+        tokenConfig.collReqSoft = 3000;
+        tokenConfig.collReqHard = 2000;
+        tokenConfig.liqIncBase = 500;
+        tokenConfig.liqIncHard = 800;
+        tokenConfig.liqIncMin = 300;
+        tokenConfig.liqIncMax = 1000;
         tokenConfig.minEffectiveCloseFactor = 2000;
         tokenConfig.maxEffectiveCloseFactor = 5000;
         tokenConfig.baseCFactor = 2000;
@@ -684,9 +684,9 @@ contract TestBaseMarketIsolated is TestBase {
     ) internal initMainVariables {
         MarketManagerIsolated.TokenConfig memory tokenConfig;
         tokenConfig.cToken = cToken;
-        tokenConfig.collRatio = 9600;
-        tokenConfig.collReqSoft = 8000;
-        tokenConfig.collReqHard = 6000;
+        tokenConfig.collRatio = 9500;
+        tokenConfig.collReqSoft = 5000;
+        tokenConfig.collReqHard = 4000;
         tokenConfig.liqIncBase = 1000;
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
