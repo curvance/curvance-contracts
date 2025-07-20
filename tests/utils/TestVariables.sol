@@ -172,15 +172,16 @@ contract TestVariables {
     mapping(uint256 => PendleZapper) public pendleZappers;
     mapping(uint256 => VelodromeZapper) public velodromeZappers;
 
-    address public harvester;
     address public user1 = address(1000001);
     address public user2 = address(1000002);
     address public user3 = address(1000003);
     address public user4 = address(1000004);
     address public liquidator = address(1000005);
-    uint256 public voteBoostMultiplier = 12000; // 120%
-    uint256 public lockBoostMultiplier = 13000; // 130%
-    uint256 public marketInterestFactor = 1000; // 10%
+    address public dappControlUser = address(1000006);
+    address public harvester = address(1000007);
+    uint256 public voteBoostMultiplier = 12000; // 12000 = 120%.
+    uint256 public lockBoostMultiplier = 13000; // 13000 = 130%.
+    uint256 public marketInterestFactor = 1000; // 1000 = 10%.
 
     bytes public response;
     IWormhole.Signature[] public signatures;

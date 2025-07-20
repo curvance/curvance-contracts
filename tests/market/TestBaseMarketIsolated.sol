@@ -44,6 +44,7 @@ import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract TestBaseMarketIsolated is TestBase {
+    // Chain Data
     struct PerChainData {
         uint256 chainId;
         uint256 blockNumber;
@@ -52,10 +53,49 @@ contract TestBaseMarketIsolated is TestBase {
         bytes result;
     }
 
+    // Liquidation helpers
+
+    struct LiquidationParams {
+        address borrower;
+        address collateralToken;
+        address borrowedToken;
+        bool isLiquidateExact;
+        uint256 liquidateExactAmount;
+        bool isAuction;
+        bool isMultiMarketTest;
+        uint256 marketManagerId;
+    }
+
+    struct ExpectedLiquidationValues {
+        uint256 debtRepaid;
+        uint256 collateralLiquidated;
+        uint256 badDebt;
+        uint256 collateralRequired;
+        uint256 maxAmountRepaid;
+    }
+
+    struct LiquidationCalcData {
+        uint256 liqBaseIncentive;
+        uint256 liqCurve;
+        uint256 baseCFactor;
+        uint256 cFactorCurve;
+        uint256 liqIncentive;
+        uint256 lFactor;
+        uint256 collateralTokenPrice;
+        uint256 debtTokenPrice;
+        uint256 collateralTokenDecimals;
+        uint256 debtTokenDecimals;
+    }
+
     function setUp() public virtual {
         _fork(18031848);
 
         _init();
+
+        // Create a dapp control user
+        vm.startPrank(centralRegistry.daoAddress());
+        centralRegistry.addAuctionPermissions(dappControlUser);
+        vm.stopPrank();
     }
 
     function _init() internal {
@@ -196,7 +236,6 @@ contract TestBaseMarketIsolated is TestBase {
     }
 
     function _deployFeeManager() internal initMainVariables {
-        harvester = makeAddr("harvester");
         centralRegistry.addHarvestPermissions(harvester);
 
         feeManager = feeManagers[block.chainid] = new FeeManager(
@@ -700,6 +739,18 @@ contract TestBaseMarketIsolated is TestBase {
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
+    function _setAuctionParams(
+        uint256 liquidationPenalty,
+        uint256 liquidationCloseFactor
+    ) internal {
+        vm.startPrank(dappControlUser);
+        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
+        uint256 validPenalty = liquidationPenalty;
+        uint256 closeFactor = liquidationCloseFactor;
+        marketManagerIsolated.setAuctionParameters(address(strategyCBALRETH), validPenalty, closeFactor);
+        vm.stopPrank();
+    }
+
     function _skipRestrictionDuration() internal {
         skip(veCVE.RESTRICTION_DURATION() + 1);
     }
@@ -851,27 +902,6 @@ contract TestBaseMarketIsolated is TestBase {
         result[0] = token;
     }
 
-    // Liquidation helpers
-
-    struct LiquidationParams {
-        address borrower;
-        address collateralToken;
-        address borrowedToken;
-        bool isLiquidateExact;
-        uint256 liquidateExactAmount;
-        bool isAuction;
-        bool isMultiMarketTest;
-        uint256 marketManagerId;
-    }
-
-    struct ExpectedLiquidationValues {
-        uint256 debtRepaid;
-        uint256 collateralLiquidated;
-        uint256 badDebt;
-        uint256 collateralRequired;
-        uint256 maxAmountRepaid;
-    }
-
     function _calculateExpectedLiquidationValues(
         LiquidationParams memory params
     ) internal view returns (
@@ -958,20 +988,6 @@ contract TestBaseMarketIsolated is TestBase {
 
     }
     
-
-    struct LiquidationCalcData {
-        uint256 liqBaseIncentive;
-        uint256 liqCurve;
-        uint256 baseCFactor;
-        uint256 cFactorCurve;
-        uint256 liqIncentive;
-        uint256 lFactor;
-        uint256 collateralTokenPrice;
-        uint256 debtTokenPrice;
-        uint256 collateralTokenDecimals;
-        uint256 debtTokenDecimals;
-    }
-
     function _calculateAuctionCFactorAndDebtToCollateralMultiplier(
         address _borrower,
         address _collateralToken,
@@ -1043,24 +1059,22 @@ contract TestBaseMarketIsolated is TestBase {
         console2.log("remaining collateral shares", collateralAvailable - _collateralLiquidated);
         
         if (_collateralRequired > collateralAvailable) {
-                    // Get the ratio at which `account` is undercollateralized
-                    // by looking at the ratio of collateralAvailable vs
-                    // collateralRequired.
-                    // E.g. collateralAvailable = collateralRequired / 2 means 50%
-                    // of debt repaid is recognized as bad debt.
-                    badDebt = FixedPointMathLib.mulDiv(
-                        _debtAmount,
-                        (WAD_SQUARED - ((WAD_SQUARED * collateralAvailable) / _collateralRequired)),
-                        WAD_SQUARED
-                    );
+            // Get the ratio at which `account` is undercollateralized
+            // by looking at the ratio of collateralAvailable vs
+            // collateralRequired.
+            // E.g. collateralAvailable = collateralRequired / 2 means 50%
+            // of debt repaid is recognized as bad debt.
+            badDebt = FixedPointMathLib.mulDiv(
+                _debtAmount,
+                (WAD_SQUARED - ((WAD_SQUARED * collateralAvailable) / _collateralRequired)),
+                WAD_SQUARED
+            );
 
-                    console2.log("badDebt", badDebt);
+            console2.log("badDebt", badDebt);
 
-                    if (badDebt + _debtAmount > debtBalance) {
-                        revert("Bad debt exceeds debt balance");
-                    }
-        }
-        
+            if (badDebt + _debtAmount > debtBalance) {
+                revert("Bad debt exceeds debt balance");
+            }
+        }    
     }
-
 }

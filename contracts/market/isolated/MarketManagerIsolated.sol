@@ -1564,24 +1564,21 @@ contract MarketManagerIsolated is
         // If the necessary amount of collateral to liquidate `account`'s
         // overall debt is above their collateral balance, theres bad debt
         // that should be socialized.
-        uint256 collateralRequired = 
+        uint256 collateralNeeded = 
             (auctionData.debtBalance * debtToCollateralMultiplier) / WAD_SQUARED;
-        if (collateralRequired > collateralAvailable) {
-                    // Get the ratio at which `account` is undercollateralized
-                    // by looking at the ratio of collateralAvailable vs
-                    // collateralRequired.
-                    // E.g. collateralAvailable = collateralRequired / 2 means 50%
-                    // of debt repaid is recognized as bad debt.
-                    badDebt = FixedPointMathLib.mulDiv(
-                        debtAmount,
-                        WAD_SQUARED - ((WAD_SQUARED * collateralAvailable) / collateralRequired),
-                        WAD_SQUARED
-                    );
-
-                    if (badDebt + debtAmount > auctionData.debtBalance) {
-                        _revert(_INVARIANT_ERROR_SELECTOR);
-                    }
-                }
+        if (collateralNeeded > collateralAvailable) {
+            // Get the ratio at which `account` is undercollateralized
+            // by looking at the ratio of collateralAvailable vs
+            // collateralNeeded.
+            // E.g. collateralAvailable = collateralNeeded / 2 means 50%
+            // of debt repaid is recognized as bad debt.
+            badDebt = FixedPointMathLib.fullMulDiv(
+                debtAmount,
+                WAD_SQUARED -
+                    ((WAD_SQUARED * collateralAvailable) / collateralNeeded),
+                WAD_SQUARED
+            );
+        }
 
         // Calculate the maximum amount of debt that can be liquidated
         // and what collateral will be received. As well as any bad debt

@@ -9,12 +9,9 @@ import { console2 } from "forge-std/console2.sol";
 // also harvest positions before liquidation
 
 contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
-
     address borrower1 = makeAddr("borrower1");
     address borrower2 = makeAddr("borrower2");
     address borrower3 = makeAddr("borrower3");
-
-    address dappControlUser = makeAddr("dappControlUser");
 
     event Repay(uint256 assets, address payer, address account);
     event BadDebtRecognized(uint256 assets, address liquidator);
@@ -22,7 +19,7 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
     function setUp() public override {
         super.setUp();
 
-        // set up positions
+        // Set up positions.
         _setUpMarketPreLiquidation();
         _setUpBorrowerCollateral();
         _setUpBorrowerDebt();
@@ -38,11 +35,13 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
     }
 
     function testMultipleLiquidationsWithOnlyAuctions() public {
+        // Set auction parameters.
+        _setAuctionParams(
+            1.10e18, //10%
+            0.30e18  // 30%
+        );
 
-        // set auction parameters
-        _setAuctionParams();
-
-        // cache the expected liquidation values
+        // Cache the expected liquidation values.
         ExpectedLiquidationValues memory expectedLiquidationValuesBorrower1 = _calculateExpectedLiquidationValues(
             LiquidationParams({
             borrower: borrower1,
@@ -81,18 +80,18 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
             })
         );
 
-        // cache total debt
+        // Cache total debt.
         uint256 totalDebtBefore = borrowableCUSDC.marketOutstandingDebt();
 
-        // user1 debt and collateral before liquidation
+        // User1 debt and collateral before liquidation.
         uint256 user1DebtBefore = borrowableCUSDC.debtBalance(borrower1);
         uint256 user1CollateralBefore = strategyCBALRETH.collateralPosted(borrower1);
 
-        // user2 debt and collateral before liquidation
+        // User2 debt and collateral before liquidation.
         uint256 user2DebtBefore = borrowableCUSDC.debtBalance(borrower2);
         uint256 user2CollateralBefore = strategyCBALRETH.collateralPosted(borrower2);
 
-        // user3 debt and collateral before liquidation
+        // User3 debt and collateral before liquidation.
         uint256 user3DebtBefore = borrowableCUSDC.debtBalance(borrower3);
         uint256 user3CollateralBefore = strategyCBALRETH.collateralPosted(borrower3);
 
@@ -114,7 +113,7 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
 
         borrowableCUSDC.liquidate(usersToLiquidate, address(strategyCBALRETH));
 
-        // Use helper functions to reduce stack depth
+        // Use helper functions to reduce stack depth.
         _assertDebtReductions(
             expectedLiquidationValuesBorrower1,
             expectedLiquidationValuesBorrower2, 
@@ -134,7 +133,7 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
     }
 
     function _setUpMarketPreLiquidation() internal {
-        // Setup market with tokens
+        // Setup market with tokens.
         deal(address(balRETH), address(this), 77777);
         balRETH.approve(address(strategyCBALRETH), 77777);
 
@@ -146,22 +145,16 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
-        // Create a dapp control user
-        vm.startPrank(centralRegistry.daoAddress());
-        centralRegistry.addAuctionPermissions(dappControlUser);
-        vm.stopPrank();
-
         // provide liquidity to the market
         borrowableCUSDC.deposit(1_000_000e6, address(this));
     }
 
     function _setUpBorrowerCollateral() internal {
-
         _prepareBALRETH(borrower1, 1e18);
         _prepareBALRETH(borrower2, 1e18);
         _prepareBALRETH(borrower3, 1e18);
 
-        // deposit collateral
+        // Deposit collateral.
         
         vm.startPrank(borrower1);
         balRETH.approve(address(strategyCBALRETH), 1e18);
@@ -180,28 +173,19 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
     }
 
     function _setUpBorrowerDebt() internal {
-        // high ltv, trigger hard liquidation
+        // High ltv, trigger hard liquidation.
         vm.startPrank(borrower1);
         borrowableCUSDC.borrow(1150e6, borrower1);
         vm.stopPrank();
 
-        // medium ltv, trigger soft liquidation
+        // Medium ltv, trigger soft liquidation.
         vm.startPrank(borrower2);
         borrowableCUSDC.borrow(900e6, borrower2);
         vm.stopPrank();
 
-        // slightly lower than medium ltv, trigger soft liquidation
+        // Slightly lower than medium ltv, trigger soft liquidation.
         vm.startPrank(borrower3);
         borrowableCUSDC.borrow(880e6, borrower3);
-        vm.stopPrank();
-    }
-
-    function _setAuctionParams() internal {
-        vm.startPrank(dappControlUser);
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
-        uint256 validPenalty = 1.10e18; //10%
-        uint256 closeFactor = 0.30e18; // 30%
-        marketManagerIsolated.setAuctionParameters(address(strategyCBALRETH), validPenalty, closeFactor);
         vm.stopPrank();
     }
 
@@ -211,7 +195,7 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
         ExpectedLiquidationValues memory expectedBorrower3,
         uint256 totalDebtBefore
     ) internal {
-        // Assert total market debt reduction
+        // Assert total market debt reduction.
         assertEq(borrowableCUSDC.marketOutstandingDebt(), 
             totalDebtBefore - 
             (expectedBorrower1.debtRepaid + expectedBorrower1.badDebt +
@@ -226,12 +210,12 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
         uint256 userCollateralBefore,
         ExpectedLiquidationValues memory expected
     ) internal {
-        // Assert user debt reduction (including bad debt for underwater positions)
+        // Assert user debt reduction (including bad debt for underwater positions).
         uint256 expectedDebtReduction = expected.debtRepaid + expected.badDebt;
         assertEq(borrowableCUSDC.debtBalance(user), 
             userDebtBefore - expectedDebtReduction);
 
-        // Assert user collateral reduction
+        // Assert user collateral reduction.
         assertEq(strategyCBALRETH.collateralPosted(user), 
             userCollateralBefore - expected.collateralLiquidated);
     }
