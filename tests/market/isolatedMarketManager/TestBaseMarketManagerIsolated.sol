@@ -6,12 +6,25 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
+import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+
 import "forge-std/console.sol";
+
 
 contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
+    MockDataFeed public mockBALFeed;
+    MockDataFeed public mockAURAFeed;
+
+    address internal _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;
+    address internal _AURA_ADDRESS =
+        0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
 
     function setUp() public virtual override {
         super.setUp();
@@ -137,6 +150,116 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         mockUsdcFeed.setMockAnswer(2e8);
 
         _prepareUSDC(user2, 1000e6);
+    }
+
+    function _harvestAuraStrategyRewards() internal {
+
+        IBooster(_AURA_BOOSTER).earmarkRewards(109);
+
+        skip(7 days);
+
+        _setMockRewardConfig();
+
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        mockRethFeed.setMockUpdatedAt(block.timestamp);
+        mockBALFeed.setMockUpdatedAt(block.timestamp);
+        mockAURAFeed.setMockUpdatedAt(block.timestamp);
+
+        IBaseRewardPool rewarder = IBaseRewardPool(_REWARDERS[1]);
+        uint256 earnedBAL = rewarder.earned(address(strategyCBALRETH));
+
+        uint256 protocolFee = centralRegistry.protocolHarvestFee();
+        uint256 netHarvestAmount = (earnedBAL * (WAD - protocolFee)) / WAD;
+
+        if (netHarvestAmount > 0) {
+
+            SwapperLib.Swap[] memory swaps = new SwapperLib.Swap[](1);
+            swaps[0].slippage = 0.3e18;
+            swaps[0].inputToken = _BAL_ADDRESS;
+            swaps[0].inputAmount = netHarvestAmount;
+            swaps[0].outputToken = _WETH_ADDRESS;
+            swaps[0].target = _UNISWAP_V2_ROUTER;
+
+            address[] memory path = new address[](2);
+            path[0] = _BAL_ADDRESS;
+            path[1] = _WETH_ADDRESS;
+
+            swaps[0].call = abi.encodeWithSignature(
+                "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+                netHarvestAmount,
+                0,
+                path,
+                address(strategyCBALRETH),
+                block.timestamp
+            );
+
+            strategyCBALRETH.harvest(abi.encode(swaps, 1e8));
+
+        }
+    
+
+    }
+
+    function _setMockRewardConfig() internal {
+        centralRegistry.addHarvestPermissions(address(this));
+        centralRegistry.setFeeManager(address(this));
+
+        centralRegistry.setExternalCalldataChecker(
+            _UNISWAP_V2_ROUTER,
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
+        );
+
+        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            address(mockUsdcFeed),
+            0,
+            true
+        );
+        dualChainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            address(mockUsdcFeed),
+            0,
+            true
+        );
+
+        // Initialize BAL feed
+        mockBALFeed = new MockDataFeed(
+            0xdF2917806E30300537aEB49A7663062F4d1F2b5F
+        );
+        mockBALFeed.setMockUpdatedAt(block.timestamp);
+        chainlinkAdaptor.addAsset(_BAL_ADDRESS, address(mockBALFeed), 0, true);
+        oracleManager.addAssetPriceFeed(
+            _BAL_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+
+        // Initialize AURA feed
+        mockAURAFeed = new MockDataFeed(
+            0xdF2917806E30300537aEB49A7663062F4d1F2b5F
+        );
+        mockAURAFeed.setMockUpdatedAt(block.timestamp);
+        chainlinkAdaptor.addAsset(
+            _AURA_ADDRESS,
+            address(mockAURAFeed),
+            0,
+            true
+        );
+        oracleManager.addAssetPriceFeed(
+            _AURA_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+
+        vm.warp(gaugeManager.gaugeStartTime());
+        _skipEpochDuration(1);
+        vm.roll(block.number + 1000);
+
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        mockRethFeed.setMockUpdatedAt(block.timestamp);
+        mockBALFeed.setMockUpdatedAt(block.timestamp);
+        mockAURAFeed.setMockUpdatedAt(block.timestamp);
     }
 
     
