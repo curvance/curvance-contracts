@@ -88,7 +88,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
 
-        vm.prank(user1);
+        vm.startPrank(user1);
         pendleZapper.enterPendle{ value: ethAmount }(
             address(0),
             PendleZapper.ZapperData(
@@ -106,6 +106,8 @@ contract TestPendleZapper is TestBaseMarketIsolated {
             false,
             user1
         );
+
+        vm.stopPrank();
 
         assertEq(user1.balance, 0);
         assertGt(IERC20(_PENDLE_LP_STETH).balanceOf(user1), 0);
@@ -163,7 +165,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
 
-        vm.prank(user1);
+        vm.startPrank(user1);
         pendleZapper.enterPendle{ value: ethAmount }(
             address(pendleCTokenSTETH),
             PendleZapper.ZapperData(
@@ -181,6 +183,8 @@ contract TestPendleZapper is TestBaseMarketIsolated {
             false,
             user1
         );
+
+        vm.stopPrank();
 
         assertEq(user1.balance, 0);
 
@@ -202,7 +206,6 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         data.approx.eps = 1e18;
 
         vm.startPrank(user1);
-
         pendleCTokenSTETH.setDelegateApproval(address(pendleZapper), true);
 
         pendleZapper.enterPendle{ value: ethAmount }(
@@ -236,10 +239,10 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         uint256 ethAmount = 3 ether;
         vm.deal(user2, ethAmount);
 
-        vm.prank(user1);
+        vm.startPrank(user1);
         pendleCTokenSTETH.setDelegateApproval(user2, true);
-        vm.prank(user1);
         pendleCTokenSTETH.setDelegateApproval(address(pendleZapper), true);
+        vm.stopPrank(user1);
 
         PendleLib.PendleData memory data;
 
@@ -249,7 +252,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
 
-        vm.prank(user2);
+        vm.startPrank(user2);
         pendleZapper.enterPendle{ value: ethAmount }(
             address(pendleCTokenSTETH),
             PendleZapper.ZapperData(
@@ -268,6 +271,8 @@ contract TestPendleZapper is TestBaseMarketIsolated {
             user1
         );
 
+        vm.stopPrank();
+
         assertEq(user2.balance, 0);
 
         (,,,, uint256 pendleCTokenSTETHBorrowed, ) = pendleCTokenSTETH.getSnapshot(user1);
@@ -277,9 +282,6 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
     function testRedeemAndExitPendle() public {
         testEnterPendleWithCTokenWithCollateralize();
-
-        vm.prank(user1);
-        pendleCTokenSTETH.setDelegateApproval(address(pendleZapper), true);
 
         ZapperBase.RedemptionData memory redemptionData;
         redemptionData.mToken = address(pendleCTokenSTETH);
@@ -300,6 +302,8 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         );
 
         vm.startPrank(user1);
+        pendleCTokenSTETH.setDelegateApproval(address(pendleZapper), true);
+
         IERC20(_PENDLE_LP_STETH).approve(address(pendleZapper), 3 ether);
         pendleZapper.redeemAndExitPendle(
             redemptionData,

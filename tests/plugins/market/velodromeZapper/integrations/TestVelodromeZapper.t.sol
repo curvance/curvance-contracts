@@ -124,7 +124,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
-        vm.prank(user1);
+        vm.startPrank(user1);
         velodromeZapper.enterVelodrome{ value: ethAmount }(
             address(0),
             VelodromeZapper.ZapperData(
@@ -141,6 +141,8 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
             false,
             user1
         );
+
+        vm.stopPrank();
 
         assertEq(user1.balance, 0);
         assertGt(IERC20(_VELODROME_WETH_USDC).balanceOf(user1), 0);
@@ -179,7 +181,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
-        vm.prank(user1);
+        vm.startPrank(user1);
         velodromeZapper.enterVelodrome{ value: ethAmount }(
             address(pToken),
             VelodromeZapper.ZapperData(
@@ -196,6 +198,8 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
             false,
             user1
         );
+
+        vm.stopPrank();
 
         assertEq(user1.balance, 0);
         (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
@@ -240,12 +244,12 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         uint256 ethAmount = 3 ether;
         vm.deal(user2, ethAmount);
 
-        vm.prank(user1);
+        vm.startPrank(user1);
         pToken.setDelegateApproval(user2, true);
-        vm.prank(user1);
         pToken.setDelegateApproval(address(velodromeZapper), true);
+        vm.stopPrank();
 
-        vm.prank(user2);
+        vm.startPrank(user2);
         velodromeZapper.enterVelodrome{ value: ethAmount }(
             address(pToken),
             VelodromeZapper.ZapperData(
@@ -263,6 +267,8 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
             user1
         );
 
+        vm.stopPrank();
+
         assertEq(user1.balance, 0);
         (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
         assertApproxEqRel(pToken.balanceOf(user1), 0.00006 ether, 0.01 ether);
@@ -272,15 +278,14 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
     function testRedeemAndExitVelodrome() public {
         testEnterVelodromeWithCToken();
 
-        vm.prank(user1);
-        pToken.setDelegateApproval(address(velodromeZapper), true);
-
         ZapperBase.RedemptionData memory redemptionData;
         redemptionData.mToken = address(pToken);
         redemptionData.shares = 0.00006 ether;
         redemptionData.forceRedeemCollateral = false;
 
         vm.startPrank(user1);
+
+        pToken.setDelegateApproval(address(velodromeZapper), true);
         IERC20(_VELODROME_WETH_USDC).approve(
             address(velodromeZapper),
             3 ether
@@ -298,6 +303,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
             new SwapperLib.Swap[](0),
             user1
         );
+
         vm.stopPrank();
 
         assertGt(IERC20(_WETH).balanceOf(user1), 0);
