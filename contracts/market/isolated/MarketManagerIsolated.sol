@@ -1573,14 +1573,25 @@ contract MarketManagerIsolated is
             // E.g. collateralAvailable = collateralNeeded / 2 means 50%
             // of debt should be recognized as bad debt.
             badDebt = FixedPointMathLib.fullMulDiv(
-                (debtAmount * collateralNeeded) / collateralAvailable,
-                WAD_SQUARED -
-                    ((WAD_SQUARED * collateralAvailable) / collateralNeeded),
+                FixedPointMathLib.mulDiv(
+                    debtAmount,
+                    collateralNeeded,
+                    collateralAvailable
+                ),
+                WAD_SQUARED - FixedPointMathLib.mulDiv(
+                    WAD_SQUARED,
+                    collateralAvailable,
+                    collateralNeeded
+                ),
                 WAD_SQUARED
             );
 
+            // If the adjusted debt values round slightly above
+            // `auctionData.debtBalance` (can happen in cases where collateral
+            // prices go down to a billionth of a cent we can clamp down
+            // badDebt so that invariants are not broken.
             if (badDebt + debtAmount > auctionData.debtBalance) {
-                _revert(_INVARIANT_ERROR_SELECTOR)
+                badDebt = auctionData.debtBalance - debtAmount;
             }
         }
 
