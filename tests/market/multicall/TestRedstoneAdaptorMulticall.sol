@@ -130,7 +130,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         );
         assertTrue(success);
 
-        // Deploy borrowableCUSDC
+        // Setup borrowableCUSDC.
         {
             _deployBorrowableCUSDC();
 
@@ -142,7 +142,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             markets[0] = address(borrowableCUSDC);
         }
 
-        // Deploy simpleCWBTC
+        // Setup simpleCWBTC.
         {
             simpleCWBTC = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),

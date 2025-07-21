@@ -91,7 +91,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
             dai.approve(address(borrowableCDAI), 200000e18);
         }
 
-        // deploy cPendlePTSTETH
+        // Setup cPendlePTSTETH.
         {
             cPendlePTSTETH = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
@@ -99,7 +99,6 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
                 address(marketManagerIsolated)
             );
 
-            // support market
             _preparePT(owner, 1 ether);
             pendlePT.approve(address(cPendlePTSTETH), 1 ether);
             // Add cToken support on Oracle Manager.

@@ -25,13 +25,13 @@ contract TestVotingHub is TestBaseVotingHub {
         _CROSSCHAIN_CORES[block.chainid] = address(new WormholeMock());
         wormholeHelper = new WormholeHelper();
 
-        // Deploy contracts on forked Ethereum
+        // Deploy contracts on forked Ethereum.
         _init();
 
         // Fork Arbitrum as destination chain and select it
         dstForkId1 = _fork("ETH_NODE_URI_ARBITRUM", 176678420);
 
-        // Deploy contracts on forked Arbitrum
+        // Deploy contracts on forked Arbitrum.
         _deployBaseContracts();
         _deployMarketManager();
 
@@ -58,7 +58,7 @@ contract TestVotingHub is TestBaseVotingHub {
         // Fork Optimism as destination chain and select it
         dstForkId2 = _fork("ETH_NODE_URI_OPTIMISM", 115634760);
 
-        // Deploy contracts on forked Optimism
+        // Deploy contracts on forked Optimism.
         _deployBaseContracts();
         _deployMarketManager();
 

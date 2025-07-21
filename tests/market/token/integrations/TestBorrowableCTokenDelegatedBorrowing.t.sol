@@ -73,18 +73,16 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
         (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
 
-        // deploy eDAI
+        // Setup borrowable CDAI.
         {
-            // support market
             _prepareDAI(owner, 200000e18);
             dai.approve(address(borrowableCDAI), 200000e18);
             // Add cToken support on Oracle Manager.
             oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
-        // deploy strategyCBALRETH
+        // Setup strategyCBALRETH.
         {
-            // support market
             _prepareBALRETH(owner, 1 ether);
             balRETH.approve(address(strategyCBALRETH), 1 ether);
         }
@@ -212,7 +210,7 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
         }
     }
 
-    // Deploy BorrowableCToken
+    // Deploy BorrowableCToken.
     function _deployBorrowableCToken(
         address asset
     ) internal override initMainVariables returns (BorrowableCToken) {

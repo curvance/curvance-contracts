@@ -770,7 +770,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         console2.log("ethPrice", ethPrice);
 
-        // setup eDAI
+        // Setup borrowable CDAI.
         {
             _prepareDAI(owner, 200_000e18);
             dai.approve(address(borrowableCDAI), 200_000e18);
@@ -778,9 +778,8 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
-        // setup strategyCBALRETH
+        // Setup strategyCBALRETH.
         {
-            // support market
             _prepareBALRETH(owner, _ONE);
             balRETH.approve(address(strategyCBALRETH), _ONE);
         }

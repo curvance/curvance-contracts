@@ -109,7 +109,7 @@ contract TestOracleManager is TestBaseOracleManager {
     function testReturnsCorrectPriceForCTokens() public {
         _deployBorrowableCUSDC();
         
-        // Create a mock collateral token
+        // Create a mock collateral token.
         MockERC20Token underlying = new MockERC20Token();
         MockSimpleCToken mockPToken = new MockSimpleCToken(
             ICentralRegistry(address(centralRegistry)),
@@ -121,11 +121,9 @@ contract TestOracleManager is TestBaseOracleManager {
         underlying.mint(address(this), 77777);
         underlying.approve(address(mockPToken), 77777);
 
-        // Support market
         _prepareUSDC(address(this), 200000e6);
         usdc.approve(address(borrowableCUSDC), 200000e6);
-        
-        // Use mock collateral token
+
         marketManagerIsolated.listTokens(address(mockPToken), address(borrowableCUSDC));
 
         oracleManager.addCTokenSupport(address(borrowableCUSDC));

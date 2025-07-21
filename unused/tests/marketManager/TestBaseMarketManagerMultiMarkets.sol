@@ -51,8 +51,8 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         return (eTokens, eTokensAgg);
     }
 
-    function _deployCollaterToken() internal returns (MockSimpleCToken) {
-        // deploy collateral token and pToken
+    function _deployCollateralToken() internal returns (MockSimpleCToken) {
+        // Deploy collateral token and pToken
         MockERC20Token mockUnderlying = new MockERC20Token();
         vm.label(address(mockUnderlying), "tokenCollateral");
         MockSimpleCToken SimpleCToken = new MockSimpleCToken(
@@ -62,7 +62,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         );
         vm.label(address(SimpleCToken), "pToken");
 
-        // start market for pToken
+        // Setup market for pToken
         uint256 startAmount = 77777;
         mockUnderlying.mint(address(this), startAmount);
         mockUnderlying.approve(address(SimpleCToken), startAmount);

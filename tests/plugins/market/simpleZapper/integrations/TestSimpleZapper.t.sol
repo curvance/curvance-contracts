@@ -36,16 +36,15 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
-        // deploy eDAI
+        // Setup borrowable CDAI.
         {
-            // support market
             _prepareDAI(owner, 200000e18);
             dai.approve(address(borrowableCDAI), 200000e18);
             // Add cToken support on Oracle Manager.
             oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
-        // deploy simple pToken
+        // Setup simpleCUSDC.
         {
             _deploySimpleCUSDC();
             _prepareUSDC(owner, 100e6);

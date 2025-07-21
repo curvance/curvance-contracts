@@ -95,41 +95,28 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
         mockWbtcFeed.updateAnswer(60000e8);
 
-        // // deploy borrowableCUSDC
-        // {
-        //     // support market
-        //     _prepareUSDC(owner, 200_000e6);
-        //     _prepareBALRETH(owner, 1000e18);
-        //     usdc.approve(address(borrowableCUSDC), 200_000e6);
-        //     balRETH.approve(address(simpleCBALRETH), 1000e18);
-        //     marketManagerIsolated.listTokens(address(simpleCBALRETH), address(borrowableCUSDC));
-
-        //     address[] memory markets = new address[](1);
-        //     markets[0] = address(borrowableCUSDC);
-        // }
-
-        // deploy simpleCWBTC
+        // Setup simpleCWBTC.
         {
-            // Deploy simple cToken
             simpleCWBTC = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
                 address(marketManagerIsolated)
             );
 
-            // support market
             _prepareWBTC(owner, 1e8);
             _prepareUSDC(owner, 1000e6);    
             wbtc.approve(address(simpleCWBTC), 1e8);
             usdc.approve(address(borrowableCUSDC), 1000e6);
-            marketManagerIsolated.listTokens(address(simpleCWBTC), address(borrowableCUSDC));
+
             // Add cToken support on Oracle Manager.
             oracleManager.addCTokenSupport(address(simpleCWBTC));
-            // Set cToken configuration.
-            _setCTokenConfigBasic(address(simpleCWBTC), 100e8, 0);
-            _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000e6, 1_000_000e6);
-
         }
+
+        marketManagerIsolated.listTokens(address(simpleCWBTC), address(borrowableCUSDC));
+            
+        // Set cToken configuration.
+        _setCTokenConfigBasic(address(simpleCWBTC), 100e8, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000e6, 1_000_000e6);
 
         owners.push(user2);
         owners.push(user3);

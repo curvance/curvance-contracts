@@ -128,7 +128,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
-        // Deploy borrowableCWETH
+        // Setup borrowableCWETH.
         {
             _prepareWETH(owner, 200000 ether);
             weth.approve(address(borrowableCWETH), 200000e6);
@@ -138,7 +138,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             markets[0] = address(borrowableCWETH);
         }
 
-        // Deploy cWBTC
+        // Setup cWBTC.
         {
             cWBTC = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),

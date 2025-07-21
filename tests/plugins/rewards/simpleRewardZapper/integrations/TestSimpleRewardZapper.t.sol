@@ -67,17 +67,16 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         address owner = address(this);
 
-        // Deploy borrowableCUSDC.
+        // Setup borrowableCUSDC.
         {
             _deployBorrowableCUSDC();
-            // support market
             _prepareUSDC(owner, 200000e6);
             usdc.approve(address(borrowableCUSDC), 200000e6);
-            // add CToken support on oracle manager
+            // Add CToken support on Oracle Manager.
             oracleManager.addCTokenSupport(address(borrowableCUSDC));
         }
 
-        // Deploy simpleCWETH
+        // Setup simpleCWETH.
         {
             simpleCWETH = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
@@ -87,7 +86,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
             _prepareWETH(owner, 1 ether);
             weth.approve(address(simpleCWETH), 1 ether);
-            // add CToken support on oracle manager
+            // Add CToken support on Oracle Manager.
             oracleManager.addCTokenSupport(address(simpleCWETH));
         }
 

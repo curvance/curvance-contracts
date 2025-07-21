@@ -131,7 +131,7 @@ contract ConvexMarketDeployer is DeployConfiguration {
             }
         }
 
-        // Deploy Curve adapter
+        // Deploy Curve adaptor.
         if (!OracleManager(oracleManager).isApprovedAdaptor(curveAdaptor)) {
             OracleManager(oracleManager).addApprovedAdaptor(curveAdaptor);
             console.log("oracleManager.addApprovedAdaptor: ", curveAdaptor);

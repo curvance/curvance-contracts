@@ -88,7 +88,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
 
-        // deploy eDAI
+        // Setup borrowable CDAI.
         {
             _prepareDAI(owner, 200000e18);
             dai.approve(address(borrowableCDAI), 200000e18);
@@ -96,9 +96,8 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
             oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
-        // deploy PBALRETH
+        // Setup strategyCBALRETH.
         {
-            // support market
             _prepareBALRETH(owner, 1 ether);
             balRETH.approve(address(strategyCBALRETH), 1 ether);
 

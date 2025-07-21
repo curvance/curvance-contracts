@@ -190,7 +190,7 @@ contract AuraMarketDeployer is DeployConfiguration {
             console.log("oracleManager.addAssetPriceFeed: ", param.asset);
         }
 
-        // Deploy cToken
+        // Deploy cToken.
         address cToken = _getDeployedContract(name);
         if (cToken == address(0)) {
             cToken = address(

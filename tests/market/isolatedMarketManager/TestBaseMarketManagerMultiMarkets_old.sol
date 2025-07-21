@@ -52,7 +52,7 @@
 //     }
 
 //     function _deployCollaterToken() internal returns (MockSimpleCToken) {
-//         // deploy collateral token and cToken
+//         // Setup collateral token and cToken.
 //         MockERC20Token mockUnderlying = new MockERC20Token();
 //         vm.label(address(mockUnderlying), "tokenCollateral");
 //         MockSimpleCToken SimpleCToken = new MockSimpleCToken(

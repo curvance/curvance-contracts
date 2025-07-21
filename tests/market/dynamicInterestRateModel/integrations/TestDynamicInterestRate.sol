@@ -42,16 +42,17 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         owner = address(this);
         user = user1;
 
-        // Deploy eDAI and simpleCUSDC
+        // Deploy borrowable cDAI and simpleCUSDC.
         _deployBorrowableCDAI();
         _deploySimpleCUSDC();
         interestRateModel = interestRateModels[block.chainid][_DAI_ADDRESS];
 
-        // Setup cToken (borrowableCDAI)
+        // Setup borrowable cDAI.
         oracleManager.addCTokenSupport(address(borrowableCDAI));
         _prepareDAI(owner, 100e18);
         dai.approve(address(borrowableCDAI), 100e18);
-        // Setup cToken (simpleCUSDC)
+
+        // Setup simpleCUSDC.
         oracleManager.addCTokenSupport(address(simpleCUSDC));
         _prepareUSDC(owner, 100e6);
         usdc.approve(address(simpleCUSDC), 100e6);

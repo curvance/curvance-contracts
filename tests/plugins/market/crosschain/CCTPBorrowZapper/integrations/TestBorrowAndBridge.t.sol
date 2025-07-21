@@ -74,7 +74,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
 
-        // setup eDAI
+        // Setup borrowable CDAI.
         {
             _prepareDAI(address(this), 200000e18);
             dai.approve(address(borrowableCDAI), 200000e18);
@@ -82,9 +82,8 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
             oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
-        // setup strategyCBALRETH
+        // Setup strategyCBALRETH.
         {
-            // support market
             _prepareBALRETH(address(this), _ONE);
             balRETH.approve(address(strategyCBALRETH), _ONE);
 

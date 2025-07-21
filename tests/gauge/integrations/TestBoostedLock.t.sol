@@ -47,7 +47,6 @@
 //         }
 
 //         for (uint256 i = 0; i < 10; i++) {
-//             // support market
 //             dai.approve(address(tokens[i]), 200000e18);
 //             marketManagerIsolated.listToken(tokens[i]);
 

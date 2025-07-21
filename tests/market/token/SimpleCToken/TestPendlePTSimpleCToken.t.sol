@@ -102,7 +102,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockStethFeed.setMockUpdatedAt(block.timestamp);
 
-        // Deploy borrowable cUSDC.
+        // Setup borrowable cUSDC.
         {
             _deployBorrowableCUSDC();
 
@@ -112,7 +112,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
             oracleManager.addCTokenSupport(address(borrowableCUSDC));
         }
 
-        // Deploy Pendle stETH principal token.
+        // Setup pendleCTokenPTSTETH.
         {
             pendleCTokenPTSTETH = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),

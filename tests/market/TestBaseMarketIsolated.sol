@@ -179,12 +179,6 @@ contract TestBaseMarketIsolated is TestBase {
     }
 
     function _deployCVE() internal virtual initMainVariables {
-        // If TokenBridgeRelayer doesn't exist on the address,
-        // deploy mock TokenBridgeRelayer on the address.
-        // if (_TOKEN_BRIDGE.code.length == 0) {
-        //    vm.etch(_TOKEN_BRIDGE, address(new MockTokenBridgeRelayer()).code);
-        // }
-
         cve = cves[block.chainid] = new CVE(
             ICentralRegistry(address(centralRegistry)),
             address(0)

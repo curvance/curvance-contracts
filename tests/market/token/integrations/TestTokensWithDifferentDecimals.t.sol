@@ -75,16 +75,14 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
 
-        // setup eUSDC
+        // Setup borrowable cUSDC.
         {
-            // support market
             _prepareUSDC(owner, 200000e6);
             usdc.approve(address(borrowableCUSDC), 200000e6);
         }
 
-        // setup strategyCBALRETH
+        // Setup strategyCBALRETH.
         {
-            // support market
             _prepareBALRETH(owner, 1 ether);
             balRETH.approve(address(strategyCBALRETH), 1 ether);
 
