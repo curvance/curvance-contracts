@@ -186,11 +186,13 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        assertEq(user1.balance, 0);
+        AccountSnapshot memory pendleCTokenSTETHSnapshot = pendleCTokenSTETH.getSnapshot(
+            user1
+        );
 
-        (,,,, uint256 pendleCTokenSTETHBorrowed, ) = pendleCTokenSTETH.getSnapshot(user1);
         assertApproxEqRel(pendleCTokenSTETH.balanceOf(user1), 1.24 ether, 0.01 ether);
-        assertEq(pendleCTokenSTETHBorrowed, 0);
+        assertEq(pendleCTokenSTETHSnapshot.debtBalance, 0);
+        assertEq(user1.balance, 0);
     }
 
     function testEnterPendleWithCTokenWithCollateralize() public {
@@ -228,11 +230,13 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        assertEq(user1.balance, 0);
+        AccountSnapshot memory pendleCTokenSTETHSnapshot = pendleCTokenSTETH.getSnapshot(
+            user1
+        );
 
-        (,,,, uint256 pendleCTokenSTETHBorrowed, ) = pendleCTokenSTETH.getSnapshot(user1);
         assertApproxEqRel(pendleCTokenSTETH.balanceOf(user1), 1.24 ether, 0.01 ether);
-        assertEq(pendleCTokenSTETHBorrowed, 0);
+        assertEq(pendleCTokenSTETHSnapshot.debtBalance, 0);
+        assertEq(user1.balance, 0);
     }
 
     function testEnterPendleWithDelegation() public {
@@ -273,11 +277,13 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        assertEq(user2.balance, 0);
+        AccountSnapshot memory pendleCTokenSTETHSnapshot = pendleCTokenSTETH.getSnapshot(
+            user1
+        );
 
-        (,,,, uint256 pendleCTokenSTETHBorrowed, ) = pendleCTokenSTETH.getSnapshot(user1);
         assertApproxEqRel(pendleCTokenSTETH.balanceOf(user1), 1.24 ether, 0.01 ether);
-        assertEq(pendleCTokenSTETHBorrowed, 0);
+        assertEq(pendleCTokenSTETHSnapshot.debtBalance, 0);
+        assertEq(user2.balance, 0);
     }
 
     function testRedeemAndExitPendle() public {
