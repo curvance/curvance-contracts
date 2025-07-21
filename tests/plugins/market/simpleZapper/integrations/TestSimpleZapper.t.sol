@@ -5,10 +5,10 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 import { SimpleCToken, IERC20 } from "contracts/market/token/SimpleCToken.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
-import "tests/market/TestBaseMarketIsolated.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
 contract TestSimpleZapper is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =

@@ -120,7 +120,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         _setRedstoneSigners();
 
-        // _setMockRewardConfig();
+        _setMockRewardConfig();
 
         // Create a dapp control user.
         vm.startPrank(centralRegistry.daoAddress());

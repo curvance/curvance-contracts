@@ -58,8 +58,6 @@ contract TestBaseLiquidations is TestBaseMarketIsolated {
             0,
             true
         );
-
-        _setMockRewardConfig();
     }
 
     function _prepareLiquidation() internal {
