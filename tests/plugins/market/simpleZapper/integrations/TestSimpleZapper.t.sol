@@ -177,7 +177,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         assertApproxEqAbs(borrowableCDAI.debtBalance(user1), 50 ether, 1 ether);
     }
 
-    function testRedeemAndSwapPToken() public {
+    function testRedeemAndSwapCToken() public {
         testSwapAndDeposit();
 
         vm.prank(user1);

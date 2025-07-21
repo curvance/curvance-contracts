@@ -21,7 +21,7 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
     address internal _PENDLE = 0x808507121B80c02388fAd14726482e061B8da827;
     address internal _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market
 
-    PendleLPCToken public cSTETH;
+    PendleLPCToken public pendleCTokenSTETH;
     MockV3Aggregator public chainlinkPendleUsd;
 
     receive() external payable {}
@@ -54,7 +54,7 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
 
-        cSTETH = new PendleLPCToken(
+        pendleCTokenSTETH = new PendleLPCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_LP_STETH),
             address(marketManagerIsolated),
@@ -78,17 +78,17 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         _prepareDAI(address(this), 77777);
         dai.approve(address(borrowableCDAI), 77777);
 
-        IERC20(_LP_STETH).approve(address(cSTETH), 77777);
-        marketManagerIsolated.listTokens(address(cSTETH), address(borrowableCDAI));
+        IERC20(_LP_STETH).approve(address(pendleCTokenSTETH), 77777);
+        marketManagerIsolated.listTokens(address(pendleCTokenSTETH), address(borrowableCDAI));
 
         vm.prank(user1);
-        IERC20(_LP_STETH).approve(address(cSTETH), assets);
+        IERC20(_LP_STETH).approve(address(pendleCTokenSTETH), assets);
 
         vm.prank(user1);
-        cSTETH.deposit(assets, user1);
+        pendleCTokenSTETH.deposit(assets, user1);
 
         assertEq(
-            cSTETH.totalAssets(),
+            pendleCTokenSTETH.totalAssets(),
             assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
@@ -100,8 +100,8 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         chainlinkEthUsd.updateAnswer(3000e8);
 
         // Mint some extra rewards for Vault.
-        deal(_PENDLE, address(cSTETH), 100e18);
-        deal(address(cSTETH), 1e18);
+        deal(_PENDLE, address(pendleCTokenSTETH), 100e18);
+        deal(address(pendleCTokenSTETH), 1e18);
 
         uint256 rewardAmount = (100e18 * 84) / 100; // 16% for protocol harvest fee;
         SwapperLib.Swap[] memory swaps = new SwapperLib.Swap[](1);
@@ -114,7 +114,7 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         params.tokenIn = _PENDLE;
         params.tokenOut = _WETH_ADDRESS;
         params.fee = 3000;
-        params.recipient = address(cSTETH);
+        params.recipient = address(pendleCTokenSTETH);
         params.deadline = block.timestamp;
         params.amountIn = rewardAmount;
         params.amountOutMinimum = 0;
@@ -133,14 +133,14 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
 
         LimitOrderData memory limit;
 
-        cSTETH.harvest(abi.encode(swaps, 1e8, approx, limit));
+        pendleCTokenSTETH.harvest(abi.encode(swaps, 1e8, approx, limit));
 
         vm.warp(block.timestamp + 8 days);
 
         chainlinkPendleUsd.updateAnswer(3.6e18);
         chainlinkEthUsd.updateAnswer(3000e8);
 
-        uint256 totalAssets = cSTETH.totalAssets();
+        uint256 totalAssets = pendleCTokenSTETH.totalAssets();
         assertGt(
             totalAssets,
             assets + 77777,
@@ -148,7 +148,7 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         );
 
         vm.prank(user1);
-        cSTETH.withdraw(assets, user1, user1);
+        pendleCTokenSTETH.withdraw(assets, user1, user1);
     }
 
     function testRevertWithInvalidSwapper() external {
@@ -159,14 +159,14 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         _prepareDAI(address(this), 77777);
         dai.approve(address(borrowableCDAI), 77777);
 
-        IERC20(_LP_STETH).approve(address(cSTETH), 77777);
-        marketManagerIsolated.listTokens(address(cSTETH), address(borrowableCDAI));
+        IERC20(_LP_STETH).approve(address(pendleCTokenSTETH), 77777);
+        marketManagerIsolated.listTokens(address(pendleCTokenSTETH), address(borrowableCDAI));
 
         vm.prank(user1);
-        IERC20(_LP_STETH).approve(address(cSTETH), assets);
+        IERC20(_LP_STETH).approve(address(pendleCTokenSTETH), assets);
 
         vm.prank(user1);
-        cSTETH.deposit(assets, user1);
+        pendleCTokenSTETH.deposit(assets, user1);
 
         // Advance time to earn CRV and CVX rewards
         vm.warp(block.timestamp + 3 days);
@@ -175,7 +175,7 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         chainlinkEthUsd.updateAnswer(3000e8);
 
         // Mint some extra rewards for Vault.
-        deal(_PENDLE, address(cSTETH), 100e18);
+        deal(_PENDLE, address(pendleCTokenSTETH), 100e18);
 
         uint256 rewardAmount = (100e18 * 84) / 100; // 16% for protocol harvest fee;
         SwapperLib.Swap[] memory swaps = new SwapperLib.Swap[](1);
@@ -194,13 +194,13 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         LimitOrderData memory limit;
 
         vm.expectRevert(SwapperLib.SwapperLib__UnknownCalldata.selector);
-        cSTETH.harvest(abi.encode(swaps, 1e8, approx, limit));
+        pendleCTokenSTETH.harvest(abi.encode(swaps, 1e8, approx, limit));
     }
 
     function testReQueryTokens() external {
-        cSTETH.reQueryTokens();
+        pendleCTokenSTETH.reQueryTokens();
 
-        assertEq(cSTETH.rewardTokens().length, 1);
-        assertEq(cSTETH.underlyingTokens().length, 4);
+        assertEq(pendleCTokenSTETH.rewardTokens().length, 1);
+        assertEq(pendleCTokenSTETH.underlyingTokens().length, 4);
     }
 }

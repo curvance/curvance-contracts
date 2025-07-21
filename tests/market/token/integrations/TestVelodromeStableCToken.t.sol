@@ -22,7 +22,7 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
         IVeloRouter(0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858);
     address public optiSwap = 0x6108FeAA628155b073150F408D0b390eC3121834;
 
-    VelodromeStableCToken public cUSDCDAI;
+    VelodromeStableCToken public veloCTokenUSDCDAI;
     MockV3Aggregator public chainlinkVELO;
     MockV3Aggregator public chainlinkUSDC;
 
@@ -48,7 +48,7 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(veloRouter)))
         );
 
-        cUSDCDAI = new VelodromeStableCToken(
+        veloCTokenUSDCDAI = new VelodromeStableCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_USDC_DAI),
             address(marketManagerIsolated),
@@ -99,23 +99,23 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
         deal(_USDC_DAI, user1, assets);
         deal(_USDC_DAI, address(this), 77777);
         _prepareDAI(address(this), 1e18);
-        IERC20(_USDC_DAI).approve(address(cUSDCDAI), 77777);
+        IERC20(_USDC_DAI).approve(address(veloCTokenUSDCDAI), 77777);
         dai.approve(address(borrowableCDAI), 77777);
-        marketManagerIsolated.listTokens(address(cUSDCDAI), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(address(veloCTokenUSDCDAI), address(borrowableCDAI));
 
         vm.prank(user1);
-        IERC20(_USDC_DAI).approve(address(cUSDCDAI), assets);
+        IERC20(_USDC_DAI).approve(address(veloCTokenUSDCDAI), assets);
 
         vm.prank(user1);
-        cUSDCDAI.deposit(assets, user1);
+        veloCTokenUSDCDAI.deposit(assets, user1);
 
         assertEq(
-            cUSDCDAI.totalAssets(),
+            veloCTokenUSDCDAI.totalAssets(),
             assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
 
-        console2.log("total assets before harvest", cUSDCDAI.totalAssets());
+        console2.log("total assets before harvest", veloCTokenUSDCDAI.totalAssets());
 
         vm.startPrank(gauge.voter());
         IERC20(_VELO_ADDRESS).approve(address(gauge), 10e18);
@@ -128,7 +128,7 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
         chainlinkUSDC.updateAnswer(chainlinkUSDC.latestAnswer());
 
         // Mint some extra rewards for Vault.
-        uint256 earned = gauge.earned(address(cUSDCDAI));
+        uint256 earned = gauge.earned(address(veloCTokenUSDCDAI));
         uint256 amount = (earned * 84) / 100;
         SwapperLib.Swap memory swapData;
         swapData.inputToken = _VELO_ADDRESS;
@@ -145,17 +145,17 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
             amount,
             0,
             routes,
-            address(cUSDCDAI),
+            address(veloCTokenUSDCDAI),
             type(uint256).max
         );
         swapData.slippage = 50e16;
 
-        cUSDCDAI.harvest(abi.encode(swapData, 1e14));
+        veloCTokenUSDCDAI.harvest(abi.encode(swapData, 1e14));
 
-        console2.log("total assets after first harvest:", cUSDCDAI.totalAssets());
+        console2.log("total assets after first harvest:", veloCTokenUSDCDAI.totalAssets());
 
         assertEq(
-            cUSDCDAI.totalAssets(),
+            veloCTokenUSDCDAI.totalAssets(),
             assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
@@ -165,7 +165,7 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
         chainlinkUSDC.updateAnswer(chainlinkUSDC.latestAnswer());
 
         // Mint some extra rewards for Vault.
-        earned = gauge.earned(address(cUSDCDAI));
+        earned = gauge.earned(address(veloCTokenUSDCDAI));
         amount = (earned * 84) / 100;
         swapData.inputAmount = amount;
         swapData.call = abi.encodeWithSelector(
@@ -173,27 +173,27 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
             amount,
             0,
             routes,
-            address(cUSDCDAI),
+            address(veloCTokenUSDCDAI),
             type(uint256).max
         );
-        cUSDCDAI.harvest(abi.encode(swapData, 1e14));
+        veloCTokenUSDCDAI.harvest(abi.encode(swapData, 1e14));
 
-        console2.log("total assets after second harvest", cUSDCDAI.totalAssets());
+        console2.log("total assets after second harvest", veloCTokenUSDCDAI.totalAssets());
 
         vm.warp(block.timestamp + 7 days);
         chainlinkVELO.updateAnswer(chainlinkVELO.latestAnswer());
         chainlinkUSDC.updateAnswer(chainlinkUSDC.latestAnswer());
 
-        console2.log("Total Assets", cUSDCDAI.totalAssets());
+        console2.log("Total Assets", veloCTokenUSDCDAI.totalAssets());
         console2.log("Assets", assets);
 
         assertGt(
-            cUSDCDAI.totalAssets(),
+            veloCTokenUSDCDAI.totalAssets(),
             assets + 77777,
             "Total Assets should greater than original deposit plus initial mint."
         );
 
         vm.prank(user1);
-        cUSDCDAI.withdraw(assets, user1, user1);
+        veloCTokenUSDCDAI.withdraw(assets, user1, user1);
     }
 }

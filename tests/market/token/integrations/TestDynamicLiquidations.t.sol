@@ -106,27 +106,8 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
 
-        MarketManagerIsolated.TokenConfig memory tokenConfigs;
-        tokenConfigs.cToken = address(strategyCBALRETH);
-        tokenConfigs.collRatio = 7000;
-        tokenConfigs.collReqSoft = 4000;
-        tokenConfigs.collReqHard = 3000;
-        tokenConfigs.liqIncBase = 1000;
-        tokenConfigs.liqIncHard = 1500;
-        tokenConfigs.liqIncMin = 500;
-        tokenConfigs.liqIncMax = 2000;
-        tokenConfigs.minEffectiveCloseFactor = 2000;
-        tokenConfigs.maxEffectiveCloseFactor = 3000;
-        tokenConfigs.baseCFactor = 1000;
-        tokenConfigs.collateralCap = 100e18;
-        tokenConfigs.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
-
-        tokenConfigs.cToken = address(borrowableCDAI);
-        tokenConfigs.debtCap = 100_000e18;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100e18, 0);
+        _setCTokenConfigBasic(address(borrowableCDAI), 100e18, 100_000e18);
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();

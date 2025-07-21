@@ -81,26 +81,8 @@ contract TestBaseStrategyCToken is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
 
-        MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
-        tokenConfig.collRatio = 7000;
-        tokenConfig.collReqSoft = 4000;
-        tokenConfig.collReqHard = 3000;
-        tokenConfig.liqIncBase = 1000;
-        tokenConfig.liqIncHard = 1500;
-        tokenConfig.liqIncMin = 500;
-        tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 3000;
-        tokenConfig.baseCFactor = 1000;
-        tokenConfig.collateralCap = 100_000e18;
-        tokenConfig.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
-
-        tokenConfig.cToken = address(borrowableCDAI);
-        tokenConfig.debtCap = 100_000e18;
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
     }
     
 }

@@ -22,7 +22,7 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
     IVeloRouter public aeroRouter =
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
-    AerodromeVolatileCToken public pWETHUSDC;
+    AerodromeVolatileCToken public aeroCTokenWETHUSDC;
     VelodromeVolatileLPAdaptor public adaptor;
     MockV3Aggregator public chainlinkAERO;
     MockV3Aggregator public chainlinkWETH;
@@ -52,7 +52,7 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
 
         _deployBorrowableCUSDC();
 
-        pWETHUSDC = new AerodromeVolatileCToken(
+        aeroCTokenWETHUSDC = new AerodromeVolatileCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_AERODROME_WETH_USDC),
             address(marketManagerIsolated),
@@ -190,19 +190,19 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
         deal(_AERODROME_WETH_USDC, address(this), 77777);
         deal(_USDC_ADDRESS, address(this), 77777);
 
-        IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 77777);
+        IERC20(_AERODROME_WETH_USDC).approve(address(aeroCTokenWETHUSDC), 77777);
         IERC20(_USDC_ADDRESS).approve(address(borrowableCUSDC), 77777);
         
-        marketManagerIsolated.listTokens(address(pWETHUSDC),address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(aeroCTokenWETHUSDC),address(borrowableCUSDC));
 
         vm.prank(user1);
-        IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), assets);
+        IERC20(_AERODROME_WETH_USDC).approve(address(aeroCTokenWETHUSDC), assets);
 
         vm.prank(user1);
-        pWETHUSDC.deposit(assets, user1);
+        aeroCTokenWETHUSDC.deposit(assets, user1);
 
         assertEq(
-            pWETHUSDC.totalAssets(),
+            aeroCTokenWETHUSDC.totalAssets(),
             assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
@@ -219,7 +219,7 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
         chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
 
         // Mint some extra rewards for Vault.
-        uint256 earned = gauge.earned(address(pWETHUSDC));
+        uint256 earned = gauge.earned(address(aeroCTokenWETHUSDC));
         uint256 amount = (earned * 84) / 100;
         SwapperLib.Swap memory swapData;
         swapData.inputToken = _AERO_ADDRESS;
@@ -236,15 +236,15 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             amount,
             0,
             routes,
-            address(pWETHUSDC),
+            address(aeroCTokenWETHUSDC),
             type(uint256).max
         );
         swapData.slippage = 50e16;
 
-        pWETHUSDC.harvest(abi.encode(swapData, 1e7));
+        aeroCTokenWETHUSDC.harvest(abi.encode(swapData, 1e7));
 
         assertEq(
-            pWETHUSDC.totalAssets(),
+            aeroCTokenWETHUSDC.totalAssets(),
             assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
@@ -254,7 +254,7 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
         chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
 
         // Mint some extra rewards for Vault.
-        earned = gauge.earned(address(pWETHUSDC));
+        earned = gauge.earned(address(aeroCTokenWETHUSDC));
         amount = (earned * 84) / 100;
         swapData.inputAmount = amount;
         swapData.call = abi.encodeWithSelector(
@@ -262,22 +262,22 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             amount,
             0,
             routes,
-            address(pWETHUSDC),
+            address(aeroCTokenWETHUSDC),
             type(uint256).max
         );
-        pWETHUSDC.harvest(abi.encode(swapData, 1e7));
+        aeroCTokenWETHUSDC.harvest(abi.encode(swapData, 1e7));
 
         vm.warp(block.timestamp + 7 days);
         chainlinkAERO.updateAnswer(chainlinkAERO.latestAnswer());
         chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
 
         assertGt(
-            pWETHUSDC.totalAssets(),
+            aeroCTokenWETHUSDC.totalAssets(),
             assets + 77777,
             "Total Assets should greater than original deposit plus initial mint."
         );
 
         vm.prank(user1);
-        pWETHUSDC.withdraw(assets, user1, user1);
+        aeroCTokenWETHUSDC.withdraw(assets, user1, user1);
     }
 }

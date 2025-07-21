@@ -23,7 +23,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
     IVeloGauge public gauge =
         IVeloGauge(0xE7630c9560C59CCBf5EEd8f33dd0ccA2E67a3981);
 
-    VelodromeVolatileCToken public pWETHUSDC;
+    VelodromeVolatileCToken public veloCTokenWETHUSDC;
     MockV3Aggregator public chainlinkVELO;
     MockV3Aggregator public chainlinkWETH;
 
@@ -50,7 +50,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(veloRouter)))
         );
 
-        pWETHUSDC = new VelodromeVolatileCToken(
+        veloCTokenWETHUSDC = new VelodromeVolatileCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_WETH_USDC),
             address(marketManagerIsolated),
@@ -104,17 +104,17 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
         _prepareDAI(address(this), 77777);
         dai.approve(address(borrowableCDAI), 77777);
 
-        IERC20(_WETH_USDC).approve(address(pWETHUSDC), 77777);
-        marketManagerIsolated.listTokens(address(pWETHUSDC), address(borrowableCDAI));
+        IERC20(_WETH_USDC).approve(address(veloCTokenWETHUSDC), 77777);
+        marketManagerIsolated.listTokens(address(veloCTokenWETHUSDC), address(borrowableCDAI));
 
         vm.prank(user1);
-        IERC20(_WETH_USDC).approve(address(pWETHUSDC), assets);
+        IERC20(_WETH_USDC).approve(address(veloCTokenWETHUSDC), assets);
 
         vm.prank(user1);
-        pWETHUSDC.deposit(assets, user1);
+        veloCTokenWETHUSDC.deposit(assets, user1);
 
         assertEq(
-            pWETHUSDC.totalAssets(),
+            veloCTokenWETHUSDC.totalAssets(),
             assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
@@ -130,7 +130,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
         chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
 
         // Mint some extra rewards for Vault.
-        uint256 earned = gauge.earned(address(pWETHUSDC));
+        uint256 earned = gauge.earned(address(veloCTokenWETHUSDC));
         uint256 amount = (earned * 84) / 100;
         SwapperLib.Swap memory swapData;
         swapData.inputToken = _VELO_ADDRESS;
@@ -147,15 +147,15 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
             amount,
             0,
             routes,
-            address(pWETHUSDC),
+            address(veloCTokenWETHUSDC),
             type(uint256).max
         );
         swapData.slippage = 50e16;
 
-        pWETHUSDC.harvest(abi.encode(swapData, 1.407e10));
+        veloCTokenWETHUSDC.harvest(abi.encode(swapData, 1.407e10));
 
         assertEq(
-            pWETHUSDC.totalAssets(),
+            veloCTokenWETHUSDC.totalAssets(),
             assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
@@ -165,7 +165,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
         chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
 
         // Mint some extra rewards for Vault.
-        earned = gauge.earned(address(pWETHUSDC));
+        earned = gauge.earned(address(veloCTokenWETHUSDC));
         amount = (earned * 84) / 100;
         swapData.inputAmount = amount;
         swapData.call = abi.encodeWithSelector(
@@ -173,22 +173,22 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
             amount,
             0,
             routes,
-            address(pWETHUSDC),
+            address(veloCTokenWETHUSDC),
             type(uint256).max
         );
-        pWETHUSDC.harvest(abi.encode(swapData, 1.407e10));
+        veloCTokenWETHUSDC.harvest(abi.encode(swapData, 1.407e10));
 
         vm.warp(block.timestamp + 7 days);
         chainlinkVELO.updateAnswer(chainlinkVELO.latestAnswer());
         chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
 
         assertGt(
-            pWETHUSDC.totalAssets(),
+            veloCTokenWETHUSDC.totalAssets(),
             assets + 77777,
             "Total Assets should greater than original deposit plus initial mint."
         );
 
         vm.prank(user1);
-        pWETHUSDC.withdraw(assets, user1, user1);
+        veloCTokenWETHUSDC.withdraw(assets, user1, user1);
     }
 }

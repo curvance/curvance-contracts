@@ -33,7 +33,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
-    SimpleCToken public cPendlePT;
+    SimpleCToken public pendleCTokenPTSTETH;
     IERC20 public pendlePT = IERC20(_PT_STETH);
 
     receive() external payable {}
@@ -114,40 +114,22 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // Deploy Pendle stETH principal token.
         {
-            cPendlePT = new SimpleCToken(
+            pendleCTokenPTSTETH = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
                 pendlePT,
                 address(marketManagerIsolated)
             );
 
             _preparePT(owner, 1 ether);
-            pendlePT.approve(address(cPendlePT), 1 ether);
+            pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
             // Add cToken support on Oracle Manager.
-            oracleManager.addCTokenSupport(address(cPendlePT));
+            oracleManager.addCTokenSupport(address(pendleCTokenPTSTETH));
         }
 
-        marketManagerIsolated.listTokens(address(cPendlePT), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleCTokenPTSTETH), address(borrowableCUSDC));
 
-        MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(cPendlePT);
-        tokenConfig.collRatio = 7000;
-        tokenConfig.collReqSoft = 4000;
-        tokenConfig.collReqHard = 3000;
-        tokenConfig.liqIncBase = 1000;
-        tokenConfig.liqIncHard = 1500;
-        tokenConfig.liqIncMin = 500;
-        tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
-        tokenConfig.collateralCap = 100_000e18;
-        tokenConfig.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
-
-        tokenConfig.cToken = address(borrowableCUSDC);
-        tokenConfig.debtCap = 100_000e18;
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
+        _setCTokenConfigBasic(address(pendleCTokenPTSTETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e18);
 
         // Provide enough liquidity for leverage actions.
         provideEnoughLiquidityForLeverage();
@@ -168,8 +150,8 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
 
         // Mint cBALETH.
-        pendlePT.approve(address(cPendlePT), 10 ether);
-        cPendlePT.deposit(10 ether, liquidityProvider);
+        pendlePT.approve(address(pendleCTokenPTSTETH), 10 ether);
+        pendleCTokenPTSTETH.deposit(10 ether, liquidityProvider);
         vm.stopPrank();
     }
 
@@ -178,22 +160,22 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // Try deposit().
         vm.startPrank(user1);
-        pendlePT.approve(address(cPendlePT), 1 ether);
-        cPendlePT.deposit(1 ether, user1);
+        pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
+        pendleCTokenPTSTETH.deposit(1 ether, user1);
 
-        assertEq(cPendlePT.balanceOf(user1), 1 ether);
+        assertEq(pendleCTokenPTSTETH.balanceOf(user1), 1 ether);
 
         // Try deposit().
-        pendlePT.approve(address(cPendlePT), 1 ether);
-        cPendlePT.deposit(1 ether, user2);
+        pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
+        pendleCTokenPTSTETH.deposit(1 ether, user2);
 
-        assertEq(cPendlePT.balanceOf(user1), 1 ether);
-        assertEq(cPendlePT.balanceOf(user2), 1 ether);
+        assertEq(pendleCTokenPTSTETH.balanceOf(user1), 1 ether);
+        assertEq(pendleCTokenPTSTETH.balanceOf(user2), 1 ether);
 
         // Try redeem().
-        cPendlePT.redeem(1 ether, user1, user1);
+        pendleCTokenPTSTETH.redeem(1 ether, user1, user1);
         vm.stopPrank();
-        assertEq(cPendlePT.balanceOf(user1), 0);
+        assertEq(pendleCTokenPTSTETH.balanceOf(user1), 0);
     }
 
     function testBorrowableCTokenMintRedeem() public {
@@ -224,15 +206,15 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // Try deposit().
         vm.startPrank(user1);
-        pendlePT.approve(address(cPendlePT), 1 ether);
-        cPendlePT.deposit(1 ether, user1);
+        pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
+        pendleCTokenPTSTETH.deposit(1 ether, user1);
 
-        AccountSnapshot memory snapshot = cPendlePT.getSnapshot(user1);
-        assertEq(cPendlePT.balanceOf(user1), 1 ether);
+        AccountSnapshot memory snapshot = pendleCTokenPTSTETH.getSnapshot(user1);
+        assertEq(pendleCTokenPTSTETH.balanceOf(user1), 1 ether);
         assertEq(snapshot.debtBalance, 0);
         assertEq(snapshot.exchangeRate, 1 ether);
 
-        cPendlePT.postCollateral(1 ether);
+        pendleCTokenPTSTETH.postCollateral(1 ether);
 
         // Try borrow().
         borrowableCUSDC.borrow(500e6, user1);
@@ -284,10 +266,10 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // Try deposit().
         vm.startPrank(user1);
-        pendlePT.approve(address(cPendlePT), 1 ether);
-        cPendlePT.deposit(1 ether, user1);
+        pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
+        pendleCTokenPTSTETH.deposit(1 ether, user1);
 
-        cPendlePT.postCollateral(1 ether);
+        pendleCTokenPTSTETH.postCollateral(1 ether);
 
         // Try borrow().
         borrowableCUSDC.borrow(500e6, user1);
@@ -299,23 +281,23 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         vm.expectRevert(
             bytes4(keccak256("MarketManager__InsufficientCollateral()"))
         );
-        cPendlePT.redeem(1 ether, user1, user1);
+        pendleCTokenPTSTETH.redeem(1 ether, user1, user1);
 
         // Try partial redemption.
-        cPendlePT.redeem(0.2 ether, user1, user1);
+        pendleCTokenPTSTETH.redeem(0.2 ether, user1, user1);
         vm.stopPrank();
-        assertEq(cPendlePT.balanceOf(user1), 0.8 ether);
-        assertEq(cPendlePT.exchangeRate(), 1 ether);
+        assertEq(pendleCTokenPTSTETH.balanceOf(user1), 0.8 ether);
+        assertEq(pendleCTokenPTSTETH.exchangeRate(), 1 ether);
     }
 
     function testBorrowableCTokenRedeemOnBorrow() public {
         // Try deposit().
         _preparePT(user1, 1 ether);
         vm.startPrank(user1);
-        pendlePT.approve(address(cPendlePT), 1 ether);
-        cPendlePT.deposit(1 ether, user1);
+        pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
+        pendleCTokenPTSTETH.deposit(1 ether, user1);
 
-        cPendlePT.postCollateral(1 ether);
+        pendleCTokenPTSTETH.postCollateral(1 ether);
 
         // Try deposit().
         _prepareUSDC(user1, 1000e6);
@@ -338,8 +320,8 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         borrowableCUSDC.redeem(1000e6, user1, user1);
         vm.stopPrank();
 
-        assertEq(cPendlePT.balanceOf(user1), 1 ether);
-        assertEq(cPendlePT.exchangeRate(), 1 ether);
+        assertEq(pendleCTokenPTSTETH.balanceOf(user1), 1 ether);
+        assertEq(pendleCTokenPTSTETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertGt(borrowableCUSDC.debtBalance(user1), 500e6);
@@ -351,10 +333,10 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // Try deposit().
         vm.startPrank(user1);
-        pendlePT.approve(address(cPendlePT), 1 ether);
-        cPendlePT.deposit(1 ether, user1);
+        pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
+        pendleCTokenPTSTETH.deposit(1 ether, user1);
 
-        cPendlePT.postCollateral(1 ether);
+        pendleCTokenPTSTETH.postCollateral(1 ether);
 
         // Try borrow().
         borrowableCUSDC.borrow(500e6, user1);
@@ -367,25 +349,25 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         vm.expectRevert(
             bytes4(keccak256("MarketManager__InsufficientCollateral()"))
         );
-        cPendlePT.transfer(user2, 1 ether);
+        pendleCTokenPTSTETH.transfer(user2, 1 ether);
 
         // Test partial redemption.
-        cPendlePT.transfer(user2, 0.2 ether);
+        pendleCTokenPTSTETH.transfer(user2, 0.2 ether);
         vm.stopPrank();
 
-        assertEq(cPendlePT.balanceOf(user1), 0.8 ether);
-        assertEq(cPendlePT.balanceOf(user2), 0.2 ether);
-        assertEq(cPendlePT.exchangeRate(), 1 ether);
+        assertEq(pendleCTokenPTSTETH.balanceOf(user1), 0.8 ether);
+        assertEq(pendleCTokenPTSTETH.balanceOf(user2), 0.2 ether);
+        assertEq(pendleCTokenPTSTETH.exchangeRate(), 1 ether);
     }
 
     function testBorrowableCTokenTransferOnBorrow() public {
         // Try deposit().
         _preparePT(user1, 1 ether);
         vm.startPrank(user1);
-        pendlePT.approve(address(cPendlePT), 1 ether);
-        cPendlePT.deposit(1 ether, user1);
+        pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
+        pendleCTokenPTSTETH.deposit(1 ether, user1);
 
-        cPendlePT.postCollateral(1 ether);
+        pendleCTokenPTSTETH.postCollateral(1 ether);
 
         // Try deposit().
         _prepareUSDC(user1, 1000e6);
@@ -402,8 +384,8 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         borrowableCUSDC.transfer(user2, 1000e6);
         vm.stopPrank();
 
-        assertEq(cPendlePT.balanceOf(user1), 1 ether);
-        assertEq(cPendlePT.exchangeRate(), 1 ether);
+        assertEq(pendleCTokenPTSTETH.balanceOf(user1), 1 ether);
+        assertEq(pendleCTokenPTSTETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertEq(borrowableCUSDC.debtBalance(user1), 500e6);
@@ -418,10 +400,10 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // Try deposit().
         vm.startPrank(user1);
-        pendlePT.approve(address(cPendlePT), 1 ether);
-        cPendlePT.deposit(1 ether, user1);
+        pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
+        pendleCTokenPTSTETH.deposit(1 ether, user1);
 
-        cPendlePT.postCollateral(1 ether);
+        pendleCTokenPTSTETH.postCollateral(1 ether);
 
         // Try borrow().
         borrowableCUSDC.borrow(1000e6, user1);
@@ -451,17 +433,17 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         borrowableCUSDC.liquidateExact(
             debtAmounts,
             accounts,
-            address(cPendlePT)
+            address(pendleCTokenPTSTETH)
         );
         vm.stopPrank();
 
         uint256 liquidatedAmount = 250e6;
         assertApproxEqRel(
-            cPendlePT.balanceOf(user1),
+            pendleCTokenPTSTETH.balanceOf(user1),
             1 ether - (liquidatedAmount * 12e11 * 1 ether) / pendlePTPrice,
             0.03e18
         );
-        assertEq(cPendlePT.exchangeRate(), 1 ether);
+        assertEq(pendleCTokenPTSTETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertApproxEqRel(borrowableCUSDC.debtBalance(user1), 750e6, 0.01e18);
@@ -473,10 +455,10 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // Try deposit().
         vm.startPrank(user1);
-        pendlePT.approve(address(cPendlePT), 1 ether);
-        cPendlePT.deposit(1 ether, user1);
+        pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
+        pendleCTokenPTSTETH.deposit(1 ether, user1);
 
-        cPendlePT.postCollateral(1 ether);
+        pendleCTokenPTSTETH.postCollateral(1 ether);
 
         // Try borrow().
         borrowableCUSDC.borrow(1000e6, user1);
@@ -496,25 +478,25 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         // cache liquidation values
 
         (uint256 lFactor, uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(user1, address(cPendlePT), address(borrowableCUSDC));
+            marketManagerIsolated.liquidationStatusOf(user1, address(pendleCTokenPTSTETH), address(borrowableCUSDC));
 
         (uint256 maxAmount, uint256 liquidatedCollateral, uint256 collateralRequired) = _getLiquidationValuesWithHigherPrecision_NonAuction(
             debtTokenPrice,
             collateralTokenPrice,
             lFactor,
-            cPendlePT.balanceOf(user1),
+            pendleCTokenPTSTETH.balanceOf(user1),
             borrowableCUSDC.debtBalance(user1)
         );
 
         uint256 expectedBadDebt = _calculateBadDebt(
             borrowableCUSDC.debtBalance(user1),
             maxAmount,
-            cPendlePT.balanceOf(user1),
+            pendleCTokenPTSTETH.balanceOf(user1),
             collateralRequired,
             liquidatedCollateral,
             collateralTokenPrice,
             debtTokenPrice,
-            cPendlePT.exchangeRate()
+            pendleCTokenPTSTETH.exchangeRate()
         );
         
 
@@ -527,15 +509,15 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         borrowableCUSDC.liquidate(
             accounts,
-            address(cPendlePT)
+            address(pendleCTokenPTSTETH)
         );
         vm.stopPrank();
 
         uint256 liquidatedAmount = 590e6;
 
-        AccountSnapshot memory snapshot = cPendlePT.getSnapshot(user1);
+        AccountSnapshot memory snapshot = pendleCTokenPTSTETH.getSnapshot(user1);
         assertApproxEqRel(
-            cPendlePT.balanceOf(user1),
+            pendleCTokenPTSTETH.balanceOf(user1),
             1 ether - liquidatedCollateral,
             0.03e18, 
             "balance of user1 mismatch"
@@ -589,7 +571,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
     }
 
     function _getDebtToCollateralMultiplierAndAuctionCFactor(uint256 lFactor, uint256 debtTokenPrice, uint256 collateralTokenPrice) internal view returns (uint256, uint256) {
-        uint256 cTokenExchangeRate = cPendlePT.exchangeRate();
+        uint256 cTokenExchangeRate = pendleCTokenPTSTETH.exchangeRate();
 
             (
         ,
@@ -604,7 +586,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         ,
         uint256 baseCFactor,
         uint256 cFactorCurve
-            ) = marketManagerIsolated.tokenData(address(cPendlePT));
+            ) = marketManagerIsolated.tokenData(address(pendleCTokenPTSTETH));
             
             // Follow the contract's exact calculations but with higher precision
             uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);

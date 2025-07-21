@@ -25,7 +25,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
     IVeloRouter public aeroRouter =
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
-    AerodromeStableCToken public cUSDCDAI;
+    AerodromeStableCToken public aeroCTokenUSDCDAI;
     VelodromeStableLPAdaptor public adaptor;
     MockV3Aggregator public chainlinkAERO;
     MockV3Aggregator public chainlinkDAI;
@@ -52,7 +52,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(aeroRouter)))
         );
 
-        cUSDCDAI = new AerodromeStableCToken(
+        aeroCTokenUSDCDAI = new AerodromeStableCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_AERODROME_DAI_USDC),
             address(marketManagerIsolated),
@@ -189,18 +189,18 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
         deal(_AERODROME_DAI_USDC, address(this), 77777);
         deal(_DAI_ADDRESS, address(this), 77777);
 
-        IERC20(_AERODROME_DAI_USDC).approve(address(cUSDCDAI), 77777);
+        IERC20(_AERODROME_DAI_USDC).approve(address(aeroCTokenUSDCDAI), 77777);
         dai.approve(address(borrowableCDAI), 77777);
-        marketManagerIsolated.listTokens(address(cUSDCDAI), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(address(aeroCTokenUSDCDAI), address(borrowableCDAI));
 
         vm.prank(user1);
-        IERC20(_AERODROME_DAI_USDC).approve(address(cUSDCDAI), assets);
+        IERC20(_AERODROME_DAI_USDC).approve(address(aeroCTokenUSDCDAI), assets);
 
         vm.prank(user1);
-        cUSDCDAI.deposit(assets, user1);
+        aeroCTokenUSDCDAI.deposit(assets, user1);
 
         assertEq(
-            cUSDCDAI.totalAssets(),
+            aeroCTokenUSDCDAI.totalAssets(),
             assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
@@ -217,7 +217,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
         chainlinkDAI.updateAnswer(chainlinkDAI.latestAnswer());
 
         // Mint some extra rewards for Vault.
-        uint256 earned = gauge.earned(address(cUSDCDAI));
+        uint256 earned = gauge.earned(address(aeroCTokenUSDCDAI));
         uint256 amount = (earned * 84) / 100;
         SwapperLib.Swap memory swapData;
         swapData.inputToken = _AERO_ADDRESS;
@@ -234,15 +234,15 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             amount,
             0,
             routes,
-            address(cUSDCDAI),
+            address(aeroCTokenUSDCDAI),
             type(uint256).max
         );
         swapData.slippage = 50e16;
 
-        cUSDCDAI.harvest(abi.encode(swapData, 1e4));
+        aeroCTokenUSDCDAI.harvest(abi.encode(swapData, 1e4));
 
         assertEq(
-            cUSDCDAI.totalAssets(),
+            aeroCTokenUSDCDAI.totalAssets(),
             assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
@@ -252,7 +252,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
         chainlinkDAI.updateAnswer(chainlinkDAI.latestAnswer());
 
         // Mint some extra rewards for Vault.
-        earned = gauge.earned(address(cUSDCDAI));
+        earned = gauge.earned(address(aeroCTokenUSDCDAI));
         amount = (earned * 84) / 100;
         swapData.inputAmount = amount;
         swapData.call = abi.encodeWithSelector(
@@ -260,22 +260,22 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             amount,
             0,
             routes,
-            address(cUSDCDAI),
+            address(aeroCTokenUSDCDAI),
             type(uint256).max
         );
-        cUSDCDAI.harvest(abi.encode(swapData, 1e4));
+        aeroCTokenUSDCDAI.harvest(abi.encode(swapData, 1e4));
 
         skip(7 days);
         chainlinkAERO.updateAnswer(chainlinkAERO.latestAnswer());
         chainlinkDAI.updateAnswer(chainlinkDAI.latestAnswer());
 
         assertGt(
-            cUSDCDAI.totalAssets(),
+            aeroCTokenUSDCDAI.totalAssets(),
             assets + 77777,
             "Total Assets should greater than original deposit plus initial mint."
         );
 
         vm.prank(user1);
-        cUSDCDAI.withdraw(assets, user1, user1);
+        aeroCTokenUSDCDAI.withdraw(assets, user1, user1);
     }
 }
