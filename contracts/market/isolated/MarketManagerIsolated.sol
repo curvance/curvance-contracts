@@ -1571,13 +1571,17 @@ contract MarketManagerIsolated is
             // by looking at the ratio of collateralAvailable vs
             // collateralNeeded.
             // E.g. collateralAvailable = collateralNeeded / 2 means 50%
-            // of debt repaid is recognized as bad debt.
+            // of debt should be recognized as bad debt.
             badDebt = FixedPointMathLib.fullMulDiv(
-                debtAmount,
+                (debtAmount * collateralNeeded) / collateralAvailable,
                 WAD_SQUARED -
                     ((WAD_SQUARED * collateralAvailable) / collateralNeeded),
                 WAD_SQUARED
             );
+
+            if (badDebt + debtAmount > auctionData.debtBalance) {
+                _revert(_INVARIANT_ERROR_SELECTOR)
+            }
         }
 
         // Calculate the maximum amount of debt that can be liquidated
