@@ -17,9 +17,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     MockDataFeed public mockDaiFeed;
-    MockDataFeed public mockWethFeed;
-    MockDataFeed public mockRethFeed;
-
+    
     CCTPBorrowZapper public CCTPZapper;
 
     function setUp() public override {

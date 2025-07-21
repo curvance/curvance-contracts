@@ -18,9 +18,6 @@ import { MockPositionManager } from "contracts/mocks/MockPositionManager.sol";
 
 contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
 
-    MockDataFeed public mockUsdcFeed;
-    MockDataFeed public mockWethFeed;
-    MockDataFeed public mockRethFeed;
 
     MockPositionManager public mockPositionManager;
 

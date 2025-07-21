@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
-
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract CanBorrowTest is TestBaseMarketIsolated {
     function setUp() public override {
@@ -154,27 +155,25 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         vm.prank(address(borrowableCUSDC));
         marketManagerIsolated.canBorrow(address(borrowableCUSDC), 100e6, user1, 100e6);
 
-        AccountSnapshot memory snapshot = strategyCBALRETH.getSnapshot(user1);
-        (uint256 price, ) = oracleManager.getPrice(
-            strategyCBALRETH.asset(),
-            true,
-            true
-        );
-        (, uint256 collRatio, , , , , , , , , , ) = marketManagerIsolated
-            .tokenData(address(strategyCBALRETH));
-            
-        uint256 assetValue = (price *
-            ((999e18 * snapshot.exchangeRate) / 1e18)) /
-            10 ** strategyCBALRETH.decimals();
-        uint256 maxBorrow = (assetValue * collRatio) / 1e18;
+        (, uint256 maxBorrowAmount,) = marketManagerIsolated.statusOf(user1);
+        console2.log("maxBorrowAmount", maxBorrowAmount);
 
-        // max amount of USDC that can be borrowed based on provided collateral in strategyCBALRETH
-        uint256 borrowInUSDC = (maxBorrow / 10 ** strategyCBALRETH.decimals()) *
-            10 ** borrowableCUSDC.decimals();
+        // Get the lower price of USDC
+        (uint256 usdcPrice, ) = oracleManager.getPrice(
+            address(usdc), // underlying USDC asset
+            true,
+            false
+        );
+
+        uint256 borrowInUSDC = (maxBorrowAmount * 1e6) / usdcPrice;
+
+        console2.log("borrow in usdc", borrowInUSDC);
+
+        // borrow the maximum amount possible
         vm.prank(address(borrowableCUSDC));
         marketManagerIsolated.canBorrow(address(borrowableCUSDC), borrowInUSDC, user1, borrowInUSDC);
 
-        // should fail when borrowing more than is allowed by provided collateral
+        // try to borrow 1 usdc more than the maximum
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );

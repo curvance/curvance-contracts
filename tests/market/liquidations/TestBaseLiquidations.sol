@@ -6,7 +6,6 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
-import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
@@ -15,15 +14,6 @@ import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import "forge-std/console.sol";
 
 contract TestBaseLiquidations is TestBaseMarketIsolated {
-    MockDataFeed public mockUsdcFeed;
-    MockDataFeed public mockWethFeed;
-    MockDataFeed public mockRethFeed;
-    MockDataFeed public mockBALFeed;
-    MockDataFeed public mockAURAFeed;
-
-    address internal _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;
-    address internal _AURA_ADDRESS =
-        0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
 
     function setUp() public virtual override {
         super.setUp();

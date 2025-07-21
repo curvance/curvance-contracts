@@ -27,6 +27,7 @@ import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExi
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
 
@@ -185,6 +186,16 @@ contract TestVariables {
 
     bytes public response;
     IWormhole.Signature[] public signatures;
+
+    MockDataFeed public mockUsdcFeed;
+    MockDataFeed public mockWethFeed;
+    MockDataFeed public mockRethFeed;
+    MockDataFeed public mockBALFeed;
+    MockDataFeed public mockAURAFeed;
+
+    address public _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;
+    address public _AURA_ADDRESS =
+        0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
 
     modifier initMainVariables() {
         _initMainVariables();

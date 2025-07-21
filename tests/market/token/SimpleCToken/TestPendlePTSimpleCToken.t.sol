@@ -29,8 +29,6 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
     PendlePrincipalTokenAdaptor public adapter;
 
-    MockDataFeed public mockUsdcFeed;
-    MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
     SimpleCToken public pendleCTokenPTSTETH;

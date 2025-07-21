@@ -6,8 +6,11 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 contract TestConvexLPCollateral is TestBaseMarketIsolated {
     event Repay(uint256 repayAmount, address payer, address borrower);

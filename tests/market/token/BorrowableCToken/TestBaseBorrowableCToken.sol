@@ -7,9 +7,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 contract TestBaseBorrowableCToken is TestBaseMarketIsolated {
-    MockDataFeed public mockUsdcFeed;
-    MockDataFeed public mockWethFeed;
-    MockDataFeed public mockRethFeed;
+
 
     function setUp() public virtual override {
         super.setUp();

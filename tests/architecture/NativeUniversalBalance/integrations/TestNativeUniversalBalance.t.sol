@@ -17,8 +17,6 @@ import { console2 } from "forge-std/console2.sol";
 contract TestNativeUniversalBalance is TestBaseMarketIsolated {
     address public owner;
 
-    MockDataFeed public mockUsdcFeed;
-    MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
     MockV3Aggregator public mockWbtcFeed;
 

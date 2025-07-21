@@ -10,10 +10,6 @@ import { console2 } from "forge-std/console2.sol";
 contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
     address public owner;
 
-    MockDataFeed public mockUsdcFeed;
-    MockDataFeed public mockWethFeed;
-    MockDataFeed public mockRethFeed;
-
     receive() external payable {}
 
     fallback() external payable {}

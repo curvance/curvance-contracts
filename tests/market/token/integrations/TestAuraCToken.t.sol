@@ -11,16 +11,8 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 contract TestAuraCToken is TestBaseMarketIsolated {
-    address internal _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;
-    address internal _AURA_ADDRESS =
-        0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
 
-    MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockDaiFeed;
-    MockDataFeed public mockWethFeed;
-    MockDataFeed public mockRethFeed;
-    MockDataFeed public mockBALFeed;
-    MockDataFeed public mockAURAFeed;
 
     receive() external payable {}
 

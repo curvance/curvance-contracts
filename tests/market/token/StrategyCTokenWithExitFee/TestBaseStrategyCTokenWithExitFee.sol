@@ -6,10 +6,8 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 contract TestBaseStrategyCTokenWithExitFee is TestBaseMarketIsolated {
-    MockDataFeed public mockUsdcFeed;
+
     MockDataFeed public mockDaiFeed;
-    MockDataFeed public mockWethFeed;
-    MockDataFeed public mockRethFeed;
 
     function setUp() public virtual override {
         super.setUp();

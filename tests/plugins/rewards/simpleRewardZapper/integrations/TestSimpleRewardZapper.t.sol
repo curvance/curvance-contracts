@@ -15,8 +15,6 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
-    MockDataFeed public mockUsdcFeed;
-    MockDataFeed public mockWethFeed;
 
     SimpleCToken public simpleCWETH;
 

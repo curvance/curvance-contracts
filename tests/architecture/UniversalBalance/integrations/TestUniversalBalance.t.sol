@@ -14,7 +14,6 @@ import "tests/market/TestBaseMarketIsolated.sol";
 contract TestUniversalBalance is TestBaseMarketIsolated {
     address public owner;
 
-    MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockStethFeed;
     MockV3Aggregator public mockWbtcFeed;
 

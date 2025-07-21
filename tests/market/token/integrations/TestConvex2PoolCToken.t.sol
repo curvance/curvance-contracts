@@ -23,7 +23,6 @@ contract TestConvex2PoolCToken is TestBaseMarketIsolated {
 
     MockDataFeed public mockCRVFeed;
     MockDataFeed public mockCVXFeed;
-    MockDataFeed public mockWethFeed;
     Convex2PoolCToken public cSTETH;
 
     /*

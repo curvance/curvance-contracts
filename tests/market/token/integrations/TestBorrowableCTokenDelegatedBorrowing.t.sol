@@ -14,8 +14,6 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
     address public dao;
 
     MockDataFeed public mockDaiFeed;
-    MockDataFeed public mockWethFeed;
-    MockDataFeed public mockRethFeed;
 
     receive() external payable {}
 

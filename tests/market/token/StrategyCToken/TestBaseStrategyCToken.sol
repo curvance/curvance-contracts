@@ -7,10 +7,8 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract TestBaseStrategyCToken is TestBaseMarketIsolated {
-    MockDataFeed public mockUsdcFeed;
+
     MockDataFeed public mockDaiFeed;
-    MockDataFeed public mockWethFeed;
-    MockDataFeed public mockRethFeed;
 
     address public owner;
 

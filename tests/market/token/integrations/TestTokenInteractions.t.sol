@@ -8,13 +8,13 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { WAD_SQUARED, WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { console2 } from "forge-std/console2.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract TestTokenInteractions is TestBaseMarketIsolated {
     address public owner;
 
     MockDataFeed public mockDaiFeed;
-    MockDataFeed public mockWethFeed;
-    MockDataFeed public mockRethFeed;
 
     uint256 liqBaseIncentive;
     uint256 liqCurve;

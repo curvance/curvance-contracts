@@ -30,8 +30,6 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
     MockPythAdaptor public adapter;
     PythAdaptorMulticallChecker public multicallChecker;
 
-    MockDataFeed public mockUsdcFeed;
-    MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
     SimpleCToken public cWBTC;
