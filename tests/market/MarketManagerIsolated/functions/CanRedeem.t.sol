@@ -109,16 +109,11 @@ contract CanRedeemTest is TestBaseMarketIsolated {
         marketManagerIsolated.canRedeem(address(borrowableCUSDC), 100e6, user1);
     }
 
-    function test_canRedeem_success_whenRedeemerNotInMarket() public {
+    function test_canRedeem_success_whenRedeemerHasNoPosition() public {
         bool hasPosition;
         (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(borrowableCUSDC));
 
         assertFalse(hasPosition);
-        marketManagerIsolated.canRedeem(address(borrowableCUSDC), 100e6, user1);
-    }
-
-    function test_canRedeem_success_ETokenCanAlwaysBeRedeemed() public {
-        assertTrue(borrowableCUSDC.isBorrowable());
         marketManagerIsolated.canRedeem(address(borrowableCUSDC), 100e6, user1);
     }
 }
