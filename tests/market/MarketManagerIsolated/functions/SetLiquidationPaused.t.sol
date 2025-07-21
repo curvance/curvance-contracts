@@ -8,7 +8,6 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 contract SetLiquidationPausedTest is TestBaseMarketIsolated {
     event ActionPaused(string action, bool pauseState);
 
-
     function test_setLiquidationPaused_fail_whenCallerIsNotAuthorized()
         public
     {

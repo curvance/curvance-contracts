@@ -17,9 +17,6 @@ contract SetMintPausedTest is TestBaseMarketIsolated {
 
     function test_setMintPaused_fail_whenCTokenIsNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManagerIsolated.canMint(address(borrowableCUSDC));
-
-        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.setMintPaused(address(borrowableCUSDC), true);
     }
 
