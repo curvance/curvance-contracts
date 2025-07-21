@@ -278,26 +278,4 @@
 //             0
 //         );
 //     }
-
-//     // Deploy ETokenWithGauge
-//     function _deployBorrowableCToken(
-//         address token
-//     ) internal override initMainVariables returns (EToken) {
-//         EToken eToken = EToken(
-//             address(
-//                 new ETokenWithGauge(
-//                     ICentralRegistry(address(centralRegistry)),
-//                     token,
-//                     address(marketManagerIsolated),
-//                     _deployDynamicInterestRateModel(token)
-//                 )
-//             )
-//         );
-
-//         interestRateModels[block.chainid][token].setLinkedEToken(
-//             address(eToken)
-//         );
-
-//         return eToken;
-//     }
 // }

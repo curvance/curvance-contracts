@@ -806,26 +806,4 @@ contract TestGaugeManager_SingleGauge is TestBaseMarketIsolated {
         vm.expectRevert();
         IBorrowableCToken(collateralToken).redeem(100 ether + 1, users[0], users[0]);
     }
-
-    // Deploy ETokenWithGauge
-    function _deployBorrowableCToken(
-        address token
-    ) internal override initMainVariables returns (BorrowableCToken) {
-        BorrowableCToken borrowableCToken = BorrowableCToken(
-            address(
-                new BorrowableCTokenWithGauge(
-                    ICentralRegistry(address(centralRegistry)),
-                    IERC20(token),
-                    address(marketManagerIsolated),
-                    _deployDynamicInterestRateModel(token)
-                )
-            )
-        );
-
-        interestRateModels[block.chainid][token].setLinkedToken(
-            address(borrowableCToken)
-        );
-
-        return borrowableCToken;
-    }
 }
