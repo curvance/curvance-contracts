@@ -101,30 +101,6 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         );
     }
 
-    function test_canBorrowWithNotify_success_whenCapNotExceeded() external {
-        skip(gaugeManager.gaugeStartTime() - block.timestamp);
-        chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
-        chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100e6);
-
-        _prepareBALRETH(user1, 1_000e18);
-        vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1_000e18);
-        strategyCBALRETH.deposit(10e18, user1);
-        strategyCBALRETH.postCollateral(10e18);
-        vm.stopPrank();
-
-        vm.prank(address(borrowableCUSDC));
-        marketManagerIsolated.canBorrowWithNotify(
-            address(borrowableCUSDC),
-            100e6 - 1,
-            user1,
-            100e6 - 1
-        );
-    }
-
     function test_canBorrowWithNotify_fail_whenInsufficientCollateral() public {
         vm.warp(gaugeManager.gaugeStartTime());
         chainlinkUsdcUsd.updateRoundData(
@@ -204,7 +180,31 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         );
     }
 
-    function test_canBorrowWithNotify_Success_whenSufficientLiquidity() public {
+    function test_canBorrowWithNotify_success_atDebtCapLimit() external {
+        skip(gaugeManager.gaugeStartTime() - block.timestamp);
+        chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
+        chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
+
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100e6);
+
+        _prepareBALRETH(user1, 1_000e18);
+        vm.startPrank(user1);
+        balRETH.approve(address(strategyCBALRETH), 1_000e18);
+        strategyCBALRETH.deposit(10e18, user1);
+        strategyCBALRETH.postCollateral(10e18);
+        vm.stopPrank();
+
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canBorrowWithNotify(
+            address(borrowableCUSDC),
+            100e6 - 1,
+            user1,
+            100e6 - 1
+        );
+    }
+
+    function test_canBorrowWithNotify_success() public {
         vm.warp(gaugeManager.gaugeStartTime());
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
@@ -263,7 +263,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
    
     }
 
-    function test_canBorrowWithNotify_success_entersUserInMarket() external {
+    function test_canBorrowWithNotify_success_withAuxiliaryDataReview() external {
         vm.warp(gaugeManager.gaugeStartTime());
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);

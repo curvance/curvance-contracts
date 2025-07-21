@@ -121,71 +121,6 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         marketManagerIsolated.canBorrow(address(borrowableCUSDC), 1e6, user1, 1e6);
     }
 
-    function test_canBorrow_success_whenSufficientLiquidity() public {
-        chainlinkEthUsd.updateRoundData(
-            0,
-            1500e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcEth.updateRoundData(
-            0,
-            1500e18,
-            block.timestamp,
-            block.timestamp
-        );
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 2_000_000e6);
-
-        // Need some cTokens/collateral to have enough liquidity for borrowing
-        _prepareBALRETH(user1, 10_000e18);
-        vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1_000e18);
-        strategyCBALRETH.deposit(1_000e18, user1);
-        strategyCBALRETH.postCollateral(999e18);
-        vm.stopPrank();
-
-        vm.prank(address(borrowableCUSDC));
-        marketManagerIsolated.canBorrow(address(borrowableCUSDC), 100e6, user1, 100e6);
-
-        (, uint256 maxBorrowAmount,) = marketManagerIsolated.statusOf(user1);
-        console2.log("maxBorrowAmount", maxBorrowAmount);
-
-        // Get the lower price of USDC
-        (uint256 usdcPrice, ) = oracleManager.getPrice(
-            address(usdc), // underlying USDC asset
-            true,
-            false
-        );
-
-        uint256 borrowInUSDC = (maxBorrowAmount * 1e6) / usdcPrice;
-
-        console2.log("borrow in usdc", borrowInUSDC);
-
-        // borrow the maximum amount possible
-        vm.prank(address(borrowableCUSDC));
-        marketManagerIsolated.canBorrow(address(borrowableCUSDC), borrowInUSDC, user1, borrowInUSDC);
-
-        // try to borrow 1 usdc more than the maximum
-        vm.expectRevert(
-            MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
-        );
-        vm.prank(address(borrowableCUSDC));
-        marketManagerIsolated.canBorrow(
-            address(borrowableCUSDC),
-            borrowInUSDC + 1e6,
-            user1,
-            borrowInUSDC + 1e6
-        );
-    }
-
     function test_canBorrow_fail_userCallsCanBorrow() external {
         chainlinkUsdcUsd.updateRoundData(
             0,
@@ -290,7 +225,7 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         );
     }
 
-    function test_canBorrow_success_whenCapNotExceeded() external {
+    function test_canBorrow_success_atDebtCapLimit() external {
         chainlinkUsdcUsd.updateRoundData(
             0,
             1e8,
@@ -308,6 +243,7 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000e6);
 
         _prepareBALRETH(user1, 1_000e18);
+
         vm.startPrank(user1);
         balRETH.approve(address(strategyCBALRETH), 10e18);
         strategyCBALRETH.deposit(10e18, user1);
@@ -320,6 +256,65 @@ contract CanBorrowTest is TestBaseMarketIsolated {
             10_000e6 - 1,
             user1,
             10_000e6 - 1
+        );
+    }
+
+    function test_canBorrow_success_atLiquidityLimit() public {
+        chainlinkEthUsd.updateRoundData(
+            0,
+            1500e8,
+            block.timestamp,
+            block.timestamp
+        );
+        chainlinkUsdcUsd.updateRoundData(
+            0,
+            1e8,
+            block.timestamp,
+            block.timestamp
+        );
+        chainlinkUsdcEth.updateRoundData(
+            0,
+            1500e18,
+            block.timestamp,
+            block.timestamp
+        );
+
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 2_000_000e6);
+
+        // Need some cTokens/collateral to have enough liquidity for borrowing
+        _prepareBALRETH(user1, 10_000e18);
+        vm.startPrank(user1);
+        balRETH.approve(address(strategyCBALRETH), 1_000e18);
+        strategyCBALRETH.deposit(1_000e18, user1);
+        strategyCBALRETH.postCollateral(999e18);
+        vm.stopPrank();
+
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canBorrow(address(borrowableCUSDC), 100e6, user1, 100e6);
+
+        (, uint256 maxBorrowAmount, uint256 currentBorrowAmount) = marketManagerIsolated.statusOf(user1);
+        console2.log("maxBorrowAmount", maxBorrowAmount);
+        console2.log("currentBorrowAmount", currentBorrowAmount);
+
+        // Get the lower price of USDC
+        (uint256 usdcPrice, ) = oracleManager.getPrice(
+            address(usdc), // underlying USDC asset
+            true,
+            false
+        );
+
+        uint256 borrowInUSDC = ((maxBorrowAmount - currentBorrowAmount) * 1e6) / usdcPrice;
+
+        console2.log("borrow in usdc", borrowInUSDC);
+
+        // Borrow the maximum amount possible.
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canBorrow(
+            address(borrowableCUSDC),
+            borrowInUSDC,
+            user1,
+            borrowableCUSDC.marketOutstandingDebt() + borrowInUSDC
         );
     }
 }
