@@ -26,23 +26,7 @@ contract SetAuctionParametersTest is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
     }
 
-    function testSetAuctionParameters() public {
-        // Only dapp control can set penalty
-        vm.startPrank(dappControlUser);
-        
-        // Set a valid penalty (WAD + 15%)
-        uint256 validPenalty = 1.15e18;
-        uint256 closeFactor = 0.30e18;
-        marketManagerIsolated.setAuctionParameters(address(strategyCBALRETH), validPenalty, closeFactor);
-
-        // Verify the penalty was set correctly
-        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAuctionParameters();
-        assertEq(currentPenalty, validPenalty);
-        assertEq(currentCloseFactor, closeFactor);
-        vm.stopPrank();
-    }
-    
-    function testSetAuctionParametersUnauthorized() public {
+    function test_setAuctionParameters_fail_whenUnauthorized() public {
         // // Non-dapp control user should not be able to set penalty
         vm.startPrank(user1);
         
@@ -51,10 +35,26 @@ contract SetAuctionParametersTest is TestBaseMarketIsolated {
         
         vm.stopPrank();
     }
-    
-    function testSetAuctionParametersInvalidValue() public {
+
+    function test_setAuctionParameters_fail_whenTokenNotListed() public {
         vm.startPrank(dappControlUser);
-        
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector); 
+        marketManagerIsolated.setAuctionParameters(user1, 1.15e18, 0.30e18);
+        vm.stopPrank();
+    }
+
+    function test_setAuctionParameters_fail_whenCollateralizationOff() public {
+        _setCTokenConfigCollateralOff(address(strategyCBALRETH), 0);
+
+        vm.startPrank(dappControlUser);
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedCollateral.selector); 
+        marketManagerIsolated.setAuctionParameters(address(strategyCBALRETH), 1.15e18, 0.30e18);
+        vm.stopPrank();
+    }
+
+    function test_setAuctionParameters_fail_whenInvalidValues() public {
         uint256 tooLowPenalty = 1.01e18;
         uint256 tooHighPenalty = 1.25e18; 
         uint256 validPenalty = 1.15e18;
@@ -62,6 +62,8 @@ contract SetAuctionParametersTest is TestBaseMarketIsolated {
         uint256 tooLowCloseFactor = 1.09e18;
         uint256 validCloseFactor = 0.30e18;
 
+        vm.startPrank(dappControlUser);
+        
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
         marketManagerIsolated.setAuctionParameters(address(strategyCBALRETH), tooLowPenalty, validCloseFactor);
 
@@ -74,6 +76,16 @@ contract SetAuctionParametersTest is TestBaseMarketIsolated {
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
         marketManagerIsolated.setAuctionParameters(address(strategyCBALRETH), validPenalty, tooLowCloseFactor);
 
+        vm.stopPrank();
+    }
+
+    function test_setAuctionParameters_success() public {
+        _setAuctionConfigs(address(strategyCBALRETH), 1.15e18, 0.30e18);
+
+        // Verify the penalty was set correctly
+        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAuctionParameters();
+        assertEq(currentPenalty, validPenalty);
+        assertEq(currentCloseFactor, closeFactor);
         vm.stopPrank();
     }
 

@@ -732,15 +732,38 @@ contract TestBaseMarketIsolated is TestBase {
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
-    function _setAuctionParams(
+    function _setCTokenConfigCollateralOff(
+        address cToken,
+        uint256 debtCap
+    ) internal initMainVariables {
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = cToken;
+        tokenConfig.collRatio = 0;
+        tokenConfig.collReqSoft = 5000;
+        tokenConfig.collReqHard = 4000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 2000;
+        tokenConfig.collateralCap = 0;
+        tokenConfig.debtCap = debtCap;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
+    }
+
+    function _setAuctionConfigs(
+        address token,
         uint256 liquidationPenalty,
         uint256 liquidationCloseFactor
     ) internal {
         vm.startPrank(dappControlUser);
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
+        marketManagerIsolated.unlockAuctionCollateral(token);
         uint256 validPenalty = liquidationPenalty;
         uint256 closeFactor = liquidationCloseFactor;
-        marketManagerIsolated.setAuctionParameters(address(strategyCBALRETH), validPenalty, closeFactor);
+        marketManagerIsolated.setAuctionParameters(token, validPenalty, closeFactor);
         vm.stopPrank();
     }
 

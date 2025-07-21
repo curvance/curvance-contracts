@@ -38,11 +38,8 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
     }
 
     function testMultipleLiquidationsWithOnlyAuctions() public {
-        // Set auction parameters.
-        _setAuctionParams(
-            1.10e18, //10%
-            0.30e18  // 30%
-        );
+        // Configure auction.
+        _setAuctionConfigs(address(strategyCBALRETH), 1.10e18, 0.30e18);
 
         // Cache the expected liquidation values.
         ExpectedLiquidationValues memory expectedLiquidationValuesBorrower1 = _calculateExpectedLiquidationValues(
