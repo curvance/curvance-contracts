@@ -5,12 +5,12 @@
 // import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 // import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 // import { MockToken } from "contracts/mocks/MockToken.sol";
-// import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+// import { TestBaseGaugeManager } from "tests/gauge/TestBaseGaugeManager.sol";
 
 // contract User {}
 
 // // FIX
-// contract TestGaugeEdgeCase is TestBaseMarketIsolated {
+// contract TestGaugeEdgeCase is TestBaseGaugeManager {
 //     address public owner;
 //     address[] public tokens;
 //     address[] public users;

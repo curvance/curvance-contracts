@@ -2,16 +2,14 @@
 // pragma solidity ^0.8.15;
 
 // import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-// import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+// import { TestBaseGaugeManager } from "tests/gauge/TestBaseGaugeManager.sol";
 // import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
-// import { EToken } from "contracts/market/token/EToken.sol";
-// import { ETokenWithGauge } from "contracts/market/token/withGauge/ETokenWithGauge.sol";
 // import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 // import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 // contract User {}
 
-// contract TestBoostedLock is TestBaseMarketIsolated {
+// contract TestBoostedLock is TestBaseGaugeManager {
 //     address public owner;
 //     address[] public tokens;
 //     address[] public users;

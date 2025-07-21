@@ -7,12 +7,12 @@ import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { BorrowableCTokenWithGauge } from "contracts/market/token/withGauge/BorrowableCTokenWithGauge.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { TestBaseGaugeManager } from "tests/gauge/TestBaseGaugeManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract User {}
 
-contract TestGaugeManager_DoubleGauge is TestBaseMarketIsolated {
+contract TestGaugeManager_DoubleGauge is TestBaseGaugeManager {
     address public owner;
     address public borrowableCDAIWithGauge;
     address public borrowableCUSDCWithGauge;
