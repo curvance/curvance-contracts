@@ -183,7 +183,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
         velodromeZapper.enterVelodrome{ value: ethAmount }(
-            address(pToken),
+            address(veloCTokenWETHUSDC),
             VelodromeZapper.ZapperData(
                 address(0),
                 ethAmount,
@@ -201,10 +201,13 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
+        AccountSnapshot memory veloCTokenWETHUSDCSnapshot = veloCTokenWETHUSDC.getSnapshot(
+            user1
+        );
+
+        assertApproxEqRel(veloCTokenWETHUSDC.balanceOf(user1), 0.00006 ether, 0.01 ether);
+        assertEq(veloCTokenWETHUSDCSnapshot.debtBalance, 0);
         assertEq(user1.balance, 0);
-        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(pToken.balanceOf(user1), 0.00006 ether, 0.01 ether);
-        assertEq(pTokenBorrowed, 0);
     }
 
     function testEnterVelodromeWithCTokenWithCollateralize() public {
@@ -213,10 +216,10 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
 
-        pToken.setDelegateApproval(address(velodromeZapper), true);
+        veloCTokenWETHUSDC.setDelegateApproval(address(velodromeZapper), true);
 
         velodromeZapper.enterVelodrome{ value: ethAmount }(
-            address(pToken),
+            address(veloCTokenWETHUSDC),
             VelodromeZapper.ZapperData(
                 address(0),
                 ethAmount,
@@ -234,10 +237,14 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
+        
+        AccountSnapshot memory veloCTokenWETHUSDCSnapshot = veloCTokenWETHUSDC.getSnapshot(
+            user1
+        );
+
+        assertApproxEqRel(veloCTokenWETHUSDC.balanceOf(user1), 0.00006 ether, 0.01 ether);
+        assertEq(veloCTokenWETHUSDCSnapshot.debtBalance, 0);
         assertEq(user1.balance, 0);
-        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(pToken.balanceOf(user1), 0.00006 ether, 0.01 ether);
-        assertEq(pTokenBorrowed, 0);
     }
 
     function testEnterVelodromeWithDelegation() public {
@@ -245,13 +252,13 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         vm.deal(user2, ethAmount);
 
         vm.startPrank(user1);
-        pToken.setDelegateApproval(user2, true);
-        pToken.setDelegateApproval(address(velodromeZapper), true);
+        veloCTokenWETHUSDC.setDelegateApproval(user2, true);
+        veloCTokenWETHUSDC.setDelegateApproval(address(velodromeZapper), true);
         vm.stopPrank();
 
         vm.startPrank(user2);
         velodromeZapper.enterVelodrome{ value: ethAmount }(
-            address(pToken),
+            address(veloCTokenWETHUSDC),
             VelodromeZapper.ZapperData(
                 address(0),
                 ethAmount,
@@ -269,23 +276,26 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
+        AccountSnapshot memory veloCTokenWETHUSDCSnapshot = veloCTokenWETHUSDC.getSnapshot(
+            user1
+        );
+
+        assertApproxEqRel(veloCTokenWETHUSDC.balanceOf(user1), 0.00006 ether, 0.01 ether);
+        assertEq(veloCTokenWETHUSDCSnapshot.debtBalance, 0);
         assertEq(user1.balance, 0);
-        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(pToken.balanceOf(user1), 0.00006 ether, 0.01 ether);
-        assertEq(pTokenBorrowed, 0);
     }
 
     function testRedeemAndExitVelodrome() public {
         testEnterVelodromeWithCToken();
 
         ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.mToken = address(pToken);
+        redemptionData.mToken = address(veloCTokenWETHUSDC);
         redemptionData.shares = 0.00006 ether;
         redemptionData.forceRedeemCollateral = false;
 
         vm.startPrank(user1);
 
-        pToken.setDelegateApproval(address(velodromeZapper), true);
+        veloCTokenWETHUSDC.setDelegateApproval(address(velodromeZapper), true);
         IERC20(_VELODROME_WETH_USDC).approve(
             address(velodromeZapper),
             3 ether
