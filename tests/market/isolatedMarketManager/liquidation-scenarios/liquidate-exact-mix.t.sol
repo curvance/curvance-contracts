@@ -83,27 +83,8 @@ contract LiquidateExactMix is TestBaseMarketManagerIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
-        tokenConfig.collRatio = 9200;    // collRatio 92%
-        tokenConfig.collReqSoft = 830;   // collReqSoft 8.3%
-        tokenConfig.collReqHard = 650;   // collReqHard 6.5%
-        tokenConfig.liqIncBase = 500;    // liqIncBase 5%
-        tokenConfig.liqIncHard = 550;    // liqIncHard 5.5%
-        tokenConfig.liqIncMin = 300;     // liqIncMin 3%
-        tokenConfig.liqIncMax = 550;     // liqIncMax 5.5%
-        tokenConfig.minEffectiveCloseFactor = 1000;  // minEffectiveCFactor 10%
-        tokenConfig.maxEffectiveCloseFactor = 5000;  // maxEffectiveCFactor 50%
-        tokenConfig.baseCFactor = 2000;  // baseCFactor 20%
-        tokenConfig.collateralCap = 100_000e18;
-        tokenConfig.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
-
-        // Set up debt cap for borrowable token
-        tokenConfig.cToken = address(borrowableCUSDC);
-        tokenConfig.debtCap = 100_000e6;
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);

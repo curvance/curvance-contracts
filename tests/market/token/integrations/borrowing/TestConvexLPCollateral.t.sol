@@ -104,26 +104,8 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         SafeTransferLib.safeApprove(_USDC_ADDRESS, address(borrowableCUSDC), 1 ether);
         marketManagerIsolated.listTokens(address(cSTETH), address(borrowableCUSDC));
 
-        MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(cSTETH);
-        tokenConfig.collRatio = 7000;
-        tokenConfig.collReqSoft = 4000;
-        tokenConfig.collReqHard = 3000;
-        tokenConfig.liqIncBase = 1000;
-        tokenConfig.liqIncHard = 1500;
-        tokenConfig.liqIncMin = 500;
-        tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 1000;
-        tokenConfig.collateralCap = 100_000e18;
-        tokenConfig.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
-
-        tokenConfig.cToken = address(borrowableCUSDC);
-        tokenConfig.debtCap = 100_000e6;
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
+        _setCTokenConfigBasic(address(cSTETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         // User mints cSTETH with cvxStethEth LP tokens and then uses the cSTETH as collateral to borrow 10,000 eUSDC
         _prepareUSDC(address(borrowableCUSDC), 100_000e6);

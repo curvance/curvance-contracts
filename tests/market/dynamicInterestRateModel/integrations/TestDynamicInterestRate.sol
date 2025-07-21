@@ -55,40 +55,11 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         oracleManager.addCTokenSupport(address(simpleCUSDC));
         _prepareUSDC(owner, 100e6);
         usdc.approve(address(simpleCUSDC), 100e6);
+
         marketManagerIsolated.listTokens(address(simpleCUSDC),address(borrowableCDAI));
 
-        MarketManagerIsolated.TokenConfig memory usdcTokenConfig;
-        usdcTokenConfig.cToken = address(simpleCUSDC);
-        usdcTokenConfig.collRatio = 7000;
-        usdcTokenConfig.collReqSoft = 4000;
-        usdcTokenConfig.collReqHard = 3000;
-        usdcTokenConfig.liqIncBase = 1000;
-        usdcTokenConfig.liqIncHard = 1500;
-        usdcTokenConfig.liqIncMin = 500;
-        usdcTokenConfig.liqIncMax = 2000;
-        usdcTokenConfig.minEffectiveCloseFactor = 2000;
-        usdcTokenConfig.maxEffectiveCloseFactor = 3000;
-        usdcTokenConfig.baseCFactor = 1000;
-        usdcTokenConfig.collateralCap = 200_000e18;
-        usdcTokenConfig.debtCap = 0;
-
-        MarketManagerIsolated.TokenConfig memory daiTokenConfig;
-        daiTokenConfig.cToken = address(borrowableCDAI);
-        daiTokenConfig.collRatio = 7000;
-        daiTokenConfig.collReqSoft = 4000;
-        daiTokenConfig.collReqHard = 3000;
-        daiTokenConfig.liqIncBase = 1000;
-        daiTokenConfig.liqIncHard = 1500;
-        daiTokenConfig.liqIncMin = 500;
-        daiTokenConfig.liqIncMax = 2000;
-        daiTokenConfig.minEffectiveCloseFactor = 2000;
-        daiTokenConfig.maxEffectiveCloseFactor = 3000;
-        daiTokenConfig.baseCFactor = 1000;
-        daiTokenConfig.collateralCap = 0;
-        daiTokenConfig.debtCap = 200_000e18;
-
-        marketManagerIsolated.updateTokenConfig(usdcTokenConfig);
-        marketManagerIsolated.updateTokenConfig(daiTokenConfig);
+        _setCTokenConfigBasic(address(simpleCUSDC), 200_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCDAI), 0, 200_000e18);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, INITIAL_DEPOSIT - 100e18);

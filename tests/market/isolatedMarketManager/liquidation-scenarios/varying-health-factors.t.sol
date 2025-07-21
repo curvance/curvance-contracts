@@ -83,26 +83,8 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
-        tokenConfig.collRatio = 8000;
-        tokenConfig.collReqSoft = 2500;
-        tokenConfig.collReqHard = 2200;
-        tokenConfig.liqIncBase = 1000;
-        tokenConfig.liqIncHard = 1500;
-        tokenConfig.liqIncMin = 500;
-        tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
-        tokenConfig.collateralCap = 100_000e18;
-        tokenConfig.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
-
-        tokenConfig.cToken = address(borrowableCUSDC);
-        tokenConfig.debtCap = 100_000e6;
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
+        _setCTokenConfigHighValues(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);

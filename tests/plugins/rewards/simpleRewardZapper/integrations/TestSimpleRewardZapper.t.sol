@@ -97,26 +97,8 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             address(borrowableCUSDC)
         );
 
-        MarketManagerIsolated.TokenConfig memory tokenConfigs;
-        tokenConfigs.cToken = address(simpleCWETH);
-        tokenConfigs.collRatio = 7000;
-        tokenConfigs.collReqSoft = 4000;
-        tokenConfigs.collReqHard = 3000;
-        tokenConfigs.liqIncBase = 1000;
-        tokenConfigs.liqIncHard = 1500;
-        tokenConfigs.liqIncMin = 500;
-        tokenConfigs.liqIncMax = 2000;
-        tokenConfigs.minEffectiveCloseFactor = 2000;
-        tokenConfigs.maxEffectiveCloseFactor = 5000;
-        tokenConfigs.baseCFactor = 1000;
-        tokenConfigs.collateralCap = 100_000e18;
-        tokenConfigs.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
-
-        tokenConfigs.cToken = address(borrowableCUSDC);
-        tokenConfigs.debtCap = 1_000_000e18;
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+        _setCTokenConfigBasic(address(simpleCWETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         provideEnoughLiquidityForLeverage();
     }

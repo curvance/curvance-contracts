@@ -62,26 +62,8 @@ contract RedeemTest is TestBaseBorrowableCToken {
 
         marketManagerIsolated.listTokens(address(borrowableCDAI), address(borrowableCUSDC));
 
-        MarketManagerIsolated.TokenConfig memory cTokenConfig;
-        cTokenConfig.cToken = address(borrowableCDAI);
-        cTokenConfig.collRatio = 7000;
-        cTokenConfig.collReqSoft = 4000;
-        cTokenConfig.collReqHard = 3000;
-        cTokenConfig.liqIncBase = 1000;
-        cTokenConfig.liqIncHard = 1500;
-        cTokenConfig.liqIncMin = 500;
-        cTokenConfig.liqIncMax = 2000;
-        cTokenConfig.minEffectiveCloseFactor = 2000;
-        cTokenConfig.maxEffectiveCloseFactor = 3000;
-        cTokenConfig.baseCFactor = 1000;
-        cTokenConfig.collateralCap = 100_000e18;
-        cTokenConfig.debtCap = 100_000e18;
-
-        marketManagerIsolated.updateTokenConfig(cTokenConfig);
-
-        cTokenConfig.cToken = address(borrowableCUSDC);
-        cTokenConfig.debtCap = 100_000e6;
-        marketManagerIsolated.updateTokenConfig(cTokenConfig);
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         borrowableCDAI.mint(_ONE, address(this));
 

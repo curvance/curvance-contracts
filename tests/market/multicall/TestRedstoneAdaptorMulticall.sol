@@ -158,27 +158,8 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(simpleCWBTC),address(borrowableCUSDC));
 
-        MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(simpleCWBTC);
-        tokenConfig.collRatio = 7000;
-        tokenConfig.collReqSoft = 4000;
-        tokenConfig.collReqHard = 3000;
-        tokenConfig.liqIncBase = 1000;
-        tokenConfig.liqIncHard = 1500;
-        tokenConfig.liqIncMin = 500;
-        tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 3000;
-        tokenConfig.baseCFactor = 1000;
-        tokenConfig.collateralCap = 100e8;
-        tokenConfig.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
-
-        tokenConfig.cToken = address(borrowableCUSDC);
-        tokenConfig.debtCap = 100_000e6;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
+        _setCTokenConfigBasic(address(simpleCWBTC), 100e8, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 100e8, 100_000e6);
 
         // Provide enough liquidity for leveraging.
         provideEnoughLiquidityForLeverage();

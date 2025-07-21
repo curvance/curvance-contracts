@@ -513,33 +513,22 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     function testRevertBorrowAndLiquidateWithZeroCollRatio() public {
         _deployMarketForZeroCollateralTest();
 
-        // _deployStrategyCBALRETH();
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 0;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 1000;
+        tokenConfig.collateralCap = 0;
+        tokenConfig.debtCap = 0;
 
-        // balRETH.approve(address(strategyCBALRETH), _ONE);
-        // marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
-
-        // oracleManager.addCTokenSupport(address(strategyCBALRETH));
-
-        MarketManagerIsolated.TokenConfig memory tokenConfigs;
-        tokenConfigs.cToken = address(strategyCBALRETH);
-        tokenConfigs.collRatio = 0;
-        tokenConfigs.collReqSoft = 4000;
-        tokenConfigs.collReqHard = 3000;
-        tokenConfigs.liqIncBase = 1000;
-        tokenConfigs.liqIncHard = 1500;
-        tokenConfigs.liqIncMin = 500;
-        tokenConfigs.liqIncMax = 2000;
-        tokenConfigs.minEffectiveCloseFactor = 2000;
-        tokenConfigs.maxEffectiveCloseFactor = 5000;
-        tokenConfigs.baseCFactor = 1000;
-        tokenConfigs.collateralCap = 0;
-        tokenConfigs.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
-
-        // tokenConfigs.cToken = address(borrowableCDAI);
-        // tokenConfigs.debtCap = 100_000e18;
-        // marketManagerIsolated.updateTokenConfig(tokenConfigs);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
         _prepareBALRETH(user1, _ONE);
 
@@ -798,26 +787,8 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
 
-        MarketManagerIsolated.TokenConfig memory tokenConfigs;
-        tokenConfigs.cToken = address(strategyCBALRETH);
-        tokenConfigs.collRatio = 7000;
-        tokenConfigs.collReqSoft = 4000;
-        tokenConfigs.collReqHard = 3000;
-        tokenConfigs.liqIncBase = 1000;
-        tokenConfigs.liqIncHard = 1500;
-        tokenConfigs.liqIncMin = 500;
-        tokenConfigs.liqIncMax = 2000;
-        tokenConfigs.minEffectiveCloseFactor = 2000;
-        tokenConfigs.maxEffectiveCloseFactor = 5000;
-        tokenConfigs.baseCFactor = 1000;
-        tokenConfigs.collateralCap = 100_000e18;
-        tokenConfigs.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
-
-        tokenConfigs.cToken = address(borrowableCDAI);
-        tokenConfigs.debtCap = 100_000e18;
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();
@@ -883,7 +854,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         console2.log("ethPrice", ethPrice);
 
-        // setup eDAI
+        // Setup borrowable CDAI.
         {
             _prepareDAI(owner, 200_000e18);
             dai.approve(address(borrowableCDAI), 200_000e18);
@@ -891,35 +862,34 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
-        // setup strategyCBALRETH
+        // Setup strategyCBALRETH.
         {
-            // support market
             _prepareBALRETH(owner, _ONE);
             balRETH.approve(address(strategyCBALRETH), _ONE);
         }
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
 
-        MarketManagerIsolated.TokenConfig memory tokenConfigs;
-        tokenConfigs.cToken = address(strategyCBALRETH);
-        tokenConfigs.collRatio = 0;
-        tokenConfigs.collReqSoft = 4000;
-        tokenConfigs.collReqHard = 3000;
-        tokenConfigs.liqIncBase = 1000;
-        tokenConfigs.liqIncHard = 1500;
-        tokenConfigs.liqIncMin = 500;
-        tokenConfigs.liqIncMax = 2000;
-        tokenConfigs.minEffectiveCloseFactor = 2000;
-        tokenConfigs.maxEffectiveCloseFactor = 5000;
-        tokenConfigs.baseCFactor = 1000;
-        tokenConfigs.collateralCap = 0;
-        tokenConfigs.debtCap = 0;
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 0;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.minEffectiveCloseFactor = 2000;
+        tokenConfig.maxEffectiveCloseFactor = 5000;
+        tokenConfig.baseCFactor = 1000;
+        tokenConfig.collateralCap = 0;
+        tokenConfig.debtCap = 0;
 
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
-        tokenConfigs.cToken = address(borrowableCDAI);
-        tokenConfigs.debtCap = 100_000e18;
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+        tokenConfig.cToken = address(borrowableCDAI);
+        tokenConfig.debtCap = 100_000e18;
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();

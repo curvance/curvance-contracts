@@ -50,31 +50,14 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             _deploySimpleCUSDC();
             _prepareUSDC(owner, 100e6);
             usdc.approve(address(simpleCUSDC), 100e6);
-
+            oracleManager.addCTokenSupport(address(simpleCUSDC));
         }
 
         marketManagerIsolated.listTokens(address(simpleCUSDC), address(borrowableCDAI));
-        oracleManager.addCTokenSupport(address(simpleCUSDC));
+        
 
-        MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(simpleCUSDC);
-        tokenConfig.collRatio = 7000;
-        tokenConfig.collReqSoft = 4000;
-        tokenConfig.collReqHard = 3000;
-        tokenConfig.liqIncBase = 1000;
-        tokenConfig.liqIncHard = 1500;
-        tokenConfig.liqIncMin = 500;
-        tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 1000;
-        tokenConfig.collateralCap = 100 ether;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
-
-        tokenConfig.cToken = address(borrowableCDAI);
-        tokenConfig.debtCap = 100_000e18;
-        marketManagerIsolated.updateTokenConfig(tokenConfig);
+        _setCTokenConfigHighValues(address(simpleCUSDC), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 1000 ether);

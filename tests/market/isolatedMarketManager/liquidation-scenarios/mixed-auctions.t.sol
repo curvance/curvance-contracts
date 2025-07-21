@@ -94,27 +94,8 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        MarketManagerIsolated.TokenConfig memory tokenConfigs;
-        tokenConfigs.cToken = address(strategyCBALRETH);
-        tokenConfigs.collRatio = 9200;
-        tokenConfigs.collReqSoft = 830;
-        tokenConfigs.collReqHard = 650;
-        tokenConfigs.liqIncBase = 500;
-        tokenConfigs.liqIncHard = 550;
-        tokenConfigs.liqIncMin = 300;
-        tokenConfigs.liqIncMax = 550;
-        tokenConfigs.minEffectiveCloseFactor = 1000;
-        tokenConfigs.maxEffectiveCloseFactor = 5000;
-        tokenConfigs.baseCFactor = 2000;
-        tokenConfigs.collateralCap = 100_000e18;
-        tokenConfigs.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
-
-        tokenConfigs.cToken = address(borrowableCUSDC);
-        tokenConfigs.debtCap = 100_000e6;
-
-        marketManagerIsolated.updateTokenConfig(tokenConfigs);
+        _setCTokenConfigLowValues(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigHighValues(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
