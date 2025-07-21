@@ -5,10 +5,11 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { AerodromeVolatileCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/AerodromeVolatileCToken.sol";
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
+import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
     address internal _AERO_ADDRESS =

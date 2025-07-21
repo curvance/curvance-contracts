@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { LiquidityManagerIsolated } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
-import "tests/market/TestBaseMarketIsolated.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { WAD_SQUARED, WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { console2 } from "forge-std/console2.sol";

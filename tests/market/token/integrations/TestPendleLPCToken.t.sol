@@ -6,10 +6,10 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { IPendleRouter, ApproxParams, LimitOrderData } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { PendleLPCToken, IERC20 } from "contracts/market/token/PendleLPCToken.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-
-import "tests/market/TestBaseMarketIsolated.sol";
 
 contract TestPendleLPCToken is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =

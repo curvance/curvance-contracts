@@ -4,11 +4,11 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { VelodromeVolatileCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeVolatileCToken.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
-import "tests/market/TestBaseMarketIsolated.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
     address internal _VELO_ADDRESS =

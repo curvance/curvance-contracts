@@ -3,13 +3,12 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { StrategyCToken} from "contracts/market/token/StrategyCToken.sol";
-import "tests/market/TestBaseMarketIsolated.sol";
 
-// NOTES: testHarvestAuraCToken fails because the amount of underlying assets is not enough to redeem
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 contract TestAuraCToken is TestBaseMarketIsolated {
     address internal _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;

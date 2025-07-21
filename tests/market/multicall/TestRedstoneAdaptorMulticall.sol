@@ -7,17 +7,16 @@ import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
-
 import { Multicall } from "contracts/libraries/Multicall.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
-import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
 import { BaseMulticallChecker } from "contracts/calldata-checker/multicall-checker/BaseMulticallChecker.sol";
 import { RedstoneAdaptorMulticallChecker } from "contracts/calldata-checker/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
 
-import "tests/market/TestBaseMarketIsolated.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =

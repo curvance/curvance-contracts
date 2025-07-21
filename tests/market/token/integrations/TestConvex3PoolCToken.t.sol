@@ -7,7 +7,7 @@ pragma solidity ^0.8.19;
 // import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 // import { Convex3PoolCToken, IERC20 } from "contracts/market/token/Convex3PoolCToken.sol";
 
-// import "tests/market/TestBaseMarketIsolated.sol";
+// import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 // contract TestConvex3PoolCToken is TestBaseMarketIsolated {
 //     address internal constant _UNISWAP_V2_ROUTER =

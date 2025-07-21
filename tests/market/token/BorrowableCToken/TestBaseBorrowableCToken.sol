@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 contract TestBaseBorrowableCToken is TestBaseMarketIsolated {
     MockDataFeed public mockUsdcFeed;

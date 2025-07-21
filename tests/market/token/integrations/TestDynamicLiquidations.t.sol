@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import "tests/market/TestBaseMarketIsolated.sol";
-import { console2 } from "forge-std/console2.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract TestDynamicLiquidations is TestBaseMarketIsolated {
     address public owner;

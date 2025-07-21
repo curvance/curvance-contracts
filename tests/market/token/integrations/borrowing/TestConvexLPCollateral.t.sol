@@ -5,8 +5,9 @@ import { Convex2PoolCToken, IERC20 } from "contracts/market/token/Convex2PoolCTo
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
-import "tests/market/TestBaseMarketIsolated.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 contract TestConvexLPCollateral is TestBaseMarketIsolated {
     event Repay(uint256 repayAmount, address payer, address borrower);

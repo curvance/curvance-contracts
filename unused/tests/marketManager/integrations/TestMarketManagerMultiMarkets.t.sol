@@ -5,7 +5,7 @@
 // import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 // import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
 // import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-// import { EToken } from "contracts/market/token/EToken.sol";
+// import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 // import { IMToken } from "contracts/interfaces/IMToken.sol";
 // import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 // import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -22,7 +22,7 @@
 //         _deployVeCVE();
 //         _deployGaugeManager();
 //         _deployMarketManager();
-//         _deployAuxiliaryData();
+//         _deployCurvanceAuxiliaryData();
 //         // eth/usd is needed in oracle manager constructor
 //         chainlinkEthUsd = chainlinkEthUsds[
 //             block.chainid
@@ -38,63 +38,63 @@
 //     }
 
 //     function setUpFuzzTest(
-//         uint16 /* _noOfPositionTokens */,
-//         uint16 _noOfEarnTokens,
+//         uint16 /* _noOfCollateralTokens */,
+//         uint16 _noOfDebtTokens,
 //         uint16 _noOfUsers,
 //         uint16 _entropy
 //     )
 //         internal
 //         returns (
 //             MockSimpleCToken[] memory,
-//             EToken[] memory,
+//             BorrowableCToken[] memory,
 //             address[] memory,
 //             MockV3Aggregator[] memory,
 //             MockV3Aggregator[] memory,
 //             MockV3Aggregator[] memory
 //         )
 //     {
-//         noOfPositionTokens = 1; // uint256((_noOfPositionTokens % 5)) + 2;
-//         noOfEarnTokens = uint256((_noOfEarnTokens % 5)) + 1;
+//         noOfCollateralTokens = 1; // uint256((_noOfCollateralTokens % 5)) + 2;
+//         noOfDebtTokens = uint256((_noOfDebtTokens % 5)) + 1;
 //         noOfUsersCollateral = uint256((_noOfUsers % 3)) + 2;
 //         noOfUsersDebt = uint256((_noOfUsers % 3)) + 1;
 //         noOfUsersMixed = uint256((_noOfUsers % 2)) + 1;
 //         noOfUsers = noOfUsersCollateral + noOfUsersDebt + noOfUsersMixed;
 //         entropy = uint256(_entropy) + 1;
 
-//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
-//             noOfPositionTokens
+//         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
+//             noOfCollateralTokens
 //         );
-//         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
+//         BorrowableCToken[] memory cTokens = new BorrowableCToken[](noOfDebtTokens);
 //         address[] memory users = new address[](noOfUsers);
 
-//         MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
-//             noOfPositionTokens
+//         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
+//             noOfCollateralTokens
 //         );
 //         MockV3Aggregator[]
-//             memory pTokensUnderlyingAgg = new MockV3Aggregator[](
-//                 noOfPositionTokens
+//             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
+//                 noOfCollateralTokens
 //             );
-//         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
-//             noOfEarnTokens
+//         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
+//             noOfDebtTokens
 //         );
 
 //         for (uint256 i = 0; i < noOfUsers; i++) {
 //             users[i] = address(uint160((i + 100)));
 //         }
 //         (
-//             pTokens,
-//             pTokensAgg,
-//             pTokensUnderlyingAgg
-//         ) = _genCollateralateraltoken(noOfPositionTokens, entropy);
+//             cTokens,
+//             cTokensAgg,
+//             cTokensUnderlyingAgg
+//         ) = _genCollateralateraltoken(noOfCollateralTokens, entropy);
 
-//         (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
+//         (cTokens, cTokensAgg) = _genDebtToken(noOfDebtTokens);
 //         return (
-//             pTokens,
-//             eTokens,
+//             cTokens,
+//             cTokens,
 //             users,
-//             pTokensAgg,
-//             pTokensUnderlyingAgg,
-//             eTokensAgg
+//             cTokensAgg,
+//             cTokensUnderlyingAgg,
+//             cTokensAgg
 //         );
 //     }
 
@@ -102,14 +102,14 @@
 //         uint256 collateralLimit,
 //         uint256 debtLimit,
 //         address[] memory users,
-//         MockSimpleCToken[] memory pTokens,
-//         EToken[] memory eTokens
+//         MockSimpleCToken[] memory cTokens,
+//         BorrowableCToken[] memory cTokens
 //     ) internal {
 //         uint256 runs;
 //         uint256 _amountCollateral;
 //         uint256 _amountDebt;
 //         for (uint256 i = 0; i < noOfUsers; i++) {
-//             runs = _genRandom(i, entropy, 1, noOfPositionTokens);
+//             runs = _genRandom(i, entropy, 1, noOfCollateralTokens);
 //             for (uint256 j = 0; j < runs; j++) {
 //                 console2.log("collateralLimt %s", collateralLimit);
 //                 console2.log("debtLimit %s", debtLimit);
@@ -123,30 +123,30 @@
 //                 if (i < noOfUsersCollateral) {
 //                     _genColWithEntropy(
 //                         users[i],
-//                         pTokens[j],
+//                         cTokens[j],
 //                         _amountCollateral
 //                     );
 //                 } else if (i < noOfUsersCollateral + noOfUsersDebt) {
 //                     _supplyETokenWithEntropy(
 //                         users[i],
-//                         eTokens[j % noOfEarnTokens],
+//                         cTokens[j % noOfDebtTokens],
 //                         _amountDebt
 //                     );
 //                 } else {
 //                     _genColWithEntropy(
 //                         users[i],
-//                         pTokens[j],
+//                         cTokens[j],
 //                         _amountCollateral
 //                     );
 //                     _supplyETokenWithEntropy(
 //                         users[i],
-//                         eTokens[j % noOfEarnTokens],
+//                         cTokens[j % noOfDebtTokens],
 //                         _amountDebt
 //                     );
 //                 }
 //             }
 //         }
-//         _executeBorrows(users, eTokens, pTokens);
+//         _executeBorrows(users, cTokens, cTokens);
 //     }
 
 //     function testLiquidationMultipleMarkets() public {
@@ -155,145 +155,145 @@
 //         users[1] = address(0x2222);
 //         users[2] = address(0x3333);
 
-//         noOfPositionTokens = 2;
-//         noOfEarnTokens = 2;
+//         noOfCollateralTokens = 2;
+//         noOfDebtTokens = 2;
 
-//         MockSimpleCToken[] memory pTokens = new MockSimpleCToken[](
-//             noOfPositionTokens
+//         MockSimpleCToken[] memory cTokens = new MockSimpleCToken[](
+//             noOfCollateralTokens
 //         );
-//         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
-//         MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
-//             noOfPositionTokens
+//         BorrowableCToken[] memory cTokens = new BorrowableCToken[](noOfDebtTokens);
+//         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
+//             noOfCollateralTokens
 //         );
 //         MockV3Aggregator[]
-//             memory pTokensUnderlyingAgg = new MockV3Aggregator[](
-//                 noOfPositionTokens
+//             memory cTokensUnderlyingAgg = new MockV3Aggregator[](
+//                 noOfCollateralTokens
 //             );
-//         MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
-//             noOfEarnTokens
+//         MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
+//             noOfDebtTokens
 //         );
 
 //         (
-//             pTokens,
-//             pTokensAgg,
-//             pTokensUnderlyingAgg
-//         ) = _genCollateralateraltoken(noOfPositionTokens, 0);
-//         (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
+//             cTokens,
+//             cTokensAgg,
+//             cTokensUnderlyingAgg
+//         ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
+//         (cTokens, cTokensAgg) = _genDebtToken(noOfDebtTokens);
 
-//         _genCollateral(users[0], pTokens[0], 100e18);
-//         _postCollateral(users[0], pTokens[0], 100e18);
+//         _genCollateral(users[0], cTokens[0], 100e18);
+//         _postCollateral(users[0], cTokens[0], 100e18);
 
-//         _genCollateral(users[1], pTokens[1], 100e18);
-//         _postCollateral(users[1], pTokens[1], 100e18);
+//         _genCollateral(users[1], cTokens[1], 100e18);
+//         _postCollateral(users[1], cTokens[1], 100e18);
 
-//         _genCollateral(users[2], pTokens[1], 100e18);
-//         _postCollateral(users[2], pTokens[1], 100e18);
+//         _genCollateral(users[2], cTokens[1], 100e18);
+//         _postCollateral(users[2], cTokens[1], 100e18);
 
-//         _supplyEToken(users[2], eTokens[0], 300e18);
+//         _supplyEToken(users[2], cTokens[0], 300e18);
 
-//         _borrow(users[0], eTokens[0], 70e18);
-//         _borrow(users[1], eTokens[0], 70e18);
-//         _borrow(users[2], eTokens[0], 70e18);
+//         _borrow(users[0], cTokens[0], 70e18);
+//         _borrow(users[1], cTokens[0], 70e18);
+//         _borrow(users[2], cTokens[0], 70e18);
 
-//         for (uint256 i = 0; i < noOfPositionTokens; i++) {
+//         for (uint256 i = 0; i < noOfCollateralTokens; i++) {
 //             skip(20 minutes);
-//             _updateRoundData(pTokensAgg[i], 0, 1e7);
+//             _updateRoundData(cTokensAgg[i], 0, 1e7);
 //         }
 
-//         _liquidate(eTokens[0], pTokens[0], users[0], false);
-//         _liquidate(eTokens[0], pTokens[1], users[1], true);
+//         _liquidate(cTokens[0], cTokens[0], users[0], false);
+//         _liquidate(cTokens[0], cTokens[1], users[1], true);
 
-//         _prepareLiquidationMultiple(liquidator, eTokens);
+//         _prepareLiquidationMultiple(liquidator, cTokens);
 //         // _liquidateAccount(users[2], liquidator);
 //     }
 
 //     function testLiquidationMultipleMarketsWithEntropyEtoken(
-//         uint16 _noOfPositionTokens,
-//         uint16 _noOfEarnTokens,
+//         uint16 _noOfCollateralTokens,
+//         uint16 _noOfDebtTokens,
 //         uint16 _noOfUsers,
 //         uint16 _entropy
 //     ) public {
 //         (
-//             MockSimpleCToken[] memory pTokens,
-//             EToken[] memory eTokens,
+//             MockSimpleCToken[] memory cTokens,
+//             BorrowableCToken[] memory cTokens,
 //             address[] memory users,
-//             MockV3Aggregator[] memory pTokensAgg,
+//             MockV3Aggregator[] memory cTokensAgg,
 //             ,
 
 //         ) = setUpFuzzTest(
-//                 _noOfPositionTokens,
-//                 _noOfEarnTokens,
+//                 _noOfCollateralTokens,
+//                 _noOfDebtTokens,
 //                 _noOfUsers,
 //                 _entropy
 //             );
-//         _setupLiquidity(100e18, 200e18, users, pTokens, eTokens);
+//         _setupLiquidity(100e18, 200e18, users, cTokens, cTokens);
 
-//         for (uint256 i; i < noOfPositionTokens; i++) {
+//         for (uint256 i; i < noOfCollateralTokens; i++) {
 //             skip(20 minutes);
-//             _updateRoundData(pTokensAgg[0], 0, 1e7);
+//             _updateRoundData(cTokensAgg[0], 0, 1e7);
 //         }
 
-//         _liquidateAllByEToken(eTokens, pTokens, users);
+//         _liquidateAllByEToken(cTokens, cTokens, users);
 //     }
 
 //     function testLiquidationMultipleMarketsWithEntropyExact(
-//         uint16 _noOfPositionTokens,
-//         uint16 _noOfEarnTokens,
+//         uint16 _noOfCollateralTokens,
+//         uint16 _noOfDebtTokens,
 //         uint16 _noOfUsers,
 //         uint16 _entropy
 //     ) public {
 //         (
-//             MockSimpleCToken[] memory pTokens,
-//             EToken[] memory eTokens,
+//             MockSimpleCToken[] memory cTokens,
+//             BorrowableCToken[] memory cTokens,
 //             address[] memory users,
-//             MockV3Aggregator[] memory pTokensAgg,
+//             MockV3Aggregator[] memory cTokensAgg,
 //             ,
 
 //         ) = setUpFuzzTest(
-//                 _noOfPositionTokens,
-//                 _noOfEarnTokens,
+//                 _noOfCollateralTokens,
+//                 _noOfDebtTokens,
 //                 _noOfUsers,
 //                 _entropy
 //             );
-//         _setupLiquidity(100e18, 200e18, users, pTokens, eTokens);
+//         _setupLiquidity(100e18, 200e18, users, cTokens, cTokens);
 
-//         for (uint256 i; i < noOfPositionTokens; i++) {
+//         for (uint256 i; i < noOfCollateralTokens; i++) {
 //             skip(20 minutes);
-//             _updateRoundData(pTokensAgg[0], 0, 1e7);
+//             _updateRoundData(cTokensAgg[0], 0, 1e7);
 //         }
 
-//         _liquidateAllExact(eTokens, pTokens, users);
+//         _liquidateAllExact(cTokens, cTokens, users);
 //     }
 
 //     function testLiquidationMultipleMarketsWithEntropyAccount(
-//         uint16 _noOfPositionTokens,
-//         uint16 _noOfEarnTokens,
+//         uint16 _noOfCollateralTokens,
+//         uint16 _noOfDebtTokens,
 //         uint16 _noOfUsers,
 //         uint16 _entropy
 //     ) public {
 //         (
-//             MockSimpleCToken[] memory pTokens,
-//             EToken[] memory eTokens,
+//             MockSimpleCToken[] memory cTokens,
+//             BorrowableCToken[] memory cTokens,
 //             address[] memory users,
-//             MockV3Aggregator[] memory pTokensAgg,
+//             MockV3Aggregator[] memory cTokensAgg,
 //             ,
 
 //         ) = setUpFuzzTest(
-//                 _noOfPositionTokens,
-//                 _noOfEarnTokens,
+//                 _noOfCollateralTokens,
+//                 _noOfDebtTokens,
 //                 _noOfUsers,
 //                 _entropy
 //             );
-//         _setupLiquidity(100e18, 200e18, users, pTokens, eTokens);
+//         _setupLiquidity(100e18, 200e18, users, cTokens, cTokens);
 
-//         for (uint256 i; i < noOfPositionTokens; i++) {
+//         for (uint256 i; i < noOfCollateralTokens; i++) {
 //             skip(20 minutes);
-//             _updateRoundData(pTokensAgg[0], 0, 1e7);
+//             _updateRoundData(cTokensAgg[0], 0, 1e7);
 //         }
 
-//         _prepareLiquidationMultiple(liquidator, eTokens);
+//         _prepareLiquidationMultiple(liquidator, cTokens);
 //         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
-//             if (!auxiliaryData.flaggedForLiquidation(address(marketManager), users[i], address(eTokens[0]), address(pTokens[0]))) {
+//             if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(cTokens[0]), address(cTokens[0]))) {
 //                 continue;
 //             }
 //             // _liquidateAccount(users[i], liquidator);
@@ -307,9 +307,9 @@
 //         uint256[] memory underlyingBalancesPre,
 //         address user
 //     ) internal view {
-//         uint256[] memory pTokenBalances = new uint256[](noOfPositionTokens);
-//         uint256[] memory eTokenBalances = new uint256[](noOfEarnTokens);
-//         uint256[] memory underlyingBalances = new uint256[](noOfEarnTokens);
+//         uint256[] memory pTokenBalances = new uint256[](noOfCollateralTokens);
+//         uint256[] memory eTokenBalances = new uint256[](noOfDebtTokens);
+//         uint256[] memory underlyingBalances = new uint256[](noOfDebtTokens);
 
 //         for (uint256 i = 0; i < userAssets.length; i++) {
 //             if (userAssets[i].isPToken()) {
@@ -322,7 +322,7 @@
 //         }
 //         console2.log("\nuser %s", user);
 //         console2.log("\npTokenBalances");
-//         for (uint256 i = 0; i < noOfPositionTokens; i++) {
+//         for (uint256 i = 0; i < noOfCollateralTokens; i++) {
 //             console2.log(
 //                 "pre %s post %s",
 //                 pTokenBalancesPre[i],
@@ -330,7 +330,7 @@
 //             );
 //         }
 //         console2.log("\neTokenBalances");
-//         for (uint256 i = 0; i < noOfEarnTokens; i++) {
+//         for (uint256 i = 0; i < noOfDebtTokens; i++) {
 //             console2.log(
 //                 "pre %s post %s",
 //                 eTokenBalancesPre[i],
@@ -338,7 +338,7 @@
 //             );
 //         }
 //         console2.log("\nunderlyingBalances");
-//         for (uint256 i = 0; i < noOfEarnTokens; i++) {
+//         for (uint256 i = 0; i < noOfDebtTokens; i++) {
 //             console2.log(
 //                 "pre %s post %s",
 //                 underlyingBalancesPre[i],

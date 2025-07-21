@@ -5,10 +5,10 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { Convex2PoolCToken, IERC20 } from "contracts/market/token/Convex2PoolCToken.sol";
 import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-
-import "tests/market/TestBaseMarketIsolated.sol";
 
 contract TestConvex2PoolCToken is TestBaseMarketIsolated {
     address internal _CVX_ADDRESS = 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B;

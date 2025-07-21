@@ -5,10 +5,11 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { AerodromeStableCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/AerodromeStableCToken.sol";
 import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeStableLPAdaptor.sol";
+import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 // NOTE: This test fails when input amount is very small.
 // Fails when amount0 is 3.584e18. Probably due to precision loss.
