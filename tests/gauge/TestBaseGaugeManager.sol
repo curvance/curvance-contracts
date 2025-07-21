@@ -4,6 +4,8 @@ pragma solidity ^0.8.19;
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { BorrowableCTokenWithGauge } from "contracts/market/token/withGauge/BorrowableCTokenWithGauge.sol";
 import { SimpleCTokenWithGauge } from "contracts/market/token/withGauge/SimpleCTokenWithGauge.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract TestBaseGaugeManager is TestBaseMarketIsolated {
 
