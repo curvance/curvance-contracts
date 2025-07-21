@@ -98,6 +98,8 @@ contract AuctionVaryingHealthTest is TestBaseMarketManagerIsolated {
         uint256 user3DebtBefore = borrowableCUSDC.debtBalance(borrower3);
         uint256 user3CollateralBefore = strategyCBALRETH.collateralPosted(borrower3);
 
+        uint256 borrowableCUSDCBalanceBefore = usdc.balanceOf(address(borrowableCUSDC));
+
         _prepareUSDC(address(this), 1_000_000e6);
         usdc.approve(address(borrowableCUSDC), 1_000_000e6);
 
