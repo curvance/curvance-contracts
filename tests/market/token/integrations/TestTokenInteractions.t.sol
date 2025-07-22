@@ -14,7 +14,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 contract TestTokenInteractions is TestBaseMarketIsolated {
     address public owner;
 
-    MockDataFeed public mockDaiFeed;
+    
 
     uint256 liqBaseIncentive;
     uint256 liqCurve;

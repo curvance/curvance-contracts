@@ -5,10 +5,39 @@ import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/marke
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
+
+        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
+        chainlinkAdaptor.addAsset(
+            _WETH_ADDRESS,
+            address(mockWethFeed),
+            0,
+            true
+        );
+        dualChainlinkAdaptor.addAsset(
+            _WETH_ADDRESS,
+            address(mockWethFeed),
+            0,
+            true
+        );
+
+        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
+        chainlinkAdaptor.addAsset(
+            _RETH_ADDRESS,
+            address(mockRethFeed),
+            0,
+            true
+        );
+        dualChainlinkAdaptor.addAsset(
+            _RETH_ADDRESS,
+            address(mockRethFeed),
+            0,
+            true
+        );
 
         deal(address(balRETH), address(this), 77777);
         balRETH.approve(address(strategyCBALRETH), 77777);
@@ -204,7 +233,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         );
     }
 
-    function test_canBorrowWithNotify_success() public {
+    function test_canBorrowWithNotify_successA() public {
         vm.warp(gaugeManager.gaugeStartTime());
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);

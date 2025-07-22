@@ -57,23 +57,7 @@ contract MixedAuction is TestBaseLiquidations {
 
     function setUp() public override {
         super.setUp();
-
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        mockUsdcFeed.setMockAnswer(1e8);
-
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-
+        
         // use mock pricing for testing
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);

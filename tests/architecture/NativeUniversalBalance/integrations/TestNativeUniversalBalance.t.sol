@@ -17,9 +17,6 @@ import { console2 } from "forge-std/console2.sol";
 contract TestNativeUniversalBalance is TestBaseMarketIsolated {
     address public owner;
 
-    MockDataFeed public mockStethFeed;
-    MockV3Aggregator public mockWbtcFeed;
-
     SimpleCToken public cWBTC;
     NativeUniversalBalance public nativeUniversalBalance;
     BorrowableCToken public borrowableCWETH;
@@ -63,28 +60,6 @@ contract TestNativeUniversalBalance is TestBaseMarketIsolated {
             address(mockWethFeed),
             0,
             true
-        );
-
-        mockWbtcFeed = new MockV3Aggregator(8, 60000e8, 1e50, 1e6);
-        chainlinkAdaptor.addAsset(
-            _WBTC_ADDRESS,
-            address(mockWbtcFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _WBTC_ADDRESS,
-            address(mockWbtcFeed),
-            0,
-            true
-        );
-        oracleManager.addAssetPriceFeed(
-            _WBTC_ADDRESS,
-            address(chainlinkAdaptor)
-        );
-        oracleManager.addAssetPriceFeed(
-            _WBTC_ADDRESS,
-            address(dualChainlinkAdaptor)
         );
 
         borrowableCWETH = _deployBorrowableCToken(_WETH_ADDRESS);

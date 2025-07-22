@@ -27,8 +27,6 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     MockRedstoneCoreAdaptor public adapter;
     RedstoneAdaptorMulticallChecker public multicallChecker;
 
-    MockDataFeed public mockStethFeed;
-
     SimpleCToken public simpleCWBTC;
     SimplePositionManager public positionManager;
 

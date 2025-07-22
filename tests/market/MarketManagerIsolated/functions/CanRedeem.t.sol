@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 contract CanRedeemTest is TestBaseMarketIsolated {
     function setUp() public override {

@@ -8,6 +8,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import "forge-std/console2.sol";
 
 contract CanLiquidateTest is TestBaseMarketIsolated {
@@ -17,7 +18,9 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
 
     uint256 borrowableCTokenUnderlyingPrice = 1e18;
 
-    constructor() {
+    function setUp() public override {
+        super.setUp();
+
         accounts[0] = user1;
         debtAmounts[0] = 1000e6;
     }
@@ -320,6 +323,9 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
 
     function _setupUserPositionAndOracles() internal {
         skip(gaugeManager.gaugeStartTime() - block.timestamp);
+
+        mockWethFeed.setMockAnswer(3000e8);
+        mockRethFeed.setMockAnswer(3000e8);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);

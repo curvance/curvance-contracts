@@ -7,7 +7,6 @@ import { console2 } from "forge-std/console2.sol";
 
 contract ExtremeDropTest is TestBaseLiquidations {
     
-    MockDataFeed public mockDaiFeed;
 
     function setUp() public override {
         super.setUp();

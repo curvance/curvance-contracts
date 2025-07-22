@@ -18,8 +18,6 @@ contract TestGaugeManager_SingleGauge is TestBaseGaugeManager {
     address public borrowableToken;
     address[] public users;
 
-    MockDataFeed public mockDaiFeed;
-
     function setUp() public override {
         super.setUp();
         users = new address[](10);

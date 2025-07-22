@@ -11,8 +11,6 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 contract TestDynamicLiquidations is TestBaseMarketIsolated {
     address public owner;
 
-    MockDataFeed public mockDaiFeed;
-
     uint256 public constant WAD = 1e18;
     uint256 public constant WAD_SQUARED = 1e36;
 

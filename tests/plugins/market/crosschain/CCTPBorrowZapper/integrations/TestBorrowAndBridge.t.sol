@@ -16,7 +16,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
-    MockDataFeed public mockDaiFeed;
+    
     
     CCTPBorrowZapper public CCTPZapper;
 
@@ -90,7 +90,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
 
         _setCTokenConfigLowValues(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigHighValues(address(borrowableCDAI), 100_000e18, 100_000e18);
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
 
         // provide enough liquidity
         _provideEnoughLiquidityForLeverage();

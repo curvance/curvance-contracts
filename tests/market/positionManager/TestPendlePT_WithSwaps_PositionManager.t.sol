@@ -22,7 +22,6 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         0xCfE54B5cD566aB89272946F602D76Ea879CAb4a8;
     IPendleRouter internal _ROUTER =
         IPendleRouter(0x888888888889758F76e7103c6CbF23ABbF58F946);
-    address internal _STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
     address internal _WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
     address internal _PT_STETH = 0xb253Eff1104802b97aC7E3aC9FdD73AecE295a2c; // PT-stETH-24DEC25
     address internal _LP_STETH = 0x34280882267ffa6383B363E278B027Be083bBe3b; // YT-stETH-24DEC25/SY-stETH Market

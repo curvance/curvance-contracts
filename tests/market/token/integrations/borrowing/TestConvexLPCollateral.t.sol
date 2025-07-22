@@ -15,9 +15,6 @@ import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 contract TestConvexLPCollateral is TestBaseMarketIsolated {
     event Repay(uint256 repayAmount, address payer, address borrower);
 
-    address internal constant _STETH_ADDRESS =
-        0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
-
     IERC20 public CONVEX_STETH_ETH_POOL =
         IERC20(0x21E27a5E5513D6e65C4f830167390997aA84843a);
     uint256 public CONVEX_STETH_ETH_POOL_ID = 177;

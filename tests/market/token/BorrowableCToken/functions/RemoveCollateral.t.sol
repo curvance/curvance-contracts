@@ -9,7 +9,6 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 contract RemoveCollateralTest is TestBaseBorrowableCToken {
     event CollateralUpdated(uint256 shares, bool increased, address account);
 
-    MockDataFeed public mockDaiFeed;
 
     function setUp() public override {
         _fork(18031848);

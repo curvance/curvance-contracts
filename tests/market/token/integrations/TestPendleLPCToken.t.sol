@@ -16,7 +16,7 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
     IPendleRouter internal _ROUTER =
         IPendleRouter(0x888888888889758F76e7103c6CbF23ABbF58F946);
-    address internal _STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+
     address internal _PT_STETH = 0x7758896b6AC966BbABcf143eFA963030f17D3EdF; // PT-stETH-26DEC24
     address internal _PENDLE = 0x808507121B80c02388fAd14726482e061B8da827;
     address internal _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market

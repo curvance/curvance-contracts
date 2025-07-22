@@ -46,6 +46,7 @@ contract TestVariables {
     address internal _WBTC_ADDRESS;
     address internal _RETH_ADDRESS;
     address internal _FRAX_ADDRESS;
+    address internal _STETH_ADDRESS;
     address internal _BAL_WETH_RETH_ADDRESS;
     address internal _CHAINLINK_ETH_USD;
     address internal _CHAINLINK_USDC_USD;
@@ -73,6 +74,7 @@ contract TestVariables {
     mapping(uint256 => address) internal _WBTC_ADDRESSES;
     mapping(uint256 => address) internal _RETH_ADDRESSES;
     mapping(uint256 => address) internal _FRAX_ADDRESSES;
+    mapping(uint256 => address) internal _STETH_ADDRESSES;
     mapping(uint256 => address) internal _BAL_WETH_RETH_ADDRESSES;
     mapping(uint256 => address) internal _CHAINLINK_ETH_USD_FEEDS;
     mapping(uint256 => address) internal _CHAINLINK_USDC_USD_FEEDS;
@@ -192,10 +194,15 @@ contract TestVariables {
     MockDataFeed public mockRethFeed;
     MockDataFeed public mockBALFeed;
     MockDataFeed public mockAURAFeed;
-
+    MockDataFeed public mockDaiFeed;
+    MockDataFeed public mockStethFeed;
+    MockV3Aggregator public mockWbtcFeed;
+    
     address public _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;
     address public _AURA_ADDRESS =
         0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
+
+    address internal _STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
     modifier initMainVariables() {
         _initMainVariables();
@@ -219,6 +226,8 @@ contract TestVariables {
         _WBTC_ADDRESSES[chainId] = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
         _RETH_ADDRESSES[chainId] = 0xae78736Cd615f374D3085123A210448E74Fc6393;
         _FRAX_ADDRESSES[chainId] = 0x853d955aCEf822Db058eb8505911ED77F175b99e;
+        _STETH_ADDRESSES[chainId] = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+
         _BAL_WETH_RETH_ADDRESSES[
             chainId
         ] = 0x1E19CF2D73a72Ef1332C882F20534B6519Be0276;
@@ -352,6 +361,7 @@ contract TestVariables {
         _WBTC_ADDRESS = _WBTC_ADDRESSES[chainId];
         _RETH_ADDRESS = _RETH_ADDRESSES[chainId];
         _FRAX_ADDRESS = _FRAX_ADDRESSES[chainId];
+        _STETH_ADDRESS = _STETH_ADDRESSES[chainId];
         _BAL_WETH_RETH_ADDRESS = _BAL_WETH_RETH_ADDRESSES[chainId];
         _CHAINLINK_ETH_USD = _CHAINLINK_ETH_USD_FEEDS[chainId];
         _CHAINLINK_USDC_USD = _CHAINLINK_USDC_USD_FEEDS[chainId];

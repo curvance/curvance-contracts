@@ -120,7 +120,9 @@ contract TestBaseMarketIsolated is TestBase {
 
         _setRedstoneSigners();
 
-        _setMockRewardConfig();
+        _deployUniswapV2CalldataChecker();
+
+        _setMockFeedsInitial();
 
         // Create a dapp control user.
         vm.startPrank(centralRegistry.daoAddress());
@@ -793,6 +795,13 @@ contract TestBaseMarketIsolated is TestBase {
         _skipEpochDuration(numEpochs);
     }
 
+    function _deployUniswapV2CalldataChecker() internal initMainVariables {
+        centralRegistry.setExternalCalldataChecker(
+            _UNISWAP_V2_ROUTER,
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
+        );
+    }
+
     function _prepareResponseAndSignatures(
         PerChainData[] memory perChainData,
         bytes memory callData
@@ -1174,27 +1183,73 @@ contract TestBaseMarketIsolated is TestBase {
         uint256 exchangeRateAfter = strategyCBALRETH.exchangeRate();
     }
 
-    function _setMockRewardConfig() internal {
-        centralRegistry.setExternalCalldataChecker(
-            _UNISWAP_V2_ROUTER,
-            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
+    function _setMockFeedsInitial() internal {
+
+        /// STABLECOINS
+        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            address(mockUsdcFeed),
+            0,
+            true
+        );
+        dualChainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            address(mockUsdcFeed),
+            0,
+            true
         );
 
-        // mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        // chainlinkAdaptor.addAsset(
-        //     _USDC_ADDRESS,
-        //     address(mockUsdcFeed),
-        //     0,
-        //     true
-        // );
-        // dualChainlinkAdaptor.addAsset(
-        //     _USDC_ADDRESS,
-        //     address(mockUsdcFeed),
-        //     0,
-        //     true
-        // );
+        mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
+        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
+        dualChainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            address(mockDaiFeed),
+            0,
+            true
+        );
 
-        // Initialize BAL feed
+        /// ETH
+
+        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
+        chainlinkAdaptor.addAsset(
+            _WETH_ADDRESS,
+            address(mockWethFeed),
+            0,
+            true
+        );
+        dualChainlinkAdaptor.addAsset(
+            _WETH_ADDRESS,
+            address(mockWethFeed),
+            0,
+            true
+        );
+
+        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
+        chainlinkAdaptor.addAsset(
+            _RETH_ADDRESS,
+            address(mockRethFeed),
+            0,
+            true
+        );
+
+        dualChainlinkAdaptor.addAsset(
+            _RETH_ADDRESS,
+            address(mockRethFeed),
+            0,
+            true
+        );
+
+        /// STETH
+
+        mockStethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
+        chainlinkAdaptor.addAsset(_STETH, address(mockStethFeed), 0, true);
+        dualChainlinkAdaptor.addAsset(_STETH, address(mockStethFeed), 0, true);
+
+        oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
+        oracleManager.addAssetPriceFeed(_STETH, address(dualChainlinkAdaptor));
+
+        /// BAL
         mockBALFeed = new MockDataFeed(
             0xdF2917806E30300537aEB49A7663062F4d1F2b5F
         );
@@ -1205,7 +1260,7 @@ contract TestBaseMarketIsolated is TestBase {
             address(chainlinkAdaptor)
         );
 
-        // Initialize AURA feed
+        /// AURA
         mockAURAFeed = new MockDataFeed(
             0xdF2917806E30300537aEB49A7663062F4d1F2b5F
         );
@@ -1221,14 +1276,38 @@ contract TestBaseMarketIsolated is TestBase {
             address(chainlinkAdaptor)
         );
 
-        // vm.warp(gaugeManager.gaugeStartTime());
-        // _skipEpochDuration(1);
-        // vm.roll(block.number + 1000);
+        // WBTC
 
-        // mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        // mockWethFeed.setMockUpdatedAt(block.timestamp);
-        // mockRethFeed.setMockUpdatedAt(block.timestamp);
+        mockWbtcFeed = new MockV3Aggregator(8, 60000e8, 1e50, 1e6);
+        chainlinkAdaptor.addAsset(
+            _WBTC_ADDRESS,
+            address(mockWbtcFeed),
+            0,
+            true
+        );
+        dualChainlinkAdaptor.addAsset(
+            _WBTC_ADDRESS,
+            address(mockWbtcFeed),
+            0,
+            true
+        );
+        oracleManager.addAssetPriceFeed(
+            _WBTC_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+        oracleManager.addAssetPriceFeed(
+            _WBTC_ADDRESS,
+            address(dualChainlinkAdaptor)
+        );
+    }
+
+    function _refreshMockFeeds() internal {
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        mockRethFeed.setMockUpdatedAt(block.timestamp);
+        mockStethFeed.setMockUpdatedAt(block.timestamp);
         mockBALFeed.setMockUpdatedAt(block.timestamp);
         mockAURAFeed.setMockUpdatedAt(block.timestamp);
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
     }
 }

@@ -107,6 +107,10 @@ contract ExecuteOTCTest is TestBaseFeeManager {
 
         usdc.approve(address(feeManager), _ONE);
 
+        mockWethFeed.setMockAnswer(1500e8);
+
+        _refreshMockFeeds();
+
         // Eth spoofed as $1500, USDC spoofed as $1
         feeManager.executeOTC(
             _WETH_ADDRESS,

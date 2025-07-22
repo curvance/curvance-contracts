@@ -23,13 +23,10 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
     address internal constant _PT_ORACLE =
         0x14030836AEc15B2ad48bB097bd57032559339c92;
 
-    address internal _STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
     address internal _PT_STETH = 0x7758896b6AC966BbABcf143eFA963030f17D3EdF; // PT-stETH-26DEC24
     address internal _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market
 
     PendlePrincipalTokenAdaptor public adapter;
-
-    MockDataFeed public mockStethFeed;
 
     SimpleCToken public pendleCTokenPTSTETH;
     IERC20 public pendlePT = IERC20(_PT_STETH);
@@ -70,12 +67,6 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
             0,
             true
         );
-        mockStethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(_STETH, address(mockStethFeed), 0, true);
-        dualChainlinkAdaptor.addAsset(_STETH, address(mockStethFeed), 0, true);
-
-        oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(_STETH, address(dualChainlinkAdaptor));
 
         adapter = new PendlePrincipalTokenAdaptor(
             ICentralRegistry(address(centralRegistry)),

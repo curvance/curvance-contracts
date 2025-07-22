@@ -13,8 +13,6 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
     address public owner;
     address public dao;
 
-    MockDataFeed public mockDaiFeed;
-
     receive() external payable {}
 
     fallback() external payable {}

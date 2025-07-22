@@ -12,7 +12,6 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 contract TestAuraCToken is TestBaseMarketIsolated {
 
-    MockDataFeed public mockDaiFeed;
 
     receive() external payable {}
 

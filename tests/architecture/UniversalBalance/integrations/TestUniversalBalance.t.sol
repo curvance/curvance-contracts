@@ -14,9 +14,6 @@ import "tests/market/TestBaseMarketIsolated.sol";
 contract TestUniversalBalance is TestBaseMarketIsolated {
     address public owner;
 
-    MockDataFeed public mockStethFeed;
-    MockV3Aggregator public mockWbtcFeed;
-
     SimpleCToken public simpleCWBTC;
     UniversalBalance public universalBalance;
 
@@ -31,56 +28,6 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         super.setUp();
 
         owner = address(this);
-
-        // use mock pricing for testing
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-
-        mockWbtcFeed = new MockV3Aggregator(8, 60000e8, 1e50, 1e6);
-        chainlinkAdaptor.addAsset(
-            _WBTC_ADDRESS,
-            address(mockWbtcFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _WBTC_ADDRESS,
-            address(mockWbtcFeed),
-            0,
-            true
-        );
-        oracleManager.addAssetPriceFeed(
-            _WBTC_ADDRESS,
-            address(chainlinkAdaptor)
-        );
-        oracleManager.addAssetPriceFeed(
-            _WBTC_ADDRESS,
-            address(dualChainlinkAdaptor)
-        );
 
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),

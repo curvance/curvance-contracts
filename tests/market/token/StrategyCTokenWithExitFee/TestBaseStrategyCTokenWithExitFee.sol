@@ -7,7 +7,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 
 contract TestBaseStrategyCTokenWithExitFee is TestBaseMarketIsolated {
 
-    MockDataFeed public mockDaiFeed;
+    
 
     function setUp() public virtual override {
         super.setUp();
@@ -26,14 +26,7 @@ contract TestBaseStrategyCTokenWithExitFee is TestBaseMarketIsolated {
             0,
             true
         );
-        mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
-        dualChainlinkAdaptor.addAsset(
-            _DAI_ADDRESS,
-            address(mockDaiFeed),
-            0,
-            true
-        );
+
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,

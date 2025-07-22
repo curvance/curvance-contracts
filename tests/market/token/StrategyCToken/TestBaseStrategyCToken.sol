@@ -8,7 +8,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 
 contract TestBaseStrategyCToken is TestBaseMarketIsolated {
 
-    MockDataFeed public mockDaiFeed;
+    
 
     address public owner;
 

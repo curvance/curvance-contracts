@@ -12,8 +12,6 @@ contract RedeemTest is TestBaseBorrowableCToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
     event CollateralUpdated(uint256 shares, bool increased, address account);
 
-    MockDataFeed public mockDaiFeed;
-
     function setUp() public override {
         _fork(18031848);
 

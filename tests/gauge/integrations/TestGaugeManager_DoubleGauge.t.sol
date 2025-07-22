@@ -18,7 +18,6 @@ contract TestGaugeManager_DoubleGauge is TestBaseGaugeManager {
     address public borrowableCUSDCWithGauge;
     address[] public users;
 
-    MockDataFeed public mockDaiFeed;
 
     function setUp() public override {
         super.setUp();
@@ -105,11 +104,11 @@ contract TestGaugeManager_DoubleGauge is TestBaseGaugeManager {
         // set gauge weights
         // only borrowable token has gauge functionality
         address[] memory tokensParam = new address[](2);
-        tokensParam[0] = borrowableCUSDCWithGauge;
-        tokensParam[1] = borrowableCDAIWithGauge;
+        tokensParam[0] = borrowableCDAIWithGauge;
+        tokensParam[1] = borrowableCUSDCWithGauge;
         uint256[] memory poolWeights = new uint256[](2);
-        poolWeights[0] = 100 * 2 weeks;
-        poolWeights[1] = 200 * 2 weeks;
+        poolWeights[0] = 200 * 2 weeks;
+        poolWeights[1] = 100 * 2 weeks;
 
         vm.prank(address(messagingHub));
         gaugeManager.setEmissionRates(1, tokensParam, poolWeights);
