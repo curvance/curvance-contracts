@@ -7,16 +7,22 @@ import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/marke
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { console2 } from "forge-std/console2.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 contract CanBorrowTest is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 
-        // marketManager.listToken(address(borrowableCUSDC));
-        skip(gaugeManager.gaugeStartTime() - block.timestamp);
-
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
+        // Initialize mock feeds if they don't exist
+        if (address(mockWethFeed) == address(0)) {
+            mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
+            mockWethFeed.setMockUpdatedAt(block.timestamp);
+        }
+        
+        if (address(mockRethFeed) == address(0)) {
+            mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
+            mockRethFeed.setMockUpdatedAt(block.timestamp);
+        }
 
         deal(address(balRETH), address(this), 77777);
         balRETH.approve(address(strategyCBALRETH), 77777);
@@ -282,20 +288,22 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 2_000_000e6);
 
+        _prepareUSDC(address(this), 100e6);
+        usdc.approve(address(borrowableCUSDC), 100e6);
+        borrowableCUSDC.deposit(100e6, user1);
+
+        vm.prank(address(borrowableCUSDC));
+        
         // Need some cTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
         balRETH.approve(address(strategyCBALRETH), 1_000e18);
         strategyCBALRETH.deposit(1_000e18, user1);
         strategyCBALRETH.postCollateral(999e18);
+
+        borrowableCUSDC.borrow(100e6, user1);
+
         vm.stopPrank();
-
-        vm.prank(address(borrowableCUSDC));
-        marketManagerIsolated.canBorrow(address(borrowableCUSDC), 100e6, user1, 100e6);
-
-        (, uint256 maxBorrowAmount, uint256 currentBorrowAmount) = marketManagerIsolated.statusOf(user1);
-        console2.log("maxBorrowAmount", maxBorrowAmount);
-        console2.log("currentBorrowAmount", currentBorrowAmount);
 
         // Get the lower price of USDC
         (uint256 usdcPrice, ) = oracleManager.getPrice(
@@ -304,9 +312,16 @@ contract CanBorrowTest is TestBaseMarketIsolated {
             false
         );
 
+        (, uint256 maxBorrowAmount, uint256 currentBorrowAmount) = marketManagerIsolated.statusOf(user1);
+        console2.log("maxBorrowAmount", maxBorrowAmount);
+        console2.log("currentBorrowAmount", currentBorrowAmount);
+
         uint256 borrowInUSDC = ((maxBorrowAmount - currentBorrowAmount) * 1e6) / usdcPrice;
 
         console2.log("borrow in usdc", borrowInUSDC);
+
+        // Get the outstanding debt first before the prank
+        uint256 currentOutstandingDebt = borrowableCUSDC.marketOutstandingDebt();
 
         // Borrow the maximum amount possible.
         vm.prank(address(borrowableCUSDC));
@@ -314,7 +329,7 @@ contract CanBorrowTest is TestBaseMarketIsolated {
             address(borrowableCUSDC),
             borrowInUSDC,
             user1,
-            borrowableCUSDC.marketOutstandingDebt() + borrowInUSDC
+            currentOutstandingDebt + borrowInUSDC
         );
     }
 }

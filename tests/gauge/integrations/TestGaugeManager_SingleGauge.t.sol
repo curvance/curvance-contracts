@@ -51,7 +51,7 @@ contract TestGaugeManager_SingleGauge is TestBaseGaugeManager {
         }
 
         collateralToken = address(strategyCBALRETH);  // No gauge functionality
-        borrowableToken = address(borrowableCDAI);    // Has gauge functionality
+        borrowableToken = address(_deployBorrowableCTokenWithGauge(_DAI_ADDRESS));    // Has gauge functionality
 
         balRETH.approve(collateralToken, 77777);
         dai.approve(borrowableToken, 77777);

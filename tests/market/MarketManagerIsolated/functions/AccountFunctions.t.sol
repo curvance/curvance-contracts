@@ -3,13 +3,15 @@ pragma solidity ^0.8.26;
 
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidations.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
-contract AccountFunctionsTest is TestBaseMarketIsolated {
+contract AccountFunctionsTest is TestBaseLiquidations {
 
     function setUp() public override {
         super.setUp();
+
+        _prepareLiquidation();
     }
 
     function test_assetsOf() public {
