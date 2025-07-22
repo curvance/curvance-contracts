@@ -1180,19 +1180,19 @@ contract TestBaseMarketIsolated is TestBase {
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
 
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
+        // mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
+        // chainlinkAdaptor.addAsset(
+        //     _USDC_ADDRESS,
+        //     address(mockUsdcFeed),
+        //     0,
+        //     true
+        // );
+        // dualChainlinkAdaptor.addAsset(
+        //     _USDC_ADDRESS,
+        //     address(mockUsdcFeed),
+        //     0,
+        //     true
+        // );
 
         // Initialize BAL feed
         mockBALFeed = new MockDataFeed(
@@ -1221,13 +1221,13 @@ contract TestBaseMarketIsolated is TestBase {
             address(chainlinkAdaptor)
         );
 
-        vm.warp(gaugeManager.gaugeStartTime());
-        _skipEpochDuration(1);
-        vm.roll(block.number + 1000);
+        // vm.warp(gaugeManager.gaugeStartTime());
+        // _skipEpochDuration(1);
+        // vm.roll(block.number + 1000);
 
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
+        // mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        // mockWethFeed.setMockUpdatedAt(block.timestamp);
+        // mockRethFeed.setMockUpdatedAt(block.timestamp);
         mockBALFeed.setMockUpdatedAt(block.timestamp);
         mockAURAFeed.setMockUpdatedAt(block.timestamp);
     }

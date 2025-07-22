@@ -41,6 +41,6 @@ contract SetRedeemPausedTest is TestBaseMarketIsolated {
 
         marketManagerIsolated.setRedeemPaused(false);
 
-        assertEq(marketManagerIsolated.redeemPaused(1);
+        assertEq(marketManagerIsolated.redeemPaused(), 1);
     }
 }

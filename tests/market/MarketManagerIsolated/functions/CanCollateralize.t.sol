@@ -20,7 +20,7 @@ contract CanCollateralizeTest is TestBaseMarketIsolated {
 
     function test_canCollateralize_fail_whenTokenNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManagerIsolated.canCollateralize(address(borrowableCDAI), 1e6, user1);
+        marketManagerIsolated.canCollateralize(address(borrowableCDAI), user1, 1e6);
     }
 
     function test_canCollateralize_fail_whenUnauthorized() public {
@@ -48,12 +48,12 @@ contract CanCollateralizeTest is TestBaseMarketIsolated {
     }
 
     function test_canCollateralize_fail_whenCollateralizationIsPaused() public {
-        centralRegistry.setCollateralizationStatus(address(borrowableCUSDC), true);
+        marketManagerIsolated.setCollateralizationPaused(address(borrowableCUSDC), true);
 
         vm.startPrank(address(borrowableCUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        marketManagerIsolated.canCollateralize(address(borrowableCUSDC), 1e6, user1);
+        marketManagerIsolated.canCollateralize(address(borrowableCUSDC), user1, 1e6);
 
         vm.stopPrank();
     }

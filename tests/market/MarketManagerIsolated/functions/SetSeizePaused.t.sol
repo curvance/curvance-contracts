@@ -41,6 +41,6 @@ contract SetSeizePausedTest is TestBaseMarketIsolated {
 
         marketManagerIsolated.setSeizePaused(false);
 
-        assertEq(marketManagerIsolated.seizePaused(1);
+        assertEq(marketManagerIsolated.seizePaused(), 1);
     }
 }
