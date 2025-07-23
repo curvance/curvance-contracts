@@ -11,33 +11,10 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 
-        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            address(mockWethFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            address(mockWethFeed),
-            0,
-            true
-        );
-
-        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
-        chainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            address(mockRethFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            address(mockRethFeed),
-            0,
-            true
-        );
+        mockUsdcFeed.setMockAnswer(1e8);
+        mockWethFeed.setMockAnswer(1500e8);
+        mockRethFeed.setMockAnswer(1500e8);
+        _refreshMockFeeds();
 
         deal(address(balRETH), address(this), 77777);
         balRETH.approve(address(strategyCBALRETH), 77777);
@@ -46,15 +23,18 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         usdc.approve(address(borrowableCUSDC), 77777);
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100e6);
     }
 
     function test_canBorrowWithNotify_fail_whenCallerIsNotCToken() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManagerIsolated.canBorrowWithNotify(
             address(borrowableCUSDC),
-            100e6,
+            88e6,
             user1,
-            100e6
+            88e6
         );
     }
 
@@ -66,9 +46,9 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
         marketManagerIsolated.canBorrowWithNotify(
             address(borrowableCDAI),
-            100e6,
+            88e6,
             user1,
-            100e6
+            88e6
         );
     }
 
@@ -80,9 +60,9 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         marketManagerIsolated.canBorrowWithNotify(
             address(borrowableCUSDC),
-            100e6,
+            88e6,
             user1,
-            100e6
+            88e6
         );
     }
 
@@ -92,13 +72,13 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManagerIsolated.canBorrowWithNotify(
             address(borrowableCDAI),
-            100e6,
+            88e6,
             user1,
-            100e6
+            88e6
         );
     }
 
-    function test_canBorrowWithNotify_fail_whenCallerIsNotCTokenAndBorrowerNotInMarket()
+    function test_canBorrowWithNotify_fail_whenCallerIsWrongCTokenAndNotListed()
         public
     {
         vm.prank(address(borrowableCUSDC));
@@ -106,48 +86,25 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManagerIsolated.canBorrowWithNotify(
             address(borrowableCDAI),
-            100e6,
+            88e6,
             user1,
-            100e6
+            88e6
         );
     }
 
     function test_canBorrowWithNotify_fail_whenExceedsBorrowCap() external {
-        skip(gaugeManager.gaugeStartTime() - block.timestamp);
-        chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
-        chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100e6 - 1);
+        vm.prank(address(strategyCBALRETH));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
-        vm.prank(address(strategyCBALRETH));
         marketManagerIsolated.canBorrowWithNotify(
             address(strategyCBALRETH),
-            100e6,
+            100e6 + 1,
             user1,
-            100e6
+            100e6 + 1
         );
     }
 
     function test_canBorrowWithNotify_fail_whenInsufficientCollateral() public {
-        vm.warp(gaugeManager.gaugeStartTime());
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcEth.updateRoundData(
-            0,
-            1e18,
-            block.timestamp,
-            block.timestamp
-        );
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000_000e6);
-
         vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(
@@ -155,40 +112,13 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         );
         marketManagerIsolated.canBorrowWithNotify(
             address(borrowableCUSDC),
-            100e6,
+            88e6,
             user1,
-            100e6
+            88e6
         );
     }
 
     function test_canBorrowWithNotify_fail_whenInsufficientLoanSize() public {
-        vm.warp(gaugeManager.gaugeStartTime());
-
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-
-        chainlinkEthUsd.updateRoundData(
-            0,
-            1500e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcEth.updateRoundData(
-            0,
-            1500e18,
-            block.timestamp,
-            block.timestamp
-        );
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000_000e6);
-
         _prepareBALRETH(user1, 1_000e18);
 
         vm.startPrank(user1);
@@ -200,7 +130,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector);
-        // borrow below the minimum loan size
+        // Borrow below the minimum loan size.
         marketManagerIsolated.canBorrowWithNotify(
             address(borrowableCUSDC),
             1e6,
@@ -210,14 +140,8 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrowWithNotify_success_atDebtCapLimit() external {
-        skip(gaugeManager.gaugeStartTime() - block.timestamp);
-        chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
-        chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100e6);
-
         _prepareBALRETH(user1, 1_000e18);
+
         vm.startPrank(user1);
         balRETH.approve(address(strategyCBALRETH), 1_000e18);
         strategyCBALRETH.deposit(10e18, user1);
@@ -233,34 +157,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         );
     }
 
-    function test_canBorrowWithNotify_successA() public {
-        vm.warp(gaugeManager.gaugeStartTime());
-
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-
-        chainlinkEthUsd.updateRoundData(
-            0,
-            1500e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcEth.updateRoundData(
-            0,
-            1500e18,
-            block.timestamp,
-            block.timestamp
-        );
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000_000e6);
-
+    function test_canBorrowWithNotify_success_atLoanMinimumSize() public {
         _prepareBALRETH(user1, 1_000e18);
 
         vm.startPrank(user1);
@@ -271,12 +168,12 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
 
         vm.prank(address(borrowableCUSDC));
 
-        // minimum loan size is 50e6
+        // minimum loan size is 10e6
         marketManagerIsolated.canBorrowWithNotify(
             address(borrowableCUSDC),
-            50e6,
+            10e6,
             user1,
-            50e6
+            10e6
         );
     
         uint256 cooldownTimestamp = marketManagerIsolated.accountAssets(user1);
@@ -293,35 +190,10 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrowWithNotify_success_withAuxiliaryDataReview() external {
-        vm.warp(gaugeManager.gaugeStartTime());
-
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-
-        chainlinkEthUsd.updateRoundData(
-            0,
-            1500e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcEth.updateRoundData(
-            0,
-            1e18,
-            block.timestamp,
-            block.timestamp
-        );
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000_000e6);
-
-        // Need some cTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 10_000e18);
+
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100_000e6);
+
         vm.startPrank(user1);
         balRETH.approve(address(strategyCBALRETH), 1_000e18);
         strategyCBALRETH.deposit(1_000e18, user1);

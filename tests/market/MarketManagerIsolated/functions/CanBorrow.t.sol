@@ -13,6 +13,11 @@ contract CanBorrowTest is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 
+        mockUsdcFeed.setMockAnswer(1e8);
+        mockWethFeed.setMockAnswer(1500e8);
+        mockRethFeed.setMockAnswer(1500e8);
+        _refreshMockFeeds();
+
         deal(address(balRETH), address(this), 77777);
         balRETH.approve(address(strategyCBALRETH), 77777);
 
@@ -20,6 +25,9 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         usdc.approve(address(borrowableCUSDC), 77777);
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100e6);
     }
 
     function test_canBorrow_fail_whenBorrowPaused() public {
@@ -32,8 +40,6 @@ contract CanBorrowTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrow_fail_whenCTokenIsNotListed() public {
-        // marketManager.listToken(address(borrowableCDAI));
-
         vm.prank(address(borrowableCDAI));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
@@ -44,8 +50,6 @@ contract CanBorrowTest is TestBaseMarketIsolated {
     function test_canBorrow_fail_whenCallerIsNotCTokenAndBorrowerNotInMarket()
         public
     {
-        // marketManager.listToken(address(borrowableCDAI));
-
         vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
@@ -53,55 +57,18 @@ contract CanBorrowTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrow_fail_whenInsufficientLiquidity() public {
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcEth.updateRoundData(
-            0,
-            1e18,
-            block.timestamp,
-            block.timestamp
-        );
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
-
         vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
+
         marketManagerIsolated.canBorrow(address(borrowableCUSDC), 100e6, user1, 100e6);
     }
 
     function test_canBorrow_fail_whenInsufficientLoanSize() public {
-        chainlinkEthUsd.updateRoundData(
-            0,
-            1500e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcEth.updateRoundData(
-            0,
-            1500e18,
-            block.timestamp,
-            block.timestamp
-        );
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
-
-        // Need some cTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 1_000e18);
+
         vm.startPrank(user1);
         balRETH.approve(address(strategyCBALRETH), 10e18);
         strategyCBALRETH.deposit(10e18, user1);
@@ -117,48 +84,12 @@ contract CanBorrowTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrow_fail_userCallsCanBorrow() external {
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcEth.updateRoundData(
-            0,
-            1e18,
-            block.timestamp,
-            block.timestamp
-        );
-
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManagerIsolated.canBorrow(address(borrowableCUSDC), 0, user1, 0);
     }
 
-    function test_canBorrow_success_entersUserInMarket() external {
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-
-        chainlinkEthUsd.updateRoundData(
-            0,
-            1500e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcEth.updateRoundData(
-            0,
-            1e18,
-            block.timestamp,
-            block.timestamp
-        );
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
+    function test_canBorrow_success_userHasPosition() external {
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100_000e6);
 
         // Need some cTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 10_000e18);
@@ -194,22 +125,6 @@ contract CanBorrowTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrow_fail_whenExceedsBorrowCap() external {
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcEth.updateRoundData(
-            0,
-            1e18,
-            block.timestamp,
-            block.timestamp
-        );
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
-
         vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
         vm.prank(address(strategyCBALRETH));
         marketManagerIsolated.canBorrow(
@@ -221,14 +136,6 @@ contract CanBorrowTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrow_success_atDebtCapLimit() external {
-        mockUsdcFeed.setMockAnswer(1e8);
-        mockWethFeed.setMockAnswer(1500e8);
-        mockRethFeed.setMockAnswer(1500e8);
-        _refreshMockFeeds();
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000e6);
-
         _prepareBALRETH(user1, 1_000e18);
 
         vm.startPrank(user1);
@@ -240,35 +147,13 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         vm.prank(address(borrowableCUSDC));
         marketManagerIsolated.canBorrow(
             address(borrowableCUSDC),
-            10_000e6 - 1,
+            100e6 - 1,
             user1,
-            10_000e6 - 1
+            100e6 - 1
         );
     }
 
     function test_canBorrow_success_atLiquidityLimit() public {
-        chainlinkEthUsd.updateRoundData(
-            0,
-            1500e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcEth.updateRoundData(
-            0,
-            1500e18,
-            block.timestamp,
-            block.timestamp
-        );
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 2_000_000e6);
-
         _prepareUSDC(address(this), 100e6);
         usdc.approve(address(borrowableCUSDC), 100e6);
         borrowableCUSDC.deposit(100e6, user1);
