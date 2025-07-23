@@ -22,9 +22,6 @@ contract AddPositionManagerTest is TestBaseMarketIsolated {
 
         // Setup borrowable cDAI.
         {
-            _deployBorrowableCDAI();
-            // Add cToken support on Oracle Manager.
-            oracleManager.addCTokenSupport(address(borrowableCDAI));
             _prepareDAI(address(this), 200000e18);
             dai.approve(address(borrowableCDAI), 200000e18);
         }

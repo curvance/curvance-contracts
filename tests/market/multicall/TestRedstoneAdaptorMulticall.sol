@@ -57,21 +57,6 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
         owner = address(this);
 
-        // use mock pricing for testing
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-
         adapter = new MockRedstoneCoreAdaptor(
             ICentralRegistry(address(centralRegistry)),
             redstoneSigners,
@@ -112,6 +97,12 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             encodedFunctionWithRedstonePayload
         );
         assertTrue(success);
+
+       // remove WBTC pricefeed made in base market setup
+        oracleManager.removeAssetPriceFeed(
+            _WBTC_ADDRESS,
+            address(chainlinkAdaptor)
+        );
 
         oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adapter));
 

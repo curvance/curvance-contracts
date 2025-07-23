@@ -36,6 +36,7 @@ contract CanCollateralizeTest is TestBaseMarketIsolated {
         _prepareUSDC(user1, 10e6);
 
         vm.startPrank(user1);
+        usdc.approve(address(borrowableCUSDC), 1e6);
         borrowableCUSDC.deposit(1e6, user1);
         vm.stopPrank();
 

@@ -67,9 +67,7 @@ contract TestBaseStrategyCToken is TestBaseMarketIsolated {
 
         {
             _prepareDAI(owner, 200000e18);
-            dai.approve(address(borrowableCDAI), 200000e18);
-            // Add cToken support on Oracle Manager.
-            oracleManager.addCTokenSupport(address(borrowableCDAI));
+            dai.approve(address(borrowableCDAI), 200000e18);   
         }
 
         {

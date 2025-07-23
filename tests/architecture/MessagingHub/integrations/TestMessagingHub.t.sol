@@ -213,6 +213,10 @@ contract TestMessagingHub is TestBaseMessagingHub {
         assertEq(weth.balanceOf(address(this)), 0);
         assertEq(usdc.balanceOf(address(centralRegistry)), 0);
 
+        mockWethFeed.setMockAnswer(1500e8);
+        mockUsdcFeed.setMockAnswer(1e8);
+        _refreshMockFeeds();
+
         usdc.approve(address(feeManager), 10000e6);
 
         // Eth spoofed as $1500, USDC spoofed as $1

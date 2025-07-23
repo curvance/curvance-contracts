@@ -13,17 +13,6 @@ contract CanBorrowTest is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 
-        // Initialize mock feeds if they don't exist
-        if (address(mockWethFeed) == address(0)) {
-            mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-            mockWethFeed.setMockUpdatedAt(block.timestamp);
-        }
-        
-        if (address(mockRethFeed) == address(0)) {
-            mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
-            mockRethFeed.setMockUpdatedAt(block.timestamp);
-        }
-
         deal(address(balRETH), address(this), 77777);
         balRETH.approve(address(strategyCBALRETH), 77777);
 
@@ -232,18 +221,10 @@ contract CanBorrowTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrow_success_atDebtCapLimit() external {
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcEth.updateRoundData(
-            0,
-            1e18,
-            block.timestamp,
-            block.timestamp
-        );
+        mockUsdcFeed.setMockAnswer(1e8);
+        mockWethFeed.setMockAnswer(1500e8);
+        mockRethFeed.setMockAnswer(1500e8);
+        _refreshMockFeeds();
 
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000e6);

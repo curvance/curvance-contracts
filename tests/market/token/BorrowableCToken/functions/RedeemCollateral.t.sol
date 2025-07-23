@@ -50,7 +50,7 @@ contract RedeemCollateralTest is TestBaseBorrowableCToken {
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
-        oracleManager.addCTokenSupport(address(borrowableCDAI));
+        
 
         _prepareUSDC(address(this), _ONE + 77777);
         _prepareDAI(address(this), 10e18 + 77777);

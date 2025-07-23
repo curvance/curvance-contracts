@@ -45,14 +45,15 @@ contract ExecuteOTCTest is TestBaseFeeManager {
     function test_executeOTC_fail_whenPriceIsInvalid() public {
         feeManager.setEarmarked(_WETH_ADDRESS, true);
 
-        chainlinkEthUsd.updateAnswer(0);
+        mockWethFeed.setMockAnswer(-1);
+        _refreshMockFeeds();
 
         vm.expectRevert(FeeManager.FeeManager__ConfigurationError.selector);
         feeManager.executeOTC(
             _WETH_ADDRESS,
             _ONE,
             _ONE,
-            1e16,
+            0,
             block.timestamp + 300
         );
     }
@@ -108,6 +109,7 @@ contract ExecuteOTCTest is TestBaseFeeManager {
         usdc.approve(address(feeManager), _ONE);
 
         mockWethFeed.setMockAnswer(1500e8);
+        mockUsdcFeed.setMockAnswer(1e8);
 
         _refreshMockFeeds();
 

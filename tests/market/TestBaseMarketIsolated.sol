@@ -130,6 +130,7 @@ contract TestBaseMarketIsolated is TestBase {
         vm.stopPrank();
 
         oracleManagers[chainId].addCTokenSupport(address(borrowableCUSDC));
+        oracleManagers[chainId].addCTokenSupport(address(borrowableCDAI));
         oracleManagers[chainId].addCTokenSupport(address(strategyCBALRETH));
         oracleManagers[chainId].addCTokenSupport(address(strategyCBALRETHWithExitFee));
     }
@@ -1225,14 +1226,13 @@ contract TestBaseMarketIsolated is TestBase {
             true
         );
 
-        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
+        mockRethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
             address(mockRethFeed),
             0,
             true
         );
-
         dualChainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
             address(mockRethFeed),

@@ -79,8 +79,6 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
             _prepareDAI(address(this), 200000e18);
             dai.approve(address(borrowableCDAI), 200000e18);
 
-            // Add cToken support on Oracle Manager.
-            oracleManager.addCTokenSupport(address(borrowableCDAI));
         }
 
         // Setup strategyCBALRETH.
@@ -91,7 +89,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
         
-        _setCTokenConfigHighValues(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigLowValues(address(borrowableCDAI), 100_000e18, 100_000e18);
 
         // provide enough liquidity

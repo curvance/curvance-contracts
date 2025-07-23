@@ -108,6 +108,7 @@ contract TestFeeManager is TestBaseFeeManager {
         );
         chainlinkEthUsd.updateAnswer(2500e8);
         chainlinkUsdcUsd.updateAnswer(1e8);
+        _refreshMockFeeds();
 
         // deal WETH (assume it's from cTokens)
         address[] memory rewardTokens = new address[](1);
@@ -244,9 +245,12 @@ contract TestFeeManager is TestBaseFeeManager {
     }
 
     function testExecuteOTC() public {
-        // add harvester
-        chainlinkEthUsd.updateAnswer(2500e8);
-        chainlinkUsdcUsd.updateAnswer(1e8);
+
+        // Set oracle prices using the mock feeds
+        mockWethFeed.setMockAnswer(2500e8);
+        mockUsdcFeed.setMockAnswer(1e8);
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
         // deal WETH (assume it's from cTokens)
         address[] memory rewardTokens = new address[](1);
