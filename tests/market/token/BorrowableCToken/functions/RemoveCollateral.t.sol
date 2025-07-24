@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
-import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
@@ -11,45 +10,8 @@ contract RemoveCollateralTest is TestBaseBorrowableCToken {
 
 
     function setUp() public override {
-        _fork(18031848);
-
-        _init();
-
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-        mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(
-            _DAI_ADDRESS,
-            address(mockDaiFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _DAI_ADDRESS,
-            address(mockDaiFeed),
-            0,
-            true
-        );
-
-        vm.warp(gaugeManager.gaugeStartTime());
-        vm.roll(block.number + 1000);
-
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
-
+        super.setUp();
         
-
         _prepareUSDC(address(this), _ONE + 77777);
         _prepareDAI(address(this), 10e18 + 77777);
         

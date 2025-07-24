@@ -47,9 +47,7 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         marketManagerIsolated.canBorrow(address(borrowableCUSDC), 100e6, user1, 100e6);
     }
 
-    function test_canBorrow_fail_whenCallerIsNotCTokenAndBorrowerNotInMarket()
-        public
-    {
+    function test_canBorrow_fail_whenCallerIsNotCToken() public {
         vm.prank(address(borrowableCUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);

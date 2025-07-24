@@ -11,6 +11,7 @@ contract RemoveCollateralForTest is TestBaseStrategyCToken {
 
     function setUp() public override {
         super.setUp();
+        
         _prepareBALRETH(user1, _ONE + _ONE);
 
         vm.startPrank(user1);

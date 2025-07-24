@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 contract CanRedeemTest is TestBaseMarketIsolated {
     function setUp() public override {
@@ -55,29 +54,6 @@ contract CanRedeemTest is TestBaseMarketIsolated {
     }
 
     function test_canRedeem_fail_whenCInsufficientLiquidity() public {
-        skip(gaugeManager.gaugeStartTime() - block.timestamp);
-
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-        chainlinkEthUsd.updateRoundData(
-            0,
-            1500e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcEth.updateRoundData(
-            0,
-            1500e18,
-            block.timestamp,
-            block.timestamp
-        );
-        // marketManager.listToken(address(strategyCBALRETH));
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
 
         _prepareBALRETH(user1, 10_000e18);

@@ -7,6 +7,7 @@ import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
 contract BorrowableCTokenInitializeDepositsTest is TestBaseBorrowableCToken {
+    
     function test_borrowableCTokenInitializeDeposits_fail_whenCallerIsNotMarketManager()
         public
     {

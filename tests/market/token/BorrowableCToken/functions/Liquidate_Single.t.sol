@@ -11,7 +11,6 @@ import "forge-std/console2.sol";
 // NOTE: Test also uses canLiquidate for extra accounting checks
 
 contract LiquidateSingleTest is TestBaseBorrowableCToken {
-
     uint256 borrowableCTokenUnderlyingPrice = 1e18;
 
     function setUp() public override {

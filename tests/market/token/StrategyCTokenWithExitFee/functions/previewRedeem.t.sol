@@ -4,12 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
 import { StrategyCToken } from "contracts/market/token/StrategyCToken.sol";
 
-// NOTES:
-// [FAIL: assertion failed: 76319 != 41325] expected redeem quote to be 41325, but got 76319
-
-contract PreviewRedeemTest is
-    TestBaseStrategyCTokenWithExitFee
-{
+contract PreviewRedeemTest is TestBaseStrategyCTokenWithExitFee {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function test_strategyCTokenWithExitFeeRedeem_success() public {

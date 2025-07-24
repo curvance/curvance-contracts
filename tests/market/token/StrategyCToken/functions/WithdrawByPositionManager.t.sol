@@ -6,7 +6,6 @@ import { StrategyCToken } from "contracts/market/token/StrategyCToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
-import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
@@ -17,63 +16,12 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 import { MockPositionManager } from "contracts/mocks/MockPositionManager.sol";
 
 contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
-
-
     MockPositionManager public mockPositionManager;
 
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function setUp() public virtual override {
         super.setUp();
-
-        // use mock pricing for testing
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            address(mockWethFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            address(mockWethFeed),
-            0,
-            true
-        );
-        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
-        chainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            address(mockRethFeed),
-            0,
-            false
-        );
-        dualChainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            address(mockRethFeed),
-            0,
-            false
-        );
-
-        // vm.warp(gaugeManager.startTime()); // does not need to be changed, since we are not using gaugeManager nor updating anything in it
-        vm.roll(block.number + 1000);
-
-        chainlinkEthUsd.updateAnswer(1500e8);
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
 
         _prepareUSDC(address(this), _ONE);
         usdc.approve(address(borrowableCUSDC), _ONE);
@@ -99,7 +47,9 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareBALRETH(liquidityProvider, 10e18);
+
         vm.startPrank(liquidityProvider);
+        
         balRETH.approve(address(strategyCBALRETH), 10e18);
         strategyCBALRETH.mint(10e18, liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
@@ -123,7 +73,7 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
 
         SwapperLib.Swap[] memory swapData; // empty swap data
         
-        // we aren't using this struct, only for required arguments
+        // We aren't using this struct, only for required arguments.
         IPositionManager.DeleverageStruct memory deleverageData;
         deleverageData.collateralToken = ICToken(address(strategyCBALRETH));
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCUSDC));
