@@ -37,10 +37,6 @@ contract VaryingHealthFactors is TestBaseLiquidations {
     uint256[] borrowAmounts = [800e6, 1000e6, 1100e6, 1200e6, 1300e6];
     address[] borrowers = [borrower1, borrower2, borrower3, borrower4, borrower5];
 
-    uint256 WAD_SQUARED = 1e36;
-
-    uint256 collateralAvailable = WAD;
-
     uint256[] badDebt = [0,0,0,0,0];
 
     event Repay(uint256 assets, address payer, address account);
@@ -100,8 +96,8 @@ contract VaryingHealthFactors is TestBaseLiquidations {
 
         _createPositions();
 
-        mockWethFeed.setMockAnswer(1380e8);
-        mockRethFeed.setMockAnswer(1380e8);
+        mockWethFeed.setMockAnswer(1100e8);
+        mockRethFeed.setMockAnswer(1100e8);
 
         // vm.warp(block.timestamp + 20 minutes); skipping so no interest accrues which keeps it simple
 

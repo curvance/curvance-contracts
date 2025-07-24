@@ -14,13 +14,6 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 contract TestTokenInteractions is TestBaseMarketIsolated {
     address public owner;
 
-    
-
-    uint256 liqBaseIncentive;
-    uint256 liqCurve;
-    uint256 baseCFactor;
-    uint256 cFactorCurve;
-
     receive() external payable {}
 
     fallback() external payable {}
@@ -314,27 +307,19 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         mockDaiFeed.setMockAnswer(2e8);
 
-        // Get liquidation status
-        (uint256 lFactorsPreLiquidation, uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(user1, address(strategyCBALRETH), address(borrowableCDAI));
-
         uint256 currentDebtBalance = borrowableCDAI.debtBalanceUpdated(user1);  
-        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
 
-        (, uint256 collateralLiquidated, uint256 collateralRequired) = 
-            _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
-                250e18, debtTokenPrice, collateralTokenPrice, lFactorsPreLiquidation
-            );
-
-        uint256 expectedBadDebt = _calculateBadDebt(
-            currentDebtBalance,
-            250e18,
-            strategyCBALRETH.collateralPosted(user1),
-            collateralRequired,
-            collateralLiquidated,
-            collateralTokenPrice,
-            debtTokenPrice,
-            cTokenExchangeRate
+        ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: user1,
+                collateralToken: address(strategyCBALRETH),
+                borrowedToken: address(borrowableCDAI),
+                isLiquidateExact: true,
+                liquidateExactAmount: 250e18,
+                isAuction: false,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            })
         );
 
         // try liquidate half
@@ -351,13 +336,13 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             address(strategyCBALRETH));
         vm.stopPrank();
 
-        _assertCollateralSeizure(_ONE, collateralLiquidated);
+        _assertCollateralSeizure(_ONE, expectedLiquidationValues.collateralLiquidated);
         assertEq(strategyCBALRETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
 
 
-        _assertDebtReduction(250e18, expectedBadDebt, currentDebtBalance);
+        _assertDebtReduction(250e18, expectedLiquidationValues.badDebt, currentDebtBalance);
 
         assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
 
@@ -384,18 +369,18 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         mockDaiFeed.setMockAnswer(1.5e8);
 
-        // Get liquidation status
-        uint256 lFactorsPreLiquidation = _getLFactorsPreLiquidation(user1);
-        (, uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(user1, address(strategyCBALRETH), address(borrowableCDAI));
-
-        uint256 currentDebtBalance = borrowableCDAI.debtBalanceUpdated(user1);  
-        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
-
-        (, uint256 collateralLiquidated,) = 
-            _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
-                debtTokenPrice, collateralTokenPrice, lFactorsPreLiquidation, _ONE, currentDebtBalance, cTokenExchangeRate
-            );
+        ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: user1,
+                collateralToken: address(strategyCBALRETH),
+                borrowedToken: address(borrowableCDAI),
+                isLiquidateExact: false,
+                liquidateExactAmount: 0,
+                isAuction: false,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            })
+        );
 
         // try liquidate
         _prepareDAI(user2, 10_000e18);
@@ -407,7 +392,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         borrowableCDAI.liquidate(accounts, address(strategyCBALRETH));
         vm.stopPrank();
 
-        _assertCollateralSeizure(_ONE, collateralLiquidated);
+        _assertCollateralSeizure(_ONE, expectedLiquidationValues.collateralLiquidated);
 
         assertEq(strategyCBALRETH.exchangeRate(), _ONE);
         assertEq(borrowableCDAI.balanceOf(user1), 0);
@@ -485,6 +470,19 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         mockDaiFeed.setMockAnswer(int256(daiPrice));
 
+        ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: user1,
+                collateralToken: address(strategyCBALRETH),
+                borrowedToken: address(borrowableCDAI),
+                isLiquidateExact: false,
+                liquidateExactAmount: 0,
+                isAuction: false,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            })
+        );
+
         // try liquidate
         _prepareDAI(user2, 1000e18);
         vm.startPrank(user2);
@@ -498,15 +496,14 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             address(strategyCBALRETH));
         vm.stopPrank();
 
-        assertApproxEqRel(
-            strategyCBALRETH.balanceOf(user1),
-            _ONE - (daiPrice * 1e10 * _ONE) / balRETHPrice,
-            0.08e18
+        assertEq(
+            strategyCBALRETH.balanceOf(user1), 
+            _ONE - expectedLiquidationValues.collateralLiquidated
         );
         assertEq(strategyCBALRETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
-        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 900e18, 0.01e18);
+        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 1000e18 - expectedLiquidationValues.debtRepaid, 0.01e18);
         assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
@@ -559,102 +556,6 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         strategyCBALRETH.withdraw(_ONE, user1, user1);
     }
 
-    function _assertCollateralSeizure(uint256 _collateralAmount, uint256 collateralLiquidated) internal view {
-
-        console2.log("collateralAmount", _collateralAmount);
-        console2.log("collateralLiquidated", collateralLiquidated);
-        console2.log("borrowerCollateralAfter", strategyCBALRETH.balanceOf(user1));
-
-        uint256 borrowerCollateralAfter = strategyCBALRETH.balanceOf(user1);
-        uint256 expectedBorrowerCollateralAfter = _collateralAmount - collateralLiquidated;
-
-        assertApproxEqAbs(
-            borrowerCollateralAfter,
-            expectedBorrowerCollateralAfter,
-            1000,
-            "Borrower collateral should be reduced by collateralLiquidated"
-        );
-    }
-
-    function _getLiquidationValuesWithHigherPrecision_NonAuction_Liquidate(
-        uint256 _debtTokenPrice,
-        uint256 _collateralTokenPrice,
-        uint256 lFactors,
-        uint256 _collateralAmounts,
-        uint256 _borrowAmounts,
-        uint256 _cTokenExchangeRate
-    ) internal view returns (
-        uint256 maxAmount, 
-        uint256 collateralLiquidated,
-        uint256 collateralRequired
-    ) {
-        if (lFactors == 0) return (0,0,0);
-        
-        uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactors) / WAD);
-        uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors) / WAD);
-        
-        uint256 debtToCollateralMultiplier = (((auctionLiqIncentive *
-            _debtTokenPrice * WAD_SQUARED) /
-        (_collateralTokenPrice * _cTokenExchangeRate)) *
-        1e18) / 1e18;
-            
-        maxAmount = (auctionCFactor * _borrowAmounts) / WAD;
-        
-        collateralLiquidated = (maxAmount * debtToCollateralMultiplier) / WAD_SQUARED;
-        
-        if (collateralLiquidated > _collateralAmounts) {
-            maxAmount = FixedPointMathLib.mulDivUp(
-                maxAmount,
-                _collateralAmounts,
-                collateralLiquidated
-            );
-            collateralLiquidated = _collateralAmounts;
-        }
-        
-        collateralRequired = (_borrowAmounts * debtToCollateralMultiplier) / WAD_SQUARED;
-
-        return (maxAmount, collateralLiquidated, collateralRequired);
-    }
-
-    function _getLiquidationValuesWithHigherPrecision_NonAuction_LiquidateExact(
-    uint256 _debtAmount,
-    uint256 _debtTokenPrice,
-    uint256 _collateralTokenPrice,
-    uint256 _lFactor
-    ) internal view returns (
-    uint256 maxAmount,
-    uint256 liquidatedPTokens,
-    uint256 collateralRequired
-    ) {
-    uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
-    uint256 debtBalance = borrowableCDAI.debtBalance(user1);
-
-    uint256 auctionCFactor = baseCFactor + ((cFactorCurve * _lFactor) / WAD);
-    uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * _lFactor) / WAD);
-
-    uint256 debtToCollateralMultiplier = (((auctionLiqIncentive *
-        _debtTokenPrice * WAD_SQUARED) /
-        (_collateralTokenPrice * cTokenExchangeRate)) *
-        1e18) / 1e18;
-
-    maxAmount = (auctionCFactor * debtBalance) / WAD;
-
-    liquidatedPTokens = (_debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
-
-    collateralRequired = (debtBalance * debtToCollateralMultiplier) / WAD_SQUARED;
-
-    return (maxAmount, liquidatedPTokens, collateralRequired);
-    }
-
-    function _getLFactorsPreLiquidation(address _borrowers) internal view returns (uint256 lFactors) {
-        (lFactors,,) = marketManagerIsolated.liquidationStatusOf(
-            _borrowers,
-            address(strategyCBALRETH),  
-            address(borrowableCDAI)     
-        );
-        return lFactors;
-    }
-
     function _assertDebtReduction(uint256 debtAmount, uint256 expectedBadDebt, uint256 debtBalancesPreLiquidation) internal view {
         uint256 debtAfter = borrowableCDAI.debtBalance(user1);
 
@@ -676,31 +577,21 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         );
     }
 
-    function _calculateBadDebt(
-        uint256 _debtBalance,
-        uint256 _debtAmount,
-        uint256 _collateralAvailable,
-        uint256 _collateralRequired,
-        uint256 _liquidatedPTokens,
-        uint256 _collateralUnderlyingPrice,
-        uint256 _debtUnderlyingPrice,
-        uint256 _cTokenExchangeRate
-    ) internal view returns (uint256 badDebt) {
+    function _assertCollateralSeizure(uint256 _collateralAmount, uint256 collateralLiquidated) internal view {
 
-        if (_collateralRequired > _collateralAvailable) {
-            uint256 debtDecimals = 10 ** IERC20(address(borrowableCDAI)).decimals();
-            
-            uint256 amountToSubtract = 
-                FixedPointMathLib.mulDivUp(
-                    ((_collateralAvailable - _liquidatedPTokens) * _cTokenExchangeRate) / WAD,
-                    _collateralUnderlyingPrice,
-                    (_debtUnderlyingPrice * WAD) / debtDecimals
-                );
+        console2.log("collateralAmount", _collateralAmount);
+        console2.log("collateralLiquidated", collateralLiquidated);
+        console2.log("borrowerCollateralAfter", strategyCBALRETH.balanceOf(user1));
 
-            badDebt = (_debtBalance - _debtAmount) - amountToSubtract;
-        } else {
-            return 0;
-        }
+        uint256 borrowerCollateralAfter = strategyCBALRETH.balanceOf(user1);
+        uint256 expectedBorrowerCollateralAfter = _collateralAmount - collateralLiquidated;
+
+        assertApproxEqAbs(
+            borrowerCollateralAfter,
+            expectedBorrowerCollateralAfter,
+            1000,
+            "Borrower collateral should be reduced by collateralLiquidated"
+        );
     }
 
     function _deployMarket() internal {
@@ -774,14 +665,6 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();
-
-        (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
-            marketManagerIsolated.tokenData(address(strategyCBALRETH));
-
-        liqBaseIncentive = liqBaseIncentive_;
-        liqCurve = liqCurve_;
-        baseCFactor = baseCFactor_;
-        cFactorCurve = cFactorCurve_;
     }
 
     function _deployMarketForZeroCollateralTest() internal {
@@ -857,13 +740,5 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();
-
-        (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
-            marketManagerIsolated.tokenData(address(strategyCBALRETH));
-
-        liqBaseIncentive = liqBaseIncentive_;
-        liqCurve = liqCurve_;
-        baseCFactor = baseCFactor_;
-        cFactorCurve = cFactorCurve_;
     }
 }

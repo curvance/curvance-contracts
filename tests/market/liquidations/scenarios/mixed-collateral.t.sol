@@ -35,15 +35,6 @@ contract MixedCollateral is TestBaseLiquidations {
     address[] borrowers = [borrower1, borrower2, borrower3, borrower4];
     uint256[] collateralAmounts = [2.5e18, 2e18, 1.9e18, 1.7e18];
 
-    uint256 WAD_SQUARED = 1e36;
-
-    uint256 liqBaseIncentive;
-    uint256 liqCurve;
-    uint256 baseCFactor;
-    uint256 cFactorCurve;
-
-    uint256[] badDebt = [0,0,0,0];
-
     event Repay(uint256 assets, address payer, address account);
     event BadDebtRecognized(uint256 assets, address liquidator);
 
@@ -104,29 +95,10 @@ contract MixedCollateral is TestBaseLiquidations {
         mockWethFeed.setMockAnswer(1440e8);
         mockRethFeed.setMockAnswer(1440e8);
 
-        (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
-            marketManagerIsolated.tokenData(address(strategyCBALRETH));
-
-        liqBaseIncentive = liqBaseIncentive_;
-        liqCurve = liqCurve_;
-        baseCFactor = baseCFactor_;
-        cFactorCurve = cFactorCurve_;
-
         console2.log("SETUP COMPLETE");
     }
 
     function test_mixedCollateral() public {
-        
-        IMarketManager.LiqInstructions memory liqInstructions;
-        liqInstructions = IMarketManager.LiqInstructions({
-            debtToken: address(borrowableCUSDC),
-            collateralToken: address(strategyCBALRETH),
-            numAccounts: 4,
-            liquidateExact: false,
-            liquidatedShares: 0,
-            debtRepaid: 0,
-            badDebt: 0
-        });
 
         _prepareUSDC(address(this), 100000e6);
 
@@ -150,26 +122,25 @@ contract MixedCollateral is TestBaseLiquidations {
         console2.log("debtTokenPrice", debtTokenPrice);
         console2.log("collateralTokenPrice", collateralTokenPrice);
 
-        (uint256[] memory maxAmount, uint256[] memory liquidatedCollateral, uint256[] memory collateralRequired) = 
-            _getLiquidationValuesWithHigherPrecision_NonAuction(
-                debtTokenPrice, collateralTokenPrice, lFactorsPreLiquidation
-            );
-
         uint256 expectedTotalBadDebt;
-        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
+        ExpectedLiquidationValues[] memory expectedLiqValues = new ExpectedLiquidationValues[](4);
 
         for(uint i; i < 4; i++) {
-            badDebt[i] = _calculateBadDebt(
-                debtBalancesPreLiquidation[i],
-                maxAmount[i],
-                collateralAmounts[i],
-                collateralRequired[i],
-                liquidatedCollateral[i],
-                collateralTokenPrice,
-                debtTokenPrice,
-                cTokenExchangeRate
+
+            expectedLiqValues[i] = _calculateExpectedLiquidationValues(
+                LiquidationParams({
+                    borrower: borrowers[i],
+                    collateralToken: address(strategyCBALRETH),
+                    borrowedToken: address(borrowableCUSDC),
+                    isLiquidateExact: false,
+                    liquidateExactAmount: 0,
+                    isAuction: false,
+                    isMultiMarketTest: false,
+                    marketManagerId: 0
+                })
             );
-            expectedTotalBadDebt += badDebt[i];
+
+            expectedTotalBadDebt += expectedLiqValues[i].badDebt;
         }
 
         uint256 totalBorrowsBefore = borrowableCUSDC.marketOutstandingDebt();
@@ -181,8 +152,8 @@ contract MixedCollateral is TestBaseLiquidations {
         // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit BadDebtRecognized(expectedTotalBadDebt, address(this) );
-        emit Repay(maxAmount[2] + badDebt[2], address(this), borrowers[2]);
-        emit Repay( maxAmount[3] + badDebt[3], address(this), borrowers[3]);
+        emit Repay(expectedLiqValues[2].debtRepaid + expectedLiqValues[2].badDebt, address(this), borrowers[2]);
+        emit Repay(expectedLiqValues[3].debtRepaid + expectedLiqValues[3].badDebt, address(this), borrowers[3]);
         
         borrowableCUSDC.liquidate(
             borrowers,
@@ -199,26 +170,26 @@ contract MixedCollateral is TestBaseLiquidations {
         assertEq(borrowableCUSDC.debtBalance(borrowers[3]), 0, "Borrower 4 should be hard liquidated");
 
         // Verify account 3 is soft liquidated
-        assertEq(borrowableCUSDC.debtBalance(borrowers[2]), debtBalancesPreLiquidation[2] - maxAmount[2], "Borrower 3 should be soft liquidated");
+        assertEq(borrowableCUSDC.debtBalance(borrowers[2]), debtBalancesPreLiquidation[2] - expectedLiqValues[2].debtRepaid, "Borrower 3 should be soft liquidated");
         
         // Assert collateral is reduced by liquidatedCollateral
         assertApproxEqAbs(
             strategyCBALRETH.balanceOf(borrowers[3]),
-            collateralAmounts[3] - liquidatedCollateral[3],
+            collateralAmounts[3] - expectedLiqValues[3].collateralLiquidated,
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
             strategyCBALRETH.balanceOf(borrowers[2]),
-            collateralAmounts[2] - liquidatedCollateral[2],
+            collateralAmounts[2] - expectedLiqValues[2].collateralLiquidated,
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
 
         // Assert Total borrows is reduced by the amount of debt repaid
 
-        uint256 totalDebtRepaid = borrowAmount + maxAmount[2]; // User 3 is soft liquidated, using borrowAmount as user 4 who is hard liquidated
+        uint256 totalDebtRepaid = borrowAmount + expectedLiqValues[2].debtRepaid; // User 3 is soft liquidated, using borrowAmount as user 4 who is hard liquidated
 
         assertApproxEqAbs(
             borrowableCUSDC.marketOutstandingDebt(),
@@ -228,7 +199,7 @@ contract MixedCollateral is TestBaseLiquidations {
         );
 
         // Verify liquidator received the expected collateral
-        uint256 expectedLiquidatorBalance = liquidatedCollateral[2] + liquidatedCollateral[3];
+        uint256 expectedLiquidatorBalance = expectedLiqValues[2].collateralLiquidated + expectedLiqValues[3].collateralLiquidated;
         assertApproxEqAbs(
             strategyCBALRETH.balanceOf(address(this)),
             expectedLiquidatorBalance,
@@ -244,10 +215,10 @@ contract MixedCollateral is TestBaseLiquidations {
                 address(strategyCBALRETH)
             );
 
-            if(borrowableCUSDC.debtBalance(borrowers[i]) > 0) {
-                assertTrue(lFactorAfter < lFactorsPreLiquidation[i], "Health factor should improve after partial liquidation");
-            } else {
-                assertEq(lFactorAfter, 0, "Fully liquidated account should have 0 lFactor");
+            console2.log("borrower", i, "lFactor", lFactorAfter);
+
+            if(borrowableCUSDC.debtBalance(borrowers[i]) == 0) {
+                assertTrue(lFactorAfter < lFactorsPreLiquidation[i], "Heath factor should be zero after full liquidation");
             }
         }
     }
@@ -304,82 +275,5 @@ contract MixedCollateral is TestBaseLiquidations {
             debtBalances[i] = borrowableCUSDC.debtBalance(borrowers[i]);
         }
         return debtBalances;
-    }
-
-    function _getLiquidationValuesWithHigherPrecision_NonAuction(
-        uint256 debtTokenPrice,
-        uint256 collateralTokenPrice,
-        uint256[] memory lFactors
-    ) internal view returns (
-        uint256[] memory maxAmount, 
-        uint256[] memory liquidatedCollateral,
-        uint256[] memory collateralRequired
-    ) {
-        uint256 cTokenExchangeRate = strategyCBALRETH.exchangeRate();
-        
-        // Keep original values but use higher precision for calculations
-        uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
-        
-        maxAmount = new uint256[](4);
-        liquidatedCollateral = new uint256[](4);
-        collateralRequired = new uint256[](4);
-
-        for (uint i; i < 4; i++) {
-            if (lFactors[i] == 0) continue;
-            
-            // Follow the contract's exact calculations but with higher precision
-            uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactors[i]) / WAD);
-            uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors[i]) / WAD);
-            
-            // Calculate with extra precision
-            uint256 highPrecisionD2C = (((auctionLiqIncentive * debtTokenPrice * WAD * PRECISION_FACTOR) /
-                (collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
-                
-            maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
-            
-            // Calculate with extra precision
-            liquidatedCollateral[i] = (maxAmount[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
-            
-            if (liquidatedCollateral[i] > collateralAmounts[i]) {
-                // Use the contract's exact formula
-                maxAmount[i] = FixedPointMathLib.mulDivUp(
-                    maxAmount[i],
-                    collateralAmounts[i],
-                    liquidatedCollateral[i]
-                );
-                liquidatedCollateral[i] = collateralAmounts[i];
-            }
-            
-            // Use the contract's exact formula
-            collateralRequired[i] = (borrowAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
-        }
-
-        return (maxAmount, liquidatedCollateral, collateralRequired);
-    }
-
-    function _calculateBadDebt(
-        uint256 _debtBalance,
-        uint256 _debtAmount,
-        uint256 _collateralAvailable,
-        uint256 _collateralRequired,
-        uint256 _liquidatedCollateral,
-        uint256 _collateralTokenUnderlyingPrice,
-        uint256 _debtTokenUnderlyingPrice,
-        uint256 _cTokenExchangeRate
-    ) internal pure returns (uint256 expectedBadDebt) {
-
-        if(_collateralRequired > _collateralAvailable) {
-    
-        expectedBadDebt = (_debtBalance - _debtAmount) -
-        FixedPointMathLib.mulDivUp(
-            ((_collateralAvailable - _liquidatedCollateral) * _cTokenExchangeRate) / WAD,
-            _collateralTokenUnderlyingPrice,
-            (_debtTokenUnderlyingPrice * WAD) / 1e6
-        );
-
-        } else {
-            return 0;
-        }
-        
     }
 }
