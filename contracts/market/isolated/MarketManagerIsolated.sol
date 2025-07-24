@@ -1651,6 +1651,10 @@ contract MarketManagerIsolated is
             centralRegistry.oracleManager()
         ).getPriceIsolatedPair(collateralToken, debtToken, 2);
 
+        // Will revert if this liquidation is an attempted auction liquidator
+        // and liquidator has chosen incorrect collateral or market.
+        cachedData.auctionBuffer = _checkLiquidationConfig(collateralToken);
+
         // Cache all variables needed for computing liquidation levels and
         // compress into one struct for stack too deep limits.
         cachedData.collateralToken = collateralToken;
@@ -1663,13 +1667,6 @@ contract MarketManagerIsolated is
         cachedData.debtToken = debtToken;
         cachedData.debtDecimals = 10 ** IERC20(debtToken).decimals();
 
-        // This will revert if it is an Atlas tx and a liquidator is trying to liquidate
-        // on a market they have not placed a bid specifically for.
-        _checkMarketUnlocked();
-
-        // Will revert if during auction transaction and liquidator has chosen
-        // incorrect collateral.
-        cachedData.auctionBuffer = _checkLiquidationType(collateralToken);
         // Pull transient storage variables from auctioneer updates.
         (
             auctionData.auctionLiqIncentive,
@@ -1847,7 +1844,7 @@ contract MarketManagerIsolated is
     ///                                   to liquidate.
     /// @return The buffer priority value to apply as a discount to collateral
     ///         during auctioned liquidations.
-    function _checkLiquidationType(
+    function _checkLiquidationConfig(
         address collateralToken
     ) internal view returns (uint256) {
         uint256 result;
