@@ -5,7 +5,6 @@ import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWith
 import { StrategyCToken } from "contracts/market/token/StrategyCToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
@@ -50,7 +49,7 @@ contract WithdrawByPositionManagerWithExitFeeTest is TestBaseMarketIsolated {
         _prepareBALRETH(liquidityProvider, 10e18);
 
         vm.startPrank(liquidityProvider);
-        
+
         balRETH.approve(address(strategyCBALRETHWithExitFee), 10e18);
         strategyCBALRETHWithExitFee.mint(10e18, liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);

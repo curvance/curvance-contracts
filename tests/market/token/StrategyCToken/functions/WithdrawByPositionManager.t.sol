@@ -5,12 +5,10 @@ import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
 import { StrategyCToken } from "contracts/market/token/StrategyCToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { MockPositionManager } from "contracts/mocks/MockPositionManager.sol";
