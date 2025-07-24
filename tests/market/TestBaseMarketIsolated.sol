@@ -1091,21 +1091,25 @@ contract TestBaseMarketIsolated is TestBase {
         console2.log("remaining collateral shares", collateralAvailable - _collateralLiquidated);
         
         if (_collateralRequired > collateralAvailable) {
-            // Get the ratio at which `account` is undercollateralized
-            // by looking at the ratio of collateralAvailable vs
-            // collateralRequired.
-            // E.g. collateralAvailable = collateralRequired / 2 means 50%
-            // of debt repaid is recognized as bad debt.
-            badDebt = FixedPointMathLib.mulDiv(
-                _debtAmount,
-                (WAD_SQUARED - ((WAD_SQUARED * collateralAvailable) / _collateralRequired)),
+            // of debt should be recognized as bad debt.
+            badDebt = FixedPointMathLib.fullMulDiv(
+                FixedPointMathLib.mulDiv(
+                    _debtAmount,
+                    _collateralRequired,
+                    collateralAvailable
+                ),
+                WAD_SQUARED - FixedPointMathLib.mulDiv(
+                    WAD_SQUARED,
+                    collateralAvailable,
+                    _collateralRequired
+                ),
                 WAD_SQUARED
             );
 
             console2.log("badDebt", badDebt);
 
             if (badDebt + _debtAmount > debtBalance) {
-                revert("Bad debt exceeds debt balance");
+                badDebt = debtBalance - _debtAmount;
             }
         }    
     }

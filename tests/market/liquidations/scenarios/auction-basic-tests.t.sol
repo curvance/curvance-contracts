@@ -11,18 +11,6 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
     function setUp() public override {
         super.setUp();
-
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
-
-        deal(address(_USDC_ADDRESS), address(this), 77777);
-        usdc.approve(address(borrowableCUSDC), 77777);
-        
-        // List tokens in the market.
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
-
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
     }
 
     function testLiquidateExactWithDynamicPenalty() public {

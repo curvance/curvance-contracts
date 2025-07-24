@@ -285,14 +285,21 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
         console2.log("debtAmounts", debtAmountsReturned[0]);
 
         uint256 collateralAvailable = 1e18 - 1;
-        (uint256 expectedRepayAmount, uint256 expectedCollateralSeized, uint256 cTokenPrice) = _calculateExpectedRepayAndLiquidated(collateralAvailable);
+        
+        ExpectedLiquidationValues memory expectedLiqValues = 
+            _calculateExpectedLiquidationValues(
+                LiquidationParams ({
+                    borrower: user1,
+                    collateralToken: address(strategyCBALRETH),
+                    borrowedToken: address(borrowableCUSDC),
+                    isLiquidateExact: false,
+                    liquidateExactAmount: 0,
+                    isAuction: false,
+                    isMultiMarketTest: false,
+                    marketManagerId: 0
+                })
+            );
 
-        uint256 expectedBadDebt = _calculateBadDebt(
-            expectedRepayAmount,
-            collateralAvailable,
-            expectedCollateralSeized,
-            cTokenPrice
-        );
 
         // Validate liqResults.liquidatedShares[0]
         assertEq(
@@ -303,19 +310,19 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
 
         assertEq(
             liqResults.liquidatedShares[0],
-            expectedCollateralSeized,
+            expectedLiqValues.collateralLiquidated,
             "liquidatedShares[0] = expectedCollateralSeized mismatch"
         );
 
         // validate liqResults.debtRepaid
         assertEq(
             liqResults.debtRepaid,
-            expectedRepayAmount, 
+            expectedLiqValues.debtRepaid, 
             "debtRepaid = expectedRepayAmount mismatch"
         );
 
         // Should have bad debt
-        assertEq(liqResults.badDebtRealized, expectedBadDebt, "badDebtRealized mismatch");
+        assertEq(liqResults.badDebtRealized, expectedLiqValues.badDebt, "badDebtRealized mismatch");
 
         // validate debtAmountsReturned, debt cleared
         assertEq(debtAmountsReturned[0], 1e9, "debtAmountsReturned mismatch");
@@ -351,67 +358,4 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
         assertEq(usdc.balanceOf(user1), 1000e6);
     }
 
-    function _calculateExpectedRepayAndLiquidated(uint256 collateralAvailable) internal view returns (uint256 maxAmount, uint256 liquidatedCTokens, uint256) {
-        // Get price data
-        PriceReturnData memory priceData = balRETHAdapter.getPrice(
-            _BAL_WETH_RETH_ADDRESS,
-            true,
-            true
-        );
-
-        uint256 baseCFactor = 2e17;
-        uint256 cFactorCurve = 8e17;
-        uint256 liqBaseIncentive = 1.1e18;
-        uint256 liqCurve = 5e16;
-        
-        // Hard liquidation factor (constant)
-        uint256 lFactor = 1e18;
-        
-        // default values since not using ASS
-        uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
-
-        uint256 auctionLiqIncentive = liqBaseIncentive +
-                ((liqCurve * lFactor) / WAD);
-
-        // uint256 cTokenDecimals = 1e18;
-        // uint256 borrowableCTokenDecimals = 1e6;
-
-        uint256 debtToCollateralMultiplier = 
-        (((auctionLiqIncentive * borrowableCTokenUnderlyingPrice * WAD) /
-            (priceData.price * 1e18)) *
-            1e18) / 1e6;
-
-        maxAmount = (auctionCFactor * 1000e6) / WAD;
-
-        liquidatedCTokens = (maxAmount * debtToCollateralMultiplier) / WAD;
-
-        console2.log("liquidatedCTokens 000", liquidatedCTokens);
-
-        maxAmount = FixedPointMathLib.mulDivUp(
-            maxAmount,
-            collateralAvailable,
-            liquidatedCTokens
-        );
-
-        liquidatedCTokens = collateralAvailable;
-
-
-        return (maxAmount, liquidatedCTokens, priceData.price);
-    }
-
-    function _calculateBadDebt(
-        uint256 debtAmount,
-        uint256 collateralAvailable, 
-        uint256 liquidatedCTokens, 
-        uint256 cTokenUnderlyingPrice) internal view returns (uint256 badDebt) {
-
-            uint256 debtBalance = 1e9;
-
-            badDebt = (debtBalance - debtAmount) -
-            FixedPointMathLib.mulDivUp(
-                ((collateralAvailable - liquidatedCTokens) * 1e18) / WAD,
-                cTokenUnderlyingPrice,
-                (borrowableCTokenUnderlyingPrice * WAD) / 1e6
-            );
-    }
 }

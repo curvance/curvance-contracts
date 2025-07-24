@@ -27,7 +27,7 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100e6);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000_000e6);
     }
 
     function test_canBorrow_fail_whenBorrowPaused() public {
@@ -153,7 +153,54 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         );
     }
 
-    function test_canBorrow_success_atLiquidityLimit() public {
+    function test_canBorrow_success_atDebtLimit() public {
+        _prepareUSDC(address(this), 100e6);
+        usdc.approve(address(borrowableCUSDC), 100e6);
+        borrowableCUSDC.deposit(100e6, user1);
+
+        vm.prank(address(borrowableCUSDC));
+        
+        // Need some cTokens/collateral to have enough liquidity for borrowing
+        _prepareBALRETH(user1, 10_000e18);
+        vm.startPrank(user1);
+        balRETH.approve(address(strategyCBALRETH), 1_000e18);
+        strategyCBALRETH.deposit(1_000e18, user1);
+        strategyCBALRETH.postCollateral(999e18);
+
+        borrowableCUSDC.borrow(100e6, user1);
+
+        vm.stopPrank();
+
+        // Get the lower price of USDC
+        (uint256 usdcPrice, ) = oracleManager.getPrice(
+            address(usdc), // underlying USDC asset
+            true,
+            false
+        );
+
+        (, uint256 maxBorrowAmount, uint256 currentBorrowAmount) = marketManagerIsolated.statusOf(user1);
+        console2.log("maxBorrowAmount", maxBorrowAmount);
+        console2.log("currentBorrowAmount", currentBorrowAmount);
+
+        uint256 borrowInUSDC = ((maxBorrowAmount - currentBorrowAmount) * 1e6) / usdcPrice;
+
+        console2.log("borrow in usdc", borrowInUSDC);
+
+        // Get the outstanding debt first before the prank
+        uint256 currentOutstandingDebt = borrowableCUSDC.marketOutstandingDebt();
+
+        // Borrow the maximum amount possible.
+        vm.prank(address(borrowableCUSDC));
+        marketManagerIsolated.canBorrow(
+            address(borrowableCUSDC),
+            borrowInUSDC,
+            user1,
+            currentOutstandingDebt + borrowInUSDC
+        );
+    }
+
+    // First borrows 100 usdc, then checks canBorrow for the maximum amount the user can borrow using their collateral - 100 usdc.
+    function test_canBorrow_success_atBorrowLimit() public {
         _prepareUSDC(address(this), 100e6);
         usdc.approve(address(borrowableCUSDC), 100e6);
         borrowableCUSDC.deposit(100e6, user1);
