@@ -1261,12 +1261,21 @@ contract CentralRegistry is ERC165, ActionRegistry {
         emit RemovedChain(chainId, expectedMessagingHub, expectedVotingHub);
     }
 
-    /// ATLAS LOGIC
+    /// AUCTION CONFIGURATION LOGIC
 
-    // Allows Atlas to control which individual markets are open for liquidation
+    /// @notice Unlocks a market to process auction-based liquidations.
+    /// @param marketToUnlock The address of the market manager to unlock
+    ///                       auction-based liquidations with a specific
+    ///                       liquidation bonus.
     function unlockAuctionForMarket(address marketToUnlock) external {
-        // TODO: decide how to implement this check
-        // _checkAuctionPermissions();
+        if (!hasAuctionPermissions[msg.sender]) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Validate that you're unlocking an approved market manager.
+        if (!isMarketManager[marketToUnlock]) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
 
         uint256 marketToUnlockUint = uint256(uint160(marketToUnlock));
         /// @solidity memory-safe-assembly
@@ -1275,9 +1284,9 @@ contract CentralRegistry is ERC165, ActionRegistry {
         }
     }
 
-    // called during _getLiquidationConfig() to enforce Atlas liquidators only
-    // liquidate on the market they have placed a specific liquidation bonus for.
-    function isMarketUnlocked() public view {
+    /// @notice Returns whether the caller is approved to execute
+    ///         auction-based liquidations with a specific liquidation bonus.
+    function isMarketUnlocked() public view returns (bool isUnlocked) {
         uint256 result;
         /// @solidity memory-safe-assembly
         assembly {
@@ -1285,16 +1294,15 @@ contract CentralRegistry is ERC165, ActionRegistry {
         }
 
         // CASE: This is not an Auction tx, so allow all markets,
-        // and return no buffer. 
+        // and return false, the caller is not approved for auction-based
+        // liquidations. 
         if (result == 0) {
-            return;
+            return isUnlocked;
         }
 
-        // called by MarketManagerIsolated during liquidation.
-        uint256 marketCalling = uint256(uint160(msg.sender));
-
-        // Market Manager calling this function needs to have been unlocked by Atlas.
-        require(result == marketCalling);
+        // True if the caller is approved for auction-based liquidations,
+        // otherwise false.
+        isUnlocked = uint256(uint160(msg.sender)) == result;
     }
 
     /// CONTRACT MAPPING LOGIC
