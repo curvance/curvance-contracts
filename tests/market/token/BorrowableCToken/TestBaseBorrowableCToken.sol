@@ -4,61 +4,11 @@ pragma solidity ^0.8.19;
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 contract TestBaseBorrowableCToken is TestBaseMarketIsolated {
 
-
     function setUp() public virtual override {
         super.setUp();
-
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            address(mockWethFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            address(mockWethFeed),
-            0,
-            true
-        );
-        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
-        chainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            address(mockRethFeed),
-            0,
-            false
-        );
-        dualChainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            address(mockRethFeed),
-            0,
-            false
-        );
-
-        vm.warp(gaugeManager.gaugeStartTime());
-        vm.roll(block.number + 1000);
-
-        chainlinkEthUsd.updateAnswer(1500e8);
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
 
         _prepareUSDC(address(this), _ONE + 77777);
         _prepareBALRETH(address(this), 10e18 + 77777);

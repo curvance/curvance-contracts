@@ -8,70 +8,18 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 
 contract TestBaseStrategyCToken is TestBaseMarketIsolated {
 
-    
-
-    address public owner;
-
     function setUp() public virtual override {
         super.setUp();
 
-        owner = address(this);
-
-        // use mock pricing for testing
-        mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
-        dualChainlinkAdaptor.addAsset(
-            _DAI_ADDRESS,
-            address(mockDaiFeed),
-            0,
-            true
-        );
-        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            address(mockWethFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            address(mockWethFeed),
-            0,
-            true
-        );
-        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
-        chainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            address(mockRethFeed),
-            0,
-            false
-        );
-        dualChainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            address(mockRethFeed),
-            0,
-            false
-        );
-
-        // start epoch
-        vm.warp(gaugeManager.gaugeStartTime());
-        vm.roll(block.number + 1000);
-
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-
-        (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
-        chainlinkEthUsd.updateAnswer(ethPrice);
         _prepareBALRETH(user1, _ONE);
 
         {
-            _prepareDAI(owner, 200000e18);
+            _prepareDAI(address(this), 200000e18);
             dai.approve(address(borrowableCDAI), 200000e18);   
         }
 
         {
-            _prepareBALRETH(owner, 1 ether);
+            _prepareBALRETH(address(this), 1 ether);
             balRETH.approve(address(strategyCBALRETH), 1 ether);
         }
 

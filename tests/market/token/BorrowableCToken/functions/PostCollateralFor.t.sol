@@ -12,6 +12,7 @@ contract PostCollateralForTest is TestBaseBorrowableCToken {
 
     function setUp() public override {
         super.setUp();
+        
         _prepareUSDC(user1, _ONE + _ONE);
 
         vm.startPrank(user1);

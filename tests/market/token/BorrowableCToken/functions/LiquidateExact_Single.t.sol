@@ -8,7 +8,6 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { console2 } from "forge-std/console2.sol";
 
 contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
-    
     uint256 debtBalancePreLiquidation;
 
     event BadDebtRecognized(address liquidator, uint256 amount);
