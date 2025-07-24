@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-contract WithdrawCollateralTest is TestBaseBorrowableCToken {
+contract WithdrawCollateralTest is TestBaseMarketIsolated {
     event CollateralUpdated(uint256 shares, bool increased, address account);
 
     function setUp() public override {

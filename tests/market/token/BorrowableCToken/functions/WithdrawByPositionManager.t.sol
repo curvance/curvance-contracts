@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -11,7 +11,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 
 import { MockPositionManager } from "contracts/mocks/MockPositionManager.sol";
 
-contract WithdrawByPositionManagerTest is TestBaseBorrowableCToken {
+contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
     MockPositionManager public mockPositionManager;
 
     event Transfer(address indexed from, address indexed to, uint256 amount);
@@ -23,12 +23,8 @@ contract WithdrawByPositionManagerTest is TestBaseBorrowableCToken {
         usdc.approve(address(borrowableCUSDC), _ONE);
 
         _prepareDAI(address(this), 77777);
+        dai.approve(address(borrowableCDAI), 77777);
         
-        SafeTransferLib.safeApprove(
-            _BAL_WETH_RETH_ADDRESS,
-            address(borrowableCDAI),
-            77777
-        );
         marketManagerIsolated.listTokens(address(borrowableCDAI), address(borrowableCUSDC));
 
         _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 0);
@@ -61,9 +57,9 @@ contract WithdrawByPositionManagerTest is TestBaseBorrowableCToken {
 
         dai.approve(address(borrowableCDAI), 1000e18);
 
-        borrowableCDAI.deposit(100e18, user1);
+        borrowableCDAI.deposit(1000e18, user1);
 
-        borrowableCDAI.postCollateral(100e18);
+        borrowableCDAI.postCollateral(1000e18);
 
         borrowableCUSDC.borrow(100e6, user1);
 
