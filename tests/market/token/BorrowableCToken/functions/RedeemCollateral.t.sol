@@ -10,6 +10,8 @@ contract RedeemCollateralTest is TestBaseBorrowableCToken {
     event CollateralUpdated(uint256 shares, bool increased, address account);
 
     function setUp() public override {
+        super.setUp();
+        
         _prepareUSDC(address(this), _ONE + 77777);
         _prepareDAI(address(this), 10e18 + 77777);
         

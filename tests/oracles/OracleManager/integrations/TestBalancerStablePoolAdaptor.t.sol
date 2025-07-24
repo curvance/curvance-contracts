@@ -17,7 +17,6 @@ contract TestBalancerStablePoolAdaptor is TestBaseOracleManager {
     function setUp() public override {
         _fork(19656276);
 
-        
         _deployCentralRegistry();
         _deployOracleManager();
 

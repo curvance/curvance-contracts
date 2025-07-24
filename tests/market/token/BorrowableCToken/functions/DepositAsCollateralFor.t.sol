@@ -13,6 +13,7 @@ contract DepositAsCollateralForTest is TestBaseBorrowableCToken {
 
     function setUp() public override {
         super.setUp();
+        
         _prepareUSDC(user2, _ONE + _ONE);
 
         vm.startPrank(user2);

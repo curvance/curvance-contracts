@@ -47,7 +47,9 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareBALRETH(liquidityProvider, 10e18);
+
         vm.startPrank(liquidityProvider);
+        
         balRETH.approve(address(strategyCBALRETH), 10e18);
         strategyCBALRETH.mint(10e18, liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
@@ -71,7 +73,7 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
 
         SwapperLib.Swap[] memory swapData; // empty swap data
         
-        // we aren't using this struct, only for required arguments
+        // We aren't using this struct, only for required arguments.
         IPositionManager.DeleverageStruct memory deleverageData;
         deleverageData.collateralToken = ICToken(address(strategyCBALRETH));
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCUSDC));

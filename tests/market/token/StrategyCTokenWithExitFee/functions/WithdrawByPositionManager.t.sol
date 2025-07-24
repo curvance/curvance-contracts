@@ -48,7 +48,9 @@ contract WithdrawByPositionManagerWithExitFeeTest is TestBaseMarketIsolated {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareBALRETH(liquidityProvider, 10e18);
+
         vm.startPrank(liquidityProvider);
+        
         balRETH.approve(address(strategyCBALRETHWithExitFee), 10e18);
         strategyCBALRETHWithExitFee.mint(10e18, liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
@@ -73,7 +75,7 @@ contract WithdrawByPositionManagerWithExitFeeTest is TestBaseMarketIsolated {
 
         SwapperLib.Swap[] memory swapData; // empty swap data
         
-        // we aren't using this struct, only for required arguments
+        // We aren't using this struct, only for required arguments.
         IPositionManager.DeleverageStruct memory deleverageData;
         deleverageData.collateralToken = ICToken(address(strategyCBALRETHWithExitFee));
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCUSDC));
@@ -89,8 +91,9 @@ contract WithdrawByPositionManagerWithExitFeeTest is TestBaseMarketIsolated {
         vm.prank(address(mockPositionManager));
         strategyCBALRETHWithExitFee.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageData);
 
-        // a usual workflow would swap the collateral for the borrowToken, repay the borrowToken
-        // we are checking that the exit fee is applied
+        // Usual workflow would swap the collateral for the borrowToken,
+        // repay the borrowToken we are checking here that the exit fee is
+        // applied properly.
         uint256 balRETHBalanceAfter = balRETH.balanceOf(address(mockPositionManager));
 
         assert(balRETHBalanceAfter == collateralReceivedWithExitFee);       

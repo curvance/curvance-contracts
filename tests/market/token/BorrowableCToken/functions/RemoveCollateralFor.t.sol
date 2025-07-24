@@ -11,6 +11,8 @@ contract RemoveCollateralForTest is TestBaseBorrowableCToken {
 
 
     function setUp() public override {
+        super.setUp();
+        
         _prepareUSDC(address(this), _ONE + 77777);
         _prepareDAI(address(this), 10e18 + 77777);
         
