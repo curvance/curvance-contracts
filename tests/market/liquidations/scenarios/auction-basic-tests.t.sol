@@ -19,6 +19,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
         vm.startPrank(dappControlUser);
 
+        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
         
         // Set auction parameters
@@ -76,7 +77,28 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareUSDC(user3, 250e6);
 
         vm.prank(dappControlUser);
+        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(1));
+
+        address[] memory usersToLiquidate = new address[](1);   
+        usersToLiquidate[0] = user1;
+        uint256[] memory amountsToLiquidate = new uint256[](1);
+        amountsToLiquidate[0] = 250e6;
+
+        vm.startPrank(user3);
+
+        usdc.approve(address(borrowableCUSDC), 250e6);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedLiquidation.selector);
+        borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(strategyCBALRETH));
+        vm.stopPrank();
+    }
+
+    function testLiquidationFailureWithMarketLocked() public {
+        _prepareLiquidation();
+        _prepareUSDC(user3, 250e6);
+
+        vm.prank(dappControlUser);
+        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
 
         address[] memory usersToLiquidate = new address[](1);   
         usersToLiquidate[0] = user1;
@@ -96,6 +118,8 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
         // Set a valid penalty (WAD + 15%)
         vm.startPrank(dappControlUser);
+
+        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
         uint256 validPenalty = 1.15e18; //15%
         uint256 closeFactor = 0.30e18; // 30%

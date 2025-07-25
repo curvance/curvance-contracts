@@ -769,10 +769,9 @@ contract TestBaseMarketIsolated is TestBase {
         uint256 liquidationCloseFactor
     ) internal {
         vm.startPrank(dappControlUser);
+        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(token);
-        uint256 validPenalty = liquidationPenalty;
-        uint256 closeFactor = liquidationCloseFactor;
-        marketManagerIsolated.setAuctionParameters(token, validPenalty, closeFactor);
+        marketManagerIsolated.setAuctionParameters(token, liquidationPenalty, liquidationCloseFactor);
         vm.stopPrank();
     }
 

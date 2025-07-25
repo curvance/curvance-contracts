@@ -131,6 +131,7 @@ contract MixedAuction is TestBaseLiquidations {
             closeFactor
         );
 
+        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
 
         ExpectedLiquidationValues memory auctionLiqValuesBorrower1 = _calculateExpectedLiquidationValues(
