@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { SimpleCToken, IERC20 } from "contracts/market/token/SimpleCToken.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
@@ -14,7 +15,6 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
-    address public owner;
     SimpleZapper public simpleZapper;
 
     receive() external payable {}
@@ -23,8 +23,6 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
 
     function setUp() public override {
         super.setUp();
-
-        owner = address(this);
 
         simpleZapper = new SimpleZapper(
             ICentralRegistry(address(centralRegistry)),
@@ -36,38 +34,27 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
-        // Setup borrowable CDAI.
-        {
-            _prepareDAI(owner, 200000e18);
-            dai.approve(address(borrowableCDAI), 200000e18);
-            // Add cToken support on Oracle Manager.
-            oracleManager.addCTokenSupport(address(borrowableCDAI));
-        }
-
-        // Setup simpleCUSDC.
-        {
-            _deploySimpleCUSDC();
-            _prepareUSDC(owner, 100e6);
-            usdc.approve(address(simpleCUSDC), 100e6);
-            oracleManager.addCTokenSupport(address(simpleCUSDC));
-        }
+        _prepareDAI(address(this), 200000e18);
+        dai.approve(address(borrowableCDAI), 200000e18);
 
         marketManagerIsolated.listTokens(address(simpleCUSDC), address(borrowableCDAI));
         
-
         _setCTokenConfigHighValues(address(simpleCUSDC), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 1000 ether);
         _prepareUSDC(liquidityProvider, 100e6);
+
         vm.startPrank(liquidityProvider);
+
         // Mint borrowable cDAI.
         dai.approve(address(borrowableCDAI), 1000 ether);
         borrowableCDAI.deposit(1000 ether, liquidityProvider);
         // mint simpleCUSDC
         usdc.approve(address(simpleCUSDC), 100e6);
         simpleCUSDC.mint(100e6, liquidityProvider);
+
         vm.stopPrank();
     }
 
