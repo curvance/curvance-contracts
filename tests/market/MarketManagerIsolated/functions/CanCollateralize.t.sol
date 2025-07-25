@@ -16,12 +16,15 @@ contract CanCollateralizeTest is TestBaseMarketIsolated {
         usdc.approve(address(borrowableCUSDC), 77777);
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+
+        _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100_000e6);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e6, 0);
     }
 
     function test_canCollateralize_fail_whenTokenNotListed() public {
         vm.startPrank(address(borrowableCDAI));
 
-        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
         marketManagerIsolated.canCollateralize(address(borrowableCDAI), user1, 1e6);
 
         vm.stopPrank();
