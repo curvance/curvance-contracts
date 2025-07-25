@@ -53,10 +53,6 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
 
         _refreshMockFeeds();
     
-        oracleManager.addAssetPriceFeed(
-            _STETH_ADDRESS,
-            address(chainlinkAdaptor)
-        );
         Curve2PoolLPAdaptor crvAdaptor = new Curve2PoolLPAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
@@ -222,6 +218,9 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             block.timestamp,
             block.timestamp
         );
+
+        _refreshMockFeeds();
+        
         cSTETH.redeem(cSTETH.balanceOf(user1) - 1, user1, user1);
         vm.stopPrank();
 
