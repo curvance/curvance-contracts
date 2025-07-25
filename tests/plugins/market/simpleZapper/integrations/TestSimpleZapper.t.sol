@@ -24,6 +24,8 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 
+        oracleManager.addCTokenSupport(address(simpleCUSDC));
+
         simpleZapper = new SimpleZapper(
             ICentralRegistry(address(centralRegistry)),
             _WETH_ADDRESS
@@ -36,6 +38,9 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
 
         _prepareDAI(address(this), 200000e18);
         dai.approve(address(borrowableCDAI), 200000e18);
+
+        _prepareUSDC(address(this), 100e6);
+        usdc.approve(address(simpleCUSDC), 100e6);
 
         marketManagerIsolated.listTokens(address(simpleCUSDC), address(borrowableCDAI));
         
