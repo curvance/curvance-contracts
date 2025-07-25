@@ -41,7 +41,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         _init();
 
         chainlinkAdaptor.addAsset(_STETH, _CHAINLINK_STETH_USD, 0, true);
-        oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
+        // oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 
         adaptor = new PendleLPTokenAdaptor(
             ICentralRegistry(address(centralRegistry)),
@@ -91,7 +91,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
         pendleZapper.enterPendle{ value: ethAmount }(
-            address(0),
+            address(pendleCTokenSTETH),
             PendleZapper.ZapperData(
                 address(0),
                 ethAmount,
@@ -111,11 +111,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(user1.balance, 0);
-        assertGt(IERC20(_PENDLE_LP_STETH).balanceOf(user1), 0);
+        assertGt(IERC20(address(pendleCTokenSTETH)).balanceOf(user1), 0);
     }
 
     function testExitPendle() public {
-        testEnterPendle();
+        deal(_PENDLE_LP_STETH, user1, 0.05 ether);
+        IERC20(_PENDLE_LP_STETH).approve(address(pendleZapper), 0.05 ether);
 
         uint256 withdrawAmount = IERC20(_PENDLE_LP_STETH).balanceOf(user1);
 
