@@ -127,8 +127,8 @@ contract MarketManagerIsolated is
     uint256 internal constant _PAUSED_SELECTOR = 0xf47323f4;
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvariantError()")))`
     uint256 internal constant _INVARIANT_ERROR_SELECTOR = 0x5518d5cb;
-    /// @dev `bytes4(keccak256(bytes("MarketManager__UnauthorizedCollateral()")))`
-    uint256 internal constant _UNAUTHORIZED_COLLATERAL_SELECTOR = 0x8ef93120;
+    /// @dev `bytes4(keccak256(bytes("MarketManager__UnauthorizedLiquidation()")))`
+    uint256 internal constant _UNAUTHORIZED_LIQUIDATION_SELECTOR = 0xfac97a2b;
     /// @dev A fixed key to use in transient storage for the dynamic penalty.
     bytes32 internal constant _TRANSIENT_PENALTY_KEY
         = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
@@ -195,6 +195,7 @@ contract MarketManagerIsolated is
     /// ERRORS ///
 
     error MarketManager__Unauthorized();
+    error MarketManager__UnauthorizedLiquidation();
     error MarketManager__TokenNotListed();
     error MarketManager__Paused();
     error MarketManager__InsufficientCollateral();
@@ -205,8 +206,7 @@ contract MarketManagerIsolated is
     error MarketManager__InvalidParameter();
     error MarketManager__MinimumHoldPeriod();
     error MarketManager__InvariantError();
-    error MarketManager__UnauthorizedCollateral();
-
+    
     /// CONSTRUCTOR ///
 
     constructor(
@@ -1139,7 +1139,7 @@ contract MarketManagerIsolated is
         // Make sure this token actually can be liquidated, by being
         // collateralizable in the first place.
         if (cTokenData.collRatio == 0) {
-            _revert(_UNAUTHORIZED_COLLATERAL_SELECTOR);
+            _revert(_UNAUTHORIZED_LIQUIDATION_SELECTOR);
         }
 
         // Validate new penalty is within configured allowed penalty.
@@ -1680,6 +1680,10 @@ contract MarketManagerIsolated is
             centralRegistry.oracleManager()
         ).getPriceIsolatedPair(collateralToken, debtToken, 2);
 
+        // Will revert if this liquidation is an attempted auction liquidator
+        // and liquidator has chosen incorrect collateral or market.
+        cachedData.auctionBuffer = _checkLiquidationConfig(collateralToken);
+
         // Cache all variables needed for computing liquidation levels and
         // compress into one struct for stack too deep limits.
         cachedData.collateralToken = collateralToken;
@@ -1692,9 +1696,6 @@ contract MarketManagerIsolated is
         cachedData.debtToken = debtToken;
         cachedData.debtDecimals = 10 ** IERC20(debtToken).decimals();
 
-        // Will revert if during auction transaction and liquidator has chosen
-        // incorrect collateral.
-        cachedData.auctionBuffer = _checkCollateralUnlocked(collateralToken);
         // Pull transient storage variables from auctioneer updates.
         (
             auctionData.auctionLiqIncentive,
@@ -1877,35 +1878,37 @@ contract MarketManagerIsolated is
 
     /// @notice Will revert and block liquidations of collateral that are not
     ///         currently allowed by Auction, only if this is an Auction tx.
-    /// @param collateralTokenToLiquidate The address of the collateral token
-    ///                                   to liquidate.
-    /// @return buffer The buffer value to apply as a discount to collateral
-    ///                during liquidation checks.
-    function _checkCollateralUnlocked(
-        address collateralTokenToLiquidate
-    ) internal view returns (uint256 buffer) {
+    /// @param collateralToken The address of the collateral token to
+    ///                        liquidate.
+    /// @return The buffer priority value to apply as a discount to collateral
+    ///         during auctioned liquidations.
+    function _checkLiquidationConfig(
+        address collateralToken
+    ) internal view returns (uint256) {
         uint256 result;
+        
         /// @solidity memory-safe-assembly
         assembly {
             result := tload(_TRANSIENT_COLLATERAL_UNLOCKED_KEY)
         }
 
-        // CASE: This is not an Auction tx, so allow all collaterals,
-        // and return no buffer. 
-        if (result == 0) {
-            return buffer;
+        bool unlockedMarket = centralRegistry.isMarketUnlocked();
+        bool unlockedCollateral = address(uint160(result)) == collateralToken;
+
+        if (unlockedMarket || unlockedCollateral) {
+            // This is an attempted auction liquidation, and is configured
+            // correctly so give them the auction priority buffer.
+            if (unlockedMarket && unlockedCollateral) {
+                return AUCTION_BUFFER;
+            }
+
+            // This is an attempted auction liquidation, but its misconfigured
+            // and unauthorized because of this.
+            _revert(_UNAUTHORIZED_LIQUIDATION_SELECTOR);
         }
 
-        address unlockedCollateral = address(uint160(result));
-
-        // This is an Auction tx, and Auction liquidator attempted wrong
-        // collateral so revert.
-        if (unlockedCollateral != collateralTokenToLiquidate) {
-            _revert(_UNAUTHORIZED_COLLATERAL_SELECTOR);
-        }
-
-        // If we reach this point this is an Auction tx and collateral is
-        // valid, so return the auction buffer. 
-        buffer = AUCTION_BUFFER;
+        // This is not an attempted auction liquidation, so approve the
+        // liquidation, but without the auction priority buffer.
+        return 0;
     }
 }

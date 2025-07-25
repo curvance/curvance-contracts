@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
@@ -19,7 +20,6 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal _PENDLE_LP_STETH =
         0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2;
-    address internal _STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
     address internal _CHAINLINK_STETH_USD =
         0xCfE54B5cD566aB89272946F602D76Ea879CAb4a8;
     address internal _PT_ORACLE = 0x14030836AEc15B2ad48bB097bd57032559339c92;
