@@ -4,6 +4,9 @@ pragma solidity ^0.8.19;
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
 import { VelodromeVolatileCToken } from "contracts/market/token/VelodromeVolatileCToken.sol";
+import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
+import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
+import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -49,6 +52,44 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         velodromeZapper = new VelodromeZapper(
             ICentralRegistry(address(centralRegistry)),
             _WETH
+        );
+
+        chainlinkAdaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+
+        chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            address(chainlinkUsdcUsd),
+            0,
+            true
+        );
+        oracleManager.addAssetPriceFeed(
+            _USDC_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+        chainlinkEthUsd = new MockV3Aggregator(8, 2700e8, 1e50, 1e6);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            address(chainlinkEthUsd),
+            0,
+            true
+        );
+        chainlinkAdaptor.addAsset(
+            _WETH_ADDRESS,
+            address(chainlinkEthUsd),
+            0,
+            true
+        );
+        oracleManager.addAssetPriceFeed(
+            _ETH_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+        oracleManager.addAssetPriceFeed(
+            _WETH_ADDRESS,
+            address(chainlinkAdaptor)
         );
 
         adaptor = new VelodromeVolatileLPAdaptor(
