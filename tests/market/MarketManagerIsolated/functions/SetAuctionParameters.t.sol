@@ -49,7 +49,7 @@ contract SetAuctionParametersTest is TestBaseMarketIsolated {
 
         vm.startPrank(dappControlUser);
 
-        vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedCollateral.selector); 
+        vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedLiquidation.selector); 
         marketManagerIsolated.setAuctionParameters(address(strategyCBALRETH), 1.15e18, 0.30e18);
         vm.stopPrank();
     }
