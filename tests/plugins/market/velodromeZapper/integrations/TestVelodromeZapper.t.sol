@@ -18,6 +18,8 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 contract TestVelodromeZapper is TestBaseMarketIsolated {
     address internal _VELODROME_FACTORY =
         0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a;
@@ -48,11 +50,11 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         _deployGaugeManager();
         _deployMarketManager();
         _deployOracleManager();
+        _deployBorrowableCUSDC();
 
-        velodromeZapper = new VelodromeZapper(
-            ICentralRegistry(address(centralRegistry)),
-            _WETH
-        );
+        _deployVelodromeZapper();
+
+        console2.log("velodromeZapper address:", address(velodromeZapper));
 
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
@@ -112,6 +114,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
             1 days
         );
         oracleManager.addCTokenSupport(address(veloCTokenWETHUSDC));
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
 
         _prepareUSDC(address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
@@ -129,9 +132,11 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
+        console2.log("velodromeZapper address:", address(velodromeZapper));
+
         vm.startPrank(user1);
         velodromeZapper.enterVelodrome{ value: ethAmount }(
-            address(0),
+            address(veloCTokenWETHUSDC),
             VelodromeZapper.ZapperData(
                 address(0),
                 ethAmount,
@@ -149,14 +154,17 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        assertEq(user1.balance, 0);
-        assertGt(IERC20(_VELODROME_WETH_USDC).balanceOf(user1), 0);
+        assertEq(user1.balance, 0, "user1 eth balance is not 0");
+        assertGt(IERC20(address(veloCTokenWETHUSDC)).balanceOf(user1), 0, "user1 veloCTokenWETHUSDC balance is not greater than 0");
     }
 
     function testExitVelodrome() public {
-        testEnterVelodrome();
+
+        deal(_VELODROME_WETH_USDC, user1, 0.05 ether);
+        IERC20(_VELODROME_WETH_USDC).approve(address(velodromeZapper), 1 ether);
 
         uint256 withdrawAmount = IERC20(_VELODROME_WETH_USDC).balanceOf(user1);
+        console2.log("withdrawAmount", withdrawAmount);
 
         vm.startPrank(user1);
         IERC20(_VELODROME_WETH_USDC).approve(
