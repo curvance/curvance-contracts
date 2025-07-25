@@ -4,7 +4,6 @@ pragma solidity 0.8.26;
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
-import { DENOMINATOR } from "contracts/libraries/Constants.sol";
 
 contract RemoveChainSupportTest is TestBaseMarketIsolated {
     using stdStorage for StdStorage;

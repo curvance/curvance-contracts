@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { DENOMINATOR, RAY } from "contracts/libraries/Constants.sol";
+import { BASIS_POINTS, RAY } from "contracts/libraries/Constants.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
@@ -439,7 +439,7 @@ contract GaugeManager is
         // If theres a current lock boost, recognize their bonus rewards.
         if (currentLockBoost > 0) {
             uint256 boostedRewards = (cveRewards * currentLockBoost) /
-                DENOMINATOR;
+                BASIS_POINTS;
             // We know this will never underflow due to `currentLockBoost`
             // needing to be greater than 1.
             ICVE(cve).mintLockBoost(boostedRewards - cveRewards);

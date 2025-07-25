@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { WAD, DENOMINATOR } from "contracts/libraries/Constants.sol";
+import { WAD, BASIS_POINTS } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -1004,7 +1004,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         uint256 voteBoost = centralRegistry.voteBoostMultiplier();
-        voteBoost = voteBoost == 0 ? DENOMINATOR : voteBoost;
+        voteBoost = voteBoost == 0 ? BASIS_POINTS : voteBoost;
         uint256 votes;
 
         for (uint256 i; i < numLocks; ) {
@@ -1153,7 +1153,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
         if (lock.unlockTime == CONTINUOUS_LOCK_VALUE) {
             unchecked {
-                return ((lock.amount * voteBoost) / DENOMINATOR);
+                return ((lock.amount * voteBoost) / BASIS_POINTS);
             }
         }
 
@@ -1470,13 +1470,13 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // down to 0.
         // If the lock mode is continuous, we know its a full penalty unlock.
         if (unlockTime == CONTINUOUS_LOCK_VALUE) {
-            return (amount * penalty) / DENOMINATOR;
+            return (amount * penalty) / BASIS_POINTS;
         }
 
         return
             (amount *
                 ((penalty * (unlockTime - block.timestamp)) / lockDuration)) /
-            DENOMINATOR;
+            BASIS_POINTS;
     }
 
     /// @notice Returns the genesis epoch timestamp.

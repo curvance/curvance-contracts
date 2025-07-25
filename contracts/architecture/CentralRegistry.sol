@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { DENOMINATOR } from "contracts/libraries/Constants.sol";
+import { BASIS_POINTS } from "contracts/libraries/Constants.sol";
 
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -126,7 +126,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     // PROTOCOL FEE VALUES
 
     // Values are always set in `Basis Points` (1e4), fee values are converted
-    // and stored in `WAD` while multipliers stay in `DENOMINATOR`.
+    // and stored in `WAD` while multipliers stay in `BASIS_POINTS`.
 
     /// @notice Fee on yield generated for compounding vaults.
     uint256 public protocolCompoundFee = 100 * 1e14;
@@ -686,7 +686,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         // Voting power boost cannot be less than or equal to 1,
         // unless its being turned off, which is represented with a
         // value of 0.
-        if (value <= DENOMINATOR && value != 0) {
+        if (value <= BASIS_POINTS && value != 0) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
@@ -708,7 +708,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         // Locking emissions boost cannot be less than or equal to 1,
         // unless its being turned off, which is represented with a
         // value of 0.
-        if (value <= DENOMINATOR && value != 0) {
+        if (value <= BASIS_POINTS && value != 0) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
