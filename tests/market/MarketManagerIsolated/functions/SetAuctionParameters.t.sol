@@ -55,7 +55,7 @@ contract SetAuctionParametersTest is TestBaseMarketIsolated {
     }
 
     function test_setAuctionParameters_fail_whenInvalidValues() public {
-        uint256 tooLowPenalty = 1.01e18;
+        uint256 tooLowPenalty = 1.0001e18;
         uint256 tooHighPenalty = 1.25e18; 
         uint256 validPenalty = 1.15e18;
         uint256 tooHighCloseFactor = 1.51e18;

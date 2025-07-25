@@ -76,9 +76,11 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
 
-        vm.prank(dappControlUser);
+        vm.startPrank(dappControlUser);
+        
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(1));
+        vm.stopPrank();
 
         address[] memory usersToLiquidate = new address[](1);   
         usersToLiquidate[0] = user1;
