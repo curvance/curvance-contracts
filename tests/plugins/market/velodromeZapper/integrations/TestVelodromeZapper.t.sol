@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
