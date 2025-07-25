@@ -1878,8 +1878,8 @@ contract MarketManagerIsolated is
 
     /// @notice Will revert and block liquidations of collateral that are not
     ///         currently allowed by Auction, only if this is an Auction tx.
-    /// @param collateralTokenToLiquidate The address of the collateral token
-    ///                                   to liquidate.
+    /// @param collateralToken The address of the collateral token to
+    ///                        liquidate.
     /// @return The buffer priority value to apply as a discount to collateral
     ///         during auctioned liquidations.
     function _checkLiquidationConfig(

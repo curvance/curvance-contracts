@@ -190,8 +190,8 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
 
         vm.expectEmit(true, true, true, true, address(borrowableCDAI));
-        emit CollateralUpdated(tokensRedeemed, false, user1);
-        _canRedeemBorrowableCDAIWithCollateralRemoval(collateralRedeemed, true);
+        emit PositionUpdated(address(borrowableCDAI), user1, false);
+        _canRedeemBorrowableCDAIWithCollateralRemoval(tokensRedeemed, true);
 
         assertEq(dai.balanceOf(user1), underlyingBalance); // Balance should not have changed.
         assertEq(borrowableCDAI.balanceOf(user1), balance); // Balance should not have changed.
