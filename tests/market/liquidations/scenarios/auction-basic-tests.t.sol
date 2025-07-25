@@ -86,7 +86,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         vm.startPrank(user3);
 
         usdc.approve(address(borrowableCUSDC), 250e6);
-        vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedCollateral.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedLiquidation.selector);
         borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(strategyCBALRETH));
         vm.stopPrank();
     }

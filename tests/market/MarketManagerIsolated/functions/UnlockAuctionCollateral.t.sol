@@ -28,7 +28,7 @@ contract UnlockAuctionCollateralTest is TestBaseMarketIsolated {
         vm.startPrank(user1);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH), 1.15e18, 0.30e18);
+        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
         
         vm.stopPrank();
     }
