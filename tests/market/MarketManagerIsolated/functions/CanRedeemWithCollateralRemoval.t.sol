@@ -125,7 +125,7 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
     function test_canRedeemWithCollateralRemoval_success_withCollateralRemoved()
         public
     {
-        uint256 collateralRedeemed = _ONE;
+        uint256 tokensRedeemed = _ONE;
 
         skip(20 minutes);
 
@@ -137,20 +137,27 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
 
         vm.startPrank(address(borrowableCDAI));
         
-        uint256 collateralToRemove = _canRedeemBorrowableCDAIWithCollateralRemoval(collateralRedeemed, balance, collateral, true);
+        uint256 collateralRemoved = _canRedeemBorrowableCDAIWithCollateralRemoval(tokensRedeemed, balance, collateral, true);
 
         assertEq(dai.balanceOf(user1), underlyingBalance, "dai balance should not have changed");
         assertEq(borrowableCDAI.balanceOf(user1), balance, "borrowableCDAI balance should not have changed");
         assertEq(borrowableCDAI.totalSupply(), totalSupply, "borrowableCDAI totalSupply should not have changed");
         assertEq(borrowableCDAI.collateralPosted(user1), collateral, "borrowableCDAI collateral should not have changed");
         assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral, "borrowableCDAI market collateral should not have changed");
-        assertEq(collateralToRemove, collateralRedeemed, "Expect to remove exactly collateralRedeemed");
+        assertEq(collateralRemoved, tokensRedeemed, "Expect to remove exactly tokensRedeemed");
     }
 
     function test_canRedeemWithCollateralRemoval_success_withNoCollateralRemoved()
         public
     {
-        uint256 collateralRedeemed = _ONE;
+        uint256 tokensRedeemed = _ONE;
+
+        _prepareDAI(user1, _ONE + _ONE);
+
+        vm.startPrank(user1);
+        dai.approve(address(borrowableCDAI), _ONE + _ONE);
+        borrowableCDAI.deposit(_ONE + _ONE, user1);
+        vm.stopPrank();
 
         skip(20 minutes);
 
@@ -162,14 +169,14 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
 
         vm.startPrank(address(borrowableCDAI));
         
-        uint256 collateralToRemove = _canRedeemBorrowableCDAIWithCollateralRemoval(collateralRedeemed, balance, collateral, false);
+        uint256 collateralRemoved = _canRedeemBorrowableCDAIWithCollateralRemoval(tokensRedeemed, balance, collateral, false);
 
         assertEq(dai.balanceOf(user1), underlyingBalance, "dai balance should not have changed");
         assertEq(borrowableCDAI.balanceOf(user1), balance, "borrowableCDAI balance should not have changed");
         assertEq(borrowableCDAI.totalSupply(), totalSupply, "borrowableCDAI totalSupply should not have changed");
         assertEq(borrowableCDAI.collateralPosted(user1), collateral, "borrowableCDAI collateral should not have changed");
         assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral, "borrowableCDAI market collateral should not have changed");
-        assertEq(collateralToRemove, 0, "Expect no collateral to be redeemed");
+        assertEq(collateralRemoved, 0, "Expect no collateral to be redeemed");
     }
 
     function test_canRedeemWithCollateralRemoval_success_removeCollateralWhenCollateralIsInUse()
@@ -200,14 +207,14 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         uint256 totalCollateral = borrowableCDAI.marketCollateralPosted();
 
         vm.startPrank(address(borrowableCDAI));
-        uint256 collateralRedeemed = _canRedeemBorrowableCDAIWithCollateralRemoval(tokensRedeemed, balance, collateral, true);
+        uint256 collateralRemoved = _canRedeemBorrowableCDAIWithCollateralRemoval(tokensRedeemed, balance, collateral, true);
 
         assertEq(dai.balanceOf(user1), underlyingBalance, "dai balance should not have changed");
         assertEq(borrowableCDAI.balanceOf(user1), balance, "borrowableCDAI balance should not have changed");
         assertEq(borrowableCDAI.totalSupply(), totalSupply, "borrowableCDAI totalSupply should not have changed");
         assertEq(borrowableCDAI.collateralPosted(user1), collateral, "borrowableCDAI collateral should not have changed");
         assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral, "borrowableCDAI market collateral should not have changed");
-        assertEq(tokensRedeemed, collateralRedeemed, "Expect to remove tokensRedeemed collateral");
+        assertEq(collateralRemoved, tokensRedeemed, "Expect to remove tokensRedeemed collateral");
         
     }
 
@@ -217,7 +224,7 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         public
     {
         uint256 newTokensDeposited = 2000e18;
-        uint256 collateralRedeemed = newTokensDeposited * 2;
+        uint256 tokensRedeemed = newTokensDeposited * 2;
 
         _prepareDAI(user1, newTokensDeposited * 2);
 
@@ -238,14 +245,14 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         vm.startPrank(address(borrowableCDAI));
         vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit PositionUpdated(address(borrowableCDAI), user1, false);
-        uint256 collateralToRemove = _canRedeemBorrowableCDAIWithCollateralRemoval(collateralRedeemed, balance, collateral, false);
+        uint256 collateralRemoved = _canRedeemBorrowableCDAIWithCollateralRemoval(tokensRedeemed, balance, collateral, false);
 
         assertEq(dai.balanceOf(user1), underlyingBalance, "dai balance should not have changed");
         assertEq(borrowableCDAI.balanceOf(user1), balance, "borrowableCDAI balance should not have changed");
         assertEq(borrowableCDAI.totalSupply(), totalSupply, "borrowableCDAI totalSupply should not have changed");
-        assertEq(collateralToRemove, collateralRedeemed, "borrowableCDAI collateral should not have changed");
+        assertEq(borrowableCDAI.collateralPosted(user1), collateral, "borrowableCDAI collateral should not have changed");
         assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral, "borrowableCDAI market collateral should not have changed");
-        assertEq(collateralToRemove, collateralRedeemed, "Expect to remove all collateral that was deposited");
+        assertEq(collateralRemoved, newTokensDeposited, "Expect to remove all collateral that was deposited");
     }
 
     function test_canRedeemWithCollateralRemoval_success_removeCollateralAndNotCollateralWhenCollateralNotIsInUse()
@@ -254,7 +261,7 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         uint256 newTokensDeposited = 2000e18;
         uint256 collateralRedeemed = newTokensDeposited;
         uint256 nonCollateralRedeemed = newTokensDeposited;
-        uint256 totalRedemption = collateralRedeemed + nonCollateralRedeemed;
+        uint256 tokensRedeemed = collateralRedeemed + nonCollateralRedeemed;
 
         _prepareDAI(user1, newTokensDeposited * 2);
 
@@ -275,14 +282,14 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         vm.startPrank(address(borrowableCDAI));
         vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit PositionUpdated(address(borrowableCDAI), user1, false);
-        uint256 collateralToRemove = _canRedeemBorrowableCDAIWithCollateralRemoval(totalRedemption, balance, collateral, false);
+        uint256 collateralRemoved = _canRedeemBorrowableCDAIWithCollateralRemoval(tokensRedeemed, balance, collateral, false);
 
         assertEq(dai.balanceOf(user1), underlyingBalance, "dai balance should not have changed");
         assertEq(borrowableCDAI.balanceOf(user1), balance, "borrowableCDAI balance should not have changed");
         assertEq(borrowableCDAI.totalSupply(), totalSupply, "borrowableCDAI totalSupply should not have changed");
         assertEq(borrowableCDAI.collateralPosted(user1), collateral, "borrowableCDAI collateral should not have changed");
         assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral, "borrowableCDAI market collateral should not have changed");
-        assertEq(collateralToRemove, collateralRedeemed, "Expect to only remove collateralRedeemed not totalRedemption");
+        assertEq(collateralRemoved, collateralRedeemed, "Expect to only remove collateralRedeemed not tokensRedeemed");
     }
 
     function _canRedeemBorrowableCDAIWithCollateralRemoval(

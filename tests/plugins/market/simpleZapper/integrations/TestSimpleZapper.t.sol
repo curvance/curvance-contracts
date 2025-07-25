@@ -185,7 +185,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         assertGt(weth.balanceOf(user1), 2.9 ether); // 3 ether - fees
     }
 
-    function testRedeemAndSwapEToken() public {
+    function testRedeemAndSwapBorrowableCToken() public {
         vm.startPrank(user1);
 
         // Mint borrowable cDAI.
