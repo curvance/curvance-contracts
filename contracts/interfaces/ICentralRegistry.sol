@@ -221,7 +221,9 @@ interface ICentralRegistry {
     ) external view returns (uint256);
 
     /// @notice Checks if a market is unlocked for auction operations.
-    function isMarketUnlocked() external view;
+    /// @return Whether the caller is an unlocked market, approved for
+    ///         auction-based liquidations.
+    function isMarketUnlocked() external view returns (bool);
 
     /// @notice Sets the amount of token rewards allocated on this chain,
     ///         for an epoch.
