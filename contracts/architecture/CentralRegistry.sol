@@ -157,6 +157,11 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Protocol slippage limit for safe swap.
     uint256 public slippageLimit = 1000 * 1e14;
 
+    // ATLAS PARAMETER
+    // Controls which markets Atlas liquidators can act on
+    bytes32 internal constant _TRANSIENT_MARKET_UNLOCKED_KEY
+        = 0x3456789012345678901234567890123456789012345678901234567890123457;
+
     // CROSSCHAIN CONFIGURATION DATA
 
     /// @notice Address of Crosschain Core contract on this chain.
@@ -1254,6 +1259,50 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         _removeForeignChainId(chainId);
         emit RemovedChain(chainId, expectedMessagingHub, expectedVotingHub);
+    }
+
+    /// AUCTION CONFIGURATION LOGIC
+
+    /// @notice Unlocks a market to process auction-based liquidations.
+    /// @param marketToUnlock The address of the market manager to unlock
+    ///                       auction-based liquidations with a specific
+    ///                       liquidation bonus.
+    function unlockAuctionForMarket(address marketToUnlock) external {
+        if (!hasAuctionPermissions[msg.sender]) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Validate that you're unlocking an approved market manager.
+        if (!isMarketManager[marketToUnlock]) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
+        uint256 marketToUnlockUint = uint256(uint160(marketToUnlock));
+        /// @solidity memory-safe-assembly
+        assembly {
+            tstore(_TRANSIENT_MARKET_UNLOCKED_KEY, marketToUnlockUint)
+        }
+    }
+
+    /// @notice Returns whether the caller is approved to execute
+    ///         auction-based liquidations with a specific liquidation bonus.
+    function isMarketUnlocked() public view returns (bool isUnlocked) {
+        uint256 result;
+        /// @solidity memory-safe-assembly
+        assembly {
+            result := tload(_TRANSIENT_MARKET_UNLOCKED_KEY)
+        }
+
+        // CASE: This is not an Auction tx, so allow all markets,
+        // and return false, the caller is not approved for auction-based
+        // liquidations. 
+        if (result == 0) {
+            return isUnlocked;
+        }
+
+        // True if the caller is approved for auction-based liquidations,
+        // otherwise false.
+        isUnlocked = uint256(uint160(msg.sender)) == result;
     }
 
     /// CONTRACT MAPPING LOGIC
