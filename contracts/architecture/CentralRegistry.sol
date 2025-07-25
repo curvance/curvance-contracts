@@ -922,7 +922,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         }
     }
 
-    /// @notice Adds a new Market Manager and corresponding fee
+    /// @notice Adds a new Market Manager and corresponding interest fee
     ///         configurations.
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
     ///      can only have a maximum value of 50% interest fee.
@@ -932,25 +932,26 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///      in specific cases it could make sense to start assigning a high
     ///      interest rate take rate to push people to a new market
     ///      implementation.
-    /// @param newAddress The new Market Manager contract to support
-    ///                         for use in Curvance.
-    /// @param marketInterestFactor The interest factor associated with
-    ///                             the market manager.
+    /// @param newMarket The new Market Manager contract to support for use
+    ///                  in Curvance.
+    /// @param marketInterestFee The portion of interest paid by borrowers
+    ///                          that goes to the protocol, for this Market
+    ///                          Manager.
     function addMarketManager(
-        address newAddress,
-        uint256 marketInterestFactor
+        address newMarket,
+        uint256 marketInterestFee
     ) external virtual {
         _checkElevatedPermissions();
 
-        // Validate `newAddress` is not currently supported.
-        if (isMarketManager[newAddress]) {
+        // Validate `newMarket` is not currently supported.
+        if (isMarketManager[newMarket]) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
-        // Ensure that `newAddress` is a market manager.
+        // Ensure that `newMarket` is a market manager.
         if (
             !ERC165Checker.supportsInterface(
-                newAddress,
+                newMarket,
                 type(IMarketManager).interfaceId
             )
         ) {
@@ -958,44 +959,44 @@ contract CentralRegistry is ERC165, ActionRegistry {
         }
 
         /// Interest fee cannot be more than 50%.
-        if (marketInterestFactor > 5000) {
+        if (marketInterestFee > 5000) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
-        isMarketManager[newAddress] = true;
+        isMarketManager[newMarket] = true;
         // We store supported markets semi redundantly for offchain querying.
-        _marketManagers.push(newAddress);
+        _marketManagers.push(newMarket);
         // Convert interest factor parameter from basis points to `WAD`
         // for precision calculations.
-        protocolInterestFee[newAddress] = _bpToWad(
-            marketInterestFactor
+        protocolInterestFee[newMarket] = _bpToWad(
+            marketInterestFee
         );
-        emit PermissionsUpdated("Market Manager", newAddress, true);
-        emit InterestFeeSet(newAddress, marketInterestFactor);
+        emit PermissionsUpdated("Market Manager", newMarket, true);
+        emit InterestFeeSet(newMarket, marketInterestFee);
     }
 
     /// @notice Removes a current market manager from Curvance.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Has to be a supported Market Manager contract prior.
     ///      Emits a {PermissionsUpdated} event.
-    /// @param addressApproved The supported Market Manager contract
-    ///                             to remove from Curvance.
-    function removeMarketManager(address addressApproved) public virtual {
+    /// @param marketApproved The supported Market Manager contract to remove
+    ///                       from Curvance.
+    function removeMarketManager(address marketApproved) public virtual {
         _checkElevatedPermissions();
 
-        // Validate `addressApproved` is currently supported.
-        if (!isMarketManager[addressApproved]) {
+        // Validate `marketApproved` is currently supported.
+        if (!isMarketManager[marketApproved]) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
-        delete isMarketManager[addressApproved];
+        delete isMarketManager[marketApproved];
 
         // Cache market list.
         uint256 numMarkets = _marketManagers.length;
         uint256 marketIndex = numMarkets;
 
         for (uint256 i; i < numMarkets; ++i) {
-            if (_marketManagers[i] == addressApproved) {
+            if (_marketManagers[i] == marketApproved) {
                 marketIndex = i;
                 break;
             }
@@ -1010,10 +1011,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Copy last `_marketManagers` slot to `marketIndex` slot.
         _marketManagers[marketIndex] = _marketManagers[numMarkets];
-        // Remove the last element to remove `addressApproved`
+        // Remove the last element to remove `marketApproved`
         // from _marketManagers list.
         _marketManagers.pop();
-        emit PermissionsUpdated("Market Manager", addressApproved, false);
+        emit PermissionsUpdated("Market Manager", marketApproved, false);
     }
 
     /// @notice Adds an approved address to create locks for other

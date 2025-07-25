@@ -184,7 +184,7 @@ contract TestVariables {
     address public harvester = address(1000007);
     uint256 public voteBoostMultiplier = 12000; // 12000 = 120%.
     uint256 public lockBoostMultiplier = 13000; // 13000 = 130%.
-    uint256 public marketInterestFactor = 1000; // 1000 = 10%.
+    uint256 public marketInterestFee = 1000; // 1000 = 10%.
 
     bytes public response;
     IWormhole.Signature[] public signatures;

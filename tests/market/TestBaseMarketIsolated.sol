@@ -457,7 +457,7 @@ contract TestBaseMarketIsolated is TestBase {
         );
         centralRegistry.addMarketManager(
             address(marketManagerIsolated),
-            marketInterestFactor
+            marketInterestFee
         );
     }
 

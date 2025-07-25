@@ -312,12 +312,12 @@ contract StartContractsConfig is
         string memory marketName,
         ICentralRegistry cr
     ) internal returns (MarketManagerIsolated market) {
-        uint256 marketInterestFactor = 1000; // 10%
+        uint256 marketInterestFee = 1000; // 10%
         market = new MarketManagerIsolated(cr);
         _saveDeployedContracts(marketName, address(market));
         CentralRegistry(address(cr)).addMarketManager(
             address(market),
-            marketInterestFactor
+            marketInterestFee
         );
 
         // Deploy Addons

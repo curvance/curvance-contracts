@@ -201,14 +201,14 @@ contract CentralRegistryDeployer is DeployConfiguration {
 
     function _addMarketManager(
         address marketManager,
-        uint256 marketInterestFactor
+        uint256 marketInterestFee
     ) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
         require(marketManager != address(0), "Set the marketManager!");
 
         CentralRegistry(centralRegistry).addMarketManager(
             marketManager,
-            marketInterestFactor
+            marketInterestFee
         );
         console.log("centralRegistry.addMarketManager: ", marketManager);
     }
