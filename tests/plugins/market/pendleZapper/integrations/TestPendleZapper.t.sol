@@ -247,7 +247,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         vm.startPrank(user1);
         pendleCTokenSTETH.setDelegateApproval(user2, true);
         pendleCTokenSTETH.setDelegateApproval(address(pendleZapper), true);
-        vm.stopPrank(user1);
+        vm.stopPrank();
 
         PendleLib.PendleData memory data;
 
@@ -291,7 +291,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         testEnterPendleWithCTokenWithCollateralize();
 
         ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.mToken = address(pendleCTokenSTETH);
+        redemptionData.cToken = address(pendleCTokenSTETH);
         redemptionData.shares = 1.24 ether;
         redemptionData.forceRedeemCollateral = false;
 

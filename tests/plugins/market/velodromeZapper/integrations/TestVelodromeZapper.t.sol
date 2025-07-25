@@ -294,7 +294,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         testEnterVelodromeWithCToken();
 
         ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.mToken = address(veloCTokenWETHUSDC);
+        redemptionData.cToken = address(veloCTokenWETHUSDC);
         redemptionData.shares = 0.00006 ether;
         redemptionData.forceRedeemCollateral = false;
 
