@@ -78,7 +78,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         (bool success, ) = address(adaptor).call(
             encodedFunctionWithRedstonePayload
         );
-        assertTrue(success);
+        assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
         
         oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
 
@@ -87,8 +87,8 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             true,
             false
         );
-        assertEq(errorCode, 0);
-        assertEq(price, 60000e18);
+        assertEq(errorCode, 0, "Should have had no error code returned when pricing via redstone core adaptor");
+        assertEq(price, 60000e18, "We expect to get the 60k price back from the payload we built");
     }
 
     function testZeroHeartBeatRequiresPriceUpdateInEverySecond() public {
@@ -116,7 +116,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         (bool success, ) = address(adaptor).call(
             encodedFunctionWithRedstonePayload
         );
-        assertTrue(success);
+        assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
 
         oracleManager.addAssetPriceFeed(_WETH_ADDRESS, address(adaptor));
 
@@ -125,8 +125,8 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             true,
             false
         );
-        assertEq(errorCode, 0);
-        assertEq(price, 3000e18);
+        assertEq(errorCode, 0, "Should have had no error code returned when pricing via redstone core adaptor");
+        assertEq(price, 3000e18, "We expect to get the 3k price back from the payload we built");
 
         vm.warp(block.timestamp + 1);
         (price, errorCode) = oracleManager.getPrice(
@@ -134,7 +134,8 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             true,
             false
         );
-        assertNotEq(errorCode, 0);
+
+        assertNotEq(errorCode, 0, "We expect an error message returned since the price feed should be stale now");
     }
 
     function testAddNewSignersUpdatePriceWithNewSigners() public {
@@ -183,7 +184,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         (bool success, ) = address(adaptor).call(
             encodedFunctionWithRedstonePayload
         );
-        assertTrue(success);
+        assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
 
         oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
 
@@ -193,8 +194,8 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             true,
             false
         );
-        assertEq(errorCode, 0);
-        assertEq(price, 61000e18);
+        assertEq(errorCode, 0, "Should have had no error code returned when pricing via redstone core adaptor");
+        assertEq(price, 61000e18, "We expect to get the 61k price back from the payload we built");
     }
 
     function testRemoveOldSignerAndFailToUpdatePriceWithOldSignersKeys()
@@ -223,6 +224,6 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         (bool success, ) = address(adaptor).call(
             encodedFunctionWithRedstonePayload
         );
-        assertFalse(success);
+        assertFalse(success, "Writing Price should have failed since only 2 of 3 signers are approved");
     }
 }

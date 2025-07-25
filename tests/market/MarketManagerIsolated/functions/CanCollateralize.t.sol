@@ -19,7 +19,7 @@ contract CanCollateralizeTest is TestBaseMarketIsolated {
     }
 
     function test_canCollateralize_fail_whenTokenNotListed() public {
-        vm.startPrank(address(borrowableCUSDC));
+        vm.startPrank(address(borrowableCDAI));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.canCollateralize(address(borrowableCDAI), user1, 1e6);
