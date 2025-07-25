@@ -24,7 +24,7 @@ contract SetRedeemPausedTest is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        assertEq(marketManagerIsolated.redeemPaused(), 0);
+        assertEq(marketManagerIsolated.redeemPaused(), 1);
 
         vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit ActionPaused("Redeem Paused", true);

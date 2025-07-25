@@ -24,7 +24,7 @@ contract SetSeizePausedTest is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        assertEq(marketManagerIsolated.seizePaused(), 0);
+        assertEq(marketManagerIsolated.seizePaused(), 1);
 
         vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit ActionPaused("Seize Paused", true);
