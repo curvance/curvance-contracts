@@ -68,14 +68,17 @@ abstract contract BasePositionManager is
     /// @param slippage Slippage accepted by the user for execution of
     ///                 `leverageAction` leverage action, in `WAD`.
     modifier checkSlippage(address account, uint256 slippage) {
-        address[] memory assets = marketManager.assetsOf(account);
-        uint256 numAssets = assets.length;
-        IBorrowableCToken asset;
+        // Scoping to avoid stack too deep.
+        {
+            address[] memory assets = marketManager.assetsOf(account);
+            uint256 numAssets = assets.length;
+            IBorrowableCToken asset;
 
-        for (uint256 i; i < numAssets; ++i) {
-            asset = IBorrowableCToken(assets[i]);
-            if (asset.isBorrowable()) {
-                asset.accrueIfNeeded();
+            for (uint256 i; i < numAssets; ++i) {
+                asset = IBorrowableCToken(assets[i]);
+                if (asset.isBorrowable()) {
+                    asset.accrueIfNeeded();
+                }
             }
         }
 
