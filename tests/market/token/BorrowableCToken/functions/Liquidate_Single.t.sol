@@ -31,7 +31,7 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         vm.startPrank(user2);
         usdc.approve(address(borrowableCUSDC), 1000e6);
 
-        IMarketManager.LiqInstructions memory instructions = IMarketManager.LiqInstructions({
+        IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
             debtToken: address(borrowableCUSDC),
             collateralToken: address(strategyCBALRETH),
             numAccounts: 1,
@@ -41,11 +41,11 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
             badDebt: 0
         });
 
-        (IMarketManager.LiqResults memory results, uint256[] memory debtAmountReturned) = marketManagerIsolated.canLiquidate(
+        (IMarketManager.LiqResult memory result, uint256[] memory debtAmountReturned) = marketManagerIsolated.canLiquidate(
             debtAmounts,
             user2,
             accounts,
-            instructions
+            action
         );
 
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
@@ -62,7 +62,7 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         );
 
         // Hard liquidation, should have lost all collateral
-        assertEq(results.liquidatedShares[0], _ONE - 1, "Liquidated amount mismatch");
+        assertEq(result.liquidatedShares[0], _ONE - 1, "Liquidated amount mismatch");
         borrowableCUSDC.liquidate(
             accounts,
             address(strategyCBALRETH)
@@ -75,13 +75,13 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
             1, "Borrower strategyCBALRETH balance mismatch"
         );
 
-        assertEq(expectedLiquidationValues.debtRepaid, results.debtRepaid, "Debt repaid mismatch");
+        assertEq(expectedLiquidationValues.debtRepaid, result.debtRepaid, "Debt repaid mismatch");
 
         assertEq(borrowableCUSDC.debtBalance(user1), 0, "borrowableCUSDC debt balance mismatch");
         assertEq(strategyCBALRETH.exchangeRate(), _ONE, "strategyCBALRETH exchange rate mismatch");
         assertLt(borrowableCUSDC.exchangeRate(), _ONE, "borrowableCUSDC exchange rate mismatch, there should be bad debt");
         assertEq(strategyCBALRETH.balanceOf(user2), _ONE - 1, "Liquidator strategyCBALRETH balance mismatch");
-        assertEq(usdc.balanceOf(user2), 1000e6 - results.debtRepaid, "Liquidator USDC balance mismatch");
+        assertEq(usdc.balanceOf(user2), 1000e6 - result.debtRepaid, "Liquidator USDC balance mismatch");
        
     }
 

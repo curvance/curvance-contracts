@@ -629,16 +629,10 @@ abstract contract LiquidityManagerIsolated {
         // If this is a potential liquidation from an auction, apply the
         // auction buffer to collateral values, discounting collateral values.
         if (tData.auctionBuffer != 0) {
-            result.collateralSoft = _mulDiv(
-                result.collateralSoft,
-                tData.auctionBuffer,
-                WAD
-            );
-            result.collateralHard =  _mulDiv(
-                result.collateralHard,
-                tData.auctionBuffer,
-                WAD
-            );
+            result.collateralSoft =
+                _mulDiv(result.collateralSoft, tData.auctionBuffer, WAD);
+            result.collateralHard = 
+                _mulDiv(result.collateralHard, tData.auctionBuffer, WAD);
         }
 
         lFactor = _getLFactor(

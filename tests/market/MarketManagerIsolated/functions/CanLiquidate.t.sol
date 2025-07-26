@@ -26,7 +26,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
     }
     
     function test_canLiquidate_fail_whenBorrowableCTokenNotListed() public {
-        IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
+        IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
             collateralToken: address(strategyCBALRETH),
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
@@ -43,13 +43,13 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
             debtAmounts,
             address(this),
             accounts,
-            liqInstructions
+            action
         );
     }
 
     function test_canLiquidate_fail_whenCTokenNotListed() public {
         // marketManager.listToken(address(borrowableCUSDC));
-        IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
+        IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
             collateralToken: address(strategyCBALRETH),
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
@@ -66,7 +66,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
             debtAmounts,
             address(this),
             accounts,
-            liqInstructions
+            action
         );
     }
 
@@ -79,7 +79,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
+        IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
             collateralToken: address(strategyCBALRETH),
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
@@ -98,7 +98,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
             debtAmounts,
             address(this),
             accounts,
-            liqInstructions
+            action
         );
     }
 
@@ -113,7 +113,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
-        IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
+        IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
             collateralToken: address(strategyCBALRETH),
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
@@ -132,7 +132,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
             debtAmounts,
             address(this),
             accounts,
-            liqInstructions
+            action
         );
     }
 
@@ -149,7 +149,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
-        IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
+        IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
             collateralToken: address(strategyCBALRETH),
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
@@ -168,7 +168,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
             debtAmounts,
             address(this),
             accounts,
-            liqInstructions
+            action
         );
     }
 
@@ -213,7 +213,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(999e18);
         vm.stopPrank();
 
-        IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
+        IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
             collateralToken: address(strategyCBALRETH),
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
@@ -232,7 +232,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
             debtAmounts,
             address(this),
             accounts,
-            liqInstructions
+            action
         );
     }
 
@@ -250,7 +250,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
 
         _setupUserPositionAndOracles();
 
-        IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
+        IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
             collateralToken: address(strategyCBALRETH),
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
@@ -268,20 +268,20 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
 
         // =================== RESULTS ==================
         (
-            IMarketManager.LiqResults memory liqResults,
+            IMarketManager.LiqResult memory result,
             uint256[] memory debtAmountsReturned
         ) = marketManagerIsolated.canLiquidate(
             debtAmounts,
             address(this),
             accounts,
-            liqInstructions
+            action
         );
 
         // print out all values returned by canLiquidate
         console2.log("==== CanLiquidate Results ====");
-        console2.log("liqResults.liquidatedShares[0]", liqResults.liquidatedShares[0]);
-        console2.log("liqResults.debtRepaid", liqResults.debtRepaid);
-        console2.log("liqResults.badDebtRealized", liqResults.badDebtRealized);
+        console2.log("result.liquidatedShares[0]", result.liquidatedShares[0]);
+        console2.log("result.debtRepaid", result.debtRepaid);
+        console2.log("result.badDebtRealized", result.badDebtRealized);
         console2.log("debtAmounts", debtAmountsReturned[0]);
 
         uint256 collateralAvailable = 1e18 - 1;
@@ -301,28 +301,28 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
             );
 
 
-        // Validate liqResults.liquidatedShares[0]
+        // Validate result.liquidatedShares[0]
         assertEq(
-            liqResults.liquidatedShares[0],
+            result.liquidatedShares[0],
             collateralAvailable, 
             "liquidatedShares = collateralAvailable mismatch"
         );
 
         assertEq(
-            liqResults.liquidatedShares[0],
+            result.liquidatedShares[0],
             expectedLiqValues.collateralLiquidated,
             "liquidatedShares[0] = expectedCollateralSeized mismatch"
         );
 
-        // validate liqResults.debtRepaid
+        // validate result.debtRepaid
         assertEq(
-            liqResults.debtRepaid,
+            result.debtRepaid,
             expectedLiqValues.debtRepaid, 
             "debtRepaid = expectedRepayAmount mismatch"
         );
 
         // Should have bad debt
-        assertEq(liqResults.badDebtRealized, expectedLiqValues.badDebt, "badDebtRealized mismatch");
+        assertEq(result.badDebtRealized, expectedLiqValues.badDebt, "badDebtRealized mismatch");
 
         // validate debtAmountsReturned, debt cleared
         assertEq(debtAmountsReturned[0], 1e9, "debtAmountsReturned mismatch");
