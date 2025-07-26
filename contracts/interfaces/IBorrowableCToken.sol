@@ -56,11 +56,23 @@ interface IBorrowableCToken is ICToken {
     ///         borrow assets.
     /// @param assets The amount of the underlying assets to borrow.
     /// @param owner The account address to borrow on behalf of.
-    /// @param leverageData The data for the leverage operation.
+    /// @param leverageAction Struct containing information on a leverage
+    ///                       action to execute. Containing values:
+    ///                       1. Address of `borrowableCToken` that will be
+    ///                          borrowed from and assets swapped.
+    ///                       2. The amount borrowed from `borrowableCToken`,
+    ///                          in assets.
+    ///                       3. Curvance token assets that borrowed funds
+    ///                          will be swapped into.
+    ///                       4. Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///                       5. Optional auxiliary data for execution of a
+    ///                          leverage action.
     function borrowForPositionManager(
         uint256 assets,
         address owner,
-        IPositionManager.LeverageStruct memory leverageData
+        IPositionManager.LeverageAction memory leverageAction
     ) external;
 
     /// @notice Repays underlying tokens to lenders, on behalf of `account`,

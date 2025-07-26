@@ -19,7 +19,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
     CCTPBorrowZapper public CCTPZapper;
 
-    SwapperLib.Swap public swapData;
+    SwapperLib.Swap public swapAction;
     IUniswapV3Router.ExactInputSingleParams public params;
 
     function setUp() public override {
@@ -129,10 +129,10 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
             address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
-        swapData.inputToken = _DAI_ADDRESS;
-        swapData.inputAmount = 500e18;
-        swapData.outputToken = _USDC_ADDRESS;
-        swapData.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.inputToken = _DAI_ADDRESS;
+        swapAction.inputAmount = 500e18;
+        swapAction.outputToken = _USDC_ADDRESS;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
         params.fee = 3000;
@@ -141,26 +141,26 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         params.amountIn = 500e18;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        swapData.call = abi.encodeWithSelector(
+        swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
     }
 
-    function test_borrowAndBridge_fail_whenSwapDataIsInvalid() public {
-        swapData.inputToken = _USDC_ADDRESS;
+    function test_borrowAndBridge_fail_whenSwapActionIsInvalid() public {
+        swapAction.inputToken = _USDC_ADDRESS;
 
         vm.startPrank(user1);
 
         borrowableCDAI.setDelegateApproval(address(CCTPZapper), true);
 
         vm.expectRevert(
-            CCTPBorrowZapper.CCTPBorrowZapper__InvalidSwapData.selector
+            CCTPBorrowZapper.CCTPBorrowZapper__InvalidSwapAction.selector
         );
         CCTPZapper.borrowAndBridge{ value: _ONE }(
             address(borrowableCDAI),
             500e18,
-            swapData,
+            swapAction,
             42161,
             0
         );
@@ -181,7 +181,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         CCTPZapper.borrowAndBridge{ value: _ONE }(
             address(borrowableCDAI),
             500e18,
-            swapData,
+            swapAction,
             42161,
             0
         );
@@ -204,7 +204,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         CCTPZapper.borrowAndBridge{ value: messageFee - 1 }(
             address(borrowableCDAI),
             500e18,
-            swapData,
+            swapAction,
             42161,
             0
         );
@@ -222,7 +222,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         CCTPZapper.borrowAndBridge{ value: _ONE }(
             address(borrowableCDAI),
             500e18,
-            swapData,
+            swapAction,
             42161,
             0
         );

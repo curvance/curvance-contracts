@@ -101,17 +101,17 @@ contract StakedGMXCToken is StrategyCToken {
                     centralRegistry.feeManager()
                 );
 
-                SwapperLib.Swap memory swapData = abi.decode(
+                SwapperLib.Swap memory swapAction = abi.decode(
                     data,
                     (SwapperLib.Swap)
                 );
 
-                if (!_isApprovedAsset[swapData.inputToken]) {
-                    // this will be the same check: `swapData.inputToken != address(WETH)`
+                if (!_isApprovedAsset[swapAction.inputToken]) {
+                    // this will be the same check: `swapAction.inputToken != address(WETH)`
                     revert StrategyCToken__UnapprovedAssetSwap();
                 }
 
-                yield = SwapperLib._swapSafe(centralRegistry, swapData);
+                yield = SwapperLib._swapSafe(centralRegistry, swapAction);
 
                 // Make sure swap was routed into GMX.
                 if (yield == 0) {

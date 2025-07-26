@@ -174,26 +174,26 @@ abstract contract BaseCToken is
     ///         redeem assets.
     /// @param assets The amount of the underlying assets to redeem.
     /// @param owner The owner address of assets to redeem.
-    /// @param deleverageData Struct containing information on the desired
-    ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of the Curvance token that will be 
-    ///                          routed into debt token underlying to repay
-    ///                          outstanding debt.
-    ///                       2. The amount of `collateralToken` that will be
-    ///                          deleveraged.
-    ///                       3. Address of Curvance token that will have its
-    ///                          outstanding debt repaid.
-    ///                       4. Optional struct containing instructions on
-    ///                          how to handle swapping into debt token to
-    ///                          facilitate deleveraging.
-    ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to lenders.
-    ///                       6. Optional auxiliary data for execution of a
-    ///                          deleverage action.
+    /// @param deleverageAction Struct containing information on a deleverage
+    ///                         action to execute. Containing values:
+    ///                         1. Address of the cToken whose asset will be
+    ///                            routed into debt asset to repay outstanding
+    ///                            debt.
+    ///                         2. The amount of `cToken` that will
+    ///                            be deleveraged.
+    ///                         3. Address of borrowableCToken that will have
+    ///                            its outstanding debt repaid.
+    ///                         4. Swap action instructions converting
+    ///                            collateral asset into debt asset to
+    ///                            facilitate deleveraging.
+    ///                         5. The amount of debt assets that will be
+    ///                            repaid to lenders.
+    ///                         6. Optional auxiliary data for execution of a
+    ///                            deleverage action.
     function withdrawByPositionManager(
         uint256 assets,
         address owner,
-        IPositionManager.DeleverageStruct memory deleverageData
+        IPositionManager.DeleverageAction memory deleverageAction
     ) external nonReentrant {
         // Validate that a position manager is calling.
         if (!marketManager.isPositionManager(msg.sender)) {
@@ -205,29 +205,19 @@ abstract contract BaseCToken is
         // We can pull _totalAssets directly here since any pending
         // yield are already vested via _accrueIfNeeded().
         uint256 ta = _totalAssets;
-        uint256 ownerBalance = _checkRedemption(
-            assets,
-            owner,
-            ta
-        );
+        uint256 balance = _checkRedemption(assets, owner, ta);
         // No need to check for rounding error, previewWithdraw rounds up.
         uint256 shares = _previewWithdraw(assets, ta);
 
-        _processWithdraw(
-            assets,
-            shares,
-            msg.sender,
-            msg.sender,
-            owner
-        );
+        _processWithdraw(assets, shares, msg.sender, msg.sender, owner);
 
         // Process the position manager redemption leg.
         _processPositionManagerRedemption(
             assets,
             shares,
             owner,
-            ownerBalance,
-            deleverageData
+            balance,
+            deleverageAction
         );
     }
 
@@ -406,6 +396,7 @@ abstract contract BaseCToken is
         uint256 totalShares;
         uint256 shares;
         address account;
+
         for (uint256 i; i < numAccounts; ++i) {
             shares = liquidatedShares[i];
             // If theres no shares to liquidate for this account can
@@ -782,6 +773,7 @@ abstract contract BaseCToken is
         address receiver
     ) internal virtual returns (uint256 assets) {
         _accrueIfNeeded();
+
         _checkZeroAmount(shares);
         _checkDeposit(receiver);
 
@@ -824,28 +816,24 @@ abstract contract BaseCToken is
         // We can pull _totalAssets directly here since any pending
         // rewards are already vested via _accrueIfNeeded().
         uint256 ta = _totalAssets;
-        uint256 ownerBalance = _checkRedemption(
-            assets,
-            owner,
-            ta
-        );
+        uint256 balance = _checkRedemption(assets, owner, ta);
 
         // Validate caller is allowed to withdraw `shares` on behalf of
         // `owner`.
         _updateAllowance(owner, shares = _previewWithdraw(assets, ta));
 
         // Validate that `owner` can redeem `shares`.
-        uint256 collateralToRemove = marketManager.canRedeemWithCollateralRemoval(
+        uint256 collateralRedeemed = marketManager.canRedeemWithCollateralRemoval(
             address(this),
             shares,
             owner,
-            ownerBalance,
+            balance,
             collateralPosted[owner],
             forceRedeemCollateral
         );
 
-        if (collateralToRemove > 0) {
-            _removeCollateral(collateralToRemove, owner);
+        if (collateralRedeemed > 0) {
+            _removeCollateral(collateralRedeemed, owner);
         }
 
         // Execute withdrawal.
@@ -885,7 +873,7 @@ abstract contract BaseCToken is
         // We can pull _totalAssets directly here since any pending
         // rewards are already vested via _accrueIfNeeded().
         uint256 ta = _totalAssets;
-        uint256 ownerBalance = _checkRedemption(
+        uint256 balance = _checkRedemption(
             assets = _convertToAssets(shares, ta),
             owner,
             ta
@@ -901,27 +889,21 @@ abstract contract BaseCToken is
         }
 
         // Validate that `owner` can redeem `shares`.
-        uint256 collateralToRemove = marketManager.canRedeemWithCollateralRemoval(
+        uint256 collateralRedeemed = marketManager.canRedeemWithCollateralRemoval(
             address(this),
             shares,
             owner,
-            ownerBalance,
+            balance,
             collateralPosted[owner],
             forceRedeemCollateral
         );
 
-        if (collateralToRemove > 0) {
-            _removeCollateral(collateralToRemove, owner);
+        if (collateralRedeemed > 0) {
+            _removeCollateral(collateralRedeemed, owner);
         }
 
         // Execute withdrawal.
-        _processWithdraw(
-            assets,
-            shares,
-            msg.sender,
-            receiver,
-            owner
-        );
+        _processWithdraw(assets, shares, msg.sender, receiver, owner);
     }
 
     /// @notice Helper function for posting `shares` as collateral
@@ -1057,39 +1039,39 @@ abstract contract BaseCToken is
     /// @param owner The owner address of assets to redeem.
     /// @param balancePrior The balance of shares `owner` has before this
     ///                     redemption.
-    /// @param deleverageData Struct containing information on the desired
-    ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of cToken that will be routed into
-    ///                          a token underlying to repay outstanding
-    ///                          debt.
-    ///                       2. The amount of cTokens that will be
-    ///                          deleveraged.
-    ///                       3. Address of token that will have its
-    ///                          underlying token debt repaid.
-    ///                       4. Optional struct containing instructions on how
-    ///                          to handle swapping into cToken underlying
-    ///                          borrowed to facilitate deleveraging.
-    ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to the token lenders.
-    ///                       6. Optional auxiliary data for execution of a
-    ///                          deleverage action.
+    /// @param deleverageAction Struct containing information on a deleverage
+    ///                         action to execute. Containing values:
+    ///                         1. Address of the cToken whose asset will be
+    ///                            routed into debt asset to repay outstanding
+    ///                            debt.
+    ///                         2. The amount of `cToken` that will
+    ///                            be deleveraged.
+    ///                         3. Address of borrowableCToken that will have
+    ///                            its outstanding debt repaid.
+    ///                         4. Swap action instructions converting
+    ///                            collateral asset into debt asset to
+    ///                            facilitate deleveraging.
+    ///                         5. The amount of debt assets that will be
+    ///                            repaid to lenders.
+    ///                         6. Optional auxiliary data for execution of a
+    ///                            deleverage action.
     function _processPositionManagerRedemption(
         uint256 assets,
         uint256 shares,
         address owner,
         uint256 balancePrior,
-        IPositionManager.DeleverageStruct memory deleverageData
+        IPositionManager.DeleverageAction memory deleverageAction
     ) internal virtual {
         // Callback to position manager that executes cToken specific logic.
         IPositionManager(msg.sender).onRedeem(
             address(this),
             assets,
             owner,
-            deleverageData
+            deleverageAction
         );
 
         // Fails if redemption not allowed.
-        uint256 collateralToRemove = marketManager.canRedeemWithCollateralRemoval(
+        uint256 collateralRedeemed = marketManager.canRedeemWithCollateralRemoval(
             address(this),
             shares,
             owner,
@@ -1098,8 +1080,8 @@ abstract contract BaseCToken is
             false
         );
 
-        if (collateralToRemove > 0) {
-            _removeCollateral(collateralToRemove, owner);
+        if (collateralRedeemed > 0) {
+            _removeCollateral(collateralRedeemed, owner);
         }
     }
 
@@ -1293,9 +1275,7 @@ abstract contract BaseCToken is
     /// @param assets The amount of `asset()` to deposit.
     function _updateAssetsForDeposit(uint256 assets) internal virtual {
         // Document addition of `assets` to `ta` due to deposit.
-        unchecked {
-            _totalAssets = _totalAssets + assets;
-        }
+        _totalAssets = _totalAssets + assets;
     }
 
     /// @notice Updates asset values for a pending withdrawal.
@@ -1344,8 +1324,8 @@ abstract contract BaseCToken is
     ) internal {
         _checkZeroAmount(shares);
 
-        uint256 collateralPostedCached = collateralPosted[owner];
-        if (collateralPostedCached < shares) {
+        uint256 collateralOf = collateralPosted[owner];
+        if (collateralOf < shares) {
             _revert(_INSUFFICIENT_LIQUIDITY_SELECTOR);
         }
 
@@ -1354,7 +1334,7 @@ abstract contract BaseCToken is
             shares,
             owner,
             balanceOf(owner),
-            collateralPostedCached,
+            collateralOf,
             true
         );
     }
@@ -1376,20 +1356,20 @@ abstract contract BaseCToken is
             revert BaseCToken__TransferError();
         }
         
-        uint256 collateral = collateralPosted[owner];
+        uint256 collateralOf = collateralPosted[owner];
         
         // Fails if transfer not allowed.
-        uint256 collateralToRemove = marketManager.canTransfer(
+        uint256 collateralRedeemed = marketManager.canTransfer(
             address(this),
             shares,
             msg.sender,
             balanceOf(owner),
-            collateral,
-            collateral > 0 ? true : false
+            collateralOf,
+            collateralOf > 0 ? true : false
         );
 
-        if (collateralToRemove > 0) {
-            _removeCollateral(collateralToRemove, owner);
+        if (collateralRedeemed > 0) {
+            _removeCollateral(collateralRedeemed, owner);
         }
         
         _beforeTransferAction(shares, receiver, owner);
@@ -1405,16 +1385,16 @@ abstract contract BaseCToken is
     /// @param owner The account that will burn their shares to withdraw
     ///              assets.
     /// @param ta The current total amount of assets inside this vault.
-    /// @return ownerBalance The balance of shares `owner`.
+    /// @return balance The balance of shares `owner`.
     function _checkRedemption(
         uint256 assets,
         address owner,
         uint256 ta
-    ) internal view returns (uint256 ownerBalance) {
+    ) internal view returns (uint256 balance) {
         _checkZeroAmount(assets);
 
         // Check whether `assets` is above their allowed redemption limit.
-        if (assets > _convertToAssets(ownerBalance = balanceOf(owner), ta)) {
+        if (assets > _convertToAssets(balance = balanceOf(owner), ta)) {
             _revert(_INSUFFICIENT_LIQUIDITY_SELECTOR);
         }
 
@@ -1449,6 +1429,16 @@ abstract contract BaseCToken is
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
+    }
+
+    /// @dev Returns `floor(x * y / d)`.
+    /// Reverts if `x * y` overflows, or `d` is zero.
+    function _mulDiv(
+        uint256 x,
+        uint256 y,
+        uint256 d
+    ) internal pure returns (uint256 z) {
+        z = FixedPointMathLib.mulDiv(x, y, d);
     }
 
     /// INTERNAL HOOK FUNCTIONS WHICH MAY BE OVERRIDDEN ///

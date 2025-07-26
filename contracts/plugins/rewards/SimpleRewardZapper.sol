@@ -50,13 +50,13 @@ contract SimpleRewardZapper is ZapperBase {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Claims Reward Manager rewards, then swaps and transfers
-    ///         `swapData.outputToken` to `receiver`.
-    /// @param swapData Swap instruction data.
-    /// @param receiver Address that should receive `swapData.outputToken`.
-    /// @return outAmount The amount of `swapData.outputToken` that was
+    ///         `swapAction.outputToken` to `receiver`.
+    /// @param swapAction Instructions for executing a swap.
+    /// @param receiver Address that should receive `swapAction.outputToken`.
+    /// @return outAmount The amount of `swapAction.outputToken` that was
     ///                   received by `receiver`.
     function claimAndSwap(
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Normally in swappers we check whether the input is a network's gas
@@ -67,12 +67,12 @@ contract SimpleRewardZapper is ZapperBase {
         // Swap input token must match the reward token from the Reward Manager,
         // rather than hardcoding input here this also acts as check that
         // solver API call instructions have been configured properly.
-        if (swapData.inputToken != _getFeeToken()) {
+        if (swapAction.inputToken != _getFeeToken()) {
             revert SimpleRewardZapper__ExecutionError();
         }
 
         // Validate that the desired output token is approved.
-        if (authorizedOutputToken[swapData.outputToken] != 2) {
+        if (authorizedOutputToken[swapAction.outputToken] != 2) {
             revert SimpleRewardZapper__UnknownOutputToken();
         }
 
@@ -80,12 +80,12 @@ contract SimpleRewardZapper is ZapperBase {
         outAmount = _processRewards(msg.sender);
 
         // Validate swap input amount equals rewards received.
-        if (swapData.inputAmount != outAmount) {
+        if (swapAction.inputAmount != outAmount) {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
 
         // Check how much in rewards were received from the swap.
-        outAmount = SwapperLib._swapUnsafe(centralRegistry, swapData);
+        outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
 
         // Make sure we did not somehow end up with an empty swap through
         // all prior checks, slippage checks are native handled by the solver
@@ -95,24 +95,25 @@ contract SimpleRewardZapper is ZapperBase {
         }
 
         // Transfer output tokens to `receiver`.
-        _transferToRecipient(swapData.outputToken, receiver, outAmount);
+        _transferToRecipient(swapAction.outputToken, receiver, outAmount);
     }
 
     /// @notice Claims Reward Manager rewards, then Zaps, then deposits
     ///         `zapperCall.inputToken`, a cToken underlying, and enters
     ///         into Curvance collateral position.
     /// @param cToken The Curvance cToken address to deposit into.
-    /// @param swapData Swap instruction data to execute the swap.
+    /// @param swapAction Instructions for executing a swap into collateral
+    ///                   asset.
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of
-    ///                       `swapData.outputToken` into `cToken` position.
+    ///                       `swapAction.outputToken` into `cToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param receiver Address that should receive `cToken` shares.
     /// @return outAmount The `cToken` output shares received by `receiver`.
     function claimSwapAndDeposit(
         address cToken,
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         uint256 expectedShares,
         bool collateralize,
         address receiver
@@ -125,7 +126,7 @@ contract SimpleRewardZapper is ZapperBase {
         // Swap input token must match the fee token from the Reward
         // Manager, rather than hardcoding input here this also acts as check
         // that solver API call instructions have been configured properly.
-        if (swapData.inputToken != _getFeeToken()) {
+        if (swapAction.inputToken != _getFeeToken()) {
             revert SimpleRewardZapper__ExecutionError();
         }
 
@@ -135,21 +136,21 @@ contract SimpleRewardZapper is ZapperBase {
         // Claim caller rewards and cache reward amount.
         outAmount = _processRewards(msg.sender);
         // Validate Zap input amount equals rewards received.
-        if (swapData.inputAmount != outAmount) {
+        if (swapAction.inputAmount != outAmount) {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
 
-        if (swapData.inputToken == swapData.outputToken) {
-            outAmount = swapData.inputAmount;
+        if (swapAction.inputToken == swapAction.outputToken) {
+            outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken underlying.
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapData);
+            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
         // Enter Curvance cToken position.
         outAmount = _enterCurvanceSafe(
             cToken,
-            swapData.outputToken,
+            swapAction.outputToken,
             outAmount,
             expectedShares,
             collateralize,
@@ -161,17 +162,17 @@ contract SimpleRewardZapper is ZapperBase {
     ///         outstanding debt inside Curvance.
     /// @dev Sends any excess debt token to `receiver`. Only needs to
     ///      swap if `rewardToken` != `borrowableCToken` underlying.
-    /// @param swapData Optional swap instruction data to execute the
-    ///                 repayment.
+    /// @param swapAction Optional instructions for executing a swap into debt
+    ///                   asset.
     /// @param borrowableCToken The Curvance token address to repay debt to.
-    /// @param repayAmount The amount of debt to be repaid.
+    /// @param repayAssets The amount of debt to be repaid, in assets.
     /// @param receiver Address that should have its outstanding debt repaid.
     /// @return outAmount The excess amount of debt token that was returned to
     ///                   `receiver`.
     function claimSwapAndRepay(
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         address borrowableCToken,
-        uint256 repayAmount,
+        uint256 repayAssets,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Normally in swappers we check whether the input is a network's gas
@@ -184,7 +185,7 @@ contract SimpleRewardZapper is ZapperBase {
         // Swap input token must match the reward token from the Reward
         // Manager, rather than hardcoding input here this also acts as check
         // that solver API call instructions have been configured properly.
-        if (swapData.inputToken != rewardToken) {
+        if (swapAction.inputToken != rewardToken) {
             revert SimpleRewardZapper__ExecutionError();
         }
 
@@ -192,33 +193,33 @@ contract SimpleRewardZapper is ZapperBase {
         uint256 rewards = _processRewards(msg.sender);
 
         // Validate swap input amount equals rewards received.
-        if (swapData.inputAmount != rewards) {
+        if (swapAction.inputAmount != rewards) {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
         
         // Cache `borrowableCToken` underlying to minimize external calls.
-        address debtToken = ICToken(borrowableCToken).asset();
+        address debtAsset = ICToken(borrowableCToken).asset();
 
-        if (rewardToken != debtToken) {
+        if (rewardToken != debtAsset) {
             // Validate that if we are swapping that the output token
             // matches the underlying needed.
-            if (swapData.outputToken != debtToken) {
+            if (swapAction.outputToken != debtAsset) {
                 revert SimpleRewardZapper__ExecutionError();
             }
 
-            // Swap from reward token into `debtToken`.
-            swapData.inputAmount = SwapperLib._swapUnsafe(
+            // Swap from `rewardToken` into `debtAsset`.
+            swapAction.inputAmount = SwapperLib._swapUnsafe(
                 centralRegistry,
-                swapData
+                swapAction
             );
         }
 
-        // Repay `repayAmount` outstanding debt.
+        // Repay `repayAssets` outstanding debt.
         outAmount = _repayDebt(
             borrowableCToken,
-            debtToken,
-            swapData.inputAmount,
-            repayAmount,
+            debtAsset,
+            swapAction.inputAmount,
+            repayAssets,
             receiver
         );
     }

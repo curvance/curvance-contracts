@@ -122,14 +122,14 @@ abstract contract LiquidityManagerIsolated {
     ///         containing an accounts collateral values under specific
     ///         (soft liquidation versus hard liquidation) methodology
     ///         that will lead to liquidations.
-    /// @param collateralSoft The account's soft collateral value
-    ///                       (collateral adjusted by soft requirements).
-    /// @param collateralHard The account's hard collateral value
-    ///                       (collateral adjusted by hard requirements).
+    /// @param cSoft The account's soft collateral value (collateral adjusted
+    ///              by soft requirements).
+    /// @param cHard The account's hard collateral value (collateral adjusted
+    ///              by hard requirements).
     /// @param debt The account's total outstanding debt.
     struct AccountLiqResult {
-        uint256 collateralSoft;
-        uint256 collateralHard;
+        uint256 cSoft;
+        uint256 cHard;
         uint256 debt;
     }
 
@@ -181,9 +181,9 @@ abstract contract LiquidityManagerIsolated {
     /// @param debtDecimals The decimals that `debtToken` is measured in.
     /// @param debtUnderlyingPrice The current price of the underlying token
     ///                            of `debtToken`.
-    /// @param auctionBuffer The current buffer that collateralSoft is
-    ///                      multiplied against, 10 bps, or 0 if not an
-    ///                      auction liquidation.
+    /// @param auctionBuffer The current buffer that `cSoft` is multiplied
+    ///                      against, 10 bps, or 0 if not an auction-based
+    ///                      liquidation.
     struct TokenLiqData {
         address collateralToken;
         uint256 collateralExchangeRate;
@@ -467,12 +467,10 @@ abstract contract LiquidityManagerIsolated {
     /// @param debtToken The address of the Curvance token (cToken) that
     ///                  `account` has outstanding debt in.
     /// @return result An AccountLiqResult struct containing:
-    ///                collateralSoft The account's soft collateral value
-    ///                               (collateral adjusted by soft
-    ///                               requirements).
-    ///                collateralHard The account's hard collateral value
-    ///                               (collateral adjusted by hard
-    ///                               requirements).
+    ///                cSoft The account's soft collateral value (collateral
+    ///                      adjusted by soft requirements).
+    ///                cHard The account's hard collateral value (collateral
+    ///                      adjusted by hard requirements).
     ///                debt The account's total debt value.
     /// @return lFactor The liquidation factor determining liquidation
     ///                 severity.
@@ -510,14 +508,14 @@ abstract contract LiquidityManagerIsolated {
                 }
 
                 (
-                    result.collateralSoft,
-                    result.collateralHard
+                    result.cSoft,
+                    result.cHard
                 ) = _addLiquidationValues(
                     snap,
                     account,
                     underlyingPrices[i],
-                    result.collateralSoft,
-                    result.collateralHard
+                    result.cSoft,
+                    result.cHard
                 );
             } else {
                 if (snap.asset == debtToken) {
@@ -537,11 +535,7 @@ abstract contract LiquidityManagerIsolated {
             }
         }
 
-        lFactor = _getLFactor(
-            result.collateralSoft,
-            result.collateralHard,
-            result.debt
-        );
+        lFactor = _getLFactor(result.cSoft, result.cHard, result.debt);
     }
 
     /// @notice Evaluates an account's collateral and debt positions to
@@ -571,8 +565,8 @@ abstract contract LiquidityManagerIsolated {
     ///                           in.
     ///              debtUnderlyingPrice The current price of the underlying
     ///                                  token of `debtToken`.
-    ///              auctionBuffer The current buffer that `collateralSoft`
-    ///                            is multiplied against, 10 bps, or 0  if not
+    ///              auctionBuffer The current buffer that `cSoft` is
+    ///                            multiplied against, 10 bps, or 0  if not
     ///                            an auction-based liquidation.
     ///  @return lFactor The liquidation factor for `account`.
     ///  @return debt The current debt position in `liqData.debtToken` for
@@ -581,7 +575,7 @@ abstract contract LiquidityManagerIsolated {
         address account,
         TokenLiqData memory tData
     ) internal view returns (uint256 lFactor, uint256 debt) {
-        AccountLiqResult memory result;
+        AccountLiqResult memory r;
         address[] memory assets = accountAssets[account].assets;
 
         {
@@ -592,8 +586,8 @@ abstract contract LiquidityManagerIsolated {
                 asset = assets[i++];
                 if (asset == tData.collateralToken) {
                     (
-                        result.collateralSoft,
-                        result.collateralHard
+                        r.cSoft,
+                        r.cHard
                     ) = _addLiquidationValuesCached(
                             tData.collateralExchangeRate,
                             tData.collateralDecimals,
@@ -603,8 +597,8 @@ abstract contract LiquidityManagerIsolated {
                             ICToken(tData.collateralToken).collateralPosted(
                                 account
                             ),
-                            result.collateralSoft,
-                            result.collateralHard
+                            r.cSoft,
+                            r.cHard
                     );
                 } else {
                     // If the asset is not `collateralToken`, the asset must
@@ -617,7 +611,7 @@ abstract contract LiquidityManagerIsolated {
                     // If they have a debt balance, document additional
                     // collateral requirements.
                     if (debt > 0) {
-                        result.debt += _assetValue(
+                        r.debt += _assetValue(
                             debt,
                             tData.debtUnderlyingPrice,
                             tData.debtDecimals,
@@ -631,27 +625,21 @@ abstract contract LiquidityManagerIsolated {
         // If this is a potential liquidation from an auction, apply the
         // auction buffer to collateral values, discounting collateral values.
         if (tData.auctionBuffer != 0) {
-            result.collateralSoft =
-                _mulDiv(result.collateralSoft, tData.auctionBuffer, WAD);
-            result.collateralHard = 
-                _mulDiv(result.collateralHard, tData.auctionBuffer, WAD);
+            r.cSoft = _mulDiv(r.cSoft, tData.auctionBuffer, WAD);
+            r.cHard = _mulDiv(r.cHard, tData.auctionBuffer, WAD);
         }
 
-        lFactor = _getLFactor(
-            result.collateralSoft,
-            result.collateralHard,
-            result.debt
-        );
+        lFactor = _getLFactor(r.cSoft, r.cHard, r.debt);
     }
 
     ///  @notice Calculates the liquidation factor (LFactor) for an account
     ///          based on their collateral and debt positions.
     ///  @dev Determines whether an account is in a no-liquidation,
     ///       soft-liquidation, or hard-liquidation state.
-    ///  @param collateralSoft The account's soft collateral value
-    ///                        (collateral adjusted by soft requirements).
-    ///  @param collateralHard The account's hard collateral value
-    ///                        (collateral adjusted by hard requirements).
+    ///  @param cSoft The account's soft collateral value (collateral adjusted
+    ///               by soft requirements).
+    ///  @param cHard The account's hard collateral value (collateral adjusted
+    ///               by hard requirements).
     ///  @param debt The account's total outstanding debt value.
     ///  @return result The liquidation factor where:
     ///          - 0: No liquidation (account is healthy).
@@ -659,28 +647,23 @@ abstract contract LiquidityManagerIsolated {
     ///          - WAD: Hard liquidation (full liquidation, possibly including
     ///                 bad debt).
     function _getLFactor(
-        uint256 collateralSoft,
-        uint256 collateralHard,
+        uint256 cSoft,
+        uint256 cHard,
         uint256 debt
     ) internal pure returns (uint256 result) {
         // Indicates no liquidation.
-        if (collateralSoft >= debt) {
+        if (cSoft >= debt) {
             return result;
         }
 
-        // Indicates hard liquidation (may also include bad debt has
-        // accumulated).
-        if (debt >= collateralHard) {
+        // Indicates hard liquidation.
+        if (debt >= cHard) {
             result = WAD;
             return result;
         }
 
         // Indicates soft liquidation.
-        result = _mulDiv(
-            debt - collateralSoft,
-            WAD,
-            collateralHard - collateralSoft
-        );
+        result = _mulDiv(debt - cSoft, WAD, cHard - cSoft);
 
         // Its theoretically possible for lFactor calculation to round
         // down here, if the delta between the hard and soft collateral

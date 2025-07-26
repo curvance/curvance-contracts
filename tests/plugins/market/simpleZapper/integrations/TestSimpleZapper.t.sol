@@ -67,11 +67,11 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-        swapData.inputAmount = ethAmount;
-        swapData.target = _UNISWAP_V3_SWAP_ROUTER;
-        swapData.outputToken = address(usdc);
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+        swapAction.inputAmount = ethAmount;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.outputToken = address(usdc);
 
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _WETH_ADDRESS;
@@ -82,7 +82,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         params.amountIn = 3 ether;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        swapData.call = abi.encodeWithSelector(
+        swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
@@ -91,7 +91,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         simpleZapper.swapAndDeposit{ value: ethAmount }(
             address(simpleCUSDC),
             false, // was false before contract refactor
-            swapData,
+            swapAction,
             0,
             false,
             user1
@@ -116,11 +116,11 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         // skip min hold period
         skip(20 minutes);
 
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.inputAmount = 500e6;
-        swapData.outputToken = _DAI_ADDRESS;
-        swapData.target = _UNISWAP_V3_SWAP_ROUTER;
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 500e6;
+        swapAction.outputToken = _DAI_ADDRESS;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _USDC_ADDRESS;
         params.tokenOut = _DAI_ADDRESS;
@@ -130,7 +130,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         params.amountIn = 500e6;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        swapData.call = abi.encodeWithSelector(
+        swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
@@ -141,7 +141,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         simpleZapper.swapAndRepay(
             address(borrowableCDAI),
             false,
-            swapData,
+            swapAction,
             450e18,
             user1
         );
@@ -164,11 +164,11 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         redemptionData.shares = shares;
         redemptionData.forceRedeemCollateral = false;
 
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.inputAmount = shares;
-        swapData.outputToken = _WETH_ADDRESS;
-        swapData.target = _UNISWAP_V3_SWAP_ROUTER;
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = shares;
+        swapAction.outputToken = _WETH_ADDRESS;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
 
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _USDC_ADDRESS;
@@ -179,13 +179,13 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         params.amountIn = 2000e6;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        swapData.call = abi.encodeWithSelector(
+        swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
 
         vm.prank(user1);
-        simpleZapper.redeemAndSwap(redemptionData, swapData, user1);
+        simpleZapper.redeemAndSwap(redemptionData, swapAction, user1);
 
         assertGt(weth.balanceOf(user1), 2.9 ether); // 3 ether - fees
     }
@@ -205,11 +205,11 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         redemptionData.shares = 10 ether;
         redemptionData.forceRedeemCollateral = false;
 
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = _DAI_ADDRESS;
-        swapData.inputAmount = 10 ether;
-        swapData.outputToken = _USDC_ADDRESS;
-        swapData.target = _UNISWAP_V3_SWAP_ROUTER;
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _DAI_ADDRESS;
+        swapAction.inputAmount = 10 ether;
+        swapAction.outputToken = _USDC_ADDRESS;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
@@ -219,12 +219,12 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         params.amountIn = 10 ether;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        swapData.call = abi.encodeWithSelector(
+        swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
 
-        simpleZapper.redeemAndSwap(redemptionData, swapData, user1);
+        simpleZapper.redeemAndSwap(redemptionData, swapAction, user1);
 
         assertGt(usdc.balanceOf(user1), 9.99e6); // 10e6 - fees
 
@@ -247,11 +247,11 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         redemptionData.shares = 100 ether;
         redemptionData.forceRedeemCollateral = false;
 
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = _DAI_ADDRESS;
-        swapData.inputAmount = 100 ether;
-        swapData.outputToken = _USDC_ADDRESS;
-        swapData.target = _UNISWAP_V3_SWAP_ROUTER;
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _DAI_ADDRESS;
+        swapAction.inputAmount = 100 ether;
+        swapAction.outputToken = _USDC_ADDRESS;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
@@ -261,7 +261,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         params.amountIn = 100 ether;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        swapData.call = abi.encodeWithSelector(
+        swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
@@ -271,7 +271,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         simpleZapper.redeemSwapAndDeposit(
             address(simpleCUSDC),
             redemptionData,
-            swapData,
+            swapAction,
             0,
             false,
             user1

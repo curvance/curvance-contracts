@@ -43,8 +43,8 @@ library BalancerLib {
 
         // Approve tokens to deposit into BPT.
         for (uint256 i; i < numTokens; ++i) {
-            balances[i] = CommonLib._getTokenBalance(tokens[i]);
-            SwapperLib._approveTokenIfNeeded(
+            balances[i] = CommonLib._getBalanceOf(tokens[i]);
+            SwapperLib._approveIfNeeded(
                 tokens[i],
                 balancerVault,
                 balances[i]
@@ -112,7 +112,7 @@ library BalancerLib {
         uint256 singleAssetIndex
     ) internal {
         // Approve BPT.
-        SwapperLib._approveTokenIfNeeded(lpToken, balancerVault, lpAmount);
+        SwapperLib._approveIfNeeded(lpToken, balancerVault, lpAmount);
 
         uint256 numTokens = tokens.length;
         uint256[] memory balances = new uint256[](numTokens);

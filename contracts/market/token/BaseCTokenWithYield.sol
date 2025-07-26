@@ -18,7 +18,7 @@ abstract contract BaseCTokenWithYield is BaseCToken {
     /// CONSTANTS ///
 
     /// @notice The maximum length of time between vesting periods.
-    uint256 internal constant _MAXIMUM_VEST_PERIOD = 3 days;
+    uint256 internal constant _MAXIMUM_VESTING_PERIOD = 3 days;
 
     /// STORAGE ///
 
@@ -62,7 +62,7 @@ abstract contract BaseCTokenWithYield is BaseCToken {
         uint256 vestingPeriod_
     ) BaseCToken(centralRegistry_, asset_, marketManager_) {
         if (
-            vestingPeriod_ > _MAXIMUM_VEST_PERIOD &&
+            vestingPeriod_ > _MAXIMUM_VESTING_PERIOD &&
             vestingPeriod_ != 0
             ) {
             revert BaseCTokenWithYield__InvalidVestingPeriod();
@@ -81,7 +81,7 @@ abstract contract BaseCTokenWithYield is BaseCToken {
         _checkDaoPermissions();
 
         if (
-            newVestingPeriod > _MAXIMUM_VEST_PERIOD &&
+            newVestingPeriod > _MAXIMUM_VESTING_PERIOD &&
             newVestingPeriod != 0
             ) {
             revert BaseCTokenWithYield__InvalidVestingPeriod();

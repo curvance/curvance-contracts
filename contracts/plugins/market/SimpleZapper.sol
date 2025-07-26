@@ -17,7 +17,7 @@ contract SimpleZapper is ZapperBase {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Swaps then deposits `swapData.outputToken`, a cToken
+    /// @notice Swaps then deposits `swapAction.outputToken`, a cToken
     ///         underlying, and enters into Curvance position,
     ///         for `receiver`.
     /// @dev Requires plugin approval for collateralization.
@@ -25,10 +25,11 @@ contract SimpleZapper is ZapperBase {
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
     ///                               token, indicates depositing native token
     ///                               into wrapped version or not.
-    /// @param swapData Swap instruction data to execute the swap.
+    /// @param swapAction Instructions for executing a swap into collateral
+    ///                   asset.
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of
-    ///                       `swapData.outputToken` into `cToken` position.
+    ///                       `swapAction.outputToken` into `cToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param receiver Address that should receive `cToken` shares.
@@ -36,36 +37,36 @@ contract SimpleZapper is ZapperBase {
     function swapAndDeposit(
         address cToken,
         bool depositAsWrappedNative,
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         uint256 expectedShares,
         bool collateralize,
         address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
         _prepareSwap(
-            swapData.inputToken,
-            swapData.inputAmount,
+            swapAction.inputToken,
+            swapAction.inputAmount,
             depositAsWrappedNative
         );
 
         // If we are trying to deposit wrapped native, we may be able to skip
         // a swapper call by changing the input token and checking versus
         // output token.
-        if (CommonLib._isNative(swapData.inputToken) && depositAsWrappedNative) {
+        if (CommonLib._isNative(swapAction.inputToken) && depositAsWrappedNative) {
             // Switch inputToken to wrapped native token address.
-            swapData.inputToken = address(wrappedNative);
+            swapAction.inputToken = address(wrappedNative);
         }
 
-        if (swapData.inputToken == swapData.outputToken) {
-            outAmount = swapData.inputAmount;
+        if (swapAction.inputToken == swapAction.outputToken) {
+            outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken underlying.
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapData);
+            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
         // Enter Curvance position.
         outAmount = _enterCurvanceSafe(
             cToken,
-            swapData.outputToken,
+            swapAction.outputToken,
             outAmount,
             expectedShares,
             collateralize,
@@ -79,54 +80,54 @@ contract SimpleZapper is ZapperBase {
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
     ///                               token, indicates depositing native token
     ///                               into wrapped version or not.
-    /// @param swapData Swap instruction data to execute the repayment.
-    /// @param repayAmount The amount of debt to be repaid.
+    /// @param swapAction Instructions for executing a swap into debt asset.
+    /// @param repayAssets The amount of debt to be repaid, in assets.
     /// @param receiver Address that should have its outstanding debt repaid.
     /// @return outAmount The excess amount of debt token that was returned to
     ///                   `receiver`.
     function swapAndRepay(
         address borrowableCToken,
         bool depositAsWrappedNative,
-        SwapperLib.Swap memory swapData,
-        uint256 repayAmount,
+        SwapperLib.Swap memory swapAction,
+        uint256 repayAssets,
         address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
         _prepareSwap(
-            swapData.inputToken,
-            swapData.inputAmount,
+            swapAction.inputToken,
+            swapAction.inputAmount,
             depositAsWrappedNative
         );
 
         // If we are trying to repay wrapped native, we may be able to skip
         // a swapper call by changing the input token and checking versus
         // output token.
-        if (CommonLib._isNative(swapData.inputToken) && depositAsWrappedNative) {
+        if (CommonLib._isNative(swapAction.inputToken) && depositAsWrappedNative) {
             // Switch inputToken to wrapped native token address.
-            swapData.inputToken = address(wrappedNative);
+            swapAction.inputToken = address(wrappedNative);
         }
 
         // Validate token address parameters are valid.
-        _checkAddresses(borrowableCToken, swapData.outputToken);
+        _checkAddresses(borrowableCToken, swapAction.outputToken);
 
-        if (swapData.inputToken == swapData.outputToken) {
-            outAmount = swapData.inputAmount;
+        if (swapAction.inputToken == swapAction.outputToken) {
+            outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken underlying.
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapData);
+            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
-        // Repay `repayAmount` outstanding debt.
+        // Repay `repayAssets` outstanding debt.
         outAmount = _repayDebt(
             borrowableCToken,
-            swapData.outputToken,
+            swapAction.outputToken,
             outAmount,
-            repayAmount,
+            repayAssets,
             receiver
         );
     }
 
     /// @notice Withdraws from a Curvance position, and swaps it into
-    ///         desired token (swapData.outputToken).
+    ///         desired token (swapAction.outputToken).
     /// @dev Requires plugin approval for redemption.
     /// @param redemptionData Struct containing information on redemption
     ///                       action to execute. Containing values:
@@ -135,36 +136,36 @@ contract SimpleZapper is ZapperBase {
     ///                       2. The amount of shares to redeemed.
     ///                       3. Whether the collateral should be always
     ///                          reduced from callers collateralPosted.
-    /// @param swapData Swap instruction data to execute the repayment.
-    /// @param receiver Address that should receive `swapData.outputToken`.
-    /// @return outAmount The amount of `swapData.outputToken` that was
+    /// @param swapAction Instructions for executing a swap into debt asset.
+    /// @param receiver Address that should receive `swapAction.outputToken`.
+    /// @return outAmount The amount of `swapAction.outputToken` that was
     ///                   received by `receiver`.
     function redeemAndSwap(
         RedemptionData calldata redemptionData,
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvanceSafe(
             redemptionData.cToken,
-            swapData.inputToken,
+            swapAction.inputToken,
             redemptionData.shares,
-            swapData.inputAmount,
+            swapAction.inputAmount,
             redemptionData.forceRedeemCollateral,
             receiver
         );
 
-        if (swapData.inputToken == swapData.outputToken) {
-            outAmount = swapData.inputAmount;
+        if (swapAction.inputToken == swapAction.outputToken) {
+            outAmount = swapAction.inputAmount;
         } else {
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapData);
+            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
-        _transferToRecipient(swapData.outputToken, receiver, outAmount);
+        _transferToRecipient(swapAction.outputToken, receiver, outAmount);
     }
 
     /// @notice Withdraws a Curvance position, swaps it into
-    ///         desired token (swapData.outputToken) and then deposits
+    ///         desired token (swapAction.outputToken) and then deposits
     ///         it into a new position.
     /// @dev Requires plugin approval for redemption.
     /// @param cToken The Curvance token (cToken) address.
@@ -175,10 +176,10 @@ contract SimpleZapper is ZapperBase {
     ///                       2. The amount of shares to redeemed.
     ///                       3. Whether the collateral should be always
     ///                          reduced from callers collateralPosted.
-    /// @param swapData Swap instruction data to execute the repayment.
+    /// @param swapAction Instructions for executing a swap into debt asset.
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of
-    ///                       `swapData.outputToken` into `cToken` position.
+    ///                       `swapAction.outputToken` into `cToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param receiver Address that should receive `cToken` shares.
@@ -186,7 +187,7 @@ contract SimpleZapper is ZapperBase {
     function redeemSwapAndDeposit(
         address cToken,
         RedemptionData calldata redemptionData,
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         uint256 expectedShares,
         bool collateralize,
         address receiver
@@ -194,25 +195,25 @@ contract SimpleZapper is ZapperBase {
         // Exit Curvance position.
         _exitCurvanceSafe(
             redemptionData.cToken,
-            swapData.inputToken,
+            swapAction.inputToken,
             redemptionData.shares,
-            swapData.inputAmount,
+            swapAction.inputAmount,
             redemptionData.forceRedeemCollateral,
             receiver
         );
 
-        if (swapData.inputToken == swapData.outputToken) {
-            outAmount = swapData.inputAmount;
+        if (swapAction.inputToken == swapAction.outputToken) {
+            outAmount = swapAction.inputAmount;
         } else {
-            // Execute swap into `swapData.outputToken` which should be
+            // Execute swap into `swapAction.outputToken` which should be
             // new cToken underlying.
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapData);
+            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
         // Enter Curvance position.
         outAmount = _enterCurvanceSafe(
             cToken,
-            swapData.outputToken,
+            swapAction.outputToken,
             outAmount,
             expectedShares,
             collateralize,

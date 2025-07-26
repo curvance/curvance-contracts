@@ -10,7 +10,7 @@ import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswap
 
 contract ClaimRewardsForTest is TestBaseRewardManager {
     RewardsData public rewardsData = RewardsData(true, false, false, false);
-    SwapperLib.Swap public swapData;
+    SwapperLib.Swap public swapAction;
     address[] public path;
 
     function setUp() public override {
@@ -19,11 +19,11 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
         path.push(_USDC_ADDRESS);
         path.push(address(cve));
 
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.inputAmount = 100e6;
-        swapData.outputToken = address(cve);
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.call = abi.encodeWithSignature(
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 100e6;
+        swapAction.outputToken = address(cve);
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             100e6,
             0,
@@ -68,7 +68,7 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
             user1,
             epoch,
             rewardsData,
-            abi.encode(swapData),
+            abi.encode(swapAction),
             0
         );
     }
@@ -98,8 +98,8 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
 
         _prepareUSDC(address(rewardManager), rewards);
 
-        swapData.inputAmount = rewards;
-        swapData.call = abi.encodeWithSignature(
+        swapAction.inputAmount = rewards;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
             0,
@@ -119,7 +119,7 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
             user1,
             epoch,
             rewardsData,
-            abi.encode(swapData),
+            abi.encode(swapAction),
             0
         );
 

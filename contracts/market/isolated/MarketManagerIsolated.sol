@@ -272,22 +272,18 @@ contract MarketManagerIsolated is
     /// @notice Determine `account`'s current collateral and debt values
     ///         in the market.
     /// @param account The account to calculate liquidation values for.
-    /// @return soft The total market value of `account`'s collateral offset
-    ///              by soft liquidation requirements.
-    /// @return hard The total market value of `account`'s collateral offset
-    ///              by hard liquidation requirements.
-    /// @return debt The total outstanding debt value of `account`.
-    function liquidationValuesOf(address account) external view returns (
-        uint256 soft,
-        uint256 hard,
-        uint256 debt
-    ) {
+    /// @return The total market value of `account`'s collateral offset
+    ///         by soft liquidation requirements.
+    /// @return The total market value of `account`'s collateral offset
+    ///         by hard liquidation requirements.
+    /// @return The total outstanding debt value of `account`.
+    function liquidationValuesOf(
+        address account
+    ) external view returns (uint256, uint256, uint256) {
         (
             AccountLiqResult memory result,,,
         ) = _liquidationValuesOf(account, address(0), address(0));
-        soft = result.collateralSoft;
-        hard = result.collateralHard;
-        debt = result.debt;
+        return (result.cSoft, result.cHard, result.debt);
     }
 
     /// @notice Determine whether `account` can be liquidated,
@@ -1336,7 +1332,7 @@ contract MarketManagerIsolated is
         // Check account liquidity with hypothetical cToken redemption.
         (
             HypotheticalResult memory result,
-            bool[] memory positionsToClose
+            bool[] memory positions
         ) = _hypotheticalLiquidityOf(
                 account,
                 HypotheticalAction({
@@ -1363,7 +1359,7 @@ contract MarketManagerIsolated is
     /// @param shares The number of cToken shares to redeem for the
     ///               underlying asset in the market.
     /// @param account The account which would redeem `shares`.
-    /// @param balanceOf The current cToken share balance of `account`.
+    /// @param balance The current cToken share balance of `account`.
     /// @param collateralPosted The current cToken shares posted as
     ///                         collateral by `account`.
     /// @param isCollateral Boolean indicating whether the token is currently
@@ -1374,34 +1370,33 @@ contract MarketManagerIsolated is
         address cToken,
         uint256 shares,
         address account,
-        uint256 balanceOf,
+        uint256 balance,
         uint256 collateralPosted,
         bool isCollateral,
         bool forceRedeemCollateral
-    ) internal returns (uint256 collateralToRemove) {
+    ) internal returns (uint256 collateralRedeemed) {
         if (isCollateral) {
             // If collateral is being directly removed by user intention,
             // or liquidation we can skip balance checks.
             if (forceRedeemCollateral) {
-                collateralToRemove = shares;
+                collateralRedeemed = shares;
             } else {
                 // If they want to redeem more `cToken` shares than they have
                 // idle, calculate how much collateral will be redeemed from
-                // the delta. Otherwise collateralToRemove default value of 0
+                // the delta. Otherwise `collateralRedeemed` default value of 0
                 // is correct.
-                if (collateralPosted + shares >= balanceOf) {
-                    collateralToRemove =
-                        collateralPosted + shares - balanceOf;
+                if (collateralPosted + shares >= balance) {
+                    collateralRedeemed = collateralPosted + shares - balance;
                 }
             }
         }
         
         // Validate that the collateral being removed is allowed.
-        if (collateralToRemove > 0) {
+        if (collateralRedeemed > 0) {
             (
                 uint256 positionClosureNeeded,
                 bool[] memory positionsToClose
-            ) = _canRedeem(cToken, collateralToRemove, account);
+            ) = _canRedeem(cToken, collateralRedeemed, account);
             _closePositionsIfNeeded(
                 positionClosureNeeded,
                 account,
@@ -1444,8 +1439,8 @@ contract MarketManagerIsolated is
     ///                           in.
     ///              debtUnderlyingPrice The current price of the underlying
     ///                                  token of `debtToken`.
-    ///              auctionBuffer The current buffer that `collateralSoft`
-    ///                            is multiplied against, 10 bps, or 0  if not
+    ///              auctionBuffer The current buffer that `cSoft` is
+    ///                            multiplied against, 10 bps, or 0  if not
     ///                            an auction-based liquidation.
     /// @param aData An AccountLiqData struct containing:
     ///              lFactor Empty variable to hold an account's liquidation
@@ -1615,8 +1610,8 @@ contract MarketManagerIsolated is
     ///                            in.
     ///               debtUnderlyingPrice The current price of the underlying
     ///                                   token of `debtToken`.
-    ///               auctionBuffer The current buffer that `collateralSoft`
-    ///                             is multiplied against, 10 bps, or 0  if not
+    ///               auctionBuffer The current buffer that `cSoft` is
+    ///                             multiplied against, 10 bps, or 0  if not
     ///                             an auction-based liquidation.
     /// @return aData An AccountLiqData struct containing:
     ///               lFactor Empty variable to hold an account's liquidation

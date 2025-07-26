@@ -129,11 +129,11 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
             address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = _DAI_ADDRESS;
-        swapData.inputAmount = 500e18;
-        swapData.outputToken = _USDC_ADDRESS;
-        swapData.target = _UNISWAP_V3_SWAP_ROUTER;
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _DAI_ADDRESS;
+        swapAction.inputAmount = 500e18;
+        swapAction.outputToken = _USDC_ADDRESS;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
@@ -143,7 +143,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         params.amountIn = 500e18;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        swapData.call = abi.encodeWithSelector(
+        swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
@@ -157,7 +157,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         CCTPZapper.borrowAndBridge{ value: messageFee }(
             address(borrowableCDAI),
             500e18,
-            swapData,
+            swapAction,
             42161,
             0
         );

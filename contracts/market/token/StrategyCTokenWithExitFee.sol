@@ -101,28 +101,28 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
     /// @param owner The owner address of assets to redeem.
     /// @param balancePrior The balance of shares `owner` has before this
     ///                     redemption. 
-    /// @param deleverageData Struct containing information on the desired
-    ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of the Curvance token that will be 
-    ///                          routed into debt token underlying to repay
-    ///                          outstanding debt.
-    ///                       2. The amount of `collateralToken` that will be
-    ///                          deleveraged.
-    ///                       3. Address of Curvance token that will have its
-    ///                          outstanding debt repaid.
-    ///                       4. Optional struct containing instructions on
-    ///                          how to handle swapping into debt token to
-    ///                          facilitate deleveraging.
-    ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to lenders.
-    ///                       6. Optional auxiliary data for execution of a
-    ///                          deleverage action.
+    /// @param deleverageAction Struct containing information on a deleverage
+    ///                         action to execute. Containing values:
+    ///                         1. Address of the cToken whose asset will be
+    ///                            routed into debt asset to repay outstanding
+    ///                            debt.
+    ///                         2. The amount of `cToken` that will
+    ///                            be deleveraged.
+    ///                         3. Address of borrowableCToken that will have
+    ///                            its outstanding debt repaid.
+    ///                         4. Swap action instructions converting
+    ///                            collateral asset into debt asset to
+    ///                            facilitate deleveraging.
+    ///                         5. The amount of debt assets that will be
+    ///                            repaid to lenders.
+    ///                         6. Optional auxiliary data for execution of a
+    ///                            deleverage action.
     function _processPositionManagerRedemption(
         uint256 assets,
         uint256 shares,
         address owner,
         uint256 balancePrior,
-        IPositionManager.DeleverageStruct memory deleverageData
+        IPositionManager.DeleverageAction memory deleverageAction
     ) internal override {
         assets = _removeExitFeeFromAssets(assets);
         deleverageData.collateralAssets = assets;
@@ -131,7 +131,7 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
             shares,
             owner,
             balancePrior,
-            deleverageData
+            deleverageAction
         );
     }
 

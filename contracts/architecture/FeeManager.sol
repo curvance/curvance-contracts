@@ -74,21 +74,21 @@ contract FeeManager is ReentrancyGuard {
 
     error FeeManager__Unauthorized();
     error FeeManager__InvalidCentralRegistry();
-    error FeeManager__SwapDataAndTokenLengthMismatch(
-        uint256 numSwapData,
+    error FeeManager__SwapActionsAndTokenLengthMismatch(
+        uint256 numSwapActions,
         uint256 numTokens
     );
-    error FeeManager__SwapDataInputTokenIsNotCurrentToken(
+    error FeeManager__SwapActionsInputTokenIsNotCurrentToken(
         uint256 index,
         address inputToken,
         address currentToken
     );
-    error FeeManager__SwapDataOutputTokenIsNotFeeToken(
+    error FeeManager__SwapActionsOutputTokenIsNotFeeToken(
         uint256 index,
         address inputToken,
         address currentToken
     );
-    error FeeManager__SwapDataCurrentTokenIsNotRewardToken(
+    error FeeManager__SwapActionsCurrentTokenIsNotRewardToken(
         uint256 index,
         address currentToken
     );
@@ -134,14 +134,14 @@ contract FeeManager is ReentrancyGuard {
             revert FeeManager__Unauthorized();
         }
 
-        SwapperLib.Swap[] memory swapDataArray = abi.decode(
+        SwapperLib.Swap[] memory swapActions = abi.decode(
             data,
             (SwapperLib.Swap[])
         );
 
-        uint256 numTokens = swapDataArray.length;
+        uint256 numTokens = swapActions.length;
         if (numTokens != tokens.length) {
-            revert FeeManager__SwapDataAndTokenLengthMismatch(
+            revert FeeManager__SwapActionsAndTokenLengthMismatch(
                 numTokens,
                 tokens.length
             );
@@ -156,24 +156,24 @@ contract FeeManager is ReentrancyGuard {
             }
 
             if (rewardTokenInfo[currentToken].isRewardToken != 2) {
-                revert FeeManager__SwapDataCurrentTokenIsNotRewardToken(
+                revert FeeManager__SwapActionsCurrentTokenIsNotRewardToken(
                     i,
                     currentToken
                 );
             }
 
-            if (swapDataArray[i].inputToken != currentToken) {
-                revert FeeManager__SwapDataInputTokenIsNotCurrentToken(
+            if (swapActions[i].inputToken != currentToken) {
+                revert FeeManager__SwapActionsInputTokenIsNotCurrentToken(
                     i,
-                    swapDataArray[i].inputToken,
+                    swapActions[i].inputToken,
                     currentToken
                 );
             }
 
-            if (swapDataArray[i].outputToken != _getFeeToken()) {
-                revert FeeManager__SwapDataOutputTokenIsNotFeeToken(
+            if (swapActions[i].outputToken != _getFeeToken()) {
+                revert FeeManager__SwapActionsOutputTokenIsNotFeeToken(
                     i,
-                    swapDataArray[i].outputToken,
+                    swapActions[i].outputToken,
                     _getFeeToken()
                 );
             }
@@ -184,7 +184,7 @@ contract FeeManager is ReentrancyGuard {
             //       swap routing. We route liquidity to 1Inch with tight
             //       slippage requirement, meaning we do not need to
             //       separately check for slippage here.
-            SwapperLib._swapSafe(centralRegistry, swapDataArray[i]);
+            SwapperLib._swapSafe(centralRegistry, swapActions[i]);
         }
     }
 

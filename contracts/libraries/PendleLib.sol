@@ -52,7 +52,7 @@ library PendleLib {
     ) internal returns (uint256 outAmount) {
         if (isPt) {
             // Swap `tokenIn` to principal token.
-            SwapperLib._approveTokenIfNeeded(
+            SwapperLib._approveIfNeeded(
                 data.input.tokenIn,
                 address(router),
                 data.input.netTokenIn
@@ -90,7 +90,7 @@ library PendleLib {
                     balance = IERC20(token).balanceOf(address(this));
 
                     if (balance > 0) {
-                        SwapperLib._approveTokenIfNeeded(
+                        SwapperLib._approveIfNeeded(
                             token,
                             address(sy),
                             balance
@@ -101,7 +101,7 @@ library PendleLib {
             }
 
             balance = sy.balanceOf(address(this));
-            SwapperLib._approveTokenIfNeeded(address(sy), router, balance);
+            SwapperLib._approveIfNeeded(address(sy), router, balance);
 
             // Add liquidity to Pendle lp via SY.
             (outAmount, ) = IPendleRouter(router).addLiquiditySingleSy(
@@ -118,7 +118,8 @@ library PendleLib {
     /// @notice Exit a Pendle position.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
-    /// @param token If isPt= false then the underlying token address of the SY, if not then the PT address.
+    /// @param token If isPt = false then the underlying token address of the
+    ///              SY, if not then the PT address.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
     /// @param lpToken The Pendle lp token address.
@@ -134,7 +135,7 @@ library PendleLib {
         uint256 minTokenOut
     ) internal {
         if (isPt) {
-            SwapperLib._approveTokenIfNeeded(token, router, amount);
+            SwapperLib._approveIfNeeded(token, router, amount);
 
             IPendleRouter(router).swapExactPtForToken(
                 address(this),
@@ -144,7 +145,7 @@ library PendleLib {
                 data.limit
             );
         } else {
-            SwapperLib._approveTokenIfNeeded(lpToken, router, amount);
+            SwapperLib._approveIfNeeded(lpToken, router, amount);
 
             (uint256 balance, ) = IPendleRouter(router)
                 .removeLiquiditySingleSy(

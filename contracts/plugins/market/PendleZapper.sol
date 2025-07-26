@@ -20,7 +20,7 @@ contract PendleZapper is ZapperBase {
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
     ///                               token, indicates depositing native token
     ///                               into wrapped version or not.
-    struct ZapperData {
+    struct ZapAction {
         address inputToken;
         uint256 inputAmount;
         address outputToken;
@@ -41,19 +41,19 @@ contract PendleZapper is ZapperBase {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Swaps then deposits `zapData.inputToken` into Pendle
+    /// @notice Swaps then deposits `zapAction.inputToken` into Pendle
     ///         market, and enters into Curvance position.
     /// @dev Requires plugin approval for collateralization.
     /// @param strategyCToken The Curvance token address to enter into a
     ///                       position.
-    /// @param zapData Zap instruction data to execute the Zap.
-    /// @param swapData Array of swap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
+    /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
     /// @param expectedShares The minimum expected amount of shares received
-    ///                       from depositing `amount` of `swapData.outputToken`
+    ///                       from depositing `amount` of `swapActions.outputToken`
     ///                       into `strategyCToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
@@ -62,8 +62,8 @@ contract PendleZapper is ZapperBase {
     ///                   `receiver`.
     function enterPendle(
         address strategyCToken,
-        ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata swapData,
+        ZapAction calldata zapAction,
+        SwapperLib.Swap[] calldata swapActions,
         address router,
         bool isPt,
         PendleLib.PendleData calldata data,
@@ -73,10 +73,10 @@ contract PendleZapper is ZapperBase {
     ) external payable nonReentrant returns (uint256 outAmount) {
         // Swap input token for underlyings.
         _swapForUnderlyings(
-            zapData.inputToken,
-            zapData.inputAmount,
-            swapData,
-            zapData.depositAsWrappedNative
+            zapAction.inputToken,
+            zapAction.inputAmount,
+            swapActions,
+            zapAction.depositAsWrappedNative
         );
 
         // Enter Pendle position.
@@ -84,14 +84,14 @@ contract PendleZapper is ZapperBase {
             router,
             isPt,
             data,
-            zapData.outputToken,
-            zapData.minimumOut
+            zapAction.outputToken,
+            zapAction.minimumOut
         );
 
         // Enter Curvance position.
         outAmount = _enterCurvanceSafe(
             strategyCToken,
-            zapData.outputToken,
+            zapAction.outputToken,
             outAmount,
             expectedShares,
             collateralize,
@@ -100,14 +100,14 @@ contract PendleZapper is ZapperBase {
     }
 
     /// @notice Exits a Pendle market, and zaps it into desired
-    ///         token (zapData.outputToken).
+    ///         token (zapAction.outputToken).
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param underlyingToken The underlying token address of the SY.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
-    /// @param zapData Zap instruction data to execute the Zap.
-    /// @param swapData Array of swap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
+    /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function exitPendle(
@@ -115,16 +115,16 @@ contract PendleZapper is ZapperBase {
         bool isPt,
         address underlyingToken,
         PendleLib.PendleData calldata data,
-        ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata swapData,
+        ZapAction calldata zapAction,
+        SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Transfer the Pendle market to the Zapper.
         SafeTransferLib.safeTransferFrom(
-            zapData.inputToken,
+            zapAction.inputToken,
             msg.sender,
             address(this),
-            zapData.inputAmount
+            zapAction.inputAmount
         );
 
         // Exit Pendle position.
@@ -133,14 +133,14 @@ contract PendleZapper is ZapperBase {
             isPt,
             underlyingToken,
             data,
-            zapData,
-            swapData,
+            zapAction,
+            swapActions,
             receiver
         );
     }
 
     /// @notice Withdraws from a Curvance Pendle position, and zaps it
-    ///         into desired token (zapData.outputToken).
+    ///         into desired token (zapAction.outputToken).
     /// @param redemptionData Struct containing information on the desired
     ///                       redemption action to execute. Containing values:
     ///                       1. The address of the strategyCToken corresponding
@@ -153,8 +153,8 @@ contract PendleZapper is ZapperBase {
     /// @param token The underlying token address of the SY.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
-    /// @param zapData Zap instruction data to execute the Zap.
-    /// @param swapData Array of swap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
+    /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitPendle(
@@ -163,16 +163,16 @@ contract PendleZapper is ZapperBase {
         bool isPt,
         address token,
         PendleLib.PendleData calldata data,
-        ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata swapData,
+        ZapAction calldata zapAction,
+        SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvanceSafe(
             redemptionData.cToken,
-            zapData.inputToken,
+            zapAction.inputToken,
             redemptionData.shares,
-            zapData.inputAmount,
+            zapAction.inputAmount,
             redemptionData.forceRedeemCollateral,
             receiver
         );
@@ -183,8 +183,8 @@ contract PendleZapper is ZapperBase {
             isPt,
             token,
             data,
-            zapData,
-            swapData,
+            zapAction,
+            swapActions,
             receiver
         );
     }
@@ -192,12 +192,12 @@ contract PendleZapper is ZapperBase {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Withdraws from a Curvance Pendle position, and zaps it
-    ///         into desired token (zapData.outputToken).
+    ///         into desired token (zapAction.outputToken).
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param underlyingToken The underlying token address of the SY.
-    /// @param zapData Zap instruction data to execute the Zap.
-    /// @param swapData Array of swap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
+    /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function _exitPendle(
@@ -205,8 +205,8 @@ contract PendleZapper is ZapperBase {
         bool isPt,
         address underlyingToken,
         PendleLib.PendleData calldata data,
-        ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata swapData,
+        ZapAction calldata zapAction,
+        SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) internal returns (uint256 outAmount) {
         // Exit Pendle position.
@@ -215,57 +215,57 @@ contract PendleZapper is ZapperBase {
             isPt,
             underlyingToken,
             data,
-            zapData.inputToken,
-            zapData.inputAmount,
+            zapAction.inputToken,
+            zapAction.inputAmount,
             0
         );
 
-        uint256 numTokenSwaps = swapData.length;
-        // Swap unwrapped tokens into `zapData.outputToken`.
+        uint256 numTokenSwaps = swapActions.length;
+        // Swap unwrapped tokens into `zapAction.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
-            // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
+            // Execute swap(s) into `zapAction.outputToken`.
+            SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getTokenBalance(zapData.outputToken);
+        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
-        if (outAmount < zapData.minimumOut) {
+        if (outAmount < zapAction.minimumOut) {
             revert PendleZapper__SlippageError();
         }
 
         // Transfer output tokens to `receiver`.
-        _transferToRecipient(zapData.outputToken, receiver, outAmount);
+        _transferToRecipient(zapAction.outputToken, receiver, outAmount);
     }
 
     /// @notice Swap `inputToken` into desired underlying tokens.
     /// @param inputToken The input token address.
     /// @param inputAmount The amount of `inputToken` to swap for underlying
     ///                    tokens.
-    /// @param swapData Array of swap instruction data
+    /// @param swapActions Array of swap instruction data
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
     ///                               token, indicates depositing native token
     ///                               into wrapped version or not.
     function _swapForUnderlyings(
         address inputToken,
         uint256 inputAmount,
-        SwapperLib.Swap[] memory swapData,
+        SwapperLib.Swap[] memory swapActions,
         bool depositAsWrappedNative
     ) internal {
         _prepareSwap(inputToken, inputAmount, depositAsWrappedNative);
 
-        uint256 numTokenSwaps = swapData.length;
+        uint256 numTokenSwaps = swapActions.length;
         // Swap `inputToken` into desired underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
             if (
-                CommonLib._isNative(swapData[i].inputToken) &&
+                CommonLib._isNative(swapActions[i].inputToken) &&
                 depositAsWrappedNative
             ) {
                 // Switch inputToken to wrapped native token address.
-                swapData[i].inputToken = address(wrappedNative);
+                swapActions[i].inputToken = address(wrappedNative);
             }
 
             // Execute swap into underlying(s).
-            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
+            SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
     }
 }

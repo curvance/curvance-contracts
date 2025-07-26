@@ -49,12 +49,12 @@ contract VelodromeZapper is ZapperBase {
     /// @param strategyCToken The Curvance token address to enter a
     ///                       position in.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param swapData Array of swap instruction data to execute the Zap.
+    /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param router The Velodrome router address.
     /// @param factory The Velodrome factory address.
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of
-    ///                       `swapData.outputToken` into `strategyCToken`
+    ///                       `swapActions.outputToken` into `strategyCToken`
     ///                       position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
@@ -64,7 +64,7 @@ contract VelodromeZapper is ZapperBase {
     function enterVelodrome(
         address strategyCToken,
         ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata swapData,
+        SwapperLib.Swap[] calldata swapActions,
         address router,
         address factory,
         uint256 expectedShares,
@@ -75,7 +75,7 @@ contract VelodromeZapper is ZapperBase {
         _swapForUnderlyings(
             zapData.inputToken,
             zapData.inputAmount,
-            swapData,
+            swapActions,
             zapData.depositAsWrappedNative
         );
 
@@ -84,8 +84,8 @@ contract VelodromeZapper is ZapperBase {
             router,
             factory,
             zapData.outputToken,
-            CommonLib._getTokenBalance(IVeloPair(zapData.outputToken).token0()),
-            CommonLib._getTokenBalance(IVeloPair(zapData.outputToken).token1()),
+            CommonLib._getBalanceOf(IVeloPair(zapData.outputToken).token0()),
+            CommonLib._getBalanceOf(IVeloPair(zapData.outputToken).token1()),
             zapData.minimumOut
         );
 
@@ -104,13 +104,13 @@ contract VelodromeZapper is ZapperBase {
     ///         token (zapData.outputToken).
     /// @param router The Velodrome router address.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param swapData Array of swap instruction data to execute the Zap.
+    /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function exitVelodrome(
         address router,
         ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata swapData,
+        SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Transfer the Velodrome sAMM/vAMM LP to the Zapper.
@@ -122,7 +122,7 @@ contract VelodromeZapper is ZapperBase {
         );
 
         // Exit Velodrome position.
-        outAmount = _exitVelodrome(router, zapData, swapData, receiver);
+        outAmount = _exitVelodrome(router, zapData, swapActions, receiver);
     }
 
     /// @notice Withdraws from a Curvance Velodrome position, and zaps it
@@ -137,14 +137,14 @@ contract VelodromeZapper is ZapperBase {
     ///                          reduced from callers collateralPosted.
     /// @param router The Velodrome router address.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param swapData Array of swap instruction data to execute the Zap.
+    /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitVelodrome(
         RedemptionData calldata redemptionData,
         address router,
         ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata swapData,
+        SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
@@ -158,7 +158,7 @@ contract VelodromeZapper is ZapperBase {
         );
 
         // Exit Velodrome position.
-        outAmount = _exitVelodrome(router, zapData, swapData, receiver);
+        outAmount = _exitVelodrome(router, zapData, swapActions, receiver);
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -167,13 +167,13 @@ contract VelodromeZapper is ZapperBase {
     ///         into desired token (zapData.outputToken).
     /// @param router The Velodrome router address.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param swapData Array of swap instruction data to execute the Zap.
+    /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function _exitVelodrome(
         address router,
         ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata swapData,
+        SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) internal returns (uint256 outAmount) {
         // Exit Velodrome position.
@@ -183,14 +183,14 @@ contract VelodromeZapper is ZapperBase {
             zapData.inputAmount
         );
 
-        uint256 numTokenSwaps = swapData.length;
+        uint256 numTokenSwaps = swapActions.length;
         // Swap unwrapped tokens into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
+            SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getTokenBalance(zapData.outputToken);
+        outAmount = CommonLib._getBalanceOf(zapData.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapData.minimumOut) {
             revert VelodromeZapper__SlippageError();
@@ -204,31 +204,31 @@ contract VelodromeZapper is ZapperBase {
     /// @param inputToken The input token address.
     /// @param inputAmount The amount of `inputToken` to swap for underlying
     ///                    tokens.
-    /// @param swapData Array of swap instruction data
+    /// @param swapActions Array of swap instruction data
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
     ///                               token, indicates depositing native token
     ///                               into wrapped version or not.
     function _swapForUnderlyings(
         address inputToken,
         uint256 inputAmount,
-        SwapperLib.Swap[] memory swapData,
+        SwapperLib.Swap[] memory swapActions,
         bool depositAsWrappedNative
     ) internal {
         _prepareSwap(inputToken, inputAmount, depositAsWrappedNative);
 
-        uint256 numTokenSwaps = swapData.length;
+        uint256 numTokenSwaps = swapActions.length;
         // Swap `inputToken` into desired underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
             if (
-                CommonLib._isNative(swapData[i].inputToken) &&
+                CommonLib._isNative(swapActions[i].inputToken) &&
                 depositAsWrappedNative
             ) {
                 // Switch inputToken to wrapped native token address.
-                swapData[i].inputToken = address(wrappedNative);
+                swapActions[i].inputToken = address(wrappedNative);
             }
 
             // Execute swap into underlying(s).
-            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
+            SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
     }
 }

@@ -159,11 +159,26 @@ interface ICToken {
     ///         redeem assets.
     /// @param assets The amount of the underlying assets to redeem.
     /// @param owner The owner address of assets to redeem.
-    /// @param deleverageData The data for the deleverage operation.
+    /// @param deleverageAction Struct containing information on a deleverage
+    ///                         action to execute. Containing values:
+    ///                         1. Address of the cToken whose asset will be
+    ///                            routed into debt asset to repay outstanding
+    ///                            debt.
+    ///                         2. The amount of `cToken` that will
+    ///                            be deleveraged.
+    ///                         3. Address of borrowableCToken that will have
+    ///                            its outstanding debt repaid.
+    ///                         4. Swap action instructions converting
+    ///                            collateral asset into debt asset to
+    ///                            facilitate deleveraging.
+    ///                         5. The amount of debt assets that will be
+    ///                            repaid to lenders.
+    ///                         6. Optional auxiliary data for execution of a
+    ///                            deleverage action.
     function withdrawByPositionManager(
         uint256 assets,
         address owner,
-        IPositionManager.DeleverageStruct memory deleverageData
+        IPositionManager.DeleverageAction memory deleverageAction
     ) external;
 
     /// @notice Amount of tokens that has been posted as collateral,

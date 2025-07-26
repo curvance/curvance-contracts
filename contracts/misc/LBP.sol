@@ -71,7 +71,7 @@ contract LBP {
     error LBP__InSale();
     error LBP__Closed();
     error LBP__Success();
-    error LBP__InvalidSwapData();
+    error LBP__InvalidSwapAction();
     error LBP__InvalidSwapOutput();
 
     /// EVENTS ///
@@ -207,13 +207,13 @@ contract LBP {
         _canCommit();
 
         if (swapperData.outputToken != paymentToken) {
-            revert LBP__InvalidSwapData();
+            revert LBP__InvalidSwapAction();
         }
 
         if (CommonLib._isNative(swapperData.inputToken)) {
             // Validate message has gas token attached.
             if (swapperData.inputAmount != msg.value) {
-                revert LBP__InvalidSwapData();
+                revert LBP__InvalidSwapAction();
             }
         } else {
             SafeTransferLib.safeTransferFrom(

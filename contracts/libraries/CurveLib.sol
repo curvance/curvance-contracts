@@ -48,8 +48,8 @@ library CurveLib {
 
         // Approve tokens to deposit into Curve lp.
         for (uint256 i; i < numTokens; ++i) {
-            balances[i] = CommonLib._getTokenBalance(tokens[i]);
-            SwapperLib._approveTokenIfNeeded(tokens[i], lpMinter, balances[i]);
+            balances[i] = CommonLib._getBalanceOf(tokens[i]);
+            SwapperLib._approveIfNeeded(tokens[i], lpMinter, balances[i]);
 
             if (CommonLib._isNative(tokens[i])) {
                 // If eth is somehow contained in a pool twice,
@@ -128,7 +128,7 @@ library CurveLib {
         uint256 singleAssetIndex
     ) internal {
         // Approve Curve lp token.
-        SwapperLib._approveTokenIfNeeded(lpToken, lpMinter, lpAmount);
+        SwapperLib._approveIfNeeded(lpToken, lpMinter, lpAmount);
 
         uint256 numTokens = tokens.length;
         if (singleAssetWithdraw == 0) {

@@ -15,19 +15,20 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
 
     /// @notice Inspects calldata for compliance with other swap instruction
     ///         parameters.
-    /// @dev Used on Zap/swap to inspect and validate calldata safety.
-    /// @param swapData Zap/swap instruction data including both direct
-    ///                 parameters and decodeable calldata.
-    /// @param expectedRecipient User who will receive results of Zap/swap.
+    /// @dev Used on swap to inspect and validate calldata safety.
+    /// @param swapAction Swap action instructions including both direct
+    ///                   parameters and decodeable calldata.
+    /// @param expectedRecipient Address who will receive proceeds of
+    ///                          `swapAction`.
     function checkCalldata(
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         address expectedRecipient
     ) external view override {
-        if (swapData.target != target) {
+        if (swapAction.target != target) {
             revert CalldataChecker__TargetError();
         }
 
-        bytes4 funcSigHash = _getFuncSigHash(swapData.call);
+        bytes4 funcSigHash = _getFuncSigHash(swapAction.call);
         address recipient;
         address inputToken;
         uint256 inputAmount;
@@ -44,7 +45,7 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         address,
                         VelodromeZapper.ZapperData,
@@ -67,7 +68,7 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         address,
                         VelodromeZapper.ZapperData,
@@ -89,7 +90,7 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         ZapperBase.RedemptionData,
                         address,
@@ -110,15 +111,15 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
             revert CalldataChecker__RecipientError();
         }
 
-        if (inputToken != swapData.inputToken) {
+        if (inputToken != swapAction.inputToken) {
             revert CalldataChecker__InputTokenError();
         }
 
-        if (inputAmount != swapData.inputAmount) {
+        if (inputAmount != swapAction.inputAmount) {
             revert CalldataChecker__InputAmountError();
         }
 
-        if (outputToken != swapData.outputToken) {
+        if (outputToken != swapAction.outputToken) {
             revert CalldataChecker__OutputTokenError();
         }
     }

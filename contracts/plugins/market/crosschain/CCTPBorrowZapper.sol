@@ -24,7 +24,7 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     /// ERRORS ///
 
     error CCTPBorrowZapper__InvalidCentralRegistry();
-    error CCTPBorrowZapper__InvalidSwapData();
+    error CCTPBorrowZapper__InvalidSwapAction();
     error CCTPBorrowZapper__InsufficientGasToken();
     error CCTPBorrowZapper__CCTPIsNotConfigured();
 
@@ -55,14 +55,14 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     ///                         from.
     /// @param borrowAmount The amount of `borrowableCToken` underlying to
     ///                     borrow.
-    /// @param swapData Swap instruction data to route from borrowed token
-    ///                 to `feeToken`.
+    /// @param swapAction Swap instruction data to route from debt asset to
+    ///                   `feeToken`.
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @param dstChainId Chain ID of the target blockchain.
     function borrowAndBridge(
         address borrowableCToken,
         uint256 borrowAmount,
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         uint256 dstChainId,
         uint256 gasLimit
     ) external payable nonReentrant {
@@ -81,17 +81,17 @@ contract CCTPBorrowZapper is ReentrancyGuard {
         // Check if swapping is necessary.
         if (underlying != feeToken) {
             if (
-                swapData.target == address(0) ||
-                swapData.inputToken != underlying ||
-                swapData.outputToken != feeToken ||
-                swapData.inputAmount != borrowAmount
+                swapAction.target == address(0) ||
+                swapAction.inputToken != underlying ||
+                swapAction.outputToken != feeToken ||
+                swapAction.inputAmount != borrowAmount
             ) {
-                revert CCTPBorrowZapper__InvalidSwapData();
+                revert CCTPBorrowZapper__InvalidSwapAction();
             }
 
-            SwapperLib._swapUnsafe(centralRegistry, swapData);
-        } else if (swapData.target != address(0)) {
-            revert CCTPBorrowZapper__InvalidSwapData();
+            SwapperLib._swapUnsafe(centralRegistry, swapAction);
+        } else if (swapAction.target != address(0)) {
+            revert CCTPBorrowZapper__InvalidSwapAction();
         }
 
         // Bridge the fee token to `dstChainId` via Wormhole.
@@ -172,7 +172,7 @@ contract CCTPBorrowZapper is ReentrancyGuard {
         );
 
         address feeToken = centralRegistry.feeToken();
-        SwapperLib._approveTokenIfNeeded(
+        SwapperLib._approveIfNeeded(
             feeToken,
             address(tokenMessager),
             amount

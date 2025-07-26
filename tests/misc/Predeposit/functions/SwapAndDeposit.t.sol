@@ -9,22 +9,22 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 contract SwapAndDepositTest is TestBasePredeposit {
     event Deposited(address user, address token, uint256 amount);
 
-    SwapperLib.Swap public swapData;
+    SwapperLib.Swap public swapAction;
 
     function setUp() public override {
         super.setUp();
 
-        swapData.inputToken = _WETH_ADDRESS;
-        swapData.inputAmount = _ONE;
-        swapData.outputToken = _USDC_ADDRESS;
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.slippage = 50e16;
+        swapAction.inputToken = _WETH_ADDRESS;
+        swapAction.inputAmount = _ONE;
+        swapAction.outputToken = _USDC_ADDRESS;
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.slippage = 50e16;
 
         address[] memory path = new address[](2);
         path[0] = _WETH_ADDRESS;
         path[1] = _USDC_ADDRESS;
 
-        swapData.call = abi.encodeWithSignature(
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             _ONE,
             0,
@@ -45,27 +45,27 @@ contract SwapAndDepositTest is TestBasePredeposit {
         vm.expectRevert(
             Predeposit.Predeposit__PredepositDepositsBlocked.selector
         );
-        predeposit.swapAndDeposit(swapData, 100e6);
+        predeposit.swapAndDeposit(swapAction, 100e6);
     }
 
     function test_swapAndDeposit_fail_whenTokenIsNotApproved() public {
-        swapData.outputToken = _WETH_ADDRESS;
+        swapAction.outputToken = _WETH_ADDRESS;
 
         vm.expectRevert(
             Predeposit.Predeposit__InvalidParameters.selector
         );
 
-        predeposit.swapAndDeposit(swapData, 100e6);
+        predeposit.swapAndDeposit(swapAction, 100e6);
     }
 
     function test_swapAndDeposit_fail_whenMsgValueIsInvalid() public {
-        swapData.inputToken = address(0);
+        swapAction.inputToken = address(0);
 
         vm.expectRevert(
-            Predeposit.Predeposit__InvalidSwapData.selector
+            Predeposit.Predeposit__InvalidSwapAction.selector
         );
 
-        predeposit.swapAndDeposit(swapData, 100e6);
+        predeposit.swapAndDeposit(swapAction, 100e6);
     }
 
     function test_swapAndDeposit_fail_whenSwappedAmountIsNotEnoughToDeposit()
@@ -81,7 +81,7 @@ contract SwapAndDepositTest is TestBasePredeposit {
             Predeposit.Predeposit__InvalidSwapOutput.selector
         );
 
-        predeposit.swapAndDeposit(swapData, 100_000e6);
+        predeposit.swapAndDeposit(swapAction, 100_000e6);
 
         vm.stopPrank();
     }
@@ -99,7 +99,7 @@ contract SwapAndDepositTest is TestBasePredeposit {
         vm.expectEmit(true, true, true, true);
         emit Deposited(user1, _USDC_ADDRESS, 100e6);
 
-        predeposit.swapAndDeposit(swapData, 100e6);
+        predeposit.swapAndDeposit(swapAction, 100e6);
 
         vm.stopPrank();
 

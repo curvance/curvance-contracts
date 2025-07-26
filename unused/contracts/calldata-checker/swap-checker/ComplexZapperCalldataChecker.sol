@@ -16,18 +16,18 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
     /// @notice Inspects calldata for compliance with other swap instruction
     ///         parameters.
     /// @dev Used on Zap/swap to inspect and validate calldata safety.
-    /// @param swapData Zap/swap instruction data including both direct
+    /// @param swapAction Zap/swap instruction data including both direct
     ///                 parameters and decodeable calldata.
     /// @param expectedRecipient User who will receive results of Zap/swap.
     function checkCalldata(
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         address expectedRecipient
     ) external view override {
-        if (swapData.target != target) {
+        if (swapAction.target != target) {
             revert CalldataChecker__TargetError();
         }
 
-        bytes4 funcSigHash = _getFuncSigHash(swapData.call);
+        bytes4 funcSigHash = _getFuncSigHash(swapAction.call);
         address recipient;
         address inputToken;
         uint256 inputAmount;
@@ -43,7 +43,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         address,
                         ComplexZapper.ZapperData,
@@ -69,7 +69,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         address,
                         ComplexZapper.ZapperData,
@@ -95,7 +95,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         ZapperBase.RedemptionData,
                         address,
@@ -121,7 +121,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         address,
                         ComplexZapper.BalancerData,
@@ -145,7 +145,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         ComplexZapper.BalancerData,
                         ComplexZapper.ZapperData,
@@ -171,7 +171,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         ZapperBase.RedemptionData,
                         ComplexZapper.BalancerData,
@@ -197,7 +197,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         address,
                         ComplexZapper.ZapperData,
@@ -220,7 +220,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         address,
                         ComplexZapper.ZapperData,
@@ -242,7 +242,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         ZapperBase.RedemptionData,
                         address,
@@ -267,7 +267,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         address,
                         ComplexZapper.ZapperData,
@@ -294,7 +294,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         address,
                         bool,
@@ -320,7 +320,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         ZapperBase.RedemptionData,
                         address,
@@ -344,15 +344,15 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
             revert CalldataChecker__RecipientError();
         }
 
-        if (inputToken != swapData.inputToken) {
+        if (inputToken != swapAction.inputToken) {
             revert CalldataChecker__InputTokenError();
         }
 
-        if (inputAmount != swapData.inputAmount) {
+        if (inputAmount != swapAction.inputAmount) {
             revert CalldataChecker__InputAmountError();
         }
 
-        if (outputToken != swapData.outputToken) {
+        if (outputToken != swapAction.outputToken) {
             revert CalldataChecker__OutputTokenError();
         }
     }

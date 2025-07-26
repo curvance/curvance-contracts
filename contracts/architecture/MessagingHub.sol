@@ -403,7 +403,7 @@ contract MessagingHub is QueryResponse {
                 .decode(payload, (uint8, address, uint256, bool));
 
             cve.mintLockedTokens(recipient, amount);
-            _approveTokenIfNeeded(address(cve), address(veCVE), amount);
+            _approveIfNeeded(address(cve), address(veCVE), amount);
 
             RewardsData memory rewardData;
 
@@ -664,7 +664,7 @@ contract MessagingHub is QueryResponse {
         ChainData memory chainData = _getChainData(dstChainId);
 
         address feeToken = _getFeeToken();
-        _approveTokenIfNeeded(feeToken, address(tokenMessager), amount);
+        _approveIfNeeded(feeToken, address(tokenMessager), amount);
 
         uint64 nonce = tokenMessager.depositForBurnWithCaller(
             amount,
@@ -888,12 +888,12 @@ contract MessagingHub is QueryResponse {
     }
 
     /// @dev Approves `token` `amount` to be spent by `spender`, if necessary.
-    function _approveTokenIfNeeded(
+    function _approveIfNeeded(
         address token,
         address spender,
         uint256 amount
     ) internal {
-        SwapperLib._approveTokenIfNeeded(token, spender, amount);
+        SwapperLib._approveIfNeeded(token, spender, amount);
     }
 
     /// @notice Converts an address to a bytes32 value.

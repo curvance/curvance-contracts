@@ -18,18 +18,18 @@ contract VaultZapper is ZapperBase {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Swaps then deposits `swapData.outputToken`, a cToken
-    ///         underlying, and enters into Curvance position,
-    ///         for `receiver`.
+    /// @notice Swaps, then deposits `swapAction.outputToken`, a cToken
+    ///         asset, and enters into Curvance position, for `receiver`.
     /// @dev Requires plugin approval for collateralization.
     /// @param cToken The Curvance token (cToken) address to deposit into.
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
     ///                               token, indicates depositing native token
     ///                               into wrapped version or not.
-    /// @param swapData Swap instruction data to execute the swap.
+    /// @param swapAction Instructions for executing a swap into collateral
+    ///                   asset.
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of
-    ///                       `swapData.outputToken` into `cToken` position.
+    ///                       `swapAction.outputToken` into `cToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param receiver Address that should receive `cToken` shares.
@@ -37,34 +37,34 @@ contract VaultZapper is ZapperBase {
     function swapAndDeposit(
         address cToken,
         bool depositAsWrappedNative,
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         uint256 expectedShares,
         bool collateralize,
         address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
         _prepareSwap(
-            swapData.inputToken,
-            swapData.inputAmount,
+            swapAction.inputToken,
+            swapAction.inputAmount,
             depositAsWrappedNative
         );
 
         // If we are trying to deposit wrapped native, we may be able to skip
         // a swapper call by changing the input token and checking versus
         // output token.
-        if (CommonLib._isNative(swapData.inputToken) && depositAsWrappedNative) {
+        if (CommonLib._isNative(swapAction.inputToken) && depositAsWrappedNative) {
             // Switch inputToken to wrapped native token address.
-            swapData.inputToken = address(wrappedNative);
+            swapAction.inputToken = address(wrappedNative);
         }
 
-        if (swapData.inputToken == swapData.outputToken) {
-            outAmount = swapData.inputAmount;
+        if (swapAction.inputToken == swapAction.outputToken) {
+            outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken underlying.
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapData);
+            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
         // Validate token address parameters are valid, then deposit into vault.
-        outAmount = IVault(_checkAddresses(cToken, swapData.outputToken)).deposit(
+        outAmount = IVault(_checkAddresses(cToken, swapAction.outputToken)).deposit(
             outAmount,
             address(this)
         );
@@ -72,7 +72,7 @@ contract VaultZapper is ZapperBase {
         // Enter Curvance position.
         outAmount = _enterCurvance(
             cToken,
-            swapData.outputToken,
+            swapAction.outputToken,
             outAmount,
             expectedShares,
             collateralize,
@@ -81,7 +81,7 @@ contract VaultZapper is ZapperBase {
     }
 
     /// @notice Withdraws from a Curvance position, and swaps it into
-    ///         desired token (swapData.outputToken).
+    ///         desired token (swapAction.outputToken).
     /// @dev Requires plugin approval for redemption.
     /// @param redemptionData Struct containing information on redemption
     ///                       action to execute. Containing values:
@@ -90,43 +90,43 @@ contract VaultZapper is ZapperBase {
     ///                       2. The amount of shares to redeemed.
     ///                       3. Whether the collateral should be always
     ///                          reduced from callers collateralPosted.
-    /// @param swapData Swap instruction data to execute the repayment.
-    /// @param receiver Address that should receive `swapData.outputToken`.
-    /// @return outAmount The amount of `swapData.outputToken` that was
+    /// @param swapAction Instructions for executing a swap.
+    /// @param receiver Address that should receive `swapAction.outputToken`.
+    /// @return outAmount The amount of `swapAction.outputToken` that was
     ///                   received by `receiver`.
     function redeemAndSwap(
         RedemptionData calldata redemptionData,
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvanceSafe(
             redemptionData.cToken,
-            swapData.inputToken,
+            swapAction.inputToken,
             redemptionData.shares,
-            swapData.inputAmount,
+            swapAction.inputAmount,
             redemptionData.forceRedeemCollateral,
             receiver
         );
 
-        swapData.inputAmount = IVault(swapData.inputToken).redeem(
-            swapData.inputAmount,
+        swapAction.inputAmount = IVault(swapAction.inputToken).redeem(
+            swapAction.inputAmount,
             address(this),
             address(this)
         );
-        swapData.inputToken = ICToken(swapData.inputToken).asset();
+        swapAction.inputToken = ICToken(swapAction.inputToken).asset();
 
-        if (swapData.inputToken == swapData.outputToken) {
-            outAmount = swapData.inputAmount;
+        if (swapAction.inputToken == swapAction.outputToken) {
+            outAmount = swapAction.inputAmount;
         } else {
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapData);
+            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
-        _transferToRecipient(swapData.outputToken, receiver, outAmount);
+        _transferToRecipient(swapAction.outputToken, receiver, outAmount);
     }
 
     /// @notice Withdraws a Curvance position, swaps it into
-    ///         desired token (swapData.outputToken) and then deposits
+    ///         desired token (swapAction.outputToken) and then deposits
     ///         it into a new position.
     /// @dev Requires plugin approval for redemption.
     /// @param cToken The Curvance token (cToken) address.
@@ -137,10 +137,11 @@ contract VaultZapper is ZapperBase {
     ///                       2. The amount of shares to redeemed.
     ///                       3. Whether the collateral should be always
     ///                          reduced from callers collateralPosted.
-    /// @param swapData Swap instruction data to execute the repayment.
+    /// @param swapAction Instructions for executing a swap into collateral
+    ///                   asset.
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of
-    ///                       `swapData.outputToken` into `cToken` position.
+    ///                       `swapAction.outputToken` into `cToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param receiver Address that should receive `cToken` shares.
@@ -148,7 +149,7 @@ contract VaultZapper is ZapperBase {
     function redeemSwapAndDeposit(
         address cToken,
         RedemptionData calldata redemptionData,
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         uint256 expectedShares,
         bool collateralize,
         address receiver
@@ -156,32 +157,32 @@ contract VaultZapper is ZapperBase {
         // Exit Curvance position.
         _exitCurvanceSafe(
             redemptionData.cToken,
-            swapData.inputToken,
+            swapAction.inputToken,
             redemptionData.shares,
-            swapData.inputAmount,
+            swapAction.inputAmount,
             redemptionData.forceRedeemCollateral,
             receiver
         );
 
-        swapData.inputAmount = IVault(swapData.inputToken).redeem(
-            swapData.inputAmount,
+        swapAction.inputAmount = IVault(swapAction.inputToken).redeem(
+            swapAction.inputAmount,
             address(this),
             address(this)
         );
-        swapData.inputToken = ICToken(swapData.inputToken).asset();
+        swapAction.inputToken = ICToken(swapAction.inputToken).asset();
 
-        if (swapData.inputToken == swapData.outputToken) {
-            outAmount = swapData.inputAmount;
+        if (swapAction.inputToken == swapAction.outputToken) {
+            outAmount = swapAction.inputAmount;
         } else {
-            // Execute swap into `swapData.outputToken` which should be
+            // Execute swap into `swapAction.outputToken` which should be
             // new cToken underlying.
-            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapData);
+            outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
         // Enter Curvance position.
         outAmount = _enterCurvance(
             cToken,
-            swapData.outputToken,
+            swapAction.outputToken,
             outAmount,
             expectedShares,
             collateralize,

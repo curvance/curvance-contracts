@@ -162,19 +162,19 @@ contract Convex3PoolCToken is StrategyCToken {
             }
 
             // Prep liquidity for Curve Pool.
-            (SwapperLib.Swap[] memory swapDataArray, uint256 minLPAmount) = abi
+            (SwapperLib.Swap[] memory swapActions, uint256 minLPAmount) = abi
                 .decode(data, (SwapperLib.Swap[], uint256));
             {
-                uint256 numSwapData = swapDataArray.length;
-                for (uint256 i; i < numSwapData; ++i) {
+                uint256 numSwapActions = swapActions.length;
+                for (uint256 i; i < numSwapActions; ++i) {
                     if (
-                        !_isApprovedAsset[swapDataArray[i].inputToken] ||
-                        !_isUnderlyingToken[swapDataArray[i].outputToken]
+                        !_isApprovedAsset[swapActions[i].inputToken] ||
+                        !_isUnderlyingToken[swapActions[i].outputToken]
                     ) {
                         revert StrategyCToken__UnapprovedAssetSwap();
                     }
 
-                    SwapperLib._swapSafe(centralRegistry, swapDataArray[i]);
+                    SwapperLib._swapSafe(centralRegistry, swapActions[i]);
                 }
             }
 
@@ -335,13 +335,13 @@ contract Convex3PoolCToken is StrategyCToken {
         uint256 value;
         for (uint256 i; i < 3; ++i) {
             underlyingToken = strategyData.underlyingTokens[i];
-            amounts[i] = CommonLib._getTokenBalance(underlyingToken);
+            amounts[i] = CommonLib._getBalanceOf(underlyingToken);
 
             if (CommonLib._isNative(underlyingToken)) {
                 value = amounts[i];
             }
 
-            SwapperLib._approveTokenIfNeeded(
+            SwapperLib._approveIfNeeded(
                 underlyingToken,
                 address(strategyData.curvePool),
                 amounts[i]

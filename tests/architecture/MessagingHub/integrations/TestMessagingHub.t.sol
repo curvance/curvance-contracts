@@ -168,17 +168,17 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), rewards);
 
-        SwapperLib.Swap memory swapData;
+        SwapperLib.Swap memory swapAction;
         address[] memory path = new address[](2);
 
         path[0] = _USDC_ADDRESS;
         path[1] = address(cve);
 
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.outputToken = address(cve);
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = rewards;
-        swapData.call = abi.encodeWithSignature(
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.outputToken = address(cve);
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.inputAmount = rewards;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
             0,
@@ -193,7 +193,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         uint256 desiredTokenBalance = cve.balanceOf(user1);
 
         vm.prank(user1);
-        rewardManager.claimRewards(rewardsData, abi.encode(swapData), 0);
+        rewardManager.claimRewards(rewardsData, abi.encode(swapAction), 0);
 
         assertEq(
             usdc.balanceOf(address(rewardManager)),
@@ -371,17 +371,17 @@ contract TestMessagingHub is TestBaseMessagingHub {
         uint256 veCVEBalance = veCVE.balanceOf(user1);
         uint256 cveTotalSupply = cve.totalSupply();
 
-        SwapperLib.Swap memory swapData;
+        SwapperLib.Swap memory swapAction;
         address[] memory path = new address[](2);
 
         path[0] = _USDC_ADDRESS;
         path[1] = address(cve);
 
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.outputToken = address(cve);
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = 200e6;
-        swapData.call = abi.encodeWithSignature(
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.outputToken = address(cve);
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.inputAmount = 200e6;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             200e6,
             0,
@@ -397,7 +397,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
             0,
             bridgeData,
             rewardsData,
-            abi.encode(swapData),
+            abi.encode(swapAction),
             0
         );
 

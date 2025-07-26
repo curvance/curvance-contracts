@@ -216,12 +216,24 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @dev Only Position Manager contract can call this function.
     ///      Updates pending interest before executing the borrow.
     /// @param assets The amount of the underlying asset to borrow.
-    /// @param leverageData Callback calldata to execute after borrow.
+    /// @param leverageAction Struct containing information on a leverage
+    ///                       action to execute. Containing values:
+    ///                       1. Address of `borrowableCToken` that will be
+    ///                          borrowed from and assets swapped.
+    ///                       2. The amount borrowed from `borrowableCToken`,
+    ///                          in assets.
+    ///                       3. Curvance token assets that borrowed funds
+    ///                          will be swapped into.
+    ///                       4. Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///                       5. Optional auxiliary data for execution of a
+    ///                          leverage action.
     /// @param owner The account address to borrow on behalf of.
     function borrowForPositionManager(
         uint256 assets,
         address owner,
-        IPositionManager.LeverageStruct memory leverageData
+        IPositionManager.LeverageAction memory leverageAction
     ) external nonReentrant {
         if (!marketManager.isPositionManager(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -246,7 +258,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             address(this),
             assets,
             owner,
-            leverageData
+            leverageAction
         );
 
         // Fail if terminal position is not allowed with no additional
@@ -541,14 +553,14 @@ contract BorrowableCToken is BaseCTokenWithYield {
         marketManager.canRepay(address(this), owner);
 
         // Cache how much the account has to save gas.
-        uint256 accountDebt = debtBalance(owner);
+        uint256 debtOf = debtBalance(owner);
 
-        // If assets == 0, repay max; assets = accountDebt.
-        assets = assets == 0 ? accountDebt : assets;
+        // If assets == 0, repay max; assets = debtOf.
+        assets = assets == 0 ? debtOf : assets;
         _checkZeroAmount(assets);
 
         // Validate repayment amount is not excessive.
-        if (assets > accountDebt) {
+        if (assets > debtOf) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -562,7 +574,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Update the account and market outstanding debt balance data.
         _setDebtOf(
             owner,
-            uint176(accountDebt - assets),
+            uint176(debtOf - assets),
             uint80(_vestingData >> _BITPOS_DEBT_INDEX)
         );
 
@@ -644,29 +656,29 @@ contract BorrowableCToken is BaseCTokenWithYield {
         );
 
         uint80 cachedDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
-        uint256 cachedAmount;
-        address cachedAccount;
+        uint256 debtAmount;
+        address account;
 
         for (uint256 i; i < numAccounts; ++i) {
             // Cache the repayment amount.
-            cachedAmount = debtAmounts[i];
+            debtAmount = debtAmounts[i];
             // If theres no debt to repay for this user can
             // skip them.
-            if (cachedAmount == 0) {
+            if (debtAmount == 0) {
                 continue;
             }
 
-            cachedAccount = accounts[i];
+            account = accounts[i];
 
-            // Calculate the new `cachedAccount` outstanding debt, then update the
+            // Calculate the new `account` outstanding debt, then update the
             // account's debt balance and debt index value.
             // Update the account and market outstanding debt balance data.
             _setDebtOf(
-                cachedAccount,
-                uint176(debtBalance(cachedAccount) - cachedAmount),
+                account,
+                uint176(debtBalance(account) - debtAmount),
                 cachedDebtIndex
             );
-            emit Repay(cachedAmount, liquidator, cachedAccount);
+            emit Repay(debtAmount, liquidator, account);
         }
 
         // We need to update marketOutstandingDebt for the total debt repaid
@@ -731,13 +743,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
             return;
         }
 
-        uint256 vestingRate = uint96(vestingData);
+        uint256 rate = uint96(vestingData);
         uint256 vestingPeriodEnd = uint40(vestingData >> _BITPOS_LAST_VEST);
         uint256 marketDebtIndex = uint80(vestingData >> _BITPOS_DEBT_INDEX);
         uint256 outstandingDebt = marketOutstandingDebt;
         uint256 cachedTa = _totalAssets;
-        uint256 pendingYieldToVest = _getPendingYield(
-            vestingRate,
+        uint256 yieldToVest = _getPendingYield(
+            rate,
             outstandingDebt,
             vestingPeriodEnd,
             lastVestingClaim
@@ -764,23 +776,23 @@ contract BorrowableCToken is BaseCTokenWithYield {
             vestingPeriodEnd = lastVestingClaim + accrualPeriod;
 
             // Calculate the new in interest rate for borrowers, in seconds.
-            vestingRate = interestRateModel.getBorrowRateWithUpdate(
+            rate = interestRateModel.getBorrowRateWithUpdate(
                 assetsHeld(),
                 outstandingDebt
             );
 
             // Check whether the DAO takes a cut of interest, and whether new
             // assets will vest over time the next vesting period.
-            if (protocolInterestFee > 0  && vestingRate > 0) {
+            if (protocolInterestFee > 0  && rate > 0) {
                 // Fees are initially calculated off vesting rate giving us
                 // essentially fees per second, in assets. Which we can then
-                // subtract directly from vestingRate so theres no precision loss.
+                // subtract directly from `rate` so theres no precision loss.
                 protocolFees = FixedPointMathLib.mulDivUp(
-                    vestingRate,
+                    rate,
                     protocolInterestFee,
                     WAD
                 );
-                vestingRate = vestingRate - protocolFees;
+                rate = rate - protocolFees;
                 // We can now convert the per second assets value to the
                 // amount of assets to be minted by the end of the new
                 // `vestingPeriodEnd`. Next we need to discount the amount of
@@ -788,25 +800,24 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 // the protocol is not overpaid. The discount asset amount can
                 // be calculated with:
                 // assets * (current assets / current assets + future assets)
-                // `vestingRate` is in WAD which means we need to divide the
+                // `rate` is in WAD which means we need to divide the
                 // output by WAD to get protocolFees in `assets`.
                 protocolFees = FixedPointMathLib.mulDiv(
                     protocolFees * accrualPeriod * outstandingDebt,
                     cachedTa,
-                    (cachedTa + (pendingYieldToVest + 
-                        (vestingRate * accrualPeriod * outstandingDebt / WAD)))
-                            * WAD
+                    (cachedTa + yieldToVest +
+                        _mulDiv(rate * accrualPeriod, outstandingDebt, WAD)) * WAD
                 );
             }
 
-            emit InterestAccrualUpdate(vestingRate, accrualPeriod);
+            emit InterestAccrualUpdate(rate, accrualPeriod);
         }
 
         // Check if theres new yield to be vested, which could happen if the
         // previous vesting period ended and current block.timestamp extends
         // into the new vesting period.
-        pendingYieldToVest += _getPendingYield(
-            vestingRate,
+        yieldToVest += _getPendingYield(
+            rate,
             outstandingDebt,
             vestingPeriodEnd,
             lastVestingClaim
@@ -817,7 +828,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             cachedTa = cachedTa + protocolFees;
             // Convert assets to shares and mint to protocol address. This
             // ensures that user share value is identical to before hand,
-            // excluding `pendingYieldToVest`.
+            // excluding `yieldToVest`.
             protocolFees = _convertToShares(protocolFees, _getTotalAssets());
             // Cache the current dao address then mint shares to the dao.
             address daoAddress = centralRegistry.daoAddress();
@@ -826,25 +837,25 @@ contract BorrowableCToken is BaseCTokenWithYield {
         }
 
         // Vest pending yield, if there is any.
-        if (pendingYieldToVest > 0) {
-            // pendingYieldToVest at this point is $ outstanding debt
+        if (yieldToVest > 0) {
+            // `yieldToVest` at this point is $ outstanding debt
             // so we need to redivide by `outstandingDebt` so its in % form.
             marketDebtIndex =
-                ((pendingYieldToVest * marketDebtIndex) / outstandingDebt)
+                _mulDiv(yieldToVest, marketDebtIndex, outstandingDebt)
                     + marketDebtIndex;
             // Update marketOutstandingDebt invariant with vested yield.
-            marketOutstandingDebt = outstandingDebt + pendingYieldToVest;
-            cachedTa = cachedTa + pendingYieldToVest;
+            marketOutstandingDebt = outstandingDebt + yieldToVest;
+            cachedTa = cachedTa + yieldToVest;
         }
 
         assembly {
-            // Mask vestingRate to the lower 96 bits, in case
+            // Mask `rate` to the lower 96 bits, in case
             // the upper bits somehow aren't clean.
-            vestingRate := and(vestingRate, _BITMASK_VESTING_RATE)
-            // Equals vestingRate | (vestingPeriodEnd << _BITPOS_VEST_END) |
+            rate := and(rate, _BITMASK_VESTING_RATE)
+            // Equals rate | (vestingPeriodEnd << _BITPOS_VEST_END) |
             //        block.timestamp << _BITPOS_LAST_VEST | marketDebtIndex.
             vestingData := or(
-                vestingRate,
+                rate,
                 or(
                     or(
                         shl(_BITPOS_VEST_END, vestingPeriodEnd),

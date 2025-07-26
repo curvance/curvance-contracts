@@ -7,7 +7,7 @@ contract MockCalldataChecker is BaseSwapChecker {
     constructor(address _target) BaseSwapChecker(_target) {}
 
     function checkCalldata(
-        SwapperLib.Swap memory _swapData,
-        address _recipient
+        SwapperLib.Swap memory swapAction,
+        address recipient
     ) external view override {}
 }

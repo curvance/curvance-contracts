@@ -125,14 +125,14 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(borrowableCUSDC));
-        leverageData.swapData.inputToken = address(dai);
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = address(usdc);
-        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        leverageData.swapAction.inputToken = address(dai);
+        leverageData.swapAction.inputAmount = amountForLeverage;
+        leverageData.swapAction.outputToken = address(usdc);
+        leverageData.swapAction.target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(dai);
         path[1] = address(usdc);
-        leverageData.swapData.call = abi.encodeWithSignature(
+        leverageData.swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             amountForLeverage,
             0,
@@ -140,7 +140,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        leverageData.swapData.slippage = 0.3e18;
+        leverageData.swapAction.slippage = 0.3e18;
 
         positionManager.leverage(leverageData, 0.05e18); // 5% slippage
 
@@ -173,14 +173,14 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(borrowableCUSDC));
-        leverageData.swapData.inputToken = address(dai);
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = address(usdc);
-        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        leverageData.swapAction.inputToken = address(dai);
+        leverageData.swapAction.inputAmount = amountForLeverage;
+        leverageData.swapAction.outputToken = address(usdc);
+        leverageData.swapAction.target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(dai);
         path[1] = address(usdc);
-        leverageData.swapData.call = abi.encodeWithSignature(
+        leverageData.swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             amountForLeverage,
             0,
@@ -188,7 +188,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        leverageData.swapData.slippage = 0.3e18;
+        leverageData.swapAction.slippage = 0.3e18;
 
         positionManager.depositAndLeverage(1000e6, leverageData, 0.05e18); // 5% slippage
 
@@ -220,15 +220,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageData.collateralToken = ICToken(address(borrowableCUSDC));
         deleverageData.collateralAssets = 900e6;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageData.swapData = new SwapperLib.Swap[](1);
-        deleverageData.swapData[0].inputToken = address(usdc);
-        deleverageData.swapData[0].inputAmount = 900e6;
-        deleverageData.swapData[0].outputToken = address(dai);
-        deleverageData.swapData[0].target = address(_UNISWAP_V2_ROUTER);
+        deleverageData.swapAction = new SwapperLib.Swap[](1);
+        deleverageData.swapAction[0].inputToken = address(usdc);
+        deleverageData.swapAction[0].inputAmount = 900e6;
+        deleverageData.swapAction[0].outputToken = address(dai);
+        deleverageData.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = address(dai);
-        deleverageData.swapData[0].call = abi.encodeWithSignature(
+        deleverageData.swapAction[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             900e6,
             0,
@@ -236,7 +236,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageData.swapData[0].slippage = 0.3e18;
+        deleverageData.swapAction[0].slippage = 0.3e18;
         deleverageData.repayAssets = 890 ether;
         positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
 
@@ -286,14 +286,14 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(borrowableCUSDC));
-        leverageData.swapData.inputToken = address(dai);
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = address(usdc);
-        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        leverageData.swapAction.inputToken = address(dai);
+        leverageData.swapAction.inputAmount = amountForLeverage;
+        leverageData.swapAction.outputToken = address(usdc);
+        leverageData.swapAction.target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(dai);
         path[1] = address(usdc);
-        leverageData.swapData.call = abi.encodeWithSignature(
+        leverageData.swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             amountForLeverage,
             0,
@@ -301,7 +301,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        leverageData.swapData.slippage = 0.3e18;
+        leverageData.swapAction.slippage = 0.3e18;
 
         positionManager.setDelegateApproval(address(user2), true);
         vm.stopPrank();
@@ -337,15 +337,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageData.collateralToken = ICToken(address(borrowableCUSDC));
         deleverageData.collateralAssets = 900e6;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageData.swapData = new SwapperLib.Swap[](1);
-        deleverageData.swapData[0].inputToken = address(usdc);
-        deleverageData.swapData[0].inputAmount = 900e6;
-        deleverageData.swapData[0].outputToken = address(dai);
-        deleverageData.swapData[0].target = address(_UNISWAP_V2_ROUTER);
+        deleverageData.swapAction = new SwapperLib.Swap[](1);
+        deleverageData.swapAction[0].inputToken = address(usdc);
+        deleverageData.swapAction[0].inputAmount = 900e6;
+        deleverageData.swapAction[0].outputToken = address(dai);
+        deleverageData.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = address(dai);
-        deleverageData.swapData[0].call = abi.encodeWithSignature(
+        deleverageData.swapAction[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             900e6,
             0,
@@ -353,7 +353,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageData.swapData[0].slippage = 0.3e18;
+        deleverageData.swapAction[0].slippage = 0.3e18;
         deleverageData.repayAssets = 890 ether;
         borrowableCUSDC.approve(address(positionManager), type(uint256).max);
 
@@ -404,15 +404,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(borrowableCUSDC));
-        leverageData.swapData.inputToken = address(dai);
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = address(usdc);
-        leverageData.swapData.target = address(0); // Invalid target
+        leverageData.swapAction.inputToken = address(dai);
+        leverageData.swapAction.inputAmount = amountForLeverage;
+        leverageData.swapAction.outputToken = address(usdc);
+        leverageData.swapAction.target = address(0); // Invalid target
         
         address[] memory path = new address[](2);
         path[0] = address(dai);
         path[1] = address(usdc);
-        leverageData.swapData.call = abi.encodeWithSignature(
+        leverageData.swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             amountForLeverage,
             0,
@@ -420,7 +420,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        leverageData.swapData.slippage = 0.3e18;
+        leverageData.swapAction.slippage = 0.3e18;
         
         // Should revert with `InvalidSwapperParam`.
         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
@@ -442,15 +442,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageData.collateralToken = ICToken(address(borrowableCUSDC));
         deleverageData.collateralAssets = 900e6;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageData.swapData = new SwapperLib.Swap[](1);
-        deleverageData.swapData[0].inputToken = address(usdc);
-        deleverageData.swapData[0].inputAmount = 900e6;
-        deleverageData.swapData[0].outputToken = address(dai);
-        deleverageData.swapData[0].target = address(0); // Invalid target
+        deleverageData.swapAction = new SwapperLib.Swap[](1);
+        deleverageData.swapAction[0].inputToken = address(usdc);
+        deleverageData.swapAction[0].inputAmount = 900e6;
+        deleverageData.swapAction[0].outputToken = address(dai);
+        deleverageData.swapAction[0].target = address(0); // Invalid target
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = address(dai);
-        deleverageData.swapData[0].call = abi.encodeWithSignature(
+        deleverageData.swapAction[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             900e6,
             0,
@@ -458,7 +458,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageData.swapData[0].slippage = 0.3e18;
+        deleverageData.swapAction[0].slippage = 0.3e18;
         deleverageData.repayAssets = 890 ether;
         
         // Should revert with `InvalidSwapperParam`.
@@ -490,15 +490,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(borrowableCUSDC));
-        leverageData.swapData.inputToken = address(usdc); // incorrect input token
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = address(usdc);
-        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        leverageData.swapAction.inputToken = address(usdc); // incorrect input token
+        leverageData.swapAction.inputAmount = amountForLeverage;
+        leverageData.swapAction.outputToken = address(usdc);
+        leverageData.swapAction.target = address(_UNISWAP_V2_ROUTER);
         
         address[] memory path = new address[](2);
         path[0] = address(dai);
         path[1] = address(usdc);
-        leverageData.swapData.call = abi.encodeWithSignature(
+        leverageData.swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             amountForLeverage,
             0,
@@ -506,7 +506,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        leverageData.swapData.slippage = 0.3e18;
+        leverageData.swapAction.slippage = 0.3e18;
         
         // This should revert with `InvalidSwapperParam`.
         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
@@ -528,15 +528,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageData.collateralToken = ICToken(address(borrowableCUSDC));
         deleverageData.collateralAssets = 900e6;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageData.swapData = new SwapperLib.Swap[](1);
-        deleverageData.swapData[0].inputToken = address(dai); // Incorrect input token (should be USDC)
-        deleverageData.swapData[0].inputAmount = 900e6;
-        deleverageData.swapData[0].outputToken = address(dai);
-        deleverageData.swapData[0].target = address(_UNISWAP_V2_ROUTER);
+        deleverageData.swapAction = new SwapperLib.Swap[](1);
+        deleverageData.swapAction[0].inputToken = address(dai); // Incorrect input token (should be USDC)
+        deleverageData.swapAction[0].inputAmount = 900e6;
+        deleverageData.swapAction[0].outputToken = address(dai);
+        deleverageData.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = address(dai);
-        deleverageData.swapData[0].call = abi.encodeWithSignature(
+        deleverageData.swapAction[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             900e6,
             0,
@@ -544,7 +544,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageData.swapData[0].slippage = 0.3e18;
+        deleverageData.swapAction[0].slippage = 0.3e18;
         deleverageData.repayAssets = 890 ether;
         
         // Should revert with `InvalidSwapperParam`.
@@ -576,15 +576,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(borrowableCUSDC));
-        leverageData.swapData.inputToken = address(dai);
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = address(dai); // incorrect output token
-        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        leverageData.swapAction.inputToken = address(dai);
+        leverageData.swapAction.inputAmount = amountForLeverage;
+        leverageData.swapAction.outputToken = address(dai); // incorrect output token
+        leverageData.swapAction.target = address(_UNISWAP_V2_ROUTER);
         
         address[] memory path = new address[](2);
         path[0] = address(dai);
         path[1] = address(usdc);
-        leverageData.swapData.call = abi.encodeWithSignature(
+        leverageData.swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             amountForLeverage,
             0,
@@ -592,7 +592,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        leverageData.swapData.slippage = 0.3e18;
+        leverageData.swapAction.slippage = 0.3e18;
         
         // Should revert with `InvalidSwapperParam`.
         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
@@ -623,15 +623,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(borrowableCUSDC));
-        leverageData.swapData.inputToken = address(dai);
-        leverageData.swapData.inputAmount = amountForLeverage - 1; // incorrect input amount
-        leverageData.swapData.outputToken = address(usdc);
-        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        leverageData.swapAction.inputToken = address(dai);
+        leverageData.swapAction.inputAmount = amountForLeverage - 1; // incorrect input amount
+        leverageData.swapAction.outputToken = address(usdc);
+        leverageData.swapAction.target = address(_UNISWAP_V2_ROUTER);
         
         address[] memory path = new address[](2);
         path[0] = address(dai);
         path[1] = address(usdc);
-        leverageData.swapData.call = abi.encodeWithSignature(
+        leverageData.swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             amountForLeverage,
             0,
@@ -639,7 +639,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        leverageData.swapData.slippage = 0.3e18;
+        leverageData.swapAction.slippage = 0.3e18;
         
         // Should revert with `InvalidSwapperParam`.
         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
@@ -661,15 +661,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageData.collateralToken = ICToken(address(borrowableCUSDC));
         deleverageData.collateralAssets = 900e6;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageData.swapData = new SwapperLib.Swap[](1);
-        deleverageData.swapData[0].inputToken = address(usdc);
-        deleverageData.swapData[0].inputAmount = 800e6; // Incorrect amount (should match collateralAmount)
-        deleverageData.swapData[0].outputToken = address(dai);
-        deleverageData.swapData[0].target = address(_UNISWAP_V2_ROUTER);
+        deleverageData.swapAction = new SwapperLib.Swap[](1);
+        deleverageData.swapAction[0].inputToken = address(usdc);
+        deleverageData.swapAction[0].inputAmount = 800e6; // Incorrect amount (should match collateralAmount)
+        deleverageData.swapAction[0].outputToken = address(dai);
+        deleverageData.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = address(dai);
-        deleverageData.swapData[0].call = abi.encodeWithSignature(
+        deleverageData.swapAction[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             800e6,
             0,
@@ -677,7 +677,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageData.swapData[0].slippage = 0.3e18;
+        deleverageData.swapAction[0].slippage = 0.3e18;
         deleverageData.repayAssets = 890 ether;
         
         // Should revert with InvalidSwapperParam
@@ -687,7 +687,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testRevert_LeverageInvalidSwapDataLength() public {
+    function testRevert_LeverageInvalidSwapActionLength() public {
         vm.startPrank(user);
         
         deal(address(usdc), user, 1000e6);
@@ -709,12 +709,12 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(borrowableCUSDC));
-        leverageData.swapData.inputToken = address(dai);
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = address(usdc);
-        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
-        leverageData.swapData.call = bytes(""); // Empty call data
-        leverageData.swapData.slippage = 0.3e18;
+        leverageData.swapAction.inputToken = address(dai);
+        leverageData.swapAction.inputAmount = amountForLeverage;
+        leverageData.swapAction.outputToken = address(usdc);
+        leverageData.swapAction.target = address(_UNISWAP_V2_ROUTER);
+        leverageData.swapAction.call = bytes(""); // Empty call data
+        leverageData.swapAction.slippage = 0.3e18;
         
         // Should revert with `InvalidSwapperParam`.
         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
@@ -723,7 +723,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testRevert_DeleverageInvalidSwapDataLength() public {
+    function testRevert_DeleverageInvalidSwapActionLength() public {
         testLeverage();
         
         // Warp until collateralization cooldown period ends.
@@ -736,7 +736,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageData.collateralToken = ICToken(address(borrowableCUSDC));
         deleverageData.collateralAssets = 900e6;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageData.swapData = new SwapperLib.Swap[](0); // Empty array
+        deleverageData.swapAction = new SwapperLib.Swap[](0); // Empty array
         deleverageData.repayAssets = 890 ether;
         
         // Should revert with InvalidSwapperParam
@@ -768,16 +768,16 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(borrowableCUSDC));
-        leverageData.swapData.inputToken = address(dai);
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = address(usdc);
-        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        leverageData.swapAction.inputToken = address(dai);
+        leverageData.swapAction.inputAmount = amountForLeverage;
+        leverageData.swapAction.outputToken = address(usdc);
+        leverageData.swapAction.target = address(_UNISWAP_V2_ROUTER);
         
         address[] memory path = new address[](2);
         path[0] = address(dai);
         path[1] = address(usdc);
         
-        leverageData.swapData.call = abi.encodeWithSignature(
+        leverageData.swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             amountForLeverage,
             amountForLeverage * 1e12, // Very high min amount out, which will fail
@@ -785,7 +785,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        leverageData.swapData.slippage = 0.3e18;
+        leverageData.swapAction.slippage = 0.3e18;
         
         // We use a tiny slippage tolerance to revert.
         vm.expectRevert();
@@ -822,14 +822,14 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(borrowableCUSDC));
-        leverageData.swapData.inputToken = address(dai);
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = address(usdc);
-        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        leverageData.swapAction.inputToken = address(dai);
+        leverageData.swapAction.inputAmount = amountForLeverage;
+        leverageData.swapAction.outputToken = address(usdc);
+        leverageData.swapAction.target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(dai);
         path[1] = address(usdc);
-        leverageData.swapData.call = abi.encodeWithSignature(
+        leverageData.swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             amountForLeverage,
             0,
@@ -837,7 +837,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        leverageData.swapData.slippage = 0.3e18;
+        leverageData.swapAction.slippage = 0.3e18;
         
         // User2 tries to leverage for user without permission.
         vm.startPrank(user2);
@@ -861,15 +861,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageData.collateralToken = ICToken(address(borrowableCUSDC));
         deleverageData.collateralAssets = 900e6;
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageData.swapData = new SwapperLib.Swap[](1);
-        deleverageData.swapData[0].inputToken = address(usdc);
-        deleverageData.swapData[0].inputAmount = 900e6;
-        deleverageData.swapData[0].outputToken = address(dai);
-        deleverageData.swapData[0].target = address(_UNISWAP_V2_ROUTER);
+        deleverageData.swapAction = new SwapperLib.Swap[](1);
+        deleverageData.swapAction[0].inputToken = address(usdc);
+        deleverageData.swapAction[0].inputAmount = 900e6;
+        deleverageData.swapAction[0].outputToken = address(dai);
+        deleverageData.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = address(dai);
-        deleverageData.swapData[0].call = abi.encodeWithSignature(
+        deleverageData.swapAction[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             900e6,
             0,
@@ -877,7 +877,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageData.swapData[0].slippage = 0.3e18;
+        deleverageData.swapAction[0].slippage = 0.3e18;
         deleverageData.repayAssets = 890 ether;
         borrowableCUSDC.approve(address(positionManager), type(uint256).max);
         
@@ -922,14 +922,14 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(borrowableCUSDC));
-        leverageData.swapData.inputToken = address(dai);
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = address(usdc);
-        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        leverageData.swapAction.inputToken = address(dai);
+        leverageData.swapAction.inputAmount = amountForLeverage;
+        leverageData.swapAction.outputToken = address(usdc);
+        leverageData.swapAction.target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(dai);
         path[1] = address(usdc);
-        leverageData.swapData.call = abi.encodeWithSignature(
+        leverageData.swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             amountForLeverage,
             0,
@@ -937,7 +937,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        leverageData.swapData.slippage = 0.3e18;
+        leverageData.swapAction.slippage = 0.3e18;
 
         
         // User2 is able to leverage on behalf of user.

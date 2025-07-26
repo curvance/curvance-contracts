@@ -133,11 +133,11 @@ contract TestStakedGMXCToken is TestBaseMarketIsolated {
     //         1e18
     //     );
 
-    //     SwapperLib.Swap memory swapData;
-    //     swapData.inputToken = _WETH_ADDRESS;
-    //     swapData.inputAmount = amount;
-    //     swapData.outputToken = _GMX_ADDRESS;
-    //     swapData.target = _UNISWAP_V3_ROUTER;
+    //     SwapperLib.Swap memory swapAction;
+    //     swapAction.inputToken = _WETH_ADDRESS;
+    //     swapAction.inputAmount = amount;
+    //     swapAction.outputToken = _GMX_ADDRESS;
+    //     swapAction.target = _UNISWAP_V3_ROUTER;
     //     IUniswapV3Router.ExactInputSingleParams memory params;
     //     params.tokenIn = _WETH_ADDRESS;
     //     params.tokenOut = _GMX_ADDRESS;
@@ -147,13 +147,13 @@ contract TestStakedGMXCToken is TestBaseMarketIsolated {
     //     params.amountIn = amount;
     //     params.amountOutMinimum = 0;
     //     params.sqrtPriceLimitX96 = 0;
-    //     swapData.call = abi.encodeWithSelector(
+    //     swapAction.call = abi.encodeWithSelector(
     //         IUniswapV3Router.exactInputSingle.selector,
     //         params
     //     );
-    //     swapData.slippage = 50e16;
+    //     swapAction.slippage = 50e16;
 
-    //     cStakedGMX.harvest(abi.encode(swapData));
+    //     cStakedGMX.harvest(abi.encode(swapAction));
 
     //     assertEq(
     //         cStakedGMX.totalAssets(),
@@ -179,15 +179,15 @@ contract TestStakedGMXCToken is TestBaseMarketIsolated {
     //         1e18
     //     );
 
-    //     swapData.inputAmount = amount;
+    //     swapAction.inputAmount = amount;
     //     params.deadline = block.timestamp;
     //     params.amountIn = amount;
-    //     swapData.call = abi.encodeWithSelector(
+    //     swapAction.call = abi.encodeWithSelector(
     //         IUniswapV3Router.exactInputSingle.selector,
     //         params
     //     );
 
-    //     cStakedGMX.harvest(abi.encode(swapData));
+    //     cStakedGMX.harvest(abi.encode(swapAction));
 
     //     // Now that first vest should have occurred, assets should
     //     // equal previous staked balance.

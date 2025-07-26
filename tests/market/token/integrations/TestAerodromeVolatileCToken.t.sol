@@ -142,7 +142,7 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
 
-        SwapperLib._approveTokenIfNeeded(
+        SwapperLib._approveIfNeeded(
             _USDC_ADDRESS,
             address(aeroRouter),
             amount1
@@ -157,12 +157,12 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
 
         uint256 amount0 = weth.balanceOf(user1);
 
-        SwapperLib._approveTokenIfNeeded(
+        SwapperLib._approveIfNeeded(
             _WETH_ADDRESS,
             address(aeroRouter),
             amount0
         );
-        SwapperLib._approveTokenIfNeeded(
+        SwapperLib._approveIfNeeded(
             _USDC_ADDRESS,
             address(aeroRouter),
             amount1
@@ -222,17 +222,17 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
         // Mint some extra rewards for Vault.
         uint256 earned = gauge.earned(address(aeroCTokenWETHUSDC));
         uint256 amount = (earned * 84) / 100;
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = _AERO_ADDRESS;
-        swapData.inputAmount = amount;
-        swapData.outputToken = _WETH_ADDRESS;
-        swapData.target = address(aeroRouter);
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _AERO_ADDRESS;
+        swapAction.inputAmount = amount;
+        swapAction.outputToken = _WETH_ADDRESS;
+        swapAction.target = address(aeroRouter);
         routes = new IVeloRouter.Route[](1);
         routes[0].from = _AERO_ADDRESS;
         routes[0].to = _WETH_ADDRESS;
         routes[0].stable = false;
         routes[0].factory = address(aeroPairFactory);
-        swapData.call = abi.encodeWithSelector(
+        swapAction.call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             amount,
             0,
@@ -240,9 +240,9 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             address(aeroCTokenWETHUSDC),
             type(uint256).max
         );
-        swapData.slippage = 50e16;
+        swapAction.slippage = 50e16;
 
-        aeroCTokenWETHUSDC.harvest(abi.encode(swapData, 1e7));
+        aeroCTokenWETHUSDC.harvest(abi.encode(swapAction, 1e7));
 
         assertEq(
             aeroCTokenWETHUSDC.totalAssets(),
@@ -257,8 +257,8 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
         // Mint some extra rewards for Vault.
         earned = gauge.earned(address(aeroCTokenWETHUSDC));
         amount = (earned * 84) / 100;
-        swapData.inputAmount = amount;
-        swapData.call = abi.encodeWithSelector(
+        swapAction.inputAmount = amount;
+        swapAction.call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             amount,
             0,
@@ -266,7 +266,7 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             address(aeroCTokenWETHUSDC),
             type(uint256).max
         );
-        aeroCTokenWETHUSDC.harvest(abi.encode(swapData, 1e7));
+        aeroCTokenWETHUSDC.harvest(abi.encode(swapAction, 1e7));
 
         vm.warp(block.timestamp + 7 days);
         chainlinkAERO.updateAnswer(chainlinkAERO.latestAnswer());

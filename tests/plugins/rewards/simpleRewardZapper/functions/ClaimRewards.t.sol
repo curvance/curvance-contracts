@@ -11,7 +11,7 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
 contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
     RewardsData public rewardsData = RewardsData(false, false, false, false);
-    SwapperLib.Swap public swapData;
+    SwapperLib.Swap public swapAction;
     address[] public path;
 
     function setUp() public override {
@@ -20,11 +20,11 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
         path.push(_USDC_ADDRESS);
         path.push(_WETH_ADDRESS);
 
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.inputAmount = 1e18;
-        swapData.outputToken = _WETH_ADDRESS;
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.call = abi.encodeWithSignature(
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 1e18;
+        swapAction.outputToken = _WETH_ADDRESS;
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             1e18,
             0,
@@ -51,7 +51,7 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
 
         vm.expectRevert(RewardManager.RewardManager__NoEpochRewards.selector);
 
-        rewardManager.claimRewards(rewardsData, abi.encode(swapData), 0);
+        rewardManager.claimRewards(rewardsData, abi.encode(swapAction), 0);
     }
 
     function test_claimRewards_success_fuzzed(uint256 amount) public {
@@ -79,8 +79,8 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
 
         _prepareUSDC(address(rewardManager), rewards);
 
-        swapData.inputAmount = rewards;
-        swapData.call = abi.encodeWithSignature(
+        swapAction.inputAmount = rewards;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
             0,
@@ -98,7 +98,7 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
 
         vm.prank(user1);
-        simpleRewardZapper.claimAndSwap(swapData, user1);
+        simpleRewardZapper.claimAndSwap(swapAction, user1);
 
         assertEq(
             usdc.balanceOf(address(rewardManager)),

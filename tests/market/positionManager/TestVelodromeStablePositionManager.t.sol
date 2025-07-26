@@ -186,17 +186,17 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
-        leverageData.swapData.inputToken = _DAI_ADDRESS;
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = _USDC_ADDRESS;
-        leverageData.swapData.target = address(veloRouter);
-        leverageData.swapData.slippage = 50e16;
+        leverageData.swapAction.inputToken = _DAI_ADDRESS;
+        leverageData.swapAction.inputAmount = amountForLeverage;
+        leverageData.swapAction.outputToken = _USDC_ADDRESS;
+        leverageData.swapAction.target = address(veloRouter);
+        leverageData.swapAction.slippage = 50e16;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _DAI_ADDRESS;
         routes[0].to = _USDC_ADDRESS;
         routes[0].stable = true;
         routes[0].factory = address(veloPairFactory);
-        leverageData.swapData.call = abi.encodeWithSelector(
+        leverageData.swapAction.call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             amountForLeverage,
             0,
@@ -258,17 +258,17 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
-        leverageData.swapData.inputToken = _DAI_ADDRESS;
-        leverageData.swapData.inputAmount = amountForLeverage - leverageFee;
-        leverageData.swapData.outputToken = _USDC_ADDRESS;
-        leverageData.swapData.target = address(veloRouter);
-        leverageData.swapData.slippage = 50e16;
+        leverageData.swapAction.inputToken = _DAI_ADDRESS;
+        leverageData.swapAction.inputAmount = amountForLeverage - leverageFee;
+        leverageData.swapAction.outputToken = _USDC_ADDRESS;
+        leverageData.swapAction.target = address(veloRouter);
+        leverageData.swapAction.slippage = 50e16;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _DAI_ADDRESS;
         routes[0].to = _USDC_ADDRESS;
         routes[0].stable = true;
         routes[0].factory = address(veloPairFactory);
-        leverageData.swapData.call = abi.encodeWithSelector(
+        leverageData.swapAction.call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             amountForLeverage - leverageFee,
             0,
@@ -318,18 +318,18 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
         uint256 usdcAmount = 27451772;
-        deleverageData.swapData = new SwapperLib.Swap[](1);
-        deleverageData.swapData[0].inputToken = _USDC_ADDRESS;
-        deleverageData.swapData[0].inputAmount = usdcAmount;
-        deleverageData.swapData[0].outputToken = _DAI_ADDRESS;
-        deleverageData.swapData[0].target = address(veloRouter);
-        deleverageData.swapData[0].slippage = 50e16;
+        deleverageData.swapAction = new SwapperLib.Swap[](1);
+        deleverageData.swapAction[0].inputToken = _USDC_ADDRESS;
+        deleverageData.swapAction[0].inputAmount = usdcAmount;
+        deleverageData.swapAction[0].outputToken = _DAI_ADDRESS;
+        deleverageData.swapAction[0].target = address(veloRouter);
+        deleverageData.swapAction[0].slippage = 50e16;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _USDC_ADDRESS;
         routes[0].to = _DAI_ADDRESS;
         routes[0].stable = true;
         routes[0].factory = address(veloPairFactory);
-        deleverageData.swapData[0].call = abi.encodeWithSelector(
+        deleverageData.swapAction[0].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             usdcAmount,
             0,
@@ -386,18 +386,18 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
         uint256 usdcAmount = 27177254;
-        deleverageData.swapData = new SwapperLib.Swap[](1);
-        deleverageData.swapData[0].inputToken = _USDC_ADDRESS;
-        deleverageData.swapData[0].inputAmount = usdcAmount;
-        deleverageData.swapData[0].outputToken = _DAI_ADDRESS;
-        deleverageData.swapData[0].target = address(veloRouter);
-        deleverageData.swapData[0].slippage = 50e16;
+        deleverageData.swapAction = new SwapperLib.Swap[](1);
+        deleverageData.swapAction[0].inputToken = _USDC_ADDRESS;
+        deleverageData.swapAction[0].inputAmount = usdcAmount;
+        deleverageData.swapAction[0].outputToken = _DAI_ADDRESS;
+        deleverageData.swapAction[0].target = address(veloRouter);
+        deleverageData.swapAction[0].slippage = 50e16;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _USDC_ADDRESS;
         routes[0].to = _DAI_ADDRESS;
         routes[0].stable = true;
         routes[0].factory = address(veloPairFactory);
-        deleverageData.swapData[0].call = abi.encodeWithSelector(
+        deleverageData.swapAction[0].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             usdcAmount,
             0,
@@ -461,17 +461,17 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
-        leverageData.swapData.inputToken = _DAI_ADDRESS;
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = _USDC_ADDRESS;
-        leverageData.swapData.target = address(veloRouter);
-        leverageData.swapData.slippage = 50e16;
+        leverageData.swapAction.inputToken = _DAI_ADDRESS;
+        leverageData.swapAction.inputAmount = amountForLeverage;
+        leverageData.swapAction.outputToken = _USDC_ADDRESS;
+        leverageData.swapAction.target = address(veloRouter);
+        leverageData.swapAction.slippage = 50e16;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _DAI_ADDRESS;
         routes[0].to = _USDC_ADDRESS;
         routes[0].stable = true;
         routes[0].factory = address(veloPairFactory);
-        leverageData.swapData.call = abi.encodeWithSelector(
+        leverageData.swapAction.call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             amountForLeverage,
             0,
@@ -518,18 +518,18 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
         uint256 usdcAmount = 27451772;
-        deleverageData.swapData = new SwapperLib.Swap[](1);
-        deleverageData.swapData[0].inputToken = _USDC_ADDRESS;
-        deleverageData.swapData[0].inputAmount = usdcAmount;
-        deleverageData.swapData[0].outputToken = _DAI_ADDRESS;
-        deleverageData.swapData[0].target = address(veloRouter);
-        deleverageData.swapData[0].slippage = 50e16;
+        deleverageData.swapAction = new SwapperLib.Swap[](1);
+        deleverageData.swapAction[0].inputToken = _USDC_ADDRESS;
+        deleverageData.swapAction[0].inputAmount = usdcAmount;
+        deleverageData.swapAction[0].outputToken = _DAI_ADDRESS;
+        deleverageData.swapAction[0].target = address(veloRouter);
+        deleverageData.swapAction[0].slippage = 50e16;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _USDC_ADDRESS;
         routes[0].to = _DAI_ADDRESS;
         routes[0].stable = true;
         routes[0].factory = address(veloPairFactory);
-        deleverageData.swapData[0].call = abi.encodeWithSelector(
+        deleverageData.swapAction[0].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             usdcAmount,
             0,

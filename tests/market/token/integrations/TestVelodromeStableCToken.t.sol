@@ -130,17 +130,17 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
         // Mint some extra rewards for Vault.
         uint256 earned = gauge.earned(address(veloCTokenUSDCDAI));
         uint256 amount = (earned * 84) / 100;
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = _VELO_ADDRESS;
-        swapData.inputAmount = amount;
-        swapData.outputToken = _USDC_ADDRESS;
-        swapData.target = address(veloRouter);
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _VELO_ADDRESS;
+        swapAction.inputAmount = amount;
+        swapAction.outputToken = _USDC_ADDRESS;
+        swapAction.target = address(veloRouter);
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _VELO_ADDRESS;
         routes[0].to = _USDC_ADDRESS;
         routes[0].stable = false;
         routes[0].factory = address(veloPairFactory);
-        swapData.call = abi.encodeWithSelector(
+        swapAction.call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             amount,
             0,
@@ -148,9 +148,9 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
             address(veloCTokenUSDCDAI),
             type(uint256).max
         );
-        swapData.slippage = 50e16;
+        swapAction.slippage = 50e16;
 
-        veloCTokenUSDCDAI.harvest(abi.encode(swapData, 1e14));
+        veloCTokenUSDCDAI.harvest(abi.encode(swapAction, 1e14));
 
         console2.log("total assets after first harvest:", veloCTokenUSDCDAI.totalAssets());
 
@@ -167,8 +167,8 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
         // Mint some extra rewards for Vault.
         earned = gauge.earned(address(veloCTokenUSDCDAI));
         amount = (earned * 84) / 100;
-        swapData.inputAmount = amount;
-        swapData.call = abi.encodeWithSelector(
+        swapAction.inputAmount = amount;
+        swapAction.call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             amount,
             0,
@@ -176,7 +176,7 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
             address(veloCTokenUSDCDAI),
             type(uint256).max
         );
-        veloCTokenUSDCDAI.harvest(abi.encode(swapData, 1e14));
+        veloCTokenUSDCDAI.harvest(abi.encode(swapAction, 1e14));
 
         console2.log("total assets after second harvest", veloCTokenUSDCDAI.totalAssets());
 

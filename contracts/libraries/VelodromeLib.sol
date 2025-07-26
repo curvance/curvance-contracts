@@ -98,7 +98,7 @@ library VelodromeLib {
             lpOutAmount += newLpOutAmount;
         }
 
-        amount1 = CommonLib._getTokenBalance(token1);
+        amount1 = CommonLib._getBalanceOf(token1);
 
         // Check if we are entering through token1 leg.
         if (amount1 > 0) {
@@ -163,7 +163,7 @@ library VelodromeLib {
         bool stable = IVeloPool(lpToken).stable();
 
         // Approve Velodrome lp token.
-        SwapperLib._approveTokenIfNeeded(lpToken, router, lpAmount);
+        SwapperLib._approveIfNeeded(lpToken, router, lpAmount);
 
         // Exit Velodrome position.
         IVeloRouter(router).removeLiquidity(
@@ -200,8 +200,8 @@ library VelodromeLib {
         uint256 slippage
     ) internal returns (uint256 liquidity) {
         // Approve Router to take token0 and token1.
-        SwapperLib._approveTokenIfNeeded(token0, router, amount0);
-        SwapperLib._approveTokenIfNeeded(token1, router, amount1);
+        SwapperLib._approveIfNeeded(token0, router, amount0);
+        SwapperLib._approveIfNeeded(token1, router, amount1);
 
         // Deposit liquidity into Velodrome.
         (, , liquidity) = IVeloRouter(router).addLiquidity(
@@ -291,7 +291,7 @@ library VelodromeLib {
         bool stable
     ) internal returns (uint256) {
         // Approve Router to take `tokenIn`.
-        SwapperLib._approveTokenIfNeeded(tokenIn, router, amount);
+        SwapperLib._approveIfNeeded(tokenIn, router, amount);
 
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = tokenIn;

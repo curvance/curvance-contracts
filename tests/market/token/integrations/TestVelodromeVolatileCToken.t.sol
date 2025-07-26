@@ -132,17 +132,17 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
         // Mint some extra rewards for Vault.
         uint256 earned = gauge.earned(address(veloCTokenWETHUSDC));
         uint256 amount = (earned * 84) / 100;
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = _VELO_ADDRESS;
-        swapData.inputAmount = amount;
-        swapData.outputToken = _WETH_ADDRESS;
-        swapData.target = address(veloRouter);
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _VELO_ADDRESS;
+        swapAction.inputAmount = amount;
+        swapAction.outputToken = _WETH_ADDRESS;
+        swapAction.target = address(veloRouter);
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _VELO_ADDRESS;
         routes[0].to = _WETH_ADDRESS;
         routes[0].stable = false;
         routes[0].factory = address(veloPairFactory);
-        swapData.call = abi.encodeWithSelector(
+        swapAction.call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             amount,
             0,
@@ -150,9 +150,9 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
             address(veloCTokenWETHUSDC),
             type(uint256).max
         );
-        swapData.slippage = 50e16;
+        swapAction.slippage = 50e16;
 
-        veloCTokenWETHUSDC.harvest(abi.encode(swapData, 1.407e10));
+        veloCTokenWETHUSDC.harvest(abi.encode(swapAction, 1.407e10));
 
         assertEq(
             veloCTokenWETHUSDC.totalAssets(),
@@ -167,8 +167,8 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
         // Mint some extra rewards for Vault.
         earned = gauge.earned(address(veloCTokenWETHUSDC));
         amount = (earned * 84) / 100;
-        swapData.inputAmount = amount;
-        swapData.call = abi.encodeWithSelector(
+        swapAction.inputAmount = amount;
+        swapAction.call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             amount,
             0,
@@ -176,7 +176,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
             address(veloCTokenWETHUSDC),
             type(uint256).max
         );
-        veloCTokenWETHUSDC.harvest(abi.encode(swapData, 1.407e10));
+        veloCTokenWETHUSDC.harvest(abi.encode(swapAction, 1.407e10));
 
         vm.warp(block.timestamp + 7 days);
         chainlinkVELO.updateAnswer(chainlinkVELO.latestAnswer());

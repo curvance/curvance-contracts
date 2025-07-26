@@ -312,11 +312,11 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCUSDC));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(simpleCWBTC));
-        leverageData.swapData.inputToken = _USDC_ADDRESS;
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = _WBTC_ADDRESS;
-        leverageData.swapData.target = address(_UNISWAP_V3_SWAP_ROUTER);
-        leverageData.swapData.slippage = 2e18;
+        leverageData.swapAction.inputToken = _USDC_ADDRESS;
+        leverageData.swapAction.inputAmount = amountForLeverage;
+        leverageData.swapAction.outputToken = _WBTC_ADDRESS;
+        leverageData.swapAction.target = address(_UNISWAP_V3_SWAP_ROUTER);
+        leverageData.swapAction.slippage = 2e18;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _USDC_ADDRESS;
         params.tokenOut = _WBTC_ADDRESS;
@@ -326,7 +326,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         params.amountIn = amountForLeverage;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        leverageData.swapData.call = abi.encodeWithSelector(
+        leverageData.swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             params
         );

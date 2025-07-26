@@ -41,7 +41,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
     receive() external payable {}
     fallback() external payable {}
 
-    function getOdosSwapData(
+    function getOdosSwapAction(
         uint256 chainId,
         address fromToken,
         address toToken,
@@ -51,7 +51,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
     ) public returns (bytes memory) {
         string[] memory args = new string[](8);
         args[0] = "node";
-        args[1] = "getOdosSwapData.js";
+        args[1] = "getOdosSwapAction.js";
         args[2] = vm.toString(chainId);
         args[3] = vm.toString(fromToken);
         args[4] = vm.toString(toToken);
@@ -208,7 +208,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             1e18
         );
         uint256 swapInputAmount = amountForLeverage - leverageFee;
-        bytes memory result = getOdosSwapData(
+        bytes memory result = getOdosSwapAction(
             block.chainid,
             _DAI_ADDRESS,
             _USDC_ADDRESS,
@@ -225,12 +225,12 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
-        leverageData.swapData.inputToken = _DAI_ADDRESS;
-        leverageData.swapData.inputAmount = swapInputAmount;
-        leverageData.swapData.outputToken = _USDC_ADDRESS;
-        leverageData.swapData.target = odosRouterV2;
-        leverageData.swapData.slippage = 0.005e18; // 0.5%
-        leverageData.swapData.call = odosCallData;
+        leverageData.swapAction.inputToken = _DAI_ADDRESS;
+        leverageData.swapAction.inputAmount = swapInputAmount;
+        leverageData.swapAction.outputToken = _USDC_ADDRESS;
+        leverageData.swapAction.target = odosRouterV2;
+        leverageData.swapAction.slippage = 0.005e18; // 0.5%
+        leverageData.swapAction.call = odosCallData;
         leverageData.auxData = abi.encode(0);
         positionManager.leverage(leverageData, 0.05e18);
 
@@ -286,7 +286,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
                     address(veloPairFactory),
                     collateralWithoutFee
                 );
-            bytes memory result = getOdosSwapData(
+            bytes memory result = getOdosSwapAction(
                 block.chainid,
                 _USDC_ADDRESS,
                 _DAI_ADDRESS,
@@ -302,13 +302,13 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             deleverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
             deleverageData.collateralAssets = collateralAmount;
             deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-            deleverageData.swapData = new SwapperLib.Swap[](1);
-            deleverageData.swapData[0].inputToken = _USDC_ADDRESS;
-            deleverageData.swapData[0].inputAmount = usdcOutAmount;
-            deleverageData.swapData[0].outputToken = _DAI_ADDRESS;
-            deleverageData.swapData[0].target = address(odosRouterV2);
-            deleverageData.swapData[0].slippage = 0.005e18; // 0.5%
-            deleverageData.swapData[0].call = odosCallData;
+            deleverageData.swapAction = new SwapperLib.Swap[](1);
+            deleverageData.swapAction[0].inputToken = _USDC_ADDRESS;
+            deleverageData.swapAction[0].inputAmount = usdcOutAmount;
+            deleverageData.swapAction[0].outputToken = _DAI_ADDRESS;
+            deleverageData.swapAction[0].target = address(odosRouterV2);
+            deleverageData.swapAction[0].slippage = 0.005e18; // 0.5%
+            deleverageData.swapAction[0].call = odosCallData;
             deleverageData.repayAssets = daiOutAmount + (minDaiOut / 10) * 9;
         }
 

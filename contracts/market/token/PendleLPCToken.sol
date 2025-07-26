@@ -138,7 +138,7 @@ contract PendleLPCToken is StrategyCToken {
             sd.lp.redeemRewards(address(this));
 
             (
-                SwapperLib.Swap[] memory swapDataArray,
+                SwapperLib.Swap[] memory swapActions,
                 uint256 minLPAmount,
                 ApproxParams memory approx,
                 LimitOrderData memory limit
@@ -180,16 +180,16 @@ contract PendleLPCToken is StrategyCToken {
             }
 
             {
-                uint256 numSwapData = swapDataArray.length;
-                for (uint256 i; i < numSwapData; ++i) {
+                uint256 numSwapActions = swapActions.length;
+                for (uint256 i; i < numSwapActions; ++i) {
                     if (
-                        !_isApprovedAsset[swapDataArray[i].inputToken] ||
-                        !_isUnderlyingToken[swapDataArray[i].outputToken]
+                        !_isApprovedAsset[swapActions[i].inputToken] ||
+                        !_isUnderlyingToken[swapActions[i].outputToken]
                     ) {
                         revert StrategyCToken__UnapprovedAssetSwap();
                     }
 
-                    SwapperLib._swapSafe(centralRegistry, swapDataArray[i]);
+                    SwapperLib._swapSafe(centralRegistry, swapActions[i]);
                 }
             }
 
@@ -216,7 +216,7 @@ contract PendleLPCToken is StrategyCToken {
                             address(this)
                         );
                         if (balance > 0) {
-                            SwapperLib._approveTokenIfNeeded(
+                            SwapperLib._approveIfNeeded(
                                 underlyingToken,
                                 address(sd.sy),
                                 balance
@@ -235,7 +235,7 @@ contract PendleLPCToken is StrategyCToken {
 
             {
                 uint256 balance = sd.sy.balanceOf(address(this));
-                SwapperLib._approveTokenIfNeeded(
+                SwapperLib._approveIfNeeded(
                     address(sd.sy),
                     address(sd.router),
                     balance

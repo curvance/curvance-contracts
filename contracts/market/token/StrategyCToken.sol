@@ -116,15 +116,15 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
 
     /// @notice Vests pending rewards, and updates vesting data.
     function _accrueIfNeeded() internal override {
-        uint256 pendingYieldToVest = _getPendingYield();
+        uint256 yieldToVest = _getPendingYield();
         
         // Vest pending yield, if there is any.
-        if (pendingYieldToVest > 0) {
+        if (yieldToVest > 0) {
             // Update the lastVestingClaim timestamp.
             _setlastVestingClaim(uint40(block.timestamp));
             
             // Update _totalAssets invariant with pending yield added.
-            _totalAssets = _totalAssets + pendingYieldToVest;
+            _totalAssets = _totalAssets + yieldToVest;
         }
     }
 

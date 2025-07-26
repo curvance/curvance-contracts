@@ -159,12 +159,12 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         address[] memory path = new address[](2);
         path[0] = _USDC_ADDRESS;
         path[1] = _WETH_ADDRESS;
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.outputToken = _WETH_ADDRESS;
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = rewards;
-        swapData.call = abi.encodeWithSignature(
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.outputToken = _WETH_ADDRESS;
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.inputAmount = rewards;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
             0,
@@ -182,7 +182,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
 
         vm.prank(user1);
-        simpleRewardZapper.claimAndSwap(swapData, user1);
+        simpleRewardZapper.claimAndSwap(swapAction, user1);
 
         assertEq(
             usdc.balanceOf(address(rewardManager)),
@@ -225,12 +225,12 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         address[] memory path = new address[](2);
         path[0] = _USDC_ADDRESS;
         path[1] = _WETH_ADDRESS;
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.outputToken = _WETH_ADDRESS;
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = rewards;
-        swapData.call = abi.encodeWithSignature(
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.outputToken = _WETH_ADDRESS;
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.inputAmount = rewards;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
             0,
@@ -250,7 +250,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         vm.prank(user1);
         simpleRewardZapper.claimSwapAndDeposit(
             address(simpleCWETH),
-            swapData,
+            swapAction,
             0,
             false,
             user1
@@ -307,12 +307,12 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         address[] memory path = new address[](2);
         path[0] = _USDC_ADDRESS;
         path[1] = _WETH_ADDRESS;
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.outputToken = _WETH_ADDRESS;
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = rewards;
-        swapData.call = abi.encodeWithSignature(
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.outputToken = _WETH_ADDRESS;
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.inputAmount = rewards;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
             0,
@@ -329,7 +329,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         vm.prank(user1);
         simpleRewardZapper.claimSwapAndRepay(
-            swapData,
+            swapAction,
             address(borrowableCUSDC),
             100e6,
             user1

@@ -55,7 +55,7 @@ contract Predeposit {
     error Predeposit__PredepositDepositsBlocked();
     error Predeposit__Unauthorized();
     error Predeposit__InvalidParameters();
-    error Predeposit__InvalidSwapData();
+    error Predeposit__InvalidSwapAction();
     error Predeposit__InvalidSwapOutput();
 
     /// EVENTS ///
@@ -164,10 +164,10 @@ contract Predeposit {
     }
 
     function swapAndDeposit(
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         uint256 depositAmount
     ) external payable {
-        address token = swapData.outputToken;
+        address token = swapAction.outputToken;
 
         // Validate that predeposit deposit window has not ended.
         if (block.timestamp > predepositEndTimestamp) {
@@ -179,29 +179,29 @@ contract Predeposit {
             revert Predeposit__InvalidParameters();
         }
 
-        if (CommonLib._isNative(swapData.inputToken)) {
+        if (CommonLib._isNative(swapAction.inputToken)) {
             // Validate message has gas token attached.
-            if (swapData.inputAmount != msg.value) {
-                revert Predeposit__InvalidSwapData();
+            if (swapAction.inputAmount != msg.value) {
+                revert Predeposit__InvalidSwapAction();
             }
         } else {
             SafeTransferLib.safeTransferFrom(
-                swapData.inputToken,
+                swapAction.inputToken,
                 msg.sender,
                 address(this),
-                swapData.inputAmount
+                swapAction.inputAmount
             );
         }
 
         // Execute swap into cToken underlying.
-        uint256 amount = SwapperLib._swapUnsafe(centralRegistry, swapData);
+        uint256 amount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
 
         if (amount < depositAmount) {
             revert Predeposit__InvalidSwapOutput();
         }
 
         if (amount > depositAmount) {
-            // Refund remaining payment token
+            // Refund excess `token`.
             SafeTransferLib.safeTransfer(
                 token,
                 msg.sender,
@@ -272,7 +272,7 @@ contract Predeposit {
         }
 
         // Approve tokens to be pulled by cToken.
-        SwapperLib._approveTokenIfNeeded(token, cToken, amount);
+        SwapperLib._approveIfNeeded(token, cToken, amount);
 
         // Migrate predeposit asset into Curvance protocol.
         if (collateralize) {

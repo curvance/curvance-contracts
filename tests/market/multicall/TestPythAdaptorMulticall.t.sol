@@ -283,11 +283,11 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         leverageData.debtToken = IBorrowableCToken(address(borrowableCWETH));
         leverageData.borrowAssets = amountForLeverage;
         leverageData.collateralToken = ICToken(address(cWBTC));
-        leverageData.swapData.inputToken = _WETH_ADDRESS;
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = _WBTC_ADDRESS;
-        leverageData.swapData.target = address(_UNISWAP_V3_SWAP_ROUTER);
-        leverageData.swapData.slippage = 2e18;
+        leverageData.swapAction.inputToken = _WETH_ADDRESS;
+        leverageData.swapAction.inputAmount = amountForLeverage;
+        leverageData.swapAction.outputToken = _WBTC_ADDRESS;
+        leverageData.swapAction.target = address(_UNISWAP_V3_SWAP_ROUTER);
+        leverageData.swapAction.slippage = 2e18;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _WETH_ADDRESS;
         params.tokenOut = _WBTC_ADDRESS;
@@ -297,7 +297,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         params.amountIn = amountForLeverage;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        leverageData.swapData.call = abi.encodeWithSelector(
+        leverageData.swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             params
         );

@@ -124,7 +124,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         address receiver
     ) internal returns (uint256 shares) {
         // Approve `cToken` to take `underlying`.
-        SwapperLib._approveTokenIfNeeded(underlying, cToken, assets);
+        SwapperLib._approveIfNeeded(underlying, cToken, assets);
 
         // The user is trusting this plugin to not use their delegation
         // approval for nefarious reasons such as keeping them stuck in
@@ -246,15 +246,15 @@ abstract contract ZapperBase is ReentrancyGuard {
     ///         of `receiver`.
     /// @param borrowableCToken The Curvance token address to repay
     ///                         outstanding debt to.
-    /// @param debtToken The underlying token for `borrowableCToken` to repay
+    /// @param debtAsset The underlying token for `borrowableCToken` to repay
     ///                  debt in.
-    /// @param assetsHeld The amount of `debtToken` on hand.
+    /// @param assetsHeld The amount of `debtAsset` on hand.
     /// @param repayAssets The amount of debt to be repaid.
     /// @param receiver Address that should have outstanding debt repaid.
-    /// @return The amount of `debtToken` that was returned to `receiver`.
+    /// @return The amount of `debtAsset` that was returned to `receiver`.
     function _repayDebt(
         address borrowableCToken,
-        address debtToken,
+        address debtAsset,
         uint256 assetsHeld,
         uint256 repayAssets,
         address receiver
@@ -264,9 +264,9 @@ abstract contract ZapperBase is ReentrancyGuard {
             revert ZapperBase__InsufficientToRepay();
         }
 
-        // Approve `debtToken` transfer to cToken contract, if needed.
-        SwapperLib._approveTokenIfNeeded(
-            debtToken,
+        // Approve `debtAsset` transfer to cToken contract, if needed.
+        SwapperLib._approveIfNeeded(
+            debtAsset,
             borrowableCToken,
             repayAssets
         );
@@ -275,13 +275,13 @@ abstract contract ZapperBase is ReentrancyGuard {
         IBorrowableCToken(borrowableCToken).repayFor(repayAssets, receiver);
 
         // Remove any excess approval.
-        SwapperLib._removeApprovalIfNeeded(debtToken, borrowableCToken);
+        SwapperLib._removeApprovalIfNeeded(debtAsset, borrowableCToken);
 
         assetsHeld -= repayAssets;
 
-        // Transfer any remaining `debtToken` to `receiver`.
+        // Transfer any remaining `debtAsset` to `receiver`.
         if (assetsHeld > 0) {
-            _transferToRecipient(debtToken, receiver, assetsHeld);
+            _transferToRecipient(debtAsset, receiver, assetsHeld);
         }
 
         return assetsHeld;

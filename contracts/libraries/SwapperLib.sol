@@ -6,6 +6,8 @@ import { LowLevelCallsHelper } from "contracts/libraries/LowLevelCallsHelper.sol
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { NO_ERROR, WAD } from "contracts/libraries/Constants.sol";
 
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldataChecker.sol";
@@ -45,15 +47,15 @@ library SwapperLib {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Swaps `swapData.inputToken` into a `swapData.outputToken`. (unsafe)
-    /// @param swapData The swap instruction data to execute.
+    /// @notice Swaps `swapAction.inputToken` into a `swapAction.outputToken`. (unsafe)
+    /// @param swapAction The swap instruction data to execute.
     /// @return The output amount received from swapping.
     function _swapUnsafe(
         ICentralRegistry centralRegistry,
-        Swap memory swapData
+        Swap memory swapAction
     ) internal returns (uint256) {
         address callDataChecker = centralRegistry.externalCalldataChecker(
-            swapData.target
+            swapAction.target
         );
 
         // Validate we know how to verify this calldata.
@@ -63,71 +65,76 @@ library SwapperLib {
 
         // Verify calldata integrity.
         IExternalCalldataChecker(callDataChecker).checkCalldata(
-            swapData,
+            swapAction,
             address(this)
         );
 
-        // Approve `swapData.inputToken` to target contract, if necessary.
-        _approveTokenIfNeeded(
-            swapData.inputToken,
-            swapData.target,
-            swapData.inputAmount
+        // Approve `swapAction.inputToken` to target contract, if necessary.
+        _approveIfNeeded(
+            swapAction.inputToken,
+            swapAction.target,
+            swapAction.inputAmount
         );
 
         // Cache output token from struct for easier querying.
-        address outputToken = swapData.outputToken;
-        uint256 balance = CommonLib._getTokenBalance(outputToken);
+        address outputToken = swapAction.outputToken;
+        uint256 balanceBefore = CommonLib._getBalanceOf(outputToken);
 
-        uint256 value = CommonLib._isNative(swapData.inputToken)
-            ? swapData.inputAmount
+        uint256 callValue = CommonLib._isNative(swapAction.inputToken)
+            ? swapAction.inputAmount
             : 0;
 
         // Execute the swap.
         LowLevelCallsHelper._callWithNative(
-            swapData.target,
-            swapData.call,
-            value
+            swapAction.target,
+            swapAction.call,
+            callValue
         );
 
         // Remove any excess approval.
-        _removeApprovalIfNeeded(swapData.inputToken, swapData.target);
+        _removeApprovalIfNeeded(swapAction.inputToken, swapAction.target);
 
-        return CommonLib._getTokenBalance(outputToken) - balance;
+        return CommonLib._getBalanceOf(outputToken) - balanceBefore;
     }
 
-    /// @notice Swaps `swapData.inputToken` into a `swapData.outputToken`. (safe: check slippage)
-    /// @param swapData The swap instruction data to execute.
+    /// @notice Swaps `swapAction.inputToken` into a `swapAction.outputToken`
+    ///         without slippage check.
+    /// @param swapAction Instructions for executing a swap.
     /// @return outAmount The output amount received from swapping.
     function _swapSafe(
         ICentralRegistry centralRegistry,
-        Swap memory swapData
+        Swap memory swapAction
     ) internal returns (uint256 outAmount) {
-        outAmount = _swapUnsafe(centralRegistry, swapData);
+        outAmount = _swapUnsafe(centralRegistry, swapAction);
 
         IOracleManager oracleManager = IOracleManager(
             centralRegistry.oracleManager()
         );
 
-        uint256 inputValue = _getTokenValue(
+        uint256 valueIn = _getValue(
             oracleManager,
-            swapData.inputToken,
-            swapData.inputAmount
+            swapAction.inputToken,
+            swapAction.inputAmount
         );
-        uint256 outputValue = _getTokenValue(
+        uint256 valueOut = _getValue(
             oracleManager,
-            swapData.outputToken,
+            swapAction.outputToken,
             outAmount
         );
 
         // Check if swap received positive slippage.
-        if (outputValue > inputValue) {
+        if (valueOut > valueIn) {
             return outAmount;
         }
 
         // Calculate % slippage from executed swap.
-        uint256 slippage = ((inputValue - outputValue) * WAD) / inputValue;
+        uint256 slippage = FixedPointMathLib.mulDiv(
+            valueIn - valueOut,
+            WAD,
+            valueIn
+        );
         if (
-            slippage > swapData.slippage ||
+            slippage > swapAction.slippage ||
             slippage > centralRegistry.slippageLimit()
         ) {
             revert SwapperLib__Slippage(slippage);
@@ -138,11 +145,11 @@ library SwapperLib {
     /// @notice Approves `token` spending allowance, if needed.
     /// @param token The token address.
     /// @param amount The amount.
-    function _getTokenValue(
+    function _getValue(
         IOracleManager oracleManager,
         address token,
         uint256 amount
-    ) internal view returns (uint256) {
+    ) internal view returns (uint256 result) {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             token,
             true,
@@ -152,17 +159,19 @@ library SwapperLib {
             revert SwapperLib__TokenPrice(token);
         }
 
-        uint256 value = (price * amount) /
-            (10 ** (CommonLib._isNative(token) ? 18 : IERC20(token).decimals()));
-
-        return value;
+        // Return price in WAD form.
+        result = FixedPointMathLib.mulDiv(
+            price,
+            amount,
+            10 ** (CommonLib._isNative(token) ? 18 : IERC20(token).decimals())
+        );
     }
 
     /// @notice Approves `token` spending allowance, if needed.
     /// @param token The token address to approve.
     /// @param spender The spender address.
     /// @param amount The approval amount.
-    function _approveTokenIfNeeded(
+    function _approveIfNeeded(
         address token,
         address spender,
         uint256 amount

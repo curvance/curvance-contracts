@@ -8,7 +8,7 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract TestPredeposit is TestBasePredeposit {
-    SwapperLib.Swap public swapData;
+    SwapperLib.Swap public swapAction;
 
     function setUp() public override {
         super.setUp();
@@ -41,17 +41,17 @@ contract TestPredeposit is TestBasePredeposit {
 
         vm.stopPrank();
 
-        swapData.inputToken = _WETH_ADDRESS;
-        swapData.inputAmount = _ONE;
-        swapData.outputToken = _USDC_ADDRESS;
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.slippage = 50e16;
+        swapAction.inputToken = _WETH_ADDRESS;
+        swapAction.inputAmount = _ONE;
+        swapAction.outputToken = _USDC_ADDRESS;
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.slippage = 50e16;
 
         address[] memory path = new address[](2);
         path[0] = _WETH_ADDRESS;
         path[1] = _USDC_ADDRESS;
 
-        swapData.call = abi.encodeWithSignature(
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             _ONE,
             0,
@@ -97,13 +97,13 @@ contract TestPredeposit is TestBasePredeposit {
 
         weth.approve(address(predeposit), _ONE);
 
-        swapData.outputToken = _BAL_WETH_RETH_ADDRESS;
+        swapAction.outputToken = _BAL_WETH_RETH_ADDRESS;
 
         address[] memory path = new address[](2);
         path[0] = _WETH_ADDRESS;
         path[1] = _BAL_WETH_RETH_ADDRESS;
 
-        swapData.call = abi.encodeWithSignature(
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             _ONE,
             0,
@@ -113,7 +113,7 @@ contract TestPredeposit is TestBasePredeposit {
         );
 
         strategyCBALRETH.setDelegateApproval(address(predeposit), true);
-        predeposit.swapAndDeposit(swapData, 0.1e18);
+        predeposit.swapAndDeposit(swapAction, 0.1e18);
 
         skip(1 weeks);
 
@@ -142,13 +142,13 @@ contract TestPredeposit is TestBasePredeposit {
 
         weth.approve(address(predeposit), _ONE);
 
-        swapData.outputToken = _BAL_WETH_RETH_ADDRESS;
+        swapAction.outputToken = _BAL_WETH_RETH_ADDRESS;
 
         address[] memory path = new address[](2);
         path[0] = _WETH_ADDRESS;
         path[1] = _BAL_WETH_RETH_ADDRESS;
 
-        swapData.call = abi.encodeWithSignature(
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             _ONE,
             0,
@@ -157,7 +157,7 @@ contract TestPredeposit is TestBasePredeposit {
             block.timestamp
         );
 
-        predeposit.swapAndDeposit(swapData, 0.1e18);
+        predeposit.swapAndDeposit(swapAction, 0.1e18);
 
         vm.stopPrank();
 
@@ -185,8 +185,8 @@ contract TestPredeposit is TestBasePredeposit {
 
         weth.approve(address(predeposit), _ONE);
 
-        swapData.outputToken = _USDC_ADDRESS;
-        predeposit.swapAndDeposit(swapData, 100e6);
+        swapAction.outputToken = _USDC_ADDRESS;
+        predeposit.swapAndDeposit(swapAction, 100e6);
 
         vm.stopPrank();
 
