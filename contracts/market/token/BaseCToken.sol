@@ -101,7 +101,7 @@ abstract contract BaseCToken is
     ///         pending vesting.
     uint256 internal _totalAssets;
 
-    /// @notice Collateral information associated with an account.
+    /// @notice Shares of this token that an account has posted as collateral.
     /// @dev Account address => Collateral data.
     mapping(address => uint256) public collateralPosted;
     
@@ -231,8 +231,8 @@ abstract contract BaseCToken is
         );
     }
 
-    /// @notice Caller deposits assets into the market, `receiver` receives
-    ///         shares, and turns on collateralization of the assets.
+    /// @notice Caller deposits `assets` into the market, `receiver` receives
+    ///         shares, and collateralization of `assets` is enabled.
     /// @dev The caller must be depositing for themselves, or be managing
     ///      their position through a Position Manager contract.
     /// @param assets The amount of the underlying assets to deposit.
@@ -257,8 +257,8 @@ abstract contract BaseCToken is
         _postCollateral(shares, receiver);
     }
 
-    /// @notice Caller deposits assets into the market, `receivier` receives
-    ///         shares, and turns on collateralization of the assets.
+    /// @notice Caller deposits `assets` into the market, `receiver` receives
+    ///         shares, and collateralization of `assets` is enabled.
     /// @dev Requires that `receiver` approves the caller prior to
     ///      collateralize on their behalf.
     ///      NOTE: Be careful who you approve here!
@@ -311,13 +311,15 @@ abstract contract BaseCToken is
         assets = _redeem(shares, receiver, owner, false, true);
     }
 
-    /// @notice Caller withdraws assets from the market and burns their shares,
-    ///         on behalf of `owner`.
+    /// @notice Caller withdraws assets from the market and burns their
+    ///         shares, on behalf of `owner`.
     /// @dev Forces collateral to be withdrawn from `owner` collateralPosted.
     /// @param shares The amount of shares to redeemed.
     /// @param receiver The account that should receive the assets.
-    /// @param owner The account that will burn their shares to withdraw assets.
-    /// @return assets the amount of assets redeemed by `owner`.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
+    /// @return assets The amount of assets redeemed by `owner` and sent to
+    ///                `receiver`.
     function redeemCollateralFor(
         uint256 shares,
         address receiver,
@@ -533,7 +535,8 @@ abstract contract BaseCToken is
         maxShares = super.maxMint(receiver);
     }
 
-    /// @notice Caller deposits assets into the market and receives shares.
+    /// @notice Caller deposits `assets` into the market and `receiver`
+    ///         receives shares.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param receiver The account that should receive the cToken shares.
     /// @return shares The amount of cToken shares received by `receiver`.
@@ -544,7 +547,8 @@ abstract contract BaseCToken is
         shares = _deposit(assets, receiver);
     }
 
-    /// @notice Caller deposits assets into the market and receives shares.
+    /// @notice Caller deposits `shares` into the market and `receiver`
+    ///         receives shares.
     /// @param shares The amount of the underlying assets quoted in shares
     ///               to deposit.
     /// @param receiver The account that should receive the cToken shares.
@@ -589,13 +593,14 @@ abstract contract BaseCToken is
     }
 
     /// @notice Withdraws assets, quoted in `shares` from the market,
-    ///         and burns `owner` shares, on behalf of `owner`.
+    ///         and burns `owner` shares, sending assets to `receiver`.
     /// @dev Does not force collateral to be withdrawn.
-    /// @param shares The amount of shares to be redeemed.
+    /// @param shares The amount of shares to redeemed.
     /// @param receiver The account that should receive the assets.
     /// @param owner The account that will burn their shares to withdraw
     ///              assets.
-    /// @return assets The amount of assets redeemed by `owner`.
+    /// @return assets The amount of assets redeemed by `owner` and sent to
+    ///                `receiver`.
     function redeemFor(
         uint256 shares,
         address receiver,

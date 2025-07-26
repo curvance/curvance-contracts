@@ -84,7 +84,8 @@ interface ICToken {
         Multicall.MulticallData[] memory calls
     ) external returns (bytes[] memory results);
 
-    /// @notice Caller deposits assets into the market and receives shares.
+    /// @notice Caller deposits `assets` into the market and `receiver`
+    ///         receives shares.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param receiver The account that should receive the shares.
     /// @return shares The amount of shares received by `receiver`.
@@ -93,8 +94,8 @@ interface ICToken {
         address receiver
     ) external returns (uint256 shares);
 
-    /// @notice Caller deposits assets into the market, `receiver` receives
-    ///         shares, and turns on collateralization of the assets.
+    /// @notice Caller deposits `assets` into the market, `receiver` receives
+    ///         shares, and collateralization of `assets` is enabled.
     /// @dev The caller must be depositing for themselves, or be managing
     ///      their position through a Position Manager contract.
     ///      If the caller is not approved to collateralize the function will
@@ -107,8 +108,8 @@ interface ICToken {
         address receiver
     ) external returns (uint256 shares);
 
-    /// @notice Caller deposits assets into the market, `receivier` receives
-    ///         shares, and turns on collateralization of the assets.
+    /// @notice Caller deposits `assets` into the market, `receiver` receives
+    ///         shares, and collateralization of `assets` is enabled.
     /// @dev Requires that `receiver` approves the caller prior to
     ///      collateralize on their behalf.
     ///      NOTE: Be careful who you approve here!
@@ -124,24 +125,30 @@ interface ICToken {
         address receiver
     ) external returns (uint256 shares);
 
-    /// @notice Caller withdraws assets from the market and burns their shares,
-    ///         on behalf of `owner`.
+    /// @notice Withdraws assets, quoted in `shares` from the market,
+    ///         and burns `owner` shares, sending assets to `receiver`.
+    /// @dev Does not force collateral to be withdrawn.
     /// @param shares The amount of shares to redeemed.
     /// @param receiver The account that should receive the assets.
-    /// @param owner The account that will burn their shares to withdraw assets.
-    /// @return assets the amount of assets redeemed by `owner`.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
+    /// @return assets The amount of assets redeemed by `owner` and sent to
+    ///                `receiver`.
     function redeemFor(
         uint256 shares,
         address receiver,
         address owner
     ) external returns (uint256 assets);
 
-    /// @notice Caller withdraws assets from the market and burns their shares,
-    ///         on behalf of `owner`.
+    /// @notice Caller withdraws assets from the market and burns their
+    ///         shares, on behalf of `owner`.
+    /// @dev Forces collateral to be withdrawn from `owner` collateralPosted.
     /// @param shares The amount of shares to redeemed.
     /// @param receiver The account that should receive the assets.
-    /// @param owner The account that will burn their shares to withdraw assets.
-    /// @return assets the amount of assets redeemed by `owner`.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
+    /// @return assets The amount of assets redeemed by `owner` and sent to
+    ///                `receiver`.
     function redeemCollateralFor(
         uint256 shares,
         address receiver,
@@ -163,9 +170,12 @@ interface ICToken {
     ///         in shares.
     function marketCollateralPosted() external view returns (uint256);
 
-    /// @notice Collateral information associated with an account.
-    /// @param account The address of the account to check collateral posted of.
-    function collateralPosted(address account) external view returns (uint256);
+    /// @notice Shares of this token that an account has posted as collateral.
+    /// @param account The address of the account to check collateral posted
+    ///                of.
+    function collateralPosted(
+        address account
+    ) external view returns (uint256);
 
     /// @notice Transfers tokens from `account` to `liquidator`.
     /// @dev Will fail unless called by a cToken during the process
