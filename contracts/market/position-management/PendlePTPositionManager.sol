@@ -136,7 +136,7 @@ contract PendlePTPositionManager is BasePositionManager {
     ) internal virtual override {
         address ptToken = deleverageAction.cToken.asset();
         address debtAsset = deleverageAction.borrowableCToken.asset();
-        SwapperLib.Swap[] swapActions = deleverageAction.swapAction;
+        SwapperLib.Swap[] memory swapActions = deleverageAction.swapAction;
 
         // Decode Pendle data.
         (address lpToken, PendleLib.PendleData memory pendleData) = abi.decode(
