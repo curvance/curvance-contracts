@@ -1034,8 +1034,8 @@ contract TestBaseMarketIsolated is TestBase {
 
         LiquidationCalcData memory data;
 
-        (,,,, data.liqIncBase, data.liqIncCurve,,,,, data.closeFactorBase, data.closeFactorCurve) = 
-            _marketManager.tokenData(address(_collateralToken));
+        (,,, data.liqIncBase, data.liqIncCurve,,, data.closeFactorBase, data.closeFactorCurve,,,)
+            = _marketManager.tokenData(address(_collateralToken));
 
         (data.lFactor, data.collateralTokenPrice, data.debtTokenPrice) = 
             _marketManager.liquidationStatusOf(_borrower, _collateralToken, _debtToken);

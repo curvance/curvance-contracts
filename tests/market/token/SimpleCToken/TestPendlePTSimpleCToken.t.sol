@@ -562,33 +562,21 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
     function _getDebtToCollateralMultiplierAndCloseFactorAuction(uint256 lFactor, uint256 debtTokenPrice, uint256 collateralTokenPrice) internal view returns (uint256, uint256) {
         uint256 cTokenExchangeRate = pendleCTokenPTSTETH.exchangeRate();
 
-            (
-        ,
-        ,
-        ,
-        ,
-        uint256 liqIncBase,
-        uint256 liqIncCurve,
-        ,
-        ,
-        ,
-        ,
-        uint256 closeFactorBase,
-        uint256 closeFactorCurve
-            ) = marketManagerIsolated.tokenData(address(pendleCTokenPTSTETH));
+        (,,, uint256 liqIncBase, uint256 liqIncCurve,,, uint256 closeFactorBase, uint256 closeFactorCurve,,,)
+            =  marketManagerIsolated.tokenData(address(pendleCTokenPTSTETH));
             
-            // Follow the contract's exact calculations but with higher precision
-            uint256 closeFactorAuction = closeFactorBase + ((closeFactorCurve * lFactor) / WAD);
-            uint256 liqIncAuction = liqIncBase + ((liqIncCurve * lFactor) / WAD);
+        // Follow the contract's exact calculations but with higher precision
+        uint256 closeFactorAuction = closeFactorBase + ((closeFactorCurve * lFactor) / WAD);
+        uint256 liqIncAuction = liqIncBase + ((liqIncCurve * lFactor) / WAD);
 
-            console2.log("liqIncAuction", liqIncAuction);
-            console2.log("debtTokenPrice", debtTokenPrice);
-            console2.log("collateralTokenPrice", collateralTokenPrice);
-            console2.log("cTokenExchangeRate", cTokenExchangeRate);
-            
-            // Calculate with extra precision
-            uint256 highPrecisionD2C = (((liqIncAuction * debtTokenPrice * WAD_SQUARED) /
-                (collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
+        console2.log("liqIncAuction", liqIncAuction);
+        console2.log("debtTokenPrice", debtTokenPrice);
+        console2.log("collateralTokenPrice", collateralTokenPrice);
+        console2.log("cTokenExchangeRate", cTokenExchangeRate);
+        
+        // Calculate with extra precision
+        uint256 highPrecisionD2C = (((liqIncAuction * debtTokenPrice * WAD_SQUARED) /
+            (collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
 
         return (highPrecisionD2C, closeFactorAuction);
     }
