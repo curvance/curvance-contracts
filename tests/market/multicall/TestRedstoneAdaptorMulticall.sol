@@ -309,9 +309,9 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         ) * 50) / 100;
 
         SimplePositionManager.LeverageAction memory leverageAction;
-        leverageAction.debtToken = IBorrowableCToken(address(borrowableCUSDC));
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
         leverageAction.borrowAssets = amountForLeverage;
-        leverageAction.collateralToken = ICToken(address(simpleCWBTC));
+        leverageAction.cToken = ICToken(address(simpleCWBTC));
         leverageAction.swapAction.inputToken = _USDC_ADDRESS;
         leverageAction.swapAction.inputAmount = amountForLeverage;
         leverageAction.swapAction.outputToken = _WBTC_ADDRESS;

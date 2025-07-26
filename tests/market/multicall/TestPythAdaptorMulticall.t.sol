@@ -280,9 +280,9 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         ) * 50) / 100;
 
         SimplePositionManager.LeverageAction memory leverageAction;
-        leverageAction.debtToken = IBorrowableCToken(address(borrowableCWETH));
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCWETH));
         leverageAction.borrowAssets = amountForLeverage;
-        leverageAction.collateralToken = ICToken(address(cWBTC));
+        leverageAction.cToken = ICToken(address(cWBTC));
         leverageAction.swapAction.inputToken = _WETH_ADDRESS;
         leverageAction.swapAction.inputAmount = amountForLeverage;
         leverageAction.swapAction.outputToken = _WBTC_ADDRESS;

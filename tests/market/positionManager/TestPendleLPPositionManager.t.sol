@@ -182,9 +182,9 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         ) * 50) / 100;
 
         PendleLPPositionManager.LeverageAction memory leverageAction;
-        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
         leverageAction.borrowAssets = amountForLeverage;
-        leverageAction.collateralToken = ICToken(address(strategyCTokenSTETH));
+        leverageAction.cToken = ICToken(address(strategyCTokenSTETH));
         leverageAction.swapAction.inputToken = _DAI_ADDRESS;
         leverageAction.swapAction.inputAmount = amountForLeverage;
         leverageAction.swapAction.outputToken = _WETH_ADDRESS;
@@ -241,9 +241,9 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         uint256 amountForLeverage = 7.4983181832e21;
 
         PendleLPPositionManager.LeverageAction memory leverageAction;
-        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
         leverageAction.borrowAssets = amountForLeverage;
-        leverageAction.collateralToken = ICToken(address(strategyCTokenSTETH));
+        leverageAction.cToken = ICToken(address(strategyCTokenSTETH));
         leverageAction.swapAction.inputToken = _DAI_ADDRESS;
         leverageAction.swapAction.inputAmount = amountForLeverage;
         leverageAction.swapAction.outputToken = _WETH_ADDRESS;
@@ -299,9 +299,9 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
         uint256 strategyCTokenSTETHCollateralBefore = strategyCTokenSTETH.collateralPosted(user);
 
-        deleverageAction.collateralToken = ICToken(address(strategyCTokenSTETH));
+        deleverageAction.cToken = ICToken(address(strategyCTokenSTETH));
         deleverageAction.collateralAssets = 1 ether;
-        deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
         deleverageAction.swapActions = new SwapperLib.Swap[](1);
         deleverageAction.swapActions[0].inputToken = _STETH;
@@ -376,9 +376,9 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         ) * 50) / 100;
 
         PendleLPPositionManager.LeverageAction memory leverageAction;
-        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
         leverageAction.borrowAssets = amountForLeverage;
-        leverageAction.collateralToken = ICToken(address(strategyCTokenSTETH));
+        leverageAction.cToken = ICToken(address(strategyCTokenSTETH));
         leverageAction.swapAction.inputToken = _DAI_ADDRESS;
         leverageAction.swapAction.inputAmount = amountForLeverage;
         leverageAction.swapAction.outputToken = _WETH_ADDRESS;
@@ -436,9 +436,9 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
         uint256 strategyCTokenSTETHCollateralBefore = strategyCTokenSTETH.collateralPosted(user);
 
-        deleverageAction.collateralToken = ICToken(address(strategyCTokenSTETH));
+        deleverageAction.cToken = ICToken(address(strategyCTokenSTETH));
         deleverageAction.collateralAssets = 1 ether;
-        deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
         deleverageAction.swapActions = new SwapperLib.Swap[](1);
         deleverageAction.swapActions[0].inputToken = _STETH;

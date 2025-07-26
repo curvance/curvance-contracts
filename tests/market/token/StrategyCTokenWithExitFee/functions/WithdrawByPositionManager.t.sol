@@ -76,8 +76,8 @@ contract WithdrawByPositionManagerWithExitFeeTest is TestBaseMarketIsolated {
         
         // We aren't using this struct, only for required arguments.
         IPositionManager.DeleverageAction memory deleverageAction;
-        deleverageAction.collateralToken = ICToken(address(strategyCBALRETHWithExitFee));
-        deleverageAction.debtToken = IBorrowableCToken(address(borrowableCUSDC));
+        deleverageAction.cToken = ICToken(address(strategyCBALRETHWithExitFee));
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
         deleverageAction.swapActions = swapActions;
 
         vm.stopPrank();

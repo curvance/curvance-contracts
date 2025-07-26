@@ -984,8 +984,8 @@ contract TestBaseMarketIsolated is TestBase {
         }
 
         // calculate auctionCFactor & debtToCollateralMultiplier
-        (uint256 debtToCollateralMultiplier, uint256 cFactor) = 
-            _calculateAuctionCFactorAndDebtToCollateralMultiplier(
+        (uint256 debtToCollateral, uint256 cFactor) = 
+            _calculateAuctionCFactorAndDebtToCollateral(
                 params.borrower,
                 params.collateralToken,
                 params.borrowedToken,
@@ -1008,7 +1008,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         console2.log("debtRepaid after if(params.isLiquidateExact) ", expectedLiquidationValues.debtRepaid);
 
-        expectedLiquidationValues.collateralLiquidated = (expectedLiquidationValues.debtRepaid * debtToCollateralMultiplier) / WAD_SQUARED;
+        expectedLiquidationValues.collateralLiquidated = (expectedLiquidationValues.debtRepaid * debtToCollateral) / WAD_SQUARED;
 
         console2.log("collateralLiquidated", expectedLiquidationValues.collateralLiquidated);
         console2.log("collateralAvailable", collateralAvailable);
@@ -1024,7 +1024,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         console2.log("debtRepaid after collateralLiquidated > collateralAvailable ", expectedLiquidationValues.debtRepaid);
 
-        expectedLiquidationValues.collateralRequired = (debtBalance * debtToCollateralMultiplier) / WAD_SQUARED;
+        expectedLiquidationValues.collateralRequired = (debtBalance * debtToCollateral) / WAD_SQUARED;
 
         expectedLiquidationValues.badDebt = _calculateExpectedBadDebt(
             params.borrower,
@@ -1037,31 +1037,31 @@ contract TestBaseMarketIsolated is TestBase {
 
     }
     
-    function _calculateAuctionCFactorAndDebtToCollateralMultiplier(
+    function _calculateAuctionCFactorAndDebtToCollateral(
         address _borrower,
         address _collateralToken,
         address _debtToken,
         bool _isAuction,
         MarketManagerIsolated _marketManager
     ) internal view 
-    returns (uint256 debtToCollateralMultiplier, uint256 cFactor) {
+    returns (uint256 debtToCollateral, uint256 cFactor) {
 
         LiquidationCalcData memory data;
 
-        (,,,, data.liqBaseIncentive, data.liqCurve,,,,, data.baseCFactor, data.cFactorCurve) = 
-            _marketManager.tokenData(address(_collateralToken));
+        (,,,, data.liqIncBase, data.liqIncCurve,,, data.closeFactorBase, data.closeFactorCurve,,)
+            = _marketManager.tokenData(address(_collateralToken));
 
         (data.lFactor, data.collateralTokenPrice, data.debtTokenPrice) = 
             _marketManager.liquidationStatusOf(_borrower, _collateralToken, _debtToken);
 
         if (_isAuction) {
-            (data.liqIncentive, cFactor) = _marketManager.getLatestAuctionParameters();
+            (data.liqInc, cFactor) = _marketManager.getLatestAuctionParameters();
         } else {
-            cFactor = data.baseCFactor + ((data.cFactorCurve * data.lFactor) / WAD);
-            data.liqIncentive = data.liqBaseIncentive + ((data.liqCurve * data.lFactor) / WAD);
+            cFactor = data.closeFactorBase + ((data.closeFactorCurve * data.lFactor) / WAD);
+            data.liqInc = data.liqIncBase + ((data.liqIncCurve * data.lFactor) / WAD);
         }
 
-        console2.log("data.liqIncentive from auction", data.liqIncentive);
+        console2.log("data.liqInc from auction", data.liqInc);
         console2.log("cFactor from auction", cFactor);
 
         data.collateralTokenDecimals = 10 ** ICToken(_collateralToken).decimals();
@@ -1069,7 +1069,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         uint256 collateralExchangeRate = ICToken(_collateralToken).exchangeRate();
 
-        debtToCollateralMultiplier = (((data.liqIncentive *
+        debtToCollateral = (((data.liqInc *
             data.debtTokenPrice * WAD_SQUARED) /
             (data.collateralTokenPrice * collateralExchangeRate)) * 
             data.collateralTokenDecimals) / data.debtTokenDecimals;

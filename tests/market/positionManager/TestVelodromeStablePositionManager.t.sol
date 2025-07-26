@@ -183,9 +183,9 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         ) * 50) / 100;
 
         VelodromePositionManager.LeverageAction memory leverageAction;
-        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
         leverageAction.borrowAssets = amountForLeverage;
-        leverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+        leverageAction.cToken = ICToken(address(strategyCTokenUSDCDAI));
         leverageAction.swapAction.inputToken = _DAI_ADDRESS;
         leverageAction.swapAction.inputAmount = amountForLeverage;
         leverageAction.swapAction.outputToken = _USDC_ADDRESS;
@@ -255,9 +255,9 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         );
 
         VelodromePositionManager.LeverageAction memory leverageAction;
-        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
         leverageAction.borrowAssets = amountForLeverage;
-        leverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+        leverageAction.cToken = ICToken(address(strategyCTokenUSDCDAI));
         leverageAction.swapAction.inputToken = _DAI_ADDRESS;
         leverageAction.swapAction.inputAmount = amountForLeverage - leverageFee;
         leverageAction.swapAction.outputToken = _USDC_ADDRESS;
@@ -313,9 +313,9 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
         AccountSnapshot memory strategyCTokenUSDCDAIBeforeSnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
 
-        deleverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+        deleverageAction.cToken = ICToken(address(strategyCTokenUSDCDAI));
         deleverageAction.collateralAssets = 0.00003 ether;
-        deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
         uint256 usdcAmount = 27451772;
         deleverageAction.swapActions = new SwapperLib.Swap[](1);
@@ -381,9 +381,9 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         uint256 protocolBalanceBeforeDeLeverage = IERC20(_VELODROME_DAI_USDC)
             .balanceOf(centralRegistry.daoAddress());
 
-        deleverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+        deleverageAction.cToken = ICToken(address(strategyCTokenUSDCDAI));
         deleverageAction.collateralAssets = collateralAmount;
-        deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
         uint256 usdcAmount = 27177254;
         deleverageAction.swapActions = new SwapperLib.Swap[](1);
@@ -458,9 +458,9 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         ) * 50) / 100;
 
         VelodromePositionManager.LeverageAction memory leverageAction;
-        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
         leverageAction.borrowAssets = amountForLeverage;
-        leverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+        leverageAction.cToken = ICToken(address(strategyCTokenUSDCDAI));
         leverageAction.swapAction.inputToken = _DAI_ADDRESS;
         leverageAction.swapAction.inputAmount = amountForLeverage;
         leverageAction.swapAction.outputToken = _USDC_ADDRESS;
@@ -513,9 +513,9 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
         AccountSnapshot memory strategyCTokenUSDCDAIBeforeSnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
 
-        deleverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+        deleverageAction.cToken = ICToken(address(strategyCTokenUSDCDAI));
         deleverageAction.collateralAssets = 0.00003 ether;
-        deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
         uint256 usdcAmount = 27451772;
         deleverageAction.swapActions = new SwapperLib.Swap[](1);

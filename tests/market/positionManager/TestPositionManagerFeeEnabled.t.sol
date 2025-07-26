@@ -222,9 +222,9 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         );
 
         VelodromePositionManager.LeverageAction memory leverageAction;
-        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
         leverageAction.borrowAssets = amountForLeverage;
-        leverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+        leverageAction.cToken = ICToken(address(strategyCTokenUSDCDAI));
         leverageAction.swapAction.inputToken = _DAI_ADDRESS;
         leverageAction.swapAction.inputAmount = swapInputAmount;
         leverageAction.swapAction.outputToken = _USDC_ADDRESS;
@@ -299,9 +299,9 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
                 (uint256, bytes)
             );
 
-            deleverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+            deleverageAction.cToken = ICToken(address(strategyCTokenUSDCDAI));
             deleverageAction.collateralAssets = collateralAmount;
-            deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+            deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
             deleverageAction.swapActions = new SwapperLib.Swap[](1);
             deleverageAction.swapActions[0].inputToken = _USDC_ADDRESS;
             deleverageAction.swapActions[0].inputAmount = usdcOutAmount;
