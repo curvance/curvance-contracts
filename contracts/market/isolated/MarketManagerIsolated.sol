@@ -130,7 +130,7 @@ contract MarketManagerIsolated is
     /// @dev `bytes4(keccak256(bytes("MarketManager__UnauthorizedLiquidation()")))`
     uint256 internal constant _UNAUTHORIZED_LIQUIDATION_SELECTOR = 0xfac97a2b;
     /// @dev A fixed key to use in transient storage for the dynamic penalty.
-    bytes32 internal constant _TRANSIENT_PENALTY_KEY
+    bytes32 internal constant _TRANSIENT_INCENTIVE_KEY
         = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
     /// @dev A fixed key to use in transient storage for dynamic close factor.
     bytes32 internal constant _TRANSIENT_CLOSE_FACTOR_KEY
@@ -589,12 +589,9 @@ contract MarketManagerIsolated is
         _checkIsListedToken(action.debtToken);
 
         (
-            TokenLiqData memory tokenLiqData,
-            AccountLiqData memory accountLiqData
-        ) =_getLiquidationConfig(
-            action.collateralToken,
-            action.debtToken
-        );
+            TokenLiqData memory tData,
+            AccountLiqData memory aData
+        ) = _getLiquidationConfig(action.collateralToken, action.debtToken);
 
         address cachedAccount;
         // Amounts array is empty since the max amount possible
@@ -612,11 +609,11 @@ contract MarketManagerIsolated is
                 action.liquidatedShares,
                 action.debtRepaid,
                 action.badDebt
-                ) = _canLiquidate(
+            ) = _canLiquidate(
                 debtAmounts[i],
                 cachedAccount,
-                tokenLiqData,
-                accountLiqData,
+                tData,
+                aData,
                 action.liquidateExact
             );
 
@@ -1143,17 +1140,17 @@ contract MarketManagerIsolated is
     ///      uses the default risk parameters.
     /// @param cToken The Curvance token to set liquidation incentive and
     ///               close factor for during an auction-based liquidation.
-    /// @param liqInc The auction liquidation incentive value, in WAD.
+    /// @param incentive The auction liquidation incentive value, in WAD.
     /// @param closeFactor The auction close factor value, in WAD.
     function setAuctionParameters(
         address cToken,
-        uint256 liqInc,
+        uint256 incentive,
         uint256 closeFactor
     ) external {
         _checkAuctionPermissions();
         _checkIsListedToken(cToken);
 
-        CurvanceToken storage ctData = tokenData[cToken];
+        CurvanceToken memory ctData = tokenData[cToken];
 
         // Make sure this token actually can be liquidated, by being
         // collateralizable in the first place.
@@ -1161,9 +1158,8 @@ contract MarketManagerIsolated is
             _revert(_UNAUTHORIZED_LIQUIDATION_SELECTOR);
         }
 
-        // Validate `liqInc` is within configured allowed liquidation
-        // incentive range.
-        if (liqInc < ctData.liqIncMin || liqInc > ctData.liqIncMax) {
+        // Validate `incentive` is within configured incentive bounds.
+        if (incentive < ctData.liqIncMin || incentive > ctData.liqIncMax) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -1176,17 +1172,13 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Set new Risk Parameters in transient storage. 
-        // tstore(key, value): store `liqInc` under TRANSIENT_PENALTY_KEY.
+        // Store new liquidation parameters in transient storage.
+        // tstore(key, value):
+        // Store `incentive` at `_TRANSIENT_INCENTIVE_KEY`.
+        // Store `closeFactor` at `_TRANSIENT_CLOSE_FACTOR_KEY`.
         /// @solidity memory-safe-assembly
         assembly {
-            tstore(_TRANSIENT_PENALTY_KEY, liqInc)
-        }
-
-        // tstore(key, value): store `closeFactor` under
-        // TRANSIENT_CLOSE_FACTOR_KEY.
-        // @solidity memory-safe-assembly
-        assembly {
+            tstore(_TRANSIENT_INCENTIVE_KEY, incentive)
             tstore(_TRANSIENT_CLOSE_FACTOR_KEY, closeFactor)
         }
     }
@@ -1197,39 +1189,31 @@ contract MarketManagerIsolated is
     function resetAuctionParameters() external {
         _checkAuctionPermissions();
 
+        // Clear the transient storage slots by writing zero.
         /// @solidity memory-safe-assembly
         assembly {
-            // Clear the transient storage slot by writing zero. 
-            tstore(_TRANSIENT_PENALTY_KEY, 0)
-        }
-
-        // Clear the transient storage slot by writing zero.
-        /// @solidity memory-safe-assembly
-        assembly {
+            tstore(_TRANSIENT_INCENTIVE_KEY, 0)
             tstore(_TRANSIENT_CLOSE_FACTOR_KEY, 0)
         }
-        
     }
 
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice Returns the current Auction parameters in an active transaction.
-    /// @dev If a dynamic penalty or close factor is set in transient storage,
-    ///      that value is returned; otherwise, the default penalty or close
-    ///      factor is returned.
-    ///      NOTE: caller must handle the case where the
-    ///      TRANSIENT_CLOSE_FACTOR_KEY is empty, and zero is returned.
+    /// @notice Returns the current auction liquidation values in an active
+    ///         transaction.
+    /// @dev If a dynamic liquidation incentive or close factor is set in
+    ///      transient storage, that value is returned (0 if no set value).
+    /// @return incentive The auction liquidation incentive value, in WAD.
+    /// @return closeFactor The auction close factor value, in WAD.
     function getLatestAuctionParameters() public view returns (
-        uint256 penalty,
+        uint256 incentive,
         uint256 closeFactor
     ) {
         /// @solidity memory-safe-assembly
         assembly {
-            penalty := tload(_TRANSIENT_PENALTY_KEY)
+            incentive := tload(_TRANSIENT_INCENTIVE_KEY)
             closeFactor := tload(_TRANSIENT_CLOSE_FACTOR_KEY)
         }
-        // NOTE: Fallback scenarios where a parameter(s) MUST based handled
-        // separately based on lFactor.
     }
 
     /// @inheritdoc ERC165
