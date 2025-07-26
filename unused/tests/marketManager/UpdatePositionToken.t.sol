@@ -33,7 +33,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            2000     // closeFactorBase 20%
         );
 
         (
@@ -45,10 +45,10 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             uint256 liqHardIncentive,
             uint256 liqMinIncentive,
             uint256 liqMaxIncentive,
-            uint256 minEffectiveCloseFactor,
-            uint256 maxEffectiveCloseFactor,
-            uint256 baseCFactor,
-            uint256 cFactorCurve
+            uint256 closeFactorMin,
+            uint256 closeFactorMax,
+            uint256 closeFactorBase,
+            uint256 closeFactorCurve
         ) = marketManagerIsolated.tokenData(address(simpleCBALRETH));
 
         assertEq(collRatio, 700000000000000000);
@@ -57,11 +57,11 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         assertEq(liqBaseIncentive, 1100000000000000000);
         assertEq(liqMinIncentive, 1050000000000000000);
         assertEq(liqMaxIncentive, 1200000000000000000);
-        assertEq(minEffectiveCloseFactor, 200000000000000000);
-        assertEq(maxEffectiveCloseFactor, 500000000000000000);
+        assertEq(closeFactorMin, 200000000000000000);
+        assertEq(closeFactorMax, 500000000000000000);
         // assertEq(liqCurve, 100000000000000000);  //        marketToken.liqCurve = marketToken.liqMaxIncentive - marketToken.liqBaseIncentive;
-        assertEq(baseCFactor, 200000000000000000);
-        assertEq(cFactorCurve, 800000000000000000); // WAD - baseCFactor;
+        assertEq(closeFactorBase, 200000000000000000);
+        assertEq(closeFactorCurve, 800000000000000000); // WAD - closeFactorBase;
     }
 
     function testUpdatePositionToken_Unauthorized() public {
@@ -90,7 +90,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            2000     // closeFactorBase 20%
         );
     }
 
@@ -109,7 +109,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            2000     // closeFactorBase 20%
         );
     }
 
@@ -128,7 +128,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            2000     // closeFactorBase 20%
         );
 
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
@@ -142,7 +142,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            2000     // closeFactorBase 20%
         );
     }
 
@@ -161,7 +161,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             1400,    // liqIncMax 14% (should be >= liqIncBase)
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            2000     // closeFactorBase 20%
         );
 
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
@@ -175,7 +175,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            2000     // closeFactorBase 20%
         );
 
     }
@@ -195,7 +195,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             3100,    // liqIncMax 31% (max is 30%)
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            2000     // closeFactorBase 20%
         );
     }
 
@@ -214,7 +214,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            2000     // closeFactorBase 20%
         );
         
     }
@@ -234,14 +234,11 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             900,     // liqIncMax 9% ((9 + 1.5% buffer) = 10.5%) > 10%
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            2000     // closeFactorBase 20%
         );
     }
 
     function testUpdatePositionToken_InvalidBaseCFactor() public {
-        // if (baseCFactor > MAX_BASE_CFACTOR || baseCFactor < MIN_BASE_CFACTOR) {
-        //     _revert(_INVALID_PARAMETER_SELECTOR);
-        // }
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
         marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
@@ -253,7 +250,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            900      // baseCFactor 9% (min is 10%)
+            900      // closeFactorBase 9% (min is 10%)
         );
         
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
@@ -267,7 +264,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            5100     // baseCFactor 51% (max is 50%)
+            5100     // closeFactorBase 51% (max is 50%)
         );
     }
 
@@ -289,7 +286,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            2000     // closeFactorBase 20%
         );
     }
 
@@ -309,7 +306,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            2000     // closeFactorBase 20%
         );
         
         // turn off collateralization
@@ -325,7 +322,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            2000     // closeFactorBase 20%
         );
         
         

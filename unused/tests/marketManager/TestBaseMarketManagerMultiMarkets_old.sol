@@ -214,10 +214,10 @@
 //         MockSimpleCToken _cToken,
 //         bool _exact
 //     ) internal view returns (uint256, uint256) {
-//         (, , , , , , uint256 baseCFactor, uint256 cFactorCurve) = marketManagerIsolated
+//         (, , , , , , uint256 closeFactorBase, uint256 closeFactorCurve) = marketManagerIsolated
 //             .tokenData(address(_cToken));
 
-//         uint256 cFactor = baseCFactor + ((cFactorCurve * 1e18) / WAD);
+//         uint256 cFactor = closeFactorBase + ((closeFactorCurve * 1e18) / WAD);
 //         uint256 debtAmount = (cFactor * _eToken.debtBalance(_user)) /
 //             WAD;
 

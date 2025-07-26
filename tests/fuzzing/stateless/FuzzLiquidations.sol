@@ -18,8 +18,8 @@
 //         uint256 collReqHard;
 //         uint256 liqBaseIncentive;
 //         uint256 liqCurve;
-//         uint256 baseCFactor;
-//         uint256 cFactorCurve;
+//         uint256 closeFactorBase;
+//         uint256 closeFactorCurve;
 //         uint256 lFactor;
 //         uint256 debtTokenPrice;
 //         uint256 collateralTokenPrice;
@@ -116,8 +116,8 @@
 //             uint256 collReqHard,
 //             uint256 liqBaseIncentive,
 //             uint256 liqCurve,
-//             uint256 baseCFactor,
-//             uint256 cfactorCurve
+//             uint256 closeFactorBase,
+//             uint256 closeFactorCurve
 //         ) = marketManager.tokenData(collateralToken);
 //         (
 //             uint256 lFactor,
@@ -140,8 +140,8 @@
 //             collReqHard,
 //             liqBaseIncentive,
 //             liqCurve,
-//             baseCFactor,
-//             cfactorCurve,
+//             closeFactorBase,
+//             closeFactorCurve,
 //             lFactor,
 //             debtTokenPrice,
 //             collateralTokenPrice,
@@ -150,20 +150,20 @@
 //         );
 //     }
 
-//     /// @custom:property liq-1 The baseCFactor must be bound between  MIN_BASE_CFACTOR and MAX_BASE_CFACTOR
+//     /// @custom:property liq-1 The closeFactorBase must be bound between  MIN_BASE_CFACTOR and MAX_BASE_CFACTOR
 //     /// @custom:property liq-2 The lFactor must be bound between 1 and WAD.
 //     /// @custom:property liq-3 cFactor from calculation must be between WAD and MAX_BASE_CFACTOR
-//     /// @custom:precondition baseCFactor > MIN_BASE_CFACTOR
-//     /// @custom:precondition baseCFactor <= MAX_BASE_CFACTOR
+//     /// @custom:precondition closeFactorBase > MIN_BASE_CFACTOR
+//     /// @custom:precondition closeFactorBase <= MAX_BASE_CFACTOR
 //     /// @custom:precondition lFactor > 0
 //     /// @custom:precondition l factor <= WAD
 //     function _calculateCFactor() private {
 //         // Preconditions
 //         if (
-//             data.baseCFactor < marketManager.MIN_BASE_CFACTOR() ||
-//             data.baseCFactor > marketManager.MAX_BASE_CFACTOR()
+//             data.closeFactorBase < marketManager.MIN_BASE_CFACTOR() ||
+//             data.closeFactorBase > marketManager.MAX_BASE_CFACTOR()
 //         ) {
-//             emit LogUint256("data.baseCFactor", data.baseCFactor);
+//             emit LogUint256("data.closeFactorBase", data.closeFactorBase);
 //             errors[1] = HasError(
 //                 true,
 //                 "LIQ-1 - c base c factor must be >= to MIN_BASE_CFACTOR and  <= MAX_BASE_CFACTOR"
@@ -175,15 +175,15 @@
 //             errors[2] = HasError(true, "L factor must be > 0 and <= WAD");
 //         }
 
-//         uint256 cFactor = data.baseCFactor +
-//             (data.cFactorCurve * data.lFactor) /
+//         uint256 cFactor = data.closeFactorBase +
+//             (data.closeFactorCurve * data.lFactor) /
 //             WAD;
 
 //         // Postconditions
-//         if (!(cFactor >= data.baseCFactor && cFactor <= WAD)) {
+//         if (!(cFactor >= data.closeFactorBase && cFactor <= WAD)) {
 //             errors[3] = HasError(
 //                 true,
-//                 "LIQ-3 - c factor result must be bound between [data.baseCFactor, WAD]"
+//                 "LIQ-3 - c factor result must be bound between [data.closeFactorBase, WAD]"
 //             );
 //         }
 

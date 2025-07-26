@@ -107,12 +107,12 @@ abstract contract LiquidityManager {
     ///                 e.g. 5% base incentive with 8% curve length results
     ///                 in 13% liquidation incentive on hard liquidation.
     /// @dev In `WAD`, e.g. 0.05e18 = 5% maximum additional incentive.
-    /// @param baseCFactor Maximum % that a liquidator can repay when
+    /// @param closeFactorBase Maximum % that a liquidator can repay when
     ///                    soft liquidating an account.
     /// @dev In `WAD` format, e.g. 0.1e18 = 10% base close factor.
-    /// @param cFactorCurve cFactor curve length between soft liquidation
+    /// @param closeFactorCurve cFactor curve length between soft liquidation
     ///                     and hard liquidation, should be equal to
-    ///                     100% - baseCFactor.
+    ///                     100% - closeFactorBase.
     /// @dev In `WAD` format, e.g. 0.9e18 = 90% distance between base cFactor,
     ///      and 100%.
     /// @param accountPositions Mapping that stores account information like token
@@ -124,8 +124,8 @@ abstract contract LiquidityManager {
         uint256 collReqHard;
         uint256 liqBaseIncentive;
         uint256 liqCurve;
-        uint256 baseCFactor;
-        uint256 cFactorCurve;
+        uint256 closeFactorBase;
+        uint256 closeFactorCurve;
         mapping(address => AccountPosition) accountPositions;
     }
 

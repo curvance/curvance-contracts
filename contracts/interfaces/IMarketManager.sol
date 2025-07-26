@@ -23,7 +23,7 @@ interface IMarketManager {
     /// @param badDebt Empty variable slot to store how much bad debt will
     ///                be realized by lenders as part of a particular
     ///                liquidation.
-    struct LiqInstructions {
+    struct LiqAction {
         address collateralToken;
         address debtToken;
         uint256 numAccounts;
@@ -41,7 +41,7 @@ interface IMarketManager {
     ///                   in assets.
     /// @param badDebtRealized The total amount of debt to realize as losses
     ///                        for lenders, in assets.
-    struct LiqResults {
+    struct LiqResult {
         uint256[] liquidatedShares;
         uint256 debtRepaid;
         uint256 badDebtRealized;
@@ -157,7 +157,7 @@ interface IMarketManager {
     /// @param liquidator The address of the account trying to liquidate
     ///                   `accounts`.
     /// @param accounts The addresses of the accounts to be liquidated.
-    /// @param instructions A LiqInstructions struct containing:
+    /// @param action A LiqAction struct containing:
     ///               collateralToken The token which is used as collateral
     ///                               by `account` and may be seized.
     ///               debtToken The token to potentially repay which has
@@ -176,22 +176,22 @@ interface IMarketManager {
     ///               badDebt Empty variable slot to store how much bad debt
     ///                       will be realized as part of a particular
     ///                       liquidation.
-    /// @return results A LiqResults struct containing:
-    ///                 liquidatedShares An array containing the collateral
-    ///                                  amounts to liquidate from
-    ///                                  `accounts`.
-    ///                 debtRepaid The total amount of debt to repay from
-    ///                            `accounts`.
-    ///                 badDebtRealized The total amount of debt to realize as
-    ///                                 losses for lenders inside this market.
+    /// @return result A LiqResult struct containing:
+    ///                liquidatedShares An array containing the collateral
+    ///                                 amounts to liquidate from
+    ///                                 `accounts`.
+    ///                debtRepaid The total amount of debt to repay from
+    ///                           `accounts`.
+    ///                badDebtRealized The total amount of debt to realize as
+    ///                                losses for lenders inside this market.
     /// @return An array containing the debt amounts to repay from
     ///        `accounts`, in assets.
     function canLiquidate(
         uint256[] memory debtAmounts,
         address liquidator,
         address[] calldata accounts,
-        IMarketManager.LiqInstructions memory instructions
-    ) external view returns (LiqResults memory, uint256[] memory);
+        IMarketManager.LiqAction memory action
+    ) external view returns (LiqResult memory, uint256[] memory);
 
     /// @notice Checks if the seizing of `collateralToken` by repayment of
     ///         `debtToken` should be allowed.

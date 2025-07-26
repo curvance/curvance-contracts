@@ -217,7 +217,7 @@
 //         uint256 collReqHard,
 //         uint256 liqIncSoft,
 //         uint256 liqIncHard,
-//         uint256 baseCFactor
+//         uint256 closeFactorBase
 //     ) public {
 //         require(centralRegistry.hasDaoPermissions(address(this)));
 //         require(marketManager.isListed(cToken));
@@ -237,7 +237,7 @@
 //                 collReqHard,
 //                 liqIncSoft,
 //                 liqIncHard,
-//                 baseCFactor
+//                 closeFactorBase
 //             );
 //             if (safeBounds.collRatio == 0) {
 //                 isCollateralRatioZero[cToken] = true;
@@ -251,7 +251,7 @@
 //                 safeBounds.collReqHard,
 //                 safeBounds.liqIncSoft,
 //                 safeBounds.liqIncHard,
-//                 safeBounds.baseCFactor
+//                 safeBounds.closeFactorBase
 //             )
 //         {
 //             setCollateralValues[cToken] = true;
@@ -345,7 +345,7 @@
 //         uint256 collReqHard,
 //         uint256 liqIncSoft,
 //         uint256 liqIncHard,
-//         uint256 baseCFactor,
+//         uint256 closeFactorBase,
 //         uint256 cap
 //     ) public {
 //         if (lastRoundUpdate > block.timestamp) {
@@ -380,7 +380,7 @@
 //                 collReqHard,
 //                 liqIncSoft,
 //                 liqIncHard,
-//                 baseCFactor
+//                 closeFactorBase
 //             );
 //             if (safeBounds.collRatio == 0) {
 //                 isCollateralRatioZero[cToken] = true;
@@ -394,7 +394,7 @@
 //                 safeBounds.collReqHard,
 //                 safeBounds.liqIncSoft,
 //                 safeBounds.liqIncHard,
-//                 safeBounds.baseCFactor
+//                 safeBounds.closeFactorBase
 //             )
 //         {
 //             assertWithMsg(
@@ -1167,7 +1167,7 @@
 //         uint256 collReqHard;
 //         uint256 liqIncSoft;
 //         uint256 liqIncHard;
-//         uint256 baseCFactor;
+//         uint256 closeFactorBase;
 //     }
 
 //     TokenCollateralBounds safeBounds;
@@ -1175,7 +1175,7 @@
 //     // Bounds the specific variables required to call updateCollateralBounds
 //     // Variables are generated in basis points, and converted to WAD (by multiplying by 1e14)
 //     // Assume ALL bounds below are inclusive, on both ends
-//     // baseCFactor: [MIN_BASE_CFACTOR/1e14, MAX_BASE_CFACTOR/1e14]
+//     // closeFactorBase: [MIN_BASE_CFACTOR/1e14, MAX_BASE_CFACTOR/1e14]
 //     // liqIncSoft: [MIN_LIQUIDATION_INCENTIVE() / 1e14, MAX_LIQUIDATION_INCENTIVE()/1e14-1]
 //     // liqIncHard: [liqIncSoft+1, MAX_LIQUIDATION_INCENTIVE/1e14]
 //     // inherently from above, liqIncSoft < liqIncHard
@@ -1188,10 +1188,10 @@
 //         uint256 collReqHard,
 //         uint256 liqIncSoft,
 //         uint256 liqIncHard,
-//         uint256 baseCFactor
+//         uint256 closeFactorBase
 //     ) private {
-//         safeBounds.baseCFactor = clampBetween(
-//             baseCFactor,
+//         safeBounds.closeFactorBase = clampBetween(
+//             closeFactorBase,
 //             marketManager.MIN_BASE_CFACTOR() / 1e14,
 //             marketManager.MAX_BASE_CFACTOR() / 1e14
 //         );

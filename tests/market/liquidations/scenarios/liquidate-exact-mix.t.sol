@@ -34,8 +34,8 @@ contract LiquidateExactMix is TestBaseLiquidations {
 
     uint256 liqBaseIncentive;
     uint256 liqCurve;
-    uint256 baseCFactor;
-    uint256 cFactorCurve;
+    uint256 closeFactorBase;
+    uint256 closeFactorCurve;
 
     // Auction parameters
     uint256 validPenalty = 1.04e18;
@@ -105,13 +105,13 @@ contract LiquidateExactMix is TestBaseLiquidations {
         mockWethFeed.setMockAnswer(1300e8);
         mockRethFeed.setMockAnswer(1300e8);
 
-        (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
+        (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 closeFactorBase_, uint256 closeFactorCurve_) = 
             marketManagerIsolated.tokenData(address(strategyCBALRETH));
 
         liqBaseIncentive = liqBaseIncentive_;
         liqCurve = liqCurve_;
-        baseCFactor = baseCFactor_;
-        cFactorCurve = cFactorCurve_;
+        closeFactorBase = closeFactorBase_;
+        closeFactorCurve = closeFactorCurve_;
 
         console2.log("SETUP COMPLETE");
     }
