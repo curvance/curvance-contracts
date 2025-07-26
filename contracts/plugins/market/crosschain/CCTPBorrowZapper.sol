@@ -53,10 +53,17 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     ///      contract prior.
     /// @param borrowableCToken The Curvance token contract address to borrow
     ///                         from.
-    /// @param borrowAmount The amount of `borrowableCToken` underlying to
+    /// @param borrowAmount The amount of `borrowableCToken` asset to
     ///                     borrow.
-    /// @param swapAction Swap instruction data to route from debt asset to
-    ///                   `feeToken`.
+    /// @param swapAction Instructions for a swap action containing:
+    ///                   inputToken Address of input token to swap from.
+    ///                   inputAmount The amount of `inputToken` to swap.
+    ///                   outputToken Address of token to swap into.
+    ///                   target Address of the swapper, usually an
+    ///                          aggregator.
+    ///                   slippage The amount of value-loss acceptable from
+    ///                            swapping between tokens.
+    ///                   call Swap instruction calldata.
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @param dstChainId Chain ID of the target blockchain.
     function borrowAndBridge(
@@ -76,13 +83,13 @@ contract CCTPBorrowZapper is ReentrancyGuard {
             msg.sender
         );
 
-        address underlying = IBorrowableCToken(borrowableCToken).asset();
+        address asset = IBorrowableCToken(borrowableCToken).asset();
 
         // Check if swapping is necessary.
-        if (underlying != feeToken) {
+        if (asset != feeToken) {
             if (
                 swapAction.target == address(0) ||
-                swapAction.inputToken != underlying ||
+                swapAction.inputToken != asset ||
                 swapAction.outputToken != feeToken ||
                 swapAction.inputAmount != borrowAmount
             ) {

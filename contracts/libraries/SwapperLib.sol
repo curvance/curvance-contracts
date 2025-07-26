@@ -23,12 +23,15 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 ///               transfer tokens though support may be built in the future.
 library SwapperLib {
     /// TYPES ///
-    /// @notice Contains instructions to execute a swap, which is selling one
-    ///         token (`inputToken`) for another (`outputToken`).
+
+    /// @notice Instructions to execute a swap, selling `inputToken` for
+    ///         `outputToken`.
     /// @param inputToken Address of input token to swap from.
     /// @param inputAmount The amount of `inputToken` to swap.
     /// @param outputToken Address of token to swap into.
     /// @param target Address of the swapper, usually an aggregator.
+    /// @param slippage The amount of value-loss acceptable from swapping
+    ///                 between tokens.
     /// @param call Swap instruction calldata.
     struct Swap {
         address inputToken;
@@ -47,13 +50,22 @@ library SwapperLib {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Swaps `swapAction.inputToken` into a `swapAction.outputToken`. (unsafe)
-    /// @param swapAction The swap instruction data to execute.
-    /// @return The output amount received from swapping.
+    /// @notice Swaps `swapAction.inputToken` into a `swapAction.outputToken`
+    ///         without an extra slippage check.
+    /// @param swapAction Instructions for a swap action containing:
+    ///                   inputToken Address of input token to swap from.
+    ///                   inputAmount The amount of `inputToken` to swap.
+    ///                   outputToken Address of token to swap into.
+    ///                   target Address of the swapper, usually an
+    ///                          aggregator.
+    ///                   slippage The amount of value-loss acceptable from
+    ///                            swapping between tokens.
+    ///                   call Swap instruction calldata.
+    /// @return outAmount The output amount received from swapping.
     function _swapUnsafe(
         ICentralRegistry centralRegistry,
         Swap memory swapAction
-    ) internal returns (uint256) {
+    ) internal returns (uint256 outAmount) {
         address callDataChecker = centralRegistry.externalCalldataChecker(
             swapAction.target
         );
@@ -94,12 +106,20 @@ library SwapperLib {
         // Remove any excess approval.
         _removeApprovalIfNeeded(swapAction.inputToken, swapAction.target);
 
-        return CommonLib._getBalanceOf(outputToken) - balanceBefore;
+        outAmount = CommonLib._getBalanceOf(outputToken) - balanceBefore;
     }
 
     /// @notice Swaps `swapAction.inputToken` into a `swapAction.outputToken`
-    ///         without slippage check.
-    /// @param swapAction Instructions for executing a swap.
+    ///         with an extra slippage check.
+    /// @param swapAction Instructions for a swap action containing:
+    ///                   inputToken Address of input token to swap from.
+    ///                   inputAmount The amount of `inputToken` to swap.
+    ///                   outputToken Address of token to swap into.
+    ///                   target Address of the swapper, usually an
+    ///                          aggregator.
+    ///                   slippage The amount of value-loss acceptable from
+    ///                            swapping between tokens.
+    ///                   call Swap instruction calldata.
     /// @return outAmount The output amount received from swapping.
     function _swapSafe(
         ICentralRegistry centralRegistry,

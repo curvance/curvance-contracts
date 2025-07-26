@@ -26,6 +26,15 @@ contract SimpleZapper is ZapperBase {
     ///                               into wrapped version or not.
     /// @param swapAction Instructions for executing a swap into collateral
     ///                   asset.
+    ///                   Containing:
+    ///                   inputToken Address of input token to swap from.
+    ///                   inputAmount The amount of `inputToken` to swap.
+    ///                   outputToken Address of token to swap into.
+    ///                   target Address of the swapper, usually an
+    ///                          aggregator.
+    ///                   slippage The amount of value-loss acceptable from
+    ///                            swapping between tokens.
+    ///                   call Swap instruction calldata.
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of
     ///                       `swapAction.outputToken` into `cToken` position.
@@ -80,6 +89,15 @@ contract SimpleZapper is ZapperBase {
     ///                               token, indicates depositing native token
     ///                               into wrapped version or not.
     /// @param swapAction Instructions for executing a swap into debt asset.
+    ///                   Containing:
+    ///                   inputToken Address of input token to swap from.
+    ///                   inputAmount The amount of `inputToken` to swap.
+    ///                   outputToken Address of token to swap into.
+    ///                   target Address of the swapper, usually an
+    ///                          aggregator.
+    ///                   slippage The amount of value-loss acceptable from
+    ///                            swapping between tokens.
+    ///                   call Swap instruction calldata.
     /// @param repayAssets The amount of debt to be repaid, in assets.
     /// @param receiver Address that should have its outstanding debt repaid.
     /// @return outAmount The excess amount of debt token that was returned to
@@ -137,6 +155,15 @@ contract SimpleZapper is ZapperBase {
     ///                                           from caller's collateralized
     ///                                           shares.
     /// @param swapAction Instructions for executing a swap into debt asset.
+    ///                   Containing:
+    ///                   inputToken Address of input token to swap from.
+    ///                   inputAmount The amount of `inputToken` to swap.
+    ///                   outputToken Address of token to swap into.
+    ///                   target Address of the swapper, usually an
+    ///                          aggregator.
+    ///                   slippage The amount of value-loss acceptable from
+    ///                            swapping between tokens.
+    ///                   call Swap instruction calldata.
     /// @param receiver Address that should receive `swapAction.outputToken`.
     /// @return outAmount The amount of `swapAction.outputToken` that was
     ///                   received by `receiver`.

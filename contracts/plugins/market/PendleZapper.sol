@@ -41,7 +41,7 @@ contract PendleZapper is ZapperBase {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Swaps then deposits `zapAction.inputToken` into Pendle
-    ///         market, and enters into Curvance position.
+    ///         market, and enters into Curvance position, for `receiver`.
     /// @dev Requires plugin approval for collateralization.
     /// @param strategyCToken The Curvance token address to enter into a
     ///                       position.
@@ -55,7 +55,15 @@ contract PendleZapper is ZapperBase {
     ///                                         native gas token, indicates
     ///                                         depositing native token into
     ///                                         wrapped version or not.
-    /// @param swapActions Array of swap instruction data to execute the zap.
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param data Pendle specific execution data including input/output,
@@ -107,8 +115,8 @@ contract PendleZapper is ZapperBase {
         );
     }
 
-    /// @notice Exits a Pendle market, and zaps it into desired
-    ///         token (zapAction.outputToken).
+    /// @notice Exits a Pendle market, and zaps it into zapAction.outputToken,
+    ///         sending the proceeds to `receiver`.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param underlyingToken The underlying token address of the SY.
@@ -124,7 +132,15 @@ contract PendleZapper is ZapperBase {
     ///                                         native gas token, indicates
     ///                                         depositing native token into
     ///                                         wrapped version or not.
-    /// @param swapActions Array of swap instruction data to execute the zap.
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function exitPendle(
@@ -181,7 +197,15 @@ contract PendleZapper is ZapperBase {
     ///                                         native gas token, indicates
     ///                                         depositing native token into
     ///                                         wrapped version or not.
-    /// @param swapActions Array of swap instruction data to execute the zap.
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitPendle(
@@ -233,7 +257,15 @@ contract PendleZapper is ZapperBase {
     ///                                         native gas token, indicates
     ///                                         depositing native token into
     ///                                         wrapped version or not.
-    /// @param swapActions Array of swap instruction data to execute the zap.
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function _exitPendle(
@@ -277,7 +309,15 @@ contract PendleZapper is ZapperBase {
     /// @param inputToken The input token address.
     /// @param inputAmount The amount of `inputToken` to swap for underlying
     ///                    tokens.
-    /// @param swapActions Array of swap instruction data
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
     ///                               token, indicates depositing native token
     ///                               into wrapped version or not.

@@ -43,7 +43,7 @@ contract VelodromeZapper is ZapperBase {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Swaps then deposits `zapAction.inputToken`, into Velodrome,
-    ///         and enters into a Curvance position.
+    ///         and enters into a Curvance position, for `receiver`.
     /// @dev Requires plugin approval for collateralization.
     /// @param strategyCToken The Curvance token address to enter a
     ///                       position in.
@@ -57,7 +57,15 @@ contract VelodromeZapper is ZapperBase {
     ///                                         native gas token, indicates
     ///                                         depositing native token into
     ///                                         wrapped version or not.
-    /// @param swapActions Array of swap instruction data to execute the zap.
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
     /// @param router The Velodrome router address.
     /// @param factory The Velodrome factory address.
     /// @param expectedShares The minimum expected amount of shares received
@@ -121,7 +129,15 @@ contract VelodromeZapper is ZapperBase {
     ///                                         native gas token, indicates
     ///                                         depositing native token into
     ///                                         wrapped version or not.
-    /// @param swapActions Array of swap instruction data to execute the zap.
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function exitVelodrome(
@@ -163,7 +179,15 @@ contract VelodromeZapper is ZapperBase {
     ///                                         native gas token, indicates
     ///                                         depositing native token into
     ///                                         wrapped version or not.
-    /// @param swapActions Array of swap instruction data to execute the zap.
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitVelodrome(
@@ -202,7 +226,15 @@ contract VelodromeZapper is ZapperBase {
     ///                                         native gas token, indicates
     ///                                         depositing native token into
     ///                                         wrapped version or not.
-    /// @param swapActions Array of swap instruction data to execute the zap.
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function _exitVelodrome(
@@ -239,7 +271,15 @@ contract VelodromeZapper is ZapperBase {
     /// @param inputToken The input token address.
     /// @param inputAmount The amount of `inputToken` to swap for underlying
     ///                    tokens.
-    /// @param swapActions Array of swap instruction data
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
     ///                               token, indicates depositing native token
     ///                               into wrapped version or not.
