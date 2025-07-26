@@ -66,10 +66,10 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
         SwapperLib.Swap[] memory swapAction; // empty swap data
         
         // We aren't using this struct, only for required arguments.
-        IPositionManager.DeleverageStruct memory deleverageData;
-        deleverageData.collateralToken = ICToken(address(borrowableCDAI));
-        deleverageData.debtToken = IBorrowableCToken(address(borrowableCUSDC));
-        deleverageData.swapAction = swapAction;
+        IPositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.collateralToken = ICToken(address(borrowableCDAI));
+        deleverageAction.debtToken = IBorrowableCToken(address(borrowableCUSDC));
+        deleverageAction.swapAction = swapAction;
 
         vm.stopPrank();
 
@@ -78,7 +78,7 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
         uint256 collateralRemoveAmount = 5e18;
 
         vm.prank(address(mockPositionManager));
-        borrowableCDAI.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageData);
+        borrowableCDAI.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageAction);
         
         uint256 daiBalanceAfter = dai.balanceOf(address(mockPositionManager));
 

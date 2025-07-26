@@ -210,25 +210,25 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _borrow(assets, receiver, owner);
     }
 
-    /// @notice Used by the position management contract to borrow underlying
-    ///         tokens from lenders, based on collateral posted inside this
-    ///         market by `account` to apply a complex action.
+    /// @notice Used by a Position Manager contract to borrow assets from
+    ///         lenders, based on collateralized shares by `account` to
+    ///         perform a complex action.
     /// @dev Only Position Manager contract can call this function.
     ///      Updates pending interest before executing the borrow.
     /// @param assets The amount of the underlying asset to borrow.
-    /// @param leverageAction Struct containing information on a leverage
-    ///                       action to execute. Containing values:
-    ///                       1. Address of `borrowableCToken` that will be
-    ///                          borrowed from and assets swapped.
-    ///                       2. The amount borrowed from `borrowableCToken`,
-    ///                          in assets.
-    ///                       3. Curvance token assets that borrowed funds
-    ///                          will be swapped into.
-    ///                       4. Swap action instructions converting debt
-    ///                          asset into collateral asset to facilitate
-    ///                          leveraging.
-    ///                       5. Optional auxiliary data for execution of a
-    ///                          leverage action.
+    /// @param leverageAction Instructions for a leverage action containing:
+    ///                       borrowableCToken Address of `borrowableCToken`
+    ///                                        that will be borrowed from and
+    ///                                        assets swapped.
+    ///                       borrowAssets The amount borrowed from
+    ///                                    `borrowableCToken`, in assets.
+    ///                       cToken Curvance token assets that borrowed funds
+    ///                              will be swapped into.
+    ///                       swapAction Swap action instructions converting
+    ///                                  debt asset into collateral asset to
+    ///                                  facilitate leveraging.
+    ///                       auxData Optional auxiliary data for execution of a
+    ///                               a leverage action.
     /// @param owner The account address to borrow on behalf of.
     function borrowForPositionManager(
         uint256 assets,

@@ -75,10 +75,10 @@ contract WithdrawByPositionManagerWithExitFeeTest is TestBaseMarketIsolated {
         SwapperLib.Swap[] memory swapAction; // empty swap data
         
         // We aren't using this struct, only for required arguments.
-        IPositionManager.DeleverageStruct memory deleverageData;
-        deleverageData.collateralToken = ICToken(address(strategyCBALRETHWithExitFee));
-        deleverageData.debtToken = IBorrowableCToken(address(borrowableCUSDC));
-        deleverageData.swapAction = swapAction;
+        IPositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.collateralToken = ICToken(address(strategyCBALRETHWithExitFee));
+        deleverageAction.debtToken = IBorrowableCToken(address(borrowableCUSDC));
+        deleverageAction.swapAction = swapAction;
 
         vm.stopPrank();
 
@@ -88,7 +88,7 @@ contract WithdrawByPositionManagerWithExitFeeTest is TestBaseMarketIsolated {
         uint256 collateralReceivedWithExitFee = _removeExitFeeFromAssets(collateralRemoveAmount);
 
         vm.prank(address(mockPositionManager));
-        strategyCBALRETHWithExitFee.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageData);
+        strategyCBALRETHWithExitFee.withdrawByPositionManager(collateralRemoveAmount, user1, deleverageAction);
 
         // Usual workflow would swap the collateral for the borrowToken,
         // repay the borrowToken we are checking here that the exit fee is

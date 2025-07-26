@@ -170,8 +170,9 @@ abstract contract BaseCToken is
         return true;
     }
 
-    /// @notice Helper function for Position Management contract to
-    ///         redeem assets.
+    /// @notice Used by a Position Manager contract to redeem assets from
+    ///         collateralized shares by `account` to perform a complex
+    ///         action.
     /// @param assets The amount of the underlying assets to redeem.
     /// @param owner The owner address of assets to redeem.
     /// @param deleverageAction Struct containing information on a deleverage
@@ -1032,8 +1033,9 @@ abstract contract BaseCToken is
         }
     }
 
-    /// @notice Helper function for Position Management contract to
-    ///         redeem assets.
+    /// @notice Used by a Position Manager contract to redeem assets from
+    ///         collateralized shares by `account` to perform a complex
+    ///         action.
     /// @param assets The amount of the underlying assets to redeem.
     /// @param shares The amount of the shares to redeem.
     /// @param owner The owner address of assets to redeem.

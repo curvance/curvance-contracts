@@ -544,7 +544,7 @@ contract MarketManagerIsolated is
     /// @param liquidator The address of the account trying to liquidate
     ///                   `accounts`.
     /// @param accounts The addresses of the accounts to be liquidated.
-    /// @param action A LiqAction struct containing:
+    /// @param action Instructions for a liquidation action containing:
     ///               collateralToken The token which is used as collateral
     ///                               by `account` and may be seized.
     ///               debtToken The token to potentially repay which has 
@@ -562,7 +562,7 @@ contract MarketManagerIsolated is
     ///               badDebt Empty variable slot to store how much bad debt
     ///                       will be realized as part of a particular
     ///                       liquidation.
-    /// @return result A LiqResult struct containing:
+    /// @return result Hypothetical results for an action containing:
     ///                liquidatedShares An array containing the collateral
     ///                                 amounts to liquidate from
     ///                                 `accounts`.

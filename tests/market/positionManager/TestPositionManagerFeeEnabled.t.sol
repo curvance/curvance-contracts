@@ -262,7 +262,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
 
         vm.startPrank(user);
 
-        VelodromePositionManager.DeleverageStruct memory deleverageData;
+        VelodromePositionManager.DeleverageAction memory deleverageAction;
 
         AccountSnapshot memory borrowableCDAISnapshotBefore = borrowableCDAI.getSnapshot(user);
         uint256 strategyCTokenUSDCDAIBalanceBefore = strategyCTokenUSDCDAI.balanceOf(user);
@@ -299,35 +299,35 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
                 (uint256, bytes)
             );
 
-            deleverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
-            deleverageData.collateralAssets = collateralAmount;
-            deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-            deleverageData.swapAction = new SwapperLib.Swap[](1);
-            deleverageData.swapAction[0].inputToken = _USDC_ADDRESS;
-            deleverageData.swapAction[0].inputAmount = usdcOutAmount;
-            deleverageData.swapAction[0].outputToken = _DAI_ADDRESS;
-            deleverageData.swapAction[0].target = address(odosRouterV2);
-            deleverageData.swapAction[0].slippage = 0.005e18; // 0.5%
-            deleverageData.swapAction[0].call = odosCallData;
-            deleverageData.repayAssets = daiOutAmount + (minDaiOut / 10) * 9;
+            deleverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+            deleverageAction.collateralAssets = collateralAmount;
+            deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+            deleverageAction.swapAction = new SwapperLib.Swap[](1);
+            deleverageAction.swapAction[0].inputToken = _USDC_ADDRESS;
+            deleverageAction.swapAction[0].inputAmount = usdcOutAmount;
+            deleverageAction.swapAction[0].outputToken = _DAI_ADDRESS;
+            deleverageAction.swapAction[0].target = address(odosRouterV2);
+            deleverageAction.swapAction[0].slippage = 0.005e18; // 0.5%
+            deleverageAction.swapAction[0].call = odosCallData;
+            deleverageAction.repayAssets = daiOutAmount + (minDaiOut / 10) * 9;
         }
 
         strategyCTokenUSDCDAI.approve(address(positionManager), type(uint256).max);
-        positionManager.deleverage(deleverageData, 0.05e18);
+        positionManager.deleverage(deleverageAction, 0.05e18);
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAISnapshotBefore.debtBalance - deleverageData.repayAssets
+            borrowableCDAISnapshotBefore.debtBalance - deleverageAction.repayAssets
         );
 
         AccountSnapshot memory strategyCTokenUSDCDAISnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
         assertEq(
             strategyCTokenUSDCDAI.balanceOf(user),
-            strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets
+            strategyCTokenUSDCDAIBalanceBefore - deleverageAction.collateralAssets
         );
-        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, strategyCTokenUSDCDAIBalanceBefore - deleverageData.collateralAssets);
+        assertEq(strategyCTokenUSDCDAISnapshot.collateralPosted, strategyCTokenUSDCDAIBalanceBefore - deleverageAction.collateralAssets);
 
         uint256 protocolBalanceAfterDeLeverage = IERC20(_VELODROME_DAI_USDC)
             .balanceOf(centralRegistry.daoAddress());

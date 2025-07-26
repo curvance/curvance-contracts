@@ -20,13 +20,13 @@ contract MockPositionManager is IPositionManager, ERC165 {
         address collateralToken,
         uint256 collateralAmount,
         address owner,
-        DeleverageStruct memory deleverageData
+        DeleverageAction memory deleverageAction
     ) external override {
         // Implementation not required for the test
         // we would usually ensure:
-        // 1. if the positionManager contract has >= deleveragedata.collateralAmount
-        // 2. if the collateralToken is the same as deleverageData.collateralToken
-        // 3. if the collateralAmount argument is the same as deleverageData.collateralAmount argument
+        // 1. if the positionManager contract has >= deleverageAction.collateralAmount
+        // 2. if the collateralToken is the same as deleverageAction.collateralToken
+        // 3. if the collateralAmount argument is the same as deleverageAction.collateralAmount argument
         // 4. then take a protocol fee if necessary
 
         // We would then swap the collateral for the borrowToken,

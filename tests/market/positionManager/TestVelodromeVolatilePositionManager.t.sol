@@ -341,27 +341,27 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         vm.startPrank(user);
 
-        VelodromePositionManager.DeleverageStruct memory deleverageData;
+        VelodromePositionManager.DeleverageAction memory deleverageAction;
 
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
         uint256 strategyCTokenWETHUSDCBalanceBefore = strategyCTokenWETHUSDC.collateralPosted(user);
 
-        deleverageData.collateralToken = ICToken(address(strategyCTokenWETHUSDC));
-        deleverageData.collateralAssets = 0.00003 ether;
-        deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.collateralToken = ICToken(address(strategyCTokenWETHUSDC));
+        deleverageAction.collateralAssets = 0.00003 ether;
+        deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
-        deleverageData.swapAction = new SwapperLib.Swap[](2);
-        deleverageData.swapAction[0].inputToken = _WETH_ADDRESS;
-        deleverageData.swapAction[0].inputAmount = 0.7413 ether;
-        deleverageData.swapAction[0].outputToken = _USDC_ADDRESS;
-        deleverageData.swapAction[0].target = address(veloRouter);
-        deleverageData.swapAction[0].slippage = 1e18;
+        deleverageAction.swapAction = new SwapperLib.Swap[](2);
+        deleverageAction.swapAction[0].inputToken = _WETH_ADDRESS;
+        deleverageAction.swapAction[0].inputAmount = 0.7413 ether;
+        deleverageAction.swapAction[0].outputToken = _USDC_ADDRESS;
+        deleverageAction.swapAction[0].target = address(veloRouter);
+        deleverageAction.swapAction[0].slippage = 1e18;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _WETH_ADDRESS;
         routes[0].to = _USDC_ADDRESS;
         routes[0].stable = false;
         routes[0].factory = address(veloPairFactory);
-        deleverageData.swapAction[0].call = abi.encodeWithSelector(
+        deleverageAction.swapAction[0].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             0.7413 ether,
             0,
@@ -370,17 +370,17 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             block.timestamp
         );
 
-        deleverageData.swapAction[1].inputToken = _USDC_ADDRESS;
-        deleverageData.swapAction[1].inputAmount = 2424e6;
-        deleverageData.swapAction[1].outputToken = _DAI_ADDRESS;
-        deleverageData.swapAction[1].target = address(veloRouter);
-        deleverageData.swapAction[1].slippage = 1e18;
+        deleverageAction.swapAction[1].inputToken = _USDC_ADDRESS;
+        deleverageAction.swapAction[1].inputAmount = 2424e6;
+        deleverageAction.swapAction[1].outputToken = _DAI_ADDRESS;
+        deleverageAction.swapAction[1].target = address(veloRouter);
+        deleverageAction.swapAction[1].slippage = 1e18;
         routes = new IVeloRouter.Route[](1);
         routes[0].from = _USDC_ADDRESS;
         routes[0].to = _DAI_ADDRESS;
         routes[0].stable = true;
         routes[0].factory = address(veloPairFactory);
-        deleverageData.swapAction[1].call = abi.encodeWithSelector(
+        deleverageAction.swapAction[1].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             2424e6,
             0,
@@ -388,22 +388,22 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageData.repayAssets = 2420e18;
+        deleverageAction.repayAssets = 2420e18;
 
         strategyCTokenWETHUSDC.approve(address(positionManager), type(uint256).max);
-        positionManager.deleverage(deleverageData, 0.052e18); // 5.2% slippage
+        positionManager.deleverage(deleverageAction, 0.052e18); // 5.2% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
         );
 
         AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertEq(
             strategyCTokenWETHUSDC.balanceOf(user),
-            strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAssets
+            strategyCTokenWETHUSDCBalanceBefore - deleverageAction.collateralAssets
         );
         assertEq(strategyCTokenWETHUSDCSnapshot.debtBalance, 0);
 
@@ -422,7 +422,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         vm.startPrank(user);
 
-        VelodromePositionManager.DeleverageStruct memory deleverageData;
+        VelodromePositionManager.DeleverageAction memory deleverageAction;
 
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
         uint256 strategyCTokenWETHUSDCBalanceBefore = strategyCTokenWETHUSDC.collateralPosted(user);
@@ -432,22 +432,22 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         uint256 protocolBalanceBeforeDeLeverage = IERC20(_VELODROME_WETH_USDC)
             .balanceOf(centralRegistry.daoAddress());
 
-        deleverageData.collateralToken = ICToken(address(strategyCTokenWETHUSDC));
-        deleverageData.collateralAssets = collateralAmount;
-        deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.collateralToken = ICToken(address(strategyCTokenWETHUSDC));
+        deleverageAction.collateralAssets = collateralAmount;
+        deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
-        deleverageData.swapAction = new SwapperLib.Swap[](2);
-        deleverageData.swapAction[0].inputToken = _WETH_ADDRESS;
-        deleverageData.swapAction[0].inputAmount = 0.733897 ether;
-        deleverageData.swapAction[0].outputToken = _USDC_ADDRESS;
-        deleverageData.swapAction[0].target = address(veloRouter);
-        deleverageData.swapAction[0].slippage = 1e18;
+        deleverageAction.swapAction = new SwapperLib.Swap[](2);
+        deleverageAction.swapAction[0].inputToken = _WETH_ADDRESS;
+        deleverageAction.swapAction[0].inputAmount = 0.733897 ether;
+        deleverageAction.swapAction[0].outputToken = _USDC_ADDRESS;
+        deleverageAction.swapAction[0].target = address(veloRouter);
+        deleverageAction.swapAction[0].slippage = 1e18;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _WETH_ADDRESS;
         routes[0].to = _USDC_ADDRESS;
         routes[0].stable = false;
         routes[0].factory = address(veloPairFactory);
-        deleverageData.swapAction[0].call = abi.encodeWithSelector(
+        deleverageAction.swapAction[0].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             0.733897 ether,
             0,
@@ -456,17 +456,17 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             block.timestamp
         );
 
-        deleverageData.swapAction[1].inputToken = _USDC_ADDRESS;
-        deleverageData.swapAction[1].inputAmount = 2400e6;
-        deleverageData.swapAction[1].outputToken = _DAI_ADDRESS;
-        deleverageData.swapAction[1].target = address(veloRouter);
-        deleverageData.swapAction[1].slippage = 1e18;
+        deleverageAction.swapAction[1].inputToken = _USDC_ADDRESS;
+        deleverageAction.swapAction[1].inputAmount = 2400e6;
+        deleverageAction.swapAction[1].outputToken = _DAI_ADDRESS;
+        deleverageAction.swapAction[1].target = address(veloRouter);
+        deleverageAction.swapAction[1].slippage = 1e18;
         routes = new IVeloRouter.Route[](1);
         routes[0].from = _USDC_ADDRESS;
         routes[0].to = _DAI_ADDRESS;
         routes[0].stable = true;
         routes[0].factory = address(veloPairFactory);
-        deleverageData.swapAction[1].call = abi.encodeWithSelector(
+        deleverageAction.swapAction[1].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             2400e6,
             0,
@@ -474,22 +474,22 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageData.repayAssets = 2402e6;
+        deleverageAction.repayAssets = 2402e6;
 
         strategyCTokenWETHUSDC.approve(address(positionManager), type(uint256).max);
-        positionManager.deleverage(deleverageData, 0.5e18); // 5.2% slippage
+        positionManager.deleverage(deleverageAction, 0.5e18); // 5.2% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
         );
 
         AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertEq(
             strategyCTokenWETHUSDC.balanceOf(user),
-            strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAssets
+            strategyCTokenWETHUSDCBalanceBefore - deleverageAction.collateralAssets
         );
         assertEq(strategyCTokenWETHUSDCSnapshot.debtBalance, 0);
 
@@ -578,27 +578,27 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         vm.startPrank(user);
 
-        VelodromePositionManager.DeleverageStruct memory deleverageData;
+        VelodromePositionManager.DeleverageAction memory deleverageAction;
 
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
         uint256 strategyCTokenWETHUSDCBalanceBefore = strategyCTokenWETHUSDC.collateralPosted(user);
 
-        deleverageData.collateralToken = ICToken(address(strategyCTokenWETHUSDC));
-        deleverageData.collateralAssets = 0.00003 ether;
-        deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.collateralToken = ICToken(address(strategyCTokenWETHUSDC));
+        deleverageAction.collateralAssets = 0.00003 ether;
+        deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
-        deleverageData.swapAction = new SwapperLib.Swap[](2);
-        deleverageData.swapAction[0].inputToken = _WETH_ADDRESS;
-        deleverageData.swapAction[0].inputAmount = 0.7413 ether;
-        deleverageData.swapAction[0].outputToken = _USDC_ADDRESS;
-        deleverageData.swapAction[0].target = address(veloRouter);
-        deleverageData.swapAction[0].slippage = 1e18;
+        deleverageAction.swapAction = new SwapperLib.Swap[](2);
+        deleverageAction.swapAction[0].inputToken = _WETH_ADDRESS;
+        deleverageAction.swapAction[0].inputAmount = 0.7413 ether;
+        deleverageAction.swapAction[0].outputToken = _USDC_ADDRESS;
+        deleverageAction.swapAction[0].target = address(veloRouter);
+        deleverageAction.swapAction[0].slippage = 1e18;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _WETH_ADDRESS;
         routes[0].to = _USDC_ADDRESS;
         routes[0].stable = false;
         routes[0].factory = address(veloPairFactory);
-        deleverageData.swapAction[0].call = abi.encodeWithSelector(
+        deleverageAction.swapAction[0].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             0.7413 ether,
             0,
@@ -606,17 +606,17 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageData.swapAction[1].inputToken = _USDC_ADDRESS;
-        deleverageData.swapAction[1].inputAmount = 2424e6;
-        deleverageData.swapAction[1].outputToken = _DAI_ADDRESS;
-        deleverageData.swapAction[1].target = address(veloRouter);
-        deleverageData.swapAction[1].slippage = 1e18;
+        deleverageAction.swapAction[1].inputToken = _USDC_ADDRESS;
+        deleverageAction.swapAction[1].inputAmount = 2424e6;
+        deleverageAction.swapAction[1].outputToken = _DAI_ADDRESS;
+        deleverageAction.swapAction[1].target = address(veloRouter);
+        deleverageAction.swapAction[1].slippage = 1e18;
         routes = new IVeloRouter.Route[](1);
         routes[0].from = _USDC_ADDRESS;
         routes[0].to = _DAI_ADDRESS;
         routes[0].stable = true;
         routes[0].factory = address(veloPairFactory);
-        deleverageData.swapAction[1].call = abi.encodeWithSelector(
+        deleverageAction.swapAction[1].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             2424e6,
             0,
@@ -624,26 +624,26 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageData.repayAssets = 2420e18;
+        deleverageAction.repayAssets = 2420e18;
 
         strategyCTokenWETHUSDC.approve(address(positionManager), type(uint256).max);
         positionManager.setDelegateApproval(address(user2), true);
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManager.deleverageFor(deleverageData, user, 0.052e18); // 5.2% slippage
+        positionManager.deleverageFor(deleverageAction, user, 0.052e18); // 5.2% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
         );
 
         AccountSnapshot memory strategyCTokenWETHUSDCSnapshot = strategyCTokenWETHUSDC.getSnapshot(user);
         assertEq(
             strategyCTokenWETHUSDC.balanceOf(user),
-            strategyCTokenWETHUSDCBalanceBefore - deleverageData.collateralAssets
+            strategyCTokenWETHUSDCBalanceBefore - deleverageAction.collateralAssets
         );
         assertEq(strategyCTokenWETHUSDCSnapshot.debtBalance, 0);
 

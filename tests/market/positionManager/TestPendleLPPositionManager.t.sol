@@ -295,24 +295,24 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         borrowableCDAI.accrueIfNeeded();
 
         vm.startPrank(user);
-        PendleLPPositionManager.DeleverageStruct memory deleverageData;
+        PendleLPPositionManager.DeleverageAction memory deleverageAction;
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
         uint256 strategyCTokenSTETHCollateralBefore = strategyCTokenSTETH.collateralPosted(user);
 
-        deleverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
-        deleverageData.collateralAssets = 1 ether;
-        deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.collateralToken = ICToken(address(strategyCTokenSTETH));
+        deleverageAction.collateralAssets = 1 ether;
+        deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
-        deleverageData.swapAction = new SwapperLib.Swap[](1);
-        deleverageData.swapAction[0].inputToken = _STETH;
-        deleverageData.swapAction[0].inputAmount = 2.149 ether;
-        deleverageData.swapAction[0].outputToken = _DAI_ADDRESS;
-        deleverageData.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
+        deleverageAction.swapAction = new SwapperLib.Swap[](1);
+        deleverageAction.swapAction[0].inputToken = _STETH;
+        deleverageAction.swapAction[0].inputAmount = 2.149 ether;
+        deleverageAction.swapAction[0].outputToken = _DAI_ADDRESS;
+        deleverageAction.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](3);
         path[0] = _STETH;
         path[1] = _WETH_ADDRESS;
         path[2] = _DAI_ADDRESS;
-        deleverageData.swapAction[0].call = abi.encodeWithSignature(
+        deleverageAction.swapAction[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokensSupportingFeeOnTransferTokens(uint256,uint256,address[],address,uint256)",
             2.149 ether,
             0,
@@ -320,24 +320,24 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageData.swapAction[0].slippage = 0.6e18;
-        deleverageData.repayAssets = 6500e18;
+        deleverageAction.swapAction[0].slippage = 0.6e18;
+        deleverageAction.repayAssets = 6500e18;
         PendleLib.PendleData memory data;
         data.approx.guessMin = 1e10;
         data.approx.guessMax = 1e18;
         data.approx.guessOffchain = 0;
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
-        deleverageData.auxData = abi.encode(0, data);
+        deleverageAction.auxData = abi.encode(0, data);
 
         strategyCTokenSTETH.approve(address(positionManager), type(uint256).max);
-        positionManager.deleverage(deleverageData, 0.05e18); // 5% slippage
+        positionManager.deleverage(deleverageAction, 0.05e18); // 5% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
         );
 
         AccountSnapshot memory strategyCTokenSTETHSnapshot = strategyCTokenSTETH.getSnapshot(
@@ -345,7 +345,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         );
         assertEq(
             strategyCTokenSTETHSnapshot.collateralPosted,
-            strategyCTokenSTETHCollateralBefore - deleverageData.collateralAssets
+            strategyCTokenSTETHCollateralBefore - deleverageAction.collateralAssets
         );
         assertEq(strategyCTokenSTETHSnapshot.debtBalance, 0);
 
@@ -432,24 +432,24 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         borrowableCDAI.accrueIfNeeded();
 
         vm.startPrank(user);
-        PendleLPPositionManager.DeleverageStruct memory deleverageData;
+        PendleLPPositionManager.DeleverageAction memory deleverageAction;
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
         uint256 strategyCTokenSTETHCollateralBefore = strategyCTokenSTETH.collateralPosted(user);
 
-        deleverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
-        deleverageData.collateralAssets = 1 ether;
-        deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.collateralToken = ICToken(address(strategyCTokenSTETH));
+        deleverageAction.collateralAssets = 1 ether;
+        deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
-        deleverageData.swapAction = new SwapperLib.Swap[](1);
-        deleverageData.swapAction[0].inputToken = _STETH;
-        deleverageData.swapAction[0].inputAmount = 2.149 ether;
-        deleverageData.swapAction[0].outputToken = _DAI_ADDRESS;
-        deleverageData.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
+        deleverageAction.swapAction = new SwapperLib.Swap[](1);
+        deleverageAction.swapAction[0].inputToken = _STETH;
+        deleverageAction.swapAction[0].inputAmount = 2.149 ether;
+        deleverageAction.swapAction[0].outputToken = _DAI_ADDRESS;
+        deleverageAction.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](3);
         path[0] = _STETH;
         path[1] = _WETH_ADDRESS;
         path[2] = _DAI_ADDRESS;
-        deleverageData.swapAction[0].call = abi.encodeWithSignature(
+        deleverageAction.swapAction[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokensSupportingFeeOnTransferTokens(uint256,uint256,address[],address,uint256)",
             2.149 ether,
             0,
@@ -457,28 +457,28 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageData.swapAction[0].slippage = 0.6e18;
-        deleverageData.repayAssets = 6500e18;
+        deleverageAction.swapAction[0].slippage = 0.6e18;
+        deleverageAction.repayAssets = 6500e18;
         PendleLib.PendleData memory data;
         data.approx.guessMin = 1e10;
         data.approx.guessMax = 1e18;
         data.approx.guessOffchain = 0;
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
-        deleverageData.auxData = abi.encode(0, data);
+        deleverageAction.auxData = abi.encode(0, data);
 
         strategyCTokenSTETH.approve(address(positionManager), type(uint256).max);
         positionManager.setDelegateApproval(address(user2), true);
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManager.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
+        positionManager.deleverageFor(deleverageAction, user, 0.05e18); // 5% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
         );
 
         AccountSnapshot memory strategyCTokenSTETHSnapshot = strategyCTokenSTETH.getSnapshot(
@@ -486,7 +486,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         );
         assertEq(
             strategyCTokenSTETHSnapshot.collateralPosted,
-            strategyCTokenSTETHCollateralBefore - deleverageData.collateralAssets
+            strategyCTokenSTETHCollateralBefore - deleverageAction.collateralAssets
         );
         assertEq(strategyCTokenSTETHSnapshot.debtBalance, 0);
     }

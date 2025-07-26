@@ -128,19 +128,19 @@ abstract contract BasePositionManager is
     ///      depositAsCollateralFor will only deposit and the leverage
     ///      operation will fail.
     /// @param assets The amount of the underlying assets to deposit.
-    /// @param leverageAction Struct containing information on a leverage
-    ///                       action to execute. Containing values:
-    ///                       1. Address of `borrowableCToken` that will be
-    ///                          borrowed from and assets swapped.
-    ///                       2. The amount borrowed from `borrowableCToken`,
-    ///                          in assets.
-    ///                       3. Curvance token assets that borrowed funds
-    ///                          will be swapped into.
-    ///                       4. Swap action instructions converting debt
-    ///                          asset into collateral asset to facilitate
-    ///                          leveraging.
-    ///                       5. Optional auxiliary data for execution of a
-    ///                          leverage action.
+    /// @param leverageAction Instructions for a leverage action containing:
+    ///                       borrowableCToken Address of `borrowableCToken`
+    ///                                        that will be borrowed from and
+    ///                                        assets swapped.
+    ///                       borrowAssets The amount borrowed from
+    ///                                    `borrowableCToken`, in assets.
+    ///                       cToken Curvance token assets that borrowed funds
+    ///                              will be swapped into.
+    ///                       swapAction Swap action instructions converting
+    ///                                  debt asset into collateral asset to
+    ///                                  facilitate leveraging.
+    ///                       auxData Optional auxiliary data for execution of a
+    ///                               a leverage action.
     /// @param slippage Slippage accepted by the user for execution of
     ///                 `leverageAction` leverage action, in WAD (1e18).
     function depositAndLeverage(
@@ -173,19 +173,19 @@ abstract contract BasePositionManager is
     ///         both collateral and debt inside the system.
     /// @dev Measures slippage through pre/post conditional slippage check
     ///      in `checkSlippage` modifier.
-    /// @param leverageAction Struct containing information on a leverage
-    ///                       action to execute. Containing values:
-    ///                       1. Address of `borrowableCToken` that will be
-    ///                          borrowed from and assets swapped.
-    ///                       2. The amount borrowed from `borrowableCToken`,
-    ///                          in assets.
-    ///                       3. Curvance token assets that borrowed funds
-    ///                          will be swapped into.
-    ///                       4. Swap action instructions converting debt
-    ///                          asset into collateral asset to facilitate
-    ///                          leveraging.
-    ///                       5. Optional auxiliary data for execution of a
-    ///                          leverage action.
+    /// @param leverageAction Instructions for a leverage action containing:
+    ///                       borrowableCToken Address of `borrowableCToken`
+    ///                                        that will be borrowed from and
+    ///                                        assets swapped.
+    ///                       borrowAssets The amount borrowed from
+    ///                                    `borrowableCToken`, in assets.
+    ///                       cToken Curvance token assets that borrowed funds
+    ///                              will be swapped into.
+    ///                       swapAction Swap action instructions converting
+    ///                                  debt asset into collateral asset to
+    ///                                  facilitate leveraging.
+    ///                       auxData Optional auxiliary data for execution of a
+    ///                               a leverage action.
     /// @param slippage Slippage accepted by the user for execution of
     ///                 `leverageAction` leverage action, in WAD (1e18).
     function leverage(
@@ -202,19 +202,19 @@ abstract contract BasePositionManager is
     ///      NOTE: Be careful who you approve here!
     ///      The caller can select slippage, potentially causing loss of funds
     ///      if delegation is provided to a malicious party.
-    /// @param leverageAction Struct containing information on a leverage
-    ///                       action to execute. Containing values:
-    ///                       1. Address of `borrowableCToken` that will be
-    ///                          borrowed from and assets swapped.
-    ///                       2. The amount borrowed from `borrowableCToken`,
-    ///                          in assets.
-    ///                       3. Curvance token assets that borrowed funds
-    ///                          will be swapped into.
-    ///                       4. Swap action instructions converting debt
-    ///                          asset into collateral asset to facilitate
-    ///                          leveraging.
-    ///                       5. Optional auxiliary data for execution of a
-    ///                          leverage action.
+    /// @param leverageAction Instructions for a leverage action containing:
+    ///                       borrowableCToken Address of `borrowableCToken`
+    ///                                        that will be borrowed from and
+    ///                                        assets swapped.
+    ///                       borrowAssets The amount borrowed from
+    ///                                    `borrowableCToken`, in assets.
+    ///                       cToken Curvance token assets that borrowed funds
+    ///                              will be swapped into.
+    ///                       swapAction Swap action instructions converting
+    ///                                  debt asset into collateral asset to
+    ///                                  facilitate leveraging.
+    ///                       auxData Optional auxiliary data for execution of a
+    ///                               a leverage action.
     /// @param account The account to leverage an active Curvance position
     ///                for.
     /// @param slippage Slippage accepted by the user for execution of
@@ -304,19 +304,19 @@ abstract contract BasePositionManager is
     /// @param borrowAssets The amount of `borrowableCToken`'s asset borrowed.
     /// @param owner The account borrowing that will be swapped into
     ///              collateral assets deposited into Curvance.
-    /// @param leverageAction Struct containing information on a leverage
-    ///                       action to execute. Containing values:
-    ///                       1. Address of `borrowableCToken` that will be
-    ///                          borrowed from and assets swapped.
-    ///                       2. The amount borrowed from `borrowableCToken`,
-    ///                          in assets.
-    ///                       3. Curvance token assets that borrowed funds
-    ///                          will be swapped into.
-    ///                       4. Swap action instructions converting debt
-    ///                          asset into collateral asset to facilitate
-    ///                          leveraging.
-    ///                       5. Optional auxiliary data for execution of a
-    ///                          leverage action.
+    /// @param leverageAction Instructions for a leverage action containing:
+    ///                       borrowableCToken Address of `borrowableCToken`
+    ///                                        that will be borrowed from and
+    ///                                        assets swapped.
+    ///                       borrowAssets The amount borrowed from
+    ///                                    `borrowableCToken`, in assets.
+    ///                       cToken Curvance token assets that borrowed funds
+    ///                              will be swapped into.
+    ///                       swapAction Swap action instructions converting
+    ///                                  debt asset into collateral asset to
+    ///                                  facilitate leveraging.
+    ///                       auxData Optional auxiliary data for execution of a
+    ///                               a leverage action.
     function onBorrow(
         address borrowableCToken,
         uint256 borrowAssets,
@@ -419,7 +419,7 @@ abstract contract BasePositionManager is
             deleverageAction.collateralAssets,
             collateralAsset
         );
-        
+
         if (fee > 0) {
             deleverageAction.collateralAssets -= fee;
             SafeTransferLib.safeTransfer(
@@ -640,19 +640,19 @@ abstract contract BasePositionManager is
 
     /// @notice Leverages an active Curvance position in favor of increasing
     ///         both collateral and debt inside the system.
-    /// @param leverageAction Struct containing information on a leverage
-    ///                       action to execute. Containing values:
-    ///                       1. Address of `borrowableCToken` that will be
-    ///                          borrowed from and assets swapped.
-    ///                       2. The amount borrowed from `borrowableCToken`,
-    ///                          in assets.
-    ///                       3. Curvance token assets that borrowed funds
-    ///                          will be swapped into.
-    ///                       4. Swap action instructions converting debt
-    ///                          asset into collateral asset to facilitate
-    ///                          leveraging.
-    ///                       5. Optional auxiliary data for execution of a
-    ///                          leverage action.
+    /// @param leverageAction Instructions for a leverage action containing:
+    ///                       borrowableCToken Address of `borrowableCToken`
+    ///                                        that will be borrowed from and
+    ///                                        assets swapped.
+    ///                       borrowAssets The amount borrowed from
+    ///                                    `borrowableCToken`, in assets.
+    ///                       cToken Curvance token assets that borrowed funds
+    ///                              will be swapped into.
+    ///                       swapAction Swap action instructions converting
+    ///                                  debt asset into collateral asset to
+    ///                                  facilitate leveraging.
+    ///                       auxData Optional auxiliary data for execution of a
+    ///                               a leverage action.
     /// @param account The account to leverage an active Curvance position
     ///                for.
     function _leverage(

@@ -528,7 +528,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     function redeemUnderlyingForPositionManager(
         address account,
         uint256 amount,
-        IPositionManager.DeleverageStruct memory params
+        IPositionManager.DeleverageAction memory params
     ) external nonReentrant {
         if (!marketManager.isPositionManager(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);

@@ -339,25 +339,25 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         borrowableCDAI.accrueIfNeeded();
 
         vm.startPrank(user);
-        PendlePTPositionManager.DeleverageStruct memory deleverageData;
+        PendlePTPositionManager.DeleverageAction memory deleverageAction;
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
         AccountSnapshot memory cPendlePTSTETHBeforeSnapshot = cPendlePTSTETH.getSnapshot(user);
 
-        deleverageData.collateralToken = ICToken(address(cPendlePTSTETH));
-        deleverageData.collateralAssets = 1 ether;
-        deleverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.collateralToken = ICToken(address(cPendlePTSTETH));
+        deleverageAction.collateralAssets = 1 ether;
+        deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
 
-        deleverageData.swapAction = new SwapperLib.Swap[](1);
-        deleverageData.swapAction[0].inputToken = _STETH;
-        deleverageData.swapAction[0].inputAmount = 0.85 ether;
-        deleverageData.swapAction[0].outputToken = _DAI_ADDRESS;
-        deleverageData.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
+        deleverageAction.swapAction = new SwapperLib.Swap[](1);
+        deleverageAction.swapAction[0].inputToken = _STETH;
+        deleverageAction.swapAction[0].inputAmount = 0.85 ether;
+        deleverageAction.swapAction[0].outputToken = _DAI_ADDRESS;
+        deleverageAction.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](3);
         path[0] = _STETH;
         path[1] = _WETH_ADDRESS;
         path[2] = _DAI_ADDRESS;
 
-        deleverageData.swapAction[0].call = abi.encodeWithSignature(
+        deleverageAction.swapAction[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokensSupportingFeeOnTransferTokens(uint256,uint256,address[],address,uint256)",
             0.85 ether,
             0,
@@ -366,11 +366,11 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
             block.timestamp
         );
 
-        deleverageData.swapAction[0].slippage = 0.6e18; // 60% slippage
+        deleverageAction.swapAction[0].slippage = 0.6e18; // 60% slippage
 
-        deleverageData.repayAssets = (borrowableCDAIBeforeSnapshot.debtBalance * 95) / 100;
-        deleverageData.swapAction[0].slippage = 0.6e18;
-        deleverageData.repayAssets = (borrowableCDAIBeforeSnapshot.debtBalance * 95) / 100;
+        deleverageAction.repayAssets = (borrowableCDAIBeforeSnapshot.debtBalance * 95) / 100;
+        deleverageAction.swapAction[0].slippage = 0.6e18;
+        deleverageAction.repayAssets = (borrowableCDAIBeforeSnapshot.debtBalance * 95) / 100;
         PendleLib.PendleData memory data;
         data.approx.guessMin = 1e10;
         data.approx.guessMax = 1e18;
@@ -383,17 +383,17 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
 
         data.output.pendleSwap = _PENDLE_SWAP;
 
-        deleverageData.auxData = abi.encode(_LP_STETH, data);
+        deleverageAction.auxData = abi.encode(_LP_STETH, data);
 
         pendlePT.approve(address(positionManager), type(uint256).max);
 
-        positionManager.deleverage(deleverageData, 0.6e18); // 60% slippage
+        positionManager.deleverage(deleverageAction, 0.6e18); // 60% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
         assertEq(
             borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageData.repayAssets
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
         );
 
         AccountSnapshot memory cPendlePTSTETHSnapshot = cPendlePTSTETH.getSnapshot(
@@ -401,7 +401,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         );
         assertEq(
             cPendlePTSTETHSnapshot.collateralPosted,
-            cPendlePTSTETHBeforeSnapshot.collateralPosted - deleverageData.collateralAssets
+            cPendlePTSTETHBeforeSnapshot.collateralPosted - deleverageAction.collateralAssets
         );
         assertEq(cPendlePTSTETHSnapshot.debtBalance, 0);
 

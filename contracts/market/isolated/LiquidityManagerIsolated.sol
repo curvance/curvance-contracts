@@ -300,7 +300,7 @@ abstract contract LiquidityManagerIsolated {
     ///         potential action such as redemption and borrowing.
     /// @param account The address of the account being evaluated for `action`
     ///                being done.
-    /// @param action A HypotheticalAction struct containing:
+    /// @param action Instructions for a hypothetical action containing:
     ///               cTokenModified The address of the token being modified
     ///                              by the action.
     ///               redemptionShares The amount of tokens to hypothetically
@@ -309,7 +309,7 @@ abstract contract LiquidityManagerIsolated {
     ///                            borrow, in `assets`.
     ///               errorCodeBreakpoint The error code that will cause
     ///                                   liquidity operations to revert.
-    /// @return result A HypotheticalResult struct containing:
+    /// @return result Hypothetical results for an action containing:
     ///                collateralSurplus Excess collateral capacity after
     ///                                  the action.
     ///                liquidityDeficit Shortfall in collateral capacity after
@@ -466,7 +466,7 @@ abstract contract LiquidityManagerIsolated {
     ///                        collateralized by `account`.
     /// @param debtToken The address of the Curvance token (cToken) that
     ///                  `account` has outstanding debt in.
-    /// @return result An AccountLiqResult struct containing:
+    /// @return result Hypothetical results for an action containing:
     ///                cSoft The account's soft collateral value (collateral
     ///                      adjusted by soft requirements).
     ///                cHard The account's hard collateral value (collateral
@@ -642,10 +642,11 @@ abstract contract LiquidityManagerIsolated {
     ///               by hard requirements).
     ///  @param debt The account's total outstanding debt value.
     ///  @return result The liquidation factor where:
-    ///          - 0: No liquidation (account is healthy).
-    ///          - 1 to WAD-1: Soft liquidation (partial liquidation allowed).
-    ///          - WAD: Hard liquidation (full liquidation, possibly including
-    ///                 bad debt).
+    ///                 0: No liquidation (account is healthy).
+    ///                 1 to WAD-1: Soft liquidation (partial liquidation
+    ///                             allowed).
+    ///                 WAD: Hard liquidation (full liquidation, possibly
+    ///                      including bad debt).
     function _getLFactor(
         uint256 cSoft,
         uint256 cHard,

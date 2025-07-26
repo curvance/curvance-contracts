@@ -94,8 +94,9 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Helper function for Position Management contract to
-    ///         redeem assets.
+    /// @notice Used by a Position Manager contract to redeem assets from
+    ///         collateralized shares by `account` to perform a complex
+    ///         action.
     /// @param assets The amount of the underlying assets to redeem.
     /// @param shares The amount of the shares to redeem.
     /// @param owner The owner address of assets to redeem.
@@ -125,7 +126,7 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
         IPositionManager.DeleverageAction memory deleverageAction
     ) internal override {
         assets = _removeExitFeeFromAssets(assets);
-        deleverageData.collateralAssets = assets;
+        deleverageAction.collateralAssets = assets;
         super._processPositionManagerRedemption(
             assets,
             shares,
