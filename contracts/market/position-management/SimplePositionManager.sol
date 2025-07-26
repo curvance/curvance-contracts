@@ -25,9 +25,10 @@ contract SimplePositionManager is BasePositionManager {
     ///         against the borrowableCToken debt position, creating a
     ///         leveraged spot position.
     /// @param leverageAction Instructions for a leverage action containing:
-    ///                       borrowableCToken Address of `borrowableCToken`
+    ///                       borrowableCToken Address of the borrowableCToken
     ///                                        that will be borrowed from and
-    ///                                        assets swapped.
+    ///                                        assets swapped into `cToken`
+    ///                                        asset.
     ///                       borrowAssets The amount borrowed from
     ///                                    `borrowableCToken`, in assets.
     ///                       cToken Curvance token assets that borrowed funds
@@ -71,22 +72,26 @@ contract SimplePositionManager is BasePositionManager {
     ///         then swapped into the underlying of an borrowableCToken that a
     ///         user is currently borrowing from, partially or fully closing a
     ///         leveraged spot position.
-    /// @param deleverageAction Struct containing information on a deleverage
-    ///                         action to execute. Containing values:
-    ///                         1. Address of the cToken whose asset will be
-    ///                            routed into debt asset to repay outstanding
-    ///                            debt.
-    ///                         2. The amount of `cToken` that will
-    ///                            be deleveraged.
-    ///                         3. Address of borrowableCToken that will have
-    ///                            its outstanding debt repaid.
-    ///                         4. Swap action instructions converting
-    ///                            collateral asset into debt asset to
-    ///                            facilitate deleveraging.
-    ///                         5. The amount of debt assets that will be
-    ///                            repaid to lenders.
-    ///                         6. Optional auxiliary data for execution of a
-    ///                            deleverage action.
+    /// @param deleverageAction Instructions for a deleverage action
+    ///                         containing:
+    ///                         cToken Address of the cToken that will be
+    ///                                redeemed from and assets swapped into
+    ///                                `borrowableCToken` asset.
+    ///                         collateralAssets The amount of `cToken` that
+    ///                                          will be deleveraged,
+    ///                                          in assets.
+    ///                         borrowableCToken Address of the
+    ///                                          borrowableCToken that will
+    ///                                          have its debt paid.
+    ///                         repayAssets The amount of `borrowableCToken`
+    ///                                     asset that will be repaid to
+    ///                                     lenders.
+    ///                         swapAction Swap actions instructions
+    ///                                    converting collateral asset into
+    ///                                    debt asset to facilitate
+    ///                                    deleveraging.
+    ///                         auxData Optional auxiliary data for execution
+    ///                                 of a deleverage action.
     function _swapCollateralAssetToDebtAsset(
         DeleverageAction memory deleverageAction
     ) internal virtual override {

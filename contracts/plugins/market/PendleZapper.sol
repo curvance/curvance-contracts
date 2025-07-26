@@ -55,8 +55,8 @@ contract PendleZapper is ZapperBase {
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of `swapActions.outputToken`
     ///                       into `strategyCToken` position.
-    /// @param collateralize Whether the zapped deposit should be
-    ///                      collateralized afterwards.
+    /// @param collateralizeFor Whether the deposit should be collateralized,
+    ///                         requires plugin approval.
     /// @param receiver Address that should receive Zapped deposit.
     /// @return outAmount The `strategyCToken` output shares received by
     ///                   `receiver`.
@@ -68,7 +68,7 @@ contract PendleZapper is ZapperBase {
         bool isPt,
         PendleLib.PendleData calldata data,
         uint256 expectedShares,
-        bool collateralize,
+        bool collateralizeFor,
         address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
         // Swap input token for underlyings.
@@ -94,7 +94,7 @@ contract PendleZapper is ZapperBase {
             zapAction.outputToken,
             outAmount,
             expectedShares,
-            collateralize,
+            collateralizeFor,
             receiver
         );
     }

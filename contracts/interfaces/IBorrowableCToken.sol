@@ -58,9 +58,10 @@ interface IBorrowableCToken is ICToken {
     /// @param assets The amount of the underlying assets to borrow.
     /// @param owner The account address to borrow on behalf of.
     /// @param leverageAction Instructions for a leverage action containing:
-    ///                       borrowableCToken Address of `borrowableCToken`
+    ///                       borrowableCToken Address of the borrowableCToken
     ///                                        that will be borrowed from and
-    ///                                        assets swapped.
+    ///                                        assets swapped into `cToken`
+    ///                                        asset.
     ///                       borrowAssets The amount borrowed from
     ///                                    `borrowableCToken`, in assets.
     ///                       cToken Curvance token assets that borrowed funds

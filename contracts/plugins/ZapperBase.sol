@@ -77,8 +77,8 @@ abstract contract ZapperBase is ReentrancyGuard {
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `assets` of `underlying` into
     ///                       `cToken` position.
-    /// @param collateralize Whether the zapped deposit should be
-    ///                      collateralized afterwards.
+    /// @param collateralizeFor Whether the deposit should be collateralized,
+    ///                         requires plugin approval.
     /// @param receiver Address that should receive Curvance cTokens.
     /// @return shares The output amount of shares received.
     function _enterCurvanceSafe(
@@ -86,7 +86,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         address underlying,
         uint256 assets,
         uint256 expectedShares,
-        bool collateralize,
+        bool collateralizeFor,
         address receiver
     ) internal returns (uint256 shares) {
         _checkAddresses(cToken, underlying);
@@ -96,7 +96,7 @@ abstract contract ZapperBase is ReentrancyGuard {
             underlying,
             assets,
             expectedShares,
-            collateralize,
+            collateralizeFor,
             receiver
         );
     }
@@ -110,8 +110,8 @@ abstract contract ZapperBase is ReentrancyGuard {
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `assets` of `underlying` into
     ///                       `cToken` position.
-    /// @param collateralize Whether the zapped deposit should be
-    ///                      collateralized afterwards.
+    /// @param collateralizeFor Whether the deposit should be collateralized,
+    ///                         requires plugin approval.
     /// @param receiver Address that should receive Curvance cTokens.
     /// @return shares The output amount of shares received.
     function _enterCurvance(
@@ -119,7 +119,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         address underlying,
         uint256 assets,
         uint256 expectedShares,
-        bool collateralize,
+        bool collateralizeFor,
         address receiver
     ) internal returns (uint256 shares) {
         // Approve `cToken` to take `underlying`.
@@ -129,7 +129,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         // approval for nefarious reasons such as keeping them stuck in
         // positions, so lets validate that the receiver is a delegate
         // as well.
-        if (collateralize) {
+        if (collateralizeFor) {
             // Enter Curvance position and collateralize it.
             // This requires plugin approval for this zapper, and
             // if its a different user calling on behalf of `receiver`

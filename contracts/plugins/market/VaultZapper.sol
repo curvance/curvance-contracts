@@ -30,8 +30,8 @@ contract VaultZapper is ZapperBase {
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of
     ///                       `swapAction.outputToken` into `cToken` position.
-    /// @param collateralize Whether the zapped deposit should be
-    ///                      collateralized afterwards.
+    /// @param collateralizeFor Whether the zapped deposit should be
+    ///                         collateralized afterwards.
     /// @param receiver Address that should receive `cToken` shares.
     /// @return outAmount The `cToken` output shares received by `receiver`.
     function swapAndDeposit(
@@ -39,7 +39,7 @@ contract VaultZapper is ZapperBase {
         bool depositAsWrappedNative,
         SwapperLib.Swap memory swapAction,
         uint256 expectedShares,
-        bool collateralize,
+        bool collateralizeFor,
         address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
         _prepareSwap(
@@ -75,7 +75,7 @@ contract VaultZapper is ZapperBase {
             swapAction.outputToken,
             outAmount,
             expectedShares,
-            collateralize,
+            collateralizeFor,
             receiver
         );
     }
@@ -142,8 +142,8 @@ contract VaultZapper is ZapperBase {
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of
     ///                       `swapAction.outputToken` into `cToken` position.
-    /// @param collateralize Whether the zapped deposit should be
-    ///                      collateralized afterwards.
+    /// @param collateralizeFor Whether the deposit should be collateralized,
+    ///                         requires plugin approval.
     /// @param receiver Address that should receive `cToken` shares.
     /// @return outAmount The `cToken` output shares received by `receiver`.
     function redeemSwapAndDeposit(
@@ -151,7 +151,7 @@ contract VaultZapper is ZapperBase {
         RedeemAction calldata redeemAction,
         SwapperLib.Swap memory swapAction,
         uint256 expectedShares,
-        bool collateralize,
+        bool collateralizeFor,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
@@ -185,7 +185,7 @@ contract VaultZapper is ZapperBase {
             swapAction.outputToken,
             outAmount,
             expectedShares,
-            collateralize,
+            collateralizeFor,
             receiver
         );
     }

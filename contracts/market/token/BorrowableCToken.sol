@@ -217,9 +217,10 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///      Updates pending interest before executing the borrow.
     /// @param assets The amount of the underlying asset to borrow.
     /// @param leverageAction Instructions for a leverage action containing:
-    ///                       borrowableCToken Address of `borrowableCToken`
+    ///                       borrowableCToken Address of the borrowableCToken
     ///                                        that will be borrowed from and
-    ///                                        assets swapped.
+    ///                                        assets swapped into `cToken`
+    ///                                        asset.
     ///                       borrowAssets The amount borrowed from
     ///                                    `borrowableCToken`, in assets.
     ///                       cToken Curvance token assets that borrowed funds
@@ -241,10 +242,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Accrue interest if needed.
         // This generally is a redundant check due to interest accrual
-        // done inside checkSlippage check in position management contract
-        // implementations, but we keep this check in for invariant
-        // protection in the case of a incorrectly implemented position
-        // management contract.
+        // done inside `checkSlippage` modifier inside position manager
+        // contracts, but we keep this check in for invariant
+        // protection in the case of a incorrectly implemented contract.
         _accrueIfNeeded();
 
         // Notifies the Market Manager that a user is taking on more debt,
@@ -253,7 +253,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         _borrow(assets, msg.sender, owner);
 
-        // Callback to a Position Manager to execute additional action.
+        // Callback to Position Manager that executes remaining leverage
+        // logic.
         IPositionManager(msg.sender).onBorrow(
             address(this),
             assets,
