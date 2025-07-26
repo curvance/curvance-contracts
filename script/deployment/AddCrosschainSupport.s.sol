@@ -27,7 +27,7 @@ contract AddCrosschainSupport is Script {
         CentralRegistry registry = CentralRegistry(centralRegistry);
         registry.setCrosschainCore(wormholeCore);
         registry.setCrosschainRelayer(wormholeRelayer);
-        registry.setTokenMessenger(cctpTokenMessenger);
+        registry.setTokenMessager(cctpTokenMessenger);
         registry.setMessageTransmitter(cctpMessageTransmitter);
 
         ICentralRegistry icr = ICentralRegistry(centralRegistry);

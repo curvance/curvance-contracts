@@ -18,11 +18,10 @@ contract DeployTGE is Script {
     DeploymentLogger logger;
 
     function run(
-        address centralRegistry
+        address centralRegistry,
         uint256 lockBoostMultiplier,
         address teamAddress,
         uint256 baseEmissionsPerEpoch
-
     ) external {
         logger = new DeploymentLogger();
         vm.recordLogs();
