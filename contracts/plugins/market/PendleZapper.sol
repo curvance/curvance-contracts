@@ -11,12 +11,11 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 contract PendleZapper is ZapperBase {
     /// TYPES ///
 
-    /// @title Pendle Zapper Data
-    /// @param inputToken Address of input token to Zap from.
-    /// @param inputAmount The amount of `inputToken` to Zap.
-    /// @param outputToken Address of token Zapped into.
-    /// @param minimumOut The minimum amount of `outputToken` acceptable
-    ///                   from the Zap.
+    /// @param inputToken Address of input token to zap from.
+    /// @param inputAmount The amount of `inputToken` to zap.
+    /// @param outputToken Address of token to zap into.
+    /// @param minimumOut The minimum output amount of `outputToken`
+    ///                   acceptable from the zap.
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
     ///                               token, indicates depositing native token
     ///                               into wrapped version or not.
@@ -46,7 +45,16 @@ contract PendleZapper is ZapperBase {
     /// @dev Requires plugin approval for collateralization.
     /// @param strategyCToken The Curvance token address to enter into a
     ///                       position.
-    /// @param zapAction Instructions to execute the zap action.
+    /// @param zapAction Instructions for a zap action containing:
+    ///                  inputToken Address of input token to zap from.
+    ///                  inputAmount The amount of `inputToken` to zap.
+    ///                  outputToken Address of token to zap into.
+    ///                  minimumOut The minimum output amount of `outputToken`
+    ///                             acceptable from the zap.
+    ///                  depositAsWrappedNative Used when `inputToken` is the
+    ///                                         native gas token, indicates
+    ///                                         depositing native token into
+    ///                                         wrapped version or not.
     /// @param swapActions Array of swap instruction data to execute the zap.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
@@ -106,7 +114,16 @@ contract PendleZapper is ZapperBase {
     /// @param underlyingToken The underlying token address of the SY.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
-    /// @param zapAction Instructions to execute the zap action.
+    /// @param zapAction Instructions for a zap action containing:
+    ///                  inputToken Address of input token to zap from.
+    ///                  inputAmount The amount of `inputToken` to zap.
+    ///                  outputToken Address of token to zap into.
+    ///                  minimumOut The minimum output amount of `outputToken`
+    ///                             acceptable from the zap.
+    ///                  depositAsWrappedNative Used when `inputToken` is the
+    ///                                         native gas token, indicates
+    ///                                         depositing native token into
+    ///                                         wrapped version or not.
     /// @param swapActions Array of swap instruction data to execute the zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
@@ -154,7 +171,16 @@ contract PendleZapper is ZapperBase {
     /// @param token The underlying token address of the SY.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
-    /// @param zapAction Instructions to execute the zap action.
+    /// @param zapAction Instructions for a zap action containing:
+    ///                  inputToken Address of input token to zap from.
+    ///                  inputAmount The amount of `inputToken` to zap.
+    ///                  outputToken Address of token to zap into.
+    ///                  minimumOut The minimum output amount of `outputToken`
+    ///                             acceptable from the zap.
+    ///                  depositAsWrappedNative Used when `inputToken` is the
+    ///                                         native gas token, indicates
+    ///                                         depositing native token into
+    ///                                         wrapped version or not.
     /// @param swapActions Array of swap instruction data to execute the zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
@@ -197,7 +223,16 @@ contract PendleZapper is ZapperBase {
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param underlyingToken The underlying token address of the SY.
-    /// @param zapAction Instructions to execute the zap action.
+    /// @param zapAction Instructions for a zap action containing:
+    ///                  inputToken Address of input token to zap from.
+    ///                  inputAmount The amount of `inputToken` to zap.
+    ///                  outputToken Address of token to zap into.
+    ///                  minimumOut The minimum output amount of `outputToken`
+    ///                             acceptable from the zap.
+    ///                  depositAsWrappedNative Used when `inputToken` is the
+    ///                                         native gas token, indicates
+    ///                                         depositing native token into
+    ///                                         wrapped version or not.
     /// @param swapActions Array of swap instruction data to execute the zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.

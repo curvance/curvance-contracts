@@ -17,9 +17,8 @@ contract SimpleZapper is ZapperBase {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Swaps then deposits `swapAction.outputToken`, a cToken
-    ///         underlying, and enters into Curvance position,
-    ///         for `receiver`.
+    /// @notice Swaps then deposits `swapAction.outputToken`, a cToken asset,
+    ///         and enters into Curvance position, for `receiver`.
     /// @dev Requires plugin approval for collateralization.
     /// @param cToken The Curvance token (cToken) address to deposit into.
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
@@ -59,7 +58,7 @@ contract SimpleZapper is ZapperBase {
         if (swapAction.inputToken == swapAction.outputToken) {
             outAmount = swapAction.inputAmount;
         } else {
-            // Execute swap into cToken underlying.
+            // Execute swap into cToken asset.
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
@@ -112,7 +111,7 @@ contract SimpleZapper is ZapperBase {
         if (swapAction.inputToken == swapAction.outputToken) {
             outAmount = swapAction.inputAmount;
         } else {
-            // Execute swap into cToken underlying.
+            // Execute swap into cToken asset.
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
@@ -207,7 +206,7 @@ contract SimpleZapper is ZapperBase {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into `swapAction.outputToken` which should be
-            // new cToken underlying.
+            // new cToken asset.
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 

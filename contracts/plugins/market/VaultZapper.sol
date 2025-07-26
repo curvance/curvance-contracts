@@ -59,7 +59,7 @@ contract VaultZapper is ZapperBase {
         if (swapAction.inputToken == swapAction.outputToken) {
             outAmount = swapAction.inputAmount;
         } else {
-            // Execute swap into cToken underlying.
+            // Execute swap into cToken asset.
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
@@ -177,7 +177,7 @@ contract VaultZapper is ZapperBase {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into `swapAction.outputToken` which should be
-            // new cToken underlying.
+            // new cToken asset.
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 

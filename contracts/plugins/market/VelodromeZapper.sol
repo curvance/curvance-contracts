@@ -13,12 +13,11 @@ import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol
 contract VelodromeZapper is ZapperBase {
     /// TYPES ///
 
-    /// @title Velodrome Zapper Data
-    /// @param inputToken Address of input token to Zap from.
-    /// @param inputAmount The amount of `inputToken` to Zap.
-    /// @param outputToken Address of token Zapped into.
-    /// @param minimumOut The minimum amount of `outputToken` acceptable
-    ///                   from the Zap.
+    /// @param inputToken Address of input token to zap from.
+    /// @param inputAmount The amount of `inputToken` to zap.
+    /// @param outputToken Address of token to zap into.
+    /// @param minimumOut The minimum output amount of `outputToken`
+    ///                   acceptable from the zap.
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
     ///                               token, indicates depositing native token
     ///                               into wrapped version or not.
@@ -48,7 +47,16 @@ contract VelodromeZapper is ZapperBase {
     /// @dev Requires plugin approval for collateralization.
     /// @param strategyCToken The Curvance token address to enter a
     ///                       position in.
-    /// @param zapAction Instructions to execute the zap action.
+    /// @param zapAction Instructions for a zap action containing:
+    ///                  inputToken Address of input token to zap from.
+    ///                  inputAmount The amount of `inputToken` to zap.
+    ///                  outputToken Address of token to zap into.
+    ///                  minimumOut The minimum output amount of `outputToken`
+    ///                             acceptable from the zap.
+    ///                  depositAsWrappedNative Used when `inputToken` is the
+    ///                                         native gas token, indicates
+    ///                                         depositing native token into
+    ///                                         wrapped version or not.
     /// @param swapActions Array of swap instruction data to execute the zap.
     /// @param router The Velodrome router address.
     /// @param factory The Velodrome factory address.
@@ -103,7 +111,16 @@ contract VelodromeZapper is ZapperBase {
     /// @notice Exits a Velodrome position, and zaps it into desired
     ///         token (zapAction.outputToken).
     /// @param router The Velodrome router address.
-    /// @param zapAction Instructions to execute the zap action.
+    /// @param zapAction Instructions for a zap action containing:
+    ///                  inputToken Address of input token to zap from.
+    ///                  inputAmount The amount of `inputToken` to zap.
+    ///                  outputToken Address of token to zap into.
+    ///                  minimumOut The minimum output amount of `outputToken`
+    ///                             acceptable from the zap.
+    ///                  depositAsWrappedNative Used when `inputToken` is the
+    ///                                         native gas token, indicates
+    ///                                         depositing native token into
+    ///                                         wrapped version or not.
     /// @param swapActions Array of swap instruction data to execute the zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
@@ -136,7 +153,16 @@ contract VelodromeZapper is ZapperBase {
     ///                                           from caller's collateralized
     ///                                           shares.
     /// @param router The Velodrome router address.
-    /// @param zapAction Instructions to execute the zap action.
+    /// @param zapAction Instructions for a zap action containing:
+    ///                  inputToken Address of input token to zap from.
+    ///                  inputAmount The amount of `inputToken` to zap.
+    ///                  outputToken Address of token to zap into.
+    ///                  minimumOut The minimum output amount of `outputToken`
+    ///                             acceptable from the zap.
+    ///                  depositAsWrappedNative Used when `inputToken` is the
+    ///                                         native gas token, indicates
+    ///                                         depositing native token into
+    ///                                         wrapped version or not.
     /// @param swapActions Array of swap instruction data to execute the zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
@@ -166,7 +192,16 @@ contract VelodromeZapper is ZapperBase {
     /// @notice Withdraws from a Curvance Velodrome position, and zaps it
     ///         into desired token (zapAction.outputToken).
     /// @param router The Velodrome router address.
-    /// @param zapAction Instructions to execute the zap action.
+    /// @param zapAction Instructions for a zap action containing:
+    ///                  inputToken Address of input token to zap from.
+    ///                  inputAmount The amount of `inputToken` to zap.
+    ///                  outputToken Address of token to zap into.
+    ///                  minimumOut The minimum output amount of `outputToken`
+    ///                             acceptable from the zap.
+    ///                  depositAsWrappedNative Used when `inputToken` is the
+    ///                                         native gas token, indicates
+    ///                                         depositing native token into
+    ///                                         wrapped version or not.
     /// @param swapActions Array of swap instruction data to execute the zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.

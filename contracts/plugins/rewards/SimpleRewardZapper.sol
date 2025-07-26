@@ -99,8 +99,8 @@ contract SimpleRewardZapper is ZapperBase {
     }
 
     /// @notice Claims Reward Manager rewards, then Zaps, then deposits
-    ///         `zapperCall.inputToken`, a cToken underlying, and enters
-    ///         into Curvance collateral position.
+    ///         `zapperCall.inputToken`, a cToken asset, enters into Curvance
+    ///         position, for `receiver`.
     /// @param cToken The Curvance cToken address to deposit into.
     /// @param swapAction Instructions for executing a swap into collateral
     ///                   asset.
@@ -143,7 +143,7 @@ contract SimpleRewardZapper is ZapperBase {
         if (swapAction.inputToken == swapAction.outputToken) {
             outAmount = swapAction.inputAmount;
         } else {
-            // Execute swap into cToken underlying.
+            // Execute swap into cToken asset.
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
@@ -161,7 +161,7 @@ contract SimpleRewardZapper is ZapperBase {
     /// @notice Claims Reward Manager rewards, then may swap, then repays
     ///         outstanding debt inside Curvance.
     /// @dev Sends any excess debt token to `receiver`. Only needs to
-    ///      swap if `rewardToken` != `borrowableCToken` underlying.
+    ///      swap if `rewardToken` != `borrowableCToken` asset.
     /// @param swapAction Optional instructions for executing a swap into debt
     ///                   asset.
     /// @param borrowableCToken The Curvance token address to repay debt to.
@@ -197,12 +197,12 @@ contract SimpleRewardZapper is ZapperBase {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
         
-        // Cache `borrowableCToken` underlying to minimize external calls.
+        // Cache `borrowableCToken` asset to minimize external calls.
         address debtAsset = ICToken(borrowableCToken).asset();
 
         if (rewardToken != debtAsset) {
             // Validate that if we are swapping that the output token
-            // matches the underlying needed.
+            // matches `debtAsset`.
             if (swapAction.outputToken != debtAsset) {
                 revert SimpleRewardZapper__ExecutionError();
             }
