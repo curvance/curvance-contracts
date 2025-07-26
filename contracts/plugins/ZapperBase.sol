@@ -320,7 +320,7 @@ abstract contract ZapperBase is ReentrancyGuard {
     function _checkAddresses(
         address cToken,
         address asset
-    ) internal view returns (address asset) {
+    ) internal view returns (address cTokenAsset) {
         // Validate `cToken` exists, otherwise transfer their tokens
         // back and return.
         if (cToken == address(0)) {
