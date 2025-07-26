@@ -279,15 +279,15 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             address(borrowableCWETH)
         ) * 50) / 100;
 
-        SimplePositionManager.LeverageStruct memory leverageData;
-        leverageData.debtToken = IBorrowableCToken(address(borrowableCWETH));
-        leverageData.borrowAssets = amountForLeverage;
-        leverageData.collateralToken = ICToken(address(cWBTC));
-        leverageData.swapAction.inputToken = _WETH_ADDRESS;
-        leverageData.swapAction.inputAmount = amountForLeverage;
-        leverageData.swapAction.outputToken = _WBTC_ADDRESS;
-        leverageData.swapAction.target = address(_UNISWAP_V3_SWAP_ROUTER);
-        leverageData.swapAction.slippage = 2e18;
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.debtToken = IBorrowableCToken(address(borrowableCWETH));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.collateralToken = ICToken(address(cWBTC));
+        leverageAction.swapAction.inputToken = _WETH_ADDRESS;
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = _WBTC_ADDRESS;
+        leverageAction.swapAction.target = address(_UNISWAP_V3_SWAP_ROUTER);
+        leverageAction.swapAction.slippage = 2e18;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _WETH_ADDRESS;
         params.tokenOut = _WBTC_ADDRESS;
@@ -297,11 +297,11 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         params.amountIn = amountForLeverage;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        leverageData.swapAction.call = abi.encodeWithSelector(
+        leverageAction.swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
-        leverageData.auxData = bytes("");
+        leverageAction.auxData = bytes("");
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](2);
         calls[0].target = address(adapter);
@@ -318,7 +318,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         calls[1].target = address(positionManager);
         calls[1].data = abi.encodeWithSelector(
             positionManager.leverage.selector,
-            leverageData,
+            leverageAction,
             2e18
         );
 

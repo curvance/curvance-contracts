@@ -181,14 +181,14 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             address(borrowableCDAI)
         ) * 50) / 100;
 
-        PendleLPPositionManager.LeverageStruct memory leverageData;
-        leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAssets = amountForLeverage;
-        leverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
-        leverageData.swapAction.inputToken = _DAI_ADDRESS;
-        leverageData.swapAction.inputAmount = amountForLeverage;
-        leverageData.swapAction.outputToken = _WETH_ADDRESS;
-        leverageData.swapAction.target = address(_UNISWAP_V3_SWAP_ROUTER);
+        PendleLPPositionManager.LeverageAction memory leverageAction;
+        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.collateralToken = ICToken(address(strategyCTokenSTETH));
+        leverageAction.swapAction.inputToken = _DAI_ADDRESS;
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = _WETH_ADDRESS;
+        leverageAction.swapAction.target = address(_UNISWAP_V3_SWAP_ROUTER);
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _WETH_ADDRESS;
@@ -198,11 +198,11 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         params.amountIn = amountForLeverage;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        leverageData.swapAction.call = abi.encodeWithSelector(
+        leverageAction.swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
-        leverageData.swapAction.slippage = 0.6e18;
+        leverageAction.swapAction.slippage = 0.6e18;
 
         PendleLib.PendleData memory data;
         data.approx.guessMin = 1e10;
@@ -211,9 +211,9 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
 
-        leverageData.auxData = abi.encode(0, data);
+        leverageAction.auxData = abi.encode(0, data);
 
-        positionManager.leverage(leverageData, 0.05e18); // 5% slippage
+        positionManager.leverage(leverageAction, 0.05e18); // 5% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
@@ -240,14 +240,14 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         // Try leverage with 50% of max.
         uint256 amountForLeverage = 7.4983181832e21;
 
-        PendleLPPositionManager.LeverageStruct memory leverageData;
-        leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAssets = amountForLeverage;
-        leverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
-        leverageData.swapAction.inputToken = _DAI_ADDRESS;
-        leverageData.swapAction.inputAmount = amountForLeverage;
-        leverageData.swapAction.outputToken = _WETH_ADDRESS;
-        leverageData.swapAction.target = address(_UNISWAP_V3_SWAP_ROUTER);
+        PendleLPPositionManager.LeverageAction memory leverageAction;
+        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.collateralToken = ICToken(address(strategyCTokenSTETH));
+        leverageAction.swapAction.inputToken = _DAI_ADDRESS;
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = _WETH_ADDRESS;
+        leverageAction.swapAction.target = address(_UNISWAP_V3_SWAP_ROUTER);
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _WETH_ADDRESS;
@@ -257,11 +257,11 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         params.amountIn = amountForLeverage;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        leverageData.swapAction.call = abi.encodeWithSelector(
+        leverageAction.swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
-        leverageData.swapAction.slippage = 0.6e18;
+        leverageAction.swapAction.slippage = 0.6e18;
 
         PendleLib.PendleData memory data;
         data.approx.guessMin = 1e10;
@@ -270,9 +270,9 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
 
-        leverageData.auxData = abi.encode(0, data);
+        leverageAction.auxData = abi.encode(0, data);
 
-        positionManager.depositAndLeverage(1 ether, leverageData, 0.05e18); // 5% slippage
+        positionManager.depositAndLeverage(1 ether, leverageAction, 0.05e18); // 5% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
@@ -375,14 +375,14 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             address(borrowableCDAI)
         ) * 50) / 100;
 
-        PendleLPPositionManager.LeverageStruct memory leverageData;
-        leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAssets = amountForLeverage;
-        leverageData.collateralToken = ICToken(address(strategyCTokenSTETH));
-        leverageData.swapAction.inputToken = _DAI_ADDRESS;
-        leverageData.swapAction.inputAmount = amountForLeverage;
-        leverageData.swapAction.outputToken = _WETH_ADDRESS;
-        leverageData.swapAction.target = address(_UNISWAP_V3_SWAP_ROUTER);
+        PendleLPPositionManager.LeverageAction memory leverageAction;
+        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.collateralToken = ICToken(address(strategyCTokenSTETH));
+        leverageAction.swapAction.inputToken = _DAI_ADDRESS;
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = _WETH_ADDRESS;
+        leverageAction.swapAction.target = address(_UNISWAP_V3_SWAP_ROUTER);
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _WETH_ADDRESS;
@@ -392,11 +392,11 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         params.amountIn = amountForLeverage;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        leverageData.swapAction.call = abi.encodeWithSelector(
+        leverageAction.swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
-        leverageData.swapAction.slippage = 0.6e18;
+        leverageAction.swapAction.slippage = 0.6e18;
 
         PendleLib.PendleData memory data;
         data.approx.guessMin = 1e10;
@@ -405,13 +405,13 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
 
-        leverageData.auxData = abi.encode(0, data);
+        leverageAction.auxData = abi.encode(0, data);
 
         positionManager.setDelegateApproval(address(user2), true);
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManager.leverageFor(leverageData, user, 0.05e18); // 5% slippage
+        positionManager.leverageFor(leverageAction, user, 0.05e18); // 5% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);

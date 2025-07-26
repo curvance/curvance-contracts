@@ -12,7 +12,7 @@ contract MockPositionManager is IPositionManager, ERC165 {
         address borrowToken,
         uint256 borrowAmount,
         address owner,
-        LeverageStruct memory leverageData
+        LeverageAction memory leverageAction
     ) external override {}
 
     /// @inheritdoc IPositionManager

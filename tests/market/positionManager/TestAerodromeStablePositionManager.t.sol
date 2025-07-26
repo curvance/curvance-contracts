@@ -184,19 +184,19 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
             address(borrowableCDAI)
         ) * 50) / 100;
 
-        AerodromePositionManager.LeverageStruct memory leverageData;
-        leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAssets = amountForLeverage;
-        leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
-        leverageData.swapAction.inputToken = address(0x0);
-        leverageData.swapAction.inputAmount = 0;
-        leverageData.swapAction.outputToken = address(0x0);
-        leverageData.swapAction.target = address(0x0);
-        leverageData.swapAction.slippage = 0;
-        leverageData.swapAction.call = bytes("");
-        leverageData.auxData = abi.encode(0);
+        AerodromePositionManager.LeverageAction memory leverageAction;
+        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+        leverageAction.swapAction.inputToken = address(0x0);
+        leverageAction.swapAction.inputAmount = 0;
+        leverageAction.swapAction.outputToken = address(0x0);
+        leverageAction.swapAction.target = address(0x0);
+        leverageAction.swapAction.slippage = 0;
+        leverageAction.swapAction.call = bytes("");
+        leverageAction.auxData = abi.encode(0);
 
-        positionManager.leverage(leverageData, 0.05e18); // 5% slippage
+        positionManager.leverage(leverageAction, 0.05e18); // 5% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
@@ -224,21 +224,21 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         // Try leverage with 50% of max.
         uint256 amountForLeverage = 0.66e20;
 
-        AerodromePositionManager.LeverageStruct memory leverageData;
-        leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAssets = amountForLeverage;
-        leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
-        leverageData.swapAction.inputToken = address(0x0);
-        leverageData.swapAction.inputAmount = 0;
-        leverageData.swapAction.outputToken = address(0x0);
-        leverageData.swapAction.target = address(0x0);
-        leverageData.swapAction.slippage = 0;
-        leverageData.swapAction.call = bytes("");
-        leverageData.auxData = abi.encode(0);
+        AerodromePositionManager.LeverageAction memory leverageAction;
+        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+        leverageAction.swapAction.inputToken = address(0x0);
+        leverageAction.swapAction.inputAmount = 0;
+        leverageAction.swapAction.outputToken = address(0x0);
+        leverageAction.swapAction.target = address(0x0);
+        leverageAction.swapAction.slippage = 0;
+        leverageAction.swapAction.call = bytes("");
+        leverageAction.auxData = abi.encode(0);
 
         positionManager.depositAndLeverage(
             0.0001 ether,
-            leverageData,
+            leverageAction,
             0.05e18
         ); // 5% slippage
 
@@ -282,21 +282,21 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
             address(borrowableCDAI)
         );
 
-        AerodromePositionManager.LeverageStruct memory leverageData;
-        leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAssets = amountForLeverage;
-        leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
-        leverageData.swapAction.inputToken = address(0x0);
-        leverageData.swapAction.inputAmount = 0;
-        leverageData.swapAction.outputToken = address(0x0);
-        leverageData.swapAction.target = address(0x0);
-        leverageData.swapAction.slippage = 0;
-        leverageData.swapAction.call = bytes("");
-        leverageData.auxData = abi.encode(0);
+        AerodromePositionManager.LeverageAction memory leverageAction;
+        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+        leverageAction.swapAction.inputToken = address(0x0);
+        leverageAction.swapAction.inputAmount = 0;
+        leverageAction.swapAction.outputToken = address(0x0);
+        leverageAction.swapAction.target = address(0x0);
+        leverageAction.swapAction.slippage = 0;
+        leverageAction.swapAction.call = bytes("");
+        leverageAction.auxData = abi.encode(0);
 
         positionManager.depositAndLeverage(
             0.001 ether,
-            leverageData,
+            leverageAction,
             0.05e18 // 5% slippage
         );
 
@@ -340,21 +340,21 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
             address(borrowableCDAI)
         ) / 2;
 
-        AerodromePositionManager.LeverageStruct memory leverageData;
-        leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAssets = amountForLeverage;
-        leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
-        leverageData.swapAction.inputToken = address(0x0);
-        leverageData.swapAction.inputAmount = 0;
-        leverageData.swapAction.outputToken = address(0x0);
-        leverageData.swapAction.target = address(0x0);
-        leverageData.swapAction.slippage = 0;
-        leverageData.swapAction.call = bytes("");
-        leverageData.auxData = abi.encode(0);
+        AerodromePositionManager.LeverageAction memory leverageAction;
+        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+        leverageAction.swapAction.inputToken = address(0x0);
+        leverageAction.swapAction.inputAmount = 0;
+        leverageAction.swapAction.outputToken = address(0x0);
+        leverageAction.swapAction.target = address(0x0);
+        leverageAction.swapAction.slippage = 0;
+        leverageAction.swapAction.call = bytes("");
+        leverageAction.auxData = abi.encode(0);
 
         positionManager.depositAndLeverage(
             0.001 ether,
-            leverageData,
+            leverageAction,
             0.05e18 // 5% slippage
         );
 
@@ -457,23 +457,23 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
             user,
             address(borrowableCDAI)
         ) * 50) / 100;
-        AerodromePositionManager.LeverageStruct memory leverageData;
-        leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAssets = amountForLeverage;
-        leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
-        leverageData.swapAction.inputToken = address(0x0);
-        leverageData.swapAction.inputAmount = 0;
-        leverageData.swapAction.outputToken = address(0x0);
-        leverageData.swapAction.target = address(0x0);
-        leverageData.swapAction.slippage = 0;
-        leverageData.swapAction.call = bytes("");
-        leverageData.auxData = abi.encode(0);
+        AerodromePositionManager.LeverageAction memory leverageAction;
+        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+        leverageAction.swapAction.inputToken = address(0x0);
+        leverageAction.swapAction.inputAmount = 0;
+        leverageAction.swapAction.outputToken = address(0x0);
+        leverageAction.swapAction.target = address(0x0);
+        leverageAction.swapAction.slippage = 0;
+        leverageAction.swapAction.call = bytes("");
+        leverageAction.auxData = abi.encode(0);
 
         positionManager.setDelegateApproval(address(user2), true);
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManager.leverageFor(leverageData, user, 0.05e18); // 5% slippage
+        positionManager.leverageFor(leverageAction, user, 0.05e18); // 5% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);

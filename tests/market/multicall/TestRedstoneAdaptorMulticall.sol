@@ -308,15 +308,15 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             address(borrowableCUSDC)
         ) * 50) / 100;
 
-        SimplePositionManager.LeverageStruct memory leverageData;
-        leverageData.debtToken = IBorrowableCToken(address(borrowableCUSDC));
-        leverageData.borrowAssets = amountForLeverage;
-        leverageData.collateralToken = ICToken(address(simpleCWBTC));
-        leverageData.swapAction.inputToken = _USDC_ADDRESS;
-        leverageData.swapAction.inputAmount = amountForLeverage;
-        leverageData.swapAction.outputToken = _WBTC_ADDRESS;
-        leverageData.swapAction.target = address(_UNISWAP_V3_SWAP_ROUTER);
-        leverageData.swapAction.slippage = 2e18;
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.debtToken = IBorrowableCToken(address(borrowableCUSDC));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.collateralToken = ICToken(address(simpleCWBTC));
+        leverageAction.swapAction.inputToken = _USDC_ADDRESS;
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = _WBTC_ADDRESS;
+        leverageAction.swapAction.target = address(_UNISWAP_V3_SWAP_ROUTER);
+        leverageAction.swapAction.slippage = 2e18;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _USDC_ADDRESS;
         params.tokenOut = _WBTC_ADDRESS;
@@ -326,11 +326,11 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         params.amountIn = amountForLeverage;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
-        leverageData.swapAction.call = abi.encodeWithSelector(
+        leverageAction.swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
-        leverageData.auxData = bytes("");
+        leverageAction.auxData = bytes("");
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
             2
@@ -356,7 +356,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         calls[1].target = address(positionManager);
         calls[1].data = abi.encodeWithSelector(
             positionManager.leverage.selector,
-            leverageData
+            leverageAction
         );
 
         // try leverage()

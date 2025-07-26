@@ -354,11 +354,11 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ///      Updates pending interest before executing the borrow.
     /// @param account The account address to borrow on behalf of.
     /// @param amount The amount of the underlying asset to borrow.
-    /// @param leverageData Callback calldata to execute after borrow.
+    /// @param leverageAction Callback calldata to execute after borrow.
     function borrowForPositionManager(
         address account,
         uint256 amount,
-        IPositionManager.LeverageStruct memory leverageData
+        IPositionManager.LeverageAction memory leverageAction
     ) external nonReentrant {
         if (!marketManager.isPositionManager(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -383,7 +383,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             address(this),
             account,
             amount,
-            leverageData
+            leverageAction
         );
 
         // Fail if terminal position is not allowed with no additional

@@ -221,18 +221,18 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             (uint256, bytes)
         );
 
-        VelodromePositionManager.LeverageStruct memory leverageData;
-        leverageData.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageData.borrowAssets = amountForLeverage;
-        leverageData.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
-        leverageData.swapAction.inputToken = _DAI_ADDRESS;
-        leverageData.swapAction.inputAmount = swapInputAmount;
-        leverageData.swapAction.outputToken = _USDC_ADDRESS;
-        leverageData.swapAction.target = odosRouterV2;
-        leverageData.swapAction.slippage = 0.005e18; // 0.5%
-        leverageData.swapAction.call = odosCallData;
-        leverageData.auxData = abi.encode(0);
-        positionManager.leverage(leverageData, 0.05e18);
+        VelodromePositionManager.LeverageAction memory leverageAction;
+        leverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
+        leverageAction.swapAction.inputToken = _DAI_ADDRESS;
+        leverageAction.swapAction.inputAmount = swapInputAmount;
+        leverageAction.swapAction.outputToken = _USDC_ADDRESS;
+        leverageAction.swapAction.target = odosRouterV2;
+        leverageAction.swapAction.slippage = 0.005e18; // 0.5%
+        leverageAction.swapAction.call = odosCallData;
+        leverageAction.auxData = abi.encode(0);
+        positionManager.leverage(leverageAction, 0.05e18);
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
