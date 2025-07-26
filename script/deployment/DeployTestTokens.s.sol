@@ -19,7 +19,7 @@ contract DeployTestTokens is Script {
         string[] memory symbols,
         uint8[] memory decimals,
         uint256[] memory initialBalances,
-        uint240[] memory price,
+        uint240[] memory prices,
         address faucet,
         address registry
     ) external {
@@ -28,32 +28,17 @@ contract DeployTestTokens is Script {
         vm.startBroadcast();
 
         ICentralRegistry cr = ICentralRegistry(registry);
+        OracleManager oracleManager = OracleManager(cr.oracleManager());
 
-        // Debug: Check if the registry address is valid
-        require(registry != address(0), "Registry address is zero");
-        require(registry.code.length > 0, "Registry has no code deployed");
-
-        // Debug: Try to call oracleManager with explicit error handling
-        address oracleManagerAddress;
-        try cr.oracleManager() returns (address manager) {
-            oracleManagerAddress = manager;
-        } catch {
-            revert("Failed to call oracleManager() on registry");
-        }
-
-        require(
-            oracleManagerAddress != address(0),
-            "Oracle Manager not set in Central Registry"
-        );
-        OracleManager oracleManager = OracleManager(oracleManagerAddress);
         for (uint256 i = 0; i < names.length; i++) {
             // Create underlying token
+            string memory symbol = symbols[i];
             TestnetToken token = new TestnetToken(
                 names[i],
-                symbols[i],
+                symbol,
                 decimals[i]
             );
-            emit ContractDeployed(address(token), symbols[i]);
+            emit ContractDeployed(address(token), symbol);
 
             // Load faucet
             if (faucet != address(0)) {
@@ -62,18 +47,19 @@ contract DeployTestTokens is Script {
             }
 
             // Setup fake oracle feed
-            if (price[i] != 0) {
+            uint240 price = prices[i];
+            if (price != 0) {
                 MockOracleAdaptor adaptor = new MockOracleAdaptor(cr);
                 oracleManager.addApprovedAdaptor(address(adaptor));
                 adaptor.addAsset(address(token));
-                adaptor.setPrice(address(token), price[i], price[i]);
+                adaptor.setPrice(address(token), price, price);
                 oracleManager.addAssetPriceFeed(
                     address(token),
                     address(adaptor)
                 );
                 emit ContractDeployed(
                     address(adaptor),
-                    string.concat(symbols[i], "-Oracle")
+                    string.concat(symbol, "-Oracle")
                 );
             }
         }

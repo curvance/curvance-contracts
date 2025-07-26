@@ -26,6 +26,12 @@ contract DeployMarkets is Script {
         uint256 decayRate;
     }
 
+    struct AvailablePlugins {
+        bool simplePositionManager;
+        bool simpleZapper;
+        bool vaultZapper;
+    }
+
     struct ListConfig {
         address underlyingAddress;
         bool canBorrow;
@@ -41,8 +47,9 @@ contract DeployMarkets is Script {
         address centralRegistry,
         string[] memory names,
         ListConfig[][] memory tokens,
-        uint256[] memory interestFactors,
-        address wrappedNative
+        uint256[] memory interestFees,
+        address wrappedNative,
+        AvailablePlugins[] memory plugins
     ) external {
         logger = new DeploymentLogger();
         vm.recordLogs();
@@ -53,19 +60,18 @@ contract DeployMarkets is Script {
         OracleManager router = OracleManager(registry.oracleManager());
 
         for (uint256 i = 0; i < names.length; i++) {
-            // Grab specific market parameters
             string memory name = names[i];
-            uint256 interestFactor = interestFactors[i];
             ListConfig[] memory tokens = tokens[i];
 
             MarketManagerIsolated market = new MarketManagerIsolated(icr);
-            registry.addMarketManager(address(market), interestFactor);
+            registry.addMarketManager(address(market), interestFees[i]);
             emit ContractDeployed(
                 address(market),
                 string.concat("Market-", name)
             );
 
-            _deployPlugins(icr, market, wrappedNative, name);
+            _deployPlugins(icr, market, wrappedNative, name, plugins[i]);
+
             address[] memory cTokens = _deployCTokens(
                 tokens,
                 router,
@@ -189,25 +195,42 @@ contract DeployMarkets is Script {
         ICentralRegistry icr,
         MarketManagerIsolated market,
         address wrappedNative,
-        string memory marketName
+        string memory marketName,
+        AvailablePlugins memory plugins
     ) internal {
-        SimplePositionManager simplePositionManager = new SimplePositionManager(
-                icr,
-                address(market),
-                wrappedNative
+        if (plugins.simplePositionManager) {
+            SimplePositionManager simplePositionManager = new SimplePositionManager(
+                    icr,
+                    address(market),
+                    wrappedNative
+                );
+            MarketManagerIsolated(market).addPositionManager(
+                address(simplePositionManager)
             );
-        MarketManagerIsolated(market).addPositionManager(
-            address(simplePositionManager)
-        );
-        emit ContractDeployed(
-            address(simplePositionManager),
-            string.concat("Market-", marketName, "-simplePositionManager")
-        );
+            emit ContractDeployed(
+                address(simplePositionManager),
+                string.concat("Market-", marketName, "-simplePositionManager")
+            );
+        }
 
-        SimpleZapper simpleZapper = new SimpleZapper(icr, wrappedNative);
-        emit ContractDeployed(
-            address(simpleZapper),
-            string.concat("Market-", marketName, "-simpleZapper")
-        );
+        if (plugins.simpleZapper) {
+            SimpleZapper simpleZapper = new SimpleZapper(icr, wrappedNative);
+            emit ContractDeployed(
+                address(simpleZapper),
+                string.concat("Market-", marketName, "-simpleZapper")
+            );
+        }
+
+        if (plugins.vaultZapper) {
+            // VaultZapper is not yet implemented, but can be added here in the future.
+            // Uncomment the following lines when ready to deploy VaultZapper.
+            /*
+            VaultZapper vaultZapper = new VaultZapper(icr, wrappedNative);
+            emit ContractDeployed(
+                address(vaultZapper),
+                string.concat("Market-", marketName, "-vaultZapper")
+            );
+            */
+        }
     }
 }
