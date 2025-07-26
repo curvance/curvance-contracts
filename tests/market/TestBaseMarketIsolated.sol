@@ -957,7 +957,22 @@ contract TestBaseMarketIsolated is TestBase {
                 marketManagerIsolated.liquidationStatusOf(params.borrower, params.collateralToken, params.borrowedToken);
         }
 
-        if(lFactor == 0) {
+        // Handle auction scenarios where lFactor=0 but auction buffer makes it liquidatable
+        if(lFactor == 0 && params.isAuction) {
+
+            lFactor = _calculateAuctionLFactor(params, marketManager_);
+
+            if(lFactor == 0) {
+                console2.log("lFactor is 0 even with auction buffer");
+                return ExpectedLiquidationValues({
+                    debtRepaid: 0,
+                    collateralLiquidated: 0,
+                    badDebt: 0,
+                    collateralRequired: 0,
+                    maxAmountRepaid: 0
+                });
+            }
+        } else if(lFactor == 0) {
             console2.log("lFactor is 0");
             return ExpectedLiquidationValues({
                 debtRepaid: 0,
@@ -968,10 +983,9 @@ contract TestBaseMarketIsolated is TestBase {
             });
         }
 
-        // Calculate closeFactorAuction & debtToCollateral
-
-        (uint256 debtToCollateral, uint256 cFactor) = 
-            _calculateAuctionCFactorAndDebtToCollateral(
+        // calculate auctionCFactor & debtToCollateralMultiplier
+        (uint256 debtToCollateralMultiplier, uint256 cFactor) = 
+            _calculateAuctionCFactorAndDebtToCollateralMultiplier(
                 params.borrower,
                 params.collateralToken,
                 params.borrowedToken,
@@ -994,7 +1008,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         console2.log("debtRepaid after if(params.isLiquidateExact) ", expectedLiquidationValues.debtRepaid);
 
-        expectedLiquidationValues.collateralLiquidated = (expectedLiquidationValues.debtRepaid * debtToCollateral) / WAD_SQUARED;
+        expectedLiquidationValues.collateralLiquidated = (expectedLiquidationValues.debtRepaid * debtToCollateralMultiplier) / WAD_SQUARED;
 
         console2.log("collateralLiquidated", expectedLiquidationValues.collateralLiquidated);
         console2.log("collateralAvailable", collateralAvailable);
@@ -1010,7 +1024,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         console2.log("debtRepaid after collateralLiquidated > collateralAvailable ", expectedLiquidationValues.debtRepaid);
 
-        expectedLiquidationValues.collateralRequired = (debtBalance * debtToCollateral) / WAD_SQUARED;
+        expectedLiquidationValues.collateralRequired = (debtBalance * debtToCollateralMultiplier) / WAD_SQUARED;
 
         expectedLiquidationValues.badDebt = _calculateExpectedBadDebt(
             params.borrower,
@@ -1023,31 +1037,31 @@ contract TestBaseMarketIsolated is TestBase {
 
     }
     
-    function _calculateAuctionCFactorAndDebtToCollateral(
+    function _calculateAuctionCFactorAndDebtToCollateralMultiplier(
         address _borrower,
         address _collateralToken,
         address _debtToken,
         bool _isAuction,
         MarketManagerIsolated _marketManager
     ) internal view 
-    returns (uint256 debtToCollateral, uint256 cFactor) {
+    returns (uint256 debtToCollateralMultiplier, uint256 cFactor) {
 
         LiquidationCalcData memory data;
 
-        (,,,, data.liqIncBase, data.liqIncCurve,,, data.closeFactorBase, data.closeFactorCurve,,)
-            = _marketManager.tokenData(address(_collateralToken));
+        (,,,, data.liqBaseIncentive, data.liqCurve,,,,, data.baseCFactor, data.cFactorCurve) = 
+            _marketManager.tokenData(address(_collateralToken));
 
         (data.lFactor, data.collateralTokenPrice, data.debtTokenPrice) = 
             _marketManager.liquidationStatusOf(_borrower, _collateralToken, _debtToken);
 
         if (_isAuction) {
-            (data.liqInc, cFactor) = _marketManager.getLatestAuctionParameters();
+            (data.liqIncentive, cFactor) = _marketManager.getLatestAuctionParameters();
         } else {
-            cFactor = data.closeFactorBase + ((data.closeFactorCurve * data.lFactor) / WAD);
-            data.liqInc = data.liqIncBase + ((data.liqIncCurve * data.lFactor) / WAD);
+            cFactor = data.baseCFactor + ((data.cFactorCurve * data.lFactor) / WAD);
+            data.liqIncentive = data.liqBaseIncentive + ((data.liqCurve * data.lFactor) / WAD);
         }
 
-        console2.log("data.liqInc from auction", data.liqInc);
+        console2.log("data.liqIncentive from auction", data.liqIncentive);
         console2.log("cFactor from auction", cFactor);
 
         data.collateralTokenDecimals = 10 ** ICToken(_collateralToken).decimals();
@@ -1055,7 +1069,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         uint256 collateralExchangeRate = ICToken(_collateralToken).exchangeRate();
 
-        debtToCollateral = (((data.liqInc *
+        debtToCollateralMultiplier = (((data.liqIncentive *
             data.debtTokenPrice * WAD_SQUARED) /
             (data.collateralTokenPrice * collateralExchangeRate)) * 
             data.collateralTokenDecimals) / data.debtTokenDecimals;
@@ -1115,6 +1129,30 @@ contract TestBaseMarketIsolated is TestBase {
                 badDebt = debtBalance - _debtAmount;
             }
         }    
+    }
+
+    function _calculateAuctionLFactor(
+        LiquidationParams memory params,
+        MarketManagerIsolated marketManager_
+    ) internal view returns (uint256) {
+        // Get collateral and debt values
+        (uint256 collateralSoft,, uint256 debt) =
+            marketManager_.liquidationValuesOf(params.borrower);
+
+        // Apply auction buffer
+        uint256 AUCTION_BUFFER = marketManager_.AUCTION_BUFFER();
+        uint256 adjustedCollateralSoft = (collateralSoft * AUCTION_BUFFER) / WAD;
+
+        // Recalculate lFactor with buffered collateral
+        if (adjustedCollateralSoft == 0) {
+            return 0;
+        }
+
+        // Get collateral requirement
+        (,,,, uint256 collReqSoft,,,,,,,) = marketManager_.tokenData(params.collateralToken);
+
+        // Calculate lFactor: (debt * collReqSoft) / adjustedCollateralSoft
+        return (debt * collReqSoft) / adjustedCollateralSoft;
     }
 
     function _harvestAuraStrategyRewards(uint256 time) internal {
