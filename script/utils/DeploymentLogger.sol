@@ -3,28 +3,16 @@ pragma solidity ^0.8.26;
 
 import { Script } from "forge-std/Script.sol";
 import { Vm } from "forge-std/Vm.sol";
+import { VmSafe } from "forge-std/Vm.sol";
 
 contract DeploymentLogger is Script {
     string constant DEPLOYMENT_FILE = "/broadcast/deployment.json";
 
     /**
-     * @notice Clear the deployment.json file
-     */
-    function clearDeploymentLog() external {
-        string memory outputPath = string.concat(
-            vm.projectRoot(),
-            DEPLOYMENT_FILE
-        );
-
-        // Create empty logs array
-        vm.writeFile(outputPath, "[]");
-    }
-
-    /**
      * @notice Save recorded logs to deployment.json (appends to existing)
      * @param logs Array of logs from vm.getRecordedLogs()
      */
-    function saveLogsToDeployment(Vm.Log[] memory logs) external {
+    function saveLogsToDeployment(Vm.Log[] memory logs) public {
         if (logs.length == 0) return;
 
         string memory outputPath = string.concat(
@@ -32,44 +20,9 @@ contract DeploymentLogger is Script {
             DEPLOYMENT_FILE
         );
 
-        // Load existing logs
-        Vm.Log[] memory existingLogs = loadExistingLogs();
-
-        // Create new array with existing + new logs
-        Vm.Log[] memory allLogs = new Vm.Log[](
-            existingLogs.length + logs.length
-        );
-
-        // Copy existing logs
-        for (uint256 i = 0; i < existingLogs.length; i++) {
-            allLogs[i] = existingLogs[i];
-        }
-
-        // Add new logs
-        for (uint256 i = 0; i < logs.length; i++) {
-            allLogs[existingLogs.length + i] = logs[i];
-        }
-
         // Serialize and save all logs
-        string memory json = serializeLogs(allLogs);
+        string memory json = serializeLogs(logs);
         vm.writeFile(outputPath, json);
-    }
-
-    // Internal functions
-
-    function loadExistingLogs() internal view returns (Vm.Log[] memory) {
-        string memory outputPath = string.concat(
-            vm.projectRoot(),
-            DEPLOYMENT_FILE
-        );
-
-        try vm.readFile(outputPath) returns (string memory) {
-            // For simplicity, return empty array - appending will work
-            return new Vm.Log[](0);
-        } catch {
-            // File doesn't exist, return empty array
-            return new Vm.Log[](0);
-        }
     }
 
     function serializeLogs(
