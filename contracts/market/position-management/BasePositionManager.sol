@@ -484,13 +484,13 @@ abstract contract BasePositionManager is
         }
 
         // Transfer remaining swap dust back to the user.
-        if (deleverageAction.swapAction.length > 0) {
-            for (uint256 i; i < deleverageAction.swapAction.length; ++i) {
-                remaining = IERC20(deleverageAction.swapAction[i].outputToken)
+        if (deleverageAction.swapActions.length > 0) {
+            for (uint256 i; i < deleverageAction.swapActions.length; ++i) {
+                remaining = IERC20(deleverageAction.swapActions[i].outputToken)
                     .balanceOf(address(this));
                 if (remaining > 0) {
                     SafeTransferLib.safeTransfer(
-                        deleverageAction.swapAction[i].outputToken,
+                        deleverageAction.swapActions[i].outputToken,
                         owner,
                         remaining
                     );

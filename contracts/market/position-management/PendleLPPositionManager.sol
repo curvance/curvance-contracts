@@ -130,7 +130,7 @@ contract PendleLPPositionManager is BasePositionManager {
         address lpToken = deleverageAction.cToken.asset();
         address debtAsset = deleverageAction.borrowableCToken.asset();
         (IStandardizedYield sy, , ) = IPMarket(lpToken).readTokens();
-        SwapperLib.Swap[] memory swapActions = deleverageAction.swapAction;
+        SwapperLib.Swap[] memory swapActions = deleverageAction.swapActions;
 
         address tokenOut;
         if (sy.isValidTokenOut(debtAsset)) {

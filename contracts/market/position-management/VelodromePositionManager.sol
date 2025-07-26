@@ -155,7 +155,7 @@ contract VelodromePositionManager is BasePositionManager {
     ) internal virtual override {
         address pool = deleverageAction.cToken.asset();
         address debtAsset = deleverageAction.borrowableCToken.asset();
-        SwapperLib.Swap[] memory swapActions = deleverageAction.swapAction;
+        SwapperLib.Swap[] memory swapActions = deleverageAction.swapActions;
 
         VelodromeLib._exitVelodrome(
             router,

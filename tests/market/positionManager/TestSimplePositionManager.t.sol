@@ -220,15 +220,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageAction.collateralToken = ICToken(address(borrowableCUSDC));
         deleverageAction.collateralAssets = 900e6;
         deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageAction.swapAction = new SwapperLib.Swap[](1);
-        deleverageAction.swapAction[0].inputToken = address(usdc);
-        deleverageAction.swapAction[0].inputAmount = 900e6;
-        deleverageAction.swapAction[0].outputToken = address(dai);
-        deleverageAction.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = address(usdc);
+        deleverageAction.swapActions[0].inputAmount = 900e6;
+        deleverageAction.swapActions[0].outputToken = address(dai);
+        deleverageAction.swapActions[0].target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = address(dai);
-        deleverageAction.swapAction[0].call = abi.encodeWithSignature(
+        deleverageAction.swapActions[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             900e6,
             0,
@@ -236,7 +236,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageAction.swapAction[0].slippage = 0.3e18;
+        deleverageAction.swapActions[0].slippage = 0.3e18;
         deleverageAction.repayAssets = 890 ether;
         positionManager.deleverage(deleverageAction, 0.05e18); // 5% slippage
 
@@ -337,15 +337,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageAction.collateralToken = ICToken(address(borrowableCUSDC));
         deleverageAction.collateralAssets = 900e6;
         deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageAction.swapAction = new SwapperLib.Swap[](1);
-        deleverageAction.swapAction[0].inputToken = address(usdc);
-        deleverageAction.swapAction[0].inputAmount = 900e6;
-        deleverageAction.swapAction[0].outputToken = address(dai);
-        deleverageAction.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = address(usdc);
+        deleverageAction.swapActions[0].inputAmount = 900e6;
+        deleverageAction.swapActions[0].outputToken = address(dai);
+        deleverageAction.swapActions[0].target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = address(dai);
-        deleverageAction.swapAction[0].call = abi.encodeWithSignature(
+        deleverageAction.swapActions[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             900e6,
             0,
@@ -353,7 +353,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageAction.swapAction[0].slippage = 0.3e18;
+        deleverageAction.swapActions[0].slippage = 0.3e18;
         deleverageAction.repayAssets = 890 ether;
         borrowableCUSDC.approve(address(positionManager), type(uint256).max);
 
@@ -442,15 +442,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageAction.collateralToken = ICToken(address(borrowableCUSDC));
         deleverageAction.collateralAssets = 900e6;
         deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageAction.swapAction = new SwapperLib.Swap[](1);
-        deleverageAction.swapAction[0].inputToken = address(usdc);
-        deleverageAction.swapAction[0].inputAmount = 900e6;
-        deleverageAction.swapAction[0].outputToken = address(dai);
-        deleverageAction.swapAction[0].target = address(0); // Invalid target
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = address(usdc);
+        deleverageAction.swapActions[0].inputAmount = 900e6;
+        deleverageAction.swapActions[0].outputToken = address(dai);
+        deleverageAction.swapActions[0].target = address(0); // Invalid target
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = address(dai);
-        deleverageAction.swapAction[0].call = abi.encodeWithSignature(
+        deleverageAction.swapActions[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             900e6,
             0,
@@ -458,7 +458,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageAction.swapAction[0].slippage = 0.3e18;
+        deleverageAction.swapActions[0].slippage = 0.3e18;
         deleverageAction.repayAssets = 890 ether;
         
         // Should revert with `InvalidSwapperParam`.
@@ -528,15 +528,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageAction.collateralToken = ICToken(address(borrowableCUSDC));
         deleverageAction.collateralAssets = 900e6;
         deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageAction.swapAction = new SwapperLib.Swap[](1);
-        deleverageAction.swapAction[0].inputToken = address(dai); // Incorrect input token (should be USDC)
-        deleverageAction.swapAction[0].inputAmount = 900e6;
-        deleverageAction.swapAction[0].outputToken = address(dai);
-        deleverageAction.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = address(dai); // Incorrect input token (should be USDC)
+        deleverageAction.swapActions[0].inputAmount = 900e6;
+        deleverageAction.swapActions[0].outputToken = address(dai);
+        deleverageAction.swapActions[0].target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = address(dai);
-        deleverageAction.swapAction[0].call = abi.encodeWithSignature(
+        deleverageAction.swapActions[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             900e6,
             0,
@@ -544,7 +544,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageAction.swapAction[0].slippage = 0.3e18;
+        deleverageAction.swapActions[0].slippage = 0.3e18;
         deleverageAction.repayAssets = 890 ether;
         
         // Should revert with `InvalidSwapperParam`.
@@ -661,15 +661,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageAction.collateralToken = ICToken(address(borrowableCUSDC));
         deleverageAction.collateralAssets = 900e6;
         deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageAction.swapAction = new SwapperLib.Swap[](1);
-        deleverageAction.swapAction[0].inputToken = address(usdc);
-        deleverageAction.swapAction[0].inputAmount = 800e6; // Incorrect amount (should match collateralAmount)
-        deleverageAction.swapAction[0].outputToken = address(dai);
-        deleverageAction.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = address(usdc);
+        deleverageAction.swapActions[0].inputAmount = 800e6; // Incorrect amount (should match collateralAmount)
+        deleverageAction.swapActions[0].outputToken = address(dai);
+        deleverageAction.swapActions[0].target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = address(dai);
-        deleverageAction.swapAction[0].call = abi.encodeWithSignature(
+        deleverageAction.swapActions[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             800e6,
             0,
@@ -677,7 +677,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageAction.swapAction[0].slippage = 0.3e18;
+        deleverageAction.swapActions[0].slippage = 0.3e18;
         deleverageAction.repayAssets = 890 ether;
         
         // Should revert with InvalidSwapperParam
@@ -736,7 +736,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageAction.collateralToken = ICToken(address(borrowableCUSDC));
         deleverageAction.collateralAssets = 900e6;
         deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageAction.swapAction = new SwapperLib.Swap[](0); // Empty array
+        deleverageAction.swapActions = new SwapperLib.Swap[](0); // Empty array
         deleverageAction.repayAssets = 890 ether;
         
         // Should revert with InvalidSwapperParam
@@ -861,15 +861,15 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deleverageAction.collateralToken = ICToken(address(borrowableCUSDC));
         deleverageAction.collateralAssets = 900e6;
         deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageAction.swapAction = new SwapperLib.Swap[](1);
-        deleverageAction.swapAction[0].inputToken = address(usdc);
-        deleverageAction.swapAction[0].inputAmount = 900e6;
-        deleverageAction.swapAction[0].outputToken = address(dai);
-        deleverageAction.swapAction[0].target = address(_UNISWAP_V2_ROUTER);
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = address(usdc);
+        deleverageAction.swapActions[0].inputAmount = 900e6;
+        deleverageAction.swapActions[0].outputToken = address(dai);
+        deleverageAction.swapActions[0].target = address(_UNISWAP_V2_ROUTER);
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = address(dai);
-        deleverageAction.swapAction[0].call = abi.encodeWithSignature(
+        deleverageAction.swapActions[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             900e6,
             0,
@@ -877,7 +877,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             block.timestamp
         );
-        deleverageAction.swapAction[0].slippage = 0.3e18;
+        deleverageAction.swapActions[0].slippage = 0.3e18;
         deleverageAction.repayAssets = 890 ether;
         borrowableCUSDC.approve(address(positionManager), type(uint256).max);
         

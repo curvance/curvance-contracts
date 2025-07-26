@@ -127,13 +127,14 @@ contract VelodromeZapper is ZapperBase {
 
     /// @notice Withdraws from a Curvance Velodrome position, and zaps it
     ///         into desired token (zapAction.outputToken).
-    /// @param redeemAction Struct containing information on the desired
-    ///                     redemption action to execute. Containing values:
-    ///                     1. The address of the strategyCToken corresponding
-    ///                        to Velodrome token to be exited.
-    ///                     2. The amount of shares to redeemed.
-    ///                     3. Whether the collateral should be directly
-    ///                        reduced from caller's posted collateral.
+    /// @param redeemAction Instructions for a redemption action containing:
+    ///                     cToken The address of the cToken corresponding to
+    ///                            the redemption action.
+    ///                     shares The amount of shares to redeemed.
+    ///                     forceRedeemCollateral Whether the collateral
+    ///                                           should be always reduced
+    ///                                           from caller's collateralized
+    ///                                           shares.
     /// @param router The Velodrome router address.
     /// @param zapAction Instructions to execute the zap action.
     /// @param swapActions Array of swap instruction data to execute the zap.

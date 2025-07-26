@@ -141,13 +141,14 @@ contract PendleZapper is ZapperBase {
 
     /// @notice Withdraws from a Curvance Pendle position, and zaps it
     ///         into desired token (zapAction.outputToken).
-    /// @param redeemAction Struct containing information on the desired
-    ///                     redemption action to execute. Containing values:
-    ///                     1. The address of the strategyCToken corresponding
-    ///                        to Pendle lp token to be exited.
-    ///                     2. The amount of shares to redeemed.
-    ///                     3. Whether the collateral should be directly
-    ///                        reduced from caller's posted collateral.
+    /// @param redeemAction Instructions for a redemption action containing:
+    ///                     cToken The address of the cToken corresponding to
+    ///                            the redemption action.
+    ///                     shares The amount of shares to redeemed.
+    ///                     forceRedeemCollateral Whether the collateral
+    ///                                           should be always reduced
+    ///                                           from caller's collateralized
+    ///                                           shares.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param token The underlying token address of the SY.

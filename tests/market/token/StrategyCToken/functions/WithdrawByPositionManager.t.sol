@@ -69,13 +69,13 @@ contract WithdrawByPositionManagerTest is TestBaseMarketIsolated {
 
         borrowableCUSDC.borrow(100e6, user1);
 
-        SwapperLib.Swap[] memory swapAction; // empty swap data
+        SwapperLib.Swap[] memory swapActions; // empty swap data
         
         // We aren't using this struct, only for required arguments.
         IPositionManager.DeleverageAction memory deleverageAction;
         deleverageAction.collateralToken = ICToken(address(strategyCBALRETH));
         deleverageAction.debtToken = IBorrowableCToken(address(borrowableCUSDC));
-        deleverageAction.swapAction = swapAction;
+        deleverageAction.swapActions = swapActions;
 
         vm.stopPrank();
 

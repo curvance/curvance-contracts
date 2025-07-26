@@ -302,13 +302,13 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             deleverageAction.collateralToken = ICToken(address(strategyCTokenUSDCDAI));
             deleverageAction.collateralAssets = collateralAmount;
             deleverageAction.debtToken = IBorrowableCToken(address(borrowableCDAI));
-            deleverageAction.swapAction = new SwapperLib.Swap[](1);
-            deleverageAction.swapAction[0].inputToken = _USDC_ADDRESS;
-            deleverageAction.swapAction[0].inputAmount = usdcOutAmount;
-            deleverageAction.swapAction[0].outputToken = _DAI_ADDRESS;
-            deleverageAction.swapAction[0].target = address(odosRouterV2);
-            deleverageAction.swapAction[0].slippage = 0.005e18; // 0.5%
-            deleverageAction.swapAction[0].call = odosCallData;
+            deleverageAction.swapActions = new SwapperLib.Swap[](1);
+            deleverageAction.swapActions[0].inputToken = _USDC_ADDRESS;
+            deleverageAction.swapActions[0].inputAmount = usdcOutAmount;
+            deleverageAction.swapActions[0].outputToken = _DAI_ADDRESS;
+            deleverageAction.swapActions[0].target = address(odosRouterV2);
+            deleverageAction.swapActions[0].slippage = 0.005e18; // 0.5%
+            deleverageAction.swapActions[0].call = odosCallData;
             deleverageAction.repayAssets = daiOutAmount + (minDaiOut / 10) * 9;
         }
 

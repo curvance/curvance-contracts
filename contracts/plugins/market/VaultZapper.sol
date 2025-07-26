@@ -83,13 +83,14 @@ contract VaultZapper is ZapperBase {
     /// @notice Withdraws from a Curvance position, and swaps it into
     ///         desired token (swapAction.outputToken).
     /// @dev Requires plugin approval for redemption.
-    /// @param redeemAction Struct containing information on redemption
-    ///                     action to execute. Containing values:
-    ///                     1. The address of the cToken corresponding to
-    ///                        position to be exited.
-    ///                     2. The amount of shares to redeemed.
-    ///                     3. Whether the collateral should be directly
-    ///                        reduced from caller's posted collateral.
+    /// @param redeemAction Instructions for a redemption action containing:
+    ///                     cToken The address of the cToken corresponding to
+    ///                            the redemption action.
+    ///                     shares The amount of shares to redeemed.
+    ///                     forceRedeemCollateral Whether the collateral
+    ///                                           should be always reduced
+    ///                                           from caller's collateralized
+    ///                                           shares.
     /// @param swapAction Instructions for executing a swap.
     /// @param receiver Address that should receive `swapAction.outputToken`.
     /// @return outAmount The amount of `swapAction.outputToken` that was
@@ -130,13 +131,14 @@ contract VaultZapper is ZapperBase {
     ///         it into a new position.
     /// @dev Requires plugin approval for redemption.
     /// @param cToken The Curvance token (cToken) address.
-    /// @param redeemAction Struct containing information on redemption
-    ///                     action to execute. Containing values:
-    ///                     1. The address of the cToken corresponding to
-    ///                        position to be exited.
-    ///                     2. The amount of shares to redeemed.
-    ///                     3. Whether the collateral should be directly
-    ///                        reduced from caller's posted collateral.
+    /// @param redeemAction Instructions for a redemption action containing:
+    ///                     cToken The address of the cToken corresponding to
+    ///                            the redemption action.
+    ///                     shares The amount of shares to redeemed.
+    ///                     forceRedeemCollateral Whether the collateral
+    ///                                           should be always reduced
+    ///                                           from caller's collateralized
+    ///                                           shares.
     /// @param swapAction Instructions for executing a swap into collateral
     ///                   asset.
     /// @param expectedShares The minimum expected amount of shares received

@@ -95,7 +95,7 @@ contract SimplePositionManager is BasePositionManager {
     function _swapCollateralAssetToDebtAsset(
         DeleverageAction memory deleverageAction
     ) internal virtual override {
-        SwapperLib.Swap[] memory swapActions = deleverageAction.swapAction;
+        SwapperLib.Swap[] memory swapActions = deleverageAction.swapActions;
         if (swapActions.length != 1) {
             revert BasePositionManager__InvalidParam();
         }

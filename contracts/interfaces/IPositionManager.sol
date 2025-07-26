@@ -44,7 +44,7 @@ interface IPositionManager {
         uint256 collateralAssets;
         IBorrowableCToken borrowableCToken;
         uint256 repayAssets;
-        SwapperLib.Swap[] swapAction;
+        SwapperLib.Swap[] swapActions;
         bytes auxData;
     }
 
