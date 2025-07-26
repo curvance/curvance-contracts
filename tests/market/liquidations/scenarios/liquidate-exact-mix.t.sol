@@ -32,8 +32,8 @@ contract LiquidateExactMix is TestBaseLiquidations {
 
     uint256 WAD_SQUARED = 1e36;
 
-    uint256 liqBaseIncentive;
-    uint256 liqCurve;
+    uint256 liqIncBase;
+    uint256 liqIncCurve;
     uint256 closeFactorBase;
     uint256 closeFactorCurve;
 
@@ -105,11 +105,11 @@ contract LiquidateExactMix is TestBaseLiquidations {
         mockWethFeed.setMockAnswer(1300e8);
         mockRethFeed.setMockAnswer(1300e8);
 
-        (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 closeFactorBase_, uint256 closeFactorCurve_) = 
-            marketManagerIsolated.tokenData(address(strategyCBALRETH));
+        (,,, uint256 liqIncBase_, uint256 liqIncCurve_,,, uint256 closeFactorBase_, uint256 closeFactorCurve_,,,)
+            = marketManagerIsolated.tokenData(address(strategyCBALRETH));
 
-        liqBaseIncentive = liqBaseIncentive_;
-        liqCurve = liqCurve_;
+        liqIncBase = liqIncBase_;
+        liqIncCurve = liqIncCurve_;
         closeFactorBase = closeFactorBase_;
         closeFactorCurve = closeFactorCurve_;
 

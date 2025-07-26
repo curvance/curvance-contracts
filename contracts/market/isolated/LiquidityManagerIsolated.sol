@@ -31,20 +31,18 @@ abstract contract LiquidityManagerIsolated {
     /// @notice Storage configuration for how a Curvance token should behave
     ///         in the liquidity manager.
     /// @param isListed Whether or not this Curvance token is listed.
-    ///                 false = unlisted; true = listed.
+    /// @dev false = unlisted; true = listed.
     /// @param collRatio The ratio at which this token can be collateralized.
-    ///                  in `WAD`, e.g. 0.8e18 = 80% collateral value.
+    /// @dev In `WAD`, e.g. 0.8e18 = 80% collateral value.
     /// @param collReqSoft The collateral requirement where dipping below this
     ///                    will cause a soft liquidation.
     /// @dev In `WAD`, e.g. 1.2e18 = 120% collateral vs debt value.
     /// @param collReqHard The collateral requirement where dipping below
     ///                    this will cause a hard liquidation.
     /// @dev In `WAD`, e.g. 1.2e18 = 120% collateral vs debt value.
-    ///      NOTE: Should ALWAYS be less than `collReqSoft`.
     /// @param liqIncBase The base ratio at which this token will be
     ///                   compensated on soft liquidation.
-    /// @dev In `WAD`, stored as (Incentive + WAD) e.g. 1.05e18 = 5% incentive,
-    ///      this saves gas for liquidation calculations.
+    /// @dev In `WAD`, stored as Incentive + WAD e.g. 1.05e18 = 5% incentive.
     /// @param liqIncCurve The liquidation incentive curve length between
     ///                    soft liquidation to hard liquidation.
     ///                    e.g. 5% base incentive with 8% curve length results
@@ -52,20 +50,24 @@ abstract contract LiquidityManagerIsolated {
     /// @dev In `WAD`, e.g. 0.05e18 = 5% maximum additional incentive.
     /// @param liqIncMin The minimum possible liquidation incentive for
     ///                  during an auction, in basis points.
+    /// @dev In `WAD`, stored as Incentive + WAD e.g. 1.03e18 = 3% incentive.
     /// @param liqIncMax The maximum possible liquidation incentive for
     ///                  during an auction, in basis points.
+    /// @dev In `WAD`, stored as Incentive + WAD e.g. 1.07e18 = 7% incentive.
     /// @param closeFactorBase Maximum % that a liquidator can repay when soft
     ///                        liquidating an account.
     /// @dev In `WAD` format, e.g. 0.1e18 = 10% base close factor.
     /// @param closeFactorCurve Curve length between soft liquidation and hard
     ///                         liquidation, should be equal to
     ///                         100% - `closeFactorBase`.
-    /// @dev In `WAD` format, e.g. 0.9e18 = 90% distance between base cFactor,
-    ///      and 100%.
+    /// @dev In `WAD` format, e.g. 0.9e18 = 90% distance between
+    ///      `closeFactorBase`, and 100%.
     /// @param closeFactorMin The minimum possible close factor for during an
     ///                       auction, in basis points.
+    /// @dev In `WAD` format, e.g. 0.2e18 = 20% minimum close factor.
     /// @param closeFactorMax The maximum possible close factor for during an 
     ///                       auction, in basis points.
+    /// @dev In `WAD` format, e.g. 0.4e18 = 40% maximum close factor.
     struct CurvanceToken {
         bool isListed;
         uint256 collRatio;
