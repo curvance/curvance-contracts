@@ -1332,7 +1332,7 @@ contract MarketManagerIsolated is
         // Check account liquidity with hypothetical cToken redemption.
         (
             HypotheticalResult memory result,
-            bool[] memory positions
+            bool[] memory positionsToClose
         ) = _hypotheticalLiquidityOf(
                 account,
                 HypotheticalAction({
