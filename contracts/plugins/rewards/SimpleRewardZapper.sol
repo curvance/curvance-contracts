@@ -51,7 +51,15 @@ contract SimpleRewardZapper is ZapperBase {
 
     /// @notice Claims Reward Manager rewards, then swaps and transfers
     ///         `swapAction.outputToken` to `receiver`.
-    /// @param swapAction Instructions for executing a swap.
+    /// @param swapAction Instructions for a swap action containing:
+    ///                   inputToken Address of input token to swap from.
+    ///                   inputAmount The amount of `inputToken` to swap.
+    ///                   outputToken Address of token to swap into.
+    ///                   target Address of the swapper, usually an
+    ///                          aggregator.
+    ///                   slippage The amount of value-loss acceptable from
+    ///                            swapping between tokens.
+    ///                   call Swap instruction calldata.
     /// @param receiver Address that should receive `swapAction.outputToken`.
     /// @return outAmount The amount of `swapAction.outputToken` that was
     ///                   received by `receiver`.
@@ -99,11 +107,20 @@ contract SimpleRewardZapper is ZapperBase {
     }
 
     /// @notice Claims Reward Manager rewards, then Zaps, then deposits
-    ///         `zapperCall.inputToken`, a cToken underlying, and enters
-    ///         into Curvance collateral position.
+    ///         `zapperCall.inputToken`, a cToken asset, enters into Curvance
+    ///         position, for `receiver`.
     /// @param cToken The Curvance cToken address to deposit into.
     /// @param swapAction Instructions for executing a swap into collateral
     ///                   asset.
+    ///                   Containing:
+    ///                   inputToken Address of input token to swap from.
+    ///                   inputAmount The amount of `inputToken` to swap.
+    ///                   outputToken Address of token to swap into.
+    ///                   target Address of the swapper, usually an
+    ///                          aggregator.
+    ///                   slippage The amount of value-loss acceptable from
+    ///                            swapping between tokens.
+    ///                   call Swap instruction calldata.
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of
     ///                       `swapAction.outputToken` into `cToken` position.
@@ -143,7 +160,7 @@ contract SimpleRewardZapper is ZapperBase {
         if (swapAction.inputToken == swapAction.outputToken) {
             outAmount = swapAction.inputAmount;
         } else {
-            // Execute swap into cToken underlying.
+            // Execute swap into cToken asset.
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
@@ -161,9 +178,18 @@ contract SimpleRewardZapper is ZapperBase {
     /// @notice Claims Reward Manager rewards, then may swap, then repays
     ///         outstanding debt inside Curvance.
     /// @dev Sends any excess debt token to `receiver`. Only needs to
-    ///      swap if `rewardToken` != `borrowableCToken` underlying.
+    ///      swap if `rewardToken` != `borrowableCToken` asset.
     /// @param swapAction Optional instructions for executing a swap into debt
     ///                   asset.
+    ///                   Containing:
+    ///                   inputToken Address of input token to swap from.
+    ///                   inputAmount The amount of `inputToken` to swap.
+    ///                   outputToken Address of token to swap into.
+    ///                   target Address of the swapper, usually an
+    ///                          aggregator.
+    ///                   slippage The amount of value-loss acceptable from
+    ///                            swapping between tokens.
+    ///                   call Swap instruction calldata.
     /// @param borrowableCToken The Curvance token address to repay debt to.
     /// @param repayAssets The amount of debt to be repaid, in assets.
     /// @param receiver Address that should have its outstanding debt repaid.
@@ -197,12 +223,12 @@ contract SimpleRewardZapper is ZapperBase {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
         
-        // Cache `borrowableCToken` underlying to minimize external calls.
+        // Cache `borrowableCToken` asset to minimize external calls.
         address debtAsset = ICToken(borrowableCToken).asset();
 
         if (rewardToken != debtAsset) {
             // Validate that if we are swapping that the output token
-            // matches the underlying needed.
+            // matches `debtAsset`.
             if (swapAction.outputToken != debtAsset) {
                 revert SimpleRewardZapper__ExecutionError();
             }
@@ -264,17 +290,17 @@ contract SimpleRewardZapper is ZapperBase {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Returns the current fee token address.
-    /// @return The current fee token address.
-    function _getFeeToken() internal view returns (address) {
-        return centralRegistry.feeToken();
+    /// @return result The current fee token address.
+    function _getFeeToken() internal view returns (address result) {
+        result = centralRegistry.feeToken();
     }
 
     /// @notice Checks whether `user` has rewards, if they do, claim them
     ///         to this contract and bubble up the reward amount.
     /// @param user The address of the user to process rewards for.
-    /// @return The amount of rewards received from processing.
-    function _processRewards(address user) internal returns (uint256) {
-        return rewardManager.manageRewardsFor(user);
+    /// @return result The amount of rewards received from processing.
+    function _processRewards(address user) internal returns (uint256 result) {
+        result = rewardManager.manageRewardsFor(user);
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.

@@ -17,9 +17,8 @@ contract SimpleZapper is ZapperBase {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Swaps then deposits `swapAction.outputToken`, a cToken
-    ///         underlying, and enters into Curvance position,
-    ///         for `receiver`.
+    /// @notice Swaps then deposits `swapAction.outputToken`, a cToken asset,
+    ///         and enters into Curvance position, for `receiver`.
     /// @dev Requires plugin approval for collateralization.
     /// @param cToken The Curvance token (cToken) address to deposit into.
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
@@ -27,6 +26,15 @@ contract SimpleZapper is ZapperBase {
     ///                               into wrapped version or not.
     /// @param swapAction Instructions for executing a swap into collateral
     ///                   asset.
+    ///                   Containing:
+    ///                   inputToken Address of input token to swap from.
+    ///                   inputAmount The amount of `inputToken` to swap.
+    ///                   outputToken Address of token to swap into.
+    ///                   target Address of the swapper, usually an
+    ///                          aggregator.
+    ///                   slippage The amount of value-loss acceptable from
+    ///                            swapping between tokens.
+    ///                   call Swap instruction calldata.
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of
     ///                       `swapAction.outputToken` into `cToken` position.
@@ -59,7 +67,7 @@ contract SimpleZapper is ZapperBase {
         if (swapAction.inputToken == swapAction.outputToken) {
             outAmount = swapAction.inputAmount;
         } else {
-            // Execute swap into cToken underlying.
+            // Execute swap into cToken asset.
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
@@ -81,6 +89,15 @@ contract SimpleZapper is ZapperBase {
     ///                               token, indicates depositing native token
     ///                               into wrapped version or not.
     /// @param swapAction Instructions for executing a swap into debt asset.
+    ///                   Containing:
+    ///                   inputToken Address of input token to swap from.
+    ///                   inputAmount The amount of `inputToken` to swap.
+    ///                   outputToken Address of token to swap into.
+    ///                   target Address of the swapper, usually an
+    ///                          aggregator.
+    ///                   slippage The amount of value-loss acceptable from
+    ///                            swapping between tokens.
+    ///                   call Swap instruction calldata.
     /// @param repayAssets The amount of debt to be repaid, in assets.
     /// @param receiver Address that should have its outstanding debt repaid.
     /// @return outAmount The excess amount of debt token that was returned to
@@ -112,7 +129,7 @@ contract SimpleZapper is ZapperBase {
         if (swapAction.inputToken == swapAction.outputToken) {
             outAmount = swapAction.inputAmount;
         } else {
-            // Execute swap into cToken underlying.
+            // Execute swap into cToken asset.
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
@@ -138,6 +155,15 @@ contract SimpleZapper is ZapperBase {
     ///                                           from caller's collateralized
     ///                                           shares.
     /// @param swapAction Instructions for executing a swap into debt asset.
+    ///                   Containing:
+    ///                   inputToken Address of input token to swap from.
+    ///                   inputAmount The amount of `inputToken` to swap.
+    ///                   outputToken Address of token to swap into.
+    ///                   target Address of the swapper, usually an
+    ///                          aggregator.
+    ///                   slippage The amount of value-loss acceptable from
+    ///                            swapping between tokens.
+    ///                   call Swap instruction calldata.
     /// @param receiver Address that should receive `swapAction.outputToken`.
     /// @return outAmount The amount of `swapAction.outputToken` that was
     ///                   received by `receiver`.
@@ -207,7 +233,7 @@ contract SimpleZapper is ZapperBase {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into `swapAction.outputToken` which should be
-            // new cToken underlying.
+            // new cToken asset.
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
