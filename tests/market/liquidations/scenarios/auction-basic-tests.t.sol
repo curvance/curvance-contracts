@@ -77,7 +77,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareUSDC(user3, 250e6);
 
         vm.startPrank(dappControlUser);
-        
+
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(1));
         vm.stopPrank();
@@ -205,8 +205,8 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
     function _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndLiquidate() internal view returns (uint256) {
         // in _canLiquidate:
-        // cFactor = 200000000000000000 (baseCFactor) + 
-        // ((800000000000000000 (cFactorCurve) * 1000000000000000000 (lFactor)) / WAD)
+        // cFactor = 200000000000000000 (closeFactorBase) + 
+        // ((800000000000000000 (closeFactorCurve) * 1000000000000000000 (lFactor)) / WAD)
         // pass incentive == 0
         // maxAmount = 1000000762
         // debtToCollateralRatio =

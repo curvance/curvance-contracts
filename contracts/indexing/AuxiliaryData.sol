@@ -58,10 +58,10 @@ contract AuxiliaryData {
         uint256 collRatio;
         uint256 collReqSoft;
         uint256 collReqHard;
-        uint256 liqBaseIncentive;
-        uint256 liqCurve;
-        uint256 baseCFactor;
-        uint256 cFactorCurve;
+        uint256 liqIncBase;
+        uint256 liqIncCurve;
+        uint256 closeFactorBase;
+        uint256 closeFactorCurve;
     }
 
     struct MarketBorrowableCTokens {
@@ -915,24 +915,24 @@ contract AuxiliaryData {
             uint256 collRatio,
             uint256 collReqSoft,
             uint256 collReqHard,
-            uint256 liqBaseIncentive,
-            uint256 liqCurve,
+            uint256 liqIncBase,
+            uint256 liqIncCurve,
             ,
             ,
             ,
             ,
-            uint256 baseCFactor,
-            uint256 cFactorCurve
+            uint256 closeFactorBase,
+            uint256 closeFactorCurve
         ) = mm.tokenData(token);
 
         config.isListed = isListed;
         config.collRatio = collRatio;
         config.collReqSoft = collReqSoft;
         config.collReqHard = collReqHard;
-        config.liqBaseIncentive = liqBaseIncentive;
-        config.liqCurve = liqCurve;
-        config.baseCFactor = baseCFactor;
-        config.cFactorCurve = cFactorCurve;
+        config.liqIncBase = liqIncBase;
+        config.liqIncCurve = liqIncCurve;
+        config.closeFactorBase = closeFactorBase;
+        config.closeFactorCurve = closeFactorCurve;
 
         return config;
     }

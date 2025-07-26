@@ -614,18 +614,18 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Accrue interest if needed.
         _accrueIfNeeded();
 
-        IMarketManager.LiqResults memory liqResults;
+        IMarketManager.LiqResult memory result;
 
         // Fails if liquidation not allowed, trying to repay too much debt
         // will revert.
         (
-            liqResults,
+            result,
             debtAmounts
         ) = marketManager.canLiquidate(
             debtAmounts,
             liquidator,
             accounts,
-            IMarketManager.LiqInstructions({
+            IMarketManager.LiqAction({
                 collateralToken: collateralToken,
                 debtToken: address(this),
                 numAccounts: numAccounts,
@@ -640,7 +640,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             asset(),
             liquidator,
             address(this),
-            liqResults.debtRepaid
+            result.debtRepaid
         );
 
         uint80 cachedDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
@@ -673,26 +673,26 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // by the liquidator, plus the bad debt being realized. We can reuse
         // debtRepaid variable since the original debt repayment value
         // was already used earlier.
-        liqResults.debtRepaid += liqResults.badDebtRealized;
-        if (marketOutstandingDebt < liqResults.debtRepaid) {
+        result.debtRepaid += result.badDebtRealized;
+        if (marketOutstandingDebt < result.debtRepaid) {
             // We round user debt in favor of the protocol to prevent exchange
             // rate manipulation, as a result in some cases the last user
             // cannot fully repay their debt.
             marketOutstandingDebt = 0;
         } else {
-            marketOutstandingDebt -= liqResults.debtRepaid;
+            marketOutstandingDebt -= result.debtRepaid;
         }
 
         // Update total assets to recognize that lenders wont be getting
-        // `liqResults.badDebtRealized` back due to realized bad debt.
+        // `result.badDebtRealized` back due to realized bad debt.
         // Emit corresponding event recognizing bad debt.
-        if (liqResults.badDebtRealized > 0) {
-            _totalAssets = _totalAssets - liqResults.badDebtRealized;
-            emit BadDebtRecognized(liqResults.badDebtRealized, liquidator);
+        if (result.badDebtRealized > 0) {
+            _totalAssets = _totalAssets - result.badDebtRealized;
+            emit BadDebtRecognized(result.badDebtRealized, liquidator);
         }
 
         ICToken(collateralToken).seize(
-            liqResults.liquidatedShares,
+            result.liquidatedShares,
             liquidator,
             accounts 
         );

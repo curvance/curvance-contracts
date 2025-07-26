@@ -368,9 +368,9 @@ contract StartContractsConfig is
         token0Config.liqIncHard = 550;
         token0Config.liqIncMin = 300;
         token0Config.liqIncMax = 550;
-        token0Config.minEffectiveCloseFactor = 2000;
-        token0Config.maxEffectiveCloseFactor = 5000;
-        token0Config.baseCFactor = 2000;
+        token0Config.closeFactorBase = 2000;
+        token0Config.closeFactorMin = 2000;
+        token0Config.closeFactorMax = 5000;
         token0Config.collateralCap = collateralCap; // add individual collateral cap later
         token0Config.debtCap = debtCap; // add individual debt cap later
 
@@ -383,9 +383,9 @@ contract StartContractsConfig is
         token1Config.liqIncHard = 550;
         token1Config.liqIncMin = 300;
         token1Config.liqIncMax = 550;
-        token1Config.minEffectiveCloseFactor = 2000;
-        token1Config.maxEffectiveCloseFactor = 5000;
-        token1Config.baseCFactor = 2000;
+        token1Config.closeFactorBase = 2000;
+        token1Config.closeFactorMin = 2000;
+        token1Config.closeFactorMax = 5000;
         // add individual collateral cap later
         token1Config.collateralCap = collateralCap * 10 ** IERC20(cToken1).decimals(); 
         token1Config.debtCap = debtCap * 10 ** IERC20(cToken1).decimals(); // add individual debt cap later

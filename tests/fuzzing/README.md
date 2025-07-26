@@ -213,9 +213,9 @@
 
 | ID     | Property                                                                                                          | Result |
 | ------ | ----------------------------------------------------------------------------------------------------------------- | ------ |
-| LIQ-1  | The baseCFactor must be bound between MIN_BASE_CFACTOR and MAX_BASE_CFACTOR                                       | Passed |
+| LIQ-1  | The closeFactorBase must be bound between MIN_BASE_CFACTOR and MAX_BASE_CFACTOR                                       | Passed |
 | LIQ-2  | The lFactor must be bound between 1 and WAD.                                                                      | Passed |
-| LIQ-3  | The resulting cFactor be bound between baseCFactor and WAD                                                        | Passed |
+| LIQ-3  | The resulting cFactor be bound between closeFactorBase and WAD                                                        | Passed |
 | LIQ-4  | The liqBaseIncentive must be bound between MIN_LIQUIDATION_INCENTIVE and MAX_LIQUIDATION_INCENTIVE                | Passed |
 | LIQ-5  | The resulting incentive must be bound between MIN_LIQUIDATION_INCENTIVE and MAX_LIQUIDATION_INCENTIVE             | Passed |
 | LIQ-6  | If cfactor is equivalent to 0, maxAmount should be equal to the 0.                                                | Passed |

@@ -56,9 +56,9 @@ contract UpdateTokenConfig is Script, DeployConfiguration {
         tokenConfig.liqIncHard = _readConfigUint256(string.concat(pathName, ".liqIncHard"));
         tokenConfig.liqIncMin = _readConfigUint256(string.concat(pathName, ".liqIncMin"));
         tokenConfig.liqIncMax = _readConfigUint256(string.concat(pathName, ".liqIncMax"));
-        tokenConfig.minEffectiveCloseFactor = _readConfigUint256(string.concat(pathName, ".minEffectiveCloseFactor"));
-        tokenConfig.maxEffectiveCloseFactor = _readConfigUint256(string.concat(pathName, ".maxEffectiveCloseFactor"));
-        tokenConfig.baseCFactor = _readConfigUint256(string.concat(pathName, ".baseCFactor"));
+        tokenConfig.closeFactorBase = _readConfigUint256(string.concat(pathName, ".closeFactorBase"));
+        tokenConfig.closeFactorMin = _readConfigUint256(string.concat(pathName, ".closeFactorMin"));
+        tokenConfig.closeFactorMax = _readConfigUint256(string.concat(pathName, ".closeFactorMax"));
         tokenConfig.collateralCap = _readConfigUint256(string.concat(pathName, ".collateralCap"));
         tokenConfig.debtCap = _readConfigUint256(string.concat(pathName, ".debtCap"));
 

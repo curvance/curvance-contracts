@@ -32,9 +32,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 1_000_000e6;
 
@@ -53,9 +53,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 1_000_000e6;
 
@@ -75,9 +75,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 0;
 
@@ -97,9 +97,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 0;
 
@@ -119,9 +119,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 0;
 
@@ -141,9 +141,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1400; //      (should be >=liqIncBase)
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 0;
 
@@ -163,9 +163,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 1400;   //      (should be >=liqBase)
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 0;
 
@@ -185,9 +185,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 2100;
         tokenConfig.liqIncMax = 2000; //      (should be >=liqIncMin)
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 0;
 
@@ -207,9 +207,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 3100;   // (max is 30%)
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 0;
 
@@ -229,9 +229,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 900; //     9% ((9 + 1.5% buffer) = 10.5%) > 10% collReqHard
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 1500;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 0;
 
@@ -251,9 +251,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 900; //     9% ((9 + 1.5% buffer) = 10.5%) > 10% collReqHard
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 0;
 
@@ -261,7 +261,7 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
-    function test_updateTokenConfig_fail_whenBaseCFactorisTooLow() public {
+    function test_updateTokenConfig_fail_whenCloseFactorBaseisTooLow() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
@@ -273,9 +273,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 900;      // baseCFactor is 9% (min is 10%)
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 900;      // closeFactorBase is 9% (min is 10%)
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 0;
 
@@ -283,7 +283,7 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
-    function test_updateTokenConfig_fail_whenBaseCFactorisTooHigh() public {
+    function test_updateTokenConfig_fail_whenCloseFactorBaseisTooHigh() public {
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
@@ -295,9 +295,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 5100;      // baseCFactor 51% (max is 50%)
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 5100;      // closeFactorBase 51% (max is 50%)
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 0;
 
@@ -317,9 +317,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 0;
 
@@ -339,9 +339,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 1_000_000e6;
         tokenConfig.debtCap = 1_000_000e6;
 
@@ -361,9 +361,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 100_000e18;
         tokenConfig.debtCap = 100e55; // Cap for debt limits in 2^168-1 or 3.74e50.
 
@@ -386,9 +386,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 100_000e18;
         tokenConfig.debtCap = 100_000e18;
 
@@ -409,9 +409,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 100_000e18;
         tokenConfig.debtCap = 0;
 
@@ -433,9 +433,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 0;
         tokenConfig.debtCap = 0;
 
@@ -460,9 +460,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 1000e18;
         tokenConfig.debtCap = 0;
 
@@ -487,9 +487,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 100_000e18;
         tokenConfig.debtCap = 0;
 
@@ -513,9 +513,9 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.liqIncHard = 1500;
         tokenConfig.liqIncMin = 500;
         tokenConfig.liqIncMax = 2000;
-        tokenConfig.minEffectiveCloseFactor = 2000;
-        tokenConfig.maxEffectiveCloseFactor = 5000;
-        tokenConfig.baseCFactor = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 5000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 100_000e18;
         tokenConfig.debtCap = 100_000e18;
 

@@ -228,10 +228,10 @@ contract CanLiquidateTest is TestBaseMarketManager {
                 false
             );
 
-        (, , , , , , uint256 baseCFactor, uint256 cFactorCurve) = marketManager
+        (, , , , , , uint256 closeFactorBase, uint256 closeFactorCurve) = marketManager
             .tokenData(address(simpleCBALRETH));
 
-        uint256 cFactor = baseCFactor + ((cFactorCurve * 1e18) / WAD);
+        uint256 cFactor = closeFactorBase + ((closeFactorCurve * 1e18) / WAD);
         uint256 debtAmount = (cFactor * borrowableCUSDC.debtBalance(user1)) / WAD;
 
         PriceReturnData memory data = balRETHAdapter.getPrice(
