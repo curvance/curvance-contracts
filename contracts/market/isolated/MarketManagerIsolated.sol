@@ -216,34 +216,38 @@ contract MarketManagerIsolated is
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Returns whether `cToken` is listed in the lending market.
-    /// @param cToken Curvance token address.
-    function isListed(address cToken) external view returns (bool) {
-        return tokenData[cToken].isListed;
+    /// @param cToken The address of a token to check for listing status.
+    /// @return result Whether `cToken` is listed inside this lending market
+    ///                or not.
+    function isListed(address cToken) external view returns (bool result) {
+        result = tokenData[cToken].isListed;
     }
 
     /// @notice Returns the ratio at which `cToken` can be collateralized.
     /// @dev In WAD form e.g. 0.8e18 = 80% collateral value can be borrowed.
     /// @param cToken The address of the Curvance token to return
     ///               collateralization ratio of.
-    /// @return The ratio at with debt can be borrowed against collateralized
-    ///         assets.
+    /// @return result The ratio at which debt can be borrowed against
+    ///                collateralized `cToken`, in WAD.
     function collateralizationRatio(
         address cToken
-    ) external view returns (uint256) {
-        return tokenData[cToken].collRatio;
+    ) external view returns (uint256 result) {
+        result = tokenData[cToken].collRatio;
     }
 
     /// @notice Helper function for querying the current Curvance tokens listed
     ///         inside this market.
-    /// @return Array containing list of all Curvance token addresses listed in
-    ///         this market.
-    function queryTokensListed() external view returns (address[] memory) {
-        return tokensListed;
+    /// @return result Array containing list of all Curvance token addresses
+    ///                listed in this market.
+    function queryTokensListed() external view returns (
+        address[] memory result
+    ) {
+        result = tokensListed;
     }
 
     /// ACCOUNT SPECIFIC FUNCTIONS ///
 
-    /// @notice Returns the assets an account has entered.
+    /// @notice Returns the assets `account` has an open position in.
     /// @param account The address of the account to pull assets for.
     /// @return result An array containing the assets `account` has
     ///                positions in.
@@ -269,25 +273,22 @@ contract MarketManagerIsolated is
     /// @notice Determine `account`'s current collateral and debt values
     ///         in the market.
     /// @param account The account to calculate liquidation values for.
-    /// @return The total market value of `account`'s collateral offset
-    /// by soft liquidation requirements.
-    /// @return The total market value of `account`'s collateral offset
-    /// by hard liquidation requirements.
-    /// @return The total outstanding debt value of `account`.
-    function liquidationValuesOf(
-        address account
-    )
-        external
-        view
-        returns (uint256, uint256, uint256) {
+    /// @return soft The total market value of `account`'s collateral offset
+    ///              by soft liquidation requirements.
+    /// @return hard The total market value of `account`'s collateral offset
+    ///              by hard liquidation requirements.
+    /// @return debt The total outstanding debt value of `account`.
+    function liquidationValuesOf(address account) external view returns (
+        uint256 soft,
+        uint256 hard,
+        uint256 debt
+    ) {
         (
             AccountLiqResult memory result,,,
         ) = _liquidationValuesOf(account, address(0), address(0));
-        return (
-            result.collateralSoft,
-            result.collateralHard,
-            result.debt
-        );
+        soft = result.collateralSoft;
+        hard = result.collateralHard;
+        debt = result.debt;
     }
 
     /// @notice Determine whether `account` can be liquidated,
@@ -1803,6 +1804,42 @@ contract MarketManagerIsolated is
         _checkHoldPeriod(account);
     }
 
+    /// @notice Will revert and block liquidations of collateral that are not
+    ///         currently allowed by Auction, only if this is an Auction tx.
+    /// @param collateralToken The address of the collateral token to
+    ///                        liquidate.
+    /// @return The buffer priority value to apply as a discount to collateral
+    ///         during auctioned liquidations.
+    function _checkLiquidationConfig(
+        address collateralToken
+    ) internal view returns (uint256) {
+        uint256 result;
+        
+        /// @solidity memory-safe-assembly
+        assembly {
+            result := tload(_TRANSIENT_COLLATERAL_UNLOCKED_KEY)
+        }
+
+        bool unlockedMarket = centralRegistry.isMarketUnlocked();
+        bool unlockedCollateral = address(uint160(result)) == collateralToken;
+
+        if (unlockedMarket || unlockedCollateral) {
+            // This is an attempted auction liquidation, and is configured
+            // correctly so give them the auction priority buffer.
+            if (unlockedMarket && unlockedCollateral) {
+                return AUCTION_BUFFER;
+            }
+
+            // This is an attempted auction liquidation, but its misconfigured
+            // and unauthorized because of this.
+            _revert(_UNAUTHORIZED_LIQUIDATION_SELECTOR);
+        }
+
+        // This is not an attempted auction liquidation, so approve the
+        // liquidation, but without the auction priority buffer.
+        return 0;
+    }
+
     /// @dev Checks whether the caller has sufficient permissions.
     function _checkElevatedPermissions() internal view {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
@@ -1853,41 +1890,5 @@ contract MarketManagerIsolated is
         returns (ICentralRegistry)
     {
         return centralRegistry;
-    }
-
-    /// @notice Will revert and block liquidations of collateral that are not
-    ///         currently allowed by Auction, only if this is an Auction tx.
-    /// @param collateralToken The address of the collateral token to
-    ///                        liquidate.
-    /// @return The buffer priority value to apply as a discount to collateral
-    ///         during auctioned liquidations.
-    function _checkLiquidationConfig(
-        address collateralToken
-    ) internal view returns (uint256) {
-        uint256 result;
-        
-        /// @solidity memory-safe-assembly
-        assembly {
-            result := tload(_TRANSIENT_COLLATERAL_UNLOCKED_KEY)
-        }
-
-        bool unlockedMarket = centralRegistry.isMarketUnlocked();
-        bool unlockedCollateral = address(uint160(result)) == collateralToken;
-
-        if (unlockedMarket || unlockedCollateral) {
-            // This is an attempted auction liquidation, and is configured
-            // correctly so give them the auction priority buffer.
-            if (unlockedMarket && unlockedCollateral) {
-                return AUCTION_BUFFER;
-            }
-
-            // This is an attempted auction liquidation, but its misconfigured
-            // and unauthorized because of this.
-            _revert(_UNAUTHORIZED_LIQUIDATION_SELECTOR);
-        }
-
-        // This is not an attempted auction liquidation, so approve the
-        // liquidation, but without the auction priority buffer.
-        return 0;
     }
 }
