@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { WAD, DENOMINATOR, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/Constants.sol";
+import { WAD, BASIS_POINTS, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/Constants.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -121,11 +121,11 @@ contract OracleManager is IOracleManager {
     /// STORAGE ///
 
     /// @notice The maximum allowed divergence between prices
-    ///         before CAUTION is flipped, in `DENOMINATOR`.
+    ///         before CAUTION is flipped, in `BASIS_POINTS`.
     ///         10050 = 0.5% = 50 basis point deviation.
     uint256 public cautionDivergenceFlag = 1.005e4;
     /// @notice The maximum allowed divergence between prices
-    ///         before BAD_SOURCE is flipped, in `DENOMINATOR`.
+    ///         before BAD_SOURCE is flipped, in `BASIS_POINTS`.
     ///         10100 = 1% = 100 basis point deviation.
     uint256 public badSourceDivergenceFlag = 1.01e4;
 
@@ -877,11 +877,11 @@ contract OracleManager is IOracleManager {
         if (a <= b) {
             // Check if both feeds are within `cautionDivergenceFlag`
             // of each other.
-            if (((a * cautionDivergenceFlag) / DENOMINATOR) < b) {
+            if (((a * cautionDivergenceFlag) / BASIS_POINTS) < b) {
                 // Notify that the price is dangerous and to treat data as a
                 // bad source because we are outside the accepted range of
                 // divergence.
-                if (((a * badSourceDivergenceFlag) / DENOMINATOR) < b) {
+                if (((a * badSourceDivergenceFlag) / BASIS_POINTS) < b) {
                     return BAD_SOURCE;
                 }
 
@@ -895,11 +895,11 @@ contract OracleManager is IOracleManager {
 
         // Check if both feeds are within `cautionDivergenceFlag`
         // of each other.
-        if (((b * cautionDivergenceFlag) / DENOMINATOR) < a) {
+        if (((b * cautionDivergenceFlag) / BASIS_POINTS) < a) {
             // Notify that the price is dangerous and to treat data as a
             // bad source because we are outside the accepted range of
             // divergence.
-            if (((b * badSourceDivergenceFlag) / DENOMINATOR) < a) {
+            if (((b * badSourceDivergenceFlag) / BASIS_POINTS) < a) {
                 return BAD_SOURCE;
             }
 

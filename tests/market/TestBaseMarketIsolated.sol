@@ -1,53 +1,57 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-import { TestBase } from "tests/utils/TestBase.sol";
-
 import { CVE } from "contracts/token/CVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
-import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeManager } from "contracts/architecture/FeeManager.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
-import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
-import { PendleZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/PendleZapperCalldataChecker.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
+import { PendleZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/PendleZapperCalldataChecker.sol";
 import { VelodromeZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/VelodromeZapperCalldataChecker.sol";
+import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
-import { OracleManager } from "contracts/oracles/OracleManager.sol";
+import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
+
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+
+import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
+import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
+import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
+
+import { TestBase } from "tests/utils/TestBase.sol";
+import { QueryTest } from "tests/utils/QueryTest.sol";
+
+import { console2 } from "forge-std/console2.sol";
+
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { MockMessageTransmitter } from "contracts/mocks/MockMessageTransmitter.sol";
 import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.sol";
 import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
-import { QueryTest } from "tests/utils/QueryTest.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
-import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
-import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
-
-import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-
-import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
-import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
-import { ICToken } from "contracts/interfaces/ICToken.sol";
-import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-import { console2 } from "forge-std/console2.sol";
 
 contract TestBaseMarketIsolated is TestBase {
     // Chain Data
@@ -457,7 +461,7 @@ contract TestBaseMarketIsolated is TestBase {
         );
         centralRegistry.addMarketManager(
             address(marketManagerIsolated),
-            marketInterestFactor
+            marketInterestFee
         );
     }
 

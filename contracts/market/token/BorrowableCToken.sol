@@ -45,10 +45,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
     
     /// STORAGE ///
 
-    /// @notice Address of the current Interest Rate Model.
+    /// @notice Address of the current Interest Rate Model used to determine
+    ///         interest paid by borrowers to lenders for outstanding debt.
     IInterestRateModel public interestRateModel;
-    /// @notice Fee that goes to protocol for interested generated for
-    ///         lenders, in `WAD`.
+    /// @notice The portion of interest paid by borrowers that goes to the
+    ///         protocol, in `WAD`.
     uint256 public interestFee;
     /// @notice The amount of `asset` that has been borrowed as outstanding
     ///         debt, in assets.
@@ -112,8 +113,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // model is ever changed.
         _setInterestRateModel(IInterestRateModel(interestRateModel_));
 
-        // Assign the interest accrual fee for interest generated
-        // inside this market.
+        // Assign the portion of interest paid by borrowers that goes to the
+        // protocol.
         uint256 newInterestFee = centralRegistry.protocolInterestFee(
             marketManager_
         );
@@ -122,10 +123,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
         emit NewInterestFee(0, newInterestFee);
     }
 
-    /// @notice Accrues pending interest and updates the interest rate model.
+    /// @notice Accrues pending interest and updates the interest rate
+    ///         model (`interestRateModel`) used by this borrowableCToken.
     /// @dev Admin function to update the interest rate model.
-    /// @param newInterestRateModel The new interest rate model for this
-    ///                             borrowableCToken to use.
+    ///      Emits a {NewMarketInterestRateModel} event.
+    /// @param newInterestRateModel The new interest rate model to determine
+    ///                             interest paid by borrowers to lenders for
+    ///                             outstanding debt.
     function setInterestRateModel(address newInterestRateModel) external {
         _checkElevatedPermissions();
 
@@ -135,10 +139,12 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _setInterestRateModel(IInterestRateModel(newInterestRateModel));
     }
 
-    /// @notice Accrues pending interest and updates the interest factor.
-    /// @dev Admin function to update the interest factor value.
-    /// @param newInterestFee The new interest factor for this
-    ///                       borrowableCToken to use.
+    /// @notice Accrues pending interest and updates the fee that the protocol
+    ///         takes on interest paid by borrowers.
+    /// @dev Admin function to update `interestFee`.
+    ///      Emits a {NewInterestFee} event.
+    /// @param newInterestFee The portion of interest paid by borrowers that
+    ///                       goes to the protocol.
     function setInterestFee(uint256 newInterestFee) external {
         _checkElevatedPermissions();
 
@@ -149,7 +155,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     }
 
     /// @notice Borrows underlying tokens from lenders, based on collateral
-    ///         posted inside this market.
+    ///         posted inside this market by the caller.
     /// @dev Updates pending interest before executing the borrow.
     /// @param assets The amount of the underlying asset to borrow.
     /// @param receiver The account who will receive the borrowed assets.
@@ -855,10 +861,12 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _vestingData = vestingData;
     }
 
-    /// @notice Updates the interest rate model.
+    /// @notice Updates the interest rate model (`interestRateModel`) used
+    ///         by this borrowableCToken.
     /// @dev Emits a {NewMarketInterestRateModel} event.
-    /// @param newInterestRateModel The new interest rate model for this
-    ///                             borrowableCToken to use.
+    /// @param newInterestRateModel The new interest rate model to determine
+    ///                             interest paid by borrowers to lenders for
+    ///                             outstanding debt.
     function _setInterestRateModel(
         IInterestRateModel newInterestRateModel
     ) internal {
@@ -887,22 +895,23 @@ contract BorrowableCToken is BaseCTokenWithYield {
         );
     }
 
-    /// @notice Updates the interest factor.
+    /// @notice Updates the fee that the protocol takes on interest paid
+    ///         by borrowers.
     /// @dev Emits a {NewInterestFee} event.
-    /// @param newInterestFee The new interest factor for this
-    ///                       borrowableCToken to use.
+    /// @param newInterestFee The portion of interest paid by borrowers that
+    ///                       goes to the protocol.
     function _setInterestFee(uint256 newInterestFee) internal {
-        // The DAO cannot take more than 50% of interest collected.
+        // The DAO cannot take more than `MAX_INTEREST_ACCRUAL_FEE` of
+        // interest collected.
         if (newInterestFee > MAX_INTEREST_ACCRUAL_FEE) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Cache the other interest factor for event emission.
+        // Cache the old interest fee for event emission.
         uint256 oldInterestFee = interestFee;
 
-        /// The Interest Rate Factor should be stored is in `WAD` format.
-        /// So, we need to multiply by 1e14 to convert from basis points
-        /// to `WAD`.
+        /// `interestFee` is stored is in `WAD` format. So, we need to
+        /// multiply by 1e14 to convert from basis points to `WAD`.
         interestFee = newInterestFee * 1e14;
 
         emit NewInterestFee(oldInterestFee, interestFee);

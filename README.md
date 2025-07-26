@@ -21,6 +21,18 @@ Main dependencies:
 
 ## Internal code guidelines
 
+### Imports order
+
+1. Internally-Developed Contracts; At the top of the contract
+2. Internally-Developed Libraries
+3. Externally-Developed Libraries
+4. Internally-Developed Interfaces
+5. Externally-Developed Interfaces
+6. Internally-Developed Test Contracts
+7. Externally-Developed Test Contracts
+8. Internally-Developed Mocks
+9. Externally-Developed Mocks; At the bottom of the contract
+
 ### Smart contract order
 
 1. Types; At the top of the contract
@@ -32,7 +44,7 @@ Main dependencies:
 7. External Functions
 8. Public Functions
 9. Internal Functions
-10. Private Functions; At the end of the contract
+10. Private Functions; At the bottom of the contract
 
 ### A/B state variables
 
@@ -47,6 +59,10 @@ In instances of 3 or more calls to a specific custom error, uint256 selectors ar
 Rather than modifiers we utilize internal functions with direct action control checks as we'd prefer an extra JUMP call than having to inline many instances of permissioning checks, this is to decrease smart contract size.
 
 For adding new risk to the system (e.g. adding a new asset), elevated permissioning is required, while removing risk from the system (pausing a market function) has standard dao permissioning.
+
+### Solidity Versioning
+
+Currently, Curvance Protocol is developed on 0.8.26 to make use of transient storage opcodes.
 
 ### Linting
 

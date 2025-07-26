@@ -80,7 +80,7 @@
 //     address public harvester;
 //     uint256 public voteBoostMultiplier = 10001; // 110%
 //     uint256 public lockBoostMultiplier = 10001; // 110%
-//     uint256 public marketInterestFactor = 1; // 10%
+//     uint256 public marketInterestFee = 1; // 10%
 
 //     mapping(address => uint256) public postedCollateralAt;
 
@@ -359,7 +359,7 @@
 //         );
 //         centralRegistry.addMarketManager(
 //             address(marketManager),
-//             marketInterestFactor
+//             marketInterestFee
 //         );
 //     }
 

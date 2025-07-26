@@ -12,7 +12,7 @@ uint256 constant RAY = 1e27;
 uint256 constant WAD = 1e18;
 
 /// @dev Scalar for math. `Basis points`.
-uint256 constant DENOMINATOR = 1e4;
+uint256 constant BASIS_POINTS = 1e4;
 
 /// @dev Return value indicating no price returned at all.
 uint256 constant BAD_SOURCE = 2;

@@ -5,8 +5,10 @@ import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse } from "contra
 
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMessagingHub, EmissionData } from "contracts/interfaces/IMessagingHub.sol";
-import { ICVE } from "contracts/interfaces/ICVE.sol";
+
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
+import { ICVE } from "contracts/interfaces/ICVE.sol";
+
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
 /// @title Curvance Protocol Cross-Chain Voting and Emissions Hub
