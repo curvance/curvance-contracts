@@ -40,7 +40,7 @@ abstract contract LiquidityManagerIsolated {
     /// @dev In `WAD`, e.g. 1.2e18 = 120% collateral vs debt value.
     /// @param collReqHard The collateral requirement where dipping below
     ///                    this will cause a hard liquidation.
-    /// @dev In `WAD`, e.g. 1.2e18 = 120% collateral vs debt value.
+    /// @dev In `WAD`, e.g. 1.1e18 = 110% collateral vs debt value.
     /// @param liqIncBase The base ratio at which this token will be
     ///                   compensated on soft liquidation.
     /// @dev In `WAD`, stored as Incentive + WAD e.g. 1.05e18 = 5% incentive.
@@ -172,9 +172,10 @@ abstract contract LiquidityManagerIsolated {
     ///                          below this will cause a soft liquidation.
     /// @param collateralReqHard The collateral requirement where dipping
     ///                          below this will cause a hard liquidation.
-    /// @param collateralUnderlyingPrice The current price of the underlying token
-    ///                                  to `collateralToken`.
-    /// @param collateralDecimals The decimals that `collateralToken` is measured in.
+    /// @param collateralUnderlyingPrice The current price of the underlying
+    ///                                  token to `collateralToken`.
+    /// @param collateralDecimals The decimals that `collateralToken` is
+    ///                           measured in.
     /// @param debtToken The address of the Curvance token to be repaid during
     ///                  the liquidation.
     /// @param debtDecimals The decimals that `debtToken` is measured in.
@@ -297,19 +298,17 @@ abstract contract LiquidityManagerIsolated {
 
     /// @notice Calculates hypothetical liquidity for an account after a
     ///         potential action such as redemption and borrowing.
-    /// @dev Note that we calculate the exchangeRate for each cToken
-    ///      using stored data, without calculating new interest.
-    /// @param account The address of the account being evaluated for with a
-    ///                hypothetical action.
+    /// @param account The address of the account being evaluated for `action`
+    ///                being done.
     /// @param action A HypotheticalAction struct containing:
-    ///               cTokenModified: The address of the token being modified
-    ///                               by the action.
-    ///               redemptionShares The amount of tokens to hypothetically redeem,
-    ///                            in `shares`.
-    ///               borrowAssets The amount of underlying to hypothetically borrow,
-    ///                            in `assets`.
-    ///               errorCodeBreakpoint The error code that will cause liquidity
-    ///                                   operations to revert.
+    ///               cTokenModified The address of the token being modified
+    ///                              by the action.
+    ///               redemptionShares The amount of tokens to hypothetically
+    ///                                redeem, in `shares`.
+    ///               borrowAssets The amount of underlying to hypothetically
+    ///                            borrow, in `assets`.
+    ///               errorCodeBreakpoint The error code that will cause
+    ///                                   liquidity operations to revert.
     /// @return result A HypotheticalResult struct containing:
     ///                collateralSurplus Excess collateral capacity after
     ///                                  the action.
@@ -390,10 +389,10 @@ abstract contract LiquidityManagerIsolated {
 
             // Calculate impact of cTokenModified action.
             if (action.cTokenModified == snap.asset) {
-                // If its being used as collateral it cannot be a debt position
-                // too, but on a fresh borrow position snapshot can misreport a
-                // debt position as collateral until its fully opened because
-                // debtBalance still equals 0 at getSnapshot level.
+                // If the token is collateral it cannot also be debt position,
+                // but, on a fresh borrow position snapshot can misreport
+                // a debt position as collateral until its fully opened
+                // because debtBalance still equals 0 at getSnapshot level.
                 if (snap.isCollateral && action.borrowAssets == 0) {
                     // If they are trying to redeem more tokens than
                     // they have, the transaction will fail before it
@@ -803,10 +802,10 @@ abstract contract LiquidityManagerIsolated {
     /// @notice Calculates and adds soft and hard collateral values for
     ///         liquidation assessment with cached data.
     /// @param exchangeRate The exchange rate between the collateral token
-    ///                     and its underlying asset (WAD-scaled).
+    ///                     and its underlying asset, in WAD.
     /// @param decimals The number of decimals for the collateral token.
-    /// @param collReqSoft The soft collateral requirement ratio (WAD-scaled).
-    /// @param collReqHard The hard collateral requirement ratio (WAD-scaled).
+    /// @param collReqSoft The soft collateral requirement ratio, in WAD.
+    /// @param collReqHard The hard collateral requirement ratio, in WAD.
     /// @param price The price of the underlying asset, in `WAD`.
     /// @param collateralPosted The amount of collateral token posted as
     ///                         collateral by the account.
