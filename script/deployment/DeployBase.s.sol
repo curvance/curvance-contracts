@@ -24,7 +24,11 @@ contract DeployBase is Script {
 
     DeploymentLogger logger;
 
-    function run(bool is_testnet, Config memory config) external {
+    function run(
+        bool is_testnet,
+        Config memory config,
+        address harvester
+    ) external {
         logger = new DeploymentLogger();
         vm.recordLogs();
         vm.startBroadcast();
@@ -45,6 +49,7 @@ contract DeployBase is Script {
         );
         emit ContractDeployed(address(centralRegistry), "CentralRegistry");
         ICentralRegistry icr = ICentralRegistry(address(centralRegistry));
+        centralRegistry.addHarvestPermissions(harvester);
 
         // Deploy Oracle Manager
         OracleManager oracleManager = new OracleManager(icr);

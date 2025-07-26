@@ -75,6 +75,8 @@ contract DeployMarkets is Script {
             );
 
             market.listTokens(cTokens[0], cTokens[1]);
+            market.updateTokenConfig(tokens[0].tokenConfig);
+            market.updateTokenConfig(tokens[1].tokenConfig);
         }
 
         vm.stopBroadcast();
@@ -111,7 +113,6 @@ contract DeployMarkets is Script {
             }
 
             listConfig.tokenConfig.cToken = cTokens[i];
-            market.updateTokenConfig(listConfig.tokenConfig);
             router.addCTokenSupport(cTokens[i]);
         }
     }
@@ -123,6 +124,7 @@ contract DeployMarkets is Script {
         ICentralRegistry icr
     ) internal returns (address) {
         IERC20 underlying = IERC20(config.underlyingAddress);
+
         address cToken = address(
             new SimpleCToken(icr, underlying, address(market))
         );
@@ -130,6 +132,8 @@ contract DeployMarkets is Script {
             cToken,
             string.concat(marketName, "-", underlying.symbol())
         );
+
+        underlying.approve(cToken, 1 * 10 ** underlying.decimals());
 
         return cToken;
     }
@@ -176,6 +180,7 @@ contract DeployMarkets is Script {
         );
 
         interestRateModel.setLinkedToken(cToken);
+        underlying.approve(cToken, 1 * 10 ** underlying.decimals());
 
         return cToken;
     }
