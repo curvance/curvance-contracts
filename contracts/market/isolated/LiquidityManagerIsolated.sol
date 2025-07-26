@@ -32,8 +32,9 @@ abstract contract LiquidityManagerIsolated {
     ///         in the liquidity manager.
     /// @param isListed Whether or not this Curvance token is listed.
     /// @dev false = unlisted; true = listed.
-    /// @param collRatio The ratio at which this token can be collateralized.
-    /// @dev In `WAD`, e.g. 0.8e18 = 80% collateral value.
+    /// @param collRatio The ratio at which this token can be borrowed against
+    ///                  when collateralized.
+    /// @dev In `WAD`, e.g. 0.8e18 = 80% collateral value borrowable.
     /// @param collReqSoft The collateral requirement where dipping below this
     ///                    will cause a soft liquidation.
     /// @dev In `WAD`, e.g. 1.2e18 = 120% collateral vs debt value.

@@ -23,25 +23,14 @@ import "forge-std/console2.sol";
 contract LiquidateExactMix is TestBaseLiquidations {
 
     address borrower1 = makeAddr("borrower1");
-
-    address[] borrowers = [borrower1];
-
-    uint256 borrowAmount = 2500e6;
-
     uint256 collateralAmountStart = 1.9e18;
-
-    uint256 WAD_SQUARED = 1e36;
-
-    uint256 liqIncBase;
-    uint256 liqIncCurve;
-    uint256 closeFactorBase;
-    uint256 closeFactorCurve;
-
+    uint256 borrowAmount = 2500e6;
+    address[] borrowers = [borrower1];
+    uint256[] amountToRepayPartial;
+    
     // Auction parameters
     uint256 validPenalty = 1.04e18;
     uint256 closeFactor = 0.50e18;
-
-    uint256[] amountToRepayPartial;
 
     event BadDebtRecognized(uint256 amount, address account);
     event Repay(uint256 amount, address payer, address account);
@@ -104,14 +93,6 @@ contract LiquidateExactMix is TestBaseLiquidations {
 
         mockWethFeed.setMockAnswer(1300e8);
         mockRethFeed.setMockAnswer(1300e8);
-
-        (,,, uint256 liqIncBase_, uint256 liqIncCurve_,,, uint256 closeFactorBase_, uint256 closeFactorCurve_,,,)
-            = marketManagerIsolated.tokenData(address(strategyCBALRETH));
-
-        liqIncBase = liqIncBase_;
-        liqIncCurve = liqIncCurve_;
-        closeFactorBase = closeFactorBase_;
-        closeFactorCurve = closeFactorCurve_;
 
         console2.log("SETUP COMPLETE");
     }
