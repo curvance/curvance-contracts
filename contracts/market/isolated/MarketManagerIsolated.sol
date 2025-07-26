@@ -99,10 +99,9 @@ contract MarketManagerIsolated is
     /// @notice The maximum liquidation incentive.
     /// @dev .3e18 = 30%.
     uint256 public constant MAX_LIQUIDATION_INCENTIVE = .3e18;
-    /// @notice Buffer to ensure Orderflow auction can do
-    ///      interest-triggered liquidations.
-    /// @dev 0.999e18 = 99.9%. multiplied then divided
-    ///      by WAD = 10 bps buffer.
+    /// @notice Buffer to ensure orderflow auction-based liquidations have
+    ///         priority versus basic liquidations.
+    /// @dev 0.999e18 = 99.9%. Multiplied then divided by WAD = 10 bps buffer.
     uint256 public constant AUCTION_BUFFER = 0.999e18;
     /// @notice The maximum base cFactor.
     /// @dev .5e18 = 50%.
