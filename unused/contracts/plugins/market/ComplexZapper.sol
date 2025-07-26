@@ -23,7 +23,7 @@ contract ComplexZapper is ZapperBase {
     ///                               native token, dictates whether native
     ///                               should be deposited as native or wrapped
     ///                               native.
-    struct ZapperData {
+    struct ZapAction {
         address inputToken;
         uint256 inputAmount;
         address outputToken;
@@ -54,11 +54,11 @@ contract ComplexZapper is ZapperBase {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Swaps then deposits `zapData.inputToken` into Curve lp token,
+    /// @notice Swaps then deposits `zapAction.inputToken` into Curve lp token,
     ///         and enters into Curvance position.
     /// @dev Requires plugin approval for collateralization.
     /// @param pToken The Curvance pToken address.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param lpMinter The minter address of the Curve lp token.
     /// @param tokens The underlying coins of the Curve lp token.
@@ -71,7 +71,7 @@ contract ComplexZapper is ZapperBase {
     /// @return outAmount The output amount received from Zapping.
     function enterCurve(
         address pToken,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address lpMinter,
         address[] calldata tokens,
@@ -81,24 +81,24 @@ contract ComplexZapper is ZapperBase {
     ) external payable nonReentrant returns (uint256 outAmount) {
         // Swap input token for underlyings.
         _swapForUnderlyings(
-            zapData.inputToken,
-            zapData.inputAmount,
+            zapAction.inputToken,
+            zapAction.inputAmount,
             swapActions,
-            zapData.depositAsWrappedNative
+            zapAction.depositAsWrappedNative
         );
 
         // Enter Curve lp position.
         outAmount = CurveLib.enterCurve(
             lpMinter,
-            zapData.outputToken,
+            zapAction.outputToken,
             tokens,
-            zapData.minimumOut
+            zapAction.minimumOut
         );
 
         // Enter Curvance pToken position.
         outAmount = _enterCurvance(
             pToken,
-            zapData.outputToken,
+            zapAction.outputToken,
             true,
             outAmount,
             expectedShares,
@@ -108,9 +108,9 @@ contract ComplexZapper is ZapperBase {
     }
 
     /// @notice Exits a Curve lp, and zaps it into desired
-    ///         token (zapData.outputToken).
+    ///         token (zapAction.outputToken).
     /// @param lpMinter The minter address of the Curve lp token.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param tokens The underlying token addresses of the Curve lp token.
     /// @param singleAssetWithdraw Whether lp should be unwrapped to a single
     ///                            token or not.
@@ -125,7 +125,7 @@ contract ComplexZapper is ZapperBase {
     /// @return outAmount The output amount received from Zapping.
     function exitCurve(
         address lpMinter,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         address[] calldata tokens,
         uint256 singleAssetWithdraw,
         uint256 singleAssetIndex,
@@ -134,16 +134,16 @@ contract ComplexZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Transfer Curve lp token to the Zapper.
         SafeTransferLib.safeTransferFrom(
-            zapData.inputToken,
+            zapAction.inputToken,
             msg.sender,
             address(this),
-            zapData.inputAmount
+            zapAction.inputAmount
         );
 
         // Exit Curve lp position.
         outAmount = _exitCurve(
             lpMinter,
-            zapData,
+            zapAction,
             tokens,
             singleAssetWithdraw,
             singleAssetIndex,
@@ -153,8 +153,8 @@ contract ComplexZapper is ZapperBase {
     }
 
     /// @notice Withdraws a Curvance Curve lp position, and zaps it into
-    ///         desired token (zapData.outputToken).
-    /// @param redemptionData Struct containing information on the desired
+    ///         desired token (zapAction.outputToken).
+    /// @param redeemAction Struct containing information on the desired
     ///                       redemption action to execute. Containing values:
     ///                       1. The address of the pToken corresponding to Curve lp
     ///                          token to be exited.
@@ -162,7 +162,7 @@ contract ComplexZapper is ZapperBase {
     ///                       3. Whether the collateral should be always
     ///                          reduced from callers collateralPosted.
     /// @param lpMinter The minter address of the Curve lp token.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param tokens The underlying token addresses of the Curve lp token.
     /// @param singleAssetWithdraw Whether lp should be unwrapped to a single
     ///                            token or not.
@@ -176,9 +176,9 @@ contract ComplexZapper is ZapperBase {
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitCurve(
-        RedemptionData calldata redemptionData,
+        RedeemAction calldata redeemAction,
         address lpMinter,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         address[] calldata tokens,
         uint256 singleAssetWithdraw,
         uint256 singleAssetIndex,
@@ -187,18 +187,18 @@ contract ComplexZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            redemptionData.mToken,
-            zapData.inputToken,
-            redemptionData.shares,
-            zapData.inputAmount,
-            redemptionData.forceRedeemCollateral,
+            redeemAction.mToken,
+            zapAction.inputToken,
+            redeemAction.shares,
+            zapAction.inputAmount,
+            redeemAction.forceRedeemCollateral,
             recipient
         );
 
         // Exit Curve lp position.
         outAmount = _exitCurve(
             lpMinter,
-            zapData,
+            zapAction,
             tokens,
             singleAssetWithdraw,
             singleAssetIndex,
@@ -207,7 +207,7 @@ contract ComplexZapper is ZapperBase {
         );
     }
 
-    /// @notice Swaps then deposits `zapData.inputToken` into a BPT, and
+    /// @notice Swaps then deposits `zapAction.inputToken` into a BPT, and
     ///         enters into Curvance position.
     /// @dev Requires plugin approval for collateralization.
     /// @param pToken The Curvance pToken address.
@@ -216,7 +216,7 @@ contract ComplexZapper is ZapperBase {
     ///                       1. The Balancer vault address.
     ///                       2. The BPT pool ID.
     ///                       3. The underlying tokens of the BPT.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of `swapActions.outputToken`
@@ -228,7 +228,7 @@ contract ComplexZapper is ZapperBase {
     function enterBalancer(
         address pToken,
         BalancerData calldata balancerData,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         uint256 expectedShares,
         bool collateralize,
@@ -236,25 +236,25 @@ contract ComplexZapper is ZapperBase {
     ) external payable nonReentrant returns (uint256 outAmount) {
         // Swap input token for underlyings.
         _swapForUnderlyings(
-            zapData.inputToken,
-            zapData.inputAmount,
+            zapAction.inputToken,
+            zapAction.inputAmount,
             swapActions,
-            zapData.depositAsWrappedNative
+            zapAction.depositAsWrappedNative
         );
 
         // Enter BPT position.
         outAmount = BalancerLib.enterBalancer(
             balancerData.balancerVault,
             balancerData.balancerPoolId,
-            zapData.outputToken,
+            zapAction.outputToken,
             balancerData.underlyingTokens,
-            zapData.minimumOut
+            zapAction.minimumOut
         );
 
         // Enter Curvance pToken position.
         outAmount = _enterCurvance(
             pToken,
-            zapData.outputToken,
+            zapAction.outputToken,
             true,
             outAmount,
             expectedShares,
@@ -264,13 +264,13 @@ contract ComplexZapper is ZapperBase {
     }
 
     /// @notice Exits a BPT, and zaps it into desired
-    ///         token (zapData.outputToken).
+    ///         token (zapAction.outputToken).
     /// @param balancerData Struct containing information on the desired
     ///                     BPT redemption to execute. Containing values:
     ///                     1. The Balancer vault address.
     ///                     2. The BPT pool ID.
     ///                     3. The underlying tokens of the BPT.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param singleAssetWithdraw Whether BPT should be unwrapped to a single
     ///                            token or not.
     ///                            false = all tokens.
@@ -283,7 +283,7 @@ contract ComplexZapper is ZapperBase {
     /// @return outAmount The output amount received from Zapping.
     function exitBalancer(
         BalancerData calldata balancerData,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         bool singleAssetWithdraw,
         uint256 singleAssetIndex,
         SwapperLib.Swap[] calldata swapActions,
@@ -291,10 +291,10 @@ contract ComplexZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Transfer the BPT to the Zapper.
         SafeTransferLib.safeTransferFrom(
-            zapData.inputToken,
+            zapAction.inputToken,
             msg.sender,
             address(this),
-            zapData.inputAmount
+            zapAction.inputAmount
         );
 
         // Exit Balancer lp position.
@@ -303,7 +303,7 @@ contract ComplexZapper is ZapperBase {
             balancerData.balancerPoolId,
             singleAssetWithdraw,
             singleAssetIndex,
-            zapData,
+            zapAction,
             balancerData.underlyingTokens,
             swapActions,
             recipient
@@ -311,8 +311,8 @@ contract ComplexZapper is ZapperBase {
     }
 
     /// @notice Withdraws a Curvance BPT position, and zaps it into
-    ///         desired token (zapData.outputToken).
-    /// @param redemptionData Struct containing information on the desired
+    ///         desired token (zapAction.outputToken).
+    /// @param redeemAction Struct containing information on the desired
     ///                       redemption action to execute. Containing values:
     ///                       1. The address of the pToken corresponding to Curve lp
     ///                          token to be exited.
@@ -324,7 +324,7 @@ contract ComplexZapper is ZapperBase {
     ///                     1. The Balancer vault address.
     ///                     2. The BPT pool ID.
     ///                     3. The underlying tokens of the BPT.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param singleAssetWithdraw Whether BPT should be unwrapped to a single
     ///                            token or not.
     ///                            false = all tokens.
@@ -336,9 +336,9 @@ contract ComplexZapper is ZapperBase {
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitBalancer(
-        RedemptionData calldata redemptionData,
+        RedeemAction calldata redeemAction,
         BalancerData calldata balancerData,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         bool singleAssetWithdraw,
         uint256 singleAssetIndex,
         SwapperLib.Swap[] calldata swapActions,
@@ -346,11 +346,11 @@ contract ComplexZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            redemptionData.mToken,
-            zapData.inputToken,
-            redemptionData.shares,
-            zapData.inputAmount,
-            redemptionData.forceRedeemCollateral,
+            redeemAction.mToken,
+            zapAction.inputToken,
+            redeemAction.shares,
+            zapAction.inputAmount,
+            redeemAction.forceRedeemCollateral,
             recipient
         );
 
@@ -360,18 +360,18 @@ contract ComplexZapper is ZapperBase {
             balancerData.balancerPoolId,
             singleAssetWithdraw,
             singleAssetIndex,
-            zapData,
+            zapAction,
             balancerData.underlyingTokens,
             swapActions,
             recipient
         );
     }
 
-    /// @notice Swaps then deposits `zapData.inputToken` into Velodrome
+    /// @notice Swaps then deposits `zapAction.inputToken` into Velodrome
     ///         sAMM/vAMM, and enters into Curvance position.
     /// @dev Requires plugin approval for collateralization.
     /// @param pToken The Curvance pToken address.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param router The Velodrome router address.
     /// @param factory The Velodrome factory address.
@@ -384,7 +384,7 @@ contract ComplexZapper is ZapperBase {
     /// @return outAmount The output amount received from Zapping.
     function enterVelodrome(
         address pToken,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address router,
         address factory,
@@ -394,26 +394,26 @@ contract ComplexZapper is ZapperBase {
     ) external payable nonReentrant returns (uint256 outAmount) {
         // Swap input token for underlyings.
         _swapForUnderlyings(
-            zapData.inputToken,
-            zapData.inputAmount,
+            zapAction.inputToken,
+            zapAction.inputAmount,
             swapActions,
-            zapData.depositAsWrappedNative
+            zapAction.depositAsWrappedNative
         );
 
         // Enter Velodrome sAMM/vAMM position.
         outAmount = VelodromeLib.enterVelodrome(
             router,
             factory,
-            zapData.outputToken,
-            CommonLib._getBalanceOf(IVeloPair(zapData.outputToken).token0()),
-            CommonLib._getBalanceOf(IVeloPair(zapData.outputToken).token1()),
-            zapData.minimumOut
+            zapAction.outputToken,
+            CommonLib._getBalanceOf(IVeloPair(zapAction.outputToken).token0()),
+            CommonLib._getBalanceOf(IVeloPair(zapAction.outputToken).token1()),
+            zapAction.minimumOut
         );
 
         // Enter Curvance pToken position.
         outAmount = _enterCurvance(
             pToken,
-            zapData.outputToken,
+            zapAction.outputToken,
             true,
             outAmount,
             expectedShares,
@@ -423,33 +423,33 @@ contract ComplexZapper is ZapperBase {
     }
 
     /// @notice Exits a Velodrome sAMM/vAMM, and zaps it into desired
-    ///         token (zapData.outputToken).
+    ///         token (zapAction.outputToken).
     /// @param router The Velodrome router address.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function exitVelodrome(
         address router,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
         // Transfer the Velodrome sAMM/vAMM to the Zapper.
         SafeTransferLib.safeTransferFrom(
-            zapData.inputToken,
+            zapAction.inputToken,
             msg.sender,
             address(this),
-            zapData.inputAmount
+            zapAction.inputAmount
         );
 
         // Exit Velodrome lp position.
-        outAmount = _exitVelodrome(router, zapData, swapActions, recipient);
+        outAmount = _exitVelodrome(router, zapAction, swapActions, recipient);
     }
 
     /// @notice Withdraws a Curvance Velodrome sAMM/vAMM position, and zaps it
-    ///         into desired token (zapData.outputToken).
-    /// @param redemptionData Struct containing information on the desired
+    ///         into desired token (zapAction.outputToken).
+    /// @param redeemAction Struct containing information on the desired
     ///                       redemption action to execute. Containing values:
     ///                       1. The address of the pToken corresponding to Curve lp
     ///                          token to be exited.
@@ -457,36 +457,36 @@ contract ComplexZapper is ZapperBase {
     ///                       3. Whether the collateral should be always
     ///                          reduced from callers collateralPosted.
     /// @param router The Velodrome router address.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitVelodrome(
-        RedemptionData calldata redemptionData,
+        RedeemAction calldata redeemAction,
         address router,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            redemptionData.mToken,
-            zapData.inputToken,
-            redemptionData.shares,
-            zapData.inputAmount,
-            redemptionData.forceRedeemCollateral,
+            redeemAction.mToken,
+            zapAction.inputToken,
+            redeemAction.shares,
+            zapAction.inputAmount,
+            redeemAction.forceRedeemCollateral,
             recipient
         );
 
         // Exit Velodrome lp position.
-        outAmount = _exitVelodrome(router, zapData, swapActions, recipient);
+        outAmount = _exitVelodrome(router, zapAction, swapActions, recipient);
     }
 
-    /// @notice Swaps then deposits `zapData.inputToken` into Pendle
+    /// @notice Swaps then deposits `zapAction.inputToken` into Pendle
     ///         market, and enters into Curvance position.
     /// @dev Requires plugin approval for collateralization.
     /// @param pToken The Curvance pToken address.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
@@ -501,7 +501,7 @@ contract ComplexZapper is ZapperBase {
     /// @return outAmount The output amount received from Zapping.
     function enterPendle(
         address pToken,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address router,
         bool isPt,
@@ -512,10 +512,10 @@ contract ComplexZapper is ZapperBase {
     ) external payable nonReentrant returns (uint256 outAmount) {
         // Swap input token for underlyings.
         _swapForUnderlyings(
-            zapData.inputToken,
-            zapData.inputAmount,
+            zapAction.inputToken,
+            zapAction.inputAmount,
             swapActions,
-            zapData.depositAsWrappedNative
+            zapAction.depositAsWrappedNative
         );
 
         // Enter Pendle position.
@@ -523,14 +523,14 @@ contract ComplexZapper is ZapperBase {
             router,
             isPt,
             data,
-            zapData.outputToken,
-            zapData.minimumOut
+            zapAction.outputToken,
+            zapAction.minimumOut
         );
 
         // Enter Curvance pToken position.
         outAmount = _enterCurvance(
             pToken,
-            zapData.outputToken,
+            zapAction.outputToken,
             true,
             outAmount,
             expectedShares,
@@ -540,13 +540,13 @@ contract ComplexZapper is ZapperBase {
     }
 
     /// @notice Exits a Pendle market, and zaps it into desired
-    ///         token (zapData.outputToken).
+    ///         token (zapAction.outputToken).
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param token The underlying token address of the SY.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
@@ -555,16 +555,16 @@ contract ComplexZapper is ZapperBase {
         bool isPt,
         address token,
         PendleLib.PendleData calldata data,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
         // Transfer the Pendle market to the Zapper.
         SafeTransferLib.safeTransferFrom(
-            zapData.inputToken,
+            zapAction.inputToken,
             msg.sender,
             address(this),
-            zapData.inputAmount
+            zapAction.inputAmount
         );
 
         // Exit Pendle lp position.
@@ -573,15 +573,15 @@ contract ComplexZapper is ZapperBase {
             isPt,
             token,
             data,
-            zapData,
+            zapAction,
             swapActions,
             recipient
         );
     }
 
     /// @notice Withdraws a Curvance Pendle market position, and zaps it
-    ///         into desired token (zapData.outputToken).
-    /// @param redemptionData Struct containing information on the desired
+    ///         into desired token (zapAction.outputToken).
+    /// @param redeemAction Struct containing information on the desired
     ///                       redemption action to execute. Containing values:
     ///                       1. The address of the pToken corresponding to Curve lp
     ///                          token to be exited.
@@ -593,27 +593,27 @@ contract ComplexZapper is ZapperBase {
     /// @param token The underlying token address of the SY.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitPendle(
-        RedemptionData calldata redemptionData,
+        RedeemAction calldata redeemAction,
         address router,
         bool isPt,
         address token,
         PendleLib.PendleData calldata data,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            redemptionData.mToken,
-            zapData.inputToken,
-            redemptionData.shares,
-            zapData.inputAmount,
-            redemptionData.forceRedeemCollateral,
+            redeemAction.mToken,
+            zapAction.inputToken,
+            redeemAction.shares,
+            zapAction.inputAmount,
+            redeemAction.forceRedeemCollateral,
             recipient
         );
 
@@ -623,7 +623,7 @@ contract ComplexZapper is ZapperBase {
             isPt,
             token,
             data,
-            zapData,
+            zapAction,
             swapActions,
             recipient
         );
@@ -632,9 +632,9 @@ contract ComplexZapper is ZapperBase {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Withdraws a Curvance Curve lp position, and zaps it into
-    ///         desired token (zapData.outputToken).
+    ///         desired token (zapAction.outputToken).
     /// @param lpMinter The minter address of the Curve lp token.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param tokens The underlying token addresses of the Curve lp token.
     /// @param singleAssetWithdraw Whether lp should be unwrapped to a single
     ///                            token or not.
@@ -649,7 +649,7 @@ contract ComplexZapper is ZapperBase {
     /// @return outAmount The output amount received from Zapping.
     function _exitCurve(
         address lpMinter,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         address[] calldata tokens,
         uint256 singleAssetWithdraw,
         uint256 singleAssetIndex,
@@ -659,32 +659,32 @@ contract ComplexZapper is ZapperBase {
         // Exit Curve lp position.
         CurveLib.exitCurve(
             lpMinter,
-            zapData.inputToken,
+            zapAction.inputToken,
             tokens,
-            zapData.inputAmount,
+            zapAction.inputAmount,
             singleAssetWithdraw,
             singleAssetIndex
         );
 
         uint256 numTokenSwaps = swapActions.length;
-        // Swap unwrapped token(s) into `zapData.outputToken`.
+        // Swap unwrapped token(s) into `zapAction.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
-            // Execute swap(s) into `zapData.outputToken`.
+            // Execute swap(s) into `zapAction.outputToken`.
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapData.outputToken);
+        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
-        if (outAmount < zapData.minimumOut) {
+        if (outAmount < zapAction.minimumOut) {
             revert ComplexZapper__SlippageError();
         }
 
         // Transfer output tokens to `recipient`.
-        _transferToRecipient(zapData.outputToken, recipient, outAmount);
+        _transferToRecipient(zapAction.outputToken, recipient, outAmount);
     }
 
     /// @notice Withdraws a Curvance BPT position, and zaps it into
-    ///         desired token (zapData.outputToken).
+    ///         desired token (zapAction.outputToken).
     /// @param balancerVault The Balancer vault address.
     /// @param balancerPoolId The BPT pool ID.
     /// @param singleAssetWithdraw Whether BPT should be unwrapped to a single
@@ -694,7 +694,7 @@ contract ComplexZapper is ZapperBase {
     /// @param singleAssetIndex Used if `singleAssetWithdraw` = true,
     ///                         indicates the coin index inside the Balancer
     ///                         BPT to withdraw as.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param tokens The underlying token addresses of the BPT.
     /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
@@ -704,7 +704,7 @@ contract ComplexZapper is ZapperBase {
         bytes32 balancerPoolId,
         bool singleAssetWithdraw,
         uint256 singleAssetIndex,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         address[] calldata tokens,
         SwapperLib.Swap[] calldata swapActions,
         address recipient
@@ -713,73 +713,73 @@ contract ComplexZapper is ZapperBase {
         BalancerLib.exitBalancer(
             balancerVault,
             balancerPoolId,
-            zapData.inputToken,
+            zapAction.inputToken,
             tokens,
-            zapData.inputAmount,
+            zapAction.inputAmount,
             singleAssetWithdraw,
             singleAssetIndex
         );
 
         uint256 numTokenSwaps = swapActions.length;
-        // Swap unwrapped token(s) into `zapData.outputToken`.
+        // Swap unwrapped token(s) into `zapAction.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
-            // Execute swap(s) into `zapData.outputToken`.
+            // Execute swap(s) into `zapAction.outputToken`.
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapData.outputToken);
+        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
-        if (outAmount < zapData.minimumOut) {
+        if (outAmount < zapAction.minimumOut) {
             revert ComplexZapper__SlippageError();
         }
 
         // Transfer output tokens to `recipient`.
-        _transferToRecipient(zapData.outputToken, recipient, outAmount);
+        _transferToRecipient(zapAction.outputToken, recipient, outAmount);
     }
 
     /// @notice Withdraws a Curvance Velodrome sAMM/vAMM position, and zaps it
-    ///         into desired token (zapData.outputToken).
+    ///         into desired token (zapAction.outputToken).
     /// @param router The Velodrome router address.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function _exitVelodrome(
         address router,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address recipient
     ) internal returns (uint256 outAmount) {
         // Exit Velodrome sAMM/vAMM position.
         VelodromeLib.exitVelodrome(
             router,
-            zapData.inputToken,
-            zapData.inputAmount
+            zapAction.inputToken,
+            zapAction.inputAmount
         );
 
         uint256 numTokenSwaps = swapActions.length;
-        // Swap unwrapped tokens into `zapData.outputToken`.
+        // Swap unwrapped tokens into `zapAction.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
-            // Execute swap(s) into `zapData.outputToken`.
+            // Execute swap(s) into `zapAction.outputToken`.
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapData.outputToken);
+        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
-        if (outAmount < zapData.minimumOut) {
+        if (outAmount < zapAction.minimumOut) {
             revert ComplexZapper__SlippageError();
         }
 
         // Transfer output tokens to `recipient`.
-        _transferToRecipient(zapData.outputToken, recipient, outAmount);
+        _transferToRecipient(zapAction.outputToken, recipient, outAmount);
     }
 
     /// @notice Withdraws a Curvance Pendle market position, and zaps it
-    ///         into desired token (zapData.outputToken).
+    ///         into desired token (zapAction.outputToken).
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param token The underlying token address of the SY.
-    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param zapAction Zap instruction data to execute the Zap.
     /// @param swapActions Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
@@ -788,7 +788,7 @@ contract ComplexZapper is ZapperBase {
         bool isPt,
         address token,
         PendleLib.PendleData calldata data,
-        ZapperData calldata zapData,
+        ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address recipient
     ) internal returns (uint256 outAmount) {
@@ -798,26 +798,26 @@ contract ComplexZapper is ZapperBase {
             isPt,
             token,
             data,
-            zapData.inputToken,
-            zapData.inputAmount,
+            zapAction.inputToken,
+            zapAction.inputAmount,
             0
         );
 
         uint256 numTokenSwaps = swapActions.length;
-        // Swap unwrapped tokens into `zapData.outputToken`.
+        // Swap unwrapped tokens into `zapAction.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
-            // Execute swap(s) into `zapData.outputToken`.
+            // Execute swap(s) into `zapAction.outputToken`.
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapData.outputToken);
+        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
-        if (outAmount < zapData.minimumOut) {
+        if (outAmount < zapAction.minimumOut) {
             revert ComplexZapper__SlippageError();
         }
 
         // Transfer output tokens to `recipient`.
-        _transferToRecipient(zapData.outputToken, recipient, outAmount);
+        _transferToRecipient(zapAction.outputToken, recipient, outAmount);
     }
 
     /// @notice Swap `inputToken` into desired pToken underlying tokens.

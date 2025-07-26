@@ -92,7 +92,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         vm.startPrank(user1);
         pendleZapper.enterPendle{ value: ethAmount }(
             address(pendleCTokenSTETH),
-            PendleZapper.ZapperData(
+            PendleZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _PENDLE_LP_STETH,
@@ -138,7 +138,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
             _IS_PT,
             _STETH,
             data,
-            PendleZapper.ZapperData(
+            PendleZapper.ZapAction(
                 _PENDLE_LP_STETH,
                 withdrawAmount,
                 _STETH,
@@ -170,7 +170,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         vm.startPrank(user1);
         pendleZapper.enterPendle{ value: ethAmount }(
             address(pendleCTokenSTETH),
-            PendleZapper.ZapperData(
+            PendleZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _PENDLE_LP_STETH,
@@ -214,7 +214,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         pendleZapper.enterPendle{ value: ethAmount }(
             address(pendleCTokenSTETH),
-            PendleZapper.ZapperData(
+            PendleZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _PENDLE_LP_STETH,
@@ -261,7 +261,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         vm.startPrank(user2);
         pendleZapper.enterPendle{ value: ethAmount }(
             address(pendleCTokenSTETH),
-            PendleZapper.ZapperData(
+            PendleZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _PENDLE_LP_STETH,
@@ -291,10 +291,10 @@ contract TestPendleZapper is TestBaseMarketIsolated {
     function testRedeemAndExitPendle() public {
         testEnterPendleWithCTokenWithCollateralize();
 
-        ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.cToken = address(pendleCTokenSTETH);
-        redemptionData.shares = 1.24 ether;
-        redemptionData.forceRedeemCollateral = false;
+        ZapperBase.RedeemAction memory redeemAction;
+        redeemAction.cToken = address(pendleCTokenSTETH);
+        redeemAction.shares = 1.24 ether;
+        redeemAction.forceRedeemCollateral = false;
 
         PendleLib.PendleData memory data;
 
@@ -314,12 +314,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         IERC20(_PENDLE_LP_STETH).approve(address(pendleZapper), 3 ether);
         pendleZapper.redeemAndExitPendle(
-            redemptionData,
+            redeemAction,
             _PENDLE_ROUTER,
             _IS_PT,
             _STETH,
             data,
-            PendleZapper.ZapperData(
+            PendleZapper.ZapAction(
                 _PENDLE_LP_STETH,
                 1.24 ether,
                 _STETH,

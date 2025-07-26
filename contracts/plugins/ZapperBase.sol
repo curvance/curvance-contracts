@@ -16,13 +16,12 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 abstract contract ZapperBase is ReentrancyGuard {
     /// TYPES ///
 
-    /// @title Zapper Base Data
     /// @param cToken The address of the cToken corresponding to the proposed
     ///               redemption.
     /// @param shares The amount of shares to redeemed.
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced from callers collateralPosted.
-    struct RedemptionData {
+    struct RedeemAction {
         address cToken;
         uint256 shares;
         bool forceRedeemCollateral;

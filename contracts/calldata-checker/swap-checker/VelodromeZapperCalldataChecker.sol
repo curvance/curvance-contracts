@@ -37,7 +37,7 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
         if (funcSigHash == VelodromeZapper.enterVelodrome.selector) {
             (
                 address cToken,
-                VelodromeZapper.ZapperData memory desc,
+                VelodromeZapper.ZapAction memory desc,
                 ,
                 ,
                 ,
@@ -48,7 +48,7 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
                     _getFuncParams(swapAction.call),
                     (
                         address,
-                        VelodromeZapper.ZapperData,
+                        VelodromeZapper.ZapAction,
                         SwapperLib.Swap[],
                         address,
                         address,
@@ -64,14 +64,14 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
         } else if (funcSigHash == VelodromeZapper.exitVelodrome.selector) {
             (
                 ,
-                VelodromeZapper.ZapperData memory desc,
+                VelodromeZapper.ZapAction memory desc,
                 ,
                 address _recipient
             ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
                         address,
-                        VelodromeZapper.ZapperData,
+                        VelodromeZapper.ZapAction,
                         SwapperLib.Swap[],
                         address
                     )
@@ -84,23 +84,23 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
             funcSigHash == VelodromeZapper.redeemAndExitVelodrome.selector
         ) {
             (
-                ZapperBase.RedemptionData memory redemptionData,
+                ZapperBase.RedeemAction memory redeemAction,
                 ,
-                VelodromeZapper.ZapperData memory desc,
+                VelodromeZapper.ZapAction memory desc,
                 ,
                 address _recipient
             ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
-                        ZapperBase.RedemptionData,
+                        ZapperBase.RedeemAction,
                         address,
-                        VelodromeZapper.ZapperData,
+                        VelodromeZapper.ZapAction,
                         SwapperLib.Swap[],
                         address
                     )
                 );
             recipient = _recipient;
-            inputToken = redemptionData.cToken;
+            inputToken = redeemAction.cToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else {

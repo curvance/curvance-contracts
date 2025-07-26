@@ -97,7 +97,7 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
         vm.prank(user1);
         complexZapper.enterCurve{ value: ethAmount }(
             address(0),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _ETH_ADDRESS,
                 ethAmount,
                 _CURVE_STETH_LP,
@@ -131,7 +131,7 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
         );
         complexZapper.exitCurve(
             _CURVE_STETH_MINTER,
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _CURVE_STETH_LP,
                 withdrawAmount,
                 _ETH_ADDRESS,
@@ -161,7 +161,7 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
         vm.prank(user1);
         complexZapper.enterCurve{ value: ethAmount }(
             address(pToken),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _ETH_ADDRESS,
                 ethAmount,
                 _CURVE_STETH_LP,
@@ -194,7 +194,7 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
         vm.prank(user1);
         complexZapper.enterCurve{ value: ethAmount }(
             address(pToken),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _ETH_ADDRESS,
                 ethAmount,
                 _CURVE_STETH_LP,
@@ -233,7 +233,7 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
         vm.prank(user2);
         complexZapper.enterCurve{ value: ethAmount }(
             address(pToken),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _ETH_ADDRESS,
                 ethAmount,
                 _CURVE_STETH_LP,
@@ -261,10 +261,10 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
         vm.prank(user1);
         pToken.setDelegateApproval(address(complexZapper), true);
 
-        ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.mToken = address(pToken);
-        redemptionData.shares = 2.9 ether;
-        redemptionData.forceRedeemCollateral = false;
+        ZapperBase.RedeemAction memory redeemAction;
+        redeemAction.mToken = address(pToken);
+        redeemAction.shares = 2.9 ether;
+        redeemAction.forceRedeemCollateral = false;
 
         vm.startPrank(user1);
         address[] memory tokens = new address[](2);
@@ -272,9 +272,9 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
         tokens[1] = _STETH_ADDRESS;
         IERC20(_CURVE_STETH_LP).approve(address(complexZapper), 3 ether);
         complexZapper.redeemAndExitCurve(
-            redemptionData,
+            redeemAction,
             _CURVE_STETH_MINTER,
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _CURVE_STETH_LP,
                 2.9 ether,
                 _ETH_ADDRESS,

@@ -137,7 +137,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         vm.startPrank(user1);
         velodromeZapper.enterVelodrome{ value: ethAmount }(
             address(veloCTokenWETHUSDC),
-            VelodromeZapper.ZapperData(
+            VelodromeZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _VELODROME_WETH_USDC,
@@ -173,7 +173,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         );
         velodromeZapper.exitVelodrome(
             _VELODROME_ROUTER,
-            VelodromeZapper.ZapperData(
+            VelodromeZapper.ZapAction(
                 _VELODROME_WETH_USDC,
                 withdrawAmount,
                 _WETH,
@@ -197,7 +197,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         vm.startPrank(user1);
         velodromeZapper.enterVelodrome{ value: ethAmount }(
             address(veloCTokenWETHUSDC),
-            VelodromeZapper.ZapperData(
+            VelodromeZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _VELODROME_WETH_USDC,
@@ -233,7 +233,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
 
         velodromeZapper.enterVelodrome{ value: ethAmount }(
             address(veloCTokenWETHUSDC),
-            VelodromeZapper.ZapperData(
+            VelodromeZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _VELODROME_WETH_USDC,
@@ -272,7 +272,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         vm.startPrank(user2);
         velodromeZapper.enterVelodrome{ value: ethAmount }(
             address(veloCTokenWETHUSDC),
-            VelodromeZapper.ZapperData(
+            VelodromeZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _VELODROME_WETH_USDC,
@@ -301,10 +301,10 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
     function testRedeemAndExitVelodrome() public {
         testEnterVelodromeWithCToken();
 
-        ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.cToken = address(veloCTokenWETHUSDC);
-        redemptionData.shares = 0.00006 ether;
-        redemptionData.forceRedeemCollateral = false;
+        ZapperBase.RedeemAction memory redeemAction;
+        redeemAction.cToken = address(veloCTokenWETHUSDC);
+        redeemAction.shares = 0.00006 ether;
+        redeemAction.forceRedeemCollateral = false;
 
         vm.startPrank(user1);
 
@@ -314,9 +314,9 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
             3 ether
         );
         velodromeZapper.redeemAndExitVelodrome(
-            redemptionData,
+            redeemAction,
             _VELODROME_ROUTER,
-            VelodromeZapper.ZapperData(
+            VelodromeZapper.ZapAction(
                 _VELODROME_WETH_USDC,
                 0.00006 ether,
                 _WETH,

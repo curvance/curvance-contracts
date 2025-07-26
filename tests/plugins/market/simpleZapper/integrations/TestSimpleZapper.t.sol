@@ -159,10 +159,10 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
 
         uint256 shares = simpleCUSDC.balanceOf(user1);
 
-        ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.cToken = address(simpleCUSDC);
-        redemptionData.shares = shares;
-        redemptionData.forceRedeemCollateral = false;
+        ZapperBase.RedeemAction memory redeemAction;
+        redeemAction.cToken = address(simpleCUSDC);
+        redeemAction.shares = shares;
+        redeemAction.forceRedeemCollateral = false;
 
         SwapperLib.Swap memory swapAction;
         swapAction.inputToken = _USDC_ADDRESS;
@@ -185,7 +185,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         );
 
         vm.prank(user1);
-        simpleZapper.redeemAndSwap(redemptionData, swapAction, user1);
+        simpleZapper.redeemAndSwap(redeemAction, swapAction, user1);
 
         assertGt(weth.balanceOf(user1), 2.9 ether); // 3 ether - fees
     }
@@ -200,10 +200,10 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
 
         borrowableCDAI.setDelegateApproval(address(simpleZapper), true);
 
-        ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.cToken = address(borrowableCDAI);
-        redemptionData.shares = 10 ether;
-        redemptionData.forceRedeemCollateral = false;
+        ZapperBase.RedeemAction memory redeemAction;
+        redeemAction.cToken = address(borrowableCDAI);
+        redeemAction.shares = 10 ether;
+        redeemAction.forceRedeemCollateral = false;
 
         SwapperLib.Swap memory swapAction;
         swapAction.inputToken = _DAI_ADDRESS;
@@ -224,7 +224,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             params
         );
 
-        simpleZapper.redeemAndSwap(redemptionData, swapAction, user1);
+        simpleZapper.redeemAndSwap(redeemAction, swapAction, user1);
 
         assertGt(usdc.balanceOf(user1), 9.99e6); // 10e6 - fees
 
@@ -242,10 +242,10 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         borrowableCDAI.setDelegateApproval(address(simpleZapper), true);
         vm.stopPrank();  
 
-        ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.cToken = address(borrowableCDAI);
-        redemptionData.shares = 100 ether;
-        redemptionData.forceRedeemCollateral = false;
+        ZapperBase.RedeemAction memory redeemAction;
+        redeemAction.cToken = address(borrowableCDAI);
+        redeemAction.shares = 100 ether;
+        redeemAction.forceRedeemCollateral = false;
 
         SwapperLib.Swap memory swapAction;
         swapAction.inputToken = _DAI_ADDRESS;
@@ -270,7 +270,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
 
         simpleZapper.redeemSwapAndDeposit(
             address(simpleCUSDC),
-            redemptionData,
+            redeemAction,
             swapAction,
             0,
             false,

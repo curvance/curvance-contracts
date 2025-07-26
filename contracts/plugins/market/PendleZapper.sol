@@ -46,8 +46,8 @@ contract PendleZapper is ZapperBase {
     /// @dev Requires plugin approval for collateralization.
     /// @param strategyCToken The Curvance token address to enter into a
     ///                       position.
-    /// @param zapAction Zap instruction data to execute the Zap.
-    /// @param swapActions Array of swap instruction data to execute the Zap.
+    /// @param zapAction Instructions to execute the zap action.
+    /// @param swapActions Array of swap instruction data to execute the zap.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param data Pendle specific execution data including input/output,
@@ -106,8 +106,8 @@ contract PendleZapper is ZapperBase {
     /// @param underlyingToken The underlying token address of the SY.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
-    /// @param zapAction Zap instruction data to execute the Zap.
-    /// @param swapActions Array of swap instruction data to execute the Zap.
+    /// @param zapAction Instructions to execute the zap action.
+    /// @param swapActions Array of swap instruction data to execute the zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function exitPendle(
@@ -141,24 +141,24 @@ contract PendleZapper is ZapperBase {
 
     /// @notice Withdraws from a Curvance Pendle position, and zaps it
     ///         into desired token (zapAction.outputToken).
-    /// @param redemptionData Struct containing information on the desired
-    ///                       redemption action to execute. Containing values:
-    ///                       1. The address of the strategyCToken corresponding
-    ///                          to Pendle lp token to be exited.
-    ///                       2. The amount of shares to redeemed.
-    ///                       3. Whether the collateral should be always
-    ///                          reduced from callers collateralPosted.
+    /// @param redeemAction Struct containing information on the desired
+    ///                     redemption action to execute. Containing values:
+    ///                     1. The address of the strategyCToken corresponding
+    ///                        to Pendle lp token to be exited.
+    ///                     2. The amount of shares to redeemed.
+    ///                     3. Whether the collateral should be directly
+    ///                        reduced from caller's posted collateral.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param token The underlying token address of the SY.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
-    /// @param zapAction Zap instruction data to execute the Zap.
-    /// @param swapActions Array of swap instruction data to execute the Zap.
+    /// @param zapAction Instructions to execute the zap action.
+    /// @param swapActions Array of swap instruction data to execute the zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitPendle(
-        RedemptionData calldata redemptionData,
+        RedeemAction calldata redeemAction,
         address router,
         bool isPt,
         address token,
@@ -169,11 +169,11 @@ contract PendleZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvanceSafe(
-            redemptionData.cToken,
+            redeemAction.cToken,
             zapAction.inputToken,
-            redemptionData.shares,
+            redeemAction.shares,
             zapAction.inputAmount,
-            redemptionData.forceRedeemCollateral,
+            redeemAction.forceRedeemCollateral,
             receiver
         );
 
@@ -196,8 +196,8 @@ contract PendleZapper is ZapperBase {
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param underlyingToken The underlying token address of the SY.
-    /// @param zapAction Zap instruction data to execute the Zap.
-    /// @param swapActions Array of swap instruction data to execute the Zap.
+    /// @param zapAction Instructions to execute the zap action.
+    /// @param swapActions Array of swap instruction data to execute the zap.
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function _exitPendle(

@@ -129,29 +129,29 @@ contract SimpleZapper is ZapperBase {
     /// @notice Withdraws from a Curvance position, and swaps it into
     ///         desired token (swapAction.outputToken).
     /// @dev Requires plugin approval for redemption.
-    /// @param redemptionData Struct containing information on redemption
-    ///                       action to execute. Containing values:
-    ///                       1. The address of the cToken corresponding to
-    ///                          position to be exited.
-    ///                       2. The amount of shares to redeemed.
-    ///                       3. Whether the collateral should be always
-    ///                          reduced from callers collateralPosted.
+    /// @param redeemAction Struct containing information on redemption
+    ///                     action to execute. Containing values:
+    ///                     1. The address of the cToken corresponding to
+    ///                        position to be exited.
+    ///                     2. The amount of shares to redeemed.
+    ///                     3. Whether the collateral should be directly
+    ///                        reduced from caller's posted collateral.
     /// @param swapAction Instructions for executing a swap into debt asset.
     /// @param receiver Address that should receive `swapAction.outputToken`.
     /// @return outAmount The amount of `swapAction.outputToken` that was
     ///                   received by `receiver`.
     function redeemAndSwap(
-        RedemptionData calldata redemptionData,
+        RedeemAction calldata redeemAction,
         SwapperLib.Swap memory swapAction,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvanceSafe(
-            redemptionData.cToken,
+            redeemAction.cToken,
             swapAction.inputToken,
-            redemptionData.shares,
+            redeemAction.shares,
             swapAction.inputAmount,
-            redemptionData.forceRedeemCollateral,
+            redeemAction.forceRedeemCollateral,
             receiver
         );
 
@@ -169,13 +169,13 @@ contract SimpleZapper is ZapperBase {
     ///         it into a new position.
     /// @dev Requires plugin approval for redemption.
     /// @param cToken The Curvance token (cToken) address.
-    /// @param redemptionData Struct containing information on redemption
-    ///                       action to execute. Containing values:
-    ///                       1. The address of the cToken corresponding to
-    ///                          position to be exited.
-    ///                       2. The amount of shares to redeemed.
-    ///                       3. Whether the collateral should be always
-    ///                          reduced from callers collateralPosted.
+    /// @param redeemAction Struct containing information on redemption
+    ///                     action to execute. Containing values:
+    ///                     1. The address of the cToken corresponding to
+    ///                        position to be exited.
+    ///                     2. The amount of shares to redeemed.
+    ///                     3. Whether the collateral should be directly
+    ///                        reduced from caller's posted collateral.
     /// @param swapAction Instructions for executing a swap into debt asset.
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of
@@ -186,7 +186,7 @@ contract SimpleZapper is ZapperBase {
     /// @return outAmount The `cToken` output shares received by `receiver`.
     function redeemSwapAndDeposit(
         address cToken,
-        RedemptionData calldata redemptionData,
+        RedeemAction calldata redeemAction,
         SwapperLib.Swap memory swapAction,
         uint256 expectedShares,
         bool collateralize,
@@ -194,11 +194,11 @@ contract SimpleZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvanceSafe(
-            redemptionData.cToken,
+            redeemAction.cToken,
             swapAction.inputToken,
-            redemptionData.shares,
+            redeemAction.shares,
             swapAction.inputAmount,
-            redemptionData.forceRedeemCollateral,
+            redeemAction.forceRedeemCollateral,
             receiver
         );
 

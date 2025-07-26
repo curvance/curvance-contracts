@@ -27,7 +27,7 @@ contract TestComplexZapperCurveStable is TestBaseMarketIsolated {
         tokens[2] = _WETH_ADDRESS;
         complexZapper.enterCurve{ value: ethAmount }(
             address(0),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _CURVE_TRICRYPTO_LP,
@@ -59,7 +59,7 @@ contract TestComplexZapperCurveStable is TestBaseMarketIsolated {
         tokens[2] = _WETH_ADDRESS;
         complexZapper.enterCurve(
             address(0),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _WETH_ADDRESS,
                 wethAmount,
                 _CURVE_TRICRYPTO_LP,
@@ -95,7 +95,7 @@ contract TestComplexZapperCurveStable is TestBaseMarketIsolated {
         );
         complexZapper.exitCurve(
             _CURVE_TRICRYPTO_MINTER,
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _CURVE_TRICRYPTO_LP,
                 withdrawAmount,
                 _WETH_ADDRESS,

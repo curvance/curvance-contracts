@@ -38,7 +38,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
         if (funcSigHash == PendleZapper.enterPendle.selector) {
             (
                 address cToken,
-                PendleZapper.ZapperData memory desc,
+                PendleZapper.ZapAction memory desc,
                 ,
                 ,
                 ,
@@ -50,7 +50,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                     _getFuncParams(swapAction.call),
                     (
                         address,
-                        PendleZapper.ZapperData,
+                        PendleZapper.ZapAction,
                         SwapperLib.Swap[],
                         address,
                         bool,
@@ -70,7 +70,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                 ,
                 ,
                 ,
-                PendleZapper.ZapperData memory desc,
+                PendleZapper.ZapAction memory desc,
                 ,
                 address _recipient
             ) = abi.decode(
@@ -80,7 +80,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                         bool,
                         address,
                         PendleLib.PendleData,
-                        PendleZapper.ZapperData,
+                        PendleZapper.ZapAction,
                         SwapperLib.Swap[],
                         address
                     )
@@ -91,29 +91,29 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
             outputToken = desc.outputToken;
         } else if (funcSigHash == PendleZapper.redeemAndExitPendle.selector) {
             (
-                ZapperBase.RedemptionData memory redemptionData,
+                ZapperBase.RedeemAction memory redeemAction,
                 ,
                 ,
                 ,
                 ,
-                PendleZapper.ZapperData memory desc,
+                PendleZapper.ZapAction memory desc,
                 ,
                 address _recipient
             ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
-                        ZapperBase.RedemptionData,
+                        ZapperBase.RedeemAction,
                         address,
                         bool,
                         address,
                         PendleLib.PendleData,
-                        PendleZapper.ZapperData,
+                        PendleZapper.ZapAction,
                         SwapperLib.Swap[],
                         address
                     )
                 );
             recipient = _recipient;
-            inputToken = redemptionData.cToken;
+            inputToken = redeemAction.cToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else {

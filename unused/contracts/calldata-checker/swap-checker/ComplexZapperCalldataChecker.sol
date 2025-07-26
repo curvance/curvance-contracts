@@ -35,7 +35,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
         if (funcSigHash == ComplexZapper.enterCurve.selector) {
             (
                 address pToken,
-                ComplexZapper.ZapperData memory desc,
+                ComplexZapper.ZapAction memory desc,
                 ,
                 ,
                 ,
@@ -46,7 +46,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                     _getFuncParams(swapAction.call),
                     (
                         address,
-                        ComplexZapper.ZapperData,
+                        ComplexZapper.ZapAction,
                         SwapperLib.Swap[],
                         address,
                         address[],
@@ -62,7 +62,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
         } else if (funcSigHash == ComplexZapper.exitCurve.selector) {
             (
                 ,
-                ComplexZapper.ZapperData memory desc,
+                ComplexZapper.ZapAction memory desc,
                 ,
                 ,
                 ,
@@ -72,7 +72,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                     _getFuncParams(swapAction.call),
                     (
                         address,
-                        ComplexZapper.ZapperData,
+                        ComplexZapper.ZapAction,
                         address[],
                         uint256,
                         uint256,
@@ -86,9 +86,9 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
             outputToken = desc.outputToken;
         } else if (funcSigHash == ComplexZapper.redeemAndExitCurve.selector) {
             (
-                ZapperBase.RedemptionData memory redemptionData,
+                ZapperBase.RedeemAction memory redeemAction,
                 ,
-                ComplexZapper.ZapperData memory desc,
+                ComplexZapper.ZapAction memory desc,
                 ,
                 ,
                 ,
@@ -97,9 +97,9 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
             ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
-                        ZapperBase.RedemptionData,
+                        ZapperBase.RedeemAction,
                         address,
-                        ComplexZapper.ZapperData,
+                        ComplexZapper.ZapAction,
                         address[],
                         uint256,
                         uint256,
@@ -108,14 +108,14 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                     )
                 );
             recipient = _recipient;
-            inputToken = redemptionData.mToken;
+            inputToken = redeemAction.mToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else if (funcSigHash == ComplexZapper.enterBalancer.selector) {
             (
                 address pToken,
                 ,
-                ComplexZapper.ZapperData memory desc,
+                ComplexZapper.ZapAction memory desc,
                 ,
                 ,
                 ,
@@ -125,7 +125,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                     (
                         address,
                         ComplexZapper.BalancerData,
-                        ComplexZapper.ZapperData,
+                        ComplexZapper.ZapAction,
                         SwapperLib.Swap[],
                         uint256,
                         bool,
@@ -139,7 +139,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
         } else if (funcSigHash == ComplexZapper.exitBalancer.selector) {
             (
                 ,
-                ComplexZapper.ZapperData memory desc,
+                ComplexZapper.ZapAction memory desc,
                 ,
                 ,
                 ,
@@ -148,7 +148,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                     _getFuncParams(swapAction.call),
                     (
                         ComplexZapper.BalancerData,
-                        ComplexZapper.ZapperData,
+                        ComplexZapper.ZapAction,
                         bool,
                         uint256,
                         SwapperLib.Swap[],
@@ -163,9 +163,9 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
             funcSigHash == ComplexZapper.redeemAndExitBalancer.selector
         ) {
             (
-                ZapperBase.RedemptionData memory redemptionData,
+                ZapperBase.RedeemAction memory redeemAction,
                 ,
-                ComplexZapper.ZapperData memory desc,
+                ComplexZapper.ZapAction memory desc,
                 ,
                 ,
                 ,
@@ -173,9 +173,9 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
             ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
-                        ZapperBase.RedemptionData,
+                        ZapperBase.RedeemAction,
                         ComplexZapper.BalancerData,
-                        ComplexZapper.ZapperData,
+                        ComplexZapper.ZapAction,
                         bool,
                         uint256,
                         SwapperLib.Swap[],
@@ -183,13 +183,13 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                     )
                 );
             recipient = _recipient;
-            inputToken = redemptionData.mToken;
+            inputToken = redeemAction.mToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else if (funcSigHash == ComplexZapper.enterVelodrome.selector) {
             (
                 address pToken,
-                ComplexZapper.ZapperData memory desc,
+                ComplexZapper.ZapAction memory desc,
                 ,
                 ,
                 ,
@@ -200,7 +200,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                     _getFuncParams(swapAction.call),
                     (
                         address,
-                        ComplexZapper.ZapperData,
+                        ComplexZapper.ZapAction,
                         SwapperLib.Swap[],
                         address,
                         address,
@@ -216,14 +216,14 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
         } else if (funcSigHash == ComplexZapper.exitVelodrome.selector) {
             (
                 ,
-                ComplexZapper.ZapperData memory desc,
+                ComplexZapper.ZapAction memory desc,
                 ,
                 address _recipient
             ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
                         address,
-                        ComplexZapper.ZapperData,
+                        ComplexZapper.ZapAction,
                         SwapperLib.Swap[],
                         address
                     )
@@ -236,29 +236,29 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
             funcSigHash == ComplexZapper.redeemAndExitVelodrome.selector
         ) {
             (
-                ZapperBase.RedemptionData memory redemptionData,
+                ZapperBase.RedeemAction memory redeemAction,
                 ,
-                ComplexZapper.ZapperData memory desc,
+                ComplexZapper.ZapAction memory desc,
                 ,
                 address _recipient
             ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
-                        ZapperBase.RedemptionData,
+                        ZapperBase.RedeemAction,
                         address,
-                        ComplexZapper.ZapperData,
+                        ComplexZapper.ZapAction,
                         SwapperLib.Swap[],
                         address
                     )
                 );
             recipient = _recipient;
-            inputToken = redemptionData.mToken;
+            inputToken = redeemAction.mToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else if (funcSigHash == ComplexZapper.enterPendle.selector) {
             (
                 address pToken,
-                ComplexZapper.ZapperData memory desc,
+                ComplexZapper.ZapAction memory desc,
                 ,
                 ,
                 ,
@@ -270,7 +270,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                     _getFuncParams(swapAction.call),
                     (
                         address,
-                        ComplexZapper.ZapperData,
+                        ComplexZapper.ZapAction,
                         SwapperLib.Swap[],
                         address,
                         bool,
@@ -290,7 +290,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 ,
                 ,
-                ComplexZapper.ZapperData memory desc,
+                ComplexZapper.ZapAction memory desc,
                 ,
                 address _recipient
             ) = abi.decode(
@@ -300,7 +300,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                         bool,
                         address,
                         PendleLib.PendleData,
-                        ComplexZapper.ZapperData,
+                        ComplexZapper.ZapAction,
                         SwapperLib.Swap[],
                         address
                     )
@@ -311,29 +311,29 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
             outputToken = desc.outputToken;
         } else if (funcSigHash == ComplexZapper.redeemAndExitPendle.selector) {
             (
-                ZapperBase.RedemptionData memory redemptionData,
+                ZapperBase.RedeemAction memory redeemAction,
                 ,
                 ,
                 ,
                 ,
-                ComplexZapper.ZapperData memory desc,
+                ComplexZapper.ZapAction memory desc,
                 ,
                 address _recipient
             ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
-                        ZapperBase.RedemptionData,
+                        ZapperBase.RedeemAction,
                         address,
                         bool,
                         address,
                         PendleLib.PendleData,
-                        ComplexZapper.ZapperData,
+                        ComplexZapper.ZapAction,
                         SwapperLib.Swap[],
                         address
                     )
                 );
             recipient = _recipient;
-            inputToken = redemptionData.mToken;
+            inputToken = redeemAction.mToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else {
