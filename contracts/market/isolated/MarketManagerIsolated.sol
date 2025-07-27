@@ -1133,8 +1133,8 @@ contract MarketManagerIsolated is
 
     /// @notice Sets new dynamic close factor and liquidation penalty
     ///         values in transient storage.
-    /// @dev Transient storage enforces any liquidator outside Auction
-    ///      uses the default risk parameters.
+    /// @dev Transient storage enforces any liquidator outside auction-based
+    ///      liquidations uses the default risk parameters.
     /// @param cToken The Curvance token to set liquidation incentive and
     ///               close factor for during an auction-based liquidation.
     /// @param incentive The auction liquidation incentive value, in WAD.
@@ -1180,9 +1180,11 @@ contract MarketManagerIsolated is
         }
     }
 
-    /// @notice Resets the Auction risk parameters in transient storage to zero.
-    ///         This is redundant since the transient values will be reset 
-    ///         after an Auction tx, but helps to ensure expected behaviour. 
+    /// @notice Resets the liquidation risk parameters in transient storage to
+    ///         zero.
+    /// @dev This is redundant since the transient values will be reset after
+    ///      the liquidation transaction, but can be useful during meta calls
+    ///      with multiple liquidations during a single transaction. 
     function resetLiquidationConfig() external {
         _checkAuctionPermissions();
 
@@ -1196,12 +1198,12 @@ contract MarketManagerIsolated is
 
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice Returns the current auction liquidation values in an active
+    /// @notice Returns the current liquidation values in an active
     ///         transaction.
-    /// @dev If a dynamic liquidation incentive or close factor is set in
+    /// @dev If a liquidation incentive or close factor is set in
     ///      transient storage, that value is returned (0 if no set value).
-    /// @return incentive The auction liquidation incentive value, in WAD.
-    /// @return closeFactor The auction close factor value, in WAD.
+    /// @return incentive The liquidation incentive value, in WAD.
+    /// @return closeFactor The close factor value, in WAD.
     function getLiquidationConfig() public view returns (
         uint256 incentive,
         uint256 closeFactor
