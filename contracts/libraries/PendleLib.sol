@@ -161,7 +161,7 @@ library PendleLib {
         address router,
         bool isPt,
         address lpToken,
-        uint256 minTokenOut,
+        uint256 minOutAmount,
         PendleAction memory action,
         address pendleToken,
         uint256 amount
@@ -189,7 +189,7 @@ library PendleLib {
                 );
 
             (IStandardizedYield sy,, ) = IPMarket(lpToken).readTokens();
-            sy.redeem(address(this), balance, pendleToken, minTokenOut, false);
+            sy.redeem(address(this), balance, pendleToken, minOutAmount, false);
         }
     }
 }
