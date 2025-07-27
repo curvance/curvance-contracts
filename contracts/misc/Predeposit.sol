@@ -16,12 +16,12 @@ contract Predeposit {
     ///         Protocol.
     /// @param isApproved Whether a token is approved for deposit inside the
     ///                   predeposit.
-    /// @param mTokenAddress The protocol linked mToken address for a token
+    /// @param cTokenAddress The protocol linked cToken address for a token
     ///                      deposited inside the predeposit, configured on
     ///                      protocol deployment.
     struct TokenData {
         bool isApproved;
-        address mTokenAddress;
+        address cTokenAddress;
     }
 
     /// CONSTANTS ///
@@ -55,7 +55,7 @@ contract Predeposit {
     error Predeposit__PredepositDepositsBlocked();
     error Predeposit__Unauthorized();
     error Predeposit__InvalidParameters();
-    error Predeposit__InvalidSwapData();
+    error Predeposit__InvalidSwapAction();
     error Predeposit__InvalidSwapOutput();
 
     /// EVENTS ///
@@ -164,10 +164,10 @@ contract Predeposit {
     }
 
     function swapAndDeposit(
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         uint256 depositAmount
     ) external payable {
-        address token = swapData.outputToken;
+        address token = swapAction.outputToken;
 
         // Validate that predeposit deposit window has not ended.
         if (block.timestamp > predepositEndTimestamp) {
@@ -179,29 +179,29 @@ contract Predeposit {
             revert Predeposit__InvalidParameters();
         }
 
-        if (CommonLib._isETH(swapData.inputToken)) {
+        if (CommonLib._isNative(swapAction.inputToken)) {
             // Validate message has gas token attached.
-            if (swapData.inputAmount != msg.value) {
-                revert Predeposit__InvalidSwapData();
+            if (swapAction.inputAmount != msg.value) {
+                revert Predeposit__InvalidSwapAction();
             }
         } else {
             SafeTransferLib.safeTransferFrom(
-                swapData.inputToken,
+                swapAction.inputToken,
                 msg.sender,
                 address(this),
-                swapData.inputAmount
+                swapAction.inputAmount
             );
         }
 
-        // Execute swap into eToken underlying.
-        uint256 amount = SwapperLib._swapUnsafe(centralRegistry, swapData);
+        // Execute swap into cToken underlying.
+        uint256 amount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
 
         if (amount < depositAmount) {
             revert Predeposit__InvalidSwapOutput();
         }
 
         if (amount > depositAmount) {
-            // Refund remaining payment token
+            // Refund excess `token`.
             SafeTransferLib.safeTransfer(
                 token,
                 msg.sender,
@@ -235,11 +235,11 @@ contract Predeposit {
     }
 
     /// @notice Migrates a predeposit deposit into a corresponding Curvance
-    ///         protocol mToken position.
+    ///         protocol cToken position.
     /// @dev Emits a {Migrated} event.
     /// @param token The address of the predeposit token to be migrated.
     /// @param amount The amount of `token` to be migrated.
-    /// @param collateralize Whether the mToken deposit should be
+    /// @param collateralize Whether the cToken deposit should be
     ///                      collateralized or not, only used in cases where
     ///                      the predeposit token is being deposited into a
     ///                      pToken position.
@@ -264,27 +264,27 @@ contract Predeposit {
 
         // Cache protocol token data being migrated to.
         TokenData memory migrationToken = tokenData[token];
-        address mToken = migrationToken.mTokenAddress;
+        address cToken = migrationToken.cTokenAddress;
 
         // Validate that protocol token has been configured.
-        if (mToken == address(0)) {
+        if (cToken == address(0)) {
             revert Predeposit__MigrationNotPossible();
         }
 
-        // Approve tokens to be pulled by mToken.
-        SwapperLib._approveTokenIfNeeded(token, mToken, amount);
+        // Approve tokens to be pulled by cToken.
+        SwapperLib._approveIfNeeded(token, cToken, amount);
 
         // Migrate predeposit asset into Curvance protocol.
         if (collateralize) {
             // Migrate, deposit, and collateralize.
-            ICToken(mToken).depositAsCollateralFor(amount, msg.sender);
+            ICToken(cToken).depositAsCollateralFor(amount, msg.sender);
         } else {
             // Migrate then deposit.
-            ICToken(mToken).deposit(amount, msg.sender);
+            ICToken(cToken).deposit(amount, msg.sender);
         }
 
         // Remove any excess approval.
-        SwapperLib._removeApprovalIfNeeded(token, mToken);
+        SwapperLib._removeApprovalIfNeeded(token, cToken);
 
         emit Migrated(msg.sender, token, amount);
     }
@@ -315,11 +315,11 @@ contract Predeposit {
     /// PERMISSIONED FUNCTIONS ///
 
     /// @notice Configures a links predeposit token and a deployed Curvance
-    ///         mToken so that user's can migrate deposits into the Curvance
+    ///         cToken so that user's can migrate deposits into the Curvance
     ///         Protocol.
     /// @dev Emits a {MigrationTokenConfigured} event.
     /// @param predepositToken The address of the predeposit token to be configured.
-    /// @param protocolToken The address of the protocol mToken to be
+    /// @param protocolToken The address of the protocol cToken to be
     ///                      configured.
     function setMigrationConfig(
         address predepositToken,
@@ -346,7 +346,7 @@ contract Predeposit {
 
         // Pull the data directly from the contract rather than from parameter
         // input.
-        tokenData[predepositToken].mTokenAddress = protocolToken;
+        tokenData[predepositToken].cTokenAddress = protocolToken;
 
         emit MigrationTokenConfigured(predepositToken, protocolToken);
     }

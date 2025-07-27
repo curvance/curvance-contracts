@@ -71,7 +71,7 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenDeployment_success() public {
-        pBALRETH = new AuraCToken(
+        strategyCBALRETH = new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManagerIsolated),
@@ -82,11 +82,11 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
         );
 
         assertEq(
-            address(pBALRETH.centralRegistry()),
+            address(strategyCBALRETH.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(pBALRETH.asset(), _BAL_WETH_RETH_ADDRESS);
-        assertEq(address(pBALRETH.marketManager()), address(marketManagerIsolated));
-        assertEq(pBALRETH.name(), "Curvance Balancer rETH Stable Pool");
+        assertEq(strategyCBALRETH.asset(), _BAL_WETH_RETH_ADDRESS);
+        assertEq(address(strategyCBALRETH.marketManager()), address(marketManagerIsolated));
+        assertEq(strategyCBALRETH.name(), "Curvance Balancer rETH Stable Pool");
     }
 }

@@ -18,7 +18,7 @@ abstract contract BaseCTokenWithYield is BaseCToken {
     /// CONSTANTS ///
 
     /// @notice The maximum length of time between vesting periods.
-    uint256 internal constant _MAXIMUM_VEST_PERIOD = 3 days;
+    uint256 internal constant _MAXIMUM_VESTING_PERIOD = 3 days;
 
     /// STORAGE ///
 
@@ -48,6 +48,13 @@ abstract contract BaseCTokenWithYield is BaseCToken {
 
     /// CONSTRUCTOR ///
 
+    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param asset_ The address of the underlying asset for this cToken.
+    /// @param marketManager_ The address of the MarketManager which manages
+    ///                       liquidity positions between linked cTokens
+    ///                       inside a joint market.
+    /// @param vestingPeriod_ The length of time a vesting period will last,
+    ///                       in seconds.
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
@@ -55,7 +62,7 @@ abstract contract BaseCTokenWithYield is BaseCToken {
         uint256 vestingPeriod_
     ) BaseCToken(centralRegistry_, asset_, marketManager_) {
         if (
-            vestingPeriod_ > _MAXIMUM_VEST_PERIOD &&
+            vestingPeriod_ > _MAXIMUM_VESTING_PERIOD &&
             vestingPeriod_ != 0
             ) {
             revert BaseCTokenWithYield__InvalidVestingPeriod();
@@ -74,7 +81,7 @@ abstract contract BaseCTokenWithYield is BaseCToken {
         _checkDaoPermissions();
 
         if (
-            newVestingPeriod > _MAXIMUM_VEST_PERIOD &&
+            newVestingPeriod > _MAXIMUM_VESTING_PERIOD &&
             newVestingPeriod != 0
             ) {
             revert BaseCTokenWithYield__InvalidVestingPeriod();
@@ -95,39 +102,6 @@ abstract contract BaseCTokenWithYield is BaseCToken {
         uint256 result
     ) {
         result = _totalAssets + _getPendingYield();
-    }
-
-    /// @notice Calculates pending yield that has been vested.
-    /// @dev If there are no pending yield or the vesting period has ended,
-    ///      it returns 0.
-    /// @return pendingYield The calculated pending yield, in assets.
-    function _getPendingYield(
-        uint256 vestingRate,
-        uint256 lastVestingClaim,
-        uint256 vestingPeriodEnd
-    )
-        internal
-        view
-        returns (uint256 pendingYield)
-    {
-        // Check whether there are pending yield vesting.
-        if (vestingRate > 0 && lastVestingClaim < vestingPeriodEnd) {
-            // When calculating pending yield:
-            // pendingYield =
-            // If the vesting period has not ended:
-            // PY = vestingRate * (block.timestamp - lastTimeVestClaimed).
-            // If the vesting period has ended:
-            // PY = vestingRate * (vestingPeriodEnd - lastTimeVestClaimed)).
-            // Then in either case:
-            // Divide the pending yield by `WAD` (1e18) for precision.
-            pendingYield =
-                (
-                    block.timestamp < vestingPeriodEnd
-                        ? vestingRate * (block.timestamp - lastVestingClaim)
-                        : vestingRate * (vestingPeriodEnd - lastVestingClaim)
-                ) /
-                WAD;
-        }
     }
 
     /// @notice Updates the vesting period, if needed.

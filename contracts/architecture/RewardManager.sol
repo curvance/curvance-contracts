@@ -2,9 +2,10 @@
 pragma solidity ^0.8.26;
 
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
+import { WAD } from "contracts/libraries/Constants.sol";
+
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -87,7 +88,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
     /// ERRORS ///
 
-    error RewardManager__SwapDataIsInvalid();
+    error RewardManager__SwapActionIsInvalid();
     error RewardManager__Unauthorized();
     error RewardManager__NoEpochRewards();
     error RewardManager__RewardManagerIsAlreadyStarted();
@@ -569,25 +570,25 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
         // Check if `recipient` wants to route their rewards into another token.
         if (rewardsData.asCVE) {
-            SwapperLib.Swap memory swapData = abi.decode(
+            SwapperLib.Swap memory swapAction = abi.decode(
                 params,
                 (SwapperLib.Swap)
             );
 
             // Swap into their desired reward token.
             if (
-                swapData.call.length == 0 ||
-                swapData.inputToken != rewardToken ||
-                swapData.outputToken != _getCVE() ||
-                swapData.inputAmount != rewards
+                swapAction.call.length == 0 ||
+                swapAction.inputToken != rewardToken ||
+                swapAction.outputToken != _getCVE() ||
+                swapAction.inputAmount != rewards
             ) {
-                revert RewardManager__SwapDataIsInvalid();
+                revert RewardManager__SwapActionIsInvalid();
             }
 
             // Swap to CVE and update reward amount based on CVE received.
             uint256 adjustedRewards = SwapperLib._swapUnsafe(
                 centralRegistry,
-                swapData
+                swapAction
             );
 
             // Check if the claimer wants to compound their rewards

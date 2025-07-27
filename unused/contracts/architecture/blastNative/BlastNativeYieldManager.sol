@@ -202,7 +202,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
 
         if (WETHYield > 0) {
             // Approve WETH to the Gauge Pool, if necessary.
-            SwapperLib._approveTokenIfNeeded(
+            SwapperLib._approveIfNeeded(
                 address(WETH_YIELD_MANAGER),
                 address(gaugeManager),
                 WETHYield
@@ -250,7 +250,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
 
         if (USDBYield > 0) {
             // Approve USDB to the Gauge Pool, if necessary.
-            SwapperLib._approveTokenIfNeeded(
+            SwapperLib._approveIfNeeded(
                 address(USDB_YIELD_MANAGER),
                 address(gaugeManager),
                 USDBYield

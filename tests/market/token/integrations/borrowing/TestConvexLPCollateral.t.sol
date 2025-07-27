@@ -5,14 +5,15 @@ import { Convex2PoolCToken, IERC20 } from "contracts/market/token/Convex2PoolCTo
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
-import "tests/market/TestBaseMarketIsolated.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 contract TestConvexLPCollateral is TestBaseMarketIsolated {
-    event Repay(address payer, address borrower, uint256 repayAmount);
-
-    address internal constant _STETH_ADDRESS =
-        0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+    event Repay(uint256 repayAmount, address payer, address borrower);
 
     IERC20 public CONVEX_STETH_ETH_POOL =
         IERC20(0x21E27a5E5513D6e65C4f830167390997aA84843a);
@@ -39,6 +40,9 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
     }
 
     function testBorrowWithConvexLPCollateral() public {
+        // remove STETH pricefeed made in base market setup
+        oracleManager.removeAssetPriceFeed(_STETH_ADDRESS, address(chainlinkAdaptor));
+
         chainlinkStethUsd = new MockV3Aggregator(8, 1500e8, 3000e12, 1000e6);
         chainlinkAdaptor.addAsset(
             _STETH_ADDRESS,
@@ -46,10 +50,9 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             0,
             true
         );
-        oracleManager.addAssetPriceFeed(
-            _STETH_ADDRESS,
-            address(chainlinkAdaptor)
-        );
+
+        _refreshMockFeeds();
+    
         Curve2PoolLPAdaptor crvAdaptor = new Curve2PoolLPAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
@@ -101,33 +104,14 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             1 ether
         );
         _prepareUSDC(address(this), 1 ether);
-        SafeTransferLib.safeApprove(_USDC_ADDRESS, address(eUSDC), 1 ether);
-        marketManagerIsolated.listTokens(address(cSTETH), address(eUSDC));
+        SafeTransferLib.safeApprove(_USDC_ADDRESS, address(borrowableCUSDC), 1 ether);
+        marketManagerIsolated.listTokens(address(cSTETH), address(borrowableCUSDC));
 
-        MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(cSTETH);
-        configToken0.collRatio = 7000;
-        configToken0.collReqSoft = 4000;
-        configToken0.collReqHard = 3000;
-        configToken0.liqIncBase = 1000;
-        configToken0.liqIncHard = 1500;
-        configToken0.liqIncMin = 500;
-        configToken0.liqIncMax = 2000;
-        configToken0.minEffectiveCloseFactor = 2000;
-        configToken0.maxEffectiveCloseFactor = 5000;
-        configToken0.baseCFactor = 1000;
-        configToken0.collateralCap = 100_000e18;
-        configToken0.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(configToken0);
-
-        MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
-        configToken1.debtCap = 100_000e6;
-        marketManagerIsolated.updateTokenConfig(configToken1);
+        _setCTokenConfigBasic(address(cSTETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         // User mints cSTETH with cvxStethEth LP tokens and then uses the cSTETH as collateral to borrow 10,000 eUSDC
-        _prepareUSDC(address(eUSDC), 100_000e6);
+        _prepareUSDC(address(borrowableCUSDC), 100_000e6);
         deal(address(CONVEX_STETH_ETH_POOL), user1, 10_000e18);
         vm.startPrank(user1);
         CONVEX_STETH_ETH_POOL.approve(address(cSTETH), 1_000e18);
@@ -152,7 +136,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         assertEq(rewarder.earned(address(cSTETH)), 0);
         assertEq(cSTETH.balanceOf(user1), 1_000e18);
 
-        eUSDC.borrow(10_000e6);
+        borrowableCUSDC.borrow(10_000e6, user1);
         vm.stopPrank();
 
         assertEq(
@@ -161,12 +145,12 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             "User must have borrowed 10,000 USDC"
         );
         assertEq(
-            eUSDC.debtBalance(user1),
+            borrowableCUSDC.debtBalance(user1),
             10_000e6,
             "User must have a debt balance of 10,000 USDC"
         );
         assertEq(
-            eUSDC.marketOutstandingDebt(),
+            borrowableCUSDC.marketOutstandingDebt(),
             10_000e6,
             "There must be a total amount of 10,000 USDC borrowed"
         );
@@ -174,35 +158,35 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
 
     function testConvexLPCollateralRepayDebt() public {
         testBorrowWithConvexLPCollateral();
-        uint256 prevBalance = usdc.balanceOf(address(eUSDC));
+        uint256 prevBalance = usdc.balanceOf(address(borrowableCUSDC));
         // User1 needs more funds to be able to repay debt with interest
         usdc.transfer(user1, 1000e6);
 
         vm.startPrank(user1);
-        usdc.approve(address(eUSDC), type(uint256).max);
+        usdc.approve(address(borrowableCUSDC), type(uint256).max);
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
-        eUSDC.repay(0);
+        borrowableCUSDC.repay(0);
 
         // Must hold for a minimum of 20 minutes before debt can be repaid
         skip(20 minutes);
         // Pay off full debt including interest
-        eUSDC.accrueIfNeeded();
-        uint256 debtWithInterest = eUSDC.debtBalance(user1);
-        vm.expectEmit(true, true, true, true, address(eUSDC));
-        emit Repay(user1, user1, debtWithInterest);
-        eUSDC.repay(0);
+        borrowableCUSDC.accrueIfNeeded();
+        uint256 debtWithInterest = borrowableCUSDC.debtBalance(user1);
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit Repay(debtWithInterest, user1, user1);
+        borrowableCUSDC.repay(0);
         vm.stopPrank();
 
-        assertEq(eUSDC.marketOutstandingDebt(), 0, "No borrows must be left");
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), 0, "No borrows must be left");
         assertEq(
-            eUSDC.debtBalance(user1),
+            borrowableCUSDC.debtBalance(user1),
             0,
             "User must have settled debt"
         );
         assertEq(
-            usdc.balanceOf(address(eUSDC)),
+            usdc.balanceOf(address(borrowableCUSDC)),
             debtWithInterest + prevBalance,
             "EToken's balance must include repaid debt plus interest"
         );
@@ -234,6 +218,9 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             block.timestamp,
             block.timestamp
         );
+
+        _refreshMockFeeds();
+        
         cSTETH.redeem(cSTETH.balanceOf(user1) - 1, user1, user1);
         vm.stopPrank();
 

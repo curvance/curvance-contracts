@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
@@ -16,6 +17,7 @@ import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegist
 import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 import { IFeeManager } from "contracts/interfaces/IFeeManager.sol";
 import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
+
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 import { IMessageTransmitter } from "contracts/interfaces/external/wormhole/IMessageTransmitter.sol";
@@ -401,7 +403,7 @@ contract MessagingHub is QueryResponse {
                 .decode(payload, (uint8, address, uint256, bool));
 
             cve.mintLockedTokens(recipient, amount);
-            _approveTokenIfNeeded(address(cve), address(veCVE), amount);
+            _approveIfNeeded(address(cve), address(veCVE), amount);
 
             RewardsData memory rewardData;
 
@@ -662,7 +664,7 @@ contract MessagingHub is QueryResponse {
         ChainData memory chainData = _getChainData(dstChainId);
 
         address feeToken = _getFeeToken();
-        _approveTokenIfNeeded(feeToken, address(tokenMessager), amount);
+        _approveIfNeeded(feeToken, address(tokenMessager), amount);
 
         uint64 nonce = tokenMessager.depositForBurnWithCaller(
             amount,
@@ -886,12 +888,12 @@ contract MessagingHub is QueryResponse {
     }
 
     /// @dev Approves `token` `amount` to be spent by `spender`, if necessary.
-    function _approveTokenIfNeeded(
+    function _approveIfNeeded(
         address token,
         address spender,
         uint256 amount
     ) internal {
-        SwapperLib._approveTokenIfNeeded(token, spender, amount);
+        SwapperLib._approveIfNeeded(token, spender, amount);
     }
 
     /// @notice Converts an address to a bytes32 value.

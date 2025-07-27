@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { DENOMINATOR } from "contracts/libraries/Constants.sol";
+import { BASIS_POINTS } from "contracts/libraries/Constants.sol";
 
 contract SetVoteBoostMultiplierTest is TestBaseMarketIsolated {
     function test_setVoteBoostMultiplier_fail_whenCallerIsNotAuthorized()
@@ -23,10 +23,10 @@ contract SetVoteBoostMultiplierTest is TestBaseMarketIsolated {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
-        centralRegistry.setVoteBoostMultiplier(DENOMINATOR);
+        centralRegistry.setVoteBoostMultiplier(BASIS_POINTS);
 
         centralRegistry.setVoteBoostMultiplier(0);
-        centralRegistry.setVoteBoostMultiplier(DENOMINATOR + 1);
+        centralRegistry.setVoteBoostMultiplier(BASIS_POINTS + 1);
     }
 
     function test_setVoteBoostMultiplier_success() public {

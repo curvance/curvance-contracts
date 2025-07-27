@@ -5,6 +5,7 @@ import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract GetPricesForMarketTest is TestBaseOracleManager {
     address[] public assets;
@@ -12,14 +13,14 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
     function setUp() public override {
         super.setUp();
 
-        assets.push(address(eUSDC));
+        assets.push(address(borrowableCUSDC));
 
-        _deployPBALRETH();
+        _deployStrategyCBALRETH();
 
         _prepareBALRETH(address(this), 1e18);
         _prepareUSDC(address(this), 1e18);
 
-        balRETH.approve(address(pBALRETH), 1e18);
+        balRETH.approve(address(strategyCBALRETH), 1e18);
         
     }
 
@@ -44,12 +45,12 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
     function test_getPricesForMarket_fail_whenNoFeedsAvailable() public {
         _prepareUSDC(address(this), 1e18);
         vm.prank(address(this));
-        usdc.approve(address(eUSDC), 1e18);
+        usdc.approve(address(borrowableCUSDC), 1e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
         vm.prank(address(marketManagerIsolated));
-        eUSDC.startMarket(address(this));
+        borrowableCUSDC.initializeDeposits(address(this));
 
         vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
         oracleManager.getPricesForMarket(address(this), assets, 1);
@@ -60,13 +61,15 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
     {
         _prepareUSDC(address(this), 1e18);
         vm.prank(address(this));
-        usdc.approve(address(eUSDC), 1e18);
+        usdc.approve(address(borrowableCUSDC), 1e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
-        _addSinglePriceFeed();
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
         vm.prank(address(marketManagerIsolated));
-        eUSDC.startMarket(address(this));
+        borrowableCUSDC.initializeDeposits(address(this));
+
+        _addSinglePriceFeed();
 
         vm.expectRevert(
             OracleManager.OracleManager__ErrorCodeFlagged.selector
@@ -77,12 +80,10 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
     function test_getPricesForMarket_success() public {
         _prepareUSDC(address(this), 1e18);
         vm.prank(address(this));
-        usdc.approve(address(eUSDC), 1e18);
+        usdc.approve(address(borrowableCUSDC), 1e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
-
-        vm.prank(address(marketManagerIsolated));
-        eUSDC.startMarket(address(this));
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
         _addSinglePriceFeed();
 
@@ -92,6 +93,9 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
             uint256 numAssets
         ) = oracleManager.getPricesForMarket(address(this), assets, 1);
 
+        uint256 exchangeRate = borrowableCUSDC.exchangeRate();
+        console2.log("exchangeRate", exchangeRate);
+
         (, int256 usdcPrice, , , ) = IChainlink(_CHAINLINK_USDC_USD)
             .latestRoundData();
 
@@ -99,15 +103,16 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
 
         for (uint256 i = 0; i < numAssets; i++) {
             assertEq(underlyingPrices[i], uint256(usdcPrice) * 1e10);
-            assertEq(snapshots[i].asset, address(eUSDC));
-            assertFalse(snapshots[i].isCollateral);
+            assertEq(snapshots[i].asset, address(borrowableCUSDC));
+            assertTrue(snapshots[i].isCollateral);
             assertEq(snapshots[i].decimals, usdc.decimals());
             assertEq(
                 ICToken(assets[i]).balanceOf(address(this)),
-                eUSDC.balanceOf(address(this))
+                borrowableCUSDC.balanceOf(address(this)),
+                "balanceOf"
             );
-            assertEq(snapshots[i].debtOutstanding, 0);
-            assertEq(snapshots[i].exchangeRate, 0);
+            assertEq(snapshots[i].debtBalance, 0, "debtBalance");
+            assertEq(snapshots[i].exchangeRate, 1e18, "exchangeRate");
         }
     }
 }

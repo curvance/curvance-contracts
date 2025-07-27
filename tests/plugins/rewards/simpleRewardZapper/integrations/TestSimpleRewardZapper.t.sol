@@ -1,24 +1,22 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseSimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
-
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimpleCToken, IERC20 } from "contracts/market/token/SimpleCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { TestBaseSimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
-    MockDataFeed public mockUsdcFeed;
-    MockDataFeed public mockWethFeed;
 
-    SimpleCToken public pWETH;
+    SimpleCToken public simpleCWETH;
 
     function setUp() public override {
         super.setUp();
@@ -67,71 +65,37 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         address owner = address(this);
 
-        // deploy eUSDC
+        // Setup borrowableCUSDC.
         {
-            _deployEUSDC();
-            // support market
+            _deployBorrowableCUSDC();
             _prepareUSDC(owner, 200000e6);
-            usdc.approve(address(eUSDC), 200000e6);
-            // add MToken support on oracle manager
-            oracleManager.addCTokenSupport(address(eUSDC));
-            address[] memory markets = new address[](1);
-            markets[0] = address(eUSDC);
-            // vm.prank(user1);
-            // marketManager.enterMarkets(markets);
-            // vm.prank(user2);
-            // marketManager.enterMarkets(markets);
+            usdc.approve(address(borrowableCUSDC), 200000e6);
+            // Add CToken support on Oracle Manager.
+            oracleManager.addCTokenSupport(address(borrowableCUSDC));
         }
 
-        // deploy pWETH
+        // Setup simpleCWETH.
         {
-            // deploy aura position vault
-            pWETH = new SimpleCToken(
+            simpleCWETH = new SimpleCToken(
                 ICentralRegistry(address(centralRegistry)),
                 weth,
                 address(marketManagerIsolated)
             );
 
-            // support market
             _prepareWETH(owner, 1 ether);
-            weth.approve(address(pWETH), 1 ether);
-            // add MToken support on oracle manager
-            oracleManager.addCTokenSupport(address(pWETH));
-            // set position token configuration
-
-
-            // address[] memory markets = new address[](1);
-            // markets[0] = address(pWETH);
-            // vm.prank(user1);
-            // marketManager.enterMarkets(markets);
-            // vm.prank(user2);
-            // marketManager.enterMarkets(markets);
+            weth.approve(address(simpleCWETH), 1 ether);
+            // Add CToken support on Oracle Manager.
+            oracleManager.addCTokenSupport(address(simpleCWETH));
         }
 
-        // list tokens
-        marketManagerIsolated.listTokens(address(pWETH), address(eUSDC));
+        // List tokens.
+        marketManagerIsolated.listTokens(
+            address(simpleCWETH),
+            address(borrowableCUSDC)
+        );
 
-        MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pWETH);
-        configToken0.collRatio = 7000;
-        configToken0.collReqSoft = 4000;
-        configToken0.collReqHard = 3000;
-        configToken0.liqIncBase = 1000;
-        configToken0.liqIncHard = 1500;
-        configToken0.liqIncMin = 500;
-        configToken0.liqIncMax = 2000;
-        configToken0.minEffectiveCloseFactor = 2000;
-        configToken0.maxEffectiveCloseFactor = 5000;
-        configToken0.baseCFactor = 1000;
-        configToken0.collateralCap = 100_000e18;
-        configToken0.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(configToken0);
-
-        MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
-        configToken1.debtCap = 1_000_000e18;
-        marketManagerIsolated.updateTokenConfig(configToken1);
+        _setCTokenConfigBasic(address(simpleCWETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         provideEnoughLiquidityForLeverage();
     }
@@ -140,13 +104,13 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         address liquidityProvider = makeAddr("Liquidity_provider");
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareWETH(liquidityProvider, 10 ether);
-        // mint eUSDC
+        // Mint borrowable cUSDC.
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(eUSDC), 200000e6);
-        eUSDC.deposit(200000e6, liquidityProvider);
-        // mint cBALETH
-        weth.approve(address(pWETH), 10 ether);
-        pWETH.mint(10 ether, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
+        // Mint cBALETH.
+        weth.approve(address(simpleCWETH), 10 ether);
+        simpleCWETH.mint(10 ether, liquidityProvider);
         vm.stopPrank();
     }
 
@@ -195,12 +159,12 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         address[] memory path = new address[](2);
         path[0] = _USDC_ADDRESS;
         path[1] = _WETH_ADDRESS;
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.outputToken = _WETH_ADDRESS;
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = rewards;
-        swapData.call = abi.encodeWithSignature(
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.outputToken = _WETH_ADDRESS;
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.inputAmount = rewards;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
             0,
@@ -218,7 +182,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
 
         vm.prank(user1);
-        simpleRewardZapper.claimAndSwap(swapData, user1);
+        simpleRewardZapper.claimAndSwap(swapAction, user1);
 
         assertEq(
             usdc.balanceOf(address(rewardManager)),
@@ -261,12 +225,12 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         address[] memory path = new address[](2);
         path[0] = _USDC_ADDRESS;
         path[1] = _WETH_ADDRESS;
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.outputToken = _WETH_ADDRESS;
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = rewards;
-        swapData.call = abi.encodeWithSignature(
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.outputToken = _WETH_ADDRESS;
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.inputAmount = rewards;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
             0,
@@ -278,15 +242,15 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
             .getAmountsOut(rewards, path);
         uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
-        uint256 desiredTokenBalance = pWETH.balanceOf(user1);
+        uint256 desiredTokenBalance = simpleCWETH.balanceOf(user1);
 
         vm.prank(user1);
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
 
         vm.prank(user1);
         simpleRewardZapper.claimSwapAndDeposit(
-            address(pWETH),
-            swapData,
+            address(simpleCWETH),
+            swapAction,
             0,
             false,
             user1
@@ -296,18 +260,18 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             usdc.balanceOf(address(rewardManager)),
             baseRewardBalance - amountsOut[0]
         );
-        assertEq(pWETH.balanceOf(user1), desiredTokenBalance + amountsOut[1]);
+        assertEq(simpleCWETH.balanceOf(user1), desiredTokenBalance + amountsOut[1]);
     }
 
     function testClaimSwapAndRepay() public {
         // mint
         vm.startPrank(user1);
         _prepareWETH(user1, 1 ether);
-        weth.approve(address(pWETH), 1 ether);
-        pWETH.mint(1 ether, user1);
-        pWETH.postCollateral(1 ether);
+        weth.approve(address(simpleCWETH), 1 ether);
+        simpleCWETH.mint(1 ether, user1);
+        simpleCWETH.postCollateral(1 ether);
         // borrow
-        eUSDC.borrow(500e6);
+        borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
         simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);
@@ -343,12 +307,12 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         address[] memory path = new address[](2);
         path[0] = _USDC_ADDRESS;
         path[1] = _WETH_ADDRESS;
-        SwapperLib.Swap memory swapData;
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.outputToken = _WETH_ADDRESS;
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = rewards;
-        swapData.call = abi.encodeWithSignature(
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.outputToken = _WETH_ADDRESS;
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.inputAmount = rewards;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
             0,
@@ -358,15 +322,15 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         );
 
         uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
-        uint256 desiredTokenBalance = eUSDC.debtBalance(user1);
+        uint256 desiredTokenBalance = borrowableCUSDC.debtBalance(user1);
 
         vm.prank(user1);
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
 
         vm.prank(user1);
         simpleRewardZapper.claimSwapAndRepay(
-            swapData,
-            address(eUSDC),
+            swapAction,
+            address(borrowableCUSDC),
             100e6,
             user1
         );
@@ -376,7 +340,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             baseRewardBalance - 100e6
         );
         assertApproxEqAbs(
-            eUSDC.debtBalance(user1),
+            borrowableCUSDC.debtBalance(user1),
             desiredTokenBalance - 100e6,
             10000
         );

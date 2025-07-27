@@ -45,10 +45,10 @@ contract Convex3PoolCToken is StrategyCToken {
 
     /// ERRORS ///
 
-    error Convex3PoolPToken__UnsafePool();
-    error Convex3PoolPToken__InvalidVaultConfig();
-    error Convex3PoolPToken__InvalidCoinLength();
-    error Convex3PoolPToken__NoYield();
+    error Convex3PoolCToken__UnsafePool();
+    error Convex3PoolCToken__InvalidVaultConfig();
+    error Convex3PoolCToken__InvalidCoinLength();
+    error Convex3PoolCToken__NoYield();
 
     /// CONSTRUCTOR ///
 
@@ -59,21 +59,21 @@ contract Convex3PoolCToken is StrategyCToken {
         uint256 pid_,
         address rewarder_,
         address booster_,
-        uint256 vestPeriod_
+        uint256 vestingPeriod_
     ) StrategyCToken(
         centralRegistry_,
         asset_,
         marketManager_,
-        vestPeriod_
+        vestingPeriod_
     ) {
         if (block.chainid != 1) {
-            revert Convex3PoolPToken__UnsafePool();
+            revert Convex3PoolCToken__UnsafePool();
         }
 
         // We only support Curves new ng pools with read only
         // reentry protection. This may be adjusted in the future.
         if (pid_ <= 176) {
-            revert Convex3PoolPToken__UnsafePool();
+            revert Convex3PoolCToken__UnsafePool();
         }
 
         strategyData.pid = pid_;
@@ -89,7 +89,7 @@ contract Convex3PoolCToken is StrategyCToken {
         if (
             pidToken != address(asset_) || shutdown || crvRewards != rewarder_
         ) {
-            revert Convex3PoolPToken__InvalidVaultConfig();
+            revert Convex3PoolCToken__InvalidVaultConfig();
         }
 
         strategyData.rewarder = IBaseRewardPool(rewarder_);
@@ -162,19 +162,19 @@ contract Convex3PoolCToken is StrategyCToken {
             }
 
             // Prep liquidity for Curve Pool.
-            (SwapperLib.Swap[] memory swapDataArray, uint256 minLPAmount) = abi
+            (SwapperLib.Swap[] memory swapActions, uint256 minLPAmount) = abi
                 .decode(data, (SwapperLib.Swap[], uint256));
             {
-                uint256 numSwapData = swapDataArray.length;
-                for (uint256 i; i < numSwapData; ++i) {
+                uint256 numSwapActions = swapActions.length;
+                for (uint256 i; i < numSwapActions; ++i) {
                     if (
-                        !_isApprovedAsset[swapDataArray[i].inputToken] ||
-                        !_isUnderlyingToken[swapDataArray[i].outputToken]
+                        !_isApprovedAsset[swapActions[i].inputToken] ||
+                        !_isUnderlyingToken[swapActions[i].outputToken]
                     ) {
                         revert StrategyCToken__UnapprovedAssetSwap();
                     }
 
-                    SwapperLib._swapSafe(centralRegistry, swapDataArray[i]);
+                    SwapperLib._swapSafe(centralRegistry, swapActions[i]);
                 }
             }
 
@@ -184,7 +184,7 @@ contract Convex3PoolCToken is StrategyCToken {
             // Deposit assets into Convex.
             yield = IERC20(asset()).balanceOf(address(this));
             if (yield == 0) {
-                revert Convex3PoolPToken__NoYield();
+                revert Convex3PoolCToken__NoYield();
             }
 
             (, , , , , bool isShutdown) = strategyData.booster.poolInfo(
@@ -297,7 +297,7 @@ contract Convex3PoolCToken is StrategyCToken {
 
         // Validate that the liquidity pool is actually a 2Pool.
         if (numTokens != 3) {
-            revert Convex3PoolPToken__InvalidCoinLength();
+            revert Convex3PoolCToken__InvalidCoinLength();
         }
 
         for (uint256 i; i < numTokens; ) {
@@ -335,13 +335,13 @@ contract Convex3PoolCToken is StrategyCToken {
         uint256 value;
         for (uint256 i; i < 3; ++i) {
             underlyingToken = strategyData.underlyingTokens[i];
-            amounts[i] = CommonLib._getTokenBalance(underlyingToken);
+            amounts[i] = CommonLib._getBalanceOf(underlyingToken);
 
-            if (CommonLib._isETH(underlyingToken)) {
+            if (CommonLib._isNative(underlyingToken)) {
                 value = amounts[i];
             }
 
-            SwapperLib._approveTokenIfNeeded(
+            SwapperLib._approveIfNeeded(
                 underlyingToken,
                 address(strategyData.curvePool),
                 amounts[i]

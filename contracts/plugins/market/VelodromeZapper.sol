@@ -13,16 +13,15 @@ import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol
 contract VelodromeZapper is ZapperBase {
     /// TYPES ///
 
-    /// @title Velodrome Zapper Data
-    /// @param inputToken Address of input token to Zap from.
-    /// @param inputAmount The amount of `inputToken` to Zap.
-    /// @param outputToken Address of token Zapped into.
-    /// @param minimumOut The minimum amount of `outputToken` acceptable
-    ///                   from the Zap.
+    /// @param inputToken Address of input token to zap from.
+    /// @param inputAmount The amount of `inputToken` to zap.
+    /// @param outputToken Address of token to zap into.
+    /// @param minimumOut The minimum output amount of `outputToken`
+    ///                   acceptable from the zap.
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
     ///                               token, indicates depositing native token
     ///                               into wrapped version or not.
-    struct ZapperData {
+    struct ZapAction {
         address inputToken;
         uint256 inputAmount;
         address outputToken;
@@ -43,191 +42,268 @@ contract VelodromeZapper is ZapperBase {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Swaps then deposits `zapData.inputToken`, into Velodrome,
-    ///         and enters into a Curvance position.
+    /// @notice Swaps then deposits `zapAction.inputToken`, into Velodrome,
+    ///         and enters into a Curvance position, for `receiver`.
     /// @dev Requires plugin approval for collateralization.
     /// @param strategyCToken The Curvance token address to enter a
     ///                       position in.
-    /// @param zapData Zap instruction data to execute the Zap.
-    /// @param swapData Array of swap instruction data to execute the Zap.
+    /// @param zapAction Instructions for a zap action containing:
+    ///                  inputToken Address of input token to zap from.
+    ///                  inputAmount The amount of `inputToken` to zap.
+    ///                  outputToken Address of token to zap into.
+    ///                  minimumOut The minimum output amount of `outputToken`
+    ///                             acceptable from the zap.
+    ///                  depositAsWrappedNative Used when `inputToken` is the
+    ///                                         native gas token, indicates
+    ///                                         depositing native token into
+    ///                                         wrapped version or not.
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
     /// @param router The Velodrome router address.
     /// @param factory The Velodrome factory address.
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of
-    ///                       `swapData.outputToken` into `strategyCToken`
+    ///                       `swapActions.outputToken` into `strategyCToken`
     ///                       position.
-    /// @param collateralize Whether the zapped deposit should be
-    ///                      collateralized afterwards.
-    /// @param recipient Address that should receive Zapped deposit.
-    /// @return outAmount The output amount received from Zapping.
+    /// @param collateralizeFor Whether the deposit should be collateralized,
+    ///                         requires plugin approval.
+    /// @param receiver Address that should receive Zapped deposit.
+    /// @return outAmount The `strategyCToken` output shares received by
+    ///                   `receiver`.
     function enterVelodrome(
         address strategyCToken,
-        ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata swapData,
+        ZapAction calldata zapAction,
+        SwapperLib.Swap[] calldata swapActions,
         address router,
         address factory,
         uint256 expectedShares,
-        bool collateralize,
-        address recipient
+        bool collateralizeFor,
+        address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
         // Swap input token for underlyings.
         _swapForUnderlyings(
-            zapData.inputToken,
-            zapData.inputAmount,
-            swapData,
-            zapData.depositAsWrappedNative
+            zapAction.inputToken,
+            zapAction.inputAmount,
+            swapActions,
+            zapAction.depositAsWrappedNative
         );
 
         // Enter Velodrome position.
         outAmount = VelodromeLib._enterVelodrome(
             router,
             factory,
-            zapData.outputToken,
-            CommonLib._getTokenBalance(IVeloPair(zapData.outputToken).token0()),
-            CommonLib._getTokenBalance(IVeloPair(zapData.outputToken).token1()),
-            zapData.minimumOut
+            zapAction.outputToken,
+            CommonLib._getBalanceOf(IVeloPair(zapAction.outputToken).token0()),
+            CommonLib._getBalanceOf(IVeloPair(zapAction.outputToken).token1()),
+            zapAction.minimumOut
         );
 
         // Enter Curvance position.
-        outAmount = _enterCurvance(
+        outAmount = _enterCurvanceSafe(
             strategyCToken,
-            zapData.outputToken,
+            zapAction.outputToken,
             outAmount,
             expectedShares,
-            collateralize,
-            recipient
+            collateralizeFor,
+            receiver
         );
     }
 
     /// @notice Exits a Velodrome position, and zaps it into desired
-    ///         token (zapData.outputToken).
+    ///         token (zapAction.outputToken).
     /// @param router The Velodrome router address.
-    /// @param zapData Zap instruction data to execute the Zap.
-    /// @param swapData Array of swap instruction data to execute the Zap.
-    /// @param recipient Address that should receive Zapped withdrawal.
+    /// @param zapAction Instructions for a zap action containing:
+    ///                  inputToken Address of input token to zap from.
+    ///                  inputAmount The amount of `inputToken` to zap.
+    ///                  outputToken Address of token to zap into.
+    ///                  minimumOut The minimum output amount of `outputToken`
+    ///                             acceptable from the zap.
+    ///                  depositAsWrappedNative Used when `inputToken` is the
+    ///                                         native gas token, indicates
+    ///                                         depositing native token into
+    ///                                         wrapped version or not.
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
+    /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function exitVelodrome(
         address router,
-        ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata swapData,
-        address recipient
+        ZapAction calldata zapAction,
+        SwapperLib.Swap[] calldata swapActions,
+        address receiver
     ) external nonReentrant returns (uint256 outAmount) {
-        // Transfer the Velodrome sAMM/vAMM to the Zapper.
+        // Transfer the Velodrome sAMM/vAMM LP to the Zapper.
         SafeTransferLib.safeTransferFrom(
-            zapData.inputToken,
+            zapAction.inputToken,
             msg.sender,
             address(this),
-            zapData.inputAmount
+            zapAction.inputAmount
         );
 
         // Exit Velodrome position.
-        outAmount = _exitVelodrome(router, zapData, swapData, recipient);
+        outAmount = _exitVelodrome(router, zapAction, swapActions, receiver);
     }
 
     /// @notice Withdraws from a Curvance Velodrome position, and zaps it
-    ///         into desired token (zapData.outputToken).
-    /// @param redemptionData Struct containing information on the desired
-    ///                       redemption action to execute. Containing values:
-    ///                       1. The address of the strategyCToken
-    ///                          corresponding to Velodrome token to be
-    ///                          exited.
-    ///                       2. The amount of shares to redeemed.
-    ///                       3. Whether the collateral should be always
-    ///                          reduced from callers collateralPosted.
+    ///         into desired token (zapAction.outputToken).
+    /// @param redeemAction Instructions for a redemption action containing:
+    ///                     cToken The address of the cToken corresponding to
+    ///                            the redemption action.
+    ///                     shares The amount of shares to redeemed.
+    ///                     forceRedeemCollateral Whether the collateral
+    ///                                           should be always reduced
+    ///                                           from caller's collateralized
+    ///                                           shares.
     /// @param router The Velodrome router address.
-    /// @param zapData Zap instruction data to execute the Zap.
-    /// @param swapData Array of swap instruction data to execute the Zap.
-    /// @param recipient Address that should receive Zapped withdrawal.
+    /// @param zapAction Instructions for a zap action containing:
+    ///                  inputToken Address of input token to zap from.
+    ///                  inputAmount The amount of `inputToken` to zap.
+    ///                  outputToken Address of token to zap into.
+    ///                  minimumOut The minimum output amount of `outputToken`
+    ///                             acceptable from the zap.
+    ///                  depositAsWrappedNative Used when `inputToken` is the
+    ///                                         native gas token, indicates
+    ///                                         depositing native token into
+    ///                                         wrapped version or not.
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
+    /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitVelodrome(
-        RedemptionData calldata redemptionData,
+        RedeemAction calldata redeemAction,
         address router,
-        ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata swapData,
-        address recipient
+        ZapAction calldata zapAction,
+        SwapperLib.Swap[] calldata swapActions,
+        address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
-        _exitCurvance(
-            redemptionData.cToken,
-            zapData.inputToken,
-            redemptionData.shares,
-            zapData.inputAmount,
-            redemptionData.forceRedeemCollateral,
-            recipient
+        _exitCurvanceSafe(
+            redeemAction.cToken,
+            zapAction.inputToken,
+            redeemAction.shares,
+            zapAction.inputAmount,
+            redeemAction.forceRedeemCollateral,
+            receiver
         );
 
         // Exit Velodrome position.
-        outAmount = _exitVelodrome(router, zapData, swapData, recipient);
+        outAmount = _exitVelodrome(router, zapAction, swapActions, receiver);
     }
 
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Withdraws from a Curvance Velodrome position, and zaps it
-    ///         into desired token (zapData.outputToken).
+    ///         into desired token (zapAction.outputToken).
     /// @param router The Velodrome router address.
-    /// @param zapData Zap instruction data to execute the Zap.
-    /// @param swapData Array of swap instruction data to execute the Zap.
-    /// @param recipient Address that should receive Zapped withdrawal.
+    /// @param zapAction Instructions for a zap action containing:
+    ///                  inputToken Address of input token to zap from.
+    ///                  inputAmount The amount of `inputToken` to zap.
+    ///                  outputToken Address of token to zap into.
+    ///                  minimumOut The minimum output amount of `outputToken`
+    ///                             acceptable from the zap.
+    ///                  depositAsWrappedNative Used when `inputToken` is the
+    ///                                         native gas token, indicates
+    ///                                         depositing native token into
+    ///                                         wrapped version or not.
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
+    /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function _exitVelodrome(
         address router,
-        ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata swapData,
-        address recipient
+        ZapAction calldata zapAction,
+        SwapperLib.Swap[] calldata swapActions,
+        address receiver
     ) internal returns (uint256 outAmount) {
         // Exit Velodrome position.
         VelodromeLib._exitVelodrome(
             router,
-            zapData.inputToken,
-            zapData.inputAmount
+            zapAction.inputToken,
+            zapAction.inputAmount
         );
 
-        uint256 numTokenSwaps = swapData.length;
-        // Swap unwrapped tokens into `zapData.outputToken`.
+        uint256 numTokenSwaps = swapActions.length;
+        // Swap unwrapped tokens into `zapAction.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
-            // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
+            // Execute swap(s) into `zapAction.outputToken`.
+            SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getTokenBalance(zapData.outputToken);
+        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
-        if (outAmount < zapData.minimumOut) {
+        if (outAmount < zapAction.minimumOut) {
             revert VelodromeZapper__SlippageError();
         }
 
-        // Transfer output tokens to `recipient`.
-        _transferToRecipient(zapData.outputToken, recipient, outAmount);
+        // Transfer output tokens to `receiver`.
+        _transferToRecipient(zapAction.outputToken, receiver, outAmount);
     }
 
     /// @notice Swap `inputToken` into desired underlying tokens.
     /// @param inputToken The input token address.
     /// @param inputAmount The amount of `inputToken` to swap for underlying
     ///                    tokens.
-    /// @param swapData Array of swap instruction data
+    /// @param swapActions Array of instructions for swap actions containing:
+    ///                    inputToken Address of input token to swap from.
+    ///                    inputAmount The amount of `inputToken` to swap.
+    ///                    outputToken Address of token to swap into.
+    ///                    target Address of the swapper, usually an
+    ///                           aggregator.
+    ///                    slippage The amount of value-loss acceptable from
+    ///                             swapping between tokens.
+    ///                    call Swap instruction calldata.
     /// @param depositAsWrappedNative Used when `inputToken` is the native gas
     ///                               token, indicates depositing native token
     ///                               into wrapped version or not.
     function _swapForUnderlyings(
         address inputToken,
         uint256 inputAmount,
-        SwapperLib.Swap[] memory swapData,
+        SwapperLib.Swap[] memory swapActions,
         bool depositAsWrappedNative
     ) internal {
         _prepareSwap(inputToken, inputAmount, depositAsWrappedNative);
 
-        uint256 numTokenSwaps = swapData.length;
+        uint256 numTokenSwaps = swapActions.length;
         // Swap `inputToken` into desired underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
             if (
-                CommonLib._isETH(swapData[i].inputToken) &&
+                CommonLib._isNative(swapActions[i].inputToken) &&
                 depositAsWrappedNative
             ) {
                 // Switch inputToken to wrapped native token address.
-                swapData[i].inputToken = address(wrappedNative);
+                swapActions[i].inputToken = address(wrappedNative);
             }
 
             // Execute swap into underlying(s).
-            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
+            SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
     }
 }

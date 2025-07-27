@@ -179,7 +179,7 @@
 //         uint256 collReqHard,
 //         uint256 liqIncSoft,
 //         uint256 liqIncHard,
-//         uint256 baseCFactor
+//         uint256 closeFactorBase
 //     );
 //     event ActionPaused(string action, bool pauseState);
 //     event TokenActionPaused(address mToken, string action, bool pauseState);
@@ -822,7 +822,7 @@
 //         uint256 collReqHard,
 //         uint256 liqIncSoft,
 //         uint256 liqIncHard,
-//         uint256 baseCFactor
+//         uint256 closeFactorBase
 //     ) external {
 //         _checkElevatedPermissions();
 
@@ -837,7 +837,7 @@
 //         collReqHard = _bpToWad(collReqHard);
 //         liqIncSoft = _bpToWad(liqIncSoft);
 //         liqIncHard = _bpToWad(liqIncHard);
-//         baseCFactor = _bpToWad(baseCFactor);
+//         closeFactorBase = _bpToWad(closeFactorBase);
 
 //         // Validate collateralization ratio is not above the maximum allowed.
 //         if (collRatio > MAX_COLLATERALIZATION_RATIO) {
@@ -880,7 +880,7 @@
 //         }
 
 //         // Validate that soft liquidation is within acceptable bounds.
-//         if (baseCFactor > MAX_BASE_CFACTOR || baseCFactor < MIN_BASE_CFACTOR) {
+//         if (closeFactorBase > MAX_BASE_CFACTOR || closeFactorBase < MIN_BASE_CFACTOR) {
 //             _revert(_INVALID_PARAMETER_SELECTOR);
 //         }
 
@@ -926,10 +926,10 @@
 //         marketToken.liqBaseIncentive = WAD + liqIncSoft;
 
 //         // Assign the base cFactor
-//         marketToken.baseCFactor = baseCFactor;
+//         marketToken.closeFactorBase = closeFactorBase;
 //         // Store the distance between base cFactor and 100%,
 //         // that way we can quickly scale between [base, 100%] based on lFactor.
-//         marketToken.cFactorCurve = WAD - baseCFactor;
+//         marketToken.closeFactorCurve = WAD - closeFactorBase;
 
 //         emit PositionTokenUpdated(
 //             pToken,
@@ -938,7 +938,7 @@
 //             collReqHard,
 //             liqIncSoft,
 //             liqIncHard,
-//             baseCFactor
+//             closeFactorBase
 //         );
 //     }
 
@@ -1054,7 +1054,7 @@
 //         emit ActionPaused("Seize Paused", state);
 //     }
 
-//     /// @notice Used to set the position folding address to allow
+//     /// @notice Used to set the Position Manager address to allow
 //     ///         complex position actions.
 //     /// @dev Requires timelock authority.
 //     ///      Emits a {NewPositionManagementContract} event.
@@ -1071,7 +1071,7 @@
 //             _revert(_INVALID_PARAMETER_SELECTOR);
 //         }
 
-//         // Assign new position folding contract.
+//         // Assign new Position Manager contract.
 //         isPositionManager[newPositionManagement] = true;
 
 //         emit NewPositionManagementContract(newPositionManagement);
@@ -1464,8 +1464,8 @@
 //         uint256 maxAmount;
 //         uint256 debtToCollateralRatio;
 //         {
-//             uint256 cFactor = pToken.baseCFactor +
-//                 ((pToken.cFactorCurve * data.lFactor) / WAD);
+//             uint256 cFactor = pToken.closeFactorBase +
+//                 ((pToken.closeFactorCurve * data.lFactor) / WAD);
 //             uint256 incentive = pToken.liqBaseIncentive +
 //                 ((pToken.liqCurve * data.lFactor) / WAD);
 //             maxAmount =

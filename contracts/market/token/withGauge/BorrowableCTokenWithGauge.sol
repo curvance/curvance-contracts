@@ -7,29 +7,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-/// @title Curvance's Earn Token Contract.
-/// @dev Curvance's eTokens are ERC20 compliant with a close relation
-///      to ERC4626. However, they follow their own design flow, without an
-///      inherited base contract. This is done intentionally, to maximize
-///      security in an age of rapidly developing security attack vectors.
-///
-///      The "eToken" employs a share/asset structure with slightly different
-///      configuration, and terminology (to prevent confusion). The variable
-///      terms "tokens", and "amount" are used to refer to eTokens values,
-///      and underlying asset values. When you see "Tokens" that is associated
-///      with eTokens, when you see "amount" that is associated with
-///      underlying assets.
-///
-///      Users who have active positions inside a eToken are referred to
-///      as accounts. For actions that can be performed by an external party,
-///      that will not result in active positions for themselves, more general
-///      terms are used such as "Liquidator", "Minter", or "Payer".
-///
-///      "Safe" versions of functions have been added that introduce
-///      additional reentry and update protection logic to minimize risks
-///      when integrating Curvance into external protocols.
-///
-///      All token deposits are recorded in the protocol "Gauge Manager"
+/// @dev All token deposits are recorded in the protocol "Gauge Manager"
 ///      facilitating the distribution of native tokens both liquid and
 ///      locked to users based on their contributions to the protocol over
 ///      time.
@@ -41,24 +19,26 @@ contract BorrowableCTokenWithGauge is BorrowableCToken {
 
     /// ERRORS ///
 
-    error EToken__InvalidGaugeManager();
+    error BorrowableCTokenWithGauge__InvalidGaugeManager();
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of Curvances Central Registry.
-    /// @param underlying_ The address of the underlying asset
-    ///                    for this eToken.
-    /// @param marketManager_ The address of the MarketManager.
-    /// @param interestRateModel_ The address of the interest rate model.
+    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param asset_ The address of the underlying asset for this cToken.
+    /// @param marketManager_ The address of the MarketManager which manages
+    ///                       liquidity positions between linked cTokens
+    ///                       inside a joint market.
+    /// @param interestRateModel_ The address of the interest rate model to
+    ///                           manage outstanding loans.
     constructor(
         ICentralRegistry centralRegistry_,
-        address underlying_,
+        IERC20 asset_,
         address marketManager_,
         address interestRateModel_
     )
         BorrowableCToken(
             centralRegistry_,
-            IERC20(underlying_),
+            asset_,
             marketManager_,
             interestRateModel_
         )
@@ -67,7 +47,7 @@ contract BorrowableCTokenWithGauge is BorrowableCToken {
 
         // Validate Gauge Manager has been set.
         if (gaugeManagerAddress == address(0)) {
-            revert EToken__InvalidGaugeManager();
+            revert BorrowableCTokenWithGauge__InvalidGaugeManager();
         }
         // Set `gaugeManager`.
         gaugeManager = IGaugeManager(gaugeManagerAddress);
@@ -75,11 +55,11 @@ contract BorrowableCTokenWithGauge is BorrowableCToken {
 
     /// @notice An optional set of instructions to execute before processing
     ///         a deposit of `receiver`'s shares.
-    /// @param receiver The account that should receive the pToken shares.
-    /// @param shares The amount of pToken shares received by `receiver`.
+    /// @param shares The amount of cToken shares received by `receiver`.
+    /// @param receiver The account that should receive the cToken shares.
     function _afterDepositAction(
-        address receiver,
-        uint256 shares
+        uint256 shares,
+        address receiver
     ) internal override {
         // Update Gauge Manager values for `receiver`.
         gaugeManager.deposit(address(this), receiver, shares);
@@ -87,13 +67,13 @@ contract BorrowableCTokenWithGauge is BorrowableCToken {
 
     /// @notice An optional set of instructions to execute before processing
     ///         a withdrawal of `owners`'s shares.
-    /// @param owner The account that will burn their shares to withdraw
-    ///              assets.
     /// @param shares The amount of assets, quoted in shares received
     ///               by `receiver`.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
     function _beforeWithdrawAction(
-        address owner,
-        uint256 shares
+        uint256 shares,
+        address owner
     ) internal override {
         // Update Gauge Manager values for `owner`.
         gaugeManager.withdraw(address(this), owner, shares);
@@ -101,20 +81,41 @@ contract BorrowableCTokenWithGauge is BorrowableCToken {
 
     /// @notice An optional set of instructions to execute before processing
     ///         a transfer of `from`'s shares to `to`.
-    /// @param from The address of the account transferring `amount`
+    /// @param shares The number of shares to transfer from `owner` to
+    ///               `receiver`.
+    /// @param receiver The address of the destination account to receive
+    ///                 `shares` shares.
+    /// @param owner The address of the account transferring `shares`
     ///             shares from.
-    /// @param to The address of the destination account to receive `amount`
-    ///           shares.
-    /// @param shares The number of shares to transfer from `from` to `to`.
     function _beforeTransferAction(
-        address from,
-        address to,
-        uint256 shares
+        uint256 shares,
+        address receiver,
+        address owner
     ) internal override {
-        // Update Gauge Manager values for `from`.
-        gaugeManager.withdraw(address(this), from, shares);
+        // Update Gauge Manager values for `owner`.
+        gaugeManager.withdraw(address(this), owner, shares);
 
-        // Update Gauge Manager values for `to`.
-        gaugeManager.deposit(address(this), to, shares);
+        // Update Gauge Manager values for `receiver`.
+        gaugeManager.deposit(address(this), receiver, shares);
+    }
+
+    /// @notice An optional set of instructions to execute before processing
+    ///         liquidation of `account`'s collateral.
+    /// @param account The account having collateral seized.
+    /// @param liquidator The account receiving seized collateral.
+    /// @param shares The total number of cTokens shares to seize.
+    function _beforeLiquidationAction(
+        uint256 shares,
+        address liquidator,
+        address account
+    ) internal override {
+        // Process virtual balance updates and accrued rewards from this
+        // liquidation.
+        gaugeManager.processLiquidation(
+            address(this),
+            account,
+            liquidator,
+            shares
+        );
     }
 }

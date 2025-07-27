@@ -35,39 +35,41 @@ contract PendlePTPositionManager is BasePositionManager {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Callback function on borrowing tokens from an eToken contract
-    ///         providing instant liquidity in the eToken underlying which is
-    ///         then swapped into the underlying of a pToken that a user is
-    ///         currently putting up as collateral against the eToken debt
-    ///         position, creating a leveraged spot position.
-    /// @param leverageData Struct containing information on the desired
-    ///                     leverage action to execute. Containing values:
-    ///                     1. Address of eToken that will be borrowed from.
-    ///                     2. The amount of underlying tokens from eToken
-    ///                        that will be borrowed.
-    ///                     3. Address of pToken that borrowed funds
-    ///                        will be swapped into.
-    ///                     4. Struct containing instructions
-    ///                        on how to handle the necessary eToken swap
-    ///                        to facilitate leveraging.
-    ///                     5. Optional auxiliary data for execution of a
-    ///                        leverage action.
-    function _swapBorrowUnderlyingToCollateral(
-        LeverageStruct memory leverageData,
-        address /* recipient */
+    /// @notice Callback function on borrowing tokens from an borrowableCToken
+    ///         contract providing instant liquidity in the borrowableCToken
+    ///         underlying which is then swapped into the underlying of a
+    ///         cToken that a user is currently putting up as collateral
+    ///         against the borrowableCToken debt position, creating a
+    ///         leveraged spot position.
+    /// @param action Instructions for a leverage action containing:
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will be borrowed from and assets
+    ///                                swapped into `cToken` asset.
+    ///               borrowAssets The amount borrowed from
+    ///                            `borrowableCToken`, in assets.
+    ///               cToken Curvance token assets that borrowed funds will be
+    ///                      swapped into.
+    ///               swapAction Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       leverage action.
+    function _swapDebtAssetToCollateralAsset(
+        LeverageAction memory action,
+        address /* receiver */
     ) internal virtual override {
-        SwapperLib.Swap memory swapData = leverageData.swapData;
-        address borrowUnderlying = leverageData.debtToken.asset();
-        address ptToken = leverageData.collateralToken.asset();
+        address ptToken = action.cToken.asset();
+        address debtAsset = action.borrowableCToken.asset();
+        SwapperLib.Swap memory swapAction = action.swapAction;
 
-        // decode pendle data
+        // Decode pendle data.
         (
             address lpToken,
             uint256 minPtAmount,
-            PendleLib.PendleData memory pendleData
+            PendleLib.PendleAction memory pendleAction
         ) = abi.decode(
-                leverageData.auxData,
-                (address, uint256, PendleLib.PendleData)
+                action.auxData,
+                (address, uint256, PendleLib.PendleAction)
             );
 
         (
@@ -81,63 +83,66 @@ contract PendlePTPositionManager is BasePositionManager {
             IPPrincipalToken(ptToken).SY() != address(_SY) ||
             IPPrincipalToken(ptToken).YT() != address(_YT)
         ) {
-            revert BasePositionManager__InvalidSwapperParam();
+            revert BasePositionManager__InvalidParam();
         }
 
-        if (swapData.call.length > 0) {
-            // check if swapData is valid
+        if (swapAction.call.length > 0) {
+            // check if swapAction is valid
             if (
-                swapData.target == address(0) ||
-                swapData.inputToken != borrowUnderlying ||
-                swapData.inputAmount != leverageData.borrowAmount ||
-                swapData.outputToken != pendleData.input.tokenIn
+                swapAction.target == address(0) ||
+                swapAction.inputToken != debtAsset ||
+                swapAction.inputAmount != action.borrowAssets ||
+                swapAction.outputToken != pendleAction.input.tokenIn
             ) {
-                revert BasePositionManager__InvalidSwapperParam();
+                revert BasePositionManager__InvalidParam();
             }
 
-            SwapperLib._swapSafe(centralRegistry, swapData);
+            SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
         // Enter Pendle position.
         PendleLib._enterPendle(
             address(router),
             true,
-            pendleData,
             lpToken,
-            minPtAmount
+            minPtAmount,
+            pendleAction
         );
     }
 
-    /// @notice Callback function on redemption of tokens from a pToken vault
-    ///         providing instant liquidity in the pToken underlying which is
-    ///         then swapped into the underlying of an eToken that a user is
-    ///         currently borrowing from, partially or fully closing a
+    /// @notice Callback function on redemption of tokens from a cToken vault
+    ///         providing instant liquidity in the cToken underlying which is
+    ///         then swapped into the underlying of an borrowableCToken that a
+    ///         user is currently borrowing from, partially or fully closing a
     ///         leveraged spot position.
-    /// @param deleverageData Struct containing information on the desired
-    ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of pToken that will be routed into
-    ///                          eToken underlying to repay outstanding debt.
-    ///                       2. The amount of pTokens that will be
-    ///                          deleveraged.
-    ///                       3. Address of eToken that will have its underlying
-    ///                          token debt repaid.
-    ///                       4. Optional struct containing instructions on how
-    ///                          to handle swapping into eToken underlying to
+    /// @param action Instructions for a deleverage action containing:
+    ///               cToken Address of the cToken that will be redeemed from
+    ///                      and assets swapped into `borrowableCToken` asset.
+    ///               collateralAssets The amount of `cToken` that will be
+    ///                                deleveraged, in assets.
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will have its debt paid.
+    ///               repayAssets The amount of `borrowableCToken` asset that
+    ///                           will be repaid to lenders.
+    ///               swapAction Swap actions instructions converting
+    ///                          collateral asset into debt asset to
     ///                          facilitate deleveraging.
-    ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to the eToken lenders.
-    ///                       6. Optional auxiliary data for execution of a
-    ///                          deleverage action.
-    function _swapCollateralToBorrowUnderlying(
-        DeleverageStruct memory deleverageData
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       deleverage action.
+    function _swapCollateralAssetToDebtAsset(
+        DeleverageAction memory action
     ) internal virtual override {
-        address ptToken = deleverageData.collateralToken.asset();
-        address borrowUnderlying = deleverageData.debtToken.asset();
+        address ptToken = action.cToken.asset();
+        address debtAsset = action.borrowableCToken.asset();
+        SwapperLib.Swap[] memory swapActions = action.swapActions;
 
-        // decode pendle data
-        (address lpToken, PendleLib.PendleData memory pendleData) = abi.decode(
-            deleverageData.auxData,
-            (address, PendleLib.PendleData)
+        // Decode Pendle data.
+        (
+            address lpToken,
+            PendleLib.PendleAction memory pendleAction
+        ) = abi.decode(
+            action.auxData,
+            (address, PendleLib.PendleAction)
         );
 
         (
@@ -151,38 +156,33 @@ contract PendlePTPositionManager is BasePositionManager {
             IPPrincipalToken(ptToken).SY() != address(_SY) ||
             IPPrincipalToken(ptToken).YT() != address(_YT)
         ) {
-            revert BasePositionManager__InvalidSwapperParam();
+            revert BasePositionManager__InvalidParam();
         }
 
         // Exit Pendle position.
         PendleLib._exitPendle(
             address(router),
             true,
-            ptToken,
-            pendleData,
             lpToken,
-            deleverageData.collateralAmount,
-            0 // don't need for PT
+            0, // don't need for PT
+            pendleAction,
+            ptToken,
+            action.collateralAssets
         );
 
-        uint256 length = deleverageData.swapData.length;
+        uint256 numSwaps = swapActions.length;
 
-        if (length > 0) {
+        if (numSwaps > 0) {
             if (
-                deleverageData.swapData[0].inputToken !=
-                pendleData.output.tokenOut ||
-                deleverageData.swapData[length - 1].outputToken !=
-                borrowUnderlying
+                swapActions[0].inputToken != pendleAction.output.tokenOut ||
+                swapActions[numSwaps - 1].outputToken != debtAsset
             ) {
-                revert BasePositionManager__InvalidSwapperParam();
+                revert BasePositionManager__InvalidParam();
             }
 
-            // Swap output token for borrow underlying.
-            for (uint256 i; i < length; ++i) {
-                SwapperLib._swapSafe(
-                    centralRegistry,
-                    deleverageData.swapData[i]
-                );
+            // Swap output token for debt asset.
+            for (uint256 i; i < numSwaps; ++i) {
+                SwapperLib._swapSafe(centralRegistry, swapActions[i]);
             }
         }
     }

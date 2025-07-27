@@ -8,12 +8,13 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
-/// @notice Vault Positions must have all assets ready for withdraw,
-///         IE assets can NOT be locked.
-///         This way assets can be easily liquidated when loans default.
-/// @dev The PToken vaults run must be a LOSSLESS position, since totalAssets
-///      is not actually using the balances stored in the position,
-///      rather it only uses an internal balance.
+/// @dev `Asset()` Positions must have all assets ready for withdraw,
+///      IE assets can NOT be locked.
+///      This way assets can be easily liquidated when loans default.
+///
+///      Each Curvance strategy run must be a LOSSLESS position, since
+///      totalAssets is not actually using the balances stored in the
+///      contract, rather it only uses an internal balance.
 abstract contract StrategyCTokenWithExitFee is StrategyCToken {
     /// CONSTANTS ///
 
@@ -36,17 +37,26 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
 
     /// CONSTRUCTOR ///
 
+    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param asset_ The address of the underlying asset for this cToken.
+    /// @param marketManager_ The address of the MarketManager which manages
+    ///                       liquidity positions between linked cTokens
+    ///                       inside a joint market.
+    /// @param vestingPeriod_ The length of time a vesting period will last,
+    ///                       in seconds.
+    /// @param exitFee_ The exit fee paid by users when withdrawing from the
+    ///                 strategyCToken position, in basis points.
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address marketManager_,
-        uint256 exitFee_,
-        uint256 vestPeriod_
+        uint256 vestingPeriod_,
+        uint256 exitFee_
     ) StrategyCToken(
         centralRegistry_,
         asset_,
         marketManager_,
-        vestPeriod_
+        vestingPeriod_
     ) {
         _setExitFee(exitFee_);
     }
@@ -84,43 +94,43 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Helper function for Position Management contract to
-    ///         redeem assets.
-    /// @param owner The owner address of assets to redeem.
+    /// @notice Used by a Position Manager contract to redeem assets from
+    ///         collateralized shares by `account` to perform a complex
+    ///         action.
     /// @param assets The amount of the underlying assets to redeem.
     /// @param shares The amount of the shares to redeem.
+    /// @param owner The owner address of assets to redeem.
     /// @param balancePrior The balance of shares `owner` has before this
     ///                     redemption. 
-    /// @param deleverageData Struct containing information on the desired
-    ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of pToken that will be routed into
-    ///                          eToken underlying to repay outstanding debt.
-    ///                       2. The amount of pTokens that will be
-    ///                          deleveraged.
-    ///                       3. Address of eToken that will have its underlying
-    ///                          token debt repaid.
-    ///                       4. Optional struct containing instructions on how
-    ///                          to handle swapping into eToken underlying to
+    /// @param action Instructions for a deleverage action containing:
+    ///               cToken Address of the cToken that will be redeemed from
+    ///                      and assets swapped into `borrowableCToken` asset.
+    ///               collateralAssets The amount of `cToken` that will be
+    ///                                deleveraged, in assets.
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will have its debt paid.
+    ///               repayAssets The amount of `borrowableCToken` asset that
+    ///                           will be repaid to lenders.
+    ///               swapAction Swap actions instructions converting
+    ///                          collateral asset into debt asset to
     ///                          facilitate deleveraging.
-    ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to the eToken lenders.
-    ///                       6. Optional auxiliary data for execution of a
-    ///                          deleverage action.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       deleverage action.
     function _processPositionManagerRedemption(
-        address owner,
         uint256 assets,
         uint256 shares,
+        address owner,
         uint256 balancePrior,
-        IPositionManager.DeleverageStruct memory deleverageData
+        IPositionManager.DeleverageAction memory action
     ) internal override {
         assets = _removeExitFeeFromAssets(assets);
-        deleverageData.collateralAmount = assets;
+        action.collateralAssets = assets;
         super._processPositionManagerRedemption(
-            owner,
             assets,
             shares,
+            owner,
             balancePrior,
-            deleverageData
+            action
         );
     }
 
@@ -138,25 +148,26 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
 
     /// @notice Processes a withdrawal of `shares` from the market by burning
     ///         `owner` shares and transferring `assets` minus proportional
-    ///         `exitFee` to `to`, then  decreases `ta` by post exit fee
+    ///         `exitFee` to `receiver`, then  decreases `ta` by post exit fee
     ///         `assets`, and vests rewards if `pending` > 0.
-    /// @param by The account that is executing the withdrawal.
-    /// @param to The account that should receive `assets`.
-    /// @param owner The account that will have `shares` burned to withdraw `assets`.
     /// @param assets The amount of the underlying asset to withdraw,
     ///               prior to exit fee being applied.
     /// @param shares The amount of shares redeemed from `owner`.
+    /// @param by The account that is executing the withdrawal.
+    /// @param receiver The account that should receive `assets`.
+    /// @param owner The account that will have `shares` burned to withdraw
+    ///              `assets`.
     function _processWithdraw(
-        address by,
-        address to,
-        address owner,
         uint256 assets,
-        uint256 shares
+        uint256 shares,
+        address by,
+        address receiver,
+        address owner
     ) internal override {
         // We remove the fees directly from the assets a user,
         // will receive distributing fee paid to all users.
         assets = _removeExitFeeFromAssets(assets);
-        super._processWithdraw(by, to, owner, assets, shares);
+        super._processWithdraw(assets, shares, by, receiver, owner);
     }
 
     /// @notice Helper function for setting the exit fee on redemption

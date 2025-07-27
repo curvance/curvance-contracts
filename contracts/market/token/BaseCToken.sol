@@ -17,10 +17,9 @@ import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
 /// @notice Curvance's cTokens (Curvance Tokens) are ERC4626 compliant. However,
-///         they follow their
-///         own design flow modifying underlying mechanisms such as totalAssets
-///         following a vesting mechanism in yield-bearing scenarios and a direct
-///         conversion in basic or "primitive" vaults.
+///         they follow their own design flow modifying underlying mechanisms
+///         such as totalAssets following a vesting mechanism in yield-bearing
+///         scenarios and a direct conversion in basic or "simple" vaults.
 ///
 ///         The "cToken" employs two different methods of engaging with the
 ///         Curvance protocol. Users can deposit an unlimited amount of assets,
@@ -44,6 +43,9 @@ import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 ///         View functions are "safe" by introducing reentry and update
 ///         protection logic to minimize risks when integrating with Curvance.
 ///
+/// @dev `Asset()` Positions must have all assets ready for withdraw,
+///      IE assets can NOT be locked.
+///      This way assets can be easily liquidated when loans default.
 abstract contract BaseCToken is
     ERC4626,
     PluginDelegable,
@@ -99,14 +101,14 @@ abstract contract BaseCToken is
     ///         pending vesting.
     uint256 internal _totalAssets;
 
-    /// @notice Collateral information associated with an account.
+    /// @notice Shares of this token that an account has posted as collateral.
     /// @dev Account address => Collateral data.
     mapping(address => uint256) public collateralPosted;
     
     /// EVENTS ///
 
-    event CollateralUpdated(address account, uint256 amount, bool increased);
-    event Liquidated(address liquidator, address account, uint256 amount);
+    event CollateralUpdated(uint256 shares, bool increased, address account);
+    event Liquidated(uint256 shares, address liquidator, address account);
 
     /// ERRORS ///
 
@@ -120,10 +122,15 @@ abstract contract BaseCToken is
 
     /// CONSTRUCTOR ///
 
+    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param asset_ The address of the underlying asset for this cToken.
+    /// @param marketManager_ The address of the MarketManager which manages
+    ///                       liquidity positions between linked cTokens
+    ///                       inside a joint market.
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
-        address MarketManager_
+        address marketManager_
     ) PluginDelegable(centralRegistry_) {
         _asset = asset_;
         _name = string.concat("Curvance ", asset_.name());
@@ -131,12 +138,12 @@ abstract contract BaseCToken is
         _decimals = asset_.decimals();
 
         // Ensure that `marketManager_` is a marketManager.
-        if (!centralRegistry.isMarketManager(MarketManager_)) {
+        if (!centralRegistry.isMarketManager(marketManager_)) {
             revert BaseCToken__InvalidMarketManager();
         }
 
         // Set `marketManager`.
-        marketManager = IMarketManager(MarketManager_);
+        marketManager = IMarketManager(marketManager_);
 
         // Sanity check of _asset so that we know users will not need to
         // mint anywhere close to causing an overflow.
@@ -154,37 +161,38 @@ abstract contract BaseCToken is
     ///      better safe than sorry.
     ///      NOTE: ONLY CALLED ONCE DURING TOKEN LISTING BY DAO AUTHORIZED
     ///            ADDRESS FROM THE MARKET MANAGER.
-    /// @param by The account initializing the token market.
+    /// @param by The account initializing deposits.
     /// @return Returns with true when successful.
-    function startMarket(address by) external nonReentrant returns (bool) {
-        _startMarket(by);
+    function initializeDeposits(
+        address by
+    ) external nonReentrant returns (bool) {
+        _initializeDeposits(by);
         return true;
     }
 
-    /// @notice Helper function for Position Management contract to
-    ///         redeem assets.
+    /// @notice Used by a Position Manager contract to redeem assets from
+    ///         collateralized shares by `account` to perform a complex
+    ///         action.
     /// @param assets The amount of the underlying assets to redeem.
     /// @param owner The owner address of assets to redeem.
-    /// @param deleverageData Struct containing information on the desired
-    ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of cToken that will be routed into
-    ///                          a token underlying to repay outstanding
-    ///                          debt.
-    ///                       2. The amount of cTokens that will be
-    ///                          deleveraged.
-    ///                       3. Address of token that will have its
-    ///                          underlying token debt repaid.
-    ///                       4. Optional struct containing instructions on how
-    ///                          to handle swapping into cToken underlying
-    ///                          borrowed to facilitate deleveraging.
-    ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to the token lenders.
-    ///                       6. Optional auxiliary data for execution of a
-    ///                          deleverage action.
+    /// @param action Instructions for a deleverage action containing:
+    ///               cToken Address of the cToken that will be redeemed from
+    ///                      and assets swapped into `borrowableCToken` asset.
+    ///               collateralAssets The amount of `cToken` that will be
+    ///                                deleveraged, in assets.
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will have its debt paid.
+    ///               repayAssets The amount of `borrowableCToken` asset that
+    ///                           will be repaid to lenders.
+    ///               swapAction Swap actions instructions converting
+    ///                          collateral asset into debt asset to
+    ///                          facilitate deleveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       deleverage action.
     function withdrawByPositionManager(
         uint256 assets,
         address owner,
-        IPositionManager.DeleverageStruct memory deleverageData
+        IPositionManager.DeleverageAction memory action
     ) external nonReentrant {
         // Validate that a position manager is calling.
         if (!marketManager.isPositionManager(msg.sender)) {
@@ -196,36 +204,26 @@ abstract contract BaseCToken is
         // We can pull _totalAssets directly here since any pending
         // yield are already vested via _accrueIfNeeded().
         uint256 ta = _totalAssets;
-        uint256 ownerBalance = _checkRedemption(
-            assets,
-            owner,
-            ta
-        );
+        uint256 balance = _checkRedemption(assets, owner, ta);
         // No need to check for rounding error, previewWithdraw rounds up.
         uint256 shares = _previewWithdraw(assets, ta);
 
-        _processWithdraw(
-            msg.sender,
-            msg.sender,
-            owner,
-            assets,
-            shares
-        );
+        _processWithdraw(assets, shares, msg.sender, msg.sender, owner);
 
         // Process the position manager redemption leg.
         _processPositionManagerRedemption(
-            owner,
             assets,
             shares,
-            ownerBalance,
-            deleverageData
+            owner,
+            balance,
+            action
         );
     }
 
-    /// @notice Caller deposits assets into the market, `receiver` receives
-    ///         shares, and turns on collateralization of the assets.
+    /// @notice Caller deposits `assets` into the market, `receiver` receives
+    ///         shares, and collateralization of `assets` is enabled.
     /// @dev The caller must be depositing for themselves, or be managing
-    ///      their position through the position folding contract.
+    ///      their position through a Position Manager contract.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param receiver The account that should receive the cToken shares.
     /// @return shares The amount of cToken shares received by `receiver`.
@@ -245,11 +243,11 @@ abstract contract BaseCToken is
         // Can skip _checkPostCollateral since we know that `shares` is not
         // 0 and `receiver` has shares to post as collateral due to prior
         // _deposit action.
-        _postCollateral(receiver, shares);
+        _postCollateral(shares, receiver);
     }
 
-    /// @notice Caller deposits assets into the market, `receivier` receives
-    ///         shares, and turns on collateralization of the assets.
+    /// @notice Caller deposits `assets` into the market, `receiver` receives
+    ///         shares, and collateralization of `assets` is enabled.
     /// @dev Requires that `receiver` approves the caller prior to
     ///      collateralize on their behalf.
     ///      NOTE: Be careful who you approve here!
@@ -271,7 +269,7 @@ abstract contract BaseCToken is
         // Can skip _checkPostCollateral since we know that `shares` is not
         // 0 and `receiver` has shares to post as collateral due to prior
         // _deposit action.
-        _postCollateral(receiver, shares);
+        _postCollateral(shares, receiver);
     }
 
     /// @notice Caller withdraws assets from the market and burns their shares.
@@ -302,13 +300,15 @@ abstract contract BaseCToken is
         assets = _redeem(shares, receiver, owner, false, true);
     }
 
-    /// @notice Caller withdraws assets from the market and burns their shares,
-    ///         on behalf of `owner`.
+    /// @notice Caller withdraws assets from the market and burns their
+    ///         shares, on behalf of `owner`.
     /// @dev Forces collateral to be withdrawn from `owner` collateralPosted.
     /// @param shares The amount of shares to redeemed.
     /// @param receiver The account that should receive the assets.
-    /// @param owner The account that will burn their shares to withdraw assets.
-    /// @return assets the amount of assets redeemed by `owner`.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
+    /// @return assets The amount of assets redeemed by `owner` and sent to
+    ///                `receiver`.
     function redeemCollateralFor(
         uint256 shares,
         address receiver,
@@ -318,107 +318,111 @@ abstract contract BaseCToken is
     }
 
     /// @notice Posts `shares` as collateral inside this market.
-    /// @dev The position token must have collateralization
-    ///      enabled (collRatio > 0).
+    /// @dev The cToken must have collateralization enabled (collRatio > 0),
+    ///      and its collateral cap set (above 0).
     /// @param shares The amount of shares to post as collateral.
     function postCollateral(uint256 shares) external nonReentrant {
-        _checkPostCollateral(msg.sender, shares);
+        _checkPostCollateral(shares, msg.sender);
 
-        _postCollateral(msg.sender, shares);
+        _postCollateral(shares, msg.sender);
     }
 
     /// @notice Posts `shares` as collateral inside this market
     ///         for `account`.
-    /// @dev The position token must have collateralization
-    ///      enabled (collRatio > 0).
-    /// @param shares The amount of shares to post as collateral.
+    /// @dev The cToken must have collateralization enabled (collRatio > 0),
+    ///      and its collateral cap set (above 0).
+    /// @param shares The number of shares to post as collateral from `owner`.
+    /// @param owner The address of the account posting `shares`
+    ///              as collateral.
     function postCollateralFor(
-        address account,
-        uint256 shares
+        uint256 shares,
+        address owner
     ) external nonReentrant {
-        _checkDelegate(account, msg.sender);
-        _checkPostCollateral(account, shares);
+        _checkDelegate(owner, msg.sender);
+        _checkPostCollateral(shares, owner);
 
-        _postCollateral(msg.sender, shares);
+        _postCollateral(shares, owner);
     }
 
     /// @notice Removes `shares` of collateral posted inside this market.
     /// @param shares The number of shares that are posted of collateral
     ///               that will be removed.
     function removeCollateral(uint256 shares) external nonReentrant {
-        _checkRemoveCollateral(msg.sender, shares);
+        _checkRemoveCollateral(shares, msg.sender);
 
-        _removeCollateral(msg.sender, shares);
+        _removeCollateral(shares, msg.sender);
     }
 
     /// @notice Removes `shares` of collateral posted inside this market
     ///         for `account`.
-    /// @param shares The number of shares that are posted of collateral
-    ///               that will be removed.
+    /// @param shares The number of shares to remove as collateral
+    ///               from `owner`.
+    /// @param owner The address of the account removing `shares`
+    ///              as collateral.
     function removeCollateralFor(
-        address account,
-        uint256 shares
+        uint256 shares,
+        address owner
     ) external nonReentrant {
-        _checkDelegate(account, msg.sender);
-        _checkRemoveCollateral(msg.sender, shares);
+        _checkDelegate(owner, msg.sender);
+        _checkRemoveCollateral(shares, owner);
 
-        _removeCollateral(msg.sender, shares);
+        _removeCollateral(shares, owner);
     }
 
-    /// @notice Transfers collateralized cToken shares from `account`
-    ///         to `liquidator` due to a liquidation.
+    /// @notice Transfers collateralized cToken shares from `accounts`
+    ///         to `liquidator` as part of a liquidation.
     /// @dev Will fail unless called by a different listed cToken
     ///      during the process of liquidation.
     ///      May emit {CollateralUpdated} and {Liquidated} events.
-    /// @param liquidator The account receiving seized collateralized cTokens.
-    /// @param accounts An array containing the accounts having
-    ///                 collateral seized.
-    /// @param shares An array containing the number of collateralized cTokens
-    ///               shares to seize.
+    /// @param liquidatedShares An array containing the number of
+    ///                         collateralized cTokens to seize, in shares.
+    /// @param liquidator The account receiving `liquidatedShares` cTokens.
+    /// @param accounts An array containing the accounts having collateral
+    ///                 seized.
     function seize(
+        uint256[] calldata liquidatedShares,
         address liquidator,
-        address[] calldata accounts,
-        uint256[] calldata shares
+        address[] calldata accounts
     ) external nonReentrant {
         // Fails if seizure not allowed.
         marketManager.canSeize(address(this), msg.sender);
 
-        // We know that accounts and shares arrays are the same length since
-        // its validated inside the other listed token getting debt repaid
-        // within.
+        // We know that `accounts` and `liquidatedShares` arrays are the same
+        // length since we validate it inside the cToken getting debt repaid
+        // as part of this liquidation.
 
         uint256 numAccounts = accounts.length;
-        uint256 totalAmount;
-        uint256 amount;
+        uint256 totalShares;
+        uint256 shares;
         address account;
+
         for (uint256 i; i < numAccounts; ++i) {
-            amount = shares[i];
-            // If theres no debt to repay for this user can
+            shares = liquidatedShares[i];
+            // If theres no shares to liquidate for this account can
             // skip them.
-            if (amount == 0) {
+            if (shares == 0) {
                 continue;
             }
 
             account = accounts[i];
 
-            // Execute any prior liquidation actions.
-            _beforeLiquidationAction(account, liquidator, amount);
-            totalAmount += amount;
+            // Execute any prior liquidation action.
+            _beforeLiquidationAction(shares, liquidator, account);
+            totalShares += shares;
 
-            // Remove liquidated account's collateral.
-            // Update user collateral posted invariant.
-            collateralPosted[account] = collateralPosted[account] - amount;
-            emit CollateralUpdated(account, amount, false);
+            // Update `account` collateral posted invariant and transfer
+            // their collateral shares.
+            collateralPosted[account] = collateralPosted[account] - shares;
+            emit CollateralUpdated(shares, false, account);
 
-            // Efficiently transfer liquidated tokens from `account`
-            // to `liquidator`.
-            _transferFromWithoutAllowance(account, liquidator, amount);
-            emit Liquidated(liquidator, account, amount);
+            // Transfer liquidated shares from `account` to `liquidator`.
+            _transferFromWithoutAllowance(account, liquidator, shares);
+            emit Liquidated(shares, liquidator, account);
         }
 
-        // Update market collateral posted invariant for all the accounts
-        // liquidated.
-        marketCollateralPosted = marketCollateralPosted - totalAmount;
+        // Update market collateral posted invariant for the liquidated
+        // shares.
+        marketCollateralPosted = marketCollateralPosted - totalShares;
     }
 
     /// @notice Rescue any token sent by mistake.
@@ -458,7 +462,7 @@ abstract contract BaseCToken is
                 isCollateral: true, // Defaults to true, only overridden in BorrowableCToken.
                 exchangeRate: _convertToAssets(WAD, _getTotalAssets()),
                 collateralPosted: collateralPosted[account],
-                debtOutstanding: 0 // Defaults to zero, only overridden in BorrowableCToken.
+                debtBalance: 0 // Defaults to zero, only overridden in BorrowableCToken.
             })
         );
     }
@@ -486,10 +490,10 @@ abstract contract BaseCToken is
     /// @notice Returns the maximum assets that can be deposited at a time.
     /// @dev If depositing is disabled maxAssets should be equal to 0,
     ///      according to ERC4626 spec.
-    /// @param to The address who would receive minted shares.
+    /// @param receiver The address who would receive minted shares.
     /// @return maxAssets The maximum assets that can be deposited at a time.
     function maxDeposit(
-        address to
+        address receiver
     ) public view override returns (uint256 maxAssets) {
         if (
             !marketManager.isListed(address(this)) ||
@@ -499,16 +503,16 @@ abstract contract BaseCToken is
             // as 0 so we can just return.
             return maxAssets;
         }
-        maxAssets = super.maxDeposit(to);
+        maxAssets = super.maxDeposit(receiver);
     }
 
     /// @notice Returns the maximum shares that can be minted at a time.
     /// @dev If depositing is disabled minMint should be equal to 0,
     ///      according to ERC4626 spec.
-    /// @param to The address who would receive minted shares.
+    /// @param receiver The address who would receive minted shares.
     /// @return maxShares The maximum shares that can be minted at a time.
     function maxMint(
-        address to
+        address receiver
     ) public view override returns (uint256 maxShares) {
         if (
             !marketManager.isListed(address(this)) ||
@@ -518,10 +522,11 @@ abstract contract BaseCToken is
             // as 0 so we can just return.
             return maxShares;
         }
-        maxShares = super.maxMint(to);
+        maxShares = super.maxMint(receiver);
     }
 
-    /// @notice Caller deposits assets into the market and receives shares.
+    /// @notice Caller deposits `assets` into the market and `receiver`
+    ///         receives shares.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param receiver The account that should receive the cToken shares.
     /// @return shares The amount of cToken shares received by `receiver`.
@@ -532,7 +537,8 @@ abstract contract BaseCToken is
         shares = _deposit(assets, receiver);
     }
 
-    /// @notice Caller deposits assets into the market and receives shares.
+    /// @notice Caller deposits `shares` into the market and `receiver`
+    ///         receives shares.
     /// @param shares The amount of the underlying assets quoted in shares
     ///               to deposit.
     /// @param receiver The account that should receive the cToken shares.
@@ -577,13 +583,14 @@ abstract contract BaseCToken is
     }
 
     /// @notice Withdraws assets, quoted in `shares` from the market,
-    ///         and burns `owner` shares, on behalf of `owner`.
+    ///         and burns `owner` shares, sending assets to `receiver`.
     /// @dev Does not force collateral to be withdrawn.
-    /// @param shares The amount of shares to be redeemed.
+    /// @param shares The amount of shares to redeemed.
     /// @param receiver The account that should receive the assets.
     /// @param owner The account that will burn their shares to withdraw
     ///              assets.
-    /// @return assets The amount of assets redeemed by `owner`.
+    /// @return assets The amount of assets redeemed by `owner` and sent to
+    ///                `receiver`.
     function redeemFor(
         uint256 shares,
         address receiver,
@@ -593,37 +600,39 @@ abstract contract BaseCToken is
     }
 
     /// @notice Transfers `amount` tokens from caller to `to`.
-    /// @param to The address of the destination account to receive `amount`
-    ///           shares.
-    /// @param amount The number of tokens to transfer from caller to `to`.
+    /// @param receiver The address of the destination account to receive
+    ///                 `shares` shares.
+    /// @param shares The number of shares to transfer from caller to
+    ///               `receiver`.
     /// @return Whether or not the transfer succeeded or not.
     function transfer(
-        address to,
-        uint256 amount
+        address receiver,
+        uint256 shares
     ) public override nonReentrant returns (bool) {
-        _checkTransfer(msg.sender, to, amount);
+        _checkTransfer(shares, receiver, msg.sender);
 
         // Execute transfer.
-        super.transfer(to, amount);
+        super.transfer(receiver, shares);
         return true;
     }
 
-    /// @notice Transfers `amount` tokens from `from` to `to`.
-    /// @param from The address of the account transferring `amount`
-    ///             shares from.
-    /// @param to The address of the destination account to receive `amount`
-    ///           shares.
-    /// @param amount The number of tokens to transfer from `from` to `to`.
+    /// @notice Transfers `amount` tokens from `owner` to `receiver`.
+    /// @param owner The address of the account transferring `shares`
+    ///              shares from.
+    /// @param receiver The address of the destination account to receive
+    ///                 `shares` shares.
+    /// @param shares The number of shares to transfer from `owner` to
+    ///               `receiver`.
     /// @return Whether or not the transfer succeeded or not.
     function transferFrom(
-        address from,
-        address to,
-        uint256 amount
+        address owner,
+        address receiver,
+        uint256 shares
     ) public override nonReentrant returns (bool) {
-        _checkTransfer(from, to, amount);
+        _checkTransfer(shares, receiver, owner);
 
         // Execute transfer.
-        super.transferFrom(from, to, amount);
+        super.transferFrom(owner, receiver, shares);
         return true;
     }
 
@@ -685,7 +694,7 @@ abstract contract BaseCToken is
     function previewDeposit(
         uint256 assets
     ) public view override returns (uint256) {
-        return _previewDeposit(assets, _getTotalAssets());
+        return _convertToShares(assets, _getTotalAssets());
     }
 
     /// @notice Allows users to simulate the effects of their mint at
@@ -717,7 +726,7 @@ abstract contract BaseCToken is
     function previewRedeem(
         uint256 shares
     ) public view virtual override returns (uint256) {
-        return _previewRedeem(shares, _getTotalAssets());
+        return _convertToAssets(shares, _getTotalAssets());
     }
 
     /// @notice Can accrue pending yield, configure next vesting
@@ -741,7 +750,7 @@ abstract contract BaseCToken is
 
         // Check for rounding error by converting assets to shares,
         // since we round down in previewDeposit.
-        _checkZeroAmount(shares = _previewDeposit(assets, _getTotalAssets()));
+        _checkZeroAmount(shares = _convertToShares(assets, _getTotalAssets()));
         _checkDeposit(receiver);
 
         // Fails if deposit not allowed, this stands in for a maxDeposit
@@ -749,7 +758,7 @@ abstract contract BaseCToken is
         marketManager.canMint(address(this));
 
         // Execute deposit.
-        _processDeposit(msg.sender, receiver, assets, shares);
+        _processDeposit(assets, shares, msg.sender, receiver);
     }
 
     /// @notice Deposits assets and mints `shares` to `receiver`.
@@ -763,6 +772,7 @@ abstract contract BaseCToken is
         address receiver
     ) internal virtual returns (uint256 assets) {
         _accrueIfNeeded();
+
         _checkZeroAmount(shares);
         _checkDeposit(receiver);
 
@@ -775,10 +785,10 @@ abstract contract BaseCToken is
         // We can pull _totalAssets directly here since any pending
         // rewards are already vested via _accrueIfNeeded().
         _processDeposit(
-            msg.sender,
-            receiver,
             assets = _previewMint(shares, _totalAssets),
-            shares
+            shares,
+            msg.sender,
+            receiver
         );
     }
 
@@ -805,37 +815,33 @@ abstract contract BaseCToken is
         // We can pull _totalAssets directly here since any pending
         // rewards are already vested via _accrueIfNeeded().
         uint256 ta = _totalAssets;
-        uint256 ownerBalance = _checkRedemption(
-            assets,
-            owner,
-            ta
-        );
+        uint256 balance = _checkRedemption(assets, owner, ta);
 
         // Validate caller is allowed to withdraw `shares` on behalf of
         // `owner`.
         _updateAllowance(owner, shares = _previewWithdraw(assets, ta));
 
         // Validate that `owner` can redeem `shares`.
-        uint256 collateralToRemove = marketManager.canRedeemWithCollateralRemoval(
+        uint256 collateralRedeemed = marketManager.canRedeemWithCollateralRemoval(
             address(this),
-            owner,
-            ownerBalance,
-            collateralPosted[owner],
             shares,
+            owner,
+            balance,
+            collateralPosted[owner],
             forceRedeemCollateral
         );
 
-        if (collateralToRemove > 0) {
-            _removeCollateral(owner, collateralToRemove);
+        if (collateralRedeemed > 0) {
+            _removeCollateral(collateralRedeemed, owner);
         }
 
         // Execute withdrawal.
         _processWithdraw(
+            assets,
+            shares,
             msg.sender,
             receiver,
-            owner,
-            assets,
-            shares
+            owner
         );
     }
 
@@ -866,8 +872,8 @@ abstract contract BaseCToken is
         // We can pull _totalAssets directly here since any pending
         // rewards are already vested via _accrueIfNeeded().
         uint256 ta = _totalAssets;
-        uint256 ownerBalance = _checkRedemption(
-            assets = _previewRedeem(shares, ta),
+        uint256 balance = _checkRedemption(
+            assets = _convertToAssets(shares, ta),
             owner,
             ta
         );
@@ -882,64 +888,58 @@ abstract contract BaseCToken is
         }
 
         // Validate that `owner` can redeem `shares`.
-        uint256 collateralToRemove = marketManager.canRedeemWithCollateralRemoval(
+        uint256 collateralRedeemed = marketManager.canRedeemWithCollateralRemoval(
             address(this),
-            owner,
-            ownerBalance,
-            collateralPosted[owner],
             shares,
+            owner,
+            balance,
+            collateralPosted[owner],
             forceRedeemCollateral
         );
 
-        if (collateralToRemove > 0) {
-            _removeCollateral(owner, collateralToRemove);
+        if (collateralRedeemed > 0) {
+            _removeCollateral(collateralRedeemed, owner);
         }
 
         // Execute withdrawal.
-        _processWithdraw(
-            msg.sender,
-            receiver,
-            owner,
-            assets,
-            shares
-        );
+        _processWithdraw(assets, shares, msg.sender, receiver, owner);
     }
 
     /// @notice Helper function for posting `shares` as collateral
     ///         for `account` inside this market.
     /// @dev Emits {CollateralUpdated} event.
     ///      May emit {PositionUpdated} event inside Market Manager.
-    /// @param account The account posting collateral.
+    /// @param owner The account posting collateral.
     /// @param shares The amount of shares to post as collateral.
     function _postCollateral(
-        address account,
-        uint256 shares
+        uint256 shares,
+        address owner
     ) internal virtual {
         uint256 newNetCollateral = marketCollateralPosted + shares;
         marketManager.canCollateralize(
             address(this),
-            account,
+            owner,
             newNetCollateral
         );
         // Update user and market collateral posted invariants.
-        collateralPosted[account] = collateralPosted[account] + shares;
+        collateralPosted[owner] = collateralPosted[owner] + shares;
         marketCollateralPosted = newNetCollateral;
-        emit CollateralUpdated(account, shares, true);
+        emit CollateralUpdated(shares, true, owner);
     }
 
     /// @notice Helper function for removing `shares` collateral posted for
     ///         `account` inside this market.
     /// @dev Emits a {CollateralUpdated} event.
     ///      May emit {PositionUpdated} event inside Market Manager.
-    /// @param account The address of the account to reduce `cToken`
-    ///                collateral posted for.
     /// @param shares The number of shares that are posted of collateral
     ///               that should be removed.
-    function _removeCollateral(address account, uint256 shares) internal {
+    /// @param owner The address of the account to reduce collateral
+    ///              posted from.
+    function _removeCollateral(uint256 shares, address owner) internal {
         // Update user and market collateral posted invariants.
-        collateralPosted[account] = collateralPosted[account] - shares;
+        collateralPosted[owner] = collateralPosted[owner] - shares;
         marketCollateralPosted = marketCollateralPosted - shares;
-        emit CollateralUpdated(account, shares, false);
+        emit CollateralUpdated(shares, false, owner);
     }
 
     /// @notice Can accrue yield, configure next vesting
@@ -950,15 +950,15 @@ abstract contract BaseCToken is
     ///         shares to `owner`, then increases `ta` by `assets`,
     ///         and vests rewards if `pending` > 0.
     /// @dev Emits a {Deposit} event.
-    /// @param by The account that is executing the deposit.
-    /// @param to The account that should receive `shares`.
     /// @param assets The amount of the underlying asset to deposit.
     /// @param shares The amount of shares minted to `to`.
+    /// @param by The account that is executing the deposit.
+    /// @param receiver The account that should receive `shares`.
     function _processDeposit(
-        address by,
-        address to,
         uint256 assets,
-        uint256 shares
+        uint256 shares,
+        address by,
+        address receiver
     ) internal {
         // Need to transfer before minting or ERC777s could reenter.
         SafeTransferLib.safeTransferFrom(asset(), by, address(this), assets);
@@ -967,10 +967,10 @@ abstract contract BaseCToken is
         // invariant and prepare assets for withdrawal.
         _updateAssetsForDeposit(assets);
 
-        // Mint `shares` to `to`.
+        // Mint `shares` to `receiver`.
         // NOTE: This is the erc20 mint function, meaning this is effectively
         //       super._mint().
-        _mint(to, shares);
+        _mint(receiver, shares);
         
         /// @solidity memory-safe-assembly
         assembly {
@@ -978,31 +978,31 @@ abstract contract BaseCToken is
             mstore(0x00, assets)
             mstore(0x20, shares)
             let m := shr(96, not(0))
-            log3(0x00, 0x40, _DEPOSIT_EVENT_SIGNATURE, and(m, by), and(m, to))
+            log3(0x00, 0x40, _DEPOSIT_EVENT_SIGNATURE, and(m, by), and(m, receiver))
         }
 
-        _afterDepositAction(to, shares);
+        _afterDepositAction(shares, receiver);
     }
 
     /// @notice Processes a withdrawal of `shares` from the market by burning
-    ///         `owner` shares and transferring `assets` to `to`, then
+    ///         `owner` shares and transferring `assets` to `receiver`, then
     ///         decreases `ta` by `assets`, and vests rewards if
     ///         `pending` > 0.
     /// @dev Emits a {Withdraw} event.
-    /// @param by The account that is executing the withdrawal.
-    /// @param to The account that should receive `assets`.
-    /// @param owner The account that will have `shares` burned to withdraw
-    ///              `assets`.
     /// @param assets The amount of the underlying asset to withdraw.
     /// @param shares The amount of shares redeemed from `owner`.
+    /// @param by The account that is executing the withdrawal.
+    /// @param receiver The account that should receive `assets`.
+    /// @param owner The account that will have `shares` burned to withdraw
+    ///              `assets`.
     function _processWithdraw(
-        address by,
-        address to,
-        address owner,
         uint256 assets,
-        uint256 shares
+        uint256 shares,
+        address by,
+        address receiver,
+        address owner
     ) internal virtual {
-        _beforeWithdrawAction(owner, shares);
+        _beforeWithdrawAction(shares, owner);
 
         // Burn `owner` `shares`.
         _burn(owner, shares);
@@ -1011,8 +1011,8 @@ abstract contract BaseCToken is
         // invariant and prepare assets for withdrawal.
         _updateAssetsForWithdrawal(assets);
 
-        // Transfer the underlying assets to `to`.
-        SafeTransferLib.safeTransfer(asset(), to, assets);
+        // Transfer the underlying assets to `receiver`.
+        SafeTransferLib.safeTransfer(asset(), receiver, assets);
 
         /// @solidity memory-safe-assembly
         assembly {
@@ -1025,62 +1025,62 @@ abstract contract BaseCToken is
                 0x40,
                 _WITHDRAW_EVENT_SIGNATURE,
                 and(m, by),
-                and(m, to),
+                and(m, receiver),
                 and(m, owner)
             )
         }
     }
 
-    /// @notice Helper function for Position Management contract to
-    ///         redeem assets.
-    /// @param owner The owner address of assets to redeem.
+    /// @notice Used by a Position Manager contract to redeem assets from
+    ///         collateralized shares by `account` to perform a complex
+    ///         action.
     /// @param assets The amount of the underlying assets to redeem.
     /// @param shares The amount of the shares to redeem.
+    /// @param owner The owner address of assets to redeem.
     /// @param balancePrior The balance of shares `owner` has before this
     ///                     redemption.
-    /// @param deleverageData Struct containing information on the desired
-    ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of cToken that will be routed into
-    ///                          a token underlying to repay outstanding
-    ///                          debt.
-    ///                       2. The amount of cTokens that will be
-    ///                          deleveraged.
-    ///                       3. Address of token that will have its
-    ///                          underlying token debt repaid.
-    ///                       4. Optional struct containing instructions on how
-    ///                          to handle swapping into cToken underlying
-    ///                          borrowed to facilitate deleveraging.
-    ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to the token lenders.
-    ///                       6. Optional auxiliary data for execution of a
-    ///                          deleverage action.
+    /// @param action Instructions for a deleverage action containing:
+    ///               cToken Address of the cToken that will be redeemed from
+    ///                      and assets swapped into `borrowableCToken` asset.
+    ///               collateralAssets The amount of `cToken` that will be
+    ///                                deleveraged, in assets.
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will have its debt paid.
+    ///               repayAssets The amount of `borrowableCToken` asset that
+    ///                           will be repaid to lenders.
+    ///               swapAction Swap actions instructions converting
+    ///                          collateral asset into debt asset to
+    ///                          facilitate deleveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       deleverage action.
     function _processPositionManagerRedemption(
-        address owner,
         uint256 assets,
         uint256 shares,
+        address owner,
         uint256 balancePrior,
-        IPositionManager.DeleverageStruct memory deleverageData
+        IPositionManager.DeleverageAction memory action
     ) internal virtual {
-        // Callback to position manager that executes cToken specific logic.
+        // Callback to Position Panager that executes remaining deleverage
+        // logic.
         IPositionManager(msg.sender).onRedeem(
             address(this),
-            owner,
             assets,
-            deleverageData
+            owner,
+            action
         );
 
         // Fails if redemption not allowed.
-        uint256 collateralToRemove = marketManager.canRedeemWithCollateralRemoval(
+        uint256 collateralRedeemed = marketManager.canRedeemWithCollateralRemoval(
             address(this),
+            shares,
             owner,
             balancePrior,
             collateralPosted[owner],
-            shares,
             false
         );
 
-        if (collateralToRemove > 0) {
-            _removeCollateral(owner, collateralToRemove);
+        if (collateralRedeemed > 0) {
+            _removeCollateral(collateralRedeemed, owner);
         }
     }
 
@@ -1138,22 +1138,22 @@ abstract contract BaseCToken is
     ///      although, we protect against them in many ways,
     ///      better safe than sorry.
     /// @dev Emits a {Deposit} event.
-    /// @param by The account initializing the cToken market.
-    function _startMarket(address by) internal virtual {
+    /// @param by The account initializing deposits.
+    function _initializeDeposits(address by) internal virtual {
         if (msg.sender != address(marketManager)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
+        address cTokenAddress = address(this);
         uint256 assets = _BASE_UNDERLYING_RESERVE;
-        address market = address(this);
+        
+        SafeTransferLib.safeTransferFrom(asset(), by, cTokenAddress, assets);
 
-        SafeTransferLib.safeTransferFrom(asset(), by, market, assets);
-
-        // Because nobody can deposit into the market before startMarket()
+        // Because nobody can deposit into the market before initializeDeposits()
         // is called, this will always be the initial call.
         uint256 shares = _initialConvertToShares(assets);
 
-        _mint(market, shares);
+        _mint(cTokenAddress, shares);
         _totalAssets = assets;
 
         assembly {
@@ -1165,12 +1165,12 @@ abstract contract BaseCToken is
                 0x00,
                 0x40,
                 _DEPOSIT_EVENT_SIGNATURE,
-                and(m, market),
-                and(m, market)
+                and(m, cTokenAddress),
+                and(m, cTokenAddress)
             )
         }
 
-        _afterDepositAction(market, shares);
+        _afterDepositAction(shares, cTokenAddress);
     }
 
     /// @notice Updates the allowance for the caller.
@@ -1214,7 +1214,7 @@ abstract contract BaseCToken is
 
         shares = totalShares == 0
             ? assets
-            : FixedPointMathLib.mulDiv(assets, totalShares, ta);
+            : FixedPointMathLib.fullMulDiv(assets, totalShares, ta);
     }
 
     /// @notice Returns the amount of assets that would be exchanged by the
@@ -1233,20 +1233,7 @@ abstract contract BaseCToken is
 
         assets = totalShares == 0
             ? shares
-            : FixedPointMathLib.mulDiv(shares, ta, totalShares);
-    }
-
-    /// @notice Simulates the effects of a user deposit at the current
-    ///         block.
-    /// @param assets The number of assets to preview a deposit call.
-    /// @param ta The total number of assets to simulate a deposit at the
-    ///           current block.
-    /// @return The shares received for depositing `assets`.
-    function _previewDeposit(
-        uint256 assets,
-        uint256 ta
-    ) internal view returns (uint256) {
-        return _convertToShares(assets, ta);
+            : FixedPointMathLib.fullMulDiv(shares, ta, totalShares);
     }
 
     /// @notice Simulates the effects of a user mint at the current
@@ -1263,7 +1250,7 @@ abstract contract BaseCToken is
 
         assets = totalShares == 0
             ? shares
-            : FixedPointMathLib.mulDivUp(shares, ta, totalShares);
+            : FixedPointMathLib.fullMulDivUp(shares, ta, totalShares);
     }
 
     /// @notice Simulates the effects of a user withdrawal at the current
@@ -1280,29 +1267,14 @@ abstract contract BaseCToken is
 
         shares = totalShares == 0
             ? assets
-            : FixedPointMathLib.mulDivUp(assets, totalShares, ta);
-    }
-
-    /// @notice Simulates the effects of a user redemption at the current
-    ///         block.
-    /// @param shares The number of shares to preview a redemption call.
-    /// @param ta The total number of assets to simulate a redemption at the
-    ///           current block.
-    /// @return The assets received for redeeming `shares`.
-    function _previewRedeem(
-        uint256 shares,
-        uint256 ta
-    ) internal view returns (uint256) {
-        return _convertToAssets(shares, ta);
+            : FixedPointMathLib.fullMulDivUp(assets, totalShares, ta);
     }
 
     /// @notice Updates asset values for a pending deposit.
     /// @param assets The amount of `asset()` to deposit.
     function _updateAssetsForDeposit(uint256 assets) internal virtual {
         // Document addition of `assets` to `ta` due to deposit.
-        unchecked {
-            _totalAssets = _totalAssets + assets;
-        }
+        _totalAssets = _totalAssets + assets;
     }
 
     /// @notice Updates asset values for a pending withdrawal.
@@ -1325,12 +1297,12 @@ abstract contract BaseCToken is
 
     /// @notice Helper function to check validity of a proposed posting
     ///         of collateral.
+    /// @param shares The number of shares to post as collateral from `owner`.
     /// @param owner The address of the account posting `shares`
     ///              as collateral.
-    /// @param shares The number of shares to post as collateral from `owner`.
     function _checkPostCollateral(
-        address owner,
-        uint256 shares
+        uint256 shares,
+        address owner
     ) internal view {
         _checkZeroAmount(shares);
 
@@ -1341,64 +1313,65 @@ abstract contract BaseCToken is
 
     /// @notice Helper function to check validity of a proposed removal
     ///         of collateral.
-    /// @param owner The address of the account removing `shares`
-    ///              as collateral.
     /// @param shares The number of shares to remove as collateral
     ///               from `owner`.
+    /// @param owner The address of the account removing `shares`
+    ///              as collateral.
     function _checkRemoveCollateral(
-        address owner,
-        uint256 shares
+        uint256 shares,
+        address owner
     ) internal {
         _checkZeroAmount(shares);
 
-        uint256 collateralPostedCached = collateralPosted[owner];
-        if (collateralPostedCached < shares) {
+        uint256 collateralOf = collateralPosted[owner];
+        if (collateralOf < shares) {
             _revert(_INSUFFICIENT_LIQUIDITY_SELECTOR);
         }
 
         marketManager.canRedeemWithCollateralRemoval(
             address(this),
+            shares,
             owner,
             balanceOf(owner),
-            collateralPostedCached,
-            shares,
+            collateralOf,
             true
         );
     }
 
     /// @notice Helper function to prepare for a transfer.
-    /// @param from The address of the account transferring `shares`
-    ///             shares from.
-    /// @param to The address of the destination account to receive `shares`
-    ///           shares.
-    /// @param shares The number of tokens to transfer from `from` to `to`.
+    /// @param shares The number of shares to transfer from `owner` to
+    ///               `receiver`.
+    /// @param receiver The address of the destination account to receive
+    ///                 `shares` shares.y
+    /// @param owner The address of the account transferring `shares`
+    ///              shares from.
     function _checkTransfer(
-        address from,
-        address to,
-        uint256 shares
+        uint256 shares,
+        address receiver,
+        address owner
     ) internal {
         _checkZeroAmount(shares);
-        if (from == to) {
+        if (owner == receiver) {
             revert BaseCToken__TransferError();
         }
         
-        uint256 collateral = collateralPosted[from];
+        uint256 collateralOf = collateralPosted[owner];
         
         // Fails if transfer not allowed.
-        uint256 collateralToRemove = marketManager.canTransfer(
+        uint256 collateralRedeemed = marketManager.canTransfer(
             address(this),
-            msg.sender,
-            balanceOf(from),
-            collateral,
             shares,
-            collateral > 0 ? true : false
+            msg.sender,
+            balanceOf(owner),
+            collateralOf,
+            collateralOf > 0 ? true : false
         );
 
-        if (collateralToRemove > 0) {
-            _removeCollateral(from, collateralToRemove);
+        if (collateralRedeemed > 0) {
+            _removeCollateral(collateralRedeemed, owner);
         }
         
-        _beforeTransferAction(from, to, shares);
+        _beforeTransferAction(shares, receiver, owner);
     }
 
     /// @notice An optional set of instructions to check before processing
@@ -1411,16 +1384,16 @@ abstract contract BaseCToken is
     /// @param owner The account that will burn their shares to withdraw
     ///              assets.
     /// @param ta The current total amount of assets inside this vault.
-    /// @return ownerBalance The balance of shares `owner`.
+    /// @return balance The balance of shares `owner`.
     function _checkRedemption(
         uint256 assets,
         address owner,
         uint256 ta
-    ) internal view returns (uint256 ownerBalance) {
+    ) internal view returns (uint256 balance) {
         _checkZeroAmount(assets);
 
         // Check whether `assets` is above their allowed redemption limit.
-        if (assets > _convertToAssets(ownerBalance = balanceOf(owner), ta)) {
+        if (assets > _convertToAssets(balance = balanceOf(owner), ta)) {
             _revert(_INSUFFICIENT_LIQUIDITY_SELECTOR);
         }
 
@@ -1429,8 +1402,13 @@ abstract contract BaseCToken is
 
     /// @notice Checks to make sure an action is not an empty action.
     function _checkZeroAmount(uint256 assets) internal pure {
-        if (assets == 0) {
-            revert BaseCToken__ZeroAmount();
+        /// @solidity memory-safe-assembly
+        assembly {
+            if iszero(assets) {
+                mstore(0x00, 0xc0883a55) // Revert BaseCToken__ZeroAmount().
+                // Return bytes 29-32 for the selector.
+                revert(0x1c, 0x04)
+            }
         }
     }
 
@@ -1452,35 +1430,45 @@ abstract contract BaseCToken is
         }
     }
 
-    /// INTERNAL CONVERSION FUNCTIONS WHICH MAY BE OVERRIDDEN ///
+    /// @dev Returns `floor(x * y / d)`.
+    /// Reverts if `x * y` overflows, or `d` is zero.
+    function _mulDiv(
+        uint256 x,
+        uint256 y,
+        uint256 d
+    ) internal pure returns (uint256 z) {
+        z = FixedPointMathLib.mulDiv(x, y, d);
+    }
+
+    /// INTERNAL HOOK FUNCTIONS WHICH MAY BE OVERRIDDEN ///
 
     /// @notice An optional set of instructions to execute before processing
-    ///         a deposit of `owners`'s assets.
+    ///         a deposit of `receiver`'s shares.
     function _afterDepositAction(
-        address /* to */,
-        uint256 /* assets */
+        uint256 /* shares */,
+        address /* receiver */
     ) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
     ///         a withdrawal of `owners`'s shares.
     function _beforeWithdrawAction(
-        address /* owner */,
-        uint256 /* shares */
+        uint256 /* shares */,
+        address /* owner */
     ) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
-    ///         a transfer of `from`'s shares to `to`.
+    ///         a transfer of `owner`'s shares to `receiver`.
     function _beforeTransferAction(
-        address /* from */,
-        address /* to */,
-        uint256 /* shares */
+        uint256 /* shares */,
+        address /* receiver */,
+        address /* owner */
     ) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
     ///         liquidation of `account`'s collateral.
     function _beforeLiquidationAction(
-        address /* account */,
+        uint256 /* shares */,
         address /* liquidator */,
-        uint256 /* shares */
+        address /* account */
     ) internal virtual {}
 }

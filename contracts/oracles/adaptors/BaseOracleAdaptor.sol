@@ -8,8 +8,6 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleAdaptor, PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 
-import { console2 } from "forge-std/console2.sol";
-
 abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// CONSTANTS ///
 
@@ -78,33 +76,21 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 min,
         uint256 heartbeat
     ) internal virtual view returns (bool) {
-        console2.log("before checks");
-
-        console2.log("value", value);
-        console2.log("max", max);
-        console2.log("min", min);
-        console2.log("heartbeat", heartbeat);
 
         // Validate `value` is not at or above the maximum value allowed.
         if (value >= max) {
             return true;
         }
 
-        console2.log("first check passed");
-
         // Validate `value` is not at or below the min value allowed.
         if (value <= min) {
             return true;
         }
 
-        console2.log("second check passed");
-
         // Validate the price returned is not stale.
         if (block.timestamp - timestamp > heartbeat) {
             return true;
         }
-
-        console2.log("third check passed");
 
         return false;
     }
@@ -148,7 +134,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         }
     }
 
-    /// FUNCTIONS TO OVERRIDE ///
+    /// EXTERNAL FUNCTIONS TO OVERRIDE ///
 
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact

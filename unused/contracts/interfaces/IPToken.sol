@@ -17,7 +17,7 @@ interface IPToken is IMToken {
     /// @notice Caller deposits assets into the market, `receiver` receives
     ///         shares, and turns on collateralization of the assets.
     /// @dev The caller must be depositing for themselves, or be managing
-    ///      their position through the position folding contract.
+    ///      their position through a Position Manager contract.
     ///      If the caller is not approved to collateralize the function will
     ///      simply deposit assets on behalf of `receiver`.
     /// @param assets The amount of the underlying assets to deposit.
@@ -73,11 +73,11 @@ interface IPToken is IMToken {
     ///         redeem assets.
     /// @param owner The owner address of assets to redeem.
     /// @param assets The amount of the underlying assets to redeem.
-    /// @param deleverageData The data for the deleverage operation.
+    /// @param deleverageAction The data for the deleverage operation.
     function withdrawByPositionManager(
         address owner,
         uint256 assets,
-        IPositionManager.DeleverageStruct memory deleverageData
+        IPositionManager.DeleverageAction memory deleverageAction
     ) external;
 
     /// @notice Amount of pToken that has been posted as collateral,

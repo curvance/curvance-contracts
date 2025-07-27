@@ -2,7 +2,9 @@
 pragma solidity ^0.8.26;
 
 import { WAD } from "contracts/libraries/Constants.sol";
+
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
@@ -31,6 +33,7 @@ contract AuxiliaryData {
         uint256 debt;
         uint256 collateral;
         uint256 maxDebt;
+        uint256 healthFactor;
     }
 
     struct MarketData {
@@ -57,13 +60,13 @@ contract AuxiliaryData {
         uint256 collRatio;
         uint256 collReqSoft;
         uint256 collReqHard;
-        uint256 liqBaseIncentive;
-        uint256 liqCurve;
-        uint256 baseCFactor;
-        uint256 cFactorCurve;
+        uint256 liqIncBase;
+        uint256 liqIncCurve;
+        uint256 closeFactorBase;
+        uint256 closeFactorCurve;
     }
 
-    struct MarketETokenData {
+    struct MarketBorrowableCTokens {
         address assetAddress;
         address marketAddress;
         address underlyingAddress;
@@ -82,9 +85,10 @@ contract AuxiliaryData {
         uint256 tokenPrice;
         MarketAssetConfig config;
         AccountAssetPosition userTokenPosition;
+        uint256[2] adaptorTypes;
     }
 
-    struct MarketcTokenData {
+    struct MarketCTokenData {
         address assetAddress;
         address marketAddress;
         address underlyingAddress;
@@ -92,23 +96,33 @@ contract AuxiliaryData {
         string underlyingName;
         string underlyingSymbol;
         uint8 underlyingDecimal;
-        uint256 totalPositionTokens;
+        uint256 totalCollateralTokens;
         uint256 totalCollateralPosted;
         uint256 collateralCap;
         uint256 sharePrice;
         uint256 tokenPrice;
         MarketAssetConfig config;
         AccountAssetPosition userTokenPosition;
+        uint256[2] adaptorTypes;
     }
 
     struct AllMarketData {
         MarketData marketData;
-        MarketETokenData[] eTokenData;
-        MarketcTokenData[] cTokenData;
+        MarketBorrowableCTokens[] eTokenData;
+        MarketCTokenData[] cTokenData;
+    }
+
+    struct LookupAccountState {
+        address account;
+        address[] markets;
+        address[][] pTokensForPosition;
+        address[][] eTokensForPosition;
+        address[] tokensForBalance;
     }
 
     /// CONSTANTS ///
     uint256 public constant MARKET_ASSET_RESERVE = 77777;
+    uint256 public constant MAX_LEVERAGE = 0.99e18;
 
     /// STORAGE ///
 
@@ -189,6 +203,105 @@ contract AuxiliaryData {
     }
 
     /// TOKEN-SPECIFIC FUNCTIONS ///
+    function getAccountState(
+        LookupAccountState calldata lookup
+    )
+        external
+        view
+        returns (
+            AccountMarketPosition[] memory marketPositions,
+            AccountAssetPosition[][] memory eTokenPositions,
+            AccountAssetPosition[][] memory pTokenPositions,
+            uint256[] memory tokenBalances
+        )
+    {
+        if (lookup.account == address(0)) {
+            revert("An account is required to query state");
+        }
+
+        marketPositions = new AccountMarketPosition[](lookup.markets.length);
+        eTokenPositions = new AccountAssetPosition[][](lookup.markets.length);
+        pTokenPositions = new AccountAssetPosition[][](lookup.markets.length);
+        tokenBalances = new uint256[](lookup.tokensForBalance.length);
+
+        // For each market in the marketplace
+        for (uint256 i; i < lookup.markets.length; i++) {
+            address market = lookup.markets[i];
+
+            try IMarketManager(market).statusOf(lookup.account) returns (
+                uint256 collateral,
+                uint256 maxDebt,
+                uint256 debt
+            ) {
+                marketPositions[i] = AccountMarketPosition({
+                    healthFactor: debt > 0
+                        ? _calculateHealthFactor(market, lookup.account)
+                        : 0,
+                    collateral: collateral,
+                    maxDebt: maxDebt,
+                    debt: debt
+                });
+            } catch {}
+
+            // Find the position for each token in the market
+            if (i < lookup.eTokensForPosition.length) {
+                address[] memory eTokens = lookup.eTokensForPosition[i];
+                eTokenPositions[i] = new AccountAssetPosition[](
+                    eTokens.length
+                );
+                for (uint256 j; j < eTokens.length; j++) {
+                    IBorrowableCToken token = IBorrowableCToken(eTokens[j]);
+
+                    AccountAssetPosition memory position;
+                    (
+                        position.hasPosition,
+                        position.shareAmount,
+                        position.collateralOrDebtAmount
+                    ) = this.getAccountTokenData(
+                        lookup.account,
+                        address(token)
+                    );
+                    position.tokenAmount = token.convertToAssets(
+                        position.shareAmount
+                    );
+
+                    eTokenPositions[i][j] = position;
+                }
+            }
+
+            // Find the position for each token in the market
+            if (i < lookup.pTokensForPosition.length) {
+                address[] memory pTokens = lookup.pTokensForPosition[i];
+                pTokenPositions[i] = new AccountAssetPosition[](
+                    pTokens.length
+                );
+                for (uint256 j; j < pTokens.length; j++) {
+                    ICToken token = ICToken(pTokens[j]);
+
+                    AccountAssetPosition memory position;
+                    (
+                        position.hasPosition,
+                        position.shareAmount,
+                        position.collateralOrDebtAmount
+                    ) = this.getAccountTokenData(
+                        lookup.account,
+                        address(token)
+                    );
+                    position.tokenAmount = token.convertToAssets(
+                        position.shareAmount
+                    );
+
+                    pTokenPositions[i][j] = position;
+                }
+            }
+        }
+
+        // Find the balance for each token in the marketplace
+        for (uint256 i; i < lookup.tokensForBalance.length; i++) {
+            IERC20 token = IERC20(lookup.tokensForBalance[i]);
+            tokenBalances[i] = token.balanceOf(lookup.account);
+        }
+    }
 
     /// @notice Returns if an account has an active position in `token`,
     /// @notice Returns if an account has an active position in `token`,
@@ -209,12 +322,12 @@ contract AuxiliaryData {
     {
         ICToken token = ICToken(cToken);
         ILiquidityManager liquidityManager = ILiquidityManager(
-            address(token.marketManager()) 
+            address(token.marketManager())
         );
 
-        hasPosition = liquidityManager.accountPositions(
-            cToken, account
-        ) == 2 ? true : false;
+        hasPosition = liquidityManager.accountPositions(cToken, account) == 2
+            ? true
+            : false;
         balanceOf = token.balanceOf(account);
         collateralOrDebtAmount = !token.isBorrowable()
             ? token.collateralPosted(account)
@@ -238,7 +351,8 @@ contract AuxiliaryData {
     {
         ICToken token = ICToken(cToken);
         IMarketManager marketManager = token.marketManager();
-        uint256 hasPosition_ = ILiquidityManager(address(marketManager)).accountPositions(cToken, account);
+        uint256 hasPosition_ = ILiquidityManager(address(marketManager))
+            .accountPositions(cToken, account);
         if (hasPosition_ == 2) {
             hasPosition = true;
         }
@@ -359,8 +473,8 @@ contract AuxiliaryData {
 
         for (uint256 i; i < numMarkets; i++) {
             (
-                MarketETokenData[] memory eTokenData,
-                MarketcTokenData[] memory cTokenData
+                MarketBorrowableCTokens[] memory eTokenData,
+                MarketCTokenData[] memory cTokenData
             ) = this.getMarketAssetData(markets[i], account);
             results[i] = AllMarketData(
                 this.getMarketData(markets[i], account),
@@ -390,6 +504,14 @@ contract AuxiliaryData {
                 result.userMarketPosition.maxDebt = maxDebt;
                 result.userMarketPosition.debt = debt;
             } catch {}
+
+            if (result.userMarketPosition.debt > 0) {
+                result
+                    .userMarketPosition
+                    .healthFactor = _calculateHealthFactor(market, account);
+            } else {
+                result.userMarketPosition.healthFactor = 0;
+            }
         }
 
         result.marketAddress = market;
@@ -407,29 +529,135 @@ contract AuxiliaryData {
         }
     }
 
+        /// @notice Calculates the hypothetical maximum amount of
+    ///         `borrowableCToken` assets `account` can borrow for maximum
+    ///         leverage based on a new `cToken` collateralized deposit.
+    /// @dev Applies a minor dampening effect to calculated maximum leverage
+    ///      via `MAX_LEVERAGE`. Offsets maximum borrowable debt amount if
+    ///      there is insufficient liquidity to borrow in the target market.
+    /// @param account The account to query maximum borrow amount for.
+    /// @param borrowableCToken The token that `account` will borrow assets
+    ///                         from to achieve leverage.
+    /// @param cToken The token that `account` will deposit to
+    ///                        leverage against.
+    /// @param assets The amount of `cToken` underlying that
+    ///               `account` will deposit to leverage against.
+    /// @return maxDebtBorrowable Returns the maximum remaining borrow amount
+    ///                           allowed from `borrowableCToken`, measured in
+    ///                           underlying token amount, after the new
+    ///                           hypothetical deposit.
+    /// @return isOffset Whether the maximum borrowable debt amount returned
+    ///                  has been offset due to available liquidity or not.
+    function hypotheticalMaxRemainingLeverageOf(
+        address account,
+        address borrowableCToken,
+        address cToken,
+        uint256 assets
+    ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
+        IMarketManager mm = ICToken(borrowableCToken).marketManager();
+        (uint256 price, uint256 errorCode) = IOracleManager(
+            ICentralRegistry(centralRegistry).oracleManager()
+        ).getPrice(address(cToken), true, true);
+
+        // Validate we got a price for `cToken`.
+        if (errorCode != 0) {
+            revert();
+        }
+
+        (
+            uint256 sumCollateral,
+            uint256 maxDebt,
+            uint256 sumDebt
+        ) = mm.statusOf(account);
+
+        {
+            uint256 newCollateral = _mulDiv(
+                ICToken(cToken).previewDeposit(assets),
+                price,
+                10 ** ICToken(cToken).decimals()
+            );
+
+            uint256 collRatio = mm.collateralizationRatio(cToken);
+            // If the collateral token cannot be borrowed against the hypothetical
+            // leverage check will result in 0 meaning nothing new to leverage
+            // against.
+            if (collRatio == 0) {
+                revert();
+            }
+
+            sumCollateral += newCollateral;
+            maxDebt += _mulDiv(newCollateral, collRatio, WAD);
+        }
+        
+
+        // We can calculate terminal leverage by calculating the infinite
+        // series of swapping to maximum LTV over and over, which results
+        // in the equation 1 / (1 - LTV).
+        //
+        // For example, 80% LTV will result in terminal maximum leverage of:
+        // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
+        // The equation below is equal to this equation,
+        // just extrapolated for an account's collateral vs debt.
+        //
+        // We also embed a `MAX_LEVERAGE` dampening effect to minimize
+        // transaction failure from imperfect execution due to things
+        // such as price fluctuations, and AMM fees.
+        uint256 maxLeverage = _mulDiv(
+            maxDebt - sumDebt,
+            sumCollateral * MAX_LEVERAGE,
+            sumCollateral - maxDebt
+        ) / WAD;
+
+        (price, errorCode) = IOracleManager(
+            ICentralRegistry(centralRegistry).oracleManager()
+        ).getPrice(address(borrowableCToken), true, false);
+
+        // Validate we got a price for `borrowableCToken`.
+        if (errorCode != 0) {
+            revert();
+        }
+
+        maxDebtBorrowable = _mulDiv(
+            _mulDiv(maxLeverage, WAD, price),
+            10 ** IERC20(borrowableCToken).decimals(),
+            WAD
+        );
+
+        uint256 liquidityAvailable = IERC20(ICToken(borrowableCToken).asset())
+            .balanceOf(borrowableCToken);
+
+        if (liquidityAvailable < maxDebtBorrowable) {
+            maxDebtBorrowable = liquidityAvailable;
+            isOffset = true;
+        }
+    }
+
     /// @notice Returns market asset data for a specific market.
     /// @param market The market to get asset data for.
     /// @param account The account to get asset data for.
-    /// @return eTokenData An array of MarketETokenData structs containing asset data for all eTokens.
-    /// @return cTokenData An array of MarketcTokenData structs containing asset data for all pTokens.
+    /// @return An array of MarketBorrowableCTokens structs
+    ///         containing asset data for all borrowableCTokens.
+    /// @return An array of MarketCTokenData structs containing
+    ///         asset data for all collateralTokens.
     function getMarketAssetData(
         address market,
         address account
     )
         public
         view
-        returns (MarketETokenData[] memory, MarketcTokenData[] memory)
+        returns (MarketBorrowableCTokens[] memory, MarketCTokenData[] memory)
     {
+        IOracleManager router = _getOracleManager();
         IMarketManager mm = IMarketManager(market);
-        address[] memory pTokens = getMarketCollateralAssets(market);
-        uint256 numTokens = pTokens.length;
-        MarketcTokenData[] memory pTokenMarketData = new MarketcTokenData[](
+        address[] memory collateralTokens = getMarketCollateralAssets(market);
+        uint256 numTokens = collateralTokens.length;
+        MarketCTokenData[] memory pTokenMarketData = new MarketCTokenData[](
             numTokens
         );
         for (uint256 i; i < numTokens; i++) {
-            ICToken marketToken = ICToken(pTokens[i]);
+            ICToken marketToken = ICToken(collateralTokens[i]);
             IERC20 token = IERC20(marketToken.asset());
-            MarketcTokenData memory cTokenData;
+            MarketCTokenData memory cTokenData;
 
             if (account != address(0)) {
                 cTokenData.underlyingBalance = token.balanceOf(account);
@@ -438,38 +666,47 @@ contract AuxiliaryData {
                     cTokenData.userTokenPosition.hasPosition,
                     cTokenData.userTokenPosition.shareAmount,
                     cTokenData.userTokenPosition.collateralOrDebtAmount
-                ) = getAccountTokenData(account, pTokens[i]);
+                ) = getAccountTokenData(account, collateralTokens[i]);
 
                 cTokenData.userTokenPosition.tokenAmount = marketToken
                     .convertToAssets(cTokenData.userTokenPosition.shareAmount);
             }
 
-            cTokenData.assetAddress = pTokens[i];
+            cTokenData.assetAddress = collateralTokens[i];
             cTokenData.marketAddress = market;
             cTokenData.underlyingAddress = address(token);
             cTokenData.underlyingName = token.name();
             cTokenData.underlyingSymbol = token.symbol();
             cTokenData.underlyingDecimal = token.decimals();
-            cTokenData.totalPositionTokens =
+            cTokenData.totalCollateralTokens =
                 marketToken.totalSupply() -
                 MARKET_ASSET_RESERVE;
-            cTokenData.totalCollateralPosted = ICToken(pTokens[i]).marketCollateralPosted();
-            cTokenData.collateralCap = mm.collateralCaps(pTokens[i]);
-            cTokenData.sharePrice = _getTokenPrice(pTokens[i], true);
+            cTokenData.totalCollateralPosted = ICToken(collateralTokens[i])
+                .marketCollateralPosted();
+            cTokenData.collateralCap = mm.collateralCaps(collateralTokens[i]);
+            cTokenData.sharePrice = _getTokenPrice(collateralTokens[i], true);
             cTokenData.tokenPrice = _getTokenPrice(address(token), true);
-            cTokenData.config = _getTokenConfig(pTokens[i], ILiquidityManager(address(mm)));
+            cTokenData.config = _getTokenConfig(
+                collateralTokens[i],
+                ILiquidityManager(address(mm))
+            );
+            (uint256 oracleA, uint256 oracleB) = router.getAdaptorTypes(
+                collateralTokens[i]
+            );
+            cTokenData.adaptorTypes = [oracleA, oracleB];
 
             pTokenMarketData[i] = cTokenData;
         }
 
-        address[] memory eTokens = getMarketDebtAssets(market);
-        numTokens = eTokens.length;
-        MarketETokenData[] memory eTokenMarketData = new MarketETokenData[](
-            numTokens
-        );
+        address[] memory borrowableCTokens = getMarketDebtAssets(market);
+        numTokens = borrowableCTokens.length;
+        MarketBorrowableCTokens[]
+            memory eTokenMarketData = new MarketBorrowableCTokens[](numTokens);
         for (uint256 i; i < numTokens; ++i) {
-            MarketETokenData memory eTokenData;
-            IBorrowableCToken marketToken = IBorrowableCToken(eTokens[i]);
+            MarketBorrowableCTokens memory eTokenData;
+            IBorrowableCToken marketToken = IBorrowableCToken(
+                borrowableCTokens[i]
+            );
             IERC20 token = IERC20(marketToken.asset());
 
             if (account != address(0)) {
@@ -478,28 +715,40 @@ contract AuxiliaryData {
                     eTokenData.userTokenPosition.hasPosition,
                     eTokenData.userTokenPosition.shareAmount,
                     eTokenData.userTokenPosition.collateralOrDebtAmount
-                ) = getAccountTokenData(account, eTokens[i]);
+                ) = getAccountTokenData(account, borrowableCTokens[i]);
 
                 eTokenData.userTokenPosition.tokenAmount = marketToken
                     .convertToAssets(eTokenData.userTokenPosition.shareAmount);
             }
 
-            eTokenData.assetAddress = eTokens[i];
+            eTokenData.assetAddress = borrowableCTokens[i];
             eTokenData.marketAddress = market;
             eTokenData.underlyingAddress = address(token);
             eTokenData.underlyingName = token.name();
             eTokenData.underlyingSymbol = token.symbol();
             eTokenData.underlyingDecimal = token.decimals();
-            eTokenData.tvl = getTokenTVL(eTokens[i], false);
-            eTokenData.borrows = getTokenBorrows(eTokens[i]);
-            eTokenData.supplyRatePerYear = getSupplyRatePerYear(eTokens[i]);
-            eTokenData.borrowRatePerYear = getBorrowRatePerYear(eTokens[i]);
+            eTokenData.tvl = getTokenTVL(borrowableCTokens[i], false);
+            eTokenData.borrows = getTokenBorrows(borrowableCTokens[i]);
+            eTokenData.supplyRatePerYear = getSupplyRatePerYear(
+                borrowableCTokens[i]
+            );
+            eTokenData.borrowRatePerYear = getBorrowRatePerYear(
+                borrowableCTokens[i]
+            );
             eTokenData.predictedBorrowRatePerYear = this
-                .getPredictedBorrowRatePerYear(eTokens[i]);
-            eTokenData.utilizationRate = getUtilizationRate(eTokens[i]);
-            eTokenData.sharePrice = _getTokenPrice(eTokens[i], false);
+                .getPredictedBorrowRatePerYear(borrowableCTokens[i]);
+            eTokenData.utilizationRate = getUtilizationRate(
+                borrowableCTokens[i]
+            );
+            eTokenData.sharePrice = _getTokenPrice(
+                borrowableCTokens[i],
+                false
+            );
             eTokenData.tokenPrice = _getTokenPrice(address(token), false);
-            eTokenData.config = _getTokenConfig(eTokens[i], ILiquidityManager(address(mm)));
+            eTokenData.config = _getTokenConfig(
+                borrowableCTokens[i],
+                ILiquidityManager(address(mm))
+            );
 
             if (eTokenData.tvl > eTokenData.borrows) {
                 eTokenData.liquidityAvailable =
@@ -508,6 +757,10 @@ contract AuxiliaryData {
             } else {
                 eTokenData.liquidityAvailable = 0;
             }
+            (uint256 oracleA, uint256 oracleB) = router.getAdaptorTypes(
+                borrowableCTokens[i]
+            );
+            eTokenData.adaptorTypes = [oracleA, oracleB];
 
             eTokenMarketData[i] = eTokenData;
         }
@@ -531,7 +784,7 @@ contract AuxiliaryData {
         address eToken,
         address pToken
     ) external view returns (bool) {
-        (uint256 lFactor,,) = IMarketManager(market).liquidationStatusOf(
+        (uint256 lFactor, , ) = IMarketManager(market).liquidationStatusOf(
             account,
             eToken,
             pToken
@@ -702,6 +955,12 @@ contract AuxiliaryData {
     }
 
     /// PUBLIC TOKEN-SPECIFIC FUNCTIONS ///
+    function getHealthFactor(
+        address market,
+        address account
+    ) public view returns (uint256) {
+        return _calculateHealthFactor(market, account);
+    }
 
     /// @notice Returns the current TVL inside an MToken token.
     /// @param token The token to query TVL for.
@@ -733,10 +992,34 @@ contract AuxiliaryData {
     }
 
     function getTokenPrice(address token) public view returns (uint256) {
-        return _getTokenPrice(token, !ICToken(token).isBorrowable() ? true : false);
+        return
+            _getTokenPrice(
+                token,
+                !ICToken(token).isBorrowable() ? true : false
+            );
     }
 
     /// INTERNAL FUNCTIONS ///
+    function _calculateHealthFactor(
+        address market,
+        address account
+    ) internal view returns (uint256) {
+        IMarketManager mm = IMarketManager(market);
+        (uint256 accountCollateralSoft, , uint256 accountDebt) = mm
+            .liquidationValuesOf(account);
+        return (accountCollateralSoft * WAD) / accountDebt;
+    }
+
+    /// @dev Returns `floor(x * y / d)`.
+    /// Reverts if `x * y` overflows, or `d` is zero.
+    function _mulDiv(
+        uint256 x,
+        uint256 y,
+        uint256 d
+    ) internal pure returns (uint256 z) {
+        z = FixedPointMathLib.mulDiv(x, y, d);
+    }
+
     function _getTokenConfig(
         address token,
         ILiquidityManager mm
@@ -748,24 +1031,24 @@ contract AuxiliaryData {
             uint256 collRatio,
             uint256 collReqSoft,
             uint256 collReqHard,
-            uint256 liqBaseIncentive,
-            uint256 liqCurve,
+            uint256 liqIncBase,
+            uint256 liqIncCurve,
             ,
             ,
             ,
             ,
-            uint256 baseCFactor,
-            uint256 cFactorCurve
+            uint256 closeFactorBase,
+            uint256 closeFactorCurve
         ) = mm.tokenData(token);
 
         config.isListed = isListed;
         config.collRatio = collRatio;
         config.collReqSoft = collReqSoft;
         config.collReqHard = collReqHard;
-        config.liqBaseIncentive = liqBaseIncentive;
-        config.liqCurve = liqCurve;
-        config.baseCFactor = baseCFactor;
-        config.cFactorCurve = cFactorCurve;
+        config.liqIncBase = liqIncBase;
+        config.liqIncCurve = liqIncCurve;
+        config.closeFactorBase = closeFactorBase;
+        config.closeFactorCurve = closeFactorCurve;
 
         return config;
     }

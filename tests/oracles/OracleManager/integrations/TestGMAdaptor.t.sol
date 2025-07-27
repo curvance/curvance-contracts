@@ -131,7 +131,7 @@ contract TestGMAdaptor is TestBaseOracleManager {
         adaptor.addAsset(_GM_BTC_USDC, _WBTC_ADDRESS);
     }
 
-    function testRemoveAssetRevertWhenGMTokenIsNotSupported() public {
+    function testRemoveAssetRevertWhenGCTokenIsNotSupported() public {
         adaptor.removeAsset(_GM_BTC_USDC);
 
         vm.expectRevert(GMAdaptor.GMAdaptor__AssetIsNotSupported.selector);

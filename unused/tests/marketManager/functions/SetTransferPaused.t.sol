@@ -15,10 +15,10 @@ contract SetTransferPausedTest is TestBaseMarketManager {
     }
 
     function test_setTransferPaused_success() public {
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
 
-        vm.prank(address(eUSDC));
-        marketManager.canTransferEToken(address(eUSDC), address(this), 1);
+        vm.prank(address(borrowableCUSDC));
+        marketManager.canTransferEToken(address(borrowableCUSDC), address(this), 1);
 
         assertEq(marketManager.transferPaused(), 1);
 
@@ -29,8 +29,8 @@ contract SetTransferPausedTest is TestBaseMarketManager {
 
         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
 
-        vm.prank(address(eUSDC));
-        marketManager.canTransferEToken(address(eUSDC), address(this), 1);
+        vm.prank(address(borrowableCUSDC));
+        marketManager.canTransferEToken(address(borrowableCUSDC), address(this), 1);
 
         assertEq(marketManager.transferPaused(), 2);
 

@@ -6,12 +6,13 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 interface IExternalCalldataChecker {
     /// @notice Inspects calldata for compliance with other swap instruction
     ///         parameters.
-    /// @dev Used on Zap/swap to inspect and validate calldata safety.
-    /// @param swapData Zap/swap instruction data including both direct
-    ///                 parameters and decodeable calldata.
-    /// @param expectedRecipient User who will receive results of Zap/swap.
+    /// @dev Used on swap to inspect and validate calldata safety.
+    /// @param swapAction Swap action instructions including both direct
+    ///                   parameters and decodeable calldata.
+    /// @param expectedRecipient Address who will receive proceeds of
+    ///                          `swapAction`.
     function checkCalldata(
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         address expectedRecipient
     ) external;
 }

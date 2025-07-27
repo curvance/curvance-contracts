@@ -285,7 +285,7 @@ abstract contract TestERC4626 is ERC4626Prop {
         address caller = init.user[0];
         address receiver = init.user[1];
         address owner = init.user[2];
-        shares = bound(shares, 0, _max_redeem(owner));
+        shares = bound(shares, 0, IERC20(_vault_).balanceOf(owner));
         vm.assume(caller != owner);
         vm.assume(shares > 0);
         _approve(_vault_, owner, caller, 0);

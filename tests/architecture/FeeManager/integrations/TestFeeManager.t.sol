@@ -108,6 +108,7 @@ contract TestFeeManager is TestBaseFeeManager {
         );
         chainlinkEthUsd.updateAnswer(2500e8);
         chainlinkUsdcUsd.updateAnswer(1e8);
+        _refreshMockFeeds();
 
         // deal WETH (assume it's from cTokens)
         address[] memory rewardTokens = new address[](1);
@@ -116,15 +117,15 @@ contract TestFeeManager is TestBaseFeeManager {
         _prepareWETH(address(feeManager), 1 ether);
 
         // multiswap
-        SwapperLib.Swap[] memory multiSwapData = new SwapperLib.Swap[](1);
+        SwapperLib.Swap[] memory swapActions = new SwapperLib.Swap[](1);
         address[] memory multiSwapPath = new address[](2);
         multiSwapPath[0] = _WETH_ADDRESS;
         multiSwapPath[1] = _USDC_ADDRESS;
-        multiSwapData[0].inputToken = _WETH_ADDRESS;
-        multiSwapData[0].outputToken = _USDC_ADDRESS;
-        multiSwapData[0].target = _UNISWAP_V2_ROUTER;
-        multiSwapData[0].inputAmount = 1 ether;
-        multiSwapData[0].call = abi.encodeWithSignature(
+        swapActions[0].inputToken = _WETH_ADDRESS;
+        swapActions[0].outputToken = _USDC_ADDRESS;
+        swapActions[0].target = _UNISWAP_V2_ROUTER;
+        swapActions[0].inputAmount = 1 ether;
+        swapActions[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             1 ether,
             0,
@@ -132,8 +133,8 @@ contract TestFeeManager is TestBaseFeeManager {
             address(feeManager),
             block.timestamp
         );
-        multiSwapData[0].slippage = 10e16;
-        feeManager.multiSwap(abi.encode(multiSwapData), rewardTokens);
+        swapActions[0].slippage = 10e16;
+        feeManager.multiSwap(abi.encode(swapActions), rewardTokens);
 
         // bridge...
         PerChainData[] memory perChainData = new PerChainData[](1);
@@ -208,17 +209,17 @@ contract TestFeeManager is TestBaseFeeManager {
 
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), rewards);
 
-        SwapperLib.Swap memory swapData;
+        SwapperLib.Swap memory swapAction;
         address[] memory path = new address[](2);
 
         path[0] = _USDC_ADDRESS;
         path[1] = address(cve);
 
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.outputToken = address(cve);
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = rewards;
-        swapData.call = abi.encodeWithSignature(
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.outputToken = address(cve);
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.inputAmount = rewards;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
             0,
@@ -233,7 +234,7 @@ contract TestFeeManager is TestBaseFeeManager {
         uint256 desiredTokenBalance = cve.balanceOf(user1);
 
         vm.prank(user1);
-        rewardManager.claimRewards(rewardsData, abi.encode(swapData), 0);
+        rewardManager.claimRewards(rewardsData, abi.encode(swapAction), 0);
 
         assertEq(
             usdc.balanceOf(address(rewardManager)),
@@ -244,9 +245,12 @@ contract TestFeeManager is TestBaseFeeManager {
     }
 
     function testExecuteOTC() public {
-        // add harvester
-        chainlinkEthUsd.updateAnswer(2500e8);
-        chainlinkUsdcUsd.updateAnswer(1e8);
+
+        // Set oracle prices using the mock feeds
+        mockWethFeed.setMockAnswer(2500e8);
+        mockUsdcFeed.setMockAnswer(1e8);
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
         // deal WETH (assume it's from cTokens)
         address[] memory rewardTokens = new address[](1);
@@ -345,17 +349,17 @@ contract TestFeeManager is TestBaseFeeManager {
 
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), rewards);
 
-        SwapperLib.Swap memory swapData;
+        SwapperLib.Swap memory swapAction;
         address[] memory path = new address[](2);
 
         path[0] = _USDC_ADDRESS;
         path[1] = address(cve);
 
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.outputToken = address(cve);
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = rewards;
-        swapData.call = abi.encodeWithSignature(
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.outputToken = address(cve);
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.inputAmount = rewards;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
             0,
@@ -370,7 +374,7 @@ contract TestFeeManager is TestBaseFeeManager {
         uint256 desiredTokenBalance = cve.balanceOf(user1);
 
         vm.prank(user1);
-        rewardManager.claimRewards(rewardsData, abi.encode(swapData), 0);
+        rewardManager.claimRewards(rewardsData, abi.encode(swapAction), 0);
 
         assertEq(
             usdc.balanceOf(address(rewardManager)),

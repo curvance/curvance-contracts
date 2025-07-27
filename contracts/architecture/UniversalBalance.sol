@@ -2,11 +2,12 @@
 pragma solidity ^0.8.26;
 
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
+import { RescueLib } from "contracts/libraries/RescueLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
+
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { RescueLib } from "contracts/libraries/RescueLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -22,7 +23,8 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 ///      1. Asset Management:
 ///         - Front-facing contract for users to deposit and withdraw tokens (e.g., USDC)
 ///         - Maintains two balance types per user: sitting (held) and lent (deployed)
-///         - Token-specific implementation linked to corresponding EToken contract
+///         - Token-specific implementation linked to corresponding
+///           BorrowableCToken contract.
 ///      
 ///      2. Position Flexibility:
 ///         - Users can freely shift balances between sitting and lent states
@@ -36,7 +38,8 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 ///      
 ///      Implementation uses a non-custodial design where users maintain full control
 ///      of their assets while benefiting from integrated position management.
-///      Lent balances are represented as shares/tokens of the underlying EToken.
+///      Lent balances are represented as shares/tokens of the underlying
+///      BorrowableCToken.
 ///
 contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// TYPES ///
@@ -463,18 +466,15 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool willLend,
         address recipient
     ) internal {
+        _checkZeroAmount(amount);
+
         if (willLend) {
-            // Will natively fail if amount == 0 on gaugeManager call.
-            // Records balance in tokens (shares).
-            uint256 tokensReceived = linkedToken.deposit(amount, recipient);
+            // Records balance in shares.
+            uint256 tokensReceived = linkedToken.deposit(amount, address(this));
             userBalances[recipient].lentBalance += tokensReceived;
 
             emit Deposit(msg.sender, recipient, amount, willLend);
             return;
-        }
-
-        if (amount == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         userBalances[recipient].sittingBalance += amount;
@@ -535,12 +535,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool forceLentRedemption,
         address owner
     ) internal returns (uint256, bool) {
-        // Validate caller is not trying to withdraw nothing, though this
-        // technically double checks amount in cases of lending balance
-        // redemption, we want an efficient non-panic check here.
-        if (amount == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        _checkZeroAmount(amount);
 
         if (
             IActionRegistry(address(centralRegistry)).checkTransfersDisabled(
@@ -551,7 +546,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         UserBalance memory ownerBalance = userBalances[owner];
-        uint256 exchangeRate = linkedToken.exchangeRateWithUpdate();
+        uint256 exchangeRate = linkedToken.exchangeRateUpdated();
 
         // If it's a forced lending redemption only check their lent balance,
         // otherwise look at both sitting and lent balances.
@@ -600,7 +595,11 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             // Decrement user lent balance.
             userBalances[owner].lentBalance -= pointerAmount;
 
-            pointerAmount = linkedToken.redeem(pointerAmount, address(this), owner);
+            pointerAmount = linkedToken.redeem(
+                pointerAmount,
+                address(this),
+                address(this)
+            );
 
             // Make sure enough was redeemed.
             if (pointerAmount < remainingAmount) {
@@ -667,9 +666,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         // Validate that tokens were actually redeemed.
-        if (withdrawSum == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        _checkZeroAmount(withdrawSum);
 
         return withdrawSum;
     }
@@ -713,6 +710,18 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         );
 
         _deposit(amountTransferred, willLend, recipient);
+    }
+
+    /// @notice Checks to make sure an action is not an empty action.
+    function _checkZeroAmount(uint256 amount) internal pure {
+        /// @solidity memory-safe-assembly
+        assembly {
+            if iszero(amount) {
+                mstore(0x00, _INVALID_PARAMETER_SELECTOR)
+                // Return bytes 29-32 for the selector.
+                revert(0x1c, 0x04)
+            }
+        }
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.

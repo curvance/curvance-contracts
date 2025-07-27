@@ -13,7 +13,7 @@ contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
         vm.expectRevert(
             PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
         );
-        new UniversalBalance(ICentralRegistry(address(1)), address(eUSDC));
+        new UniversalBalance(ICentralRegistry(address(1)), address(borrowableCUSDC));
     }
 
     function test_universalBalanceDeployment_fail_whenTokenIsPToken() public {
@@ -22,24 +22,24 @@ contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
         );
         new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(pBALRETH)
+            address(strategyCBALRETH)
         );
     }
 
     function test_universalBalanceDeployment_success() public {
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eUSDC)
+            address(borrowableCUSDC)
         );
 
         assertEq(
             address(universalBalance.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(address(universalBalance.linkedToken()), address(eUSDC));
+        assertEq(address(universalBalance.linkedToken()), address(borrowableCUSDC));
         assertEq(universalBalance.underlying(), _USDC_ADDRESS);
         assertEq(
-            usdc.allowance(address(universalBalance), address(eUSDC)),
+            usdc.allowance(address(universalBalance), address(borrowableCUSDC)),
             type(uint256).max
         );
     }

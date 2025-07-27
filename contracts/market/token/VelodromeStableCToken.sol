@@ -61,12 +61,12 @@ contract VelodromeStableCToken is StrategyCToken {
         IVeloGauge gauge,
         IVeloPairFactory pairFactory,
         IVeloRouter router,
-        uint256 vestPeriod_
+        uint256 vestingPeriod_
     ) StrategyCToken(
         centralRegistry_,
         asset_,
         marketManager_,
-        vestPeriod_
+        vestingPeriod_
     ) {
         _validateChainDeployment();
 
@@ -154,7 +154,7 @@ contract VelodromeStableCToken is StrategyCToken {
             // Claim pending Velodrome rewards.
             sd.gauge.getReward(address(this));
             (
-                SwapperLib.Swap memory swapData,
+                SwapperLib.Swap memory swapAction,
                 uint256 lpMinOutAmount
             ) = abi.decode(data, (SwapperLib.Swap, uint256));
 
@@ -174,15 +174,15 @@ contract VelodromeStableCToken is StrategyCToken {
                 // Swap from VELO to underlying tokens, if necessary.
                 if (!rewardTokenIsUnderlying) {
                     if (
-                        !_isApprovedAsset[swapData.inputToken] ||
-                        swapData.outputToken != sd.token0
+                        !_isApprovedAsset[swapAction.inputToken] ||
+                        swapAction.outputToken != sd.token0
                     ) {
                         // This also implicitly checks:
-                        // `swapData.inputToken != rewardToken`.
+                        // `swapAction.inputToken != rewardToken`.
                         revert StrategyCToken__UnapprovedAssetSwap();
                     }
 
-                    SwapperLib._swapSafe(centralRegistry, swapData);
+                    SwapperLib._swapSafe(centralRegistry, swapAction);
                 }
             }
             uint256 totalAmountA = IERC20(sd.token0).balanceOf(address(this));

@@ -224,7 +224,7 @@ contract NativeUniversalBalanceMultiWithdrawForTest is
     {
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userWETHBalance = weth.balanceOf(user1);
@@ -283,8 +283,8 @@ contract NativeUniversalBalanceMultiWithdrawForTest is
             wethBalance - sittingAmountUsed
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance - lentAmountUsed
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance - lentAmountUsed
         );
         assertEq(weth.balanceOf(user1), userWETHBalance + withdrawSum);
     }

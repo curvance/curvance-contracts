@@ -41,21 +41,21 @@ interface IOracleManager {
         bool[] calldata getLower
     ) external view returns (uint256[] memory, uint256[] memory);
 
-    /// @notice Retrieves the prices of a eToken underlying and pToken.
-    /// @param eToken The earning token to price the underlying of.
-    /// @param pToken The position token to price.
+    /// @notice Retrieves the prices of a collateral token and debt token
+    ///         underlyings.
+    /// @param collateralToken The cToken currently collateralized to price.
+    /// @param debtToken The cToken borrowed from to price.
     /// @param errorCodeBreakpoint The error code that will cause liquidity
     ///                            operations to revert.
-    /// @return eTokenUnderlyingPrice Contains the price of `eToken` underlying.
-    /// @return pTokenPrice Contains the price of `pToken`.
+    /// @return collateralUnderlyingPrice The current price of
+    ///                                   `collateralToken` underlying.
+    /// @return debtUnderlyingPrice The current price of `debtToken`
+    ///                             underlying.
     function getPriceIsolatedPair(
-        address eToken,
-        address pToken,
+        address collateralToken,
+        address debtToken,
         uint256 errorCodeBreakpoint
-    )
-        external
-        view
-        returns (uint256 eTokenUnderlyingPrice, uint256 pTokenPrice);
+    ) external view returns (uint256, uint256);
 
     /// @notice Retrieves the prices and account data of multiple assets
     ///         inside a Curvance Market.
@@ -96,4 +96,15 @@ interface IOracleManager {
     /// @notice Check whether L2 sequencer is valid or down.
     /// @return True if sequencer is valid.
     function isSequencerValid() external view returns (bool);
+
+    /// @notice Returns the types of adaptors pricing `asset` uses.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    /// @param  asset The asset whose adaptor types should be returned.
+    /// @return A tuple containing the types of adaptors pricing `asset`
+    ///         uses, a value of 0 indicates an unsupported or empty
+    ///         adaptor slot.
+    function getAdaptorTypes(
+        address asset
+    ) external view returns (uint256, uint256);
 }

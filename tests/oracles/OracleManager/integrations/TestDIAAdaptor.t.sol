@@ -25,7 +25,7 @@ contract TestDIAAdaptor is TestBaseOracleManager {
 
         DIAAdaptor.AdaptorData memory data;
         data.isConfigured = true;
-        data.decimals = 6;
+        data.decimals = 8;
         data.max = 1000000e18;
         data.min = 0;
         data.heartbeat = 24 hours;

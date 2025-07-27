@@ -52,11 +52,11 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
     function test_universalBalanceDeposit_fail_whenTokenIsNotListed() public {
         _prepareUSDC(user1, 100e6);
 
-        eUSDC = _deployEUSDC();
+        borrowableCUSDC = _deployBorrowableCUSDC();
 
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eUSDC)
+            address(borrowableCUSDC)
         );
 
         vm.startPrank(user1);
@@ -85,16 +85,16 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
 
         _prepareUSDC(user1, amount);
 
-        uint256 receiveAmount = eUSDC.convertToShares(amount);
+        uint256 receiveAmount = borrowableCUSDC.convertToShares(amount);
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user1);
 
         vm.startPrank(user1);
 
         usdc.approve(address(universalBalance), amount);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(universalBalance));
         emit Deposit(user1, user1, amount, true);
 
         universalBalance.deposit(amount, true);
@@ -108,8 +108,8 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
         assertEq(lentBalance, receiveAmount);
         assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
         assertEq(
-            eUSDC.balanceOf(address(universalBalance)),
-            eUSDCBalance + receiveAmount
+            borrowableCUSDC.balanceOf(address(universalBalance)),
+            borrowableCUSDCBalance + receiveAmount
         );
         assertEq(usdc.balanceOf(user1), userUSDCBalance - amount);
     }
@@ -122,14 +122,14 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
         _prepareUSDC(user1, amount);
 
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user1);
 
         vm.startPrank(user1);
 
         usdc.approve(address(universalBalance), amount);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(universalBalance));
         emit Deposit(user1, user1, amount, false);
 
         universalBalance.deposit(amount, false);
@@ -145,7 +145,7 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
             usdc.balanceOf(address(universalBalance)),
             usdcBalance + amount
         );
-        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(borrowableCUSDC.balanceOf(address(universalBalance)), borrowableCUSDCBalance);
         assertEq(usdc.balanceOf(user1), userUSDCBalance - amount);
     }
 }

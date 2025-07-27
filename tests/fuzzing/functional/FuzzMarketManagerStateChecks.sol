@@ -639,17 +639,17 @@
 //     /// @custom:precondition collateral and debt token are listed
 //     /// @custom:precondition marketManager for collateral and debt token are identical
 //     function canSeize_should_succeed(
-//         address positionToken,
-//         address earnToken
+//         address collateralToken,
+//         address debtToken
 //     ) public {
 //         require(marketManager.seizePaused() != 2);
-//         require(marketManager.isListed(positionToken));
-//         require(marketManager.isListed(earnToken));
+//         require(marketManager.isListed(collateralToken));
+//         require(marketManager.isListed(debtToken));
 //         require(
-//             IMToken(positionToken).marketManager() ==
-//                 IMToken(earnToken).marketManager()
+//             IMToken(collateralToken).marketManager() ==
+//                 IMToken(debtToken).marketManager()
 //         );
-//         try marketManager.canSeize(positionToken, earnToken) {} catch {
+//         try marketManager.canSeize(collateralToken, debtToken) {} catch {
 //             assertWithMsg(
 //                 false,
 //                 "SC-MARKET-22 canSeize() should be successful with correct @precondition"
@@ -664,17 +664,17 @@
 //     /// @custom:precondition collateral and debt token are listed
 //     /// @custom:precondition marketManager for collateral and debt token are identical
 //     function canSeize_should_revert_when_seize_paused(
-//         address positionToken,
-//         address earnToken
+//         address collateralToken,
+//         address debtToken
 //     ) public {
 //         require(marketManager.seizePaused() == 2);
-//         require(marketManager.isListed(positionToken));
-//         require(marketManager.isListed(earnToken));
+//         require(marketManager.isListed(collateralToken));
+//         require(marketManager.isListed(debtToken));
 //         require(
-//             IMToken(positionToken).marketManager() ==
-//                 IMToken(earnToken).marketManager()
+//             IMToken(collateralToken).marketManager() ==
+//                 IMToken(debtToken).marketManager()
 //         );
-//         try marketManager.canSeize(positionToken, earnToken) {
+//         try marketManager.canSeize(collateralToken, debtToken) {
 //             assertWithMsg(
 //                 false,
 //                 "SC-MARKET-23 canSeize() should have reverted with seizePaused = 2"
@@ -696,19 +696,19 @@
 //     /// @custom:precondition collateral or debt token are not listed
 //     /// @custom:precondition marketManager for collateral and debt token are identical
 //     function canSeize_should_revert_when_token_is_unlisted(
-//         address positionToken,
-//         address earnToken
+//         address collateralToken,
+//         address debtToken
 //     ) public {
 //         require(marketManager.seizePaused() != 2);
 //         require(
-//             !marketManager.isListed(positionToken) ||
-//                 !marketManager.isListed(earnToken)
+//             !marketManager.isListed(collateralToken) ||
+//                 !marketManager.isListed(debtToken)
 //         );
 //         require(
-//             IMToken(positionToken).marketManager() ==
-//                 IMToken(earnToken).marketManager()
+//             IMToken(collateralToken).marketManager() ==
+//                 IMToken(debtToken).marketManager()
 //         );
-//         try marketManager.canSeize(positionToken, earnToken) {
+//         try marketManager.canSeize(collateralToken, debtToken) {
 //             assertWithMsg(
 //                 false,
 //                 "SC-MARKET-24 seizePaused() should have reverted when token is unlisted"
@@ -730,17 +730,17 @@
 //     /// @custom:precondition collateral and debt token are listed
 //     /// @custom:precondition marketManager for collateral and debt token are not identical
 //     function canSeize_should_revert_when_marketManager_not_equal(
-//         address positionToken,
-//         address earnToken
+//         address collateralToken,
+//         address debtToken
 //     ) public {
 //         require(marketManager.seizePaused() != 2);
-//         require(marketManager.isListed(positionToken));
-//         require(marketManager.isListed(earnToken));
+//         require(marketManager.isListed(collateralToken));
+//         require(marketManager.isListed(debtToken));
 //         require(
-//             IMToken(positionToken).marketManager() !=
-//                 IMToken(earnToken).marketManager()
+//             IMToken(collateralToken).marketManager() !=
+//                 IMToken(debtToken).marketManager()
 //         );
-//         try marketManager.canSeize(positionToken, earnToken) {
+//         try marketManager.canSeize(collateralToken, debtToken) {
 //             assertWithMsg(
 //                 false,
 //                 "SC-MARKET-25 seizePaused() should have reverted when marketManager is not equal"

@@ -31,9 +31,9 @@ interface IBorrowableCToken is ICToken {
     ) external view returns (uint256);
 
     /// @notice Updates pending interest and returns the up-to-date exchange
-    ///         rate from the underlying to the eToken.
-    /// @return Calculated exchange rate, in `WAD`.
-    function exchangeRateWithUpdate() external returns (uint256);
+    ///         rate from the underlying to the BorrowableCToken.
+    /// @return result The share -> asset exchange rate, in `WAD`.
+    function exchangeRateUpdated() external returns (uint256);
 
     /// @notice Used by a delegated user to borrow underlying tokens
     ///         from lenders, based on collateral posted inside this market
@@ -42,33 +42,47 @@ interface IBorrowableCToken is ICToken {
     ///      NOTE: Be careful who you approve here!
     ///      Not only can they take borrowed funds, but, they can delay
     ///      repayment through repeated borrows preventing withdrawal.
-    /// @param account The account who will have their assets borrowed
-    ///                against.
-    /// @param recipient The account who will receive the borrowed assets.
-    /// @param amount The amount of the underlying asset to borrow.
+    /// @param assets The amount of the underlying asset to borrow.
+    /// @param receiver The account who will receive the borrowed assets.
+    /// @param owner The account who will have their assets borrowed
+    ///              against.
     function borrowFor(
-        address account,
-        address recipient,
-        uint256 amount
+        uint256 assets,
+        address receiver,
+        address owner
     ) external;
 
-    /// @notice Helper function for Position Manager contract to
-    ///         borrow assets.
-    /// @param account The account address to borrow on behalf of.
-    /// @param amount The amount of the underlying assets to borrow.
-    /// @param leverageData The data for the leverage operation.
+    /// @notice Used by a Position Manager contract to borrow assets from
+    ///         lenders, based on collateralized shares by `account` to
+    ///         perform a complex action.
+    /// @param assets The amount of the underlying assets to borrow.
+    /// @param owner The account address to borrow on behalf of.
+    /// @param action Instructions for a leverage action containing:
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will be borrowed from and assets
+    ///                                swapped into `cToken` asset.
+    ///               borrowAssets The amount borrowed from
+    ///                            `borrowableCToken`, in assets.
+    ///               cToken Curvance token assets that borrowed funds will be
+    ///                      swapped into.
+    ///               swapAction Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       leverage action.
     function borrowForPositionManager(
-        address account,
-        uint256 amount,
-        IPositionManager.LeverageStruct memory leverageData
+        uint256 assets,
+        address owner,
+        IPositionManager.LeverageAction memory action
     ) external;
 
     /// @notice Repays underlying tokens to lenders, on behalf of `account`,
     ///         freeing up their collateral posted inside this market.
     /// @dev Updates pending interest before executing the repay.
-    /// @param account The account address to repay on behalf of.
-    /// @param amount The amount to repay, or 0 for the full outstanding amount.
-    function repayFor(address account, uint256 amount) external;
+    /// @param assets The amount to repay, or 0 for the full outstanding
+    ///               amount.
+    /// @param owner The account address to repay on behalf of.
+    function repayFor(uint256 assets, address owner) external;
 
     /// @notice Redeems cTokens to the caller.
     /// @param assets The amount of assets to redeem.

@@ -9,14 +9,6 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IDiaOracle } from "contracts/interfaces/external/dia/IDiaOracle.sol";
 
-import { console2 } from "forge-std/console2.sol";
-
-// NOTES:
-// 1. price returns an error because the value is larger than the max price
-//    │   │   ├─ [0] console::log("value", 7223377879466000000000000 [7.223e24]) [staticcall]
-//    │   │   │   └─ ← [Stop] 
-//    │   │   ├─ [0] console::log("max", 1000000000000000000000000 [1e24]) [staticcall]
-
 contract DIAAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
@@ -223,23 +215,16 @@ contract DIAAdaptor is BaseOracleAdaptor {
             data.key
         );
 
-        console2.log("price", price);
-        console2.log("updatedAt", updatedAt);
-
         // If we got a price of 0 or less, bubble up an error immediately.
         if (price <= 0) {
             pData.hadError = true;
             return pData;
         }
 
-        console2.log("price is greater than 0");
-
         uint256 normalizedPrice = _normalizePrice(
             uint256(price),
             data.decimals
         );
-
-        console2.log("normalizedPrice", normalizedPrice);
 
         pData.hadError = _verifyData(
             normalizedPrice,
@@ -248,10 +233,6 @@ contract DIAAdaptor is BaseOracleAdaptor {
             data.min,
             data.heartbeat
         );
-
-        console2.log("hadError", pData.hadError);
-
-        console2.log("verifyData passed");
 
         pData.price = uint240(normalizedPrice);
     }

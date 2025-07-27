@@ -61,10 +61,11 @@ abstract contract BaseSwapChecker is
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Overridden in child Calldata checker contracts,
+    /// @notice Overridden in child calldata checker contracts,
     ///         used to inspect and validate calldata safety.
+    /// @param recipient Address who will receive proceeds of `swapAction`.
     function checkCalldata(
-        SwapperLib.Swap memory _swapData,
-        address _recipient
+        SwapperLib.Swap memory swapAction,
+        address recipient
     ) external view virtual override;
 }

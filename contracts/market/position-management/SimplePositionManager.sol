@@ -18,103 +18,103 @@ contract SimplePositionManager is BasePositionManager {
         )
     {}
 
-    /// @notice Callback function on borrowing tokens from an eToken contract
-    ///         providing instant liquidity in the eToken underlying which is
-    ///         then swapped into the underlying of a pToken that a user is
-    ///         currently putting up as collateral against the eToken debt
-    ///         position, creating a leveraged spot position.
-    /// @param leverageData Struct containing information on the desired
-    ///                     leverage action to execute. Containing values:
-    ///                     1. Address of eToken that will be borrowed from.
-    ///                     2. The amount of underlying tokens from eToken
-    ///                        that will be borrowed.
-    ///                     3. Address of pToken that borrowed funds
-    ///                        will be swapped into.
-    ///                     4. Struct containing instructions
-    ///                        on how to handle the necessary eToken swap
-    ///                        to facilitate leveraging.
-    ///                     5. Optional auxiliary data for execution of a
-    ///                        leverage action.
-    function _swapBorrowUnderlyingToCollateral(
-        LeverageStruct memory leverageData,
-        address /* recipient */
+    /// @notice Callback function on borrowing tokens from an borrowableCToken
+    ///         contract providing instant liquidity in the borrowableCToken
+    ///         underlying which is then swapped into the underlying of a
+    ///         cToken that a user is currently putting up as collateral
+    ///         against the borrowableCToken debt position, creating a
+    ///         leveraged spot position.
+    /// @param action Instructions for a leverage action containing:
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will be borrowed from and assets
+    ///                                swapped into `cToken` asset.
+    ///               borrowAssets The amount borrowed from
+    ///                            `borrowableCToken`, in assets.
+    ///               cToken Curvance token assets that borrowed funds will be
+    ///                      swapped into.
+    ///               swapAction Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       leverage action.
+    function _swapDebtAssetToCollateralAsset(
+        LeverageAction memory action,
+        address /* receiver */
     ) internal virtual override {
-        SwapperLib.Swap memory swapData = leverageData.swapData;
-        address borrowUnderlying = leverageData.debtToken.asset();
-        address collateralUnderlying = leverageData.collateralToken.asset();
+        SwapperLib.Swap memory swapAction = action.swapAction;
+        address debtAsset = action.borrowableCToken.asset();
+        address collateralAsset = action.cToken.asset();
 
-        if (borrowUnderlying == collateralUnderlying) {
+        if (debtAsset == collateralAsset) {
             return;
         }
 
-        if (swapData.call.length == 0) {
-            revert BasePositionManager__InvalidSwapperParam();
+        if (swapAction.call.length == 0) {
+            revert BasePositionManager__InvalidParam();
         }
 
         if (
-            swapData.target == address(0) ||
-            swapData.inputToken != borrowUnderlying ||
-            swapData.outputToken != collateralUnderlying ||
-            swapData.inputAmount != leverageData.borrowAmount
+            swapAction.target == address(0) ||
+            swapAction.inputToken != debtAsset ||
+            swapAction.outputToken != collateralAsset ||
+            swapAction.inputAmount != action.borrowAssets
         ) {
-            revert BasePositionManager__InvalidSwapperParam();
+            revert BasePositionManager__InvalidParam();
         }
 
-        // Swap borrow underlying to collateral underlying.
-        SwapperLib._swapSafe(centralRegistry, swapData);
+        // Swap debt asset to collateral asset.
+        SwapperLib._swapSafe(centralRegistry, swapAction);
     }
 
-    /// @notice Callback function on redemption of tokens from a pToken vault
-    ///         providing instant liquidity in the pToken underlying which is
-    ///         then swapped into the underlying of an eToken that a user is
-    ///         currently borrowing from, partially or fully closing a
+    /// @notice Callback function on redemption of tokens from a cToken vault
+    ///         providing instant liquidity in the cToken underlying which is
+    ///         then swapped into the underlying of an borrowableCToken that a
+    ///         user is currently borrowing from, partially or fully closing a
     ///         leveraged spot position.
-    /// @param deleverageData Struct containing information on the desired
-    ///                       deleverage action to execute. Containing values:
-    ///                       1. Address of pToken that will be routed into
-    ///                          eToken underlying to repay outstanding debt.
-    ///                       2. The amount of pTokens that will be
-    ///                          deleveraged.
-    ///                       3. Address of eToken that will have its underlying
-    ///                          token debt repaid.
-    ///                       4. Optional struct containing instructions on how
-    ///                          to handle swapping into eToken underlying to
+    /// @param action Instructions for a deleverage action containing:
+    ///               cToken Address of the cToken that will be redeemed from
+    ///                      and assets swapped into `borrowableCToken` asset.
+    ///               collateralAssets The amount of `cToken` that will be
+    ///                                deleveraged, in assets.
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will have its debt paid.
+    ///               repayAssets The amount of `borrowableCToken` asset that
+    ///                           will be repaid to lenders.
+    ///               swapAction Swap actions instructions converting
+    ///                          collateral asset into debt asset to
     ///                          facilitate deleveraging.
-    ///                       5. The amount of underlying tokens that will be
-    ///                          repaid to the eToken lenders.
-    ///                       6. Optional auxiliary data for execution of a
-    ///                          deleverage action.
-    function _swapCollateralToBorrowUnderlying(
-        DeleverageStruct memory deleverageData
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       deleverage action.
+    function _swapCollateralAssetToDebtAsset(
+        DeleverageAction memory action
     ) internal virtual override {
-        if (deleverageData.swapData.length != 1) {
-            revert BasePositionManager__InvalidSwapperParam();
+        SwapperLib.Swap[] memory swapActions = action.swapActions;
+        if (swapActions.length != 1) {
+            revert BasePositionManager__InvalidParam();
         }
 
-        SwapperLib.Swap memory swapData = deleverageData.swapData[0];
-        address borrowUnderlying = deleverageData.debtToken.asset();
-        address collateralUnderlying = deleverageData
-            .collateralToken
-            .asset();
+        address collateralAsset = action.cToken.asset();
+        address debtAsset = action.borrowableCToken.asset();
+        SwapperLib.Swap memory swapAction = swapActions[0];
 
-        if (borrowUnderlying == collateralUnderlying) {
+        if (debtAsset == collateralAsset) {
             return;
         }
 
-        if (swapData.call.length == 0) {
-            revert BasePositionManager__InvalidSwapperParam();
+        if (swapAction.call.length == 0) {
+            revert BasePositionManager__InvalidParam();
         }
 
         if (
-            swapData.target == address(0) ||
-            swapData.inputToken != collateralUnderlying ||
-            swapData.outputToken != borrowUnderlying ||
-            swapData.inputAmount != deleverageData.collateralAmount
+            swapAction.target == address(0) ||
+            swapAction.inputToken != collateralAsset ||
+            swapAction.outputToken != debtAsset ||
+            swapAction.inputAmount != action.collateralAssets
         ) {
-            revert BasePositionManager__InvalidSwapperParam();
+            revert BasePositionManager__InvalidParam();
         }
 
-        // Swap collateral underlying to borrow underlying.
-        SwapperLib._swapSafe(centralRegistry, swapData);
+        // Swap collateral asset to debt asset.
+        SwapperLib._swapSafe(centralRegistry, swapAction);
     }
 }

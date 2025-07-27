@@ -11,16 +11,16 @@ contract ListTokenTest is TestBaseMarketManager {
         vm.prank(address(1));
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
     }
 
     function test_listToken_fail_whenMTokenIsAlreadyListed() public {
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
 
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
     }
 
     function test_listToken_fail_whenMTokenIsInvalid() public {
@@ -30,21 +30,21 @@ contract ListTokenTest is TestBaseMarketManager {
 
     function test_listToken_success() public {
         (bool isListed, uint256 collRatio, , , , , , ) = marketManager
-            .tokenData(address(eUSDC));
+            .tokenData(address(borrowableCUSDC));
         assertFalse(isListed);
         assertEq(collRatio, 0);
 
         vm.expectEmit(true, true, true, true, address(marketManager));
-        emit TokenListed(address(eUSDC));
+        emit TokenListed(address(borrowableCUSDC));
 
-        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(borrowableCUSDC));
 
         (isListed, collRatio, , , , , , ) = marketManager.tokenData(
-            address(eUSDC)
+            address(borrowableCUSDC)
         );
         assertTrue(isListed);
         assertEq(collRatio, 0);
 
-        assertEq(eUSDC.totalSupply(), 77777);
+        assertEq(borrowableCUSDC.totalSupply(), 77777);
     }
 }

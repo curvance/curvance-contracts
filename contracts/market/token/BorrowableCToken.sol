@@ -45,10 +45,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
     
     /// STORAGE ///
 
-    /// @notice Address of the current Interest Rate Model.
+    /// @notice Address of the current Interest Rate Model used to determine
+    ///         interest paid by borrowers to lenders for outstanding debt.
     IInterestRateModel public interestRateModel;
-    /// @notice Fee that goes to protocol for interested generated for
-    ///         lenders, in `WAD`.
+    /// @notice The portion of interest paid by borrowers that goes to the
+    ///         protocol, in `WAD`.
     uint256 public interestFee;
     /// @notice The amount of `asset` that has been borrowed as outstanding
     ///         debt, in assets.
@@ -64,10 +65,10 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// EVENTS ///
 
     event InterestAccrualUpdate(uint256 debtPerSecond, uint256 vestingPeriod);
-    event Borrow(address account, uint256 amount);
-    event Repay(address payer, address account, uint256 amount);
-    event Flashloan(address account, uint256 assets, uint256 assetsReturned);
-    event BadDebtRecognized(address liquidator, uint256 amount);
+    event Borrow(uint256 assets, address account);
+    event Repay(uint256 assets, address payer, address account);
+    event Flashloan(uint256 assets, uint256 assetsFee, address account);
+    event BadDebtRecognized(uint256 assets, address liquidator);
     event NewMarketInterestRateModel(
         address oldInterestRateModel,
         address newInterestRateModel,
@@ -80,11 +81,20 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// ERRORS ///
 
+    error BorrowableCToken__CollateralPositionActive();
+    error BorrowableCToken__DebtPositionActive();
     error BorrowableCToken__InvalidParameter();
     error BorrowableCToken__InsufficientAssetsHeld();
 
     /// CONSTRUCTOR ///
 
+    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param asset_ The address of the underlying asset for this cToken.
+    /// @param marketManager_ The address of the MarketManager which manages
+    ///                       liquidity positions between linked cTokens
+    ///                       inside a joint market.
+    /// @param interestRateModel_ The address of the interest rate model to
+    ///                           manage outstanding loans.
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
@@ -103,8 +113,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // model is ever changed.
         _setInterestRateModel(IInterestRateModel(interestRateModel_));
 
-        // Assign the interest accrual fee for interest generated
-        // inside this market.
+        // Assign the portion of interest paid by borrowers that goes to the
+        // protocol.
         uint256 newInterestFee = centralRegistry.protocolInterestFee(
             marketManager_
         );
@@ -113,10 +123,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
         emit NewInterestFee(0, newInterestFee);
     }
 
-    /// @notice Accrues pending interest and updates the interest rate model.
+    /// @notice Accrues pending interest and updates the interest rate
+    ///         model (`interestRateModel`) used by this borrowableCToken.
     /// @dev Admin function to update the interest rate model.
-    /// @param newInterestRateModel The new interest rate model for this
-    ///                             eToken to use.
+    ///      Emits a {NewMarketInterestRateModel} event.
+    /// @param newInterestRateModel The new interest rate model to determine
+    ///                             interest paid by borrowers to lenders for
+    ///                             outstanding debt.
     function setInterestRateModel(address newInterestRateModel) external {
         _checkElevatedPermissions();
 
@@ -126,10 +139,12 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _setInterestRateModel(IInterestRateModel(newInterestRateModel));
     }
 
-    /// @notice Accrues pending interest and updates the interest factor.
-    /// @dev Admin function to update the interest factor value.
-    /// @param newInterestFee The new interest factor for this
-    ///                          eToken to use.
+    /// @notice Accrues pending interest and updates the fee that the protocol
+    ///         takes on interest paid by borrowers.
+    /// @dev Admin function to update `interestFee`.
+    ///      Emits a {NewInterestFee} event.
+    /// @param newInterestFee The portion of interest paid by borrowers that
+    ///                       goes to the protocol.
     function setInterestFee(uint256 newInterestFee) external {
         _checkElevatedPermissions();
 
@@ -140,10 +155,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
     }
 
     /// @notice Borrows underlying tokens from lenders, based on collateral
-    ///         posted inside this market.
+    ///         posted inside this market by the caller.
     /// @dev Updates pending interest before executing the borrow.
-    /// @param amount The amount of the underlying asset to borrow.
-    function borrow(uint256 amount) external nonReentrant {
+    /// @param assets The amount of the underlying asset to borrow.
+    /// @param receiver The account who will receive the borrowed assets.
+    function borrow(uint256 assets, address receiver) external nonReentrant {
         // Accrue interest if needed.
         _accrueIfNeeded();
 
@@ -152,12 +168,12 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // and to pause user redemptions for 20 minutes.
         marketManager.canBorrowWithNotify(
             address(this),
+            assets,
             msg.sender,
-            marketOutstandingDebt + amount,
-            amount
+            marketOutstandingDebt + assets
         );
 
-        _borrow(msg.sender, amount, msg.sender);
+        _borrow(assets, receiver, msg.sender);
     }
 
     /// @notice Used by a delegated user to borrow underlying tokens
@@ -167,16 +183,16 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///      NOTE: Be careful who you approve here!
     ///      Not only can they take borrowed funds, but, they can delay
     ///      repayment through repeated borrows preventing withdrawal.
-    /// @param account The account who will have their assets borrowed
-    ///                against.
-    /// @param recipient The account who will receive the borrowed assets.
-    /// @param amount The amount of the underlying asset to borrow.
+    /// @param assets The amount of the underlying asset to borrow.
+    /// @param receiver The account who will receive the borrowed assets.
+    /// @param owner The account who will have their assets borrowed
+    ///              against.
     function borrowFor(
-        address account,
-        address recipient,
-        uint256 amount
+        uint256 assets,
+        address receiver,
+        address owner
     ) external nonReentrant {
-        _checkDelegate(account, msg.sender);
+        _checkDelegate(owner, msg.sender);
 
         // Accrue interest if needed.
         _accrueIfNeeded();
@@ -186,26 +202,38 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // and to pause user redemptions for 20 minutes.
         marketManager.canBorrowWithNotify(
             address(this),
-            account,
-            marketOutstandingDebt + amount,
-            amount
+            assets,
+            owner,
+            marketOutstandingDebt + assets
         );
 
-        _borrow(account, amount, recipient);
+        _borrow(assets, receiver, owner);
     }
 
-    /// @notice Used by the position management contract to borrow underlying
-    ///         tokens from lenders, based on collateral posted inside this
-    ///         market by `account` to apply a complex action.
-    /// @dev Only Position Management contract can call this function.
+    /// @notice Used by a Position Manager contract to borrow assets from
+    ///         lenders, based on collateralized shares by `account` to
+    ///         perform a complex action.
+    /// @dev Only Position Manager contract can call this function.
     ///      Updates pending interest before executing the borrow.
-    /// @param account The account address to borrow on behalf of.
-    /// @param amount The amount of the underlying asset to borrow.
-    /// @param leverageData Callback calldata to execute after borrow.
+    /// @param assets The amount of the underlying asset to borrow.
+    /// @param action Instructions for a leverage action containing:
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will be borrowed from and assets
+    ///                                swapped into `cToken` asset.
+    ///               borrowAssets The amount borrowed from
+    ///                            `borrowableCToken`, in assets.
+    ///               cToken Curvance token assets that borrowed funds will be
+    ///                      swapped into.
+    ///               swapAction Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       leverage action.
+    /// @param owner The account address to borrow on behalf of.
     function borrowForPositionManager(
-        address account,
-        uint256 amount,
-        IPositionManager.LeverageStruct memory leverageData
+        uint256 assets,
+        address owner,
+        IPositionManager.LeverageAction memory action
     ) external nonReentrant {
         if (!marketManager.isPositionManager(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -213,77 +241,79 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Accrue interest if needed.
         // This generally is a redundant check due to interest accrual
-        // done inside checkSlippage check in position management contract
-        // implementations, but we keep this check in for invariant
-        // protection in the case of a incorrectly implemented position
-        // management contract.
+        // done inside `checkSlippage` modifier inside position manager
+        // contracts, but we keep this check in for invariant
+        // protection in the case of a incorrectly implemented contract.
         _accrueIfNeeded();
 
         // Notifies the Market Manager that a user is taking on more debt,
         // and to pause user redemptions for 20 minutes.
-        marketManager.notifyBorrow(address(this), account);
+        marketManager.notifyBorrow(address(this), owner);
 
-        _borrow(account, amount, msg.sender);
+        _borrow(assets, msg.sender, owner);
 
-        // Callback to position folding to execute additional action.
+        // Callback to Position Manager that executes remaining leverage
+        // logic.
         IPositionManager(msg.sender).onBorrow(
             address(this),
-            account,
-            amount,
-            leverageData
+            assets,
+            owner,
+            action
         );
 
         // Fail if terminal position is not allowed with no additional
         // adjustment.
         marketManager.canBorrow(
             address(this),
-            account,
-            marketOutstandingDebt + amount,
-            0
+            0,
+            owner,
+            marketOutstandingDebt + assets
         );
     }
 
-    /// @notice Repays underlying tokens to lenders, freeing up their
+    /// @notice Repays outstanding debt to lenders, freeing up their
     ///         collateral posted inside this market.
     /// @dev Updates interest before executing the repayment.
-    /// @param amount The amount to repay, or 0 for the full outstanding
+    /// @param assets The amount to repay, or 0 for the full outstanding
     ///               amount.
-    function repay(uint256 amount) external nonReentrant {
-        _repay(msg.sender, msg.sender, amount);
+    function repay(uint256 assets) external nonReentrant {
+        _repay(assets, msg.sender, msg.sender);
     }
 
-    /// @notice Repays underlying tokens to lenders, on behalf of `account`,
+    /// @notice Repays outstanding debt to lenders, on behalf of `owner`,
     ///         freeing up their collateral posted inside this market.
     /// @dev Updates pending interest before executing the repay.
-    /// @param account The account address to repay on behalf of.
-    /// @param amount The amount to repay, or 0 for the full outstanding
+    /// @param assets The amount to repay, or 0 for the full outstanding
     ///               amount.
-    function repayFor(address account, uint256 amount) external nonReentrant {
-        _repay(msg.sender, account, amount);
+    /// @param owner The account address to repay on behalf of.
+    function repayFor(uint256 assets, address owner) external nonReentrant {
+        _repay(assets, msg.sender, owner);
     }
 
     /// @notice Liquidates `accounts`' collateral by repaying `amount` debt
     ///         and transferring the liquidated collateral to the liquidator.
     /// @dev Updates pending interest before executing the liquidation.
+    /// @param debtAmounts The amounts of outstanding debt the liquidator
+    ///                    wishes to repay, in underlying assets, empty if
+    ///                    intention is to liquidate maximum amount possible
+    ///                    for each account.
     /// @param accounts The addresses of the accounts to be liquidated.
-    /// @param amounts The amounts of underlying asset the liquidator
-    ///                wishes to repay.
     /// @param collateralToken The market in which to seize collateral
     ///                        from `accounts`.
     function liquidateExact(
+        uint256[] calldata debtAmounts,
         address[] calldata accounts,
-        uint256[] calldata amounts,
         address collateralToken
     ) external nonReentrant {
         uint256 numAccounts = accounts.length;
-        if (numAccounts != amounts.length) {
+        if (numAccounts != debtAmounts.length) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         _liquidate(
+            debtAmounts,
             msg.sender,
             accounts,
-            amounts,
             collateralToken,
             numAccounts,
             true
@@ -302,14 +332,14 @@ contract BorrowableCToken is BaseCTokenWithYield {
         address collateralToken
     ) external nonReentrant {
         uint256 numAccounts = accounts.length;
-        // Amounts array is empty since the max amount possible
+        // `debtAmounts` array is empty since the max amount possible
         // will be liquidated.
-        uint256[] memory amounts = new uint256[](numAccounts);
+        uint256[] memory debtAmounts = new uint256[](numAccounts);
         
         _liquidate(
+            debtAmounts,
             msg.sender,
             accounts,
-            amounts,
             collateralToken,
             numAccounts,
             false
@@ -324,11 +354,14 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param data Arbitrary calldata passed to flashloan callback to execute
     ///             desired action during the flashloan.
     function flashLoan(uint256 assets, bytes calldata data) external {
+        _accrueIfNeeded();
+
         _checkZeroAmount(assets);
         _checkAssetsHeld(assets);
 
         address token = address(_asset);
-        uint256 assetsReturned = assets + flashFee(assets);
+        uint256 fee = flashFee(assets);
+        uint256 assetsReturned = assets + fee;
         
         SafeTransferLib.safeTransfer(token, msg.sender, assets);
 
@@ -341,7 +374,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
             assetsReturned
         );
 
-        emit Flashloan(msg.sender, assets, assetsReturned);
+        _totalAssets = _totalAssets + fee;
+
+        emit Flashloan(assets, fee, msg.sender);
     }
 
     /// @notice Get a snapshot of the cToken and `account` data.
@@ -361,7 +396,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 isCollateral: outstandingDebt > 0 ? false : true,
                 exchangeRate: _convertToAssets(WAD, _getTotalAssets()),
                 collateralPosted: collateralPosted[account],
-                debtOutstanding: outstandingDebt
+                debtBalance: outstandingDebt
             })
         );
     }
@@ -382,7 +417,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
         result = marketOutstandingDebt;
     }
 
-    /// @notice Returns share -> asset exchange rate, in `WAD`.
+    /// @notice Updates pending interest and returns the up-to-date exchange
+    ///         rate from the underlying to the BorrowableCToken.
     /// @dev Oracle Manager calculates cToken value from this exchange rate.
     /// @return result The share -> asset exchange rate, in `WAD`.
     function exchangeRateUpdated() external nonReentrant returns (
@@ -465,65 +501,66 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// @notice Executes borrowing of assets for `account` from lenders.
     /// @dev Emits a {Borrow} event.
-    /// @param account The account borrowing assets.
-    /// @param amount The amount of the underlying asset to borrow.
-    /// @param recipient The account receiving the borrowed assets.
+    /// @param assets The amount of the underlying asset to borrow.
+    /// @param receiver The account receiving the borrowed assets.
+    /// @param owner The account borrowing assets.
     function _borrow(
-        address account,
-        uint256 amount,
-        address recipient
+        uint256 assets,
+        address receiver,
+        address owner
     ) internal {
-        _checkZeroAmount(amount);
-        _checkAssetsHeld(amount);
+        _checkZeroAmount(assets);
+        _checkAssetsHeld(assets);
+        
         // Cannot borrow if `account` already has posted collateral in this
         // market.
-        if (collateralPosted[account] > 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+        if (collateralPosted[owner] > 0) {
+            revert BorrowableCToken__CollateralPositionActive();
         }
 
-        // Calculate current account debt then add `amount`.
+        // Calculate current account debt then add `assets`.
         // Then update account exchange rate, and total borrow balances.
         _setDebtOf(
-            account,
-            uint176(debtBalance(account) + amount),
+            owner,
+            uint176(debtBalance(owner) + assets),
             uint80(_vestingData >> _BITPOS_DEBT_INDEX)
         );
-        marketOutstandingDebt = marketOutstandingDebt + amount;
+        marketOutstandingDebt = marketOutstandingDebt + assets;
 
-        // Transfer underlying to `recipient`.
-        SafeTransferLib.safeTransfer(asset(), recipient, amount);
+        // Transfer underlying to `receiver`.
+        SafeTransferLib.safeTransfer(asset(), receiver, assets);
 
-        emit Borrow(account, amount);
+        emit Borrow(assets, owner);
     }
 
     /// @notice Repays an outstanding loan of `account` through repayment
     ///         by `payer`, who usually is themselves.
     /// @dev Emits a {Repay} event.
-    /// @param payer The address paying down the account debt.
-    /// @param account The account with the debt being paid down.
-    /// @param amount The amount the payer wishes to repay,
+    /// @param assets The amount the payer wishes to repay,
     ///               or 0 for the full outstanding amount.
-    /// @return The amount of underlying token debt repaid for `account`.
+    /// @param payer The address paying down the account debt.
+    /// @param owner The account with the debt being paid down.
+    /// @return The assets of underlying token debt repaid for `account`.
     function _repay(
+        uint256 assets,
         address payer,
-        address account,
-        uint256 amount
+        address owner
     ) internal returns (uint256) {
         // Accrue interest if needed.
         _accrueIfNeeded();
 
         // Validate that the payer is allowed to repay the loan.
-        marketManager.canRepay(address(this), account);
+        marketManager.canRepay(address(this), owner);
 
         // Cache how much the account has to save gas.
-        uint256 accountDebt = debtBalance(account);
+        uint256 debtOf = debtBalance(owner);
 
-        // If amount == 0, repay max; amount = accountDebt.
-        amount = amount == 0 ? accountDebt : amount;
-        _checkZeroAmount(amount);
+        // If assets == 0, repay max; assets = debtOf.
+        assets = assets == 0 ? debtOf : assets;
+        _checkZeroAmount(assets);
 
         // Validate repayment amount is not excessive.
-        if (amount > accountDebt) {
+        if (assets > debtOf) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -531,39 +568,40 @@ contract BorrowableCToken is BaseCTokenWithYield {
             asset(),
             payer,
             address(this),
-            amount
+            assets
         );
 
         // Update the account and market outstanding debt balance data.
         _setDebtOf(
-            account,
-            uint176(accountDebt - amount),
+            owner,
+            uint176(debtOf - assets),
             uint80(_vestingData >> _BITPOS_DEBT_INDEX)
         );
 
         // We round user debt in favor of the protocol to prevent exchange
         // rate manipulation, as a result in some cases the last user cannot
         // fully repay their debt.
-        if (marketOutstandingDebt < amount) {
+        if (marketOutstandingDebt < assets) {
             marketOutstandingDebt = 0;
         } else {
-            marketOutstandingDebt -= amount;
+            marketOutstandingDebt -= assets;
         }
 
-        emit Repay(payer, account, amount);
-        return amount;
+        emit Repay(assets, payer, owner);
+        return assets;
     }
 
     /// @notice Facilitates a liquidator liquidating the borrowers collateral
     ///         by repaying a portion of their debt. The collateral seized
     ///         is transferred to the liquidator.
     /// @dev Emits {Repay} and {Liquidated} events.
+    /// @param debtAmounts The amounts of outstanding debt the liquidator
+    ///                    wishes to repay, in underlying assets, empty if
+    ///                    intention is to liquidate maximum amount possible
+    ///                    for each account.
     /// @param liquidator The address repaying the borrow and seizing
     ///                   collateral.
     /// @param accounts The accounts to be liquidated.
-    /// @param amounts The amounts of the underlying borrowed asset to repay,
-    ///                if exact liquidation, otherwise an empty array to
-    ///                populate real liquidation amounts after calculations.
     /// @param collateralToken The market in which to seize collateral from
     ///                        the account.
     /// @param numAccounts The number of accounts to be potentially
@@ -572,9 +610,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///                    should be liquidated inputting false will attempt
     ///                    to liquidate the maximum amount possible.
     function _liquidate(
+        uint256[] memory debtAmounts,
         address liquidator,
         address[] calldata accounts,
-        uint256[] memory amounts,
         address collateralToken,
         uint256 numAccounts,
         bool exactAmount
@@ -588,23 +626,23 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Accrue interest if needed.
         _accrueIfNeeded();
 
-        IMarketManager.LiqResults memory liqResults;
+        IMarketManager.LiqResult memory result;
 
         // Fails if liquidation not allowed, trying to repay too much debt
         // will revert.
         (
-            liqResults,
-            amounts
+            result,
+            debtAmounts
         ) = marketManager.canLiquidate(
+            debtAmounts,
             liquidator,
             accounts,
-            amounts,
-            IMarketManager.LiqInstructions({
+            IMarketManager.LiqAction({
                 collateralToken: collateralToken,
                 debtToken: address(this),
                 numAccounts: numAccounts,
                 liquidateExact: exactAmount,
-                collateralLiquidated: 0,
+                liquidatedShares: 0,
                 debtRepaid: 0,
                 badDebt: 0
             })
@@ -614,60 +652,61 @@ contract BorrowableCToken is BaseCTokenWithYield {
             asset(),
             liquidator,
             address(this),
-            liqResults.debtRepaid
+            result.debtRepaid
         );
 
         uint80 cachedDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
-        uint256 cachedAmount;
-        address cachedAccount;
+        uint256 debtAmount;
+        address account;
 
         for (uint256 i; i < numAccounts; ++i) {
             // Cache the repayment amount.
-            cachedAmount = amounts[i];
+            debtAmount = debtAmounts[i];
             // If theres no debt to repay for this user can
             // skip them.
-            if (cachedAmount == 0) {
+            if (debtAmount == 0) {
                 continue;
             }
 
-            cachedAccount = accounts[i];
+            account = accounts[i];
 
-            // Calculate the new `cachedAccount` outstanding debt, then update the
+            // Calculate the new `account` outstanding debt, then update the
             // account's debt balance and debt index value.
             // Update the account and market outstanding debt balance data.
             _setDebtOf(
-                cachedAccount,
-                uint176(debtBalance(cachedAccount) - cachedAmount),
+                account,
+                uint176(debtBalance(account) - debtAmount),
                 cachedDebtIndex
             );
-            emit Repay(liquidator, cachedAccount, cachedAmount);
+            emit Repay(debtAmount, liquidator, account);
         }
 
         // We need to update marketOutstandingDebt for the total debt repaid
         // by the liquidator, plus the bad debt being realized. We can reuse
         // debtRepaid variable since the original debt repayment value
         // was already used earlier.
-        liqResults.debtRepaid += liqResults.badDebtRealized;
-        if (marketOutstandingDebt < liqResults.debtRepaid) {
+        result.debtRepaid += result.badDebtRealized;
+        if (marketOutstandingDebt < result.debtRepaid) {
             // We round user debt in favor of the protocol to prevent exchange
             // rate manipulation, as a result in some cases the last user
             // cannot fully repay their debt.
             marketOutstandingDebt = 0;
         } else {
-            marketOutstandingDebt -= liqResults.debtRepaid;
+            marketOutstandingDebt -= result.debtRepaid;
         }
 
         // Update total assets to recognize that lenders wont be getting
-        // those assets back due to bad debt. Emit event recognizing bad debt.
-        if (liqResults.badDebtRealized > 0) {
-            _totalAssets = _totalAssets - liqResults.badDebtRealized;
-            emit BadDebtRecognized(liquidator, liqResults.badDebtRealized);
+        // `result.badDebtRealized` back due to realized bad debt.
+        // Emit corresponding event recognizing bad debt.
+        if (result.badDebtRealized > 0) {
+            _totalAssets = _totalAssets - result.badDebtRealized;
+            emit BadDebtRecognized(result.badDebtRealized, liquidator);
         }
 
         ICToken(collateralToken).seize(
+            result.liquidatedShares,
             liquidator,
-            accounts,
-            liqResults.liquidatedAmounts
+            accounts 
         );
     }
 
@@ -677,19 +716,19 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///      debt in this token.
     ///      Emits {CollateralUpdated} event.
     ///      May emit {PositionUpdated} event inside Market Manager.
-    /// @param account The account posting collateral.
     /// @param shares The amount of shares to post as collateral.
+    /// @param owner The account posting collateral.
     function _postCollateral(
-        address account,
-        uint256 shares
+        uint256 shares,
+        address owner
     ) internal override {
-        // Cannot post collateral if `account` already has outstanding debt
+        // Cannot post collateral if `owner` already has outstanding debt
         // in this token.
-        if (uint176(_debtOf[account]) > 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+        if (uint176(_debtOf[owner]) > 0) {
+            revert BorrowableCToken__DebtPositionActive();
         }
 
-        super._postCollateral(account, shares);
+        super._postCollateral(shares, owner);
     }
 
     /// @notice Can accrue interest yield, configure next interest accrual
@@ -698,29 +737,31 @@ contract BorrowableCToken is BaseCTokenWithYield {
     function _accrueIfNeeded() internal override {
         uint256 vestingData = _vestingData;
         uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_VEST_END);
-        // If no time has passed since the last accrual can exit.
+
+        // If no time has passed since the last accrual can exit immediately.
         if (block.timestamp == lastVestingClaim) {
             return;
         }
 
-        uint256 vestingRate = uint176(vestingData);
+        uint256 rate = uint96(vestingData);
         uint256 vestingPeriodEnd = uint40(vestingData >> _BITPOS_LAST_VEST);
-        uint256 marketDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
+        uint256 marketDebtIndex = uint80(vestingData >> _BITPOS_DEBT_INDEX);
         uint256 outstandingDebt = marketOutstandingDebt;
         uint256 cachedTa = _totalAssets;
-        uint256 pendingYieldToVest = _getPendingYield(
-            vestingRate,
-            lastVestingClaim,
-            vestingPeriodEnd
+        uint256 yieldToVest = _getPendingYield(
+            rate,
+            outstandingDebt,
+            vestingPeriodEnd,
+            lastVestingClaim
         );
-        
+
         // Update last claim timestamp, stopping at vesting end if vesting
         // period is over.
         lastVestingClaim = block.timestamp > vestingPeriodEnd
             ? vestingPeriodEnd : block.timestamp;
 
         uint256 protocolFees;
-        
+
         // Check if it is time to start a new vesting period.
         if (block.timestamp >= vestingPeriodEnd) {
             // Cache interest accrual fee, and vesting period to save gas.
@@ -733,24 +774,25 @@ contract BorrowableCToken is BaseCTokenWithYield {
             accrualPeriod = ((block.timestamp - lastVestingClaim) /
                 accrualPeriod) * accrualPeriod;
             vestingPeriodEnd = lastVestingClaim + accrualPeriod;
-            // Calculate the borrow rate to new the new interest vesting rate per second.
-            vestingRate = interestRateModel.getBorrowRateWithUpdate(
+
+            // Calculate the new in interest rate for borrowers, in seconds.
+            rate = interestRateModel.getBorrowRateWithUpdate(
                 assetsHeld(),
                 outstandingDebt
             );
 
             // Check whether the DAO takes a cut of interest, and whether new
             // assets will vest over time the next vesting period.
-            if (protocolInterestFee > 0  && vestingRate > 0) {
+            if (protocolInterestFee > 0  && rate > 0) {
                 // Fees are initially calculated off vesting rate giving us
                 // essentially fees per second, in assets. Which we can then
-                // subtract directly from vestingRate so theres no precision loss.
+                // subtract directly from `rate` so theres no precision loss.
                 protocolFees = FixedPointMathLib.mulDivUp(
-                    vestingRate,
+                    rate,
                     protocolInterestFee,
                     WAD
                 );
-                vestingRate = vestingRate - protocolFees;
+                rate = rate - protocolFees;
                 // We can now convert the per second assets value to the
                 // amount of assets to be minted by the end of the new
                 // `vestingPeriodEnd`. Next we need to discount the amount of
@@ -758,24 +800,27 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 // the protocol is not overpaid. The discount asset amount can
                 // be calculated with:
                 // assets * (current assets / current assets + future assets)
+                // `rate` is in WAD which means we need to divide the
+                // output by WAD to get protocolFees in `assets`.
                 protocolFees = FixedPointMathLib.mulDiv(
                     protocolFees * accrualPeriod * outstandingDebt,
                     cachedTa,
-                    cachedTa + (pendingYieldToVest + 
-                        (vestingRate * accrualPeriod / WAD)) * outstandingDebt
+                    (cachedTa + yieldToVest +
+                        _mulDiv(rate * accrualPeriod, outstandingDebt, WAD)) * WAD
                 );
             }
 
-            emit InterestAccrualUpdate(vestingRate, accrualPeriod);
+            emit InterestAccrualUpdate(rate, accrualPeriod);
         }
 
         // Check if theres new yield to be vested, which could happen if the
         // previous vesting period ended and current block.timestamp extends
         // into the new vesting period.
-        pendingYieldToVest += _getPendingYield(
-            vestingRate,
-            lastVestingClaim,
-            vestingPeriodEnd
+        yieldToVest += _getPendingYield(
+            rate,
+            outstandingDebt,
+            vestingPeriodEnd,
+            lastVestingClaim
         );
 
         // If theres fees we need to mint new shares for the protocol.
@@ -783,38 +828,34 @@ contract BorrowableCToken is BaseCTokenWithYield {
             cachedTa = cachedTa + protocolFees;
             // Convert assets to shares and mint to protocol address. This
             // ensures that user share value is identical to before hand,
-            // excluding `pendingYieldToVest`.
-            protocolFees = convertToShares(protocolFees);
+            // excluding `yieldToVest`.
+            protocolFees = _convertToShares(protocolFees, _getTotalAssets());
             // Cache the current dao address then mint shares to the dao.
             address daoAddress = centralRegistry.daoAddress();
             _mint(daoAddress, protocolFees);
-            _afterDepositAction(daoAddress, protocolFees);
+            _afterDepositAction(protocolFees, daoAddress);
         }
 
         // Vest pending yield, if there is any.
-        if (pendingYieldToVest > 0) {
-            // pendingYieldToVest at this point is a % of outstanding debt
-            // which is exactly what we want to increase our debt index by.
+        if (yieldToVest > 0) {
+            // `yieldToVest` at this point is $ outstanding debt
+            // so we need to redivide by `outstandingDebt` so its in % form.
             marketDebtIndex =
-                (pendingYieldToVest * marketDebtIndex) + marketDebtIndex;
-            // Convert pendingYieldToVest to a numerical value of new debt.
-            pendingYieldToVest = pendingYieldToVest * outstandingDebt;
+                _mulDiv(yieldToVest, marketDebtIndex, outstandingDebt)
+                    + marketDebtIndex;
             // Update marketOutstandingDebt invariant with vested yield.
-            marketOutstandingDebt = outstandingDebt + pendingYieldToVest;
-            cachedTa = cachedTa + pendingYieldToVest;
+            marketOutstandingDebt = outstandingDebt + yieldToVest;
+            cachedTa = cachedTa + yieldToVest;
         }
 
-        // Update _totalAssets based on new assets recognized by protocol.
-        _totalAssets = cachedTa;
-
         assembly {
-            // Mask vestingRate to the lower 176 bits,
-            // in case the upper bits somehow aren't clean.
-            vestingRate := and(vestingRate, _BITMASK_VESTING_RATE)
-            // Equals vestingRate | (vestingPeriodEnd << _BITPOS_VEST_END) |
+            // Mask `rate` to the lower 96 bits, in case
+            // the upper bits somehow aren't clean.
+            rate := and(rate, _BITMASK_VESTING_RATE)
+            // Equals rate | (vestingPeriodEnd << _BITPOS_VEST_END) |
             //        block.timestamp << _BITPOS_LAST_VEST | marketDebtIndex.
             vestingData := or(
-                vestingRate,
+                rate,
                 or(
                     or(
                         shl(_BITPOS_VEST_END, vestingPeriodEnd),
@@ -824,12 +865,19 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 )  
             )
         }
+
+        // Update _totalAssets based on new assets recognized by protocol.
+        _totalAssets = cachedTa;
+        // Update packed vesting data based on new vesting configuration.
+        _vestingData = vestingData;
     }
 
-    /// @notice Updates the interest rate model.
+    /// @notice Updates the interest rate model (`interestRateModel`) used
+    ///         by this borrowableCToken.
     /// @dev Emits a {NewMarketInterestRateModel} event.
-    /// @param newInterestRateModel The new interest rate model for this
-    ///                             eToken to use.
+    /// @param newInterestRateModel The new interest rate model to determine
+    ///                             interest paid by borrowers to lenders for
+    ///                             outstanding debt.
     function _setInterestRateModel(
         IInterestRateModel newInterestRateModel
     ) internal {
@@ -858,22 +906,23 @@ contract BorrowableCToken is BaseCTokenWithYield {
         );
     }
 
-    /// @notice Updates the interest factor.
+    /// @notice Updates the fee that the protocol takes on interest paid
+    ///         by borrowers.
     /// @dev Emits a {NewInterestFee} event.
-    /// @param newInterestFee The new interest factor for this
-    ///                          eToken to use.
+    /// @param newInterestFee The portion of interest paid by borrowers that
+    ///                       goes to the protocol.
     function _setInterestFee(uint256 newInterestFee) internal {
-        // The DAO cannot take more than 50% of interest collected.
+        // The DAO cannot take more than `MAX_INTEREST_ACCRUAL_FEE` of
+        // interest collected.
         if (newInterestFee > MAX_INTEREST_ACCRUAL_FEE) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Cache the other interest factor for event emission.
+        // Cache the old interest fee for event emission.
         uint256 oldInterestFee = interestFee;
 
-        /// The Interest Rate Factor should be stored is in `WAD` format.
-        /// So, we need to multiply by 1e14 to convert from basis points
-        /// to `WAD`.
+        /// `interestFee` is stored is in `WAD` format. So, we need to
+        /// multiply by 1e14 to convert from basis points to `WAD`.
         interestFee = newInterestFee * 1e14;
 
         emit NewInterestFee(oldInterestFee, interestFee);
@@ -910,14 +959,14 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///      although, we protect against them in many ways,
     ///      better safe than sorry.
     /// @dev Emits a {Deposit} event.
-    /// @param by The account initializing the cToken market.
-    function _startMarket(address by) internal override {
+    /// @param by The account initializing deposits.
+    function _initializeDeposits(address by) internal override {
         // Validate that the interest rate model is linked to this token.
         if (interestRateModel.linkedToken() != address(this)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        super._startMarket(by);
+        super._initializeDeposits(by);
 
         // Calculate `_vestingData` invariant to intended start values.
         _vestingData = (_vestingData & _BITMASK_VESTING_RATE) |
@@ -937,9 +986,44 @@ contract BorrowableCToken is BaseCTokenWithYield {
         uint256 vestingData = _vestingData;
         pendingYield =  _getPendingYield(
             uint96(vestingData),
+            marketOutstandingDebt,
             uint40(vestingData >> _BITPOS_VEST_END),
             uint40(vestingData >> _BITPOS_LAST_VEST)
         );
+    }
+
+        /// @notice Calculates pending yield that has been vested.
+    /// @dev If there are no pending yield or the vesting period has ended,
+    ///      it returns 0.
+    /// @return pendingYield The calculated pending yield, in assets.
+    function _getPendingYield(
+        uint256 vestingRate,
+        uint256 outstandingDebt,
+        uint256 vestingPeriodEnd,
+        uint256 lastVestingClaim
+    )
+        internal
+        view
+        returns (uint256 pendingYield)
+    {
+        // Check whether there are pending yield vesting.
+        if (vestingRate > 0 && lastVestingClaim < vestingPeriodEnd) {
+            // When calculating pending yield:
+            // pendingYield =
+            // If the vesting period has not ended:
+            // PY = vestingRate * (block.timestamp - lastTimeVestClaimed).
+            // If the vesting period has ended:
+            // PY = vestingRate * (vestingPeriodEnd - lastTimeVestClaimed)).
+            // Then in either case:
+            // Divide the pending yield by `WAD` (1e18) for precision.
+            pendingYield =
+                ((
+                    block.timestamp < vestingPeriodEnd
+                        ? vestingRate * (block.timestamp - lastVestingClaim)
+                        : vestingRate * (vestingPeriodEnd - lastVestingClaim)
+                ) * outstandingDebt) /
+                WAD;
+        }
     }
 
     /// @notice Checks whether there is sufficient assets to handle

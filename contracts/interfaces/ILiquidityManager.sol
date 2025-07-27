@@ -10,14 +10,14 @@ interface ILiquidityManager {
         uint256 collRatio,
         uint256 collReqSoft,
         uint256 collReqHard,
-        uint256 liqBaseIncentive,
-        uint256 liqCurve,
-        uint256 liqMinIncentive,
-        uint256 liqMaxIncentive,
-        uint256 minEffectiveCloseFactor,
-        uint256 maxEffectiveCloseFactor,
-        uint256 baseCFactor,
-        uint256 cFactorCurve
+        uint256 liqIncBase,
+        uint256 liqIncCurve,
+        uint256 liqIncMin,
+        uint256 liqIncMax,
+        uint256 closeFactorBase,
+        uint256 closeFactorCurve,
+        uint256 closeFactorMin,
+        uint256 closeFactorMax
     );
 
     /// @notice Value that indicates whether an account has an active position

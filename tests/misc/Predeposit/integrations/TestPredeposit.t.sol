@@ -8,7 +8,7 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract TestPredeposit is TestBasePredeposit {
-    SwapperLib.Swap public swapData;
+    SwapperLib.Swap public swapAction;
 
     function setUp() public override {
         super.setUp();
@@ -26,32 +26,32 @@ contract TestPredeposit is TestBasePredeposit {
         predeposit.addPredepositTokens(newPredepositTokens);
         vm.stopPrank();
 
-        usdc.approve(address(eUSDC), 1000e6);
-        balRETH.approve(address(pBALRETH), 1000e18);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+        balRETH.approve(address(strategyCBALRETH), 1000e18);
 
-        marketManagerIsolated.listTokens(address(pBALRETH),address(eUSDC));
+        marketManagerIsolated.listTokens(address(strategyCBALRETH),address(borrowableCUSDC));
 
         vm.startPrank(manager);
 
-        predeposit.setMigrationConfig(_USDC_ADDRESS, address(eUSDC));
+        predeposit.setMigrationConfig(_USDC_ADDRESS, address(borrowableCUSDC));
         predeposit.setMigrationConfig(
             _BAL_WETH_RETH_ADDRESS,
-            address(pBALRETH)
+            address(strategyCBALRETH)
         );
 
         vm.stopPrank();
 
-        swapData.inputToken = _WETH_ADDRESS;
-        swapData.inputAmount = _ONE;
-        swapData.outputToken = _USDC_ADDRESS;
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.slippage = 50e16;
+        swapAction.inputToken = _WETH_ADDRESS;
+        swapAction.inputAmount = _ONE;
+        swapAction.outputToken = _USDC_ADDRESS;
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.slippage = 50e16;
 
         address[] memory path = new address[](2);
         path[0] = _WETH_ADDRESS;
         path[1] = _USDC_ADDRESS;
 
-        swapData.call = abi.encodeWithSignature(
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             _ONE,
             0,
@@ -86,43 +86,24 @@ contract TestPredeposit is TestBasePredeposit {
 
         vm.stopPrank();
 
-        MarketManagerIsolated.TokenConfig memory configToken0;
-        configToken0.cToken = address(pBALRETH);
-        configToken0.collRatio = 7000;
-        configToken0.collReqSoft = 4000;
-        configToken0.collReqHard = 3000;
-        configToken0.liqIncBase = 1000;
-        configToken0.liqIncHard = 1500;
-        configToken0.liqIncMin = 500;
-        configToken0.liqIncMax = 2000;
-        configToken0.minEffectiveCloseFactor = 2000;
-        configToken0.maxEffectiveCloseFactor = 5000;
-        configToken0.baseCFactor = 1000;
-        configToken0.collateralCap = 100_000e18;
-        configToken0.debtCap = 0;
-
-        marketManagerIsolated.updateTokenConfig(configToken0);
-
-        MarketManagerIsolated.TokenConfig memory configToken1;
-        configToken1.cToken = address(eUSDC);
-        configToken1.debtCap = 100_000e6;
-        marketManagerIsolated.updateTokenConfig(configToken1);
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
     }
 
-    function test_swapAndDeposit_migrate_withPToken_withCollateralize_success()
+    function test_swapAndDeposit_migrate_withCollateralize_success()
         public
     {
         vm.startPrank(user1);
 
         weth.approve(address(predeposit), _ONE);
 
-        swapData.outputToken = _BAL_WETH_RETH_ADDRESS;
+        swapAction.outputToken = _BAL_WETH_RETH_ADDRESS;
 
         address[] memory path = new address[](2);
         path[0] = _WETH_ADDRESS;
         path[1] = _BAL_WETH_RETH_ADDRESS;
 
-        swapData.call = abi.encodeWithSignature(
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             _ONE,
             0,
@@ -131,12 +112,12 @@ contract TestPredeposit is TestBasePredeposit {
             block.timestamp
         );
 
-        pBALRETH.setDelegateApproval(address(predeposit), true);
-        predeposit.swapAndDeposit(swapData, 0.1e18);
+        strategyCBALRETH.setDelegateApproval(address(predeposit), true);
+        predeposit.swapAndDeposit(swapAction, 0.1e18);
 
         skip(1 weeks);
 
-        uint256 underlyingBalance = balRETH.balanceOf(address(pBALRETH));
+        uint256 underlyingBalance = balRETH.balanceOf(address(strategyCBALRETH));
 
         assertEq(
             predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS),
@@ -150,24 +131,24 @@ contract TestPredeposit is TestBasePredeposit {
 
         assertEq(predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS), 0);
         assertEq(balRETH.balanceOf(address(predeposit)), 0);
-        assertEq(balRETH.balanceOf(address(pBALRETH)), underlyingBalance);
-        assertEq(pBALRETH.balanceOf(user1), 0.1e18);
+        assertEq(balRETH.balanceOf(address(strategyCBALRETH)), underlyingBalance);
+        assertEq(strategyCBALRETH.balanceOf(user1), 0.1e18);
     }
 
-    function test_swapAndDeposit_migrate_withPToken_withoutCollateralize_success()
+    function test_swapAndDeposit_migrate_withoutCollateralize_success()
         public
     {
         vm.startPrank(user1);
 
         weth.approve(address(predeposit), _ONE);
 
-        swapData.outputToken = _BAL_WETH_RETH_ADDRESS;
+        swapAction.outputToken = _BAL_WETH_RETH_ADDRESS;
 
         address[] memory path = new address[](2);
         path[0] = _WETH_ADDRESS;
         path[1] = _BAL_WETH_RETH_ADDRESS;
 
-        swapData.call = abi.encodeWithSignature(
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             _ONE,
             0,
@@ -176,13 +157,13 @@ contract TestPredeposit is TestBasePredeposit {
             block.timestamp
         );
 
-        predeposit.swapAndDeposit(swapData, 0.1e18);
+        predeposit.swapAndDeposit(swapAction, 0.1e18);
 
         vm.stopPrank();
 
         skip(1 weeks);
 
-        uint256 underlyingBalance = balRETH.balanceOf(address(pBALRETH));
+        uint256 underlyingBalance = balRETH.balanceOf(address(strategyCBALRETH));
 
         assertEq(
             predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS),
@@ -195,34 +176,37 @@ contract TestPredeposit is TestBasePredeposit {
 
         assertEq(predeposit.balanceOf(user1, _BAL_WETH_RETH_ADDRESS), 0);
         assertEq(balRETH.balanceOf(address(predeposit)), 0);
-        assertEq(balRETH.balanceOf(address(pBALRETH)), underlyingBalance);
-        assertEq(pBALRETH.balanceOf(user1), 0.1e18);
+        assertEq(balRETH.balanceOf(address(strategyCBALRETH)), underlyingBalance);
+        assertEq(strategyCBALRETH.balanceOf(user1), 0.1e18);
     }
 
-    function test_swapAndDeposit_migrate_withEToken_success() public {
+    function test_swapAndDeposit_migrate_withBorrowableCToken_success() public {
         vm.startPrank(user1);
 
         weth.approve(address(predeposit), _ONE);
 
-        swapData.outputToken = _USDC_ADDRESS;
-        predeposit.swapAndDeposit(swapData, 100e6);
+        swapAction.outputToken = _USDC_ADDRESS;
+        predeposit.swapAndDeposit(swapAction, 100e6);
 
         vm.stopPrank();
 
         skip(1 weeks);
 
-        uint256 marketUnderlyingHeld = eUSDC.assetsHeld();
+        uint256 marketUnderlyingHeld = borrowableCUSDC.assetsHeld();
 
         assertEq(predeposit.balanceOf(user1, _USDC_ADDRESS), 100e6);
         assertEq(usdc.balanceOf(address(predeposit)), 100e6);
 
-        vm.prank(user1);
-
+        vm.startPrank(user1);
+        
+        borrowableCUSDC.setDelegateApproval(address(predeposit), true);
         predeposit.migrate(_USDC_ADDRESS, 100e6, true);
+
+        vm.stopPrank();
 
         assertEq(predeposit.balanceOf(user1, _USDC_ADDRESS), 0);
         assertEq(usdc.balanceOf(address(predeposit)), 0);
-        assertEq(eUSDC.assetsHeld(), marketUnderlyingHeld + 100e6);
-        assertEq(eUSDC.balanceOf(user1), 100e6);
+        assertEq(borrowableCUSDC.assetsHeld(), marketUnderlyingHeld + 100e6);
+        assertEq(borrowableCUSDC.balanceOf(user1), 100e6);
     }
 }

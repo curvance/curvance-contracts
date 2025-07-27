@@ -354,11 +354,11 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ///      Updates pending interest before executing the borrow.
     /// @param account The account address to borrow on behalf of.
     /// @param amount The amount of the underlying asset to borrow.
-    /// @param leverageData Callback calldata to execute after borrow.
+    /// @param leverageAction Callback calldata to execute after borrow.
     function borrowForPositionManager(
         address account,
         uint256 amount,
-        IPositionManager.LeverageStruct memory leverageData
+        IPositionManager.LeverageAction memory leverageAction
     ) external nonReentrant {
         if (!marketManager.isPositionManager(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -378,12 +378,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         _borrow(account, amount, msg.sender);
 
-        // Callback to position folding to execute additional action.
+        // Callback to Position Manager to execute additional action.
         IPositionManager(msg.sender).onBorrow(
             address(this),
             account,
             amount,
-            leverageData
+            leverageAction
         );
 
         // Fail if terminal position is not allowed with no additional
@@ -516,7 +516,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
     /// @notice Used by the position management contract to redeem underlying tokens
     ///         from the market, on behalf of `account` to apply a complex action.
-    /// @dev Only Position folding contract can call this function.
+    /// @dev Only a Position Manager contract can call this function.
     ///      Updates interest before executing the redemption.
     ///      This function may seem weird at first since eTokens can not be
     ///      collateralized, but with this technology a user can redeem lent
@@ -528,7 +528,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     function redeemUnderlyingForPositionManager(
         address account,
         uint256 amount,
-        IPositionManager.DeleverageStruct memory params
+        IPositionManager.DeleverageAction memory params
     ) external nonReentrant {
         if (!marketManager.isPositionManager(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -546,7 +546,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             params
         );
 
-        // Fail if redeem not allowed, after position folding
+        // Fail if redeem not allowed, after Position Manager
         // has executed `account`'s extra actions.
         marketManager.canRedeem(address(this), account, 0);
     }

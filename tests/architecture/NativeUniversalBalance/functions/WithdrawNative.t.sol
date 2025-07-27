@@ -73,17 +73,17 @@ contract WithdrawNativeTest is TestBaseNativeUniversalBalance {
 
         vm.stopPrank();
 
-        uint256 redeemAmount = eWETH.convertToShares(withdrawAmount);
+        uint256 redeemAmount = borrowableCWETH.convertToShares(withdrawAmount);
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userETHBalance = user2.balance;
 
         vm.prank(user1);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(nativeUniversalBalance));
         emit Withdraw(user1, user2, user1, withdrawAmount, true);
 
         nativeUniversalBalance.withdrawNative(withdrawAmount, true, user2);
@@ -96,8 +96,8 @@ contract WithdrawNativeTest is TestBaseNativeUniversalBalance {
         assertEq(address(nativeUniversalBalance).balance, ethBalance);
         assertEq(weth.balanceOf(address(nativeUniversalBalance)), wethBalance);
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance - redeemAmount
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance - redeemAmount
         );
         assertEq(user2.balance, userETHBalance + withdrawAmount);
     }
@@ -122,14 +122,14 @@ contract WithdrawNativeTest is TestBaseNativeUniversalBalance {
 
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userETHBalance = user2.balance;
 
         vm.prank(user1);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, true, true, address(nativeUniversalBalance));
         emit Withdraw(user1, user2, user1, withdrawAmount, false);
 
         nativeUniversalBalance.withdrawNative(withdrawAmount, false, user2);
@@ -145,8 +145,8 @@ contract WithdrawNativeTest is TestBaseNativeUniversalBalance {
             wethBalance - withdrawAmount
         );
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance
         );
         assertEq(user2.balance, userETHBalance + withdrawAmount);
     }

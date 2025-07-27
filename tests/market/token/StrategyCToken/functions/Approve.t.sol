@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
 
-contract StrategyCTokenApproveTest is TestBaseStrategyCToken {
+contract ApproveTest is TestBaseStrategyCToken {
     event Approval(
         address indexed owner,
         address indexed spender,
@@ -11,13 +11,13 @@ contract StrategyCTokenApproveTest is TestBaseStrategyCToken {
     );
 
     function test_strategyCTokenApprove_success() public {
-        uint256 allowance = pBALRETH.allowance(address(this), user1);
+        uint256 allowance = strategyCBALRETH.allowance(address(this), user1);
 
-        vm.expectEmit(true, true, true, true, address(pBALRETH));
+        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
         emit Approval(address(this), user1, 100);
 
-        pBALRETH.approve(user1, 100);
+        strategyCBALRETH.approve(user1, 100);
 
-        assertEq(pBALRETH.allowance(address(this), user1), allowance + 100);
+        assertEq(strategyCBALRETH.allowance(address(this), user1), allowance + 100);
     }
 }

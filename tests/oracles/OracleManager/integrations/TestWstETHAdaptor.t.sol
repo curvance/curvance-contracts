@@ -9,8 +9,6 @@ import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract TestWstETHAdaptor is TestBaseOracleManager {
-    address internal _STETH_ADDRESS =
-        0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
     address internal _WSTETH_ADDRESS =
         0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
 

@@ -16,13 +16,13 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 abstract contract ZapperBase is ReentrancyGuard {
     /// TYPES ///
 
-    /// @title Zapper Base Data
-    /// @param cToken The address of the cToken corresponding to the proposed
-    ///               redemption.
+    /// @param cToken The address of the cToken corresponding to the
+    ///               redemption action.
     /// @param shares The amount of shares to redeemed.
     /// @param forceRedeemCollateral Whether the collateral should be always
-    ///                              reduced from callers collateralPosted.
-    struct RedemptionData {
+    ///                              reduced from caller's collateralized
+    ///                              shares.
+    struct RedeemAction {
         address cToken;
         uint256 shares;
         bool forceRedeemCollateral;
@@ -64,67 +64,84 @@ abstract contract ZapperBase is ReentrancyGuard {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Allows contract to receive native gas tokens.
+    /// @notice Allows contract to receive native tokens.
     receive() external payable {}
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Routes `underlying` token into a Curvance token contract.
+    /// @notice Routes `asset` token into `cToken`, for `receiver`.
     /// @param cToken The Curvance cToken address.
-    /// @param underlying The input token address, should match
+    /// @param asset The input token address, should match
     ///                   `cToken`.asset().
-    /// @param assets The amount of `underlying` to deposit into cToken
+    /// @param assets The amount of `asset` to deposit into cToken
     ///               position.
     /// @param expectedShares The minimum expected amount of shares received
-    ///                       from depositing `assets` of `underlying` into
+    ///                       from depositing `assets` of `asset` into
     ///                       `cToken` position.
-    /// @param collateralize Whether the zapped deposit should be
-    ///                      collateralized afterwards.
-    /// @param recipient Address that should receive Curvance cTokens.
-    /// @return The output amount of shares received.
-    function _enterCurvance(
+    /// @param collateralizeFor Whether the deposit should be collateralized,
+    ///                         requires plugin approval.
+    /// @param receiver Address that should receive Curvance cTokens.
+    /// @return shares The output amount of shares received.
+    function _enterCurvanceSafe(
         address cToken,
-        address underlying,
+        address asset,
         uint256 assets,
         uint256 expectedShares,
-        bool collateralize,
-        address recipient
-    ) internal returns (uint256) {
-        // Validate `cToken` exists, otherwise transfer their tokens
-        // back and return.
-        if (cToken == address(0)) {
-            SafeTransferLib.safeTransfer(underlying, recipient, assets);
-            return assets;
-        }
+        bool collateralizeFor,
+        address receiver
+    ) internal returns (uint256 shares) {
+        _checkAddresses(cToken, asset);
 
-        // Validate `underlying` matches underlying token of cToken contract.
-        if (ICToken(cToken).asset() != underlying) {
-            revert ZapperBase__UnderlyingTokenIsNotInputToken();
-        }
+        shares = _enterCurvance(
+            cToken,
+            asset,
+            assets,
+            expectedShares,
+            collateralizeFor,
+            receiver
+        );
+    }
 
-        // Approve `cToken` to take `underlying`.
-        SwapperLib._approveTokenIfNeeded(underlying, cToken, assets);
-        uint256 shares;
+    /// @notice Routes `asset` token into `cToken`, for `receiver`.
+    /// @param cToken The Curvance cToken address.
+    /// @param asset The input token address, should match
+    ///                   `cToken`.asset().
+    /// @param assets The amount of `asset` to deposit into cToken
+    ///               position.
+    /// @param expectedShares The minimum expected amount of shares received
+    ///                       from depositing `assets` of `asset` into
+    ///                       `cToken` position.
+    /// @param collateralizeFor Whether the deposit should be collateralized,
+    ///                         requires plugin approval.
+    /// @param receiver Address that should receive Curvance cTokens.
+    /// @return shares The output amount of shares received.
+    function _enterCurvance(
+        address cToken,
+        address asset,
+        uint256 assets,
+        uint256 expectedShares,
+        bool collateralizeFor,
+        address receiver
+    ) internal returns (uint256 shares) {
+        // Approve `cToken` to take `asset`.
+        SwapperLib._approveIfNeeded(asset, cToken, assets);
 
         // The user is trusting this plugin to not use their delegation
         // approval for nefarious reasons such as keeping them stuck in
-        // positions, so lets validate that the recipient is a delegate
+        // positions, so lets validate that the receiver is a delegate
         // as well.
-        if (collateralize) {
+        if (collateralizeFor) {
             // Enter Curvance position and collateralize it.
             // This requires plugin approval for this zapper, and
             // if its a different user calling on behalf of `receiver`
             // we make sure that user also has delegation approved.
             if (
-                msg.sender == recipient ||
-                IPluginDelegable(cToken).isDelegate(
-                    recipient,
-                    msg.sender
-                )
+                msg.sender == receiver ||
+                IPluginDelegable(cToken).isDelegate(receiver, msg.sender)
             ) {
                 shares = ICToken(cToken).depositAsCollateralFor(
                     assets,
-                    recipient
+                    receiver
                 );
             } else {
                 _revert(_UNAUTHORIZED_SELECTOR);
@@ -132,43 +149,64 @@ abstract contract ZapperBase is ReentrancyGuard {
         } else {
             // User wants to enter an uncollateralized a position so we dont
             // care if they are zapping for themselves or someone else.
-            shares = ICToken(cToken).deposit(assets, recipient);
+            shares = ICToken(cToken).deposit(assets, receiver);
         }
 
-        // Make sure `recipient` got sufficient shares.
+        // Make sure `receiver` got sufficient shares.
         if (shares < expectedShares) {
             revert ZapperBase__ExecutionError();
         }
 
         // Remove any leftover approval.
-        SwapperLib._removeApprovalIfNeeded(underlying, cToken);
-
-        // Bubble up how many cTokens `recipient` received.
-        return shares;
+        SwapperLib._removeApprovalIfNeeded(asset, cToken);
     }
 
     /// @notice Exits a Curvance position.
     /// @param cToken The address of the cToken to be redeemed from.
-    /// @param underlying The expected underlying token of `cToken`.
+    /// @param asset The expected asset of `cToken`.
     /// @param shares The amount of shares to redeemed.
     /// @param expectedAssets The amount of assets expected to be redeemed
     ///                       on exiting Curvance position.
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced from callers collateralPosted.
-    /// @param recipient Address that should receive redeemed assets.
-    function _exitCurvance(
+    /// @param receiver Address that should receive redeemed assets.
+    function _exitCurvanceSafe(
         address cToken,
-        address underlying,
+        address asset,
         uint256 shares,
         uint256 expectedAssets,
         bool forceRedeemCollateral,
-        address recipient
+        address receiver
     ) internal {
-        // Validate `underlying` matches underlying token of cToken contract.
-        if (ICToken(cToken).asset() != underlying) {
-            revert ZapperBase__ExecutionError();
-        }
+        _checkAddresses(cToken, asset);
 
+        _exitCurvance(
+            cToken,
+            asset,
+            shares,
+            expectedAssets,
+            forceRedeemCollateral,
+            receiver
+        );
+    }
+
+    /// @notice Exits a Curvance position.
+    /// @param cToken The address of the cToken to be redeemed from.
+    /// @param asset The expected asset of `cToken`.
+    /// @param shares The amount of shares to redeemed.
+    /// @param expectedAssets The amount of assets expected to be redeemed
+    ///                       on exiting Curvance position.
+    /// @param forceRedeemCollateral Whether the collateral should be always
+    ///                              reduced from callers collateralPosted.
+    /// @param receiver Address that should receive redeemed assets.
+    function _exitCurvance(
+        address cToken,
+        address asset,
+        uint256 shares,
+        uint256 expectedAssets,
+        bool forceRedeemCollateral,
+        address receiver
+    ) internal {
         uint256 assets;
 
         // Transfer tokens exited to the Zapper.
@@ -193,58 +231,53 @@ abstract contract ZapperBase is ReentrancyGuard {
 
         // Return any excess assets remaining back to the user.
         if (assets > expectedAssets) {
-            _transferToRecipient(
-                underlying,
-                recipient,
-                assets - expectedAssets
-            );
+            _transferToRecipient(asset, receiver, assets - expectedAssets);
         }
     }
 
     /// @notice Repays Curvance lenders outstanding debt owed on behalf
-    ///         of `recipient`.
+    ///         of `receiver`.
     /// @param borrowableCToken The Curvance token address to repay
     ///                         outstanding debt to.
-    /// @param debtToken The underlying token for `cToken` to repay
-    ///                         debt in.
-    /// @param amount The amount of cToken underlying on hand.
-    /// @param repayAmount The amount of debt to be repaid.
-    /// @param recipient Address that should have outstanding debt repaid.
-    /// @return The excess amount of cToken underlying that was
-    ///         returned to `recipient`.
+    /// @param debtAsset The asset token for `borrowableCToken` to repay
+    ///                  debt in.
+    /// @param assetsHeld The amount of `debtAsset` on hand.
+    /// @param repayAssets The amount of debt to be repaid.
+    /// @param receiver Address that should have outstanding debt repaid.
+    /// @return The amount of `debtAsset` that was returned to `receiver`.
     function _repayDebt(
         address borrowableCToken,
-        address debtToken,
-        uint256 amount,
-        uint256 repayAmount,
-        address recipient
+        address debtAsset,
+        uint256 assetsHeld,
+        uint256 repayAssets,
+        address receiver
     ) internal returns (uint256) {
         // Revert if the swap experienced too much slippage.
-        if (amount < repayAmount) {
+        if (assetsHeld < repayAssets) {
             revert ZapperBase__InsufficientToRepay();
         }
 
-        // Approve `debtToken` transfer to cToken contract, if needed.
-        SwapperLib._approveTokenIfNeeded(
-            debtToken,
+        // Approve `debtAsset` transfer to cToken contract, if needed.
+        SwapperLib._approveIfNeeded(
+            debtAsset,
             borrowableCToken,
-            repayAmount
+            repayAssets
         );
 
         // Execute repayment of outstanding debt.
-        IBorrowableCToken(borrowableCToken).repayFor(recipient, repayAmount);
+        IBorrowableCToken(borrowableCToken).repayFor(repayAssets, receiver);
 
         // Remove any excess approval.
-        SwapperLib._removeApprovalIfNeeded(debtToken, borrowableCToken);
+        SwapperLib._removeApprovalIfNeeded(debtAsset, borrowableCToken);
 
-        amount -= repayAmount;
+        assetsHeld -= repayAssets;
 
-        // Transfer any remaining `debtToken` to `recipient`.
-        if (amount > 0) {
-            _transferToRecipient(debtToken, recipient, amount);
+        // Transfer any remaining `debtAsset` to `receiver`.
+        if (assetsHeld > 0) {
+            _transferToRecipient(debtAsset, receiver, assetsHeld);
         }
 
-        return amount;
+        return assetsHeld;
     }
 
     /// @notice Prepares for an upcoming swap based on input parameters
@@ -260,7 +293,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         uint256 inputAmount,
         bool depositAsWrappedNative
     ) internal {
-        if (CommonLib._isETH(inputToken)) {
+        if (CommonLib._isNative(inputToken)) {
             // Validate message has gas token attached.
             if (inputAmount != msg.value) {
                 revert ZapperBase__ExecutionError();
@@ -280,22 +313,44 @@ abstract contract ZapperBase is ReentrancyGuard {
         );
     }
 
-    /// @notice Helper function for efficiently transferring tokens
-    ///         to desired user.
-    /// @param token The token to transfer to `recipient`,
-    ///              this can be the network gas token.
-    /// @param recipient The user receiving `token`.
-    /// @param amount The amount of `token` to be transferred to `recipient`.
-    function _transferToRecipient(
-        address token,
-        address recipient,
-        uint256 amount
-    ) internal {
-        if (CommonLib._isETH(token)) {
-            return SafeTransferLib.safeTransferETH(recipient, amount);
+    /// @notice Checks whether address parameters for a particular zapper
+    ///         action on valid.
+    /// @param cToken The Curvance cToken address.
+    /// @param asset The input token address, should match `cToken`.asset().
+    function _checkAddresses(
+        address cToken,
+        address asset
+    ) internal view returns (address cTokenAsset) {
+        // Validate `cToken` exists, otherwise transfer their tokens
+        // back and return.
+        if (cToken == address(0)) {
+            revert ZapperBase__ExecutionError ();
         }
 
-        SafeTransferLib.safeTransfer(token, recipient, amount);
+        cTokenAsset = ICToken(cToken).asset();
+
+        // Validate `asset` matches asset of cToken contract.
+        if (asset != cTokenAsset) {
+            revert ZapperBase__UnderlyingTokenIsNotInputToken();
+        }
+    }
+
+    /// @notice Helper function for efficiently transferring tokens
+    ///         to desired user.
+    /// @param token The token to transfer to `receiver`,
+    ///              this can be the network gas token.
+    /// @param receiver The user receiving `token`.
+    /// @param amount The amount of `token` to be transferred to `receiver`.
+    function _transferToRecipient(
+        address token,
+        address receiver,
+        uint256 amount
+    ) internal {
+        if (CommonLib._isNative(token)) {
+            return SafeTransferLib.safeTransferETH(receiver, amount);
+        }
+
+        SafeTransferLib.safeTransfer(token, receiver, amount);
     }
 
     /// @dev Internal helper for reverting efficiently.

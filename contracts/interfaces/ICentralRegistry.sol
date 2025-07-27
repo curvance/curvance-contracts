@@ -220,6 +220,11 @@ interface ICentralRegistry {
         uint256 era
     ) external view returns (uint256);
 
+    /// @notice Checks if a market is unlocked for auction operations.
+    /// @return Whether the caller is an unlocked market, approved for
+    ///         auction-based liquidations.
+    function isMarketUnlocked() external view returns (bool);
+
     /// @notice Sets the amount of token rewards allocated on this chain,
     ///         for an epoch.
     /// @dev Only callable by the Voting Hub.
@@ -230,4 +235,15 @@ interface ICentralRegistry {
         uint256 epoch,
         uint256 emissionsAllocated
     ) external;
+
+    /// @notice Checks whether `user` has transferability enabled or disabled
+    ///         for their tokens.
+    /// @dev This is inherited from ActionRegistry portion of centralRegistry.
+    /// @param user The address to check whether transferability is enabled or
+    ///             disabled for.
+    /// @return result Indicates whether `user` has transferability disabled
+    ///                or not, true = disabled, false = not disabled.
+    function checkTransfersDisabled(
+        address user
+    ) external view returns (bool result);
 }

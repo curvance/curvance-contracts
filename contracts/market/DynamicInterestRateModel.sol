@@ -2,6 +2,8 @@
 pragma solidity ^0.8.26;
 
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
@@ -411,19 +413,13 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
         // Pull current interest rate.
         if (belowVertex) {
-            unchecked {
-                borrowRate = _getBaseInterestRate(util);
-            }
+            borrowRate = _getBaseRate(util);
         } else {
-            // We know this will not underflow or overflow,
-            // because of Interest Rate Model configurations.
-            unchecked {
-                borrowRate = (_getVertexInterestRate(util - vertexPoint) +
-                    _getBaseInterestRate(vertexPoint));
-            }
+            borrowRate = _getBaseRate(vertexPoint) +
+                _getVertexRate(util - vertexPoint);
         }
 
-        // Execute interest rate update if necessary.
+        // Update interest rate vertex multiplier, if necessary.
         if (block.timestamp >= updateTimestamp()) {
             // If the vertex multiplier is already at its minimum,
             // and would decrease more, can break here.
@@ -515,28 +511,28 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     /// @notice Calculates the borrow utilization rate of the market.
     /// @param assetsHeld The amount of underlying assets held in the pool.
     /// @param outstandingDebt The amount of outstanding debt in the pool.
-    /// @return The utilization rate between [0, WAD].
+    /// @return result The utilization rate between [0, WAD].
     function utilizationRate(
         uint256 assetsHeld,
         uint256 outstandingDebt
-    ) public pure returns (uint256) {
+    ) public pure returns (uint256 result) {
         // Utilization rate is 0 when there are no outstanding debt.
         if (outstandingDebt == 0) {
             return 0;
         }
 
-        return (outstandingDebt * WAD) / (assetsHeld + outstandingDebt);
+        result = _mulDiv(outstandingDebt, WAD, assetsHeld + outstandingDebt);
     }
 
     /// @notice Calculates the current borrow rate per second,
     ///         with updated vertex multiplier applied.
     /// @param assetsHeld The amount of underlying assets held in the pool.
     /// @param outstandingDebt The amount of outstanding debt in the pool.
-    /// @return The borrow rate percentage per second, in `WAD`.
+    /// @return result The borrow rate percentage per second, in `WAD`.
     function getPredictedBorrowRate(
         uint256 assetsHeld,
         uint256 outstandingDebt
-    ) public view returns (uint256) {
+    ) public view returns (uint256 result) {
         uint256 util = utilizationRate(assetsHeld, outstandingDebt);
         RatesConfiguration memory config = ratesConfig;
         uint256 vertexPoint = config.vertexStartingPoint;
@@ -544,20 +540,21 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         // Query base interest rate directly since vertex multiplier is not
         // applied.
         if (util <= vertexPoint) {
-            return _getBaseInterestRate(util);
+            return _getBaseRate(util);
         }
 
         if (vertexMultiplier() == WAD && util < config.increaseThreshold) {
-            return (_getVertexInterestRate(util - vertexPoint) +
-                _getBaseInterestRate(vertexPoint));
+            return (_getVertexRate(util - vertexPoint) +
+                _getBaseRate(vertexPoint));
         }
 
-        uint256 vertexInterestRate = ratesConfig.vertexInterestRate;
         uint256 newMultiplier = _updateForAboveVertex(config, util);
-        return
-            _getBaseInterestRate(vertexPoint) +
-            ((util - vertexPoint) * vertexInterestRate * newMultiplier) /
-            WAD_SQUARED;
+        result = _getBaseRate(vertexPoint) +
+        _mulDiv(
+            util - vertexPoint,
+            config.vertexInterestRate * newMultiplier,
+            WAD_SQUARED
+        );
     }
 
     /// @notice Calculates the current borrow rate, per second.
@@ -565,26 +562,23 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///     should not be used for onchain execution.
     /// @param assetsHeld The amount of underlying assets held in the pool.
     /// @param outstandingDebt The amount of outstanding debt in the pool.
-    /// @return The borrow interest rate percentage, per second, in `WAD`.
+    /// @return result The borrow interest rate percentage, per second,
+    ///                in `WAD`.
     function getBorrowRate(
         uint256 assetsHeld,
         uint256 outstandingDebt
-    ) public view returns (uint256) {
+    ) public view returns (uint256 result) {
         uint256 util = utilizationRate(assetsHeld, outstandingDebt);
         uint256 vertexPoint = ratesConfig.vertexStartingPoint;
 
         if (util <= vertexPoint) {
             unchecked {
-                return _getBaseInterestRate(util);
+                return _getBaseRate(util);
             }
         }
 
-        // We know this will not underflow or overflow,
-        // because of Interest Rate Model configurations.
-        unchecked {
-            return (_getVertexInterestRate(util - vertexPoint) +
-                _getBaseInterestRate(vertexPoint));
-        }
+        result =
+            _getBaseRate(vertexPoint) + _getVertexRate(util - vertexPoint);
     }
 
     /// @notice Calculates the current supply rate, per second.
@@ -601,15 +595,19 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 outstandingDebt,
         uint256 interestFee
     ) public view returns (uint256 result) {
-        // RateToPool = (borrowRate * (1 - Interest Fee)) / WAD.
-        uint256 rateToPool = (getBorrowRate(
-            assetsHeld,
-            outstandingDebt
-        ) * (WAD - interestFee)) / WAD;
+        // RateToLenders = (borrowRate * (1 - Interest Fee)) / WAD.
+        uint256 rateToLenders =  _mulDiv(
+            getBorrowRate(assetsHeld, outstandingDebt),
+            WAD - interestFee,
+            WAD
+        );
 
-        // Supply Rate = (utilizationRate * rateToPool) / WAD.
-        result =
-            (utilizationRate(assetsHeld, outstandingDebt) * rateToPool) / WAD;
+        // Supply Rate = (utilizationRate * rateToLenders) / WAD.
+        result = _mulDiv(
+            utilizationRate(assetsHeld, outstandingDebt),
+            rateToLenders,
+            WAD
+        );
     }
 
     /// @notice Returns the multiplier applied to the vertex interest rate,
@@ -641,27 +639,29 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Calculates the interest rate for `util` market utilization.
-    /// @param util The utilization rate of the market.
-    /// @return Returns the calculated interest rate, in `WAD`.
-    function _getBaseInterestRate(
+    /// @param util The utilization rate of the market, in `WAD`.
+    /// @return result The calculated base interest rate, in `WAD`.
+    function _getBaseRate(
         uint256 util
-    ) internal view returns (uint256) {
-        return (util * ratesConfig.baseInterestRate) / WAD;
+    ) internal view returns (uint256 result) {
+        result = _mulDiv(util, ratesConfig.baseInterestRate, WAD);
     }
 
     /// @notice Calculates the interest rate under `vertexInterestRate`
     ///         conditions, e.g. `util` > `vertex ` based on market
     ///         utilization.
     /// @param util The utilization rate of the market above
-    ///            `vertexStartingPoint`.
-    /// @return Returns the calculated interest rate, in `WAD`.
-    function _getVertexInterestRate(
+    ///            `vertexStartingPoint`, in `WAD`.
+    /// @return result The calculated vertex interest rate, in `WAD`.
+    function _getVertexRate(
         uint256 util
-    ) internal view returns (uint256) {
-        // We divide by WAD to maintain precision.
-        return
-            (util * ratesConfig.vertexInterestRate * vertexMultiplier()) /
-            WAD_SQUARED;
+    ) internal view returns (uint256 result) {
+        // We divide by WAD_SQUARED instead of WAD to maintain precision.
+        result = _mulDiv(
+            util,
+            ratesConfig.vertexInterestRate * vertexMultiplier(),
+            WAD_SQUARED
+        );
     }
 
     /// @notice Updates the parameters of the dynamic interest rate model
@@ -746,26 +746,27 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
         RatesConfiguration storage config = ratesConfig;
 
-        config.baseInterestRate =
-            (baseRatePerYear * WAD) /
-            (_SECONDS_PER_YEAR * vertexUtilStart);
-        config.vertexInterestRate =
-            (vertexRatePerYear * WAD) /
-            (_SECONDS_PER_YEAR * (WAD - vertexUtilStart));
+        config.baseInterestRate = _mulDiv(
+            baseRatePerYear,
+            WAD,
+            _SECONDS_PER_YEAR * vertexUtilStart
+        );
+
+        config.vertexInterestRate = _mulDiv(
+            vertexRatePerYear,
+            WAD,
+            _SECONDS_PER_YEAR * (WAD - vertexUtilStart)
+        );
 
         config.vertexStartingPoint = vertexUtilStart;
         config.vertexMultiplierMax = vertexMultiplierMax;
         config.adjustmentRate = adjustmentRate;
         config.adjustmentVelocity = adjustmentVelocity;
 
-        {
-            // Scoping to avoid stack too deep.
-            uint256 newMultiplier = vertexReset ? WAD : vertexMultiplier();
-            _currentRates = _packRatesData(
-                newMultiplier,
-                uint64(block.timestamp + config.adjustmentRate)
-            );
-        }
+        _currentRates = _packRatesData(
+            vertexReset ? WAD : vertexMultiplier(),
+            uint64(block.timestamp + config.adjustmentRate)
+        );
 
         config.decayRate = decayRate;
 
@@ -826,7 +827,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ) internal view returns (uint256) {
         uint256 currentMultiplier = vertexMultiplier();
         // Calculate decay rate.
-        uint256 decay = (currentMultiplier * config.decayRate) / WAD;
+        uint256 decay = _mulDiv(currentMultiplier, config.decayRate, WAD);
         uint256 newMultiplier;
 
         if (util <= config.increaseThreshold) {
@@ -888,7 +889,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ) internal view returns (uint256) {
         uint256 currentMultiplier = vertexMultiplier();
         // Calculate decay rate.
-        uint256 decay = (currentMultiplier * config.decayRate) / WAD;
+        uint256 decay = _mulDiv(currentMultiplier, config.decayRate, WAD);
         uint256 newMultiplier;
 
         if (util <= config.decreaseThresholdMax) {
@@ -896,10 +897,11 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
             // We only need to adjust for 1e18 precision since `shift`
             // is not used here.
             // currentMultiplier / (1 + adjustmentVelocity) = newMultiplier.
-            newMultiplier =
-                ((currentMultiplier * WAD) /
-                    (WAD + config.adjustmentVelocity)) -
-                decay;
+            newMultiplier = _mulDiv(
+                currentMultiplier,
+                WAD,
+                WAD + config.adjustmentVelocity
+            ) - decay;
 
             // Check if decay rate sends multiplier below 1.
             return newMultiplier < WAD ? WAD : newMultiplier;
@@ -943,8 +945,8 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///              the calculation range.
     /// @param end The end value of the curve, marking the end of the
     ///            calculation range.
-    /// @return The new multiplier with the calculated shift value,
-    ///         and decay rate applied.
+    /// @return result The new multiplier with the calculated shift value,
+    ///                and decay rate applied.
     function _getPositiveShift(
         uint256 multiplier,
         uint256 adjustmentVelocity,
@@ -952,12 +954,12 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 current, // `util`.
         uint256 start, // `increaseThreshold`.
         uint256 end // `increaseThresholdMax`.
-    ) internal pure returns (uint256) {
+    ) internal pure returns (uint256 result) {
         // We do not need to check for current >= end, since we know util is
         // the absolute maximum utilization is 100%, and thus current == end.
         // Which will result in WAD result for `shift`.
         // Thus, this will be bound between [0, WAD].
-        uint256 shift = ((current - start) * WAD) / (end - start);
+        uint256 shift = _mulDiv(current - start, WAD, end - start);
 
         // Apply shift result to adjustment velocity.
         // Then add 100% on top for final adjustment value to `multiplier`.
@@ -965,7 +967,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
         // Apply positive `shift` effect to `currentMultiplier`, and
         // adjust for 1e36 precision. Then apply decay effect.
-        return ((multiplier * shift) / WAD_SQUARED) - decay;
+        result = _mulDiv(multiplier, shift, WAD_SQUARED) -  decay;
     }
 
     /// @notice Calculates negative shift value based on `current`,
@@ -989,8 +991,8 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///              the calculation range.
     /// @param end The end value of the curve, marking the end of the
     ///            calculation range.
-    /// @return The new multiplier with the calculated shift value,
-    ///         and decay rate applied.
+    /// @return result The new multiplier with the calculated shift value,
+    ///                and decay rate applied.
     function _getNegativeShift(
         uint256 multiplier,
         uint256 adjustmentVelocity,
@@ -998,11 +1000,11 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 current, // `util`.
         uint256 start, // `decreaseThreshold`.
         uint256 end // `decreaseThresholdMax`.
-    ) internal pure returns (uint256) {
+    ) internal pure returns (uint256 result) {
         // Calculate linear curve multiplier. We know that current > end,
         // based on pre conditional checks.
         // Thus, this will be bound between [0, WAD].
-        uint256 shift = ((start - current) * WAD) / (start - end);
+        uint256 shift = _mulDiv(start - current, WAD, start - end);
 
         // Apply shift result to adjustment velocity.
         // Then add 100% on top for final adjustment value to `multiplier`.
@@ -1010,7 +1012,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
         // Apply negative `shift` effect to `currentMultiplier`, and
         // adjust for 1e36 precision. Then apply decay effect.
-        return ((multiplier * WAD_SQUARED) / shift) - decay;
+        result = _mulDiv(multiplier, WAD_SQUARED, shift) -  decay;
     }
 
     /// @notice Packs `newVertexMultiplier` together with `newTimestamp`,
@@ -1045,17 +1047,28 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     /// @param newTimestamp The new timestamp when the vertex multiplier
     ///                     will be updated.
     function _setUpdateTimestamp(uint64 newTimestamp) internal {
-        uint256 packedRatesData = _currentRates;
+        uint256 currentRates = _currentRates;
         uint256 timestampCasted;
+
         // Cast `timestampCasted` with assembly to avoid redundant masking.
         /// @solidity memory-safe-assembly
         assembly {
             timestampCasted := newTimestamp
         }
-        packedRatesData =
-            (packedRatesData & _BITMASK_VERTEX_MULTIPLIER) |
+        currentRates =
+            (currentRates & _BITMASK_VERTEX_MULTIPLIER) |
             (timestampCasted << _BITPOS_UPDATE_TIMESTAMP);
-        _currentRates = packedRatesData;
+        _currentRates = currentRates;
+    }
+
+    /// @dev Returns `floor(x * y / d)`.
+    /// Reverts if `x * y` overflows, or `d` is zero.
+    function _mulDiv(
+        uint256 x,
+        uint256 y,
+        uint256 d
+    ) internal pure returns (uint256 z) {
+        z = FixedPointMathLib.mulDiv(x, y, d);
     }
 
     /// @dev Internal helper for reverting efficiently.

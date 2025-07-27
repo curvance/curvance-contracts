@@ -11,7 +11,7 @@ struct AccountSnapshot {
     bool isCollateral;
     uint256 exchangeRate;
     uint256 collateralPosted;
-    uint256 debtOutstanding;
+    uint256 debtBalance;
 }
 
 interface ICToken {
@@ -19,8 +19,8 @@ interface ICToken {
     /// @dev This initial mint is a failsafe against rounding exploits,
     ///      although, we protect against them in many ways,
     ///      better safe than sorry.
-    /// @param by The account initializing the market.
-    function startMarket(address by) external returns (bool);
+    /// @param by The account initializing deposits.
+    function initializeDeposits(address by) external returns (bool);
 
     /// @notice Returns the decimals of the cToken.
     /// @dev We pull directly from underlying incase its a proxy contract,
@@ -36,8 +36,8 @@ interface ICToken {
 
     /// @notice The token balance of an account.
     /// @dev Account address => account token balance.
-    /// @param user User to query token balance for.
-    function balanceOf(address user) external view returns (uint256);
+    /// @param account The address of the account to query token balance for.
+    function balanceOf(address account) external view returns (uint256);
 
     /// @notice Returns the address of the underlying asset.
     /// @return The address of the underlying asset.
@@ -84,7 +84,8 @@ interface ICToken {
         Multicall.MulticallData[] memory calls
     ) external returns (bytes[] memory results);
 
-    /// @notice Caller deposits assets into the market and receives shares.
+    /// @notice Caller deposits `assets` into the market and `receiver`
+    ///         receives shares.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param receiver The account that should receive the shares.
     /// @return shares The amount of shares received by `receiver`.
@@ -93,10 +94,10 @@ interface ICToken {
         address receiver
     ) external returns (uint256 shares);
 
-    /// @notice Caller deposits assets into the market, `receiver` receives
-    ///         shares, and turns on collateralization of the assets.
+    /// @notice Caller deposits `assets` into the market, `receiver` receives
+    ///         shares, and collateralization of `assets` is enabled.
     /// @dev The caller must be depositing for themselves, or be managing
-    ///      their position through the position folding contract.
+    ///      their position through a Position Manager contract.
     ///      If the caller is not approved to collateralize the function will
     ///      simply deposit assets on behalf of `receiver`.
     /// @param assets The amount of the underlying assets to deposit.
@@ -107,8 +108,8 @@ interface ICToken {
         address receiver
     ) external returns (uint256 shares);
 
-    /// @notice Caller deposits assets into the market, `receivier` receives
-    ///         shares, and turns on collateralization of the assets.
+    /// @notice Caller deposits `assets` into the market, `receiver` receives
+    ///         shares, and collateralization of `assets` is enabled.
     /// @dev Requires that `receiver` approves the caller prior to
     ///      collateralize on their behalf.
     ///      NOTE: Be careful who you approve here!
@@ -124,61 +125,84 @@ interface ICToken {
         address receiver
     ) external returns (uint256 shares);
 
-    /// @notice Caller withdraws assets from the market and burns their shares,
-    ///         on behalf of `owner`.
+    /// @notice Withdraws assets, quoted in `shares` from the market,
+    ///         and burns `owner` shares, sending assets to `receiver`.
+    /// @dev Does not force collateral to be withdrawn.
     /// @param shares The amount of shares to redeemed.
     /// @param receiver The account that should receive the assets.
-    /// @param owner The account that will burn their shares to withdraw assets.
-    /// @return assets the amount of assets redeemed by `owner`.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
+    /// @return assets The amount of assets redeemed by `owner` and sent to
+    ///                `receiver`.
     function redeemFor(
         uint256 shares,
         address receiver,
         address owner
     ) external returns (uint256 assets);
 
-    /// @notice Caller withdraws assets from the market and burns their shares,
-    ///         on behalf of `owner`.
+    /// @notice Caller withdraws assets from the market and burns their
+    ///         shares, on behalf of `owner`.
+    /// @dev Forces collateral to be withdrawn from `owner` collateralPosted.
     /// @param shares The amount of shares to redeemed.
     /// @param receiver The account that should receive the assets.
-    /// @param owner The account that will burn their shares to withdraw assets.
-    /// @return assets the amount of assets redeemed by `owner`.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
+    /// @return assets The amount of assets redeemed by `owner` and sent to
+    ///                `receiver`.
     function redeemCollateralFor(
         uint256 shares,
         address receiver,
         address owner
     ) external returns (uint256 assets);
 
-    /// @notice Helper function for Position Management contract to
-    ///         redeem assets.
-    /// @param owner The owner address of assets to redeem.
+    /// @notice Used by a Position Manager contract to redeem assets from
+    ///         collateralized shares by `account` to perform a complex
+    ///         action.
     /// @param assets The amount of the underlying assets to redeem.
-    /// @param deleverageData The data for the deleverage operation.
+    /// @param owner The owner address of assets to redeem.
+    /// @param action Instructions for a deleverage action containing:
+    ///               cToken Address of the cToken that will be redeemed from
+    ///                      and assets swapped into `borrowableCToken` asset.
+    ///               collateralAssets The amount of `cToken` that will be
+    ///                                deleveraged, in assets.
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will have its debt paid.
+    ///               repayAssets The amount of `borrowableCToken` asset that
+    ///                           will be repaid to lenders.
+    ///               swapAction Swap actions instructions converting
+    ///                          collateral asset into debt asset to
+    ///                          facilitate deleveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       deleverage action.
     function withdrawByPositionManager(
-        address owner,
         uint256 assets,
-        IPositionManager.DeleverageStruct memory deleverageData
+        address owner,
+        IPositionManager.DeleverageAction memory action
     ) external;
 
     /// @notice Amount of tokens that has been posted as collateral,
     ///         in shares.
     function marketCollateralPosted() external view returns (uint256);
 
-    /// @notice Collateral information associated with an account.
-    /// @param account The address of the account to check collateral posted of.
-    function collateralPosted(address account) external view returns (uint256);
+    /// @notice Shares of this token that an account has posted as collateral.
+    /// @param account The address of the account to check collateral posted
+    ///                of.
+    function collateralPosted(
+        address account
+    ) external view returns (uint256);
 
     /// @notice Transfers tokens from `account` to `liquidator`.
     /// @dev Will fail unless called by a cToken during the process
     ///      of liquidation.
+    /// @param shares An array containing the number of cToken shares
+    ///               to seize.
     /// @param liquidator The account receiving seized cTokens.
     /// @param accounts An array containing the accounts having
     ///                 collateral seized.
-    /// @param shares An array containing the number of cToken shares
-    ///               to seize.
     function seize(
+        uint256[] calldata shares,
         address liquidator,
-        address[] calldata accounts,
-        uint256[] calldata shares
+        address[] calldata accounts
     ) external;
 
     /// @notice Allows users to simulate the effects of their deposit at

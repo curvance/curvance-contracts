@@ -58,15 +58,15 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
         uint256 pid_,
         address rewarder_,
         address booster_,
-        uint256 exitFee_,
-        uint256 vestPeriod_
+        uint256 vestingPeriod_,
+        uint256 exitFee_
     )
         StrategyCTokenWithExitFee(
             centralRegistry_,
             asset_,
             marketManager_,
-            exitFee_,
-            vestPeriod_
+            vestingPeriod_,
+            exitFee_
         )
     {
         strategyData.pid = pid_;
@@ -202,7 +202,7 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
             // claim aura rewards
             sd.rewarder.getReward(address(this), true);
 
-            (SwapperLib.Swap[] memory swapDataArray, uint256 minLPAmount) = abi
+            (SwapperLib.Swap[] memory swapActions, uint256 minLPAmount) = abi
                 .decode(data, (SwapperLib.Swap[], uint256));
 
             {
@@ -242,7 +242,7 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
                     if (!isUnderlyingToken[rewardToken]) {
                         SwapperLib._swapUnsafe(
                             centralRegistry,
-                            swapDataArray[i]
+                            swapActions[i]
                         );
                     }
                 }
@@ -265,7 +265,7 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
                         address(this)
                     );
 
-                    SwapperLib._approveTokenIfNeeded(
+                    SwapperLib._approveIfNeeded(
                         underlyingToken,
                         address(sd.balancerVault),
                         maxAmountsIn[i]

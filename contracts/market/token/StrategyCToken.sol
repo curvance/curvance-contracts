@@ -4,25 +4,24 @@ pragma solidity ^0.8.26;
 import { BaseCTokenWithYield, FixedPointMathLib, WAD, IERC20, ICentralRegistry } from "contracts/market/token/BaseCTokenWithYield.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-/// @notice Vault Positions must have all assets ready for withdraw,
-///         IE assets can NOT be locked.
-///         This way assets can be easily liquidated when loans default.
-/// @dev Each Curvance token vault run must be a LOSSLESS position, since
+/// @dev `Asset()` Positions must have all assets ready for withdraw,
+///      IE assets can NOT be locked.
+///      This way assets can be easily liquidated when loans default.
+///
+///      Each Curvance strategy run must be a LOSSLESS position, since
 ///      totalAssets is not actually using the balances stored in the
 ///      contract, rather it only uses an internal balance.
 abstract contract StrategyCToken is BaseCTokenWithYield {
     /// CONSTANTS ///
 
-    /// @dev Mask of vesting rate entry in `_vestingData`.
+    /// @dev Mask of vesting rate in `_vestingData`.
     uint256 internal constant _BITMASK_VESTING_RATE = (1 << 176) - 1;
-    /// @dev Mask of a timestamp entry in `_vestingData`.
-    uint256 internal constant _BITMASK_TIMESTAMP = (1 << 40) - 1;
     /// @dev Mask of all bits in `_vestingData` except the 40 bits for
-    ///      `lastVestingClaim`.
+    ///      last vesting claim.
     uint256 internal constant _BITMASK_LAST_CLAIM_COMPLEMENT = (1 << 216) - 1;
-    /// @dev The bit position of `vestingPeriodEnd` in `_vestingData`.
+    /// @dev The bit position of vesting period end in `_vestingData`.
     uint256 internal constant _BITPOS_VEST_END = 176;
-    /// @dev The bit position of `lastVestingClaim` in `_vestingData`.
+    /// @dev The bit position of last vesting claim in `_vestingData`.
     uint256 internal constant _BITPOS_LAST_VEST = 216;
 
     /// STORAGE ///
@@ -51,12 +50,24 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
 
     /// CONSTRUCTOR ///
 
+    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param asset_ The address of the underlying asset for this cToken.
+    /// @param marketManager_ The address of the MarketManager which manages
+    ///                       liquidity positions between linked cTokens
+    ///                       inside a joint market.
+    /// @param vestingPeriod_ The length of time a vesting period will last,
+    ///                       in seconds.
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address marketManager_,
-        uint256 vestPeriod_
-    ) BaseCTokenWithYield(centralRegistry_, asset_, marketManager_, vestPeriod_) {}
+        uint256 vestingPeriod_
+    ) BaseCTokenWithYield(
+        centralRegistry_,
+        asset_,
+        marketManager_,
+        vestingPeriod_
+    ) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -105,15 +116,15 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
 
     /// @notice Vests pending rewards, and updates vesting data.
     function _accrueIfNeeded() internal override {
-        uint256 pendingYieldToVest = _getPendingYield();
+        uint256 yieldToVest = _getPendingYield();
         
         // Vest pending yield, if there is any.
-        if (pendingYieldToVest > 0) {
+        if (yieldToVest > 0) {
             // Update the lastVestingClaim timestamp.
             _setlastVestingClaim(uint40(block.timestamp));
             
             // Update _totalAssets invariant with pending yield added.
-            _totalAssets = _totalAssets + pendingYieldToVest;
+            _totalAssets = _totalAssets + yieldToVest;
         }
     }
 
@@ -133,26 +144,60 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
         );
     }
 
+    /// @notice Calculates pending yield that has been vested.
+    /// @dev If there are no pending yield or the vesting period has ended,
+    ///      it returns 0.
+    /// @return pendingYield The calculated pending yield, in assets.
+    function _getPendingYield(
+        uint256 vestingRate,
+        uint256 vestingPeriodEnd,
+        uint256 lastVestingClaim
+    )
+        internal
+        view
+        returns (uint256 pendingYield)
+    {
+        // Check whether there are pending yield vesting.
+        if (vestingRate > 0 && lastVestingClaim < vestingPeriodEnd) {
+            // When calculating pending yield:
+            // pendingYield =
+            // If the vesting period has not ended:
+            // PY = vestingRate * (block.timestamp - lastTimeVestClaimed).
+            // If the vesting period has ended:
+            // PY = vestingRate * (vestingPeriodEnd - lastTimeVestClaimed)).
+            // Then in either case:
+            // Divide the pending yield by `WAD` (1e18) for precision.
+            pendingYield =
+                (
+                    block.timestamp < vestingPeriodEnd
+                        ? vestingRate * (block.timestamp - lastVestingClaim)
+                        : vestingRate * (vestingPeriodEnd - lastVestingClaim)
+                ) /
+                WAD;
+        }
+    }
+
     /// @notice Sets a new `_vestingData` invariant based on `yieldToVest`,
     ///         calculated from the yield generated by a strategy.
     /// @param yieldToVest The yield to vest over `vestingPeriod`.
     function _setVestingData(uint256 yieldToVest) internal {
-        uint256 cachedVestingData = vestingPeriod;
+        uint256 cachedVestingPeriod = vestingPeriod;
 
-        // Set vestingRate equal to `yieldToVest` prorated over
+        // Set yield vesting rate equal to `yieldToVest` prorated over
         // `periodToVest`, in `WAD` (1e18).
         uint256 newVestingRate =
-            FixedPointMathLib.mulDiv(yieldToVest, WAD, cachedVestingData);
-        uint256 newVestingEnd = block.timestamp + cachedVestingData;
+            FixedPointMathLib.mulDiv(yieldToVest, WAD, cachedVestingPeriod);
+        uint256 newVestingEnd = block.timestamp + cachedVestingPeriod;
         
-        // Reuse cachedVestingData as a temporary variable.
+        // Reuse `cachedVestingPeriod` as a temporary variable to store the
+        // new packed `_vestingData`.
         assembly {
             // Mask `newVestingRate` to the lower 176 bits,
             // in case the upper bits somehow aren't clean.
             newVestingRate := and(newVestingRate, _BITMASK_VESTING_RATE)
             // Equals `newVestingRate | (newVestingEnd << _BITPOS_VEST_END) |
             //          block.timestamp`.
-            cachedVestingData := or(
+            cachedVestingPeriod := or(
                 newVestingRate,
                 or(
                     shl(_BITPOS_VEST_END, newVestingEnd),
@@ -161,15 +206,15 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
             )
         }
 
-        _vestingData = cachedVestingData;
+        _vestingData = cachedVestingPeriod;
     }
 
     /// @notice Sets the last vest claim data for the vault.
     /// @param newVestClaim The new timestamp to record as
     ///                     the last vesting claim.
     function _setlastVestingClaim(uint40 newVestClaim) internal {
-
         uint256 lastVestingClaimCasted;
+
         // Cast `newVestClaim` with assembly to avoid redundant masking.
         assembly {
             lastVestingClaimCasted := newVestClaim
@@ -218,9 +263,9 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     ///      although, we protect against them in many ways,
     ///      better safe than sorry.
     /// @dev Emits a {Deposit} event.
-    /// @param by The account initializing the cToken market.
-    function _startMarket(address by) internal override {
-        super._startMarket(by);
+    /// @param by The account initializing deposits.
+    function _initializeDeposits(address by) internal override {
+        super._initializeDeposits(by);
 
         // Deposit into strategy, shares parameter is unused so we can just
         // pass 0.
@@ -228,7 +273,6 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
 
         _setlastVestingClaim(uint40(block.timestamp));
         harvestingPaused = 1;
-
     }
 
     /// @notice Checks if the caller can harvest pending strategy yield.

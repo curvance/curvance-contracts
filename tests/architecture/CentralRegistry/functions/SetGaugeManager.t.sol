@@ -44,17 +44,14 @@ contract SetGaugeManagerTest is TestBaseMarketIsolated {
         centralRegistry.setGaugeManager(newGaugeManager);
     }
 
+    function test_setGaugeManager_whenZeroAddress() public {
 
-    // No more check to see if the gauge manager is already set
-    
-    // function test_setGaugeManager_fail_whenGaugeManagerIsAlreadySet() public {
-    //     centralRegistry.setGaugeManager(newGaugeManager);
+        vm.expectEmit(true, true, true, true);
+        emit CoreContractUpdated("Gauge Manager", _ZERO_ADDRESS);
+        centralRegistry.setGaugeManager(_ZERO_ADDRESS);
 
-    //     vm.expectRevert(
-    //         CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
-    //     );
-    //     centralRegistry.setGaugeManager(newGaugeManager);
-    // }
+        assertEq(centralRegistry.gaugeManager(), _ZERO_ADDRESS);
+    }
 
     function test_setGaugeManager_success() public {
         assertEq(centralRegistry.gaugeManager(), _ZERO_ADDRESS);

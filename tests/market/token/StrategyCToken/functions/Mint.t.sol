@@ -6,35 +6,35 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
-contract StrategyCTokenMintTest is TestBaseStrategyCToken {
+contract MintTest is TestBaseStrategyCToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function test_strategyCTokenMint_fail_whenTransferZeroAmount() public {
         vm.expectRevert(
             BaseCToken.BaseCToken__ZeroAmount.selector
         );
-        pBALRETH.mint(0, address(this));
+        strategyCBALRETH.mint(0, address(this));
     }
 
     function test_strategyCTokenMint_fail_whenMintIsNotAllowed() public {
-        marketManagerIsolated.setMintPaused(address(pBALRETH), true);
+        marketManagerIsolated.setMintPaused(address(strategyCBALRETH), true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        pBALRETH.mint(100, address(this));
+        strategyCBALRETH.mint(100, address(this));
     }
 
     function test_strategyCTokenMint_success() public {
         uint256 underlyingBalance = balRETH.balanceOf(address(this));
-        uint256 balance = pBALRETH.balanceOf(address(this));
-        uint256 totalSupply = pBALRETH.totalSupply();
+        uint256 balance = strategyCBALRETH.balanceOf(address(this));
+        uint256 totalSupply = strategyCBALRETH.totalSupply();
 
-        vm.expectEmit(true, true, true, true, address(pBALRETH));
+        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
         emit Transfer(address(0), address(this), 100);
 
-        pBALRETH.mint(100, address(this));
+        strategyCBALRETH.mint(100, address(this));
 
         assertEq(balRETH.balanceOf(address(this)), underlyingBalance - 100);
-        assertEq(pBALRETH.balanceOf(address(this)), balance + 100);
-        assertEq(pBALRETH.totalSupply(), totalSupply + 100);
+        assertEq(strategyCBALRETH.balanceOf(address(this)), balance + 100);
+        assertEq(strategyCBALRETH.totalSupply(), totalSupply + 100);
     }
 }

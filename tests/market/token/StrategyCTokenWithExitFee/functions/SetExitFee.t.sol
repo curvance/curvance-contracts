@@ -5,9 +5,7 @@ import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWith
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { StrategyCTokenWithExitFee } from "contracts/market/token/StrategyCTokenWithExitFee.sol";
 
-contract StrategyCTokenWithExitFeeSetExitFeeTest is
-    TestBaseStrategyCTokenWithExitFee
-{
+contract SetExitFeeTest is TestBaseStrategyCTokenWithExitFee {
     event ExitFeeSet(uint256 oldExitFee, uint256 newExitFee);
 
     function test_strategyCTokenWithExitFeeSetExitFee_fail_whenCallerIsNotAuthorized()
@@ -16,7 +14,7 @@ contract StrategyCTokenWithExitFeeSetExitFeeTest is
         vm.prank(user1);
 
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
-        pBALRETHWithExitFee.setExitFee(100);
+        strategyCBALRETHWithExitFee.setExitFee(100);
     }
 
     function test_strategyCTokenWithExitFeeSetExitFee_fail_whenExitFeeExceedsMaximum()
@@ -27,17 +25,17 @@ contract StrategyCTokenWithExitFeeSetExitFeeTest is
                 .StrategyCTokenWithExitFee__InvalidExitFee
                 .selector
         );
-        pBALRETHWithExitFee.setExitFee(201);
+        strategyCBALRETHWithExitFee.setExitFee(201);
     }
 
     function test_strategyCTokenWithExitFeeSetExitFee_success() public {
-        uint256 exitFee = pBALRETHWithExitFee.exitFee();
+        uint256 exitFee = strategyCBALRETHWithExitFee.exitFee();
 
-        vm.expectEmit(true, true, true, true, address(pBALRETHWithExitFee));
+        vm.expectEmit(true, true, true, true, address(strategyCBALRETHWithExitFee));
         emit ExitFeeSet(exitFee, 0.01e18);
 
-        pBALRETHWithExitFee.setExitFee(100);
+        strategyCBALRETHWithExitFee.setExitFee(100);
 
-        assertEq(pBALRETHWithExitFee.exitFee(), 0.01e18);
+        assertEq(strategyCBALRETHWithExitFee.exitFee(), 0.01e18);
     }
 }

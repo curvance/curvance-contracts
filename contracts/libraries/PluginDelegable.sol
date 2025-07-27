@@ -107,9 +107,8 @@ abstract contract PluginDelegable is IPluginDelegable {
         address user,
         address delegate
     ) external view returns (bool result) {
-        result = _isDelegate[
-            user
-        ][centralRegistry.userApprovalIndex(user)][delegate];
+        result = _isDelegate[user][centralRegistry
+            .userApprovalIndex(user)][delegate];
     }
 
     /// @notice Returns whether a user has delegation disabled.
@@ -133,9 +132,8 @@ abstract contract PluginDelegable is IPluginDelegable {
     /// @param delegate The address to check delegation permissions of `user`.
     function _checkDelegate(address user, address delegate) internal view {
         if (
-            !_isDelegate[user][centralRegistry.userApprovalIndex(user)][
-                delegate
-            ]
+            !_isDelegate[user][centralRegistry
+                .userApprovalIndex(user)][delegate]
         ) {
             /// @solidity memory-safe-assembly
             assembly {

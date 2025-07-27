@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { DENOMINATOR, WAD } from "contracts/libraries/Constants.sol";
+import { BASIS_POINTS, WAD } from "contracts/libraries/Constants.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
@@ -13,9 +13,8 @@ import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloP
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
 /// @title Curvance Velodrome Library.
-/// @notice Helper Library for working with Velodrome volatile and stable LP
-///         tokens. Supports both creating and exiting LP positions for better
-///         composability across DeFi.
+/// @notice Helper Library for working with Velodrome LP tokens. Supports both
+///         creating and exiting LP positions for better composability.
 ///         NOTE: This library does not currently support slipstream LPs at
 ///               this time, but may in the future.
 library VelodromeLib {
@@ -35,7 +34,7 @@ library VelodromeLib {
     ///      100 = 1%.
     uint256 public constant VELODROME_ADD_LIQUIDITY_SLIPPAGE = 100;
 
-    /// FUNCTIONS ///
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Enters a Velodrome position based on parameters.
     /// @param router The Velodrome router address to enter through.
@@ -98,7 +97,7 @@ library VelodromeLib {
             lpOutAmount += newLpOutAmount;
         }
 
-        amount1 = CommonLib._getTokenBalance(token1);
+        amount1 = CommonLib._getBalanceOf(token1);
 
         // Check if we are entering through token1 leg.
         if (amount1 > 0) {
@@ -163,7 +162,7 @@ library VelodromeLib {
         bool stable = IVeloPool(lpToken).stable();
 
         // Approve Velodrome lp token.
-        SwapperLib._approveTokenIfNeeded(lpToken, router, lpAmount);
+        SwapperLib._approveIfNeeded(lpToken, router, lpAmount);
 
         // Exit Velodrome position.
         IVeloRouter(router).removeLiquidity(
@@ -200,8 +199,8 @@ library VelodromeLib {
         uint256 slippage
     ) internal returns (uint256 liquidity) {
         // Approve Router to take token0 and token1.
-        SwapperLib._approveTokenIfNeeded(token0, router, amount0);
-        SwapperLib._approveTokenIfNeeded(token1, router, amount1);
+        SwapperLib._approveIfNeeded(token0, router, amount0);
+        SwapperLib._approveIfNeeded(token1, router, amount1);
 
         // Deposit liquidity into Velodrome.
         (, , liquidity) = IVeloRouter(router).addLiquidity(
@@ -210,8 +209,8 @@ library VelodromeLib {
             stable,
             amount0,
             amount1,
-            amount0 - (amount0 * slippage) / DENOMINATOR,
-            amount1 - (amount1 * slippage) / DENOMINATOR,
+            amount0 - (amount0 * slippage) / BASIS_POINTS,
+            amount1 - (amount1 * slippage) / BASIS_POINTS,
             address(this),
             block.timestamp
         );
@@ -249,7 +248,7 @@ library VelodromeLib {
         // sAMM deposit calculation.
         if (stable) {
             a =
-                (((amount0 * DENOMINATOR) / (DENOMINATOR - swapFee)) * WAD) /
+                (((amount0 * BASIS_POINTS) / (BASIS_POINTS - swapFee)) * WAD) /
                 decimals0;
 
             uint256 x = (reserve0 * WAD) / decimals0;
@@ -265,10 +264,10 @@ library VelodromeLib {
         }
 
         // vAMM deposit calculation.
-        uint256 swapFeeFactor = DENOMINATOR - swapFee;
+        uint256 swapFeeFactor = BASIS_POINTS - swapFee;
 
-        a = (DENOMINATOR + swapFeeFactor) * reserve0;
-        uint256 b = amount0 * DENOMINATOR * reserve0 * 4 * swapFeeFactor;
+        a = (BASIS_POINTS + swapFeeFactor) * reserve0;
+        uint256 b = amount0 * BASIS_POINTS * reserve0 * 4 * swapFeeFactor;
         uint256 c = FixedPointMathLib.sqrt(a * a + b);
         uint256 d = swapFeeFactor * 2;
         return (c - a) / d;
@@ -291,7 +290,7 @@ library VelodromeLib {
         bool stable
     ) internal returns (uint256) {
         // Approve Router to take `tokenIn`.
-        SwapperLib._approveTokenIfNeeded(tokenIn, router, amount);
+        SwapperLib._approveIfNeeded(tokenIn, router, amount);
 
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = tokenIn;

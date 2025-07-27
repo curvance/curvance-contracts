@@ -12,16 +12,16 @@ contract IncrementApprovalIndexTest is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
 
-        pBALRETH.setDelegateApproval(user2, true);
+        strategyCBALRETH.setDelegateApproval(user2, true);
 
-        assert(pBALRETH.isDelegate(user1, user2));
+        assert(strategyCBALRETH.isDelegate(user1, user2));
 
         vm.expectEmit(true, true, true, true);
         emit ApprovalIndexIncremented(user1, 1);
 
         centralRegistry.incrementApprovalIndex();
 
-        assert(!pBALRETH.isDelegate(user1, user2)); // Ensure delegation is reset
+        assert(!strategyCBALRETH.isDelegate(user1, user2)); // Ensure delegation is reset
 
         assertEq(centralRegistry.userApprovalIndex(user1), 1);
     }

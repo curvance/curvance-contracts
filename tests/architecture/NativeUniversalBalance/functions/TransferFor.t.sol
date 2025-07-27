@@ -156,15 +156,15 @@ contract NativeUniversalBalanceTransferForTest is
 
         vm.stopPrank();
 
-        uint256 redeemAmount = eWETH.convertToShares(transferAmount);
+        uint256 redeemAmount = borrowableCWETH.convertToShares(transferAmount);
         uint256 ethBalance = address(nativeUniversalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(nativeUniversalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(
+        uint256 borrowableCWETHBalance = borrowableCWETH.balanceOf(
             address(nativeUniversalBalance)
         );
         uint256 userWETHBalance = weth.balanceOf(user2);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, false, true, address(nativeUniversalBalance));
         emit Withdraw(
             user2,
             user2,
@@ -172,7 +172,7 @@ contract NativeUniversalBalanceTransferForTest is
             transferAmount,
             forceLentRedemption
         );
-        vm.expectEmit();
+        vm.expectEmit(true, true, false, true, address(nativeUniversalBalance));
         emit Deposit(user2, user2, transferAmount, willLend);
 
         vm.prank(user2);
@@ -208,16 +208,16 @@ contract NativeUniversalBalanceTransferForTest is
 
         if (forceLentRedemption && !willLend) {
             wethBalance += transferAmount;
-            eWETHBalance -= redeemAmount;
+            borrowableCWETHBalance -= redeemAmount;
         } else if (!forceLentRedemption && willLend) {
             wethBalance -= transferAmount;
-            eWETHBalance += redeemAmount;
+            borrowableCWETHBalance += redeemAmount;
         }
 
         assertEq(weth.balanceOf(address(nativeUniversalBalance)), wethBalance);
         assertEq(
-            eWETH.balanceOf(address(nativeUniversalBalance)),
-            eWETHBalance
+            borrowableCWETH.balanceOf(address(nativeUniversalBalance)),
+            borrowableCWETHBalance
         );
     }
 }

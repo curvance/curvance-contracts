@@ -18,7 +18,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
     function test_updatePositionToken_fail_whenNotPToken() public {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
         marketManager.updatePositionToken(
-            address(eUSDC),
+            address(borrowableCUSDC),
             9100 + 1,
             200,
             300,
@@ -33,7 +33,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
         marketManager.updatePositionToken(
-            address(eUSDC),
+            address(borrowableCUSDC),
             9000,
             200,
             300,
@@ -47,12 +47,12 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
         public
     {
         // when liqInc > _MAX_LIQUIDATION_INCENTIVE
-        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(simpleCBALRETH));
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            address(pBALRETH),
+            address(simpleCBALRETH),
             9000,
             200,
             300,
@@ -64,12 +64,12 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
 
     function test_updatePositionToken_fail_whenCollReqSoftExceedsMax() public {
         // when CollReqSoft > _MAX_COLLATERAL_REQUIREMENT
-        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(simpleCBALRETH));
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            address(pBALRETH),
+            address(simpleCBALRETH),
             9000,
             23500, // collReqSoft
             300,
@@ -83,12 +83,12 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
         public
     {
         // when CollReqHard > CollReqSoft
-        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(simpleCBALRETH));
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            address(pBALRETH),
+            address(simpleCBALRETH),
             9000,
             4000, // CollReqSoft - soft liquidation requirement
             4100,
@@ -100,12 +100,12 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
 
     function test_updatePositionToken_fail_whenCollRatioExceedsMax() public {
         // when collRatio > _MAX_COLLATERALIZATION_RATIO
-        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(simpleCBALRETH));
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            address(pBALRETH),
+            address(simpleCBALRETH),
             9101, // collRatio
             200,
             300,
@@ -119,12 +119,12 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
         public
     {
         // when collRatio > (EXP_SCALE * EXP_SCALE) / (EXP_SCALE + CollReqSoft)
-        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(simpleCBALRETH));
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            address(pBALRETH),
+            address(simpleCBALRETH),
             9100, // collRatio
             4000,
             3000,
@@ -138,12 +138,12 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
         public
     {
         // when liqInc > CollReqHard
-        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(simpleCBALRETH));
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            address(pBALRETH),
+            address(simpleCBALRETH),
             7000,
             200,
             2900,
@@ -155,12 +155,12 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
 
     function test_updatePositionToken_fail_whenLiqIncNotEnough() public {
         // when (liqInc - liqFee) < _MIN_LIQUIDATION_INCENTIVE
-        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(simpleCBALRETH));
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            address(pBALRETH),
+            address(simpleCBALRETH),
             9100,
             200,
             300,
@@ -173,7 +173,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
     function test_updatePositionToken_fail_whenMTokenIsNotListed() public {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
         marketManager.updatePositionToken(
-            address(pBALRETH),
+            address(simpleCBALRETH),
             9100,
             300,
             200,
@@ -187,10 +187,10 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
         // Set Oracle timestamp to 0 to make price stale
         mockRethFeed.setMockUpdatedAt(1);
 
-        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(simpleCBALRETH));
         vm.expectRevert(MarketManager.MarketManager__PriceError.selector);
         marketManager.updatePositionToken(
-            address(pBALRETH),
+            address(simpleCBALRETH),
             7000, // collRatio
             4000,
             3000,
@@ -201,12 +201,12 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
     }
 
     function test_updatePositionToken_success() public {
-        balRETH.approve(address(pBALRETH), 1e18);
-        marketManager.listToken(address(pBALRETH));
+        balRETH.approve(address(simpleCBALRETH), 1e18);
+        marketManager.listToken(address(simpleCBALRETH));
 
         vm.expectEmit(true, true, true, true, address(marketManager));
         emit PositionTokenUpdated(
-            address(pBALRETH),
+            address(simpleCBALRETH),
             0.7e18,
             0.4e18,
             0.3e18,
@@ -216,7 +216,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
         );
 
         marketManager.updatePositionToken(
-            address(pBALRETH),
+            address(simpleCBALRETH),
             7000, // collRatio
             4000,
             3000,
@@ -226,7 +226,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
         );
 
         (, uint256 collRatio, , , , , , ) = marketManager.tokenData(
-            address(pBALRETH)
+            address(simpleCBALRETH)
         );
         assertEq(collRatio, 0.7e18);
     }

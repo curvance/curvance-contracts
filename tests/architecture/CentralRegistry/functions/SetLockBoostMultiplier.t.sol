@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { DENOMINATOR } from "contracts/libraries/Constants.sol";
+import { BASIS_POINTS } from "contracts/libraries/Constants.sol";
 
 contract SetLockBoostMultiplierTest is TestBaseMarketIsolated {
     function test_setLockBoostMultiplier_fail_whenCallerIsNotAuthorized()
@@ -23,10 +23,10 @@ contract SetLockBoostMultiplierTest is TestBaseMarketIsolated {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
-        centralRegistry.setLockBoostMultiplier(DENOMINATOR);
+        centralRegistry.setLockBoostMultiplier(BASIS_POINTS);
 
         centralRegistry.setLockBoostMultiplier(0);
-        centralRegistry.setLockBoostMultiplier(DENOMINATOR + 1);
+        centralRegistry.setLockBoostMultiplier(BASIS_POINTS + 1);
     }
 
     function test_setLockBoostMultiplier_success() public {

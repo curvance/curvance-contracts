@@ -223,7 +223,7 @@ contract UniversalBalanceMultiWithdrawForTest is TestBaseUniversalBalance {
     {
         uint256 ethBalance = address(universalBalance).balance;
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user1);
 
         for (uint256 i; i < 3; i++) {
@@ -278,8 +278,8 @@ contract UniversalBalanceMultiWithdrawForTest is TestBaseUniversalBalance {
             usdcBalance - sittingAmountUsed
         );
         assertEq(
-            eUSDC.balanceOf(address(universalBalance)),
-            eUSDCBalance - lentAmountUsed
+            borrowableCUSDC.balanceOf(address(universalBalance)),
+            borrowableCUSDCBalance - lentAmountUsed
         );
         assertEq(usdc.balanceOf(user1), userUSDCBalance + withdrawSum);
     }
