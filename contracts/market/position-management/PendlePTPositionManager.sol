@@ -66,10 +66,10 @@ contract PendlePTPositionManager is BasePositionManager {
         (
             address lpToken,
             uint256 minPtAmount,
-            PendleLib.PendleData memory pendleData
+            PendleLib.PendleAction memory action
         ) = abi.decode(
                 action.auxData,
-                (address, uint256, PendleLib.PendleData)
+                (address, uint256, PendleLib.PendleAction)
             );
 
         (
@@ -92,7 +92,7 @@ contract PendlePTPositionManager is BasePositionManager {
                 swapAction.target == address(0) ||
                 swapAction.inputToken != debtAsset ||
                 swapAction.inputAmount != action.borrowAssets ||
-                swapAction.outputToken != pendleData.input.tokenIn
+                swapAction.outputToken != action.input.tokenIn
             ) {
                 revert BasePositionManager__InvalidParam();
             }
@@ -106,7 +106,7 @@ contract PendlePTPositionManager is BasePositionManager {
             true,
             lpToken,
             minPtAmount,
-            pendleData
+            action
         );
     }
 
@@ -137,9 +137,9 @@ contract PendlePTPositionManager is BasePositionManager {
         SwapperLib.Swap[] memory swapActions = action.swapActions;
 
         // Decode Pendle data.
-        (address lpToken, PendleLib.PendleData memory pendleData) = abi.decode(
+        (address lpToken, PendleLib.PendleAction memory action) = abi.decode(
             action.auxData,
-            (address, PendleLib.PendleData)
+            (address, PendleLib.PendleAction)
         );
 
         (
@@ -162,7 +162,7 @@ contract PendlePTPositionManager is BasePositionManager {
             true,
             lpToken,
             0, // don't need for PT
-            pendleData,
+            action,
             ptToken,
             action.collateralAssets
         );
@@ -171,7 +171,7 @@ contract PendlePTPositionManager is BasePositionManager {
 
         if (numSwaps > 0) {
             if (
-                swapActions[0].inputToken != pendleData.output.tokenOut ||
+                swapActions[0].inputToken != action.output.tokenOut ||
                 swapActions[numSwaps - 1].outputToken != debtAsset
             ) {
                 revert BasePositionManager__InvalidParam();

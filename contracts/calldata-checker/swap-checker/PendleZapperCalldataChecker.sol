@@ -54,7 +54,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                         SwapperLib.Swap[],
                         address,
                         bool,
-                        PendleLib.PendleData,
+                        PendleLib.PendleAction,
                         uint256,
                         bool,
                         address
@@ -79,7 +79,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                         address,
                         bool,
                         address,
-                        PendleLib.PendleData,
+                        PendleLib.PendleAction,
                         PendleZapper.ZapAction,
                         SwapperLib.Swap[],
                         address
@@ -106,7 +106,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                         address,
                         bool,
                         address,
-                        PendleLib.PendleData,
+                        PendleLib.PendleAction,
                         PendleZapper.ZapAction,
                         SwapperLib.Swap[],
                         address

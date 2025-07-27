@@ -505,7 +505,7 @@ contract ComplexZapper is ZapperBase {
         SwapperLib.Swap[] calldata swapActions,
         address router,
         bool isPt,
-        PendleLib.PendleData calldata data,
+        PendleLib.PendleAction calldata data,
         uint256 expectedShares,
         bool collateralize,
         address recipient
@@ -554,7 +554,7 @@ contract ComplexZapper is ZapperBase {
         address router,
         bool isPt,
         address token,
-        PendleLib.PendleData calldata data,
+        PendleLib.PendleAction calldata data,
         ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address recipient
@@ -602,7 +602,7 @@ contract ComplexZapper is ZapperBase {
         address router,
         bool isPt,
         address token,
-        PendleLib.PendleData calldata data,
+        PendleLib.PendleAction calldata data,
         ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address recipient
@@ -787,7 +787,7 @@ contract ComplexZapper is ZapperBase {
         address router,
         bool isPt,
         address token,
-        PendleLib.PendleData calldata data,
+        PendleLib.PendleAction calldata data,
         ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address recipient

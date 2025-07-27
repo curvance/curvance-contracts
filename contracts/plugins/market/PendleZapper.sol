@@ -180,7 +180,7 @@ contract PendleZapper is ZapperBase {
         SwapperLib.Swap[] calldata swapActions,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
-        // Transfer the Pendle market to the Zapper.
+        // Transfer the Pendle position to the Zapper.
         SafeTransferLib.safeTransferFrom(
             zapAction.inputToken,
             msg.sender,
@@ -349,12 +349,11 @@ contract PendleZapper is ZapperBase {
         uint256 numTokenSwaps = swapActions.length;
         // Swap unwrapped tokens into `zapAction.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
-            // Execute swap(s) into `zapAction.outputToken`.
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
         outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
-        // Validate zap output is sufficient.
+        // Validate action output is sufficient.
         if (outAmount < zapAction.minimumOut) {
             revert PendleZapper__SlippageError();
         }

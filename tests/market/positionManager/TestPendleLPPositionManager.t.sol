@@ -204,14 +204,14 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         );
         leverageAction.swapAction.slippage = 0.6e18;
 
-        PendleLib.PendleData memory data;
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        PendleLib.PendleAction memory action;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
-        leverageAction.auxData = abi.encode(0, data);
+        leverageAction.auxData = abi.encode(0, action);
 
         positionManager.leverage(leverageAction, 0.05e18); // 5% slippage
 
@@ -263,14 +263,14 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         );
         leverageAction.swapAction.slippage = 0.6e18;
 
-        PendleLib.PendleData memory data;
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        PendleLib.PendleAction memory action;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
-        leverageAction.auxData = abi.encode(0, data);
+        leverageAction.auxData = abi.encode(0, action);
 
         positionManager.depositAndLeverage(1 ether, leverageAction, 0.05e18); // 5% slippage
 
@@ -322,13 +322,13 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         );
         deleverageAction.swapActions[0].slippage = 0.6e18;
         deleverageAction.repayAssets = 6500e18;
-        PendleLib.PendleData memory data;
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
-        deleverageAction.auxData = abi.encode(0, data);
+        PendleLib.PendleAction memory action;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
+        deleverageAction.auxData = abi.encode(0, action);
 
         strategyCTokenSTETH.approve(address(positionManager), type(uint256).max);
         positionManager.deleverage(deleverageAction, 0.05e18); // 5% slippage
@@ -398,14 +398,14 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         );
         leverageAction.swapAction.slippage = 0.6e18;
 
-        PendleLib.PendleData memory data;
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        PendleLib.PendleAction memory action;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
-        leverageAction.auxData = abi.encode(0, data);
+        leverageAction.auxData = abi.encode(0, action);
 
         positionManager.setDelegateApproval(address(user2), true);
         vm.stopPrank();
@@ -459,13 +459,13 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         );
         deleverageAction.swapActions[0].slippage = 0.6e18;
         deleverageAction.repayAssets = 6500e18;
-        PendleLib.PendleData memory data;
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
-        deleverageAction.auxData = abi.encode(0, data);
+        PendleLib.PendleAction memory action;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
+        deleverageAction.auxData = abi.encode(0, action);
 
         strategyCTokenSTETH.approve(address(positionManager), type(uint256).max);
         positionManager.setDelegateApproval(address(user2), true);

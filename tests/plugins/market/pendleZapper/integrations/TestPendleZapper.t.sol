@@ -81,17 +81,20 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
-        PendleLib.PendleData memory data;
+        PendleLib.PendleAction memory action;
 
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
         vm.startPrank(user1);
         pendleZapper.enterPendle{ value: ethAmount }(
             address(pendleCTokenSTETH),
+            _PENDLE_ROUTER,
+            _IS_PT,
+            action,
             PendleZapper.ZapAction(
                 address(0),
                 ethAmount,
@@ -100,9 +103,6 @@ contract TestPendleZapper is TestBaseMarketIsolated {
                 true
             ),
             new SwapperLib.Swap[](0),
-            _PENDLE_ROUTER,
-            _IS_PT,
-            data,
             1.2 ether,
             false,
             user1
@@ -120,13 +120,13 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         uint256 withdrawAmount = IERC20(_PENDLE_LP_STETH).balanceOf(user1);
 
-        PendleLib.PendleData memory data;
+        PendleLib.PendleAction memory action;
 
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
         vm.startPrank(user1);
         IERC20(_PENDLE_LP_STETH).approve(
@@ -134,10 +134,10 @@ contract TestPendleZapper is TestBaseMarketIsolated {
             withdrawAmount
         );
         pendleZapper.exitPendle(
+            _STETH,
             _PENDLE_ROUTER,
             _IS_PT,
-            _STETH,
-            data,
+            action,
             PendleZapper.ZapAction(
                 _PENDLE_LP_STETH,
                 withdrawAmount,
@@ -159,17 +159,20 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
-        PendleLib.PendleData memory data;
+        PendleLib.PendleAction memory action;
 
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
         vm.startPrank(user1);
         pendleZapper.enterPendle{ value: ethAmount }(
             address(pendleCTokenSTETH),
+            _PENDLE_ROUTER,
+            _IS_PT,
+            action,
             PendleZapper.ZapAction(
                 address(0),
                 ethAmount,
@@ -178,9 +181,6 @@ contract TestPendleZapper is TestBaseMarketIsolated {
                 true
             ),
             new SwapperLib.Swap[](0),
-            _PENDLE_ROUTER,
-            _IS_PT,
-            data,
             1.2 ether,
             false,
             user1
@@ -201,19 +201,22 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
-        PendleLib.PendleData memory data;
+        PendleLib.PendleAction memory action;
 
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
         vm.startPrank(user1);
         pendleCTokenSTETH.setDelegateApproval(address(pendleZapper), true);
 
         pendleZapper.enterPendle{ value: ethAmount }(
             address(pendleCTokenSTETH),
+            _PENDLE_ROUTER,
+            _IS_PT,
+            action,
             PendleZapper.ZapAction(
                 address(0),
                 ethAmount,
@@ -222,9 +225,6 @@ contract TestPendleZapper is TestBaseMarketIsolated {
                 true
             ),
             new SwapperLib.Swap[](0),
-            _PENDLE_ROUTER,
-            _IS_PT,
-            data,
             1.2 ether,
             true,
             user1
@@ -250,17 +250,20 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pendleCTokenSTETH.setDelegateApproval(address(pendleZapper), true);
         vm.stopPrank();
 
-        PendleLib.PendleData memory data;
+        PendleLib.PendleAction memory action;
 
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
         vm.startPrank(user2);
         pendleZapper.enterPendle{ value: ethAmount }(
             address(pendleCTokenSTETH),
+            _PENDLE_ROUTER,
+            _IS_PT,
+            action,
             PendleZapper.ZapAction(
                 address(0),
                 ethAmount,
@@ -269,9 +272,6 @@ contract TestPendleZapper is TestBaseMarketIsolated {
                 true
             ),
             new SwapperLib.Swap[](0),
-            _PENDLE_ROUTER,
-            _IS_PT,
-            data,
             1.2 ether,
             true,
             user1
@@ -296,13 +296,13 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         redeemAction.shares = 1.24 ether;
         redeemAction.forceRedeemCollateral = false;
 
-        PendleLib.PendleData memory data;
+        PendleLib.PendleAction memory action;
 
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
         vm.warp(
             marketManagerIsolated.accountAssets(user1) +
@@ -314,11 +314,11 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         IERC20(_PENDLE_LP_STETH).approve(address(pendleZapper), 3 ether);
         pendleZapper.redeemAndExitPendle(
-            redeemAction,
+            _STETH,
             _PENDLE_ROUTER,
             _IS_PT,
-            _STETH,
-            data,
+            action,
+            redeemAction,
             PendleZapper.ZapAction(
                 _PENDLE_LP_STETH,
                 1.24 ether,

@@ -274,7 +274,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                         SwapperLib.Swap[],
                         address,
                         bool,
-                        PendleLib.PendleData,
+                        PendleLib.PendleAction,
                         uint256,
                         bool,
                         address
@@ -299,7 +299,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                         address,
                         bool,
                         address,
-                        PendleLib.PendleData,
+                        PendleLib.PendleAction,
                         ComplexZapper.ZapAction,
                         SwapperLib.Swap[],
                         address
@@ -326,7 +326,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                         address,
                         bool,
                         address,
-                        PendleLib.PendleData,
+                        PendleLib.PendleAction,
                         ComplexZapper.ZapAction,
                         SwapperLib.Swap[],
                         address
