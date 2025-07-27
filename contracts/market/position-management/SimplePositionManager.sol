@@ -24,27 +24,26 @@ contract SimplePositionManager is BasePositionManager {
     ///         cToken that a user is currently putting up as collateral
     ///         against the borrowableCToken debt position, creating a
     ///         leveraged spot position.
-    /// @param leverageAction Instructions for a leverage action containing:
-    ///                       borrowableCToken Address of the borrowableCToken
-    ///                                        that will be borrowed from and
-    ///                                        assets swapped into `cToken`
-    ///                                        asset.
-    ///                       borrowAssets The amount borrowed from
-    ///                                    `borrowableCToken`, in assets.
-    ///                       cToken Curvance token assets that borrowed funds
-    ///                              will be swapped into.
-    ///                       swapAction Swap action instructions converting
-    ///                                  debt asset into collateral asset to
-    ///                                  facilitate leveraging.
-    ///                       auxData Optional auxiliary data for execution of a
-    ///                               a leverage action.
+    /// @param action Instructions for a leverage action containing:
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will be borrowed from and assets
+    ///                                swapped into `cToken` asset.
+    ///               borrowAssets The amount borrowed from
+    ///                            `borrowableCToken`, in assets.
+    ///               cToken Curvance token assets that borrowed funds will be
+    ///                      swapped into.
+    ///               swapAction Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       leverage action.
     function _swapDebtAssetToCollateralAsset(
-        LeverageAction memory leverageAction,
+        LeverageAction memory action,
         address /* receiver */
     ) internal virtual override {
-        SwapperLib.Swap memory swapAction = leverageAction.swapAction;
-        address debtAsset = leverageAction.borrowableCToken.asset();
-        address collateralAsset = leverageAction.cToken.asset();
+        SwapperLib.Swap memory swapAction = action.swapAction;
+        address debtAsset = action.borrowableCToken.asset();
+        address collateralAsset = action.cToken.asset();
 
         if (debtAsset == collateralAsset) {
             return;
@@ -58,7 +57,7 @@ contract SimplePositionManager is BasePositionManager {
             swapAction.target == address(0) ||
             swapAction.inputToken != debtAsset ||
             swapAction.outputToken != collateralAsset ||
-            swapAction.inputAmount != leverageAction.borrowAssets
+            swapAction.inputAmount != action.borrowAssets
         ) {
             revert BasePositionManager__InvalidParam();
         }
@@ -72,36 +71,30 @@ contract SimplePositionManager is BasePositionManager {
     ///         then swapped into the underlying of an borrowableCToken that a
     ///         user is currently borrowing from, partially or fully closing a
     ///         leveraged spot position.
-    /// @param deleverageAction Instructions for a deleverage action
-    ///                         containing:
-    ///                         cToken Address of the cToken that will be
-    ///                                redeemed from and assets swapped into
-    ///                                `borrowableCToken` asset.
-    ///                         collateralAssets The amount of `cToken` that
-    ///                                          will be deleveraged,
-    ///                                          in assets.
-    ///                         borrowableCToken Address of the
-    ///                                          borrowableCToken that will
-    ///                                          have its debt paid.
-    ///                         repayAssets The amount of `borrowableCToken`
-    ///                                     asset that will be repaid to
-    ///                                     lenders.
-    ///                         swapAction Swap actions instructions
-    ///                                    converting collateral asset into
-    ///                                    debt asset to facilitate
-    ///                                    deleveraging.
-    ///                         auxData Optional auxiliary data for execution
-    ///                                 of a deleverage action.
+    /// @param action Instructions for a deleverage action containing:
+    ///               cToken Address of the cToken that will be redeemed from
+    ///                      and assets swapped into `borrowableCToken` asset.
+    ///               collateralAssets The amount of `cToken` that will be
+    ///                                deleveraged, in assets.
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will have its debt paid.
+    ///               repayAssets The amount of `borrowableCToken` asset that
+    ///                           will be repaid to lenders.
+    ///               swapAction Swap actions instructions converting
+    ///                          collateral asset into debt asset to
+    ///                          facilitate deleveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       deleverage action.
     function _swapCollateralAssetToDebtAsset(
-        DeleverageAction memory deleverageAction
+        DeleverageAction memory action
     ) internal virtual override {
-        SwapperLib.Swap[] memory swapActions = deleverageAction.swapActions;
+        SwapperLib.Swap[] memory swapActions = action.swapActions;
         if (swapActions.length != 1) {
             revert BasePositionManager__InvalidParam();
         }
 
-        address collateralAsset = deleverageAction.cToken.asset();
-        address debtAsset = deleverageAction.borrowableCToken.asset();
+        address collateralAsset = action.cToken.asset();
+        address debtAsset = action.borrowableCToken.asset();
         SwapperLib.Swap memory swapAction = swapActions[0];
 
         if (debtAsset == collateralAsset) {
@@ -116,7 +109,7 @@ contract SimplePositionManager is BasePositionManager {
             swapAction.target == address(0) ||
             swapAction.inputToken != collateralAsset ||
             swapAction.outputToken != debtAsset ||
-            swapAction.inputAmount != deleverageAction.collateralAssets
+            swapAction.inputAmount != action.collateralAssets
         ) {
             revert BasePositionManager__InvalidParam();
         }

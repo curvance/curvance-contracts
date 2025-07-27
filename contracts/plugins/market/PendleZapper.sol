@@ -45,6 +45,24 @@ contract PendleZapper is ZapperBase {
     /// @dev Requires plugin approval for collateralization.
     /// @param strategyCToken The Curvance token address to enter into a
     ///                       position.
+    /// @param router The Pendle router address.
+    /// @param isPt Whether lp token is PT or not.
+    /// @param action Instructions for a Pendle action containing:
+    ///               approx The approximate price parameters for the Pendle
+    ///                      swap.
+    ///               input Represents the input parameters for a Pendle
+    ///                     action. Users start with `netTokenIn` amount of
+    ///                     `tokenIn`. If `tokenIn` differs from
+    ///                     `tokenMintSy`, a swap is performed using the
+    ///                     specified aggregator to convert `tokenIn` to
+    ///                     `tokenMintSy`, which is then used to mint SY
+    ///                     tokens.
+    ///               output Represents the output parameters for a Pendle
+    ///                      action. Users receive SY tokens, redeem them
+    ///                      to `tokenRedeemSy`, and may use an aggregator
+    ///                      to swap `tokenRedeemSy` to the desired
+    ///                      `tokenOut`.
+    ///               limit Contains parameters for executing limit orders.
     /// @param zapAction Instructions for a zap action containing:
     ///                  inputToken Address of input token to zap from.
     ///                  inputAmount The amount of `inputToken` to zap.
@@ -64,10 +82,6 @@ contract PendleZapper is ZapperBase {
     ///                    slippage The amount of value-loss acceptable from
     ///                             swapping between tokens.
     ///                    call Swap instruction calldata.
-    /// @param router The Pendle router address.
-    /// @param isPt Whether lp token is PT or not.
-    /// @param data Pendle specific execution data including input/output,
-    ///             and limit order data.
     /// @param expectedShares The minimum expected amount of shares received
     ///                       from depositing `amount` of `swapActions.outputToken`
     ///                       into `strategyCToken` position.
@@ -78,11 +92,11 @@ contract PendleZapper is ZapperBase {
     ///                   `receiver`.
     function enterPendle(
         address strategyCToken,
-        ZapAction calldata zapAction,
-        SwapperLib.Swap[] calldata swapActions,
         address router,
         bool isPt,
-        PendleLib.PendleData calldata data,
+        PendleLib.PendleAction calldata action,
+        ZapAction calldata zapAction,
+        SwapperLib.Swap[] calldata swapActions,
         uint256 expectedShares,
         bool collateralizeFor,
         address receiver
@@ -99,9 +113,9 @@ contract PendleZapper is ZapperBase {
         outAmount = PendleLib._enterPendle(
             router,
             isPt,
-            data,
             zapAction.outputToken,
-            zapAction.minimumOut
+            zapAction.minimumOut,
+            action
         );
 
         // Enter Curvance position.
@@ -117,11 +131,25 @@ contract PendleZapper is ZapperBase {
 
     /// @notice Exits a Pendle market, and zaps it into zapAction.outputToken,
     ///         sending the proceeds to `receiver`.
+    /// @param pendleToken The underlying token address of the SY.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
-    /// @param underlyingToken The underlying token address of the SY.
-    /// @param data Pendle specific execution data including input/output,
-    ///             and limit order data.
+    /// @param action Instructions for a Pendle action containing:
+    ///               approx The approximate price parameters for the Pendle
+    ///                      swap.
+    ///               input Represents the input parameters for a Pendle
+    ///                     action. Users start with `netTokenIn` amount of
+    ///                     `tokenIn`. If `tokenIn` differs from
+    ///                     `tokenMintSy`, a swap is performed using the
+    ///                     specified aggregator to convert `tokenIn` to
+    ///                     `tokenMintSy`, which is then used to mint SY
+    ///                     tokens.
+    ///               output Represents the output parameters for a Pendle
+    ///                      action. Users receive SY tokens, redeem them
+    ///                      to `tokenRedeemSy`, and may use an aggregator
+    ///                      to swap `tokenRedeemSy` to the desired
+    ///                      `tokenOut`.
+    ///               limit Contains parameters for executing limit orders.
     /// @param zapAction Instructions for a zap action containing:
     ///                  inputToken Address of input token to zap from.
     ///                  inputAmount The amount of `inputToken` to zap.
@@ -144,10 +172,10 @@ contract PendleZapper is ZapperBase {
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function exitPendle(
+        address pendleToken,
         address router,
         bool isPt,
-        address underlyingToken,
-        PendleLib.PendleData calldata data,
+        PendleLib.PendleAction calldata action,
         ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address receiver
@@ -162,10 +190,10 @@ contract PendleZapper is ZapperBase {
 
         // Exit Pendle position.
         outAmount = _exitPendle(
+            pendleToken,
             router,
             isPt,
-            underlyingToken,
-            data,
+            action,
             zapAction,
             swapActions,
             receiver
@@ -173,7 +201,26 @@ contract PendleZapper is ZapperBase {
     }
 
     /// @notice Withdraws from a Curvance Pendle position, and zaps it
-    ///         into desired token (zapAction.outputToken).
+    ///         into `zapAction.outputToken`.
+    /// @param pendleToken The underlying token address of the SY.
+    /// @param router The Pendle router address.
+    /// @param isPt Whether lp token is PT or not.
+    /// @param action Instructions for a Pendle action containing:
+    ///               approx The approximate price parameters for the Pendle
+    ///                      swap.
+    ///               input Represents the input parameters for a Pendle
+    ///                     action. Users start with `netTokenIn` amount of
+    ///                     `tokenIn`. If `tokenIn` differs from
+    ///                     `tokenMintSy`, a swap is performed using the
+    ///                     specified aggregator to convert `tokenIn` to
+    ///                     `tokenMintSy`, which is then used to mint SY
+    ///                     tokens.
+    ///               output Represents the output parameters for a Pendle
+    ///                      action. Users receive SY tokens, redeem them
+    ///                      to `tokenRedeemSy`, and may use an aggregator
+    ///                      to swap `tokenRedeemSy` to the desired
+    ///                      `tokenOut`.
+    ///               limit Contains parameters for executing limit orders.
     /// @param redeemAction Instructions for a redemption action containing:
     ///                     cToken The address of the cToken corresponding to
     ///                            the redemption action.
@@ -182,11 +229,6 @@ contract PendleZapper is ZapperBase {
     ///                                           should be always reduced
     ///                                           from caller's collateralized
     ///                                           shares.
-    /// @param router The Pendle router address.
-    /// @param isPt Whether lp token is PT or not.
-    /// @param token The underlying token address of the SY.
-    /// @param data Pendle specific execution data including input/output,
-    ///             and limit order data.
     /// @param zapAction Instructions for a zap action containing:
     ///                  inputToken Address of input token to zap from.
     ///                  inputAmount The amount of `inputToken` to zap.
@@ -209,11 +251,11 @@ contract PendleZapper is ZapperBase {
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitPendle(
-        RedeemAction calldata redeemAction,
+        address pendleToken,
         address router,
         bool isPt,
-        address token,
-        PendleLib.PendleData calldata data,
+        PendleLib.PendleAction calldata action,
+        RedeemAction calldata redeemAction,
         ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address receiver
@@ -230,10 +272,10 @@ contract PendleZapper is ZapperBase {
 
         // Exit Pendle position.
         outAmount = _exitPendle(
+            pendleToken,
             router,
             isPt,
-            token,
-            data,
+            action,
             zapAction,
             swapActions,
             receiver
@@ -244,9 +286,25 @@ contract PendleZapper is ZapperBase {
 
     /// @notice Withdraws from a Curvance Pendle position, and zaps it
     ///         into desired token (zapAction.outputToken).
+    /// @param pendleToken The underlying token address of the SY.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
-    /// @param underlyingToken The underlying token address of the SY.
+    /// @param action Instructions for a Pendle action containing:
+    ///               approx The approximate price parameters for the Pendle
+    ///                      swap.
+    ///               input Represents the input parameters for a Pendle
+    ///                     action. Users start with `netTokenIn` amount of
+    ///                     `tokenIn`. If `tokenIn` differs from
+    ///                     `tokenMintSy`, a swap is performed using the
+    ///                     specified aggregator to convert `tokenIn` to
+    ///                     `tokenMintSy`, which is then used to mint SY
+    ///                     tokens.
+    ///               output Represents the output parameters for a Pendle
+    ///                      action. Users receive SY tokens, redeem them
+    ///                      to `tokenRedeemSy`, and may use an aggregator
+    ///                      to swap `tokenRedeemSy` to the desired
+    ///                      `tokenOut`.
+    ///               limit Contains parameters for executing limit orders.
     /// @param zapAction Instructions for a zap action containing:
     ///                  inputToken Address of input token to zap from.
     ///                  inputAmount The amount of `inputToken` to zap.
@@ -269,10 +327,10 @@ contract PendleZapper is ZapperBase {
     /// @param receiver Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function _exitPendle(
+        address pendleToken,
         address router,
         bool isPt,
-        address underlyingToken,
-        PendleLib.PendleData calldata data,
+        PendleLib.PendleAction calldata action,
         ZapAction calldata zapAction,
         SwapperLib.Swap[] calldata swapActions,
         address receiver
@@ -281,11 +339,11 @@ contract PendleZapper is ZapperBase {
         PendleLib._exitPendle(
             router,
             isPt,
-            underlyingToken,
-            data,
             zapAction.inputToken,
-            zapAction.inputAmount,
-            0
+            0,
+            action,
+            pendleToken,
+            zapAction.inputAmount
         );
 
         uint256 numTokenSwaps = swapActions.length;

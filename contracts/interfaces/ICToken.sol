@@ -160,30 +160,24 @@ interface ICToken {
     ///         action.
     /// @param assets The amount of the underlying assets to redeem.
     /// @param owner The owner address of assets to redeem.
-    /// @param deleverageAction Instructions for a deleverage action
-    ///                         containing:
-    ///                         cToken Address of the cToken that will be
-    ///                                redeemed from and assets swapped into
-    ///                                `borrowableCToken` asset.
-    ///                         collateralAssets The amount of `cToken` that
-    ///                                          will be deleveraged,
-    ///                                          in assets.
-    ///                         borrowableCToken Address of the
-    ///                                          borrowableCToken that will
-    ///                                          have its debt paid.
-    ///                         repayAssets The amount of `borrowableCToken`
-    ///                                     asset that will be repaid to
-    ///                                     lenders.
-    ///                         swapAction Swap actions instructions
-    ///                                    converting collateral asset into
-    ///                                    debt asset to facilitate
-    ///                                    deleveraging.
-    ///                         auxData Optional auxiliary data for execution
-    ///                                 of a deleverage action.
+    /// @param action Instructions for a deleverage action containing:
+    ///               cToken Address of the cToken that will be redeemed from
+    ///                      and assets swapped into `borrowableCToken` asset.
+    ///               collateralAssets The amount of `cToken` that will be
+    ///                                deleveraged, in assets.
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will have its debt paid.
+    ///               repayAssets The amount of `borrowableCToken` asset that
+    ///                           will be repaid to lenders.
+    ///               swapAction Swap actions instructions converting
+    ///                          collateral asset into debt asset to
+    ///                          facilitate deleveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       deleverage action.
     function withdrawByPositionManager(
         uint256 assets,
         address owner,
-        IPositionManager.DeleverageAction memory deleverageAction
+        IPositionManager.DeleverageAction memory action
     ) external;
 
     /// @notice Amount of tokens that has been posted as collateral,

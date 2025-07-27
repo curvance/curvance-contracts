@@ -102,41 +102,35 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
     /// @param owner The owner address of assets to redeem.
     /// @param balancePrior The balance of shares `owner` has before this
     ///                     redemption. 
-    /// @param deleverageAction Instructions for a deleverage action
-    ///                         containing:
-    ///                         cToken Address of the cToken that will be
-    ///                                redeemed from and assets swapped into
-    ///                                `borrowableCToken` asset.
-    ///                         collateralAssets The amount of `cToken` that
-    ///                                          will be deleveraged,
-    ///                                          in assets.
-    ///                         borrowableCToken Address of the
-    ///                                          borrowableCToken that will
-    ///                                          have its debt paid.
-    ///                         repayAssets The amount of `borrowableCToken`
-    ///                                     asset that will be repaid to
-    ///                                     lenders.
-    ///                         swapAction Swap actions instructions
-    ///                                    converting collateral asset into
-    ///                                    debt asset to facilitate
-    ///                                    deleveraging.
-    ///                         auxData Optional auxiliary data for execution
-    ///                                 of a deleverage action.
+    /// @param action Instructions for a deleverage action containing:
+    ///               cToken Address of the cToken that will be redeemed from
+    ///                      and assets swapped into `borrowableCToken` asset.
+    ///               collateralAssets The amount of `cToken` that will be
+    ///                                deleveraged, in assets.
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will have its debt paid.
+    ///               repayAssets The amount of `borrowableCToken` asset that
+    ///                           will be repaid to lenders.
+    ///               swapAction Swap actions instructions converting
+    ///                          collateral asset into debt asset to
+    ///                          facilitate deleveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       deleverage action.
     function _processPositionManagerRedemption(
         uint256 assets,
         uint256 shares,
         address owner,
         uint256 balancePrior,
-        IPositionManager.DeleverageAction memory deleverageAction
+        IPositionManager.DeleverageAction memory action
     ) internal override {
         assets = _removeExitFeeFromAssets(assets);
-        deleverageAction.collateralAssets = assets;
+        action.collateralAssets = assets;
         super._processPositionManagerRedemption(
             assets,
             shares,
             owner,
             balancePrior,
-            deleverageAction
+            action
         );
     }
 

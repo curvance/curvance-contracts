@@ -13,9 +13,8 @@ import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloP
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
 /// @title Curvance Velodrome Library.
-/// @notice Helper Library for working with Velodrome volatile and stable LP
-///         tokens. Supports both creating and exiting LP positions for better
-///         composability across DeFi.
+/// @notice Helper Library for working with Velodrome LP tokens. Supports both
+///         creating and exiting LP positions for better composability.
 ///         NOTE: This library does not currently support slipstream LPs at
 ///               this time, but may in the future.
 library VelodromeLib {

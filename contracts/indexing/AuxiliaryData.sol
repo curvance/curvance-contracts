@@ -2,7 +2,9 @@
 pragma solidity ^0.8.26;
 
 import { WAD } from "contracts/libraries/Constants.sol";
+
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
@@ -120,6 +122,7 @@ contract AuxiliaryData {
 
     /// CONSTANTS ///
     uint256 public constant MARKET_ASSET_RESERVE = 77777;
+    uint256 public constant MAX_LEVERAGE = 0.99e18;
 
     /// STORAGE ///
 
@@ -526,6 +529,109 @@ contract AuxiliaryData {
         }
     }
 
+        /// @notice Calculates the hypothetical maximum amount of
+    ///         `borrowableCToken` assets `account` can borrow for maximum
+    ///         leverage based on a new `cToken` collateralized deposit.
+    /// @dev Applies a minor dampening effect to calculated maximum leverage
+    ///      via `MAX_LEVERAGE`. Offsets maximum borrowable debt amount if
+    ///      there is insufficient liquidity to borrow in the target market.
+    /// @param account The account to query maximum borrow amount for.
+    /// @param borrowableCToken The token that `account` will borrow assets
+    ///                         from to achieve leverage.
+    /// @param cToken The token that `account` will deposit to
+    ///                        leverage against.
+    /// @param assets The amount of `cToken` underlying that
+    ///               `account` will deposit to leverage against.
+    /// @return maxDebtBorrowable Returns the maximum remaining borrow amount
+    ///                           allowed from `borrowableCToken`, measured in
+    ///                           underlying token amount, after the new
+    ///                           hypothetical deposit.
+    /// @return isOffset Whether the maximum borrowable debt amount returned
+    ///                  has been offset due to available liquidity or not.
+    function hypotheticalMaxRemainingLeverageOf(
+        address account,
+        address borrowableCToken,
+        address cToken,
+        uint256 assets
+    ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
+        IMarketManager mm = ICToken(borrowableCToken).marketManager();
+        (uint256 price, uint256 errorCode) = IOracleManager(
+            ICentralRegistry(centralRegistry).oracleManager()
+        ).getPrice(address(cToken), true, true);
+
+        // Validate we got a price for `cToken`.
+        if (errorCode != 0) {
+            revert();
+        }
+
+        (
+            uint256 sumCollateral,
+            uint256 maxDebt,
+            uint256 sumDebt
+        ) = mm.statusOf(account);
+
+        {
+            uint256 newCollateral = _mulDiv(
+                ICToken(cToken).previewDeposit(assets),
+                price,
+                10 ** ICToken(cToken).decimals()
+            );
+
+            uint256 collRatio = mm.collateralizationRatio(cToken);
+            // If the collateral token cannot be borrowed against the hypothetical
+            // leverage check will result in 0 meaning nothing new to leverage
+            // against.
+            if (collRatio == 0) {
+                revert();
+            }
+
+            sumCollateral += newCollateral;
+            maxDebt += _mulDiv(newCollateral, collRatio, WAD);
+        }
+        
+
+        // We can calculate terminal leverage by calculating the infinite
+        // series of swapping to maximum LTV over and over, which results
+        // in the equation 1 / (1 - LTV).
+        //
+        // For example, 80% LTV will result in terminal maximum leverage of:
+        // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
+        // The equation below is equal to this equation,
+        // just extrapolated for an account's collateral vs debt.
+        //
+        // We also embed a `MAX_LEVERAGE` dampening effect to minimize
+        // transaction failure from imperfect execution due to things
+        // such as price fluctuations, and AMM fees.
+        uint256 maxLeverage = _mulDiv(
+            maxDebt - sumDebt,
+            sumCollateral * MAX_LEVERAGE,
+            sumCollateral - maxDebt
+        ) / WAD;
+
+        (price, errorCode) = IOracleManager(
+            ICentralRegistry(centralRegistry).oracleManager()
+        ).getPrice(address(borrowableCToken), true, false);
+
+        // Validate we got a price for `borrowableCToken`.
+        if (errorCode != 0) {
+            revert();
+        }
+
+        maxDebtBorrowable = _mulDiv(
+            _mulDiv(maxLeverage, WAD, price),
+            10 ** IERC20(borrowableCToken).decimals(),
+            WAD
+        );
+
+        uint256 liquidityAvailable = IERC20(ICToken(borrowableCToken).asset())
+            .balanceOf(borrowableCToken);
+
+        if (liquidityAvailable < maxDebtBorrowable) {
+            maxDebtBorrowable = liquidityAvailable;
+            isOffset = true;
+        }
+    }
+
     /// @notice Returns market asset data for a specific market.
     /// @param market The market to get asset data for.
     /// @param account The account to get asset data for.
@@ -902,6 +1008,16 @@ contract AuxiliaryData {
         (uint256 accountCollateralSoft, , uint256 accountDebt) = mm
             .liquidationValuesOf(account);
         return (accountCollateralSoft * WAD) / accountDebt;
+    }
+
+    /// @dev Returns `floor(x * y / d)`.
+    /// Reverts if `x * y` overflows, or `d` is zero.
+    function _mulDiv(
+        uint256 x,
+        uint256 y,
+        uint256 d
+    ) internal pure returns (uint256 z) {
+        z = FixedPointMathLib.mulDiv(x, y, d);
     }
 
     function _getTokenConfig(

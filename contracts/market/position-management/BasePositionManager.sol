@@ -66,7 +66,7 @@ abstract contract BasePositionManager is
     /// @dev Checks slippage prior to and after leverage/deleverage action,
     ///      works similar to reentryguard with pre and post checks.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `leverageAction` leverage action, in `WAD`.
+    ///                 `action` leverage action, in `WAD`.
     modifier checkSlippage(address account, uint256 slippage) {
         // Scoping to avoid stack too deep.
         {
@@ -127,32 +127,31 @@ abstract contract BasePositionManager is
     /// @dev Measures slippage through pre/post conditional slippage check
     ///      in `checkSlippage` modifier.
     ///      NOTE: The caller MUST have approved this smart contract to have
-    ///      delegated actions inside `leverageAction.cToken` or
+    ///      delegated actions inside `action.cToken` or
     ///      depositAsCollateralFor will only deposit and the leverage
     ///      operation will fail.
     /// @param assets The amount of the underlying assets to deposit.
-    /// @param leverageAction Instructions for a leverage action containing:
-    ///                       borrowableCToken Address of the borrowableCToken
-    ///                                        that will be borrowed from and
-    ///                                        assets swapped into `cToken`
-    ///                                        asset.
-    ///                       borrowAssets The amount borrowed from
-    ///                                    `borrowableCToken`, in assets.
-    ///                       cToken Curvance token assets that borrowed funds
-    ///                              will be swapped into.
-    ///                       swapAction Swap action instructions converting
-    ///                                  debt asset into collateral asset to
-    ///                                  facilitate leveraging.
-    ///                       auxData Optional auxiliary data for execution of a
-    ///                               a leverage action.
+    /// @param action Instructions for a leverage action containing:
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will be borrowed from and assets
+    ///                                swapped into `cToken` asset.
+    ///               borrowAssets The amount borrowed from
+    ///                            `borrowableCToken`, in assets.
+    ///               cToken Curvance token assets that borrowed funds will be
+    ///                      swapped into.
+    ///               swapAction Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       leverage action.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `leverageAction` leverage action, in WAD (1e18).
+    ///                 `action` leverage action, in WAD (1e18).
     function depositAndLeverage(
         uint256 assets,
-        LeverageAction calldata leverageAction,
+        LeverageAction calldata action,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
-        ICToken cToken = leverageAction.cToken;
+        ICToken cToken = action.cToken;
         address collateralAsset = cToken.asset();
         
         // Transfer `collateralAsset` to deposit.
@@ -170,34 +169,33 @@ abstract contract BasePositionManager is
         cToken.depositAsCollateralFor(assets, msg.sender);
 
         // Execute leverage operation.
-        _leverage(leverageAction, msg.sender);
+        _leverage(action, msg.sender);
     }
 
     /// @notice Leverages an active Curvance position in favor of increasing
     ///         both collateral and debt inside the system.
     /// @dev Measures slippage through pre/post conditional slippage check
     ///      in `checkSlippage` modifier.
-    /// @param leverageAction Instructions for a leverage action containing:
-    ///                       borrowableCToken Address of the borrowableCToken
-    ///                                        that will be borrowed from and
-    ///                                        assets swapped into `cToken`
-    ///                                        asset.
-    ///                       borrowAssets The amount borrowed from
-    ///                                    `borrowableCToken`, in assets.
-    ///                       cToken Curvance token assets that borrowed funds
-    ///                              will be swapped into.
-    ///                       swapAction Swap action instructions converting
-    ///                                  debt asset into collateral asset to
-    ///                                  facilitate leveraging.
-    ///                       auxData Optional auxiliary data for execution of a
-    ///                               a leverage action.
+    /// @param action Instructions for a leverage action containing:
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will be borrowed from and assets
+    ///                                swapped into `cToken` asset.
+    ///               borrowAssets The amount borrowed from
+    ///                            `borrowableCToken`, in assets.
+    ///               cToken Curvance token assets that borrowed funds will be
+    ///                      swapped into.
+    ///               swapAction Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       leverage action.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `leverageAction` leverage action, in WAD (1e18).
+    ///                 `action` leverage action, in WAD (1e18).
     function leverage(
-        LeverageAction calldata leverageAction,
+        LeverageAction calldata action,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
-        _leverage(leverageAction, msg.sender);
+        _leverage(action, msg.sender);
     }
 
     /// @notice Leverages an active Curvance position in favor of increasing
@@ -207,32 +205,31 @@ abstract contract BasePositionManager is
     ///      NOTE: Be careful who you approve here!
     ///      The caller can select slippage, potentially causing loss of funds
     ///      if delegation is provided to a malicious party.
-    /// @param leverageAction Instructions for a leverage action containing:
-    ///                       borrowableCToken Address of the borrowableCToken
-    ///                                        that will be borrowed from and
-    ///                                        assets swapped into `cToken`
-    ///                                        asset.
-    ///                       borrowAssets The amount borrowed from
-    ///                                    `borrowableCToken`, in assets.
-    ///                       cToken Curvance token assets that borrowed funds
-    ///                              will be swapped into.
-    ///                       swapAction Swap action instructions converting
-    ///                                  debt asset into collateral asset to
-    ///                                  facilitate leveraging.
-    ///                       auxData Optional auxiliary data for execution of a
-    ///                               a leverage action.
+    /// @param action Instructions for a leverage action containing:
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will be borrowed from and assets
+    ///                                swapped into `cToken` asset.
+    ///               borrowAssets The amount borrowed from
+    ///                            `borrowableCToken`, in assets.
+    ///               cToken Curvance token assets that borrowed funds will be
+    ///                      swapped into.
+    ///               swapAction Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       leverage action.
     /// @param account The account to leverage an active Curvance position
     ///                for.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `leverageAction` leverage action, in WAD (1e18).
+    ///                 `action` leverage action, in WAD (1e18).
     function leverageFor(
-        LeverageAction calldata leverageAction,
+        LeverageAction calldata action,
         address account,
         uint256 slippage
     ) external checkSlippage(account, slippage) nonReentrant {
         _checkDelegate(account, msg.sender);
 
-        _leverage(leverageAction, account);
+        _leverage(action, account);
     }
 
     /// @notice Deleverages an active Curvance position in favor of decreasing
@@ -242,71 +239,59 @@ abstract contract BasePositionManager is
     ///      NOTE: Be careful who you approve here!
     ///      The caller can select slippage, potentially causing loss of funds
     ///      if delegation is provided to a malicious party.
-    /// @param deleverageAction Instructions for a deleverage action
-    ///                         containing:
-    ///                         cToken Address of the cToken that will be
-    ///                                redeemed from and assets swapped into
-    ///                                `borrowableCToken` asset.
-    ///                         collateralAssets The amount of `cToken` that
-    ///                                          will be deleveraged,
-    ///                                          in assets.
-    ///                         borrowableCToken Address of the
-    ///                                          borrowableCToken that will
-    ///                                          have its debt paid.
-    ///                         repayAssets The amount of `borrowableCToken`
-    ///                                     asset that will be repaid to
-    ///                                     lenders.
-    ///                         swapAction Swap actions instructions
-    ///                                    converting collateral asset into
-    ///                                    debt asset to facilitate
-    ///                                    deleveraging.
-    ///                         auxData Optional auxiliary data for execution
-    ///                                 of a deleverage action.
+    /// @param action Instructions for a deleverage action containing:
+    ///               cToken Address of the cToken that will be redeemed from
+    ///                      and assets swapped into `borrowableCToken` asset.
+    ///               collateralAssets The amount of `cToken` that will be
+    ///                                deleveraged, in assets.
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will have its debt paid.
+    ///               repayAssets The amount of `borrowableCToken` asset that
+    ///                           will be repaid to lenders.
+    ///               swapAction Swap actions instructions converting
+    ///                          collateral asset into debt asset to
+    ///                          facilitate deleveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       deleverage action.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `deleverageAction` deleverage action, in WAD (1e18).
+    ///                 `action` deleverage action, in WAD (1e18).
     function deleverage(
-        DeleverageAction calldata deleverageAction,
+        DeleverageAction calldata action,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
-        _deleverage(deleverageAction, msg.sender);
+        _deleverage(action, msg.sender);
     }
 
     /// @notice Deleverages an active Curvance position in favor of decreasing
     ///         both collateral and debt inside the system, via delegation.
     /// @dev Measures slippage through pre/post conditional slippage check
     ///      in `checkSlippage` modifier.
-    /// @param deleverageAction Instructions for a deleverage action
-    ///                         containing:
-    ///                         cToken Address of the cToken that will be
-    ///                                redeemed from and assets swapped into
-    ///                                `borrowableCToken` asset.
-    ///                         collateralAssets The amount of `cToken` that
-    ///                                          will be deleveraged,
-    ///                                          in assets.
-    ///                         borrowableCToken Address of the
-    ///                                          borrowableCToken that will
-    ///                                          have its debt paid.
-    ///                         repayAssets The amount of `borrowableCToken`
-    ///                                     asset that will be repaid to
-    ///                                     lenders.
-    ///                         swapAction Swap actions instructions
-    ///                                    converting collateral asset into
-    ///                                    debt asset to facilitate
-    ///                                    deleveraging.
-    ///                         auxData Optional auxiliary data for execution
-    ///                                 of a deleverage action.
+    /// @param action Instructions for a deleverage action containing:
+    ///               cToken Address of the cToken that will be redeemed from
+    ///                      and assets swapped into `borrowableCToken` asset.
+    ///               collateralAssets The amount of `cToken` that will be
+    ///                                deleveraged, in assets.
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will have its debt paid.
+    ///               repayAssets The amount of `borrowableCToken` asset that
+    ///                           will be repaid to lenders.
+    ///               swapAction Swap actions instructions converting
+    ///                          collateral asset into debt asset to
+    ///                          facilitate deleveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       deleverage action.
     /// @param account The account to deleverage an active Curvance position
     ///                for.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `deleverageAction` deleverage action, in WAD (1e18).
+    ///                 `action` deleverage action, in WAD (1e18).
     function deleverageFor(
-        DeleverageAction calldata deleverageAction,
+        DeleverageAction calldata action,
         address account,
         uint256 slippage
     ) external checkSlippage(account, slippage) nonReentrant {
         _checkDelegate(account, msg.sender);
 
-        _deleverage(deleverageAction, account);
+        _deleverage(action, account);
     }
 
     /// @notice Callback function to execute post borrow of
@@ -318,25 +303,24 @@ abstract contract BasePositionManager is
     /// @param borrowAssets The amount of `borrowableCToken`'s asset borrowed.
     /// @param owner The account borrowing that will be swapped into
     ///              collateral assets deposited into Curvance.
-    /// @param leverageAction Instructions for a leverage action containing:
-    ///                       borrowableCToken Address of the borrowableCToken
-    ///                                        that will be borrowed from and
-    ///                                        assets swapped into `cToken`
-    ///                                        asset.
-    ///                       borrowAssets The amount borrowed from
-    ///                                    `borrowableCToken`, in assets.
-    ///                       cToken Curvance token assets that borrowed funds
-    ///                              will be swapped into.
-    ///                       swapAction Swap action instructions converting
-    ///                                  debt asset into collateral asset to
-    ///                                  facilitate leveraging.
-    ///                       auxData Optional auxiliary data for execution of a
-    ///                               a leverage action.
+    /// @param action Instructions for a leverage action containing:
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will be borrowed from and assets
+    ///                                swapped into `cToken` asset.
+    ///               borrowAssets The amount borrowed from
+    ///                            `borrowableCToken`, in assets.
+    ///               cToken Curvance token assets that borrowed funds will be
+    ///                      swapped into.
+    ///               swapAction Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       leverage action.
     function onBorrow(
         address borrowableCToken,
         uint256 borrowAssets,
         address owner,
-        LeverageAction memory leverageAction
+        LeverageAction memory action
     ) external override {
         address debtAsset = IBorrowableCToken(borrowableCToken).asset();
 
@@ -344,12 +328,12 @@ abstract contract BasePositionManager is
         uint256 fee = _getFee(
             borrowableCToken,
             borrowAssets,
-            address(leverageAction.borrowableCToken),
-            leverageAction.borrowAssets,
+            address(action.borrowableCToken),
+            action.borrowAssets,
             debtAsset
         );
         if (fee > 0) {
-            leverageAction.borrowAssets -= fee;
+            action.borrowAssets -= fee;
             SafeTransferLib.safeTransfer(
                 debtAsset,
                 centralRegistry.daoAddress(),
@@ -361,12 +345,12 @@ abstract contract BasePositionManager is
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        ICToken cToken = leverageAction.cToken;
+        ICToken cToken = action.cToken;
 
         // Unwrap leverage instructions for collateral deposit.
         address collateralAsset = cToken.asset();
 
-        _swapDebtAssetToCollateralAsset(leverageAction, owner);
+        _swapDebtAssetToCollateralAsset(action, owner);
 
         uint256 amount = IERC20(collateralAsset).balanceOf(address(this));
 
@@ -402,44 +386,38 @@ abstract contract BasePositionManager is
     /// @param collateralAssets The amount of `cToken` underlying redeemed.
     /// @param owner The account redeeming collateral that will be used to
     ///              repay their active debt.
-    /// @param deleverageAction Instructions for a deleverage action
-    ///                         containing:
-    ///                         cToken Address of the cToken that will be
-    ///                                redeemed from and assets swapped into
-    ///                                `borrowableCToken` asset.
-    ///                         collateralAssets The amount of `cToken` that
-    ///                                          will be deleveraged,
-    ///                                          in assets.
-    ///                         borrowableCToken Address of the
-    ///                                          borrowableCToken that will
-    ///                                          have its debt paid.
-    ///                         repayAssets The amount of `borrowableCToken`
-    ///                                     asset that will be repaid to
-    ///                                     lenders.
-    ///                         swapAction Swap actions instructions
-    ///                                    converting collateral asset into
-    ///                                    debt asset to facilitate
-    ///                                    deleveraging.
-    ///                         auxData Optional auxiliary data for execution
-    ///                                 of a deleverage action.
+    /// @param action Instructions for a deleverage action containing:
+    ///               cToken Address of the cToken that will be redeemed from
+    ///                      and assets swapped into `borrowableCToken` asset.
+    ///               collateralAssets The amount of `cToken` that will be
+    ///                                deleveraged, in assets.
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will have its debt paid.
+    ///               repayAssets The amount of `borrowableCToken` asset that
+    ///                           will be repaid to lenders.
+    ///               swapAction Swap actions instructions converting
+    ///                          collateral asset into debt asset to
+    ///                          facilitate deleveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       deleverage action.
     function onRedeem(
         address cToken,
         uint256 collateralAssets,
         address owner,
-        DeleverageAction memory deleverageAction
+        DeleverageAction memory action
     ) external override {
         // Take protocol fee, if any.
         address collateralAsset = ICToken(cToken).asset();
         uint256 fee = _getFee(
             cToken,
             collateralAssets,
-            address(deleverageAction.cToken),
-            deleverageAction.collateralAssets,
+            address(action.cToken),
+            action.collateralAssets,
             collateralAsset
         );
 
         if (fee > 0) {
-            deleverageAction.collateralAssets -= fee;
+            action.collateralAssets -= fee;
             SafeTransferLib.safeTransfer(
                 collateralAsset,
                 centralRegistry.daoAddress(),
@@ -447,17 +425,17 @@ abstract contract BasePositionManager is
             );
         }
 
-        _swapCollateralAssetToDebtAsset(deleverageAction);
+        _swapCollateralAssetToDebtAsset(action);
 
         // We do not need to check whether `borrowableCToken` is listed
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        IBorrowableCToken borrowableCToken = deleverageAction.borrowableCToken;
+        IBorrowableCToken borrowableCToken = action.borrowableCToken;
 
         // Unwrap deleverage instructions for debt repayment.
         address debtAsset = borrowableCToken.asset();
-        uint256 repayAssets = deleverageAction.repayAssets;
+        uint256 repayAssets = action.repayAssets;
         uint256 assetsHeld = IERC20(debtAsset).balanceOf(address(this));
         if (repayAssets > assetsHeld) {
             revert BasePositionManager__InsufficientAssetsForRepayment();
@@ -487,13 +465,13 @@ abstract contract BasePositionManager is
         }
 
         // Transfer remaining swap dust back to the user.
-        if (deleverageAction.swapActions.length > 0) {
-            for (uint256 i; i < deleverageAction.swapActions.length; ++i) {
-                remaining = IERC20(deleverageAction.swapActions[i].outputToken)
+        if (action.swapActions.length > 0) {
+            for (uint256 i; i < action.swapActions.length; ++i) {
+                remaining = IERC20(action.swapActions[i].outputToken)
                     .balanceOf(address(this));
                 if (remaining > 0) {
                     SafeTransferLib.safeTransfer(
-                        deleverageAction.swapActions[i].outputToken,
+                        action.swapActions[i].outputToken,
                         owner,
                         remaining
                     );
@@ -506,79 +484,6 @@ abstract contract BasePositionManager is
             debtAsset,
             address(borrowableCToken)
         );
-    }
-
-    /// @notice Calculates the hypothetical maximum amount of
-    ///         `borrowableCToken` assets `account` can borrow for maximum
-    ///         leverage based on a new `cToken` collateralized deposit.
-    /// @dev Applies a minor dampening effect to calculated maximum leverage
-    ///      via `MAX_LEVERAGE`. Offsets maximum borrowable debt amount if
-    ///      there is insufficient liquidity to borrow in the target market.
-    /// @param account The account to query maximum borrow amount for.
-    /// @param borrowableCToken The token that `account` will borrow assets
-    ///                         from to achieve leverage.
-    /// @param cToken The token that `account` will deposit to
-    ///                        leverage against.
-    /// @param assets The amount of `cToken` underlying that
-    ///               `account` will deposit to leverage against.
-    /// @return maxDebtBorrowable Returns the maximum remaining borrow amount
-    ///                           allowed from `borrowableCToken`, measured in
-    ///                           underlying token amount, after the new
-    ///                           hypothetical deposit.
-    /// @return isOffset Whether the maximum borrowable debt amount returned
-    ///                  has been offset due to available liquidity or not.
-    function hypotheticalMaxRemainingLeverageOf(
-        address account,
-        address borrowableCToken,
-        address cToken,
-        uint256 assets
-    ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
-        (uint256 price, uint256 errorCode) = IOracleManager(
-            ICentralRegistry(centralRegistry).oracleManager()
-        ).getPrice(address(cToken), true, true);
-
-        // Validate we got a price for `cToken`.
-        if (errorCode != 0) {
-            revert BasePositionManager__InvalidTokenPrice();
-        }
-
-        (
-            uint256 sumCollateral,
-            uint256 maxDebt,
-            uint256 sumDebt
-        ) = marketManager.statusOf(account);
-
-        uint256 newCollateral = _mulDiv(
-            ICToken(cToken).previewDeposit(assets),
-            price,
-            10 ** ICToken(cToken).decimals()
-        );
-
-        uint256 collRatio = marketManager.collateralizationRatio(cToken);
-        // If the collateral token cannot be borrowed against the hypothetical
-        // leverage check will result in 0 meaning nothing new to leverage
-        // against.
-        if (collRatio == 0) {
-            revert BasePositionManager__InvalidParam();
-        }
-
-        sumCollateral += newCollateral;
-        maxDebt += _mulDiv(newCollateral, collRatio, WAD);
-
-        maxDebtBorrowable = _maxRemainingLeverageOf(
-            sumCollateral,
-            maxDebt,
-            sumDebt,
-            borrowableCToken
-        );
-
-        uint256 liquidityAvailable = IERC20(ICToken(borrowableCToken).asset())
-            .balanceOf(borrowableCToken);
-
-        if (liquidityAvailable < maxDebtBorrowable) {
-            maxDebtBorrowable = liquidityAvailable;
-            isOffset = true;
-        }
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -602,7 +507,7 @@ abstract contract BasePositionManager is
             uint256 sumDebt
         ) = marketManager.statusOf(account);
 
-        result =_maxRemainingLeverageOf(
+        result = _maxRemainingLeverageOf(
             sumCollateral,
             maxDebt,
             sumDebt,
@@ -658,28 +563,27 @@ abstract contract BasePositionManager is
 
     /// @notice Leverages an active Curvance position in favor of increasing
     ///         both collateral and debt inside the system.
-    /// @param leverageAction Instructions for a leverage action containing:
-    ///                       borrowableCToken Address of the borrowableCToken
-    ///                                        that will be borrowed from and
-    ///                                        assets swapped into `cToken`
-    ///                                        asset.
-    ///                       borrowAssets The amount borrowed from
-    ///                                    `borrowableCToken`, in assets.
-    ///                       cToken Curvance token assets that borrowed funds
-    ///                              will be swapped into.
-    ///                       swapAction Swap action instructions converting
-    ///                                  debt asset into collateral asset to
-    ///                                  facilitate leveraging.
-    ///                       auxData Optional auxiliary data for execution of a
-    ///                               a leverage action.
+    /// @param action Instructions for a leverage action containing:
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will be borrowed from and assets
+    ///                                swapped into `cToken` asset.
+    ///               borrowAssets The amount borrowed from
+    ///                            `borrowableCToken`, in assets.
+    ///               cToken Curvance token assets that borrowed funds will be
+    ///                      swapped into.
+    ///               swapAction Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       leverage action.
     /// @param account The account to leverage an active Curvance position
     ///                for.
     function _leverage(
-        LeverageAction memory leverageAction,
+        LeverageAction memory action,
         address account
     ) internal {
-        IBorrowableCToken borrowableCToken = leverageAction.borrowableCToken;
-        uint256 borrowAssets = leverageAction.borrowAssets;
+        IBorrowableCToken borrowableCToken = action.borrowableCToken;
+        uint256 borrowAssets = action.borrowAssets;
 
         // Validate that the desired borrow amount is within bounds of what
         // will be allowed by the Market Manager.
@@ -693,42 +597,36 @@ abstract contract BasePositionManager is
         borrowableCToken.borrowForPositionManager(
             borrowAssets,
             account,
-            leverageAction
+            action
         );
     }
 
     /// @notice Deleverages an active Curvance position in favor of decreasing
     ///         both collateral and debt inside the system.
-    /// @param deleverageAction Instructions for a deleverage action
-    ///                         containing:
-    ///                         cToken Address of the cToken that will be
-    ///                                redeemed from and assets swapped into
-    ///                                `borrowableCToken` asset.
-    ///                         collateralAssets The amount of `cToken` that
-    ///                                          will be deleveraged,
-    ///                                          in assets.
-    ///                         borrowableCToken Address of the
-    ///                                          borrowableCToken that will
-    ///                                          have its debt paid.
-    ///                         repayAssets The amount of `borrowableCToken`
-    ///                                     asset that will be repaid to
-    ///                                     lenders.
-    ///                         swapAction Swap actions instructions
-    ///                                    converting collateral asset into
-    ///                                    debt asset to facilitate
-    ///                                    deleveraging.
-    ///                         auxData Optional auxiliary data for execution
-    ///                                 of a deleverage action.
+    /// @param action Instructions for a deleverage action containing:
+    ///               cToken Address of the cToken that will be redeemed from
+    ///                      and assets swapped into `borrowableCToken` asset.
+    ///               collateralAssets The amount of `cToken` that will be
+    ///                                deleveraged, in assets.
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will have its debt paid.
+    ///               repayAssets The amount of `borrowableCToken` asset that
+    ///                           will be repaid to lenders.
+    ///               swapAction Swap actions instructions converting
+    ///                          collateral asset into debt asset to
+    ///                          facilitate deleveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       deleverage action.
     /// @param account The account to deleverage an active Curvance position
     ///                for.
     function _deleverage(
-        DeleverageAction memory deleverageAction,
+        DeleverageAction memory action,
         address account
     ) internal {
-        deleverageAction.cToken.withdrawByPositionManager(
-            deleverageAction.collateralAssets,
+        action.cToken.withdrawByPositionManager(
+            action.collateralAssets,
             account,
-            deleverageAction
+            action
         );
     }
 
@@ -842,7 +740,7 @@ abstract contract BasePositionManager is
     ///         creating/increasing a leveraged spot position.
     /// @dev MUST be overridden in every Position Manager implementation.
     function _swapDebtAssetToCollateralAsset(
-        LeverageAction memory leverageAction,
+        LeverageAction memory action,
         address /* receiver */
     ) internal virtual;
 
@@ -853,6 +751,6 @@ abstract contract BasePositionManager is
     ///         a leveraged spot position.
     /// @dev MUST be overridden in every Position Manager implementation.
     function _swapCollateralAssetToDebtAsset(
-        DeleverageAction memory deleverageAction
+        DeleverageAction memory action
     ) internal virtual;
 }

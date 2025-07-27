@@ -57,24 +57,23 @@ interface IBorrowableCToken is ICToken {
     ///         perform a complex action.
     /// @param assets The amount of the underlying assets to borrow.
     /// @param owner The account address to borrow on behalf of.
-    /// @param leverageAction Instructions for a leverage action containing:
-    ///                       borrowableCToken Address of the borrowableCToken
-    ///                                        that will be borrowed from and
-    ///                                        assets swapped into `cToken`
-    ///                                        asset.
-    ///                       borrowAssets The amount borrowed from
-    ///                                    `borrowableCToken`, in assets.
-    ///                       cToken Curvance token assets that borrowed funds
-    ///                              will be swapped into.
-    ///                       swapAction Swap action instructions converting
-    ///                                  debt asset into collateral asset to
-    ///                                  facilitate leveraging.
-    ///                       auxData Optional auxiliary data for execution of a
-    ///                               a leverage action.
+    /// @param action Instructions for a leverage action containing:
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will be borrowed from and assets
+    ///                                swapped into `cToken` asset.
+    ///               borrowAssets The amount borrowed from
+    ///                            `borrowableCToken`, in assets.
+    ///               cToken Curvance token assets that borrowed funds will be
+    ///                      swapped into.
+    ///               swapAction Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       leverage action.
     function borrowForPositionManager(
         uint256 assets,
         address owner,
-        IPositionManager.LeverageAction memory leverageAction
+        IPositionManager.LeverageAction memory action
     ) external;
 
     /// @notice Repays underlying tokens to lenders, on behalf of `account`,

@@ -42,36 +42,35 @@ contract VelodromePositionManager is BasePositionManager {
     ///         leveraged spot position.
     /// @dev Slippage is checked inside enterVelodrome call to VelodromeLib
     ///      with the slippage value being encoded in the `aux` field of
-    ///      `leverageAction`.
-    /// @param leverageAction Instructions for a leverage action containing:
-    ///                       borrowableCToken Address of the borrowableCToken
-    ///                                        that will be borrowed from and
-    ///                                        assets swapped into `cToken`
-    ///                                        asset.
-    ///                       borrowAssets The amount borrowed from
-    ///                                    `borrowableCToken`, in assets.
-    ///                       cToken Curvance token assets that borrowed funds
-    ///                              will be swapped into.
-    ///                       swapAction Swap action instructions converting
-    ///                                  debt asset into collateral asset to
-    ///                                  facilitate leveraging.
-    ///                       auxData Optional auxiliary data for execution of a
-    ///                               a leverage action.
+    ///      `action`.
+    /// @param action Instructions for a leverage action containing:
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will be borrowed from and assets
+    ///                                swapped into `cToken` asset.
+    ///               borrowAssets The amount borrowed from
+    ///                            `borrowableCToken`, in assets.
+    ///               cToken Curvance token assets that borrowed funds will be
+    ///                      swapped into.
+    ///               swapAction Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       leverage action.
     /// @param receiver The address who will receive the remaining dust post
     ///                 swap, if any.
     function _swapDebtAssetToCollateralAsset(
-        LeverageAction memory leverageAction,
+        LeverageAction memory action,
         address receiver
     ) internal virtual override {
-        address pool = leverageAction.cToken.asset();
-        address debtAsset = leverageAction.borrowableCToken.asset();
+        address pool = action.cToken.asset();
+        address debtAsset = action.borrowableCToken.asset();
         address token0 = IVeloPool(pool).token0();
         address token1 = IVeloPool(pool).token1();
         
         // If the token being borrowed isn't token0 or token1 we will need to swap
         // into it.
         if (debtAsset != token0 && debtAsset != token1) {
-            SwapperLib.Swap memory swapAction = leverageAction.swapAction;
+            SwapperLib.Swap memory swapAction = action.swapAction;
 
             // Make sure there is swap instructions.
             if (swapAction.call.length == 0) {
@@ -84,7 +83,7 @@ contract VelodromePositionManager is BasePositionManager {
                 swapAction.inputToken != debtAsset ||
                 (swapAction.outputToken != token0 &&
                     swapAction.outputToken != token1) ||
-                swapAction.inputAmount != leverageAction.borrowAssets
+                swapAction.inputAmount != action.borrowAssets
             ) {
                 revert BasePositionManager__InvalidParam();
             }
@@ -100,7 +99,7 @@ contract VelodromePositionManager is BasePositionManager {
             revert BasePositionManager__InvalidSlippage();
         }
         
-        uint256 minLpAmount = abi.decode(leverageAction.auxData, (uint256));
+        uint256 minLpAmount = abi.decode(action.auxData, (uint256));
 
         VelodromeLib._enterVelodrome(
             router,
@@ -130,37 +129,31 @@ contract VelodromePositionManager is BasePositionManager {
     ///         then swapped into the underlying of an borrowableCToken that a
     ///         user is currently borrowing from, partially or fully closing a
     ///         leveraged spot position.
-    /// @param deleverageAction Instructions for a deleverage action
-    ///                         containing:
-    ///                         cToken Address of the cToken that will be
-    ///                                redeemed from and assets swapped into
-    ///                                `borrowableCToken` asset.
-    ///                         collateralAssets The amount of `cToken` that
-    ///                                          will be deleveraged,
-    ///                                          in assets.
-    ///                         borrowableCToken Address of the
-    ///                                          borrowableCToken that will
-    ///                                          have its debt paid.
-    ///                         repayAssets The amount of `borrowableCToken`
-    ///                                     asset that will be repaid to
-    ///                                     lenders.
-    ///                         swapAction Swap actions instructions
-    ///                                    converting collateral asset into
-    ///                                    debt asset to facilitate
-    ///                                    deleveraging.
-    ///                         auxData Optional auxiliary data for execution
-    ///                                 of a deleverage action.
+    /// @param action Instructions for a deleverage action containing:
+    ///               cToken Address of the cToken that will be redeemed from
+    ///                      and assets swapped into `borrowableCToken` asset.
+    ///               collateralAssets The amount of `cToken` that will be
+    ///                                deleveraged, in assets.
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will have its debt paid.
+    ///               repayAssets The amount of `borrowableCToken` asset that
+    ///                           will be repaid to lenders.
+    ///               swapAction Swap actions instructions converting
+    ///                          collateral asset into debt asset to
+    ///                          facilitate deleveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       deleverage action.
     function _swapCollateralAssetToDebtAsset(
-        DeleverageAction memory deleverageAction
+        DeleverageAction memory action
     ) internal virtual override {
-        address pool = deleverageAction.cToken.asset();
-        address debtAsset = deleverageAction.borrowableCToken.asset();
-        SwapperLib.Swap[] memory swapActions = deleverageAction.swapActions;
+        address pool = action.cToken.asset();
+        address debtAsset = action.borrowableCToken.asset();
+        SwapperLib.Swap[] memory swapActions = action.swapActions;
 
         VelodromeLib._exitVelodrome(
             router,
             pool,
-            deleverageAction.collateralAssets
+            action.collateralAssets
         );
 
         uint256 numSwaps = swapActions.length;

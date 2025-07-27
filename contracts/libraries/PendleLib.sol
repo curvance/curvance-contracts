@@ -8,25 +8,27 @@ import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 /// @title Curvance Pendle Library.
-/// @notice Helper Library for working with Pendle LP tokens. Supports both
-///         creating and exiting LP positions for better composability across
-///         DeFi.
+/// @notice Helper Library for working with Pendle tokens. Supports both
+///         creating and exiting positions for better composability.
 library PendleLib {
     /// TYPES ///
 
-    /// @title Pendle Data
-    /// @notice Struct containing information on the desired
-    ///         Pendle swap and mint/exit execution data.
+    /// @notice Instructions for a Pendle action.
     /// @param approx The approximate price parameters for the Pendle swap.
-    /// @param input Represents the input parameters for token operations within the Pendle protocol.
-    ///         Users start with `netTokenIn` amount of `tokenIn`. If `tokenIn` differs from `tokenMintSy`,
-    ///         a swap is performed using the specified aggregator to convert `tokenIn` to `tokenMintSy`,
-    ///         which is then used to mint SY tokens.
-    /// @param output Represents the output parameters for token operations within the Pendle protocol.
-    ///         Users receive SY tokens, redeem them to `tokenRedeemSy`, and may use an aggregator to swap
-    ///         `tokenRedeemSy` to the desired `tokenOut`.
-    /// @param limit Contains parameters for executing limit orders within the Pendle protocol.
-    struct PendleData {
+    /// @param input Represents the input parameters for token operations
+    ///              within the Pendle protocol. Users start with `netTokenIn`
+    ///              amount of `tokenIn`. If `tokenIn` differs from
+    ///              `tokenMintSy`, a swap is performed using the specified
+    ///              aggregator to convert `tokenIn` to `tokenMintSy`, which
+    ///              is then used to mint SY tokens.
+    /// @param output Represents the output parameters for token operations
+    ///               within the Pendle protocol. Users receive SY tokens,
+    ///               redeem them to `tokenRedeemSy`, and may use an
+    ///               aggregator to swap `tokenRedeemSy` to the desired
+    ///               `tokenOut`.
+    /// @param limit Contains parameters for executing limit orders within
+    ///              the Pendle protocol.
+    struct PendleAction {
         ApproxParams approx;
         TokenInput input;
         TokenOutput output;
@@ -36,37 +38,51 @@ library PendleLib {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Enters a Pendle position.
-    /// @param router The Pendle router address.
-    /// @param isPt Whether lp token is PT or not.
-    /// @param data Pendle specific execution data including input/output,
-    ///             and limit order data.
+    /// @param router The Pendle router address to use on action.
+    /// @param isPt Whether pendle token is PT or not.
     /// @param lpToken The Pendle lp token address.
-    /// @param minOutAmount The minimum lp/pt output amount acceptable.
+    /// @param minOutAmount The minimum output amount acceptable.
+    /// @param action Instructions for a Pendle action containing:
+    ///               approx The approximate price parameters for the Pendle
+    ///                      swap.
+    ///               input Represents the input parameters for a Pendle
+    ///                     action. Users start with `netTokenIn` amount of
+    ///                     `tokenIn`. If `tokenIn` differs from
+    ///                     `tokenMintSy`, a swap is performed using the
+    ///                     specified aggregator to convert `tokenIn` to
+    ///                     `tokenMintSy`, which is then used to mint SY
+    ///                     tokens.
+    ///               output Represents the output parameters for a Pendle
+    ///                      action. Users receive SY tokens, redeem them
+    ///                      to `tokenRedeemSy`, and may use an aggregator
+    ///                      to swap `tokenRedeemSy` to the desired
+    ///                      `tokenOut`.
+    ///               limit Contains parameters for executing limit orders.
     /// @return outAmount The lp/pt output amount of Pendle lp received.
     function _enterPendle(
         address router,
         bool isPt,
-        PendleData memory data,
         address lpToken,
-        uint256 minOutAmount
+        uint256 minOutAmount,
+        PendleAction memory action
     ) internal returns (uint256 outAmount) {
         if (isPt) {
             // Swap `tokenIn` to principal token.
             SwapperLib._approveIfNeeded(
-                data.input.tokenIn,
+                action.input.tokenIn,
                 address(router),
-                data.input.netTokenIn
+                action.input.netTokenIn
             );
-            (outAmount, , ) = IPendleRouter(router).swapExactTokenForPt(
+            (outAmount,, ) = IPendleRouter(router).swapExactTokenForPt(
                 address(this),
                 lpToken,
                 minOutAmount,
-                data.approx,
-                data.input,
-                data.limit
+                action.approx,
+                action.input,
+                action.limit
             );
         } else {
-            (IStandardizedYield sy, , ) = IPMarket(lpToken).readTokens();
+            (IStandardizedYield sy,, ) = IPMarket(lpToken).readTokens();
             address[] memory tokens = sy.getTokensIn();
             uint256 numTokens = tokens.length;
             address token;
@@ -109,40 +125,57 @@ library PendleLib {
                 lpToken,
                 balance,
                 minOutAmount,
-                data.approx,
-                data.limit
+                action.approx,
+                action.limit
             );
         }
     }
 
     /// @notice Exit a Pendle position.
-    /// @param router The Pendle router address.
-    /// @param isPt Whether lp token is PT or not.
-    /// @param token If isPt = false then the underlying token address of the
-    ///              SY, if not then the PT address.
-    /// @param data Pendle specific execution data including input/output,
-    ///             and limit order data.
+    /// @param router The Pendle router address to use on action.
+    /// @param isPt Whether pendle token is PT or not.
     /// @param lpToken The Pendle lp token address.
+    /// @param minOutAmount The minimum output amount acceptable.
+    /// @param action Instructions for a Pendle action containing:
+    ///               router The Pendle router address to use on action.
+    ///               isPt Whether pendle token is PT or not.
+    ///               approx The approximate price parameters for the Pendle
+    ///                      swap.
+    ///               input Represents the input parameters for a Pendle
+    ///                     action. Users start with `netTokenIn` amount of
+    ///                     `tokenIn`. If `tokenIn` differs from
+    ///                     `tokenMintSy`, a swap is performed using the
+    ///                     specified aggregator to convert `tokenIn` to
+    ///                     `tokenMintSy`, which is then used to mint SY
+    ///                     tokens.
+    ///               output Represents the output parameters for a Pendle
+    ///                      action. Users receive SY tokens, redeem them
+    ///                      to `tokenRedeemSy`, and may use an aggregator
+    ///                      to swap `tokenRedeemSy` to the desired
+    ///                      `tokenOut`.
+    ///               limit Contains parameters for executing limit orders.
+    /// @param pendleToken If isPt = false then the underlying token address
+    ///                    of the SY, if not then the PT address.
     /// @param amount The Pendle lp/pt amount to exit.
     /// @param minTokenOut The minimum token output amount acceptable.
     function _exitPendle(
         address router,
         bool isPt,
-        address token,
-        PendleData memory data,
         address lpToken,
-        uint256 amount,
         uint256 minTokenOut
+        PendleAction memory action,
+        address pendleToken,
+        uint256 amount
     ) internal {
         if (isPt) {
-            SwapperLib._approveIfNeeded(token, router, amount);
+            SwapperLib._approveIfNeeded(pendleToken, router, amount);
 
             IPendleRouter(router).swapExactPtForToken(
                 address(this),
                 lpToken,
                 amount,
-                data.output,
-                data.limit
+                action.output,
+                action.limit
             );
         } else {
             SwapperLib._approveIfNeeded(lpToken, router, amount);
@@ -153,11 +186,11 @@ library PendleLib {
                     lpToken,
                     amount,
                     0,
-                    data.limit
+                    action.limit
                 );
 
-            (IStandardizedYield sy, , ) = IPMarket(lpToken).readTokens();
-            sy.redeem(address(this), balance, token, minTokenOut, false);
+            (IStandardizedYield sy,, ) = IPMarket(lpToken).readTokens();
+            sy.redeem(address(this), balance, pendleToken, minTokenOut, false);
         }
     }
 }

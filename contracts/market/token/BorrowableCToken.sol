@@ -216,25 +216,24 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @dev Only Position Manager contract can call this function.
     ///      Updates pending interest before executing the borrow.
     /// @param assets The amount of the underlying asset to borrow.
-    /// @param leverageAction Instructions for a leverage action containing:
-    ///                       borrowableCToken Address of the borrowableCToken
-    ///                                        that will be borrowed from and
-    ///                                        assets swapped into `cToken`
-    ///                                        asset.
-    ///                       borrowAssets The amount borrowed from
-    ///                                    `borrowableCToken`, in assets.
-    ///                       cToken Curvance token assets that borrowed funds
-    ///                              will be swapped into.
-    ///                       swapAction Swap action instructions converting
-    ///                                  debt asset into collateral asset to
-    ///                                  facilitate leveraging.
-    ///                       auxData Optional auxiliary data for execution of a
-    ///                               a leverage action.
+    /// @param action Instructions for a leverage action containing:
+    ///               borrowableCToken Address of the borrowableCToken that
+    ///                                will be borrowed from and assets
+    ///                                swapped into `cToken` asset.
+    ///               borrowAssets The amount borrowed from
+    ///                            `borrowableCToken`, in assets.
+    ///               cToken Curvance token assets that borrowed funds will be
+    ///                      swapped into.
+    ///               swapAction Swap action instructions converting debt
+    ///                          asset into collateral asset to facilitate
+    ///                          leveraging.
+    ///               auxData Optional auxiliary data for execution of a
+    ///                       leverage action.
     /// @param owner The account address to borrow on behalf of.
     function borrowForPositionManager(
         uint256 assets,
         address owner,
-        IPositionManager.LeverageAction memory leverageAction
+        IPositionManager.LeverageAction memory action
     ) external nonReentrant {
         if (!marketManager.isPositionManager(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -259,7 +258,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             address(this),
             assets,
             owner,
-            leverageAction
+            action
         );
 
         // Fail if terminal position is not allowed with no additional
