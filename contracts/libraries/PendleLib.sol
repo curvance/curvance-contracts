@@ -131,7 +131,7 @@ library PendleLib {
         }
     }
 
-    /// @notice Exit a Pendle position.
+    /// @notice Exits a Pendle position.
     /// @param router The Pendle router address to use on action.
     /// @param isPt Whether pendle token is PT or not.
     /// @param lpToken The Pendle lp token address.
@@ -157,7 +157,6 @@ library PendleLib {
     /// @param pendleToken If isPt = false then the underlying token address
     ///                    of the SY, if not then the PT address.
     /// @param amount The Pendle lp/pt amount to exit.
-    /// @param minTokenOut The minimum token output amount acceptable.
     function _exitPendle(
         address router,
         bool isPt,

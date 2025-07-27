@@ -85,7 +85,7 @@ contract PendleLPPositionManager is BasePositionManager {
         }
 
         // Decode pendle data.
-        (uint256 minLpAmount, PendleLib.PendleAction memory action) = abi
+        (uint256 minLpAmount, PendleLib.PendleAction memory pendleAction) = abi
             .decode(action.auxData, (uint256, PendleLib.PendleAction));
 
         // Enter pendle position.
@@ -94,7 +94,7 @@ contract PendleLPPositionManager is BasePositionManager {
             false,
             lpToken,
             minLpAmount,
-            action
+            pendleAction
         );
     }
 
@@ -138,7 +138,7 @@ contract PendleLPPositionManager is BasePositionManager {
         }
 
         // Decode Pendle data.
-        (uint256 minTokenOut, PendleLib.PendleAction memory action) = abi
+        (uint256 minTokenOut, PendleLib.PendleAction memory pendleAction) = abi
             .decode(action.auxData, (uint256, PendleLib.PendleAction));
 
         // Exit Pendle position.
@@ -147,8 +147,7 @@ contract PendleLPPositionManager is BasePositionManager {
             false,
             lpToken,
             minTokenOut,
-            
-            action,
+            pendleAction,
             tokenOut,
             action.collateralAssets
         );
