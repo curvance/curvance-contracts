@@ -104,7 +104,8 @@ contract MarketManagerIsolated is
     /// @dev 0.999e18 = 99.9%. Multiplied then divided by WAD = 10 bps buffer.
     uint256 public constant AUCTION_BUFFER = 0.999e18;
     /// @notice The maximum base cFactor.
-    /// @dev .5e18 = 50%.
+    /// @dev .5e18 = 50%. NOTE: This can NEVER be changed to 1e18 or offchain
+    ///      parameters can be unintentionally ignored.
     uint256 public constant MAX_BASE_CFACTOR = .5e18;
     /// @notice The minimum base cFactor.
     /// @dev .1e18 = 10%.
@@ -1138,7 +1139,7 @@ contract MarketManagerIsolated is
     ///               close factor for during an auction-based liquidation.
     /// @param incentive The auction liquidation incentive value, in WAD.
     /// @param closeFactor The auction close factor value, in WAD.
-    function setAuctionParameters(
+    function setLiquidationParameters(
         address cToken,
         uint256 incentive,
         uint256 closeFactor
@@ -1182,7 +1183,7 @@ contract MarketManagerIsolated is
     /// @notice Resets the Auction risk parameters in transient storage to zero.
     ///         This is redundant since the transient values will be reset 
     ///         after an Auction tx, but helps to ensure expected behaviour. 
-    function resetAuctionParameters() external {
+    function resetLiquidationParameters() external {
         _checkAuctionPermissions();
 
         // Clear the transient storage slots by writing zero.
@@ -1201,7 +1202,7 @@ contract MarketManagerIsolated is
     ///      transient storage, that value is returned (0 if no set value).
     /// @return incentive The auction liquidation incentive value, in WAD.
     /// @return closeFactor The auction close factor value, in WAD.
-    function getLatestAuctionParameters() public view returns (
+    function getLiquidationParameters() public view returns (
         uint256 incentive,
         uint256 closeFactor
     ) {
@@ -1492,11 +1493,13 @@ contract MarketManagerIsolated is
             return (0, 0, 0);
         }
 
-        // If this liquidation is not part of an auction we need to
-        // manually calculate liquidation size and liquidation penalty.
-        if (tData.auctionBuffer == 0) {
-            // Fallback to using the base close factor when
-            // _TRANSIENT_CLOSE_FACTOR_KEY is empty.
+        // If this liquidation does not have offchain submitted
+        // parameters then closeFactorCurve will not be 0. We know this since
+        // closeFactorCurve is WAD - closeFactorBase and closeFactorBase is
+        // limited to MAX_BASE_CFACTOR meaning closeFactorCurve cannot ever be
+        // 0 unless we did not receive offchain parameters and we need to
+        // calculate close factor and liquidation penalty onchain.
+        if (aData.closeFactorCurve != 0) {
             aData.closeFactor = aData.closeFactorBase +
                 _mulDiv(aData.closeFactorCurve, aData.lFactor, WAD);
             aData.liqInc = aData.liqIncBase +
@@ -1655,8 +1658,7 @@ contract MarketManagerIsolated is
         // and liquidator has chosen incorrect collateral or market.
         tData.auctionBuffer = _checkLiquidationConfig(collateralToken);
 
-        // Cache all variables needed for computing liquidation levels and
-        // compress into one struct for stack too deep limits.
+        // Cache all variables needed for computing liquidation levels.
         tData.collateralToken = collateralToken;
         tData.collateralExchangeRate = ICToken(collateralToken).exchangeRate();
         tData.collateralReqSoft = ctData.collReqSoft;
@@ -1666,19 +1668,13 @@ contract MarketManagerIsolated is
         tData.debtDecimals = 10 ** IERC20(debtToken).decimals();
 
         // Pull transient storage variables from auctioneer updates.
-        (
-            aData.liqInc,
-            aData.closeFactor
-        ) = getLatestAuctionParameters();
+        (aData.liqInc, aData.closeFactor) = getLiquidationParameters();
 
-        // We only need to read storage and cache these variables if we did
-        // not receive cFactor/liqIncentive from `getLatestAuctionParameters`.
-        if (aData.closeFactor == 0) {
+        // We only need to cache these variables if we did not receive close
+        // factor/liquidation incentive from `getLiquidationParameters`.
+        if (aData.closeFactor == 0 || aData.liqInc == 0) {
             aData.closeFactorBase = ctData.closeFactorBase;
             aData.closeFactorCurve = ctData.closeFactorCurve;
-        }
-
-        if (aData.liqInc == 0) {
             aData.liqIncBase = ctData.liqIncBase;
             aData.liqIncCurve = ctData.liqIncCurve;
         }

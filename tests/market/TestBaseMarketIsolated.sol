@@ -1055,7 +1055,7 @@ contract TestBaseMarketIsolated is TestBase {
             _marketManager.liquidationStatusOf(_borrower, _collateralToken, _debtToken);
 
         if (_isAuction) {
-            (data.liqInc, cFactor) = _marketManager.getLatestAuctionParameters();
+            (data.liqInc, cFactor) = _marketManager.getLiquidationParameters();
         } else {
             cFactor = data.closeFactorBase + ((data.closeFactorCurve * data.lFactor) / WAD);
             data.liqInc = data.liqIncBase + ((data.liqIncCurve * data.lFactor) / WAD);

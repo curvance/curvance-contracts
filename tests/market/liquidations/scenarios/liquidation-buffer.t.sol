@@ -82,7 +82,7 @@ contract TestLiquidationBuffer is TestBaseMarketIsolated {
         // Set auction parameters
         uint256 validPenalty = 1.15e18;
         uint256 closeFactor = 0.30e18;
-        marketManagerIsolated.setAuctionParameters(address(borrowableCDAI), validPenalty, closeFactor);
+        marketManagerIsolated.setLiquidationParameters(address(borrowableCDAI), validPenalty, closeFactor);
         
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(borrowableCDAI));
