@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BaseWrappedAggregator } from "contracts/oracles/adaptors/wrappedAggregators/BaseWrappedAggregator.sol";
+import { BaseWrappedAggregator, WAD } from "contracts/oracles/adaptors/wrappedAggregators/BaseWrappedAggregator.sol";
 
 import { IWstETH } from "contracts/interfaces/external/wsteth/IWstETH.sol";
 
@@ -40,8 +40,8 @@ contract WstETHAggregator is BaseWrappedAggregator {
     ///         and the underlying aggregator, in `WAD`.
     /// @return The current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.
-    function getWrappedAssetWeight() public view override returns (uint256) {
-        // get pricing in `WAD` format directly to minimize calculations.
-        return IWstETH(wstETH).getStETHByWstETH(1e18);
+    function getExchangeRate() public view override returns (uint256) {
+        // Return exchange rate in `WAD` format directly.
+        return IWstETH(wstETH).getStETHByWstETH(WAD);
     }
 }

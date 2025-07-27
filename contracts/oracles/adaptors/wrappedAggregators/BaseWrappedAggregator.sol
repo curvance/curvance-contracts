@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { WAD } from "contracts/libraries/Constants.sol";
+
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
@@ -30,7 +31,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
             )
         );
 
-        max = FixedPointMathLib.fullMulDiv(max, getWrappedAssetWeight(), WAD);
+        max = FixedPointMathLib.fullMulDiv(max, getExchangeRate(), WAD);
         int256 intMax = _toInt256(max);
         if (intMax > type(int192).max) {
             return type(int192).max;
@@ -53,7 +54,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
             )
         );
 
-        min = FixedPointMathLib.fullMulDiv(min, getWrappedAssetWeight(), WAD);
+        min = FixedPointMathLib.fullMulDiv(min, getExchangeRate(), WAD);
         int256 intMin = _toInt256(min);
 
         if (intMin > type(int192).max) {
@@ -97,9 +98,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
             underlyingAssetAggregator()
         ).latestRoundData();
 
-        answer =
-            (answer * _toInt256(getWrappedAssetWeight())) /
-            _toInt256(WAD);
+        answer = (answer * _toInt256(getExchangeRate())) / _toInt256(WAD);
     }
 
     /// @notice Returns the adaptor's type.
@@ -127,7 +126,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
     /// @dev Overridden in implemented wrapped oracle aggregators.
     /// @return The current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.
-    function getWrappedAssetWeight() public view virtual returns (uint256) {}
+    function getExchangeRate() public view virtual returns (uint256) {}
 
     /// INTERNAl FUNCTIONS ///
 
