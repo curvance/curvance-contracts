@@ -10,6 +10,7 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 abstract contract BaseWrappedAggregator is IChainlink {
     /// ERRORS ///
 
+    error BaseWrappedAggregator__InvalidConfig();
     error BaseWrappedAggregator__UintToIntError();
 
     /// EXTERNAL FUNCTIONS ///
@@ -21,8 +22,8 @@ abstract contract BaseWrappedAggregator is IChainlink {
     }
 
     /// @notice Returns the maximum value that the aggregator can return.
-    /// @return The maximum value that the aggregator can return.
-    function maxAnswer() external view returns (int192) {
+    /// @return result The maximum value that the aggregator can return.
+    function maxAnswer() external view returns (int192 result) {
         uint256 max = uint256(
             uint192(
                 IChainlink(
@@ -31,21 +32,12 @@ abstract contract BaseWrappedAggregator is IChainlink {
             )
         );
 
-        max = FixedPointMathLib.fullMulDiv(max, getExchangeRate(), WAD);
-        int256 intMax = _toInt256(max);
-        if (intMax > type(int192).max) {
-            return type(int192).max;
-        }
-        if (intMax < type(int192).min) {
-            return type(int192).min;
-        }
-
-        return _toInt192(intMax);
+        result = _boundAnswer(max);
     }
 
     /// @notice Returns the minimum value that the aggregator can returned.
-    /// @return The minimum value that the aggregator can returned.
-    function minAnswer() external view returns (int192) {
+    /// @return result The minimum value that the aggregator can returned.
+    function minAnswer() external view returns (int192 result) {
         uint256 min = uint256(
             uint192(
                 IChainlink(
@@ -54,17 +46,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
             )
         );
 
-        min = FixedPointMathLib.fullMulDiv(min, getExchangeRate(), WAD);
-        int256 intMin = _toInt256(min);
-
-        if (intMin > type(int192).max) {
-            return type(int192).max;
-        }
-        if (intMin < type(int192).min) {
-            return type(int192).min;
-        }
-
-        return _toInt192(intMin);
+        result = _boundAnswer(min);
     }
 
     /// @notice Returns the number of decimals the aggregator responds with.
@@ -128,7 +110,24 @@ abstract contract BaseWrappedAggregator is IChainlink {
     ///         and the underlying aggregator, in `WAD`.
     function getExchangeRate() public view virtual returns (uint256) {}
 
-    /// INTERNAl FUNCTIONS ///
+    /// INTERNAL FUNCTIONS ///
+
+    /// @notice Bounds `answer` between int192 maximum and minimum values.
+    /// @param answer The value to bound.
+    /// @return The bounded answer.
+    function _boundAnswer(uint256 answer) internal view returns (int192){
+        answer = FixedPointMathLib.fullMulDiv(answer, getExchangeRate(), WAD);
+        int256 intAnswer = _toInt256(answer);
+
+        if (intAnswer > type(int192).max) {
+            return type(int192).max;
+        }
+        if (intAnswer < type(int192).min) {
+            return type(int192).min;
+        }
+
+        return _toInt192(intAnswer);
+    }
 
     /// @notice Returns the downcasted int192 from int256, reverting on
     ///         overflow (when the input is less than smallest int192 or

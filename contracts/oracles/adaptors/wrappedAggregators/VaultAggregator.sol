@@ -22,6 +22,11 @@ contract VaultAggregator is BaseWrappedAggregator {
         address _assetToken,
         address _assetAggregator
     ) {
+        // We can use ICToken since its an erc4626 vault itself.
+        if (ICToken(_vaultToken).asset() != _assetToken) {
+            revert BaseWrappedAggregator__InvalidConfig();
+        }
+        
         vaultToken = _vaultToken;
         assetToken = _assetToken;
         assetAggregator = _assetAggregator;
@@ -46,7 +51,7 @@ contract VaultAggregator is BaseWrappedAggregator {
     ///         and the underlying aggregator, in `WAD`.
     function getExchangeRate() public view override returns (uint256 result) {
         // Return exchange rate in `WAD` format directly.
-        // We can use ICToken since we just need to call convertToAssets.
+        // We can use ICToken since its an erc4626 vault itself.
         result = ICToken(vaultToken).convertToAssets(WAD);
     }
 }
