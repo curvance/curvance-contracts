@@ -1139,7 +1139,7 @@ contract MarketManagerIsolated is
     ///               close factor for during an auction-based liquidation.
     /// @param incentive The auction liquidation incentive value, in WAD.
     /// @param closeFactor The auction close factor value, in WAD.
-    function setLiquidationParameters(
+    function setLiquidationConfig(
         address cToken,
         uint256 incentive,
         uint256 closeFactor
@@ -1183,7 +1183,7 @@ contract MarketManagerIsolated is
     /// @notice Resets the Auction risk parameters in transient storage to zero.
     ///         This is redundant since the transient values will be reset 
     ///         after an Auction tx, but helps to ensure expected behaviour. 
-    function resetLiquidationParameters() external {
+    function resetLiquidationConfig() external {
         _checkAuctionPermissions();
 
         // Clear the transient storage slots by writing zero.
@@ -1202,7 +1202,7 @@ contract MarketManagerIsolated is
     ///      transient storage, that value is returned (0 if no set value).
     /// @return incentive The auction liquidation incentive value, in WAD.
     /// @return closeFactor The auction close factor value, in WAD.
-    function getLiquidationParameters() public view returns (
+    function getLiquidationConfig() public view returns (
         uint256 incentive,
         uint256 closeFactor
     ) {
@@ -1668,10 +1668,10 @@ contract MarketManagerIsolated is
         tData.debtDecimals = 10 ** IERC20(debtToken).decimals();
 
         // Pull transient storage variables from auctioneer updates.
-        (aData.liqInc, aData.closeFactor) = getLiquidationParameters();
+        (aData.liqInc, aData.closeFactor) = getLiquidationConfig();
 
         // We only need to cache these variables if we did not receive close
-        // factor/liquidation incentive from `getLiquidationParameters`.
+        // factor/liquidation incentive from `getLiquidationConfig`.
         if (aData.closeFactor == 0 || aData.liqInc == 0) {
             aData.closeFactorBase = ctData.closeFactorBase;
             aData.closeFactorCurve = ctData.closeFactorCurve;

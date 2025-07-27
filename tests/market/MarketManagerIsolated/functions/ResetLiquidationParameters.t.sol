@@ -8,7 +8,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
-contract ResetLiquidationParametersTest is TestBaseMarketIsolated {
+contract ResetLiquidationConfigTest is TestBaseMarketIsolated {
 
     function setUp() public override {
         super.setUp();
@@ -26,30 +26,30 @@ contract ResetLiquidationParametersTest is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
     }
 
-    function test_resetLiquidationParameters_fail_whenUnauthorized() public {
+    function test_resetLiquidationConfig_fail_whenUnauthorized() public {
         vm.startPrank(user1);
         
         vm.expectRevert();
-        marketManagerIsolated.resetLiquidationParameters();
+        marketManagerIsolated.resetLiquidationConfig();
         
         vm.stopPrank();
     }
 
-    function test_resetLiquidationParameters_success() public {
+    function test_resetLiquidationConfig_success() public {
         vm.startPrank(dappControlUser);
         
         uint256 validPenalty = 1.15e18;
         uint256 validCloseFactor = 0.30e18;
-        marketManagerIsolated.setAuctionParameters(address(strategyCBALRETH), validPenalty, validCloseFactor);
+        marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), validPenalty, validCloseFactor);
 
-        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLiquidationParameters();
+        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLiquidationConfig();
         assertEq(currentPenalty, validPenalty);
         assertEq(currentCloseFactor, validCloseFactor);
         
-        marketManagerIsolated.resetLiquidationParameters();
+        marketManagerIsolated.resetLiquidationConfig();
         
-        // uint256 defaultPenalty = 1.10e18; // Not used anymore because getLiquidationParameters does not return default penalties anymore.
-        (currentPenalty, currentCloseFactor) = marketManagerIsolated.getLiquidationParameters();
+        // uint256 defaultPenalty = 1.10e18; // Not used anymore because getLiquidationConfig does not return default penalties anymore.
+        (currentPenalty, currentCloseFactor) = marketManagerIsolated.getLiquidationConfig();
         assertEq(currentPenalty, 0);
         assertEq(currentCloseFactor, 0);
         

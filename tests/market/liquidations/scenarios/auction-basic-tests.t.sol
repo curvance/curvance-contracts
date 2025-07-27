@@ -25,7 +25,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         // Set auction parameters
         uint256 validPenalty = 1.15e18;
         uint256 closeFactor = 0.30e18;
-        marketManagerIsolated.setLiquidationParameters(address(strategyCBALRETH), validPenalty, closeFactor);
+        marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
         
         vm.stopPrank();
         
@@ -125,7 +125,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
         uint256 validPenalty = 1.15e18; //15%
         uint256 closeFactor = 0.30e18; // 30%
-        marketManagerIsolated.setLiquidationParameters(address(strategyCBALRETH), validPenalty, closeFactor);
+        marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
         vm.stopPrank();
 
         borrowableCUSDC.accrueIfNeeded(); // pull interest forward

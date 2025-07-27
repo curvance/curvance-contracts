@@ -125,7 +125,7 @@ contract MixedAuction is TestBaseLiquidations {
         vm.startPrank(dappControlUser);
         usdc.approve(address(borrowableCUSDC), 100000e6);
 
-        marketManagerIsolated.setLiquidationParameters(
+        marketManagerIsolated.setLiquidationConfig(
             address(borrowableCUSDC),  
             validPenalty,
             closeFactor
@@ -196,7 +196,7 @@ contract MixedAuction is TestBaseLiquidations {
             address(strategyCBALRETH)
         );
         marketManagerIsolated.lockAuctionCollateral();
-        marketManagerIsolated.resetLiquidationParameters();
+        marketManagerIsolated.resetLiquidationConfig();
         vm.stopPrank();
 
         usdc.approve(address(borrowableCUSDC), 100000e6);

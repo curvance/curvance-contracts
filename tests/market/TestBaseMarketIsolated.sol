@@ -775,7 +775,7 @@ contract TestBaseMarketIsolated is TestBase {
         vm.startPrank(dappControlUser);
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(token);
-        marketManagerIsolated.setAuctionParameters(token, liquidationPenalty, liquidationCloseFactor);
+        marketManagerIsolated.setLiquidationConfig(token, liquidationPenalty, liquidationCloseFactor);
         vm.stopPrank();
     }
 
@@ -1055,7 +1055,7 @@ contract TestBaseMarketIsolated is TestBase {
             _marketManager.liquidationStatusOf(_borrower, _collateralToken, _debtToken);
 
         if (_isAuction) {
-            (data.liqInc, cFactor) = _marketManager.getLiquidationParameters();
+            (data.liqInc, cFactor) = _marketManager.getLiquidationConfig();
         } else {
             cFactor = data.closeFactorBase + ((data.closeFactorCurve * data.lFactor) / WAD);
             data.liqInc = data.liqIncBase + ((data.liqIncCurve * data.lFactor) / WAD);
