@@ -1447,16 +1447,14 @@ contract MarketManagerIsolated is
     ///                      factor later.
     ///              debtBalance Empty variable to hold an account's debt's 
     ///                          active debt to `tData.debtToken` later.
-    ///              liqIncAuction The ratio at which debt repayment will be
-    ///                            compensated on an auction-based
-    ///                            liquidation.
+    ///              liqInc The ratio at which debt repayment will be
+    ///                     compensated on liquidation.
     ///              liqIncBase The base ratio at which debt repayment will be
     ///                         compensated on soft liquidation.
     ///              liqIncCurve The liquidation incentive curve length
     ///                          between soft liquidation to hard liquidation.
-    ///              closeFactorAuction Maximum debt % that a liquidator can
-    ///                                 repay during an auction-based
-    ///                                 liquidation of an account.
+    ///              closeFactor Maximum debt % that a liquidator can repay
+    ///                          during a liquidation of an account.
     ///              closeFactorBase Maximum debt % that a liquidator can
     ///                              repay when soft liquidating an account.
     ///              closeFactorCurve Curve length between soft liquidation
@@ -1499,19 +1497,19 @@ contract MarketManagerIsolated is
         if (tData.auctionBuffer == 0) {
             // Fallback to using the base close factor when
             // _TRANSIENT_CLOSE_FACTOR_KEY is empty.
-            aData.closeFactorAuction = aData.closeFactorBase +
+            aData.closeFactor = aData.closeFactorBase +
                 _mulDiv(aData.closeFactorCurve, aData.lFactor, WAD);
-            aData.liqIncAuction = aData.liqIncBase +
+            aData.liqInc = aData.liqIncBase +
                 _mulDiv(aData.liqIncCurve, aData.lFactor, WAD);
         }
         
         // Get the exchange rate, and calculate the number of collateralized
         // shares to seize.
         uint256 debtToCollateral =
-            (((aData.liqIncAuction * tData.debtUnderlyingPrice * WAD_SQUARED) /
+            (((aData.liqInc * tData.debtUnderlyingPrice * WAD_SQUARED) /
             (tData.collateralUnderlyingPrice * tData.collateralExchangeRate)) *
             tData.collateralDecimals) / tData.debtDecimals;
-        uint256 maxDebt = (aData.closeFactorAuction * aData.debtBalance) / WAD;
+        uint256 maxDebt = (aData.closeFactor * aData.debtBalance) / WAD;
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
         // otherwise liquidate the maximum amount possible.
         if (!liquidateExact) {
@@ -1523,9 +1521,8 @@ contract MarketManagerIsolated is
 
         // Cache `account`'s collateral posted of
         // `tData.collateralToken`.
-        uint256 sharesPosted = ICToken(
-            tData.collateralToken
-        ).collateralPosted(account);
+        uint256 sharesPosted =
+            ICToken(tData.collateralToken).collateralPosted(account);
 
         // If the user wants to liquidate an exact amount, make sure theres
         // enough collateral available to liquidate, otherwise
@@ -1618,17 +1615,15 @@ contract MarketManagerIsolated is
     ///                       factor later.
     ///               debtBalance Empty variable to hold an account's debt's 
     ///                           active debt to `tData.debtToken` later.
-    ///               liqIncAuction The ratio at which debt repayment will be
-    ///                             compensated on an auction-based
-    ///                             liquidation.
+    ///               liqInc The ratio at which debt repayment will be
+    ///                      compensated on liquidation.
     ///               liqIncBase The base ratio at which debt repayment will
     ///                          be compensated on soft liquidation.
     ///               liqIncCurve The liquidation incentive curve length
     ///                           between soft liquidation to hard
     ///                           liquidation.
-    ///               closeFactorAuction Maximum debt % that a liquidator can
-    ///                                  repay during an auction-based
-    ///                                  liquidation of an account.
+    ///               closeFactor Maximum debt % that a liquidator can repay
+    ///                           during a liquidation of an account.
     ///               closeFactorBase Maximum debt % that a liquidator can
     ///                               repay when soft liquidating an account.
     ///               closeFactorCurve Curve length between soft liquidation
@@ -1672,18 +1667,18 @@ contract MarketManagerIsolated is
 
         // Pull transient storage variables from auctioneer updates.
         (
-            aData.liqIncAuction,
-            aData.closeFactorAuction
+            aData.liqInc,
+            aData.closeFactor
         ) = getLatestAuctionParameters();
 
         // We only need to read storage and cache these variables if we did
-        // not receive cFactor/liqIncentive from the auction.
-        if (aData.closeFactorAuction == 0) {
+        // not receive cFactor/liqIncentive from `getLatestAuctionParameters`.
+        if (aData.closeFactor == 0) {
             aData.closeFactorBase = ctData.closeFactorBase;
             aData.closeFactorCurve = ctData.closeFactorCurve;
         }
 
-        if (aData.liqIncAuction == 0) {
+        if (aData.liqInc == 0) {
             aData.liqIncBase = ctData.liqIncBase;
             aData.liqIncCurve = ctData.liqIncCurve;
         }

@@ -138,14 +138,14 @@ abstract contract LiquidityManagerIsolated {
     /// @param lFactor The liquidation factor for an account, indicating the
     ///                severity of a liquidation, between 0 and WAD.
     /// @param debtBalance An account's outstanding debt to a cToken.
-    /// @param liqIncAuction The ratio at which this token will be
-    ///                            compensated on liquidation.
+    /// @param liqInc The ratio at which debt repayment will be compensated on
+    ///               liquidation.
     /// @param liqIncBase The base ratio at which this token will be
     ///                   compensated on soft liquidation.
     /// @param liqIncCurve The liquidation incentive curve length between soft
     ///                 liquidation to hard liquidation.
-    /// @param closeFactorAuction Maximum % that a liquidator can repay when
-    ///                           soft liquidating an account.
+    /// @param closeFactor Maximum debt % that a liquidator can repay
+    ///                    during a liquidation of an account.
     /// @param closeFactorBase Maximum % that a liquidator can repay when soft
     ///                        liquidating an account.
     /// @param closeFactorCurve Curve length between soft liquidation and hard
@@ -154,10 +154,10 @@ abstract contract LiquidityManagerIsolated {
     struct AccountLiqData {
         uint256 lFactor;
         uint256 debtBalance;
-        uint256 liqIncAuction;
+        uint256 liqInc;
         uint256 liqIncBase;
         uint256 liqIncCurve;
-        uint256 closeFactorAuction;
+        uint256 closeFactor;
         uint256 closeFactorBase;
         uint256 closeFactorCurve;
     }
