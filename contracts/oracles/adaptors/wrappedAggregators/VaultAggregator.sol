@@ -16,7 +16,7 @@ contract VaultAggregator is BaseWrappedAggregator {
     address public assetAggregator;
 
     /// CONSTRUCTOR ///
-    
+
     constructor(
         address _vaultToken,
         address _assetToken,
@@ -26,7 +26,7 @@ contract VaultAggregator is BaseWrappedAggregator {
         if (ICToken(_vaultToken).asset() != _assetToken) {
             revert BaseWrappedAggregator__InvalidConfig();
         }
-        
+
         vaultToken = _vaultToken;
         assetToken = _assetToken;
         assetAggregator = _assetAggregator;
@@ -47,7 +47,7 @@ contract VaultAggregator is BaseWrappedAggregator {
 
     /// @notice Returns the current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.
-    /// @return The current exchange rate between the wrapped asset
+    /// @return result The current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.
     function getExchangeRate() public view override returns (uint256 result) {
         // Return exchange rate in `WAD` format directly.
