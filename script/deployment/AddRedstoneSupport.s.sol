@@ -10,7 +10,6 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract AddRedstoneSupport is Script {
     event ContractDeployed(address contractAddress, string contractName);
-    event Test(string message);
 
     DeploymentLogger logger;
 
