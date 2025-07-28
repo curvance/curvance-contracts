@@ -9,26 +9,22 @@ contract VaultAggregator is BaseWrappedAggregator {
     /// STORAGE ///
 
     /// @notice The address of the vault token.
-    address public vaultToken;
+    address public vault;
     /// @notice The address of the underlying asset token.
-    address public assetToken;
+    address public asset;
     /// @notice The address of the underlying asset aggregator.
     address public assetAggregator;
 
     /// CONSTRUCTOR ///
-
-    constructor(
-        address _vaultToken,
-        address _assetToken,
-        address _assetAggregator
-    ) {
+    
+    constructor(address _vault, address _asset, address _assetAggregator) {
         // We can use ICToken since its an erc4626 vault itself.
-        if (ICToken(_vaultToken).asset() != _assetToken) {
+        if (ICToken(_vault).asset() != _asset) {
             revert BaseWrappedAggregator__InvalidConfig();
         }
-
-        vaultToken = _vaultToken;
-        assetToken = _assetToken;
+        
+        vault = _vault;
+        asset = _asset;
         assetAggregator = _assetAggregator;
     }
 
@@ -36,7 +32,7 @@ contract VaultAggregator is BaseWrappedAggregator {
 
     /// @notice Returns the underlying aggregator address.
     /// @return result The underlying aggregator address.
-    function underlyingAssetAggregator()
+    function underlyingAggregator()
         public
         view
         override
@@ -48,10 +44,12 @@ contract VaultAggregator is BaseWrappedAggregator {
     /// @notice Returns the current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.
     /// @return result The current exchange rate between the wrapped asset
-    ///         and the underlying aggregator, in `WAD`.
-    function getExchangeRate() public view override returns (uint256 result) {
+    ///                and the underlying aggregator, in `WAD`.
+    function getExchangeRate() public view virtual override returns (
+        uint256 result
+    ) {
         // Return exchange rate in `WAD` format directly.
         // We can use ICToken since its an erc4626 vault itself.
-        result = ICToken(vaultToken).convertToAssets(WAD);
+        result = ICToken(vault).convertToAssets(WAD);
     }
 }

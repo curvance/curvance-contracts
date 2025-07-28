@@ -27,7 +27,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
         uint256 max = uint256(
             uint192(
                 IChainlink(
-                    IChainlink(underlyingAssetAggregator()).aggregator()
+                    IChainlink(underlyingAggregator()).aggregator()
                 ).maxAnswer()
             )
         );
@@ -41,7 +41,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
         uint256 min = uint256(
             uint192(
                 IChainlink(
-                    IChainlink(underlyingAssetAggregator()).aggregator()
+                    IChainlink(underlyingAggregator()).aggregator()
                 ).minAnswer()
             )
         );
@@ -52,7 +52,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
     /// @notice Returns the number of decimals the aggregator responds with.
     /// @return The number of decimals the aggregator responds with.
     function decimals() external view returns (uint8) {
-        return IChainlink(underlyingAssetAggregator()).decimals();
+        return IChainlink(underlyingAggregator()).decimals();
     }
 
     /// @notice Returns the latest oracle data from the aggregator,
@@ -77,7 +77,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
         )
     {
         (roundId, answer, startedAt, updatedAt, answeredInRound) = IChainlink(
-            underlyingAssetAggregator()
+            underlyingAggregator()
         ).latestRoundData();
 
         answer = (answer * _toInt256(getExchangeRate())) / _toInt256(WAD);
@@ -96,12 +96,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
     /// @notice Returns the underlying aggregator address.
     /// @dev Overridden in implemented wrapped oracle aggregators.
     /// @return The underlying aggregator address.
-    function underlyingAssetAggregator()
-        public
-        view
-        virtual
-        returns (address)
-    {}
+    function underlyingAggregator() public view virtual returns (address) {}
 
     /// @notice Returns the current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.
