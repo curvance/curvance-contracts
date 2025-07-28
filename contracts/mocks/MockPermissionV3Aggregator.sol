@@ -19,11 +19,17 @@ contract MockPermissionV3Aggregator is MockV3Aggregator {
         int192 _maxAnswer,
         int192 _minAnswer
     ) MockV3Aggregator(_decimals, _initialAnswer, _maxAnswer, _minAnswer) {
+        // Leaving this as a note -- super annyoing but address(registry) != address(0)
+        // needs to be checked along side hasElevatedPermissions because of MockV3Aggregator initialization
+        // happens before registry is set & calls updateAnswer
         registry = _centralRegistry;
     }
 
     function updateAnswer(int256 _answer) public override {
-        if (!registry.hasElevatedPermissions(msg.sender)) {
+        if (
+            address(registry) != address(0) &&
+            !registry.hasElevatedPermissions(msg.sender)
+        ) {
             revert("MockPermissionV3Aggregator: Unauthorized");
         }
         super.updateAnswer(_answer);
