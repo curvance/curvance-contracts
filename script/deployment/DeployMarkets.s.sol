@@ -41,6 +41,7 @@ contract DeployMarkets is Script {
     }
 
     event ContractDeployed(address contractAddress, string contractName);
+    event ContractMetadata(string jsonIndex, string key, bool value);
 
     DeploymentLogger logger;
 
@@ -68,8 +69,9 @@ contract DeployMarkets is Script {
             registry.addMarketManager(address(market), interestFees[i]);
             emit ContractDeployed(
                 address(market),
-                string.concat("Market-", name)
+                string.concat(name, ".address")
             );
+            emit ContractMetadata(name, "isMarket", true);
 
             _deployPlugins(icr, market, wrappedNative, name, plugins[i]);
 
@@ -137,7 +139,7 @@ contract DeployMarkets is Script {
         );
         emit ContractDeployed(
             cToken,
-            string.concat(marketName, "-", asset.symbol())
+            string.concat(marketName, ".tokens.", asset.symbol())
         );
 
         asset.approve(cToken, 1 * 10 ** asset.decimals());
@@ -167,7 +169,7 @@ contract DeployMarkets is Script {
             address(interestRateModel),
             string.concat(
                 marketName,
-                "-",
+                ".",
                 asset.symbol(),
                 "-DynamicInterestRateModel"
             )
@@ -183,7 +185,7 @@ contract DeployMarkets is Script {
         );
         emit ContractDeployed(
             cToken,
-            string.concat(marketName, "-", asset.symbol())
+            string.concat(marketName, ".tokens.", asset.symbol())
         );
 
         interestRateModel.setLinkedToken(cToken);
@@ -210,7 +212,7 @@ contract DeployMarkets is Script {
             );
             emit ContractDeployed(
                 address(simplePositionManager),
-                string.concat("Market-", marketName, "-simplePositionManager")
+                string.concat(marketName, ".plugins.simplePositionManager")
             );
         }
 
@@ -218,7 +220,7 @@ contract DeployMarkets is Script {
             SimpleZapper simpleZapper = new SimpleZapper(icr, wrappedNative);
             emit ContractDeployed(
                 address(simpleZapper),
-                string.concat("Market-", marketName, "-simpleZapper")
+                string.concat(marketName, ".plugins.simpleZapper")
             );
         }
 
@@ -226,7 +228,7 @@ contract DeployMarkets is Script {
             VaultZapper vaultZapper = new VaultZapper(icr, wrappedNative);
             emit ContractDeployed(
                 address(vaultZapper),
-                string.concat("Market-", marketName, "-vaultZapper")
+                string.concat(marketName, ".plugins.vaultZapper")
             );
         }
     }
