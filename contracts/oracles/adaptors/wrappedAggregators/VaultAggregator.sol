@@ -43,8 +43,8 @@ contract VaultAggregator is BaseWrappedAggregator {
 
     /// @notice Returns the current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.
-    /// @return The current exchange rate between the wrapped asset
-    ///         and the underlying aggregator, in `WAD`.
+    /// @return result The current exchange rate between the wrapped asset
+    ///                and the underlying aggregator, in `WAD`.
     function getExchangeRate() public view virtual override returns (
         uint256 result
     ) {
