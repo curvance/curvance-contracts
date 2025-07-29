@@ -123,6 +123,16 @@ contract BorrowableCToken is BaseCTokenWithYield {
         emit NewInterestFee(0, newInterestFee);
     }
 
+    function getVestingData() external returns(uint256, uint256, uint256, uint256) {
+        uint256 vestingData = _vestingData;
+        return (
+            uint96(vestingData),
+            marketOutstandingDebt,
+            uint40(vestingData >> _BITPOS_VEST_END),
+            uint40(vestingData >> _BITPOS_LAST_VEST)
+        );
+    }
+
     /// @notice Accrues pending interest and updates the interest rate
     ///         model (`interestRateModel`) used by this borrowableCToken.
     /// @dev Admin function to update the interest rate model.
@@ -775,7 +785,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 accrualPeriod) * accrualPeriod;
             vestingPeriodEnd = lastVestingClaim + accrualPeriod;
 
-            // Calculate the new in interest rate for borrowers, in seconds.
+            // Calculate the new interest rate for borrowers, in seconds.
             rate = interestRateModel.getBorrowRateWithUpdate(
                 assetsHeld(),
                 outstandingDebt
