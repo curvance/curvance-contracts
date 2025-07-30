@@ -3,9 +3,12 @@ pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
-import { SECONDS_PER_YEAR } from "contracts/libraries/Constants.sol";
+import { SECONDS_PER_YEAR, BASIS_POINTS } from "contracts/libraries/Constants.sol";
+
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 
 abstract contract BaseGuardedOracleAdaptor is BaseOracleAdaptor {
     /// TYPES ///
@@ -13,20 +16,21 @@ abstract contract BaseGuardedOracleAdaptor is BaseOracleAdaptor {
     struct GuardedModel {
         bool isSupported;
         uint256 timestampStart;
-        uint256 baseValue;
+        uint256 basePrice;
         uint256 increasePerSecond;
     }
 
     /// CONSTANTS ///
 
     uint256 internal constant _MINIMUM_OVERFLOW_TIME_CHECK = 5;
+    uint256 internal constant _MAXIMUM_BASE_PRICE_DIFFERENCE = 1000;
     /// @dev `bytes4(keccak256(bytes("BaseProtectedFeed__InvalidConfig()")))`.
     uint256 internal constant _INVALID_CONFIG_SELECTOR = 0x3c65d2ab;
 
-    uint256 internal immutable _MINIMUM_BASE_PRICE;
-    uint256 internal immutable _MINIMUM_TIMESTAMP_START;
-    uint256 internal immutable _MINIMUM_INCREASE_PER_YEAR;
     uint256 internal immutable _MAXIMUM_INCREASE_PER_YEAR;
+    uint256 internal immutable _MINIMUM_INCREASE_PER_YEAR;
+    uint256 internal immutable _MAXIMUM_TIMESTAMP_BUFFER;
+    uint256 internal immutable _MINIMUM_TIMESTAMP_BUFFER;
 
     /// @notice Stores an assets guarded model, or not.
     /// @dev Asset => Guarded Model.
@@ -52,13 +56,13 @@ abstract contract BaseGuardedOracleAdaptor is BaseOracleAdaptor {
         ICentralRegistry centralRegistry_,
         uint256 MAXIMUM_INCREASE_PER_YEAR,
         uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_BASE_PRICE,
-        uint256 MINIMUM_TIMESTAMP_START
+        uint256 MAXIMUM_TIMESTAMP_BUFFER,
+        uint256 MINIMUM_TIMESTAMP_BUFFER
     ) BaseOracleAdaptor(centralRegistry_) {
         _MAXIMUM_INCREASE_PER_YEAR = MAXIMUM_INCREASE_PER_YEAR;
         _MINIMUM_INCREASE_PER_YEAR = MINIMUM_INCREASE_PER_YEAR;
-        _MINIMUM_BASE_PRICE = MINIMUM_BASE_PRICE;
-        _MINIMUM_TIMESTAMP_START = MINIMUM_TIMESTAMP_START;
+        _MAXIMUM_TIMESTAMP_BUFFER = MAXIMUM_TIMESTAMP_BUFFER;
+        _MINIMUM_TIMESTAMP_BUFFER = MINIMUM_TIMESTAMP_BUFFER;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -74,13 +78,13 @@ abstract contract BaseGuardedOracleAdaptor is BaseOracleAdaptor {
         // Convert `increasePerYear` from basis points to WAD.
         increasePerYear = increasePerYear * 1e14;
 
-        if (basePrice < _MINIMUM_BASE_PRICE) {
+        if (timestampStart > block.timestamp) {
             _revert(_INVALID_CONFIG_SELECTOR);
         }
 
         if (
-            timestampStart < _MINIMUM_TIMESTAMP_START ||
-            timestampStart > block.timestamp
+            block.timestamp - timestampStart > _MAXIMUM_TIMESTAMP_BUFFER ||
+            block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
         ) {
             _revert(_INVALID_CONFIG_SELECTOR);
         }
@@ -99,9 +103,32 @@ abstract contract BaseGuardedOracleAdaptor is BaseOracleAdaptor {
                 _revert(_INVALID_CONFIG_SELECTOR);
         }
 
+        uint256 increasePerSecond = increasePerYear / SECONDS_PER_YEAR;
+
+        uint256 boundedPrice =
+            ((block.timestamp - timestampStart) * increasePerSecond) + basePrice;
+        uint256 boundedPriceHigh = FixedPointMathLib.mulDiv(
+            boundedPrice,
+            (BASIS_POINTS + _MAXIMUM_BASE_PRICE_DIFFERENCE),
+            BASIS_POINTS
+        );
+        uint256 boundedPriceLow = FixedPointMathLib.mulDiv(
+            boundedPrice,
+            (BASIS_POINTS - _MAXIMUM_BASE_PRICE_DIFFERENCE),
+            BASIS_POINTS
+        );
+
+        PriceReturnData memory priceReturnData = this.getPrice(asset, true, true);
+        uint256 oraclePrice = priceReturnData.price;
+
+        if (boundedPriceHigh < oraclePrice || boundedPriceLow > oraclePrice) {
+            _revert(_INVALID_CONFIG_SELECTOR);
+        }
+
         GuardedModel storage model = guardedModels[asset];
-        model.increasePerSecond = increasePerYear/ SECONDS_PER_YEAR;
-        model.baseValue = basePrice;
+        model.isSupported = true;
+        model.increasePerSecond = increasePerSecond;
+        model.basePrice = basePrice;
         model.timestampStart = timestampStart;
 
         emit NewGuardedModel(asset, increasePerYear, basePrice, timestampStart);
@@ -120,7 +147,7 @@ abstract contract BaseGuardedOracleAdaptor is BaseOracleAdaptor {
 
         uint256 boundedPrice =
             ((block.timestamp - model.timestampStart) * model.increasePerSecond)
-                + model.baseValue;
+                + model.basePrice;
         return price > boundedPrice ? boundedPrice : price;
     }
 }
