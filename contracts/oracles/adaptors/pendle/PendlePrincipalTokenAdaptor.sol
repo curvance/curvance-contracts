@@ -117,7 +117,7 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
         price = (price * ptRate) / WAD;
 
         // Validate price will not overflow on conversion to uint240.
-        if (_checkOracleOverflow(price)) {
+        if (_checkOverflow(price)) {
             pData.hadError = true;
             return pData;
         }

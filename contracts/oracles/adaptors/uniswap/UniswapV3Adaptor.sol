@@ -161,7 +161,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
                 (10 ** data.quoteDecimals);
 
             // Validate price will not overflow on conversion to uint240.
-            if (_checkOracleOverflow(newPrice)) {
+            if (_checkOverflow(newPrice)) {
                 pData.hadError = true;
                 return pData;
             }
@@ -192,7 +192,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
                 (10 ** data.quoteDecimals);
 
             // Validate price will not overflow on conversion to uint240.
-            if (_checkOracleOverflow(newPrice)) {
+            if (_checkOverflow(newPrice)) {
                 pData.hadError = true;
                 return pData;
             }
@@ -204,7 +204,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         }
 
         // Validate price will not overflow on conversion to uint240.
-        if (_checkOracleOverflow(twapPrice)) {
+        if (_checkOverflow(twapPrice)) {
             pData.hadError = true;
             return pData;
         }

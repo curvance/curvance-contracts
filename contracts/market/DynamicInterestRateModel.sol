@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+import { SECONDS_PER_YEAR, WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
@@ -191,9 +191,6 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///         in seconds.
     /// @dev 10 minutes = 600 seconds.
     uint256 internal constant _INTEREST_ACCRUAL_PERIOD = 10 minutes;
-    /// @notice Unix time has 31,536,000 seconds per year.
-    ///         All my homies hate leap seconds and leap years.
-    uint256 internal constant _SECONDS_PER_YEAR = 31_536_000;
     /// @notice Mask of `vertexMultiplier` in `_currentRates`.
     uint256 internal constant _BITMASK_VERTEX_MULTIPLIER = (1 << 192) - 1;
     /// @notice The bit position of `nextUpdateTimestamp` in `_currentRates`.
@@ -393,11 +390,11 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     /// @notice Calculates the current borrow rate per second,
     ///         and updates the vertex multiplier if necessary.
     /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param outstandingDebt The amount of outstanding debt in the pool.
+    /// @param debt The amount of outstanding debt in the pool.
     /// @return borrowRate The borrow rate percentage per second, in `WAD`.
     function getBorrowRateWithUpdate(
         uint256 assetsHeld,
-        uint256 outstandingDebt
+        uint256 debt
     ) external returns (uint256 borrowRate) {
         // Validate that the linked token itself is calling to update
         // its interest accrued.
@@ -405,7 +402,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        uint256 util = utilizationRate(assetsHeld, outstandingDebt);
+        uint256 util = utilizationRate(assetsHeld, debt);
         RatesConfiguration memory config = ratesConfig;
         uint256 vertexPoint = config.vertexStartingPoint;
 
@@ -448,43 +445,40 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     /// @notice Calculates the current borrow rate per year,
     ///         with updated vertex multiplier applied.
     /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param outstandingDebt The amount of outstanding debt in the pool.
+    /// @param debt The amount of outstanding debt in the pool.
     /// @return The borrow rate percentage per year, in `WAD`.
     function getPredictedBorrowRatePerYear(
         uint256 assetsHeld,
-        uint256 outstandingDebt
+        uint256 debt
     ) external view returns (uint256) {
         return
-            _SECONDS_PER_YEAR *
-            getPredictedBorrowRate(assetsHeld, outstandingDebt);
+            SECONDS_PER_YEAR * getPredictedBorrowRate(assetsHeld, debt);
     }
 
     /// @notice Calculates the current borrow rate per year.
     /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param outstandingDebt The amount of outstanding debt in the pool.
+    /// @param debt The amount of outstanding debt in the pool.
     /// @return The borrow rate percentage per year, in `WAD`.
     function getBorrowRatePerYear(
         uint256 assetsHeld,
-        uint256 outstandingDebt
+        uint256 debt
     ) external view returns (uint256) {
         return
-            _SECONDS_PER_YEAR *
-            getBorrowRate(assetsHeld, outstandingDebt);
+            SECONDS_PER_YEAR * getBorrowRate(assetsHeld, debt);
     }
 
     /// @notice Calculates the current supply rate per year.
     /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param outstandingDebt The amount of outstanding debt in the pool.
+    /// @param debt The amount of outstanding debt in the pool.
     /// @param interestFee The current interest accrual fee for the market.
     /// @return The supply rate percentage per year, in `WAD`.
     function getSupplyRatePerYear(
         uint256 assetsHeld,
-        uint256 outstandingDebt,
+        uint256 debt,
         uint256 interestFee
     ) external view returns (uint256) {
         return
-            _SECONDS_PER_YEAR *
-            getSupplyRate(assetsHeld, outstandingDebt, interestFee);
+            SECONDS_PER_YEAR * getSupplyRate(assetsHeld, debt, interestFee);
     }
 
     /// @notice Returns the interval at which interest accrual is calculated.
@@ -510,30 +504,30 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// @notice Calculates the borrow utilization rate of the market.
     /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param outstandingDebt The amount of outstanding debt in the pool.
+    /// @param debt The amount of outstanding debt in the pool.
     /// @return result The utilization rate between [0, WAD].
     function utilizationRate(
         uint256 assetsHeld,
-        uint256 outstandingDebt
+        uint256 debt
     ) public pure returns (uint256 result) {
         // Utilization rate is 0 when there are no outstanding debt.
-        if (outstandingDebt == 0) {
+        if (debt == 0) {
             return 0;
         }
 
-        result = _mulDiv(outstandingDebt, WAD, assetsHeld + outstandingDebt);
+        result = _mulDiv(debt, WAD, assetsHeld + debt);
     }
 
     /// @notice Calculates the current borrow rate per second,
     ///         with updated vertex multiplier applied.
     /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param outstandingDebt The amount of outstanding debt in the pool.
+    /// @param debt The amount of outstanding debt in the pool.
     /// @return result The borrow rate percentage per second, in `WAD`.
     function getPredictedBorrowRate(
         uint256 assetsHeld,
-        uint256 outstandingDebt
+        uint256 debt
     ) public view returns (uint256 result) {
-        uint256 util = utilizationRate(assetsHeld, outstandingDebt);
+        uint256 util = utilizationRate(assetsHeld, debt);
         RatesConfiguration memory config = ratesConfig;
         uint256 vertexPoint = config.vertexStartingPoint;
 
@@ -561,14 +555,14 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     /// @dev This function's intention is for frontend data querying and
     ///     should not be used for onchain execution.
     /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param outstandingDebt The amount of outstanding debt in the pool.
+    /// @param debt The amount of outstanding debt in the pool.
     /// @return result The borrow interest rate percentage, per second,
     ///                in `WAD`.
     function getBorrowRate(
         uint256 assetsHeld,
-        uint256 outstandingDebt
+        uint256 debt
     ) public view returns (uint256 result) {
-        uint256 util = utilizationRate(assetsHeld, outstandingDebt);
+        uint256 util = utilizationRate(assetsHeld, debt);
         uint256 vertexPoint = ratesConfig.vertexStartingPoint;
 
         if (util <= vertexPoint) {
@@ -585,26 +579,26 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     /// @dev This function's intention is for frontend data querying and
     ///     should not be used for onchain execution.
     /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param outstandingDebt The amount of outstanding debt in the pool.
+    /// @param debt The amount of outstanding debt in the pool.
     /// @param interestFee The current interest rate protocol fee
     ///                    for the market token.
     /// @return result The supply interest rate percentage, per second,
     ///                in `WAD`.
     function getSupplyRate(
         uint256 assetsHeld,
-        uint256 outstandingDebt,
+        uint256 debt,
         uint256 interestFee
     ) public view returns (uint256 result) {
         // RateToLenders = (borrowRate * (1 - Interest Fee)) / WAD.
         uint256 rateToLenders =  _mulDiv(
-            getBorrowRate(assetsHeld, outstandingDebt),
+            getBorrowRate(assetsHeld, debt),
             WAD - interestFee,
             WAD
         );
 
         // Supply Rate = (utilizationRate * rateToLenders) / WAD.
         result = _mulDiv(
-            utilizationRate(assetsHeld, outstandingDebt),
+            utilizationRate(assetsHeld, debt),
             rateToLenders,
             WAD
         );
@@ -749,13 +743,13 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         config.baseInterestRate = _mulDiv(
             baseRatePerYear,
             WAD,
-            _SECONDS_PER_YEAR * vertexUtilStart
+            SECONDS_PER_YEAR * vertexUtilStart
         );
 
         config.vertexInterestRate = _mulDiv(
             vertexRatePerYear,
             WAD,
-            _SECONDS_PER_YEAR * (WAD - vertexUtilStart)
+            SECONDS_PER_YEAR * (WAD - vertexUtilStart)
         );
 
         config.vertexStartingPoint = vertexUtilStart;

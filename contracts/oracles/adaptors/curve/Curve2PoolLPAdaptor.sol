@@ -182,7 +182,7 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
             price = (price * price1) / WAD;
         }
 
-        if (_checkOracleOverflow(price)) {
+        if (_checkOverflow(price)) {
             pData.hadError = true;
             return pData;
         }

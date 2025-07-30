@@ -164,7 +164,7 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
         );
 
         // Validate price will not overflow on conversion to uint240.
-        if (_checkOracleOverflow(finalPrice)) {
+        if (_checkOverflow(finalPrice)) {
             pData.hadError = true;
             return pData;
         }

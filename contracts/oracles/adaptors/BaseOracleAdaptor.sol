@@ -14,6 +14,9 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
+    /// @dev `bytes4(keccak256(bytes("BaseOracleAdaptor__Unauthorized()")))`.
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xfb56769a;
+
     /// STORAGE ///
 
     /// @notice Whether an asset is supported by the Oracle Adaptor or not.
@@ -100,12 +103,12 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ///         various oracle adaptors.
     /// @param price The price to normalize.
     /// @param decimals The decimal precision `price` is reported in.
-    /// @return Returns the normalized price in 1e18 (WAD) scale.
+    /// @return result Returns the normalized price in 1e18 (WAD) scale.
     function _normalizePrice(
         uint256 price,
         uint256 decimals
-    ) internal pure returns (uint256) {
-        return FixedPointMathLib.fullMulDiv(
+    ) internal pure returns (uint256 result) {
+        result = FixedPointMathLib.fullMulDiv(
             price,
             WAD,
             10 ** decimals
@@ -115,22 +118,33 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @notice Helper function to check whether `price` would overflow
     ///         based on a uint240 maximum.
     /// @param price The price to check against overflow.
-    /// @return Whether `price` will overflow on conversion to uint240.
-    function _checkOracleOverflow(uint256 price) internal pure returns (bool) {
-        return price > type(uint240).max;
-    }
-
-    /// @notice Checks whether the caller has sufficient permissioning.
-    function _checkDaoPermissions() internal view {
-        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            revert BaseOracleAdaptor__Unauthorized();
-        }
+    /// @return result Whether `price` will overflow on conversion to uint240.
+    function _checkOverflow(
+        uint256 price
+    ) internal pure returns (bool result) {
+        result = price > type(uint240).max;
     }
 
     /// @notice Checks whether the caller has sufficient permissioning.
     function _checkElevatedPermissions() internal view {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            revert BaseOracleAdaptor__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+    }
+
+    /// @notice Checks whether the caller has sufficient permissioning.
+    function _checkMarketPermissions() internal view {
+        if (!centralRegistry.hasMarketPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+    }
+
+    /// @dev Internal helper for reverting efficiently.
+    function _revert(uint256 s) internal pure {
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore(0x00, s)
+            revert(0x1c, 0x04)
         }
     }
 
@@ -148,4 +162,11 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.
     function removeAsset(address asset) external virtual;
+
+    /// INTERNAL FUNCTIONS TO OVERRIDE ///
+
+    function _boundPrice(
+        address asset,
+        uint256 price
+    ) internal virtual returns (uint256);
 }

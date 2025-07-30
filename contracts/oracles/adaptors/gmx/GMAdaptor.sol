@@ -157,7 +157,7 @@ contract GMAdaptor is BaseOracleAdaptor {
         uint256 newPrice = uint256(price) / 1e12;
 
         // Validate price will not overflow on conversion to uint240.
-        if (_checkOracleOverflow(newPrice)) {
+        if (_checkOverflow(newPrice)) {
             pData.hadError = true;
             return pData;
         }
@@ -284,7 +284,7 @@ contract GMAdaptor is BaseOracleAdaptor {
     /// @notice Permissioned function to set a new GMX Reader address.
     /// @param newReader The address to set as the new GMX Reader.
     function setGMXReader(address newReader) external {
-        _checkDaoPermissions();
+        _checkMarketPermissions();
 
         _setGMXReader(newReader);
     }
@@ -292,7 +292,7 @@ contract GMAdaptor is BaseOracleAdaptor {
     /// @notice Permissioned function to set a new GMX DataStore address.
     /// @param newDataStore The address to set as the new GMX DataStore.
     function setGMXDataStore(address newDataStore) external {
-        _checkDaoPermissions();
+        _checkMarketPermissions();
 
         _setGMXDataStore(newDataStore);
     }

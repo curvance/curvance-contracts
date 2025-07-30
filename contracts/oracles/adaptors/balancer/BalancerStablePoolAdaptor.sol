@@ -145,7 +145,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         averagePrice = ((averagePrice / numPrices) * pool.getRate()) / WAD;
 
         // Validate price will not overflow on conversion to uint240.
-        if (_checkOracleOverflow(averagePrice)) {
+        if (_checkOverflow(averagePrice)) {
             pData.hadError = true;
             return pData;
         }
