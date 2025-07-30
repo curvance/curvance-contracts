@@ -67,7 +67,7 @@ abstract contract BaseGuardedOracleAdaptor is BaseOracleAdaptor {
 
     /// EXTERNAL FUNCTIONS ///
 
-    function getBoundedPrice(uint256 asset) external view returns (uint256) {
+    function getBoundedPrice(address asset) external view returns (uint256) {
         GuardedModel memory model = guardedModels[asset];
         if (!model.isSupported) {
             revert BaseGuardedOracleAdaptor__NoGuardedModel();
