@@ -757,13 +757,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
         uint256 vestingPeriodEnd = uint40(vestingData >> _BITPOS_LAST_VEST);
         uint256 marketDebtIndex = uint80(vestingData >> _BITPOS_DEBT_INDEX);
         uint256 outstandingDebt = marketOutstandingDebt;
-        uint256 cachedTa = _totalAssets;
         uint256 yieldToVest = _getPendingYield(
             rate,
             outstandingDebt,
             vestingPeriodEnd,
             lastVestingClaim
         );
+        uint256 cachedTa = _totalAssets + yieldToVest;
 
         // Update last claim timestamp, stopping at vesting end if vesting
         // period is over.
@@ -781,8 +781,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // Calculate the interest vesting cycles for new vesting period.
             // The weird multiplication logic here is to round down to
             // discrete vesting cycles.
-            accrualPeriod = ((block.timestamp - lastVestingClaim) /
-                accrualPeriod) * accrualPeriod;
+            accrualPeriod = (((block.timestamp - lastVestingClaim) /
+                accrualPeriod) * accrualPeriod) + accrualPeriod;
             vestingPeriodEnd = lastVestingClaim + accrualPeriod;
 
             // Calculate the new interest rate for borrowers, in seconds.
@@ -812,10 +812,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 // assets * (current assets / current assets + future assets)
                 // `rate` is in WAD which means we need to divide the
                 // output by WAD to get protocolFees in `assets`.
+                // yieldToVest needs to be added to both as we do not want to
+                // give the protocol additional rewards for vested interest in
+                // the past.
                 protocolFees = FixedPointMathLib.mulDiv(
                     protocolFees * accrualPeriod * outstandingDebt,
                     cachedTa,
-                    (cachedTa + yieldToVest +
+                    (cachedTa +
                         _mulDiv(rate * accrualPeriod, outstandingDebt, WAD)) * WAD
                 );
             }
@@ -826,36 +829,44 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Check if theres new yield to be vested, which could happen if the
         // previous vesting period ended and current block.timestamp extends
         // into the new vesting period.
-        yieldToVest += _getPendingYield(
+        uint256 newYieldToVest = _getPendingYield(
             rate,
             outstandingDebt,
             vestingPeriodEnd,
             lastVestingClaim
         );
+        // We can reuse `yieldToVest` to store both the current yield to vest
+        // and any new yield to vest.
+        yieldToVest = yieldToVest + newYieldToVest;
 
         // If theres fees we need to mint new shares for the protocol.
         if (protocolFees > 0) {
-            cachedTa = cachedTa + protocolFees;
-            // Convert assets to shares and mint to protocol address. This
-            // ensures that user share value is identical to before hand,
-            // excluding `yieldToVest`.
-            protocolFees = _convertToShares(protocolFees, _getTotalAssets());
+            // Convert assets to shares and mint to protocol address. Calculate
+            // before adding the protocols assets so effectively all assets go
+            // to the protocol.
+            uint256 protocolFeesInShares = _convertToShares(
+                protocolFees, 
+                cachedTa
+            );
             // Cache the current dao address then mint shares to the dao.
             address daoAddress = centralRegistry.daoAddress();
-            _mint(daoAddress, protocolFees);
-            _afterDepositAction(protocolFees, daoAddress);
+            _mint(daoAddress, protocolFeesInShares);
+            _afterDepositAction(protocolFeesInShares, daoAddress);
+            cachedTa = cachedTa + protocolFees;
         }
 
         // Vest pending yield, if there is any.
         if (yieldToVest > 0) {
-            // `yieldToVest` at this point is $ outstanding debt
-            // so we need to redivide by `outstandingDebt` so its in % form.
+            // `yieldToVest` at this point is $ outstanding debt so we
+            // need to redivide by `outstandingDebt` so its in % form.
             marketDebtIndex =
                 _mulDiv(yieldToVest, marketDebtIndex, outstandingDebt)
                     + marketDebtIndex;
             // Update marketOutstandingDebt invariant with vested yield.
             marketOutstandingDebt = outstandingDebt + yieldToVest;
-            cachedTa = cachedTa + yieldToVest;
+            // `cachedTa` already has yieldToVest so we only want to add
+            // `newYieldToVest`. 
+            cachedTa = cachedTa + newYieldToVest;
         }
 
         assembly {
