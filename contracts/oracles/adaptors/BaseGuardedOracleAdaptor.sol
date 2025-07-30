@@ -24,8 +24,8 @@ abstract contract BaseGuardedOracleAdaptor is BaseOracleAdaptor {
 
     uint256 internal constant _MINIMUM_OVERFLOW_TIME_CHECK = 5;
     uint256 internal constant _MAXIMUM_BASE_PRICE_DIFFERENCE = 1000;
-    /// @dev `bytes4(keccak256(bytes("BaseProtectedFeed__InvalidConfig()")))`.
-    uint256 internal constant _INVALID_CONFIG_SELECTOR = 0x3c65d2ab;
+    /// @dev `bytes4(keccak256(bytes("BaseGuardedOracleAdaptor__InvalidConfig()")))`.
+    uint256 internal constant _INVALID_CONFIG_SELECTOR = 0xd711ae2c;
 
     uint256 internal immutable _MAXIMUM_INCREASE_PER_YEAR;
     uint256 internal immutable _MINIMUM_INCREASE_PER_YEAR;
@@ -47,8 +47,8 @@ abstract contract BaseGuardedOracleAdaptor is BaseOracleAdaptor {
 
     /// ERRORS ///
 
-    error BaseProtectedFeed__Unauthorized();
-    error BaseProtectedFeed__InvalidConfig();
+    error BaseGuardedOracleAdaptor__InvalidConfig();
+    error BaseGuardedOracleAdaptor__NoGuardedModel();
 
     /// CONSTRUCTOR ///
 
@@ -66,6 +66,16 @@ abstract contract BaseGuardedOracleAdaptor is BaseOracleAdaptor {
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    function getBoundedPrice(uint256 asset) external view returns (uint256) {
+        GuardedModel memory model = guardedModels[asset];
+        if (!model.isSupported) {
+            revert BaseGuardedOracleAdaptor__NoGuardedModel();
+        }
+
+        return ((block.timestamp - model.timestampStart) *
+            model.increasePerSecond) + model.basePrice;
+    }
 
     function setGuardedPriceConfig(
         address asset,
@@ -145,9 +155,8 @@ abstract contract BaseGuardedOracleAdaptor is BaseOracleAdaptor {
             return price;
         }
 
-        uint256 boundedPrice =
-            ((block.timestamp - model.timestampStart) * model.increasePerSecond)
-                + model.basePrice;
+        uint256 boundedPrice = ((block.timestamp - model.timestampStart) *
+            model.increasePerSecond) + model.basePrice;
         return price > boundedPrice ? boundedPrice : price;
     }
 }
