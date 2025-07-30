@@ -7,8 +7,8 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract TransferEmergencyCouncilTest is TestBaseMarketIsolated {
-    address public newEmergencyCouncil1 = address(1001);
-    address public newEmergencyCouncil2 = address(1002);
+    address public newCouncil1 = address(1001);
+    address public newCouncil2 = address(1002);
 
     event PermissionsTransferred(
         string indexed permissionsType,
@@ -24,7 +24,7 @@ contract TransferEmergencyCouncilTest is TestBaseMarketIsolated {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__Unauthorized.selector
         );
-        centralRegistry.transferEmergencyCouncil(newEmergencyCouncil1);
+        centralRegistry.transferEmergencyCouncil(newCouncil1);
     }
 
     function test_transferEmergencyCouncil_success() public {
@@ -35,36 +35,36 @@ contract TransferEmergencyCouncilTest is TestBaseMarketIsolated {
         emit PermissionsTransferred(
             "Emergency Council",
             address(this),
-            newEmergencyCouncil1
+            newCouncil1
         );
 
-        centralRegistry.transferEmergencyCouncil(newEmergencyCouncil1);
+        centralRegistry.transferEmergencyCouncil(newCouncil1);
 
-        assertTrue(centralRegistry.hasDaoPermissions(newEmergencyCouncil1));
+        assertTrue(centralRegistry.hasDaoPermissions(newCouncil1));
         assertTrue(centralRegistry.hasDaoPermissions(address(this)));
-        assertTrue(
-            centralRegistry.hasElevatedPermissions(newEmergencyCouncil1)
-        );
-        // No longer true because we aren't using address(this) as the timelock anymore in tests
+
+        assertTrue(centralRegistry.hasMarketPermissions(newCouncil1));
+        assertTrue(centralRegistry.hasElevatedPermissions(newCouncil1));
+        
+        assertFalse(centralRegistry.hasMarketPermissions(address(this)));
         assertFalse(centralRegistry.hasElevatedPermissions(address(this)));
 
         vm.expectEmit(true, true, true, true);
         emit PermissionsTransferred(
             "Emergency Council",
-            newEmergencyCouncil1,
-            newEmergencyCouncil2
+            newCouncil1,
+            newCouncil2
         );
 
-        vm.prank(newEmergencyCouncil1);
-        centralRegistry.transferEmergencyCouncil(newEmergencyCouncil2);
+        vm.prank(newCouncil1);
+        centralRegistry.transferEmergencyCouncil(newCouncil2);
 
-        assertTrue(centralRegistry.hasDaoPermissions(newEmergencyCouncil2));
-        assertFalse(centralRegistry.hasDaoPermissions(newEmergencyCouncil1));
-        assertTrue(
-            centralRegistry.hasElevatedPermissions(newEmergencyCouncil2)
-        );
-        assertFalse(
-            centralRegistry.hasElevatedPermissions(newEmergencyCouncil1)
-        );
+        assertTrue(centralRegistry.hasDaoPermissions(newCouncil2));
+        assertTrue(centralRegistry.hasMarketPermissions(newCouncil2));
+        assertTrue(centralRegistry.hasElevatedPermissions(newCouncil2));
+
+        assertFalse(centralRegistry.hasDaoPermissions(newCouncil1));
+        assertFalse(centralRegistry.hasMarketPermissions(newCouncil1));
+        assertFalse(centralRegistry.hasElevatedPermissions(newCouncil1));
     }
 }

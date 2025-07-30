@@ -333,15 +333,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
         hasDaoPermissions[daoAddress_] = true;
         hasDaoPermissions[emergencyCouncil_] = true;
 
-        // Provide elevated dao permissions to `emergencyCouncil`.
+        // Provide market and elevated dao permissions to `emergencyCouncil`.
+        hasMarketPermissions[emergencyCouncil_] = true;
         hasElevatedPermissions[emergencyCouncil_] = true;
 
-        // Provide market permissions to `daoAddress_`,
-        // and `emergencyCouncil_`.
-        hasMarketPermissions[daoAddress_] = true;
-        hasMarketPermissions[emergencyCouncil_] = true;
-
-        emit PermissionsUpdated("Market", daoAddress_, true);
         emit PermissionsUpdated("Market", emergencyCouncil_, true);
 
         genesisEpoch = genesisEpoch_;
@@ -792,8 +787,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
         if (previousDaoAddress != emergencyCouncil) {
             if (previousDaoAddress != timelock) {
                 delete hasDaoPermissions[previousDaoAddress];
-                delete hasMarketPermissions[previousDaoAddress];
-                emit PermissionsUpdated("Market", previousDaoAddress, false);
             }
         }
 
@@ -805,14 +798,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
             newDaoAddress
         );
 
-        // Assign market permissions only if the new address does
-        // not already have them.
-        if (!hasMarketPermissions[newDaoAddress]) {
-            hasMarketPermissions[newDaoAddress] = true;
-            emit PermissionsUpdated("Market", newDaoAddress, true);
-        }
-        
-        // Notify Timelock Controller of a DAO address update.
+        // Notify Timelock of a DAO address update.
         if (timelock != address(0)) {
             if (
                 ERC165Checker.supportsInterface(
