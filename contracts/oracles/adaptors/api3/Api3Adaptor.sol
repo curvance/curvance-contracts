@@ -43,11 +43,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
     /// EVENTS ///
 
-    event Api3AssetAdded(
-        address asset,
-        AssetConfig assetConfig,
-        bool isUpdate
-    );
+    event AssetAdded(address asset, AssetConfig config, bool isUpdate);
     event Api3AssetRemoved(address asset);
 
     /// ERRORS ///
@@ -129,7 +125,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit Api3AssetAdded(asset, config, isUpdate);
+        emit AssetAdded(asset, config, isUpdate);
     }
 
     /// @notice Removes a supported asset from the adaptor.

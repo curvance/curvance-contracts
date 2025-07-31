@@ -19,10 +19,12 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     ///                 responds with.
     /// @param heartbeat The max amount of time allowed between price updates.
     ///                  0 defaults to using DEFAULT_HEART_BEAT.
-    /// @param max The maximum valid price of the asset.
-    ///            0 defaults to use proxy max price reduced by ~10%.
-    /// @param min The minimum valid price of the asset.
-    ///            0 defaults to use proxy min price increased by ~10%.
+    /// @param reportedMax The maximum valid price of the asset.
+    ///                    Set to aggregator maxAnswer() reduced by ~10%.
+    /// @param reportedMin The minimum valid price of the asset.
+    ///                    Set to aggregator minAnswer() increased by ~10%.
+    /// @param max
+    /// @param min 
     struct AssetConfig {
         bool isConfigured;
         IChainlink aggregator;
@@ -49,11 +51,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
 
     /// EVENTS ///
 
-    event ChainlinkAssetAdded(
-        address asset,
-        AssetConfig assetConfig,
-        bool isUpdate
-    );
+    event AssetAdded(address asset, AssetConfig config, bool isUpdate);
     event ChainlinkAssetRemoved(address asset);
 
     /// ERRORS ///
@@ -147,7 +145,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit ChainlinkAssetAdded(asset, config, isUpdate);
+        emit AssetAdded(asset, config, isUpdate);
     }
 
     /// @notice Removes a supported asset from the adaptor.

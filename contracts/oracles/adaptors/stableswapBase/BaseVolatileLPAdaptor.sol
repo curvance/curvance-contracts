@@ -34,6 +34,10 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     /// @dev Token address => Price feed configuration for `asset`.
     mapping(address => AssetConfig) public assetConfig;
 
+    /// EVENTS ///
+
+    event AssetAdded(address asset, AssetConfig config, bool isUpdate);
+
     /// ERRORS ///
 
     error BaseVolatileLPAdaptor__InvalidAssetType();

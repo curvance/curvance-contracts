@@ -8,21 +8,6 @@ import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol
 import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract VelodromeVolatileLPAdaptor is BaseVolatileLPAdaptor {
-    /// EVENTS ///
-
-    event VelodromeVolatileLPAssetAdded(
-        address asset,
-        AssetConfig assetConfig,
-        bool isUpdate
-    );
-    event VelodromeVolatileLPAssetRemoved(address asset);
-
-    /// ERRORS ///
-
-    error VelodromeVolatileLPAdaptor__AssetIsNotSupported();
-    error VelodromeVolatileLPAdaptor__AssetIsAlreadyAdded();
-    error VelodromeVolatileLPAdaptor__AssetIsNotVolatileLP();
-
     /// CONSTRUCTOR ///
 
     /// @param centralRegistry_ The address of central registry.
@@ -50,7 +35,7 @@ contract VelodromeVolatileLPAdaptor is BaseVolatileLPAdaptor {
         _checkElevatedPermissions();
 
         if (IVeloPool(asset).stable()) {
-            revert VelodromeVolatileLPAdaptor__AssetIsNotVolatileLP();
+            revert BaseVolatileLPAdaptor__InvalidAssetType();
         }
 
         // Check whether this is new or updated support for `asset`.
@@ -60,7 +45,7 @@ contract VelodromeVolatileLPAdaptor is BaseVolatileLPAdaptor {
         }
 
         AssetConfig memory config = _addAsset(asset);
-        emit VelodromeVolatileLPAssetAdded(asset, config, isUpdate);
+        emit AssetAdded(asset, config, isUpdate);
     }
 
     /// @notice Returns the adaptor's type.

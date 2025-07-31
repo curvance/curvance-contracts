@@ -49,11 +49,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
 
     /// EVENTS ///
 
-    event UniswapV3AssetAdded(
-        address asset,
-        AssetConfig assetConfig,
-        bool isUpdate
-    );
+    event AssetAdded(address asset, AssetConfig config, bool isUpdate);
     event UniswapV3AssetRemoved(address asset);
 
     /// ERRORS ///
@@ -263,7 +259,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit UniswapV3AssetAdded(asset, data, isUpdate);
+        emit AssetAdded(asset, data, isUpdate);
     }
 
     /// @notice Removes a supported asset from the adaptor.

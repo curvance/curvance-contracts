@@ -41,7 +41,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
 
     /// EVENTS ///
 
-    event DIAAssetAdded(address asset, AssetConfig assetConfig, bool isUpdate);
+    event AssetAdded(address asset, AssetConfig config, bool isUpdate);
     event DIAAssetRemoved(address asset);
 
     /// ERRORS ///
@@ -98,7 +98,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit DIAAssetAdded(asset, adaptor, isUpdate);
+        emit AssetAdded(asset, adaptor, isUpdate);
     }
 
     /// @notice Removes a supported asset from the adaptor.

@@ -87,7 +87,7 @@ contract RedstoneCoreAdaptor is
 
     /// EVENTS ///
 
-    event AssetAdded(address asset, AssetConfig assetConfig, bool isUpdate);
+    event AssetAdded(address asset, AssetConfig config, bool isUpdate);
     event AssetRemoved(address asset);
     event SignerUpdated(address signer, bool addPerms);
     /// ERRORS ///

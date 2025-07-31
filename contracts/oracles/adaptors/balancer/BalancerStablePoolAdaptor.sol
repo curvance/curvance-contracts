@@ -41,11 +41,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
 
     /// EVENTS ///
 
-    event BalancerStablePoolAssetAdded(
-        address asset,
-        AssetConfig assetConfig,
-        bool isUpdate
-    );
+    event AssetAdded(address asset, AssetConfig config, bool isUpdate);
     event BalancerStablePoolAssetRemoved(address asset);
 
     /// ERRORS ///
@@ -223,7 +219,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit BalancerStablePoolAssetAdded(asset, data, isUpdate);
+        emit AssetAdded(asset, data, isUpdate);
     }
 
     /// @notice Removes a supported asset from the adaptor.

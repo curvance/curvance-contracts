@@ -60,11 +60,7 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
 
     /// EVENTS ///
 
-    event CurvePoolAssetAdded(
-        address asset,
-        AssetConfig assetConfig,
-        bool isUpdate
-    );
+    event AssetAdded(address asset, AssetConfig config, bool isUpdate);
     event CurvePoolAssetRemoved(address asset);
 
     /// ERRORS ///
@@ -315,7 +311,7 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit CurvePoolAssetAdded(asset, data, isUpdate);
+        emit AssetAdded(asset, data, isUpdate);
     }
 
     /// @notice Removes a supported asset from the adaptor.

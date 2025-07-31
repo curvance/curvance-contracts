@@ -48,11 +48,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
     /// EVENTS ///
 
-    event ChainsightAssetAdded(
-        address asset,
-        AssetConfig assetConfig,
-        bool isUpdate
-    );
+    event AssetAdded(address asset, AssetConfig config, bool isUpdate);
     event ChainsightAssetRemoved(address asset);
 
     /// ERRORS ///
@@ -168,7 +164,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit ChainsightAssetAdded(asset, config, isUpdate);
+        emit AssetAdded(asset, config, isUpdate);
     }
 
     /// @notice Removes a supported asset from the adaptor.

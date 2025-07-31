@@ -53,11 +53,7 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// EVENTS ///
 
-    event PythAssetAdded(
-        address asset,
-        AssetConfig assetConfig,
-        bool isUpdate
-    );
+    event AssetAdded(address asset, AssetConfig config, bool isUpdate);
     event PythAssetRemoved(address asset);
 
     /// ERRORS ///
@@ -100,16 +96,16 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
-    /// @param data The adaptor data
+    /// @param config The adaptor data
     function addAsset(
         address asset,
         bool inUSD,
-        AssetConfig memory data
+        AssetConfig memory config
     ) external {
         _checkElevatedPermissions();
 
-        if (data.heartbeat != 0) {
-            if (data.heartbeat > DEFAULT_HEART_BEAT) {
+        if (config.heartbeat != 0) {
+            if (config.heartbeat > DEFAULT_HEART_BEAT) {
                 revert PythAdaptor__InvalidHeartbeat();
             }
         }
@@ -118,16 +114,16 @@ contract PythAdaptor is BaseOracleAdaptor {
         // possible to get a price which would lose precision on uint240
         // conversion, which we need to protect against in getPrice() so
         // we can add a second protective layer here.
-        if (data.max > type(uint240).max) {
-            data.max = type(uint240).max;
+        if (config.max > type(uint240).max) {
+            config.max = type(uint240).max;
         }
 
-        if (data.min >= data.max) {
+        if (config.min >= config.max) {
             revert PythAdaptor__InvalidMinMaxConfig();
         }
 
-        data.isConfigured = true;
-        assetConfig[asset][inUSD] = data;
+        config.isConfigured = true;
+        assetConfig[asset][inUSD] = config;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -136,7 +132,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit PythAssetAdded(asset, data, isUpdate);
+        emit AssetAdded(asset, config, isUpdate);
     }
 
     /// @notice Removes a supported asset from the adaptor.

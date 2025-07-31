@@ -48,11 +48,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
 
     /// EVENTS ///
 
-    event PendleLPAssetAdded(
-        address asset,
-        AssetConfig assetConfig,
-        bool isUpdate
-    );
+    event AssetAdded(address asset, AssetConfig config, bool isUpdate);
     event PendleLPAssetRemoved(address asset);
 
     /// ERRORS ///
@@ -186,7 +182,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit PendleLPAssetAdded(asset, data, isUpdate);
+        emit AssetAdded(asset, data, isUpdate);
     }
 
     /// @notice Removes a supported asset from the adaptor.

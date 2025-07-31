@@ -7,19 +7,6 @@ pragma solidity ^0.8.19;
 // import { ICamelotPair } from "contracts/interfaces/external/camelot/ICamelotPair.sol";
 
 // contract CamelotVolatileLPAdaptor is BaseVolatileLPAdaptor {
-//     /// EVENTS ///
-
-//     event CamelotVolatileLPAssetAdded(
-//         address asset,
-//         AssetConfig assetConfig,
-//         bool isUpdate
-//     );
-//     event CamelotVolatileLPAssetRemoved(address asset);
-
-//     /// ERRORS ///
-
-//     error CamelotVolatileLPAdaptor__AssetIsNotVolatileLP();
-
 //     /// CONSTRUCTOR ///
 
 //     constructor(
@@ -36,7 +23,7 @@ pragma solidity ^0.8.19;
 //         _checkElevatedPermissions();
 
 //         if (ICamelotPair(asset).stableSwap()) {
-//             revert CamelotVolatileLPAdaptor__AssetIsNotVolatileLP();
+//             revert BaseVolatileLPAdaptor__InvalidAssetType();
 //         }
 
 //         // Check whether this is new or updated support for `asset`.
@@ -46,7 +33,7 @@ pragma solidity ^0.8.19;
 //         }
 
 //         AssetConfig memory data = _addAsset(asset);
-//         emit CamelotVolatileLPAssetAdded(asset, data, isUpdate);
+//         emit AssetAdded(asset, data, isUpdate);
 //     }
 
 //     /// @notice Removes a supported asset from the adaptor.
