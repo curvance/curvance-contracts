@@ -137,6 +137,8 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Retrieves the price of a given asset in `inUSD` price form.
+    /// @dev Calls getValue() from DIA to get the latest data
+    ///      for pricing and staleness.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD Whether `asset` should be priced in USD or native tokens.
     /// @return result Return data for a priced asset containing:
@@ -154,30 +156,11 @@ contract DIAAdaptor is BaseOracleAdaptor {
         if (!assetConfig[asset][inUSD].isConfigured) {
             inUSD = !inUSD;  
         }
-
-        result = _parseData(asset, inUSD, assetConfig[asset][inUSD]);
-    }
-
-    /// @notice Parses the DIA feed data for pricing of an asset.
-    /// @dev Calls latestRoundData() from DIA to get the latest data
-    ///      for pricing and staleness.
-    /// @param data DIA feed details.
-    /// @param inUSD A boolean to denote if the price is in USD.
-    /// @return result Return data for a priced asset containing:
-    ///                price The price of the asset.
-    ///                inUSD Boolean indicating whether `price` is denominated
-    ///                      in USD (true) or native token (false).
-    ///                hadError Boolean indicating whether the asset was priced
-    ///                         without running into any issues or not.
-    function _parseData(
-        address asset,
-        bool inUSD,
-        AssetConfig memory data
-    ) internal view returns (PricingResult memory result) {
+        AssetConfig memory config = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
 
         (uint128 price, uint128 updatedAt) = IDiaOracle(diaOracle).getValue(
-            data.key
+            config.key
         );
 
         // If we got a price of 0 or less, bubble up an error immediately.
@@ -190,15 +173,15 @@ contract DIAAdaptor is BaseOracleAdaptor {
             asset,
             inUSD,
             uint256(price),
-            data.decimals
+            config.decimals
         );
 
         result.hadError = _verifyData(
             normalizedPrice,
             updatedAt,
-            data.max,
-            data.min,
-            data.heartbeat
+            config.max,
+            config.min,
+            config.heartbeat
         );
 
         result.price = uint240(normalizedPrice);

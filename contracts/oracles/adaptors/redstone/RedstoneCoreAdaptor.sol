@@ -420,6 +420,8 @@ contract RedstoneCoreAdaptor is
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Retrieves the price of a given asset in `inUSD` price form.
+    /// @dev Extracts price from Redstone Core attached msg.data to get
+    ///      the latest data. Natively validates staleness.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD Whether `asset` should be priced in USD or native tokens.
     /// @return result Return data for a priced asset containing:
@@ -438,33 +440,13 @@ contract RedstoneCoreAdaptor is
             inUSD = !inUSD; 
         }
 
-        result = _parseData(asset, inUSD, assetConfig[asset][inUSD].heartbeat);
-    }
-
-    /// @notice Extracts the Redstone Core feed data for pricing of an asset.
-    /// @dev Extracts price from Redstone Core attached msg.data to get
-    ///      the latest data. Natively validates staleness.
-    /// @param asset The address of the asset to parse data for.
-    /// @param inUSD A boolean to denote if the price is in USD.
-    /// @param heartbeat The max amount of time allowed between price updates.
-    /// @return result Return data for a priced asset containing:
-    ///                price The price of the asset.
-    ///                inUSD Boolean indicating whether `price` is denominated
-    ///                      in USD (true) or native token (false).
-    ///                hadError Boolean indicating whether the asset was priced
-    ///                         without running into any issues or not.
-    function _parseData(
-        address asset,
-        bool inUSD,
-        uint256 heartbeat
-    ) internal view returns (PricingResult memory result) {
-        result.inUSD = inUSD;
         StoredData memory assetData = storedData[asset][inUSD];
+        result.inUSD = inUSD;
         // Validate the price returned is not stale.
         uint256 timestampInSeconds = assetData.redstoneTimestamp / 1000;
         if (
             timestampInSeconds < block.timestamp &&
-            block.timestamp - timestampInSeconds > heartbeat
+            block.timestamp - timestampInSeconds > assetConfig[asset][inUSD].heartbeat
         ) {
             result.hadError = true;
             return result;

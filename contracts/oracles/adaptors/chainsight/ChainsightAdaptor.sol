@@ -208,6 +208,8 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Retrieves the price of a given asset in `inUSD` price form.
+    /// @dev Calls read() from Chainsight to get the latest data
+    ///      for pricing and staleness.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD Whether `asset` should be priced in USD or native tokens.
     /// @return result Return data for a priced asset containing:
@@ -225,34 +227,15 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
         if (!assetConfig[asset][inUSD].isConfigured) {
             inUSD = !inUSD;  
         }
-
-        result = _parseData(asset, inUSD, assetConfig[asset][inUSD]);
-    }
-
-    /// @notice Parses the Chainsight feed data for pricing of an asset.
-    /// @dev Calls read() from Chainsight to get the latest data
-    ///      for pricing and staleness.
-    /// @param data Chainsight feed details.
-    /// @param inUSD A boolean to denote if the price is in USD.
-    /// @return result Return data for a priced asset containing:
-    ///                price The price of the asset.
-    ///                inUSD Boolean indicating whether `price` is denominated
-    ///                      in USD (true) or native token (false).
-    ///                hadError Boolean indicating whether the asset was priced
-    ///                         without running into any issues or not.
-    function _parseData(
-        address asset,
-        bool inUSD,
-        AssetConfig memory data
-    ) internal view returns (PricingResult memory result) {
+        AssetConfig memory config = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
         
         (
             int256 price,
             uint256 updatedAt
         ) = MANAGEMENT_ORACLE.readAsInt256WithTimestamp(
-            data.sender,
-            data.feedKey
+            config.sender,
+            config.feedKey
         );
 
         // If we got a price of 0 or less, bubble up an error immediately.
@@ -265,15 +248,15 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
             asset,
             inUSD,
             uint256(price),
-            data.decimals
+            config.decimals
         );
 
         result.hadError = _verifyData(
             normalizedPrice,
             updatedAt,
-            data.max,
+            config.max,
             0,
-            data.heartbeat
+            config.heartbeat
         );
         
         result.price = uint240(normalizedPrice);

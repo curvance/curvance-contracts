@@ -186,6 +186,8 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Retrieves the price of a given asset in `inUSD` price form.
+    /// @dev Calls latestRoundData() from Chainlink to get the latest data
+    ///      for pricing and staleness.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD Whether `asset` should be priced in USD or native tokens.
     /// @return result Return data for a priced asset containing:
@@ -204,25 +206,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
             inUSD = !inUSD;  
         }
 
-        result = _parseData(asset, inUSD, assetConfig[asset][inUSD]);
-    }
-
-    /// @notice Parses the chainlink feed data for pricing of an asset.
-    /// @dev Calls latestRoundData() from Chainlink to get the latest data
-    ///      for pricing and staleness.
-    /// @param config Chainlink feed details.
-    /// @param inUSD A boolean to denote if the price is in USD.
-    /// @return result Return data for a priced asset containing:
-    ///                price The price of the asset.
-    ///                inUSD Boolean indicating whether `price` is denominated
-    ///                      in USD (true) or native token (false).
-    ///                hadError Boolean indicating whether the asset was priced
-    ///                         without running into any issues or not.
-    function _parseData(
-        address asset,
-        bool inUSD,
-        AssetConfig memory config
-    ) internal view returns (PricingResult memory result) {
+        AssetConfig memory config = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
         
         (, int256 price, , uint256 updatedAt, ) = IChainlink(config.aggregator)
