@@ -4,7 +4,6 @@ pragma solidity ^0.8.26;
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBalance.sol";
 
-import { WAD } from "contracts/libraries/Constants.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -256,7 +255,7 @@ contract PythAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-        uint256 normalizedPrice = _normalizePrice(
+        uint256 adjustedPrice = _adjustPrice(
             asset,
             inUSD,
             uint256(int256(price.price)),
@@ -264,13 +263,13 @@ contract PythAdaptor is BaseOracleAdaptor {
         );
 
         result.hadError = _verifyData(
-            normalizedPrice,
+            adjustedPrice,
             price.publishTime,
             config.max,
             config.min,
             config.heartbeat
         );
 
-        result.price = uint240(normalizedPrice);
+        result.price = uint240(adjustedPrice);
     }
 }

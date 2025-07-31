@@ -2,7 +2,6 @@
 pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
