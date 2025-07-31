@@ -6,7 +6,7 @@ import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract TestChainlinkAdaptor is TestBaseOracleManager {
 
@@ -273,7 +273,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxUsdPriceFeed), 0, true);
         
         // Get USD price
-        PriceReturnData memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
+        PricingResult memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
         
         assertFalse(priceData.hadError);
         assertTrue(priceData.inUSD);
@@ -288,7 +288,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         
         chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxEthPriceFeed), 0, false);
         
-        PriceReturnData memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, false, false);
+        PricingResult memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, false, false);
         
         assertFalse(priceData.hadError);
         assertFalse(priceData.inUSD);
@@ -303,7 +303,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxEthPriceFeed), 0, false);
         
         // fallback to native
-        PriceReturnData memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
+        PricingResult memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
         
         assertFalse(priceData.hadError);
         assertFalse(priceData.inUSD);
@@ -318,7 +318,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxUsdPriceFeed), 0, true);
         
         // should fallback to USD
-        PriceReturnData memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, false, false);
+        PricingResult memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, false, false);
         
         assertFalse(priceData.hadError);
         assertTrue(priceData.inUSD);
@@ -337,14 +337,14 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxEthPriceFeed), 0, false);
         
         // Will use USD feed
-        PriceReturnData memory usdPriceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
+        PricingResult memory usdPriceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
         assertFalse(usdPriceData.hadError);
         assertTrue(usdPriceData.inUSD);
 
         assertGt(usdPriceData.price, 0);
         
         // Will use native feed
-        PriceReturnData memory nativePriceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, false, false);
+        PricingResult memory nativePriceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, false, false);
         assertFalse(nativePriceData.hadError);
         assertFalse(nativePriceData.inUSD);
         
@@ -358,7 +358,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         // Test negative price
         snxUsdPriceFeed.updateAnswer(-100e8);
         snxUsdPriceFeed.updateRoundData(1, -100e8, block.timestamp, block.timestamp);
-        PriceReturnData memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
+        PricingResult memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
 
         assertTrue(priceData.hadError);
     }
@@ -375,7 +375,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             block.timestamp - chainlinkAdaptor.DEFAULT_HEART_BEAT() - 1
             , block.timestamp - chainlinkAdaptor.DEFAULT_HEART_BEAT() - 1);
         
-        PriceReturnData memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
+        PricingResult memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
 
         assertTrue(priceData.hadError);
     }
@@ -387,7 +387,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         // Test zero price
         snxUsdPriceFeed.updateAnswer(0);
         snxUsdPriceFeed.updateRoundData(1, 0, block.timestamp, block.timestamp);
-        PriceReturnData memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
+        PricingResult memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
 
         assertTrue(priceData.hadError);
     }
@@ -399,7 +399,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         // Test above buffered max
         snxUsdPriceFeed.updateAnswer(1e11);
         snxUsdPriceFeed.updateRoundData(1, 1e11, block.timestamp, block.timestamp);
-        PriceReturnData memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
+        PricingResult memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
 
         assertTrue(priceData.hadError);
     }
@@ -412,7 +412,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         snxUsdPriceFeed.updateAnswer(1e6);
         snxUsdPriceFeed.updateRoundData(1, 1e6, block.timestamp, block.timestamp);
 
-        PriceReturnData memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
+        PricingResult memory priceData = chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
 
         assertTrue(priceData.hadError);
     }

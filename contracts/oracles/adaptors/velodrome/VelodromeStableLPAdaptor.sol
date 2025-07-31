@@ -5,7 +5,7 @@ import { BaseStableLPAdaptor } from "contracts/oracles/adaptors/stableswapBase/B
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract VelodromeStableLPAdaptor is BaseStableLPAdaptor {
     /// EVENTS ///
@@ -95,5 +95,5 @@ contract VelodromeStableLPAdaptor is BaseStableLPAdaptor {
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal virtual view override returns (PriceReturnData memory result) {}
+    ) internal virtual view override returns (PricingResult memory result) {}
 }

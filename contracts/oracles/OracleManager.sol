@@ -7,7 +7,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
-import { IOracleAdaptor, PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleAdaptor, PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 /// @title Curvance Dynamic Pessimistic Dual Oracle Manager.
@@ -617,7 +617,7 @@ contract OracleManager is IOracleManager {
 
         // Validate that the feed returns a usable price for us with a sample
         // query.
-        PriceReturnData memory sampleData = IOracleAdaptor(feed).getPrice(
+        PricingResult memory sampleData = IOracleAdaptor(feed).getPrice(
             asset,
             true,
             true
@@ -741,7 +741,7 @@ contract OracleManager is IOracleManager {
         address adaptor = assetPriceFeeds[asset][feedNumber];
         _checkIsApprovedAdaptor(adaptor);
 
-        PriceReturnData memory data = IOracleAdaptor(adaptor).getPrice(
+        PricingResult memory data = IOracleAdaptor(adaptor).getPrice(
             asset,
             inUSD,
             getLower

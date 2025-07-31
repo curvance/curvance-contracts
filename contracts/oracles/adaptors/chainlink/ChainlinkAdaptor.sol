@@ -6,7 +6,7 @@ import { WAD } from "contracts/libraries/Constants.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 
 contract ChainlinkAdaptor is BaseOracleAdaptor {
@@ -197,7 +197,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal view override returns (PriceReturnData memory result) {
+    ) internal view override returns (PricingResult memory result) {
         // Parse data from the format you want if its configured, otherwise
         // price in the other format and manually convert in Oracle Manager.
         if (!assetConfig[asset][inUSD].isConfigured) {
@@ -212,30 +212,34 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     ///      for pricing and staleness.
     /// @param config Chainlink feed details.
     /// @param inUSD A boolean to denote if the price is in USD.
-    /// @return pData A structure containing the price, error status,
-    ///               and the currency of the price.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
     function _parseData(
         address asset,
         bool inUSD,
         AssetConfig memory config
-    ) internal view returns (PriceReturnData memory pData) {
-        pData.inUSD = inUSD;
+    ) internal view returns (PricingResult memory result) {
+        result.inUSD = inUSD;
         
         (, int256 price, , uint256 updatedAt, ) = IChainlink(config.aggregator)
             .latestRoundData();
 
         // If we got a price of 0 or less, bubble up an error immediately.
         if (price <= 0) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
         if (
             uint256(price) >= config.reportedMax ||
             uint256(price) <= config.reportedMin
             ) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
         uint256 normalizedPrice = _normalizePrice(
@@ -245,7 +249,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
             config.decimals
         );
 
-        pData.hadError = _verifyData(
+        result.hadError = _verifyData(
             normalizedPrice,
             updatedAt,
             config.max,
@@ -253,6 +257,6 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
             config.heartbeat
         );
 
-        pData.price = uint240(normalizedPrice);
+        result.price = uint240(normalizedPrice);
     }
 }

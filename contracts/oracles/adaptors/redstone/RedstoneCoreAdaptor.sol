@@ -8,7 +8,7 @@ import { PrimaryProdDataServiceConsumerBase } from "contracts/libraries/external
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract RedstoneCoreAdaptor is
     BaseOracleAdaptor,
@@ -431,7 +431,7 @@ contract RedstoneCoreAdaptor is
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal view override returns (PriceReturnData memory result) {
+    ) internal view override returns (PricingResult memory result) {
         // Parse data from the format you want if its configured, otherwise
         // price in the other format and manually convert in Oracle Manager.
         if (!assetConfig[asset][inUSD].isConfigured) {
@@ -447,14 +447,18 @@ contract RedstoneCoreAdaptor is
     /// @param asset The address of the asset to parse data for.
     /// @param inUSD A boolean to denote if the price is in USD.
     /// @param heartbeat The max amount of time allowed between price updates.
-    /// @return pData A structure containing the price, error status,
-    ///               and the currency of the price.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
     function _parseData(
         address asset,
         bool inUSD,
         uint256 heartbeat
-    ) internal view returns (PriceReturnData memory pData) {
-        pData.inUSD = inUSD;
+    ) internal view returns (PricingResult memory result) {
+        result.inUSD = inUSD;
         StoredData memory assetData = storedData[asset][inUSD];
         // Validate the price returned is not stale.
         uint256 timestampInSeconds = assetData.redstoneTimestamp / 1000;
@@ -462,11 +466,11 @@ contract RedstoneCoreAdaptor is
             timestampInSeconds < block.timestamp &&
             block.timestamp - timestampInSeconds > heartbeat
         ) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
-        pData.price = uint240(assetData.price);
+        result.price = uint240(assetData.price);
     }
 
     /// @dev This logic replicates RedstoneDefaultsLib.validateTimestamp

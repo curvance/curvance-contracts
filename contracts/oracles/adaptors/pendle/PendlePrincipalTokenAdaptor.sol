@@ -11,7 +11,7 @@ import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtO
 import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
@@ -95,13 +95,17 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
     ///              or a chain's native token (false).
     /// @param getLower A boolean to determine if lower of two oracle prices
     ///                 should be retrieved.
-    /// @return pData A structure containing the price, error status,
-    ///                         and the quote format of the price.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
     function getPrice(
         address asset,
         bool inUSD,
         bool getLower
-    ) external view override returns (PriceReturnData memory pData) {
+    ) external view override returns (PricingResult memory result) {
         _checkSupportedAsset(asset);
 
         AssetConfig memory data = assetConfig[asset];
@@ -114,8 +118,8 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
 
         // Validate we did not run into any errors pricing the quote asset.
         if (errorCode > 0) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
         // Multiply the quote asset price by the ptRate
@@ -124,12 +128,12 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
 
         // Validate price will not overflow on conversion to uint240.
         if (_checkOverflow(price)) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
-        pData.inUSD = inUSD;
-        pData.price = uint240(price);
+        result.inUSD = inUSD;
+        result.price = uint240(price);
     }
 
     /// @notice Adds pricing support for `asset`, a Pendle principal token.
@@ -236,4 +240,20 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
             revert PendlePrincipalTokenAdaptor__OldestObservationIsNotSatisfied();
         }
     }
+
+    /// INTERNAL FUNCTIONS TO OVERRIDE ///
+
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
+    /// @param asset The address of the asset for which the price is needed.
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
+    function _getPrice(
+        address asset,
+        bool inUSD
+    ) internal virtual view override returns (PricingResult memory result) {}
 }

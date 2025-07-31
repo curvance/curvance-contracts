@@ -5,7 +5,7 @@ import { UniswapV3Adaptor } from "contracts/oracles/adaptors/uniswap/UniswapV3Ad
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { IStaticOracle } from "contracts/interfaces/external/uniswap/IStaticOracle.sol";
@@ -154,7 +154,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         adaptorData.secondsAgo = 3600;
         adaptor.addAsset(_USDC_ADDRESS, adaptorData);
 
-        PriceReturnData memory data = adaptor.getPrice(
+        PricingResult memory data = adaptor.getPrice(
             _USDC_ADDRESS,
             true,
             false

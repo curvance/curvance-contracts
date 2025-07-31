@@ -6,7 +6,7 @@ import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IStaticOracle } from "contracts/interfaces/external/uniswap/IStaticOracle.sol";
 import { UniswapV3Pool } from "contracts/interfaces/external/uniswap/UniswapV3Pool.sol";
 
@@ -98,13 +98,17 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     ///              or a chain's native token (false).
     /// @param getLower A boolean to determine if lower of two oracle prices
     ///                 should be retrieved.
-    /// @return pData A structure containing the price, error status,
-    ///                         and the quote format of the price.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
     function getPrice(
         address asset,
         bool inUSD,
         bool getLower
-    ) external view override returns (PriceReturnData memory pData) {
+    ) external view override returns (PricingResult memory result) {
         _checkSupportedAsset(asset);
 
         AssetConfig memory data = assetConfig[asset];
@@ -135,14 +139,14 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
             twapPrice = abi.decode(returnData, (uint256));
         } else {
             // Uniswap twap check reverted, bubble up an error.
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
         IOracleManager OracleManager = IOracleManager(
             centralRegistry.oracleManager()
         );
-        pData.inUSD = inUSD;
+        result.inUSD = inUSD;
 
         // We want the asset price in USD which uniswap cant do,
         // so find out the price of the quote token in USD then divide
@@ -151,8 +155,8 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
             if (!OracleManager.isSupportedAsset(data.quoteToken)) {
                 // Our Oracle Manager does not know how to value this quote
                 // token, so, we cant use the twap data, bubble up an error.
-                pData.hadError = true;
-                return pData;
+                result.hadError = true;
+                return result;
             }
 
             (uint256 quoteTokenDenominator, uint256 errorCode) = OracleManager
@@ -160,8 +164,8 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
 
             // Validate we did not run into any errors pricing the quote asset.
             if (errorCode > 0) {
-                pData.hadError = true;
-                return pData;
+                result.hadError = true;
+                return result;
             }
 
             // We have a route to USD pricing so we can convert
@@ -171,20 +175,20 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
 
             // Validate price will not overflow on conversion to uint240.
             if (_checkOverflow(newPrice)) {
-                pData.hadError = true;
-                return pData;
+                result.hadError = true;
+                return result;
             }
 
-            pData.price = uint240(newPrice);
-            return pData;
+            result.price = uint240(newPrice);
+            return result;
         }
 
         if (data.quoteToken != wrappedNative) {
             if (!OracleManager.isSupportedAsset(data.quoteToken)) {
                 // Our Oracle Manager does not know how to value this quote
                 // token so we cant use the twap data.
-                pData.hadError = true;
-                return pData;
+                result.hadError = true;
+                return result;
             }
 
             (uint256 quoteTokenDenominator, uint256 errorCode) = OracleManager
@@ -192,8 +196,8 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
 
             // Validate we did not run into any errors pricing the quote asset.
             if (errorCode > 0) {
-                pData.hadError = true;
-                return pData;
+                result.hadError = true;
+                return result;
             }
 
             // Adjust decimals if necessary.
@@ -202,23 +206,23 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
 
             // Validate price will not overflow on conversion to uint240.
             if (_checkOverflow(newPrice)) {
-                pData.hadError = true;
-                return pData;
+                result.hadError = true;
+                return result;
             }
 
             // We have a route to ETH pricing so we can convert
             // the quote token price to ETH and return.
-            pData.price = uint240(newPrice);
-            return pData;
+            result.price = uint240(newPrice);
+            return result;
         }
 
         // Validate price will not overflow on conversion to uint240.
         if (_checkOverflow(twapPrice)) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
-        pData.price = uint240(twapPrice);
+        result.price = uint240(twapPrice);
     }
 
     /// @notice Adds pricing support for `asset`, a token inside a Univ3 lp.
@@ -306,5 +310,5 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal virtual view override returns (PriceReturnData memory result) {}
+    ) internal virtual view override returns (PricingResult memory result) {}
 }

@@ -5,7 +5,7 @@ import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { OracleManager, BAD_SOURCE } from "contracts/oracles/OracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract Oracle {
     address internal constant _FXS_TOKEN =
@@ -21,23 +21,23 @@ contract Oracle {
         address asset,
         bool inUSD,
         bool getLower
-    ) external pure returns (PriceReturnData memory rd) {
+    ) external pure returns (PricingResult memory rd) {
         if (asset == _FXS_TOKEN) {
             // for simplicity, let's assume that...
             // 1) we don't offer ETH support for FXS, so always return USD
             // 2) the oracles are identical, so getLower == !getLower
             // 3) current price is $6, so just return that
-            return PriceReturnData(6e18, false, true);
+            return PricingResult(6e18, false, true);
         } else if (asset == _ETH_ADDRESS) {
             // price of ETH in ETH is 1
-            if (!inUSD) return PriceReturnData(1e18, false, false);
+            if (!inUSD) return PricingResult(1e18, false, false);
 
             // price of ETH in USD works, but let's have a range
-            if (getLower) return PriceReturnData(3900e18, false, true);
-            if (!getLower) return PriceReturnData(4000e18, false, true);
+            if (getLower) return PricingResult(3900e18, false, true);
+            if (!getLower) return PricingResult(4000e18, false, true);
         } else {
             // only these two tokens are supported
-            return PriceReturnData(0, true, true);
+            return PricingResult(0, true, true);
         }
     }
 }

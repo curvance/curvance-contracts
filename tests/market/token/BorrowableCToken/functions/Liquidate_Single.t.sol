@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { TestBaseBorrowableCToken } from "tests/market/token/BorrowableCToken/TestBaseBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import "forge-std/console2.sol";

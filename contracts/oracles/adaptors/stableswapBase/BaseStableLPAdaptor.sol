@@ -7,7 +7,7 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
@@ -66,13 +66,17 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
     ///              or a chain's native token (false).
     /// @param getLower A boolean to determine if lower of two oracle prices
     ///                 should be retrieved.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
     function getPrice(
         address asset,
         bool inUSD,
         bool getLower
-    ) external view virtual override returns (PriceReturnData memory) {
+    ) external view virtual override returns (PricingResult memory) {
         return _getPrice(asset, inUSD, getLower);
     }
 
@@ -104,13 +108,17 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
     ///              USD or not.
     /// @param getLower A boolean to determine if lower of two oracle prices
     ///                 should be retrieved.
-    /// @return pData A structure containing the price, error status,
-    ///               and the quote format of the price.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
     function _getPrice(
         address asset,
         bool inUSD,
         bool getLower
-    ) internal view returns (PriceReturnData memory pData) {
+    ) internal view returns (PricingResult memory result) {
         _checkSupportedAsset(asset);
 
         // Read Adaptor storage and grab pool tokens.
@@ -145,8 +153,8 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
 
         // Validate we did not run into any errors pricing token0.
         if (errorCode > 0) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
         (price1, errorCode) = oracleManager.getPrice(
@@ -157,8 +165,8 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
 
         // Validate we did not run into any errors pricing token1.
         if (errorCode > 0) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
         uint256 finalPrice = _getFairPrice(
@@ -171,12 +179,12 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
 
         // Validate price will not overflow on conversion to uint240.
         if (_checkOverflow(finalPrice)) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
-        pData.inUSD = inUSD;
-        pData.price = uint240(finalPrice);
+        result.inUSD = inUSD;
+        result.price = uint240(finalPrice);
     }
 
     /// @notice Helper function for pricing support for `asset`,

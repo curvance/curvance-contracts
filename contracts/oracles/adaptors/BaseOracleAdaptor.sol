@@ -6,7 +6,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { SECONDS_PER_YEAR, WAD, BASIS_POINTS } from "contracts/libraries/Constants.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleAdaptor, PriceReturnData, PriceGuard } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleAdaptor, PricingResult, PriceGuard } from "contracts/interfaces/IOracleAdaptor.sol";
 
 abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// CONSTANTS ///
@@ -96,7 +96,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         address asset,
         bool inUSD,
         bool /* getLower */
-    ) external virtual view override returns (PriceReturnData memory result) {
+    ) external virtual view override returns (PricingResult memory result) {
         _checkSupportedAsset(asset);
 
         result = _getPrice(asset, inUSD);
@@ -171,8 +171,8 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             BASIS_POINTS
         );
 
-        PriceReturnData memory priceReturnData = this.getPrice(asset, inUSD, true);
-        uint256 oraclePrice = priceReturnData.price;
+        PricingResult memory pricingResult = this.getPrice(asset, inUSD, true);
+        uint256 oraclePrice = pricingResult.price;
 
         if (boundedPriceHigh < oraclePrice || boundedPriceLow > oraclePrice) {
             _revert(_INVALID_CONFIG_SELECTOR);
@@ -355,5 +355,5 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal virtual view returns (PriceReturnData memory result);
+    ) internal virtual view returns (PricingResult memory result);
 }

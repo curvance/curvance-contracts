@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract MockOracleAdaptor is BaseOracleAdaptor {
     struct MockPrice {
@@ -24,16 +24,16 @@ contract MockOracleAdaptor is BaseOracleAdaptor {
         address asset,
         bool inUSD,
         bool
-    ) external view override returns (PriceReturnData memory) {
+    ) external view override returns (PricingResult memory) {
         if (!hasSetPrice[asset]) {
             revert("Price not set by MockOracle");
         }
 
         if (inUSD) {
-            return PriceReturnData(definedPrices[asset].usdPrice, false, true);
+            return PricingResult(definedPrices[asset].usdPrice, false, true);
         }
 
-        return PriceReturnData(definedPrices[asset].nativePrice, false, false);
+        return PricingResult(definedPrices[asset].nativePrice, false, false);
     }
 
     function setPrice(

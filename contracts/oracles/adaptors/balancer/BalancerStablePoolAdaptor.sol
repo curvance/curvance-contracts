@@ -7,7 +7,7 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { IVault } from "contracts/interfaces/external/balancer/IVault.sol";
 import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerPool.sol";
 import { IRateProvider } from "contracts/interfaces/external/balancer/IRateProvider.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
@@ -83,13 +83,17 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
     ///              or a chain's native token (false).
     /// @param getLower A boolean to determine if lower of two oracle prices
     ///                 should be retrieved.
-    /// @return pData A structure containing the price, error status,
-    ///                         and the quote format of the price.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
     function getPrice(
         address asset,
         bool inUSD,
         bool getLower
-    ) external view override returns (PriceReturnData memory pData) {
+    ) external view override returns (PricingResult memory result) {
         _checkSupportedAsset(asset);
 
         // Validate that the vault is not being reentered.
@@ -99,7 +103,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         AdaptorData memory data = adaptorData[asset];
         IBalancerPool pool = IBalancerPool(asset);
 
-        pData.inUSD = inUSD;
+        result.inUSD = inUSD;
         IOracleManager oracleManager = IOracleManager(
             centralRegistry.oracleManager()
         );
@@ -127,8 +131,8 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
 
             // If we had an error pricing the quote asset, bubble up an error.
             if (errorCode > 0) {
-                pData.hadError = true;
-                return pData;
+                result.hadError = true;
+                return result;
             }
 
             // We must first normalize the price using the rate from the RateProvider.
@@ -148,19 +152,19 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
 
         // If we were not able to price anything, bubble up an error.
         if (averagePrice == 0) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
         averagePrice = ((averagePrice / numPrices) * pool.getRate()) / WAD;
 
         // Validate price will not overflow on conversion to uint240.
         if (_checkOverflow(averagePrice)) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
-        pData.price = uint240(averagePrice);
+        result.price = uint240(averagePrice);
     }
 
     /// @notice Adds pricing support for `asset`, a new Balancer BPT.
@@ -265,5 +269,5 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal virtual view override returns (PriceReturnData memory result) {}
+    ) internal virtual view override returns (PricingResult memory result) {}
 }

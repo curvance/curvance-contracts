@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -234,7 +234,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
         uint256 cFactor = closeFactorBase + ((closeFactorCurve * 1e18) / WAD);
         uint256 debtAmount = (cFactor * borrowableCUSDC.debtBalance(user1)) / WAD;
 
-        PriceReturnData memory data = balRETHAdapter.getPrice(
+        PricingResult memory data = balRETHAdapter.getPrice(
             _BAL_WETH_RETH_ADDRESS,
             true,
             true

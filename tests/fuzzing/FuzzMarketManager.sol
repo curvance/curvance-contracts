@@ -5,7 +5,7 @@
 // import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 // import { WAD } from "contracts/libraries/Constants.sol";
 // import { OracleManager } from "contracts/oracles/OracleManager.sol";
-// import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+// import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 // import { FuzzLiquidations } from "tests/fuzzing/stateless/FuzzLiquidations.sol";
 
 // contract FuzzMarketManager is FuzzLiquidations {
@@ -1062,7 +1062,7 @@
 //             block.timestamp,
 //             block.timestamp
 //         );
-//         PriceReturnData memory daiData = chainlinkAdaptor.getPrice(
+//         PricingResult memory daiData = chainlinkAdaptor.getPrice(
 //             address(borrowableCDAI),
 //             true,
 //             false
@@ -1079,7 +1079,7 @@
 //         mockUsdcFeed.setMockAnswer(int256(usdcPrice));
 //         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
-//         PriceReturnData memory usdcData = chainlinkAdaptor.getPrice(
+//         PricingResult memory usdcData = chainlinkAdaptor.getPrice(
 //             address(pUSDC),
 //             true,
 //             false

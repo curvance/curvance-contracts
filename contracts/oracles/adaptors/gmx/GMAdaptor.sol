@@ -6,7 +6,7 @@ import { WAD } from "contracts/libraries/Constants.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IReader } from "contracts/interfaces/external/gmx/IReader.sol";
 
@@ -103,13 +103,17 @@ contract GMAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the asset for which the price is needed.
     /// @param getLower A boolean to determine if lower of two oracle prices
     ///                 should be retrieved.
-    /// @return pData A structure containing the price, error status,
-    ///               and the quote format of the price.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
     function getPrice(
         address asset,
         bool /* inUSD */,
         bool getLower
-    ) external view override returns (PriceReturnData memory pData) {
+    ) external view override returns (PricingResult memory result) {
         _checkSupportedAsset(asset);
 
         // Cache the Oracle Manager.
@@ -133,8 +137,8 @@ contract GMAdaptor is BaseOracleAdaptor {
                 getLower
             );
             if (errorCode > 0) {
-                pData.hadError = true;
-                return pData;
+                result.hadError = true;
+                return result;
             }
 
             prices[i] = (prices[i] * 1e30) / _priceUnit[token];
@@ -154,8 +158,8 @@ contract GMAdaptor is BaseOracleAdaptor {
         // Make sure we got a positive price, bubble up an error,
         // if we got 0 or a negative number.
         if (price <= 0) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
         // Convert from 30 decimals to standardized 18.
@@ -163,12 +167,12 @@ contract GMAdaptor is BaseOracleAdaptor {
 
         // Validate price will not overflow on conversion to uint240.
         if (_checkOverflow(newPrice)) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
-        pData.inUSD = true;
-        pData.price = uint240(newPrice);
+        result.inUSD = true;
+        result.price = uint240(newPrice);
     }
 
     /// @notice Adds pricing support for `asset`, a GMX GM token.
@@ -334,5 +338,5 @@ contract GMAdaptor is BaseOracleAdaptor {
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal virtual view override returns (PriceReturnData memory result) {}
+    ) internal virtual view override returns (PricingResult memory result) {}
 }

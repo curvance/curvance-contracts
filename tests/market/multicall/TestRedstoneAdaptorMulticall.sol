@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
@@ -229,7 +229,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         simpleCWBTC.multicall(calls);
 
         assertEq(simpleCWBTC.balanceOf(user1), 1e8);
-        PriceReturnData memory priceData = adapter.getPrice(
+        PricingResult memory priceData = adapter.getPrice(
             _WBTC_ADDRESS,
             true,
             true
@@ -281,7 +281,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         borrowableCUSDC.multicall(calls);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 1e6);
-        PriceReturnData memory priceData = adapter.getPrice(
+        PricingResult memory priceData = adapter.getPrice(
             _WBTC_ADDRESS,
             true,
             true

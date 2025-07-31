@@ -7,7 +7,7 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { ICurvePool } from "contracts/interfaces/external/curve/ICurvePool.sol";
 
@@ -114,13 +114,17 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
     ///              or a chain's native token (false).
     /// @param getLower A boolean to determine if lower of two oracle prices
     ///                 should be retrieved.
-    /// @return pData A structure containing the price, error status,
-    ///                         and the quote format of the price.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
     function getPrice(
         address asset,
         bool inUSD,
         bool getLower
-    ) external view override returns (PriceReturnData memory pData) {
+    ) external view override returns (PricingResult memory result) {
         AdaptorData memory data = adaptorData[asset];
 
         // Validate we support this pool and that this is not
@@ -149,8 +153,8 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
             getLower
         );
         if (errorCode > 0) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
         (price1, errorCode) = oracleManager.getPrice(
             data.underlying1,
@@ -158,8 +162,8 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
             getLower
         );
         if (errorCode > 0) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
         // Calculate LP token price.
@@ -193,12 +197,12 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
         }
 
         if (_checkOverflow(price)) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
-        pData.inUSD = inUSD;
-        pData.price = uint240(price);
+        result.inUSD = inUSD;
+        result.price = uint240(price);
     }
 
     /// @notice Adds pricing support for `asset`, a Curve V2 lp token.
@@ -448,5 +452,5 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal virtual view override returns (PriceReturnData memory result) {}
+    ) internal virtual view override returns (PricingResult memory result) {}
 }

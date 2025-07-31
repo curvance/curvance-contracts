@@ -3,16 +3,16 @@ pragma solidity ^0.8.26;
 
 /// TYPES ///
 
-/// @notice Return data from an Oracle Adaptor.
-/// @param price The price of the asset in some asset, either ETH or USD.
-/// @param hadError The message return data, whether the adaptor ran into
-///                 trouble pricing the asset.
-/// @param inUsd Boolean indicating whether the price feed is denominated
-///              in USD (true) or ETH (false).
-struct PriceReturnData {
+/// @notice Return data from pricing an asset.
+/// @param price The price of the asset.
+/// @param inUsd Boolean indicating whether `price` is denominated
+///              in USD (true) or native token (false).
+/// @param hadError Boolean indicating whether the asset was priced
+///                 without running into any issues or not.
+struct PricingResult {
     uint240 price;
-    bool hadError;
     bool inUSD;
+    bool hadError;
 }
 
 
@@ -31,13 +31,17 @@ interface IOracleAdaptor {
     ///              USD or not.
     /// @param getLower A boolean to determine if lower of two oracle prices
     ///                 should be retrieved.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
     function getPrice(
         address asset,
         bool inUSD,
         bool getLower
-    ) external view returns (PriceReturnData memory);
+    ) external view returns (PricingResult memory);
 
     /// @notice Whether an asset is supported by the Oracle Adaptor or not.
     /// @dev Asset => Supported by adaptor.
