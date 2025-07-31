@@ -12,6 +12,7 @@ import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+import { IOracleAdaptor, PriceGuard } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -997,6 +998,39 @@ contract AuxiliaryData {
                 token,
                 !ICToken(token).isBorrowable() ? true : false
             );
+    }
+
+    function getGuardedPriceMax(
+        address adaptor,
+        address asset,
+        bool inUSD
+    ) external view returns (uint256) {
+        PriceGuard memory pg = IOracleAdaptor(adaptor)
+            .getPriceGuard(asset, inUSD);
+        if (pg.guardType == 0) {
+            return type(uint256).max;
+        }
+
+        if (pg.guardType == 1) {
+            return pg.basePrice;
+        }
+
+        return ((block.timestamp - pg.timestampStart) *
+            pg.increasePerSecond) + pg.basePrice;
+    }
+
+    function getGuardedPriceMin(
+        address adaptor,
+        address asset,
+        bool inUSD
+    ) external view returns (uint256) {
+        PriceGuard memory pg = IOracleAdaptor(adaptor)
+            .getPriceGuard(asset, inUSD);
+        if (pg.guardType == 0) {
+            return 0;
+        }
+
+        return pg.minPrice;
     }
 
     /// INTERNAL FUNCTIONS ///

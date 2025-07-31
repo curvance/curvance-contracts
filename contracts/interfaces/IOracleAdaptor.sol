@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+/// TYPES ///
+
 /// @notice Return data from an Oracle Adaptor.
 /// @param price The price of the asset in some asset, either ETH or USD.
 /// @param hadError The message return data, whether the adaptor ran into
@@ -11,6 +13,15 @@ struct PriceReturnData {
     uint240 price;
     bool hadError;
     bool inUSD;
+}
+
+
+struct PriceGuard {
+    uint256 guardType;
+    uint256 timestampStart;
+    uint256 increasePerSecond;
+    uint256 basePrice;
+    uint256 minPrice;
 }
 
 interface IOracleAdaptor {
@@ -31,6 +42,13 @@ interface IOracleAdaptor {
     /// @notice Whether an asset is supported by the Oracle Adaptor or not.
     /// @dev Asset => Supported by adaptor.
     function isSupportedAsset(address asset) external view returns (bool);
+
+    /// @notice Token price guard configuration for pricing an asset.
+    /// @dev Token address => inUSD => Price Guard configuration.
+    function getPriceGuard(
+        address asset,
+        bool inUSD
+    ) external view returns (PriceGuard memory);
 
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact

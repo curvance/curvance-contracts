@@ -6,21 +6,10 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { SECONDS_PER_YEAR, WAD, BASIS_POINTS } from "contracts/libraries/Constants.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleAdaptor, PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleAdaptor, PriceReturnData, PriceGuard } from "contracts/interfaces/IOracleAdaptor.sol";
 
 abstract contract BaseOracleAdaptor is IOracleAdaptor {
-    /// TYPES ///
-
-    struct PriceGuard {
-        uint256 guardType;
-        uint256 timestampStart;
-        uint256 increasePerSecond;
-        uint256 basePrice;
-        uint256 minPrice;
-    }
-
     /// CONSTANTS ///
-
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
@@ -40,10 +29,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// STORAGE ///
 
     /// @notice Whether an asset is supported by the Oracle Adaptor or not.
-    /// @dev Asset => Supported by adaptor.
+    /// @dev Asset => Supported by Adaptor.
     mapping(address => bool) public isSupportedAsset;
     /// @notice Token price guard configuration for pricing an asset.
-    /// @dev Token address => inUSD => Adaptor Data.
+    /// @dev Token address => inUSD => Price Guard configuration.
     mapping(address => mapping(bool => PriceGuard)) public priceGuards;
 
     /// EVENTS ///
@@ -92,33 +81,11 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
     /// EXTERNAL FUNCTIONS ///
 
-    function getGuardedPriceMax(
+    function getPriceGuard(
         address asset,
         bool inUSD
-    ) external view returns (uint256) {
-        PriceGuard memory pg = priceGuards[asset][inUSD];
-        if (pg.guardType == 0) {
-            revert BaseOracleAdaptor__NoPriceGuard();
-        }
-
-        if (pg.guardType == 1) {
-            return pg.basePrice;
-        }
-
-        return ((block.timestamp - pg.timestampStart) *
-            pg.increasePerSecond) + pg.basePrice;
-    }
-
-    function getGuardedPriceMin(
-        address asset,
-        bool inUSD
-    ) external view returns (uint256) {
-        PriceGuard memory pg = priceGuards[asset][inUSD];
-        if (pg.guardType == 0) {
-            revert BaseOracleAdaptor__NoPriceGuard();
-        }
-
-        return pg.minPrice;
+    ) external view returns (PriceGuard memory) {
+        return priceGuards[asset][inUSD];
     }
 
     function disableGuardedPriceConfig(
