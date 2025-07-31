@@ -169,7 +169,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-        uint256 normalizedPrice = _normalizePrice(
+        uint256 adjustedPrice = _adjustPrice(
             asset,
             inUSD,
             uint256(price),
@@ -177,13 +177,13 @@ contract DIAAdaptor is BaseOracleAdaptor {
         );
 
         result.hadError = _verifyData(
-            normalizedPrice,
+            adjustedPrice,
             updatedAt,
             config.max,
             config.min,
             config.heartbeat
         );
 
-        result.price = uint240(normalizedPrice);
+        result.price = uint240(adjustedPrice);
     }
 }

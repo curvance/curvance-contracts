@@ -136,7 +136,8 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
             }
 
             // We must first normalize the price using the rate from the RateProvider.
-            // If there is no RateProvider, assume a rate of 1 (note that `rateProviderDecimals` is unreliable in this case).
+            // If there is no RateProvider, assume a rate of 1
+            // (note that `rateProviderDecimals` is unreliable in this case).
             address rateProvider = data.rateProviders[i];
             uint256 normalizedPrice;
             if (rateProvider == address(0)) {

@@ -242,32 +242,23 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         return false;
     }
 
-    /// @notice Helper function for normalizing (converting prices in
-    ///         different forms to a common scale) prices received from
-    ///         various oracle adaptors.
-    /// @param price The price to normalize.
+    /// @notice Helper function for adjusting received price into WAD form
+    ///         received from various oracle adaptors.
+    /// @param price The price to adjust.
     /// @param decimals The decimal precision `price` is reported in.
-    /// @return result Returns the normalized price in 1e18 (WAD) scale.
-    function _normalizePrice(
+    /// @return Returns the potentially adjusted price in 1e18 (WAD) scale.
+    function _adjustPrice(
         address asset,
         bool inUSD,
         uint256 price,
         uint256 decimals
-    ) internal view returns (uint256 result) {
-        result = _boundPrice(
-            asset,
-            inUSD,
-            FixedPointMathLib.fullMulDiv(price, WAD, 10 ** decimals)
-        );
-    }
-
-    
-    function _boundPrice(
-        address asset,
-        bool inUSD,
-        uint256 price
     ) internal view returns (uint256) {
+        // Normalize price to 18 decimals (WAD).
+        price = FixedPointMathLib.fullMulDiv(price, WAD, 10 ** decimals);
+
+        // Adjust price based on any present price guards.
         PriceGuard memory pg = priceGuards[asset][inUSD];
+        
         // Case with no minimum/maximum guarded prices.
         if (pg.guardType == 0) {
             return price;

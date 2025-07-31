@@ -244,7 +244,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-        uint256 normalizedPrice = _normalizePrice(
+        uint256 adjustedPrice = _adjustPrice(
             asset,
             inUSD,
             uint256(price),
@@ -252,13 +252,13 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
         );
 
         result.hadError = _verifyData(
-            normalizedPrice,
+            adjustedPrice,
             updatedAt,
             config.max,
             0,
             config.heartbeat
         );
         
-        result.price = uint240(normalizedPrice);
+        result.price = uint240(adjustedPrice);
     }
 }
