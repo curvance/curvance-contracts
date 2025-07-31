@@ -12,20 +12,18 @@ import { IDiaOracle } from "contracts/interfaces/external/dia/IDiaOracle.sol";
 contract DIAAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
-    /// @title DIA Adaptor Data
     /// @notice Stores configuration data for DIA price sources.
-    /// @param aggregator The current phase's aggregator address.
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
     /// @param decimals Returns the number of decimals the aggregator
     ///                 responds with.
-    /// @param heartbeat The max amount of time between price updates.
-    ///                  0 defaults to using DEFAULT_HEART_BEAT.
     /// @param max The maximum valid price of the asset.
     ///            0 defaults to use proxy max price reduced by ~10%.
     /// @param min The minimum valid price of the asset.
     ///            0 defaults to use proxy min price increased by ~10%.
-    struct AdaptorData {
+    /// @param heartbeat The max amount of time between price updates.
+    ///                  0 defaults to using DEFAULT_HEART_BEAT.
+    struct AssetConfig {
         bool isConfigured;
         uint256 decimals;
         uint256 max;
@@ -38,17 +36,13 @@ contract DIAAdaptor is BaseOracleAdaptor {
 
     address public diaOracle;
 
-    /// @notice Adaptor configuration data for pricing an asset in gas token.
-    /// @dev DIA Adaptor Data for pricing in gas token.
-    mapping(address => AdaptorData) public adaptorDataNonUSD;
-
-    /// @notice Adaptor configuration data for pricing an asset in USD.
-    /// @dev DIA Adaptor Data for pricing in USD.
-    mapping(address => AdaptorData) public adaptorDataUSD;
+    /// @notice Price feed configuration data for an asset.
+    /// @dev Token address => inUSD => Price feed configuration for `asset`.
+    mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
     /// EVENTS ///
 
-    event DIAAssetAdded(address asset, AdaptorData assetConfig, bool isUpdate);
+    event DIAAssetAdded(address asset, AssetConfig assetConfig, bool isUpdate);
     event DIAAssetRemoved(address asset);
 
     /// ERRORS ///
@@ -86,25 +80,19 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD Specifies whether the price format should be in USD (true)
     ///              or a chain's native token (false).
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price.
+    /// @return result A struct containing the price, error status,
+    ///                and the quote format of the price.
     function getPrice(
         address asset,
         bool inUSD,
         bool /* getLower */
-    ) external view override returns (PriceReturnData memory) {
+    ) external view override returns (PriceReturnData memory result) {
         // Validate we support pricing `asset`.
         if (!isSupportedAsset[asset]) {
             revert DIAAdaptor__AssetIsNotSupported();
         }
 
-        // Check whether we want the pricing in USD first,
-        // otherwise price in terms of the gas token.
-        if (inUSD) {
-            return _getPriceInUSD(asset);
-        }
-
-        return _getPriceInNative(asset);
+        result = _getPrice(asset, inUSD);
     }
 
     /// @notice Adds pricing support for `asset` via a new DIA feed.
@@ -116,7 +104,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
     ///              or native token (inUSD = false).
     function addAsset(
         address asset,
-        AdaptorData memory adaptor,
+        AssetConfig memory adaptor,
         bool inUSD
     ) external {
         _checkElevatedPermissions();
@@ -125,11 +113,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
             revert DIAAdaptor__InvalidMinMaxConfig();
         }
 
-        if (inUSD) {
-            adaptorDataUSD[asset] = adaptor;
-        } else {
-            adaptorDataNonUSD[asset] = adaptor;
-        }
+        assetConfig[asset][inUSD] = adaptor;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -158,8 +142,8 @@ contract DIAAdaptor is BaseOracleAdaptor {
         delete isSupportedAsset[asset];
 
         // Wipe config mapping entries for a gas refund.
-        delete adaptorDataUSD[asset];
-        delete adaptorDataNonUSD[asset];
+        delete assetConfig[asset][true];
+        delete assetConfig[asset][false];
 
         // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
@@ -179,33 +163,22 @@ contract DIAAdaptor is BaseOracleAdaptor {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Retrieves the price of a given asset in USD.
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
     /// @param asset The address of the asset for which the price is needed.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (USD).
-    function _getPriceInUSD(
-        address asset
-    ) internal view returns (PriceReturnData memory) {
-        if (adaptorDataUSD[asset].isConfigured) {
-            return _parseData(asset, true, adaptorDataUSD[asset]);
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result A struct containing the price, error status, and the
+    ///                quote format of the price (USD vs native).
+    function _getPrice(
+        address asset,
+        bool inUSD
+    ) internal view returns (PriceReturnData memory result) {
+        // Parse data from the format you want if its configured, otherwise
+        // price in the other format and manually convert in Oracle Manager.
+        if (!assetConfig[asset][inUSD].isConfigured) {
+            inUSD = !inUSD;  
         }
 
-        return _parseData(asset, false, adaptorDataNonUSD[asset]);
-    }
-
-    /// @notice Retrieves the price of a given asset in the chain's native
-    ///         gas token.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (native).
-    function _getPriceInNative(
-        address asset
-    ) internal view returns (PriceReturnData memory) {
-        if (adaptorDataNonUSD[asset].isConfigured) {
-            return _parseData(asset, false, adaptorDataNonUSD[asset]);
-        }
-
-        return _parseData(asset, true, adaptorDataUSD[asset]);
+        result = _parseData(asset, inUSD, assetConfig[asset][inUSD]);
     }
 
     /// @notice Parses the DIA feed data for pricing of an asset.
@@ -218,7 +191,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
     function _parseData(
         address asset,
         bool inUSD,
-        AdaptorData memory data
+        AssetConfig memory data
     ) internal view returns (PriceReturnData memory pData) {
         pData.inUSD = inUSD;
 

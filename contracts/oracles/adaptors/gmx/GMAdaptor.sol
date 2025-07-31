@@ -13,7 +13,6 @@ import { IReader } from "contracts/interfaces/external/gmx/IReader.sol";
 contract GMAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
-    /// @title Synthetic Asset
     /// @notice Holds information regarding synthetic asset data
     ///         for synthetic-asset denominated GM tokens.
     /// @param asset The address of synthetic asset for native token.

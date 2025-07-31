@@ -12,23 +12,22 @@ import { IManagementOracle } from "contracts/interfaces/external/chainsight/IMan
 contract ChainsightAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
-    /// @title Chainsight Adaptor Data
     /// @notice Stores configuration data for Chainsight price sources.
+    /// @param isConfigured Whether the asset is configured or not.
+    ///                     false = unconfigured; true = configured.
     /// @param sender The sender address corresponding to `asset`'s feed
     ///               inside Management Oracle.
     /// @param feedKey The ICP VRF randomized key for the asset feed.
-    /// @param isConfigured Whether the asset is configured or not.
-    ///                     false = unconfigured; true = configured.
     /// @param decimals Returns the number of decimals the Feed Key
     ///                 responds with.
     /// @param heartbeat The max amount of time between price updates.
     ///                  0 defaults to using DEFAULT_HEART_BEAT.
     /// @param max The max valid price of the asset.
     ///            0 defaults to use uint224 max price reduced by ~10%.
-    struct AdaptorData {
+    struct AssetConfig {
+        bool isConfigured;
         address sender;
         bytes32 feedKey;
-        bool isConfigured;
         uint256 decimals;
         uint256 heartbeat;
         uint256 max;
@@ -44,19 +43,15 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
     /// STORAGE ///
 
-    /// @notice Adaptor configuration data for pricing an asset.
-    /// @dev Chainsight Adaptor Data for pricing in gas token.
-    mapping(address => AdaptorData) public adaptorDataNonUSD;
-
-    /// @notice Adaptor configuration data for pricing an asset.
-    /// @dev Chainsight Adaptor Data for pricing in USD.
-    mapping(address => AdaptorData) public adaptorDataUSD;
+    /// @notice Price feed configuration data for an asset.
+    /// @dev Token address => inUSD => Price feed configuration for `asset`.
+    mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
     /// EVENTS ///
 
     event ChainsightAssetAdded(
         address asset,
-        AdaptorData assetConfig,
+        AssetConfig assetConfig,
         bool isUpdate
     );
     event ChainsightAssetRemoved(address asset);
@@ -107,23 +102,19 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD Specifies whether the price format should be in
     ///              USD (true) or a chain's native token (false).
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price.
+    /// @return result A struct containing the price, error status,
+    ///                and the quote format of the price.
     function getPrice(
         address asset,
         bool inUSD,
         bool /* getLower */
-    ) external view override returns (PriceReturnData memory) {
+    ) external view override returns (PriceReturnData memory result) {
         // Validate we support pricing `asset`.
         if (!isSupportedAsset[asset]) {
             revert ChainsightAdaptor__AssetIsNotSupported();
         }
 
-        if (inUSD) {
-            return _getPriceInUSD(asset);
-        }
-
-        return _getPriceInNative(asset);
+        result = _getPrice(asset, inUSD); 
     }
 
     /// @notice Adds a Chainsight Price Feed as an asset inside this adaptor.
@@ -174,14 +165,9 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
             revert ChainsightAdaptor__InvalidPriceConfiguration();
         }
 
-        AdaptorData storage data;
-        if (inUSD) {
-            data = adaptorDataUSD[asset];
-        } else {
-            data = adaptorDataNonUSD[asset];
-        }
+        AssetConfig storage config = assetConfig[asset][inUSD];
 
-        data.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
+        config.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
 
         if (block.timestamp - readTimestampSigned > heartbeat) {
             revert ChainsightAdaptor__InvalidPriceConfiguration();
@@ -193,11 +179,11 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
         // updating its price before/above the min/max price. We use a maximum
         // buffered price of 2^240 - 1, which could overflow when trying to
         // save the final value into an uint240.
-        data.max = (uint256(int256(type(int240).max)) * 9) / 10;
-        data.sender = sender;
-        data.feedKey = feedKey;
-        data.decimals = decimals;
-        data.isConfigured = true;
+        config.max = (uint256(int256(type(int240).max)) * 9) / 10;
+        config.sender = sender;
+        config.feedKey = feedKey;
+        config.decimals = decimals;
+        config.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -206,7 +192,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit ChainsightAssetAdded(asset, data, isUpdate);
+        emit ChainsightAssetAdded(asset, config, isUpdate);
     }
 
     /// @notice Removes a supported asset from the adaptor.
@@ -226,8 +212,8 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
         delete isSupportedAsset[asset];
 
         // Wipe config mapping entries for a gas refund.
-        delete adaptorDataUSD[asset];
-        delete adaptorDataNonUSD[asset];
+        delete assetConfig[asset][true];
+        delete assetConfig[asset][false];
 
         // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
@@ -248,33 +234,22 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Retrieves the price of a given asset in USD.
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
     /// @param asset The address of the asset for which the price is needed.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (USD).
-    function _getPriceInUSD(
-        address asset
-    ) internal view returns (PriceReturnData memory) {
-        if (adaptorDataUSD[asset].isConfigured) {
-            return _parseData(asset, true, adaptorDataUSD[asset]);
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result A struct containing the price, error status, and the
+    ///                quote format of the price (USD vs native).
+    function _getPrice(
+        address asset,
+        bool inUSD
+    ) internal view returns (PriceReturnData memory result) {
+        // Parse data from the format you want if its configured, otherwise
+        // price in the other format and manually convert in Oracle Manager.
+        if (!assetConfig[asset][inUSD].isConfigured) {
+            inUSD = !inUSD;  
         }
 
-        return _parseData(asset, false, adaptorDataNonUSD[asset]);
-    }
-
-    /// @notice Retrieves the price of a given asset in the chain's native
-    ///         gas token.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (native).
-    function _getPriceInNative(
-        address asset
-    ) internal view returns (PriceReturnData memory) {
-        if (adaptorDataNonUSD[asset].isConfigured) {
-            return _parseData(asset, false, adaptorDataNonUSD[asset]);
-        }
-
-        return _parseData(asset, true, adaptorDataUSD[asset]);
+        result = _parseData(asset, inUSD, assetConfig[asset][inUSD]);
     }
 
     /// @notice Parses the Chainsight feed data for pricing of an asset.
@@ -287,7 +262,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     function _parseData(
         address asset,
         bool inUSD,
-        AdaptorData memory data
+        AssetConfig memory data
     ) internal view returns (PriceReturnData memory pData) {
         pData.inUSD = inUSD;
         

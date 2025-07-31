@@ -19,14 +19,13 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
 
     /// TYPES ///
 
-    /// @title Pendle LP Token Adaptor Data
     /// @notice Stores configuration data for Pendle LP price sources.
     /// @param pt The address of the Pendle PT associated with LP.
     /// @param twapDuration The twap duration to use when pricing.
     /// @param quoteAsset The asset the twap quote is provided in.
     /// @param quoteAssetDecimals The decimals `quoteAsset` twap quote
     ///                           is provided in.
-    struct AdaptorData {
+    struct AssetConfig {
         address pt;
         uint32 twapDuration;
         address quoteAsset;
@@ -43,15 +42,15 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
 
     /// STORAGE ///
 
-    /// @notice Adaptor configuration data for pricing an asset.
-    /// @dev Pendle lp token address => AdaptorData.
-    mapping(address => AdaptorData) public adaptorData;
+    /// @notice Price feed configuration data for an asset.
+    /// @dev Token address => Price feed configuration for `asset`.
+    mapping(address => AssetConfig) public assetConfig;
 
     /// EVENTS ///
 
     event PendleLPAssetAdded(
         address asset,
-        AdaptorData assetConfig,
+        AssetConfig assetConfig,
         bool isUpdate
     );
     event PendleLPAssetRemoved(address asset);
@@ -108,7 +107,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
             revert PendleLPTokenAdaptor__AssetIsNotSupported();
         }
 
-        AdaptorData memory data = adaptorData[asset];
+        AssetConfig memory data = assetConfig[asset];
         // Get LP to underlying asset ratio conversion.
         uint256 lpRate = IPMarket(asset).getLpToAssetRate(data.twapDuration);
 
@@ -142,7 +141,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the Pendle lp token to add pricing
     ///              support for.
     /// @param data The adaptor data needed to add `asset`.
-    function addAsset(address asset, AdaptorData memory data) external {
+    function addAsset(address asset, AssetConfig memory data) external {
         _checkElevatedPermissions();
 
         // Make sure pt and market match.
@@ -178,7 +177,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
         }
 
         // Save adaptor data and update mapping that we support `asset` now.
-        adaptorData[asset] = data;
+        assetConfig[asset] = data;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -206,7 +205,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
         // Wipe config mapping entries for a gas refund.
         // Notify the adaptor to stop supporting the asset.
         delete isSupportedAsset[asset];
-        delete adaptorData[asset];
+        delete assetConfig[asset];
 
         // Notify the Oracle Manager that we are going to stop supporting
         // the asset.

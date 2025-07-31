@@ -12,20 +12,19 @@ import { IProxy } from "contracts/interfaces/external/api3/IProxy.sol";
 contract Api3Adaptor is BaseOracleAdaptor {
     /// TYPES ///
 
-    /// @title Api3 Adaptor Data
     /// @notice Stores configuration data for API3 price sources.
-    /// @param proxyFeed The current proxy's feed address.
-    /// @param dapiNameHash The bytes32 encoded name hash of the price feed.
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
+    /// @param proxyFeed The current proxy's feed address.
+    /// @param dapiNameHash The bytes32 encoded name hash of the price feed.
     /// @param heartbeat The max amount of time between price updates.
     ///                  0 defaults to using DEFAULT_HEART_BEAT.
     /// @param max The max valid price of the asset.
     ///            0 defaults to use proxy max price reduced by ~10%.
-    struct AdaptorData {
+    struct AssetConfig {
+        bool isConfigured;
         IProxy proxyFeed;
         bytes32 dapiNameHash;
-        bool isConfigured;
         uint256 heartbeat;
         uint256 max;
     }
@@ -38,19 +37,15 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
     /// STORAGE ///
 
-    /// @notice Adaptor configuration data for pricing an asset.
-    /// @dev Api3 Adaptor Data for pricing in gas token.
-    mapping(address => AdaptorData) public adaptorDataNonUSD;
-
-    /// @notice Adaptor configuration data for pricing an asset.
-    /// @dev Api3 Adaptor Data for pricing in USD.
-    mapping(address => AdaptorData) public adaptorDataUSD;
+    /// @notice Price feed configuration data for an asset.
+    /// @dev Token address => inUSD => Price feed configuration for `asset`.
+    mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
     /// EVENTS ///
 
     event Api3AssetAdded(
         address asset,
-        AdaptorData assetConfig,
+        AssetConfig assetConfig,
         bool isUpdate
     );
     event Api3AssetRemoved(address asset);
@@ -87,23 +82,19 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD Specifies whether the price format should be in USD (true)
     ///              or a chain's native token (false).
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price.
+    /// @return result A structure containing the price, error status,
+    ///                and the quote format of the price.
     function getPrice(
         address asset,
         bool inUSD,
         bool /* getLower */
-    ) external view override returns (PriceReturnData memory) {
+    ) external view override returns (PriceReturnData memory result) {
         // Validate we support pricing `asset`.
         if (!isSupportedAsset[asset]) {
             revert Api3Adaptor__AssetIsNotSupported();
         }
 
-        if (inUSD) {
-            return _getPriceInUSD(asset);
-        }
-
-        return _getPriceInNative(asset);
+        result = _getPrice(asset, inUSD); 
     }
 
     /// @notice Adds an Api3 Price Feed as an asset inside this adaptor.
@@ -140,15 +131,8 @@ contract Api3Adaptor is BaseOracleAdaptor {
             revert Api3Adaptor__DAPINameHashError();
         }
 
-        AdaptorData storage data;
-
-        if (inUSD) {
-            data = adaptorDataUSD[asset];
-        } else {
-            data = adaptorDataNonUSD[asset];
-        }
-
-        data.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
+        AssetConfig storage config = assetConfig[asset][inUSD];
+        config.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
 
         // Save adaptor data and update mapping that we support `asset` now.
 
@@ -156,10 +140,10 @@ contract Api3Adaptor is BaseOracleAdaptor {
         // updating its price before/above the min/max price. We use a maximum
         // buffered price of 2^224 - 1, which could overflow when trying to
         // save the final value into an uint240.
-        data.max = (uint256(int256(type(int224).max)) * 9) / 10;
-        data.dapiNameHash = dapiNameHash;
-        data.proxyFeed = IProxy(proxyFeed);
-        data.isConfigured = true;
+        config.max = (uint256(int256(type(int224).max)) * 9) / 10;
+        config.dapiNameHash = dapiNameHash;
+        config.proxyFeed = IProxy(proxyFeed);
+        config.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -168,7 +152,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit Api3AssetAdded(asset, data, isUpdate);
+        emit Api3AssetAdded(asset, config, isUpdate);
     }
 
     /// @notice Removes a supported asset from the adaptor.
@@ -188,8 +172,8 @@ contract Api3Adaptor is BaseOracleAdaptor {
         delete isSupportedAsset[asset];
 
         // Wipe config mapping entries for a gas refund.
-        delete adaptorDataUSD[asset];
-        delete adaptorDataNonUSD[asset];
+        delete assetConfig[asset][true];
+        delete assetConfig[asset][false];
 
         // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
@@ -209,49 +193,39 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Retrieves the price of a given asset in USD.
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
     /// @param asset The address of the asset for which the price is needed.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (USD).
-    function _getPriceInUSD(
-        address asset
-    ) internal view returns (PriceReturnData memory) {
-        if (adaptorDataUSD[asset].isConfigured) {
-            return _parseData(adaptorDataUSD[asset], true);
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result A struct containing the price, error status, and the
+    ///                quote format of the price (USD vs native).
+    function _getPrice(
+        address asset,
+        bool inUSD
+    ) internal view returns (PriceReturnData memory result) {
+        // Parse data from the format you want if its configured, otherwise
+        // price in the other format and manually convert in Oracle Manager.
+        if (!assetConfig[asset][inUSD].isConfigured) {
+            inUSD = !inUSD;  
         }
 
-        return _parseData(adaptorDataNonUSD[asset], false);
-    }
-
-    /// @notice Retrieves the price of a given asset in the chain's native
-    ///         gas token.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (native).
-    function _getPriceInNative(
-        address asset
-    ) internal view returns (PriceReturnData memory) {
-        if (adaptorDataNonUSD[asset].isConfigured) {
-            return _parseData(adaptorDataNonUSD[asset], false);
-        }
-
-        return _parseData(adaptorDataUSD[asset], true);
+        result = _parseData(asset, inUSD, assetConfig[asset][inUSD]);
     }
 
     /// @notice Parses the Api3 feed data for pricing of an asset.
     /// @dev Calls read() from Api3 to get the latest data
     ///      for pricing and staleness.
-    /// @param data Api3 feed details.
+    /// @param config Api3 feed details.
     /// @param inUSD A boolean to denote if the price is in USD.
     /// @return pData A structure containing the price, error status,
     ///               and the currency of the price.
     function _parseData(
-        AdaptorData memory data,
-        bool inUSD
+        address, /* asset */
+        bool inUSD,
+        AssetConfig memory config
     ) internal view returns (PriceReturnData memory pData) {
         pData.inUSD = inUSD;
         
-        (int256 price, uint256 updatedAt) = data.proxyFeed.read();
+        (int256 price, uint256 updatedAt) = config.proxyFeed.read();
 
         // If we got a price of 0 or less, bubble up an error immediately.
         if (price <= 0) {
@@ -262,9 +236,9 @@ contract Api3Adaptor is BaseOracleAdaptor {
         pData.hadError = _verifyData(
             uint256(price),
             updatedAt,
-            data.max,
+            config.max,
             0,
-            data.heartbeat
+            config.heartbeat
         );
 
         pData.price = uint240(uint256(price));

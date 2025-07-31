@@ -24,7 +24,7 @@ contract RedstoneCoreAdaptor is
     /// @param decimals Returns the number of decimals the Redstone price feed
     ///                 responds with. We save this as a uint256 so we do not
     ///                 need to convert from uint8 -> uint256 at runtime.
-    struct AdaptorData {
+    struct AssetConfig {
         bool isConfigured;
         bytes32 symbolHash;
         uint256 max;
@@ -74,9 +74,9 @@ contract RedstoneCoreAdaptor is
     ///          a Redstone Core price.
     uint256 internal _uniqueSignersThreshold;
 
-    /// @notice Adaptor configuration data for pricing an asset.
-    /// @dev Token address => inUSD => Adaptor Data.
-    mapping(address => mapping(bool => AdaptorData)) public adaptorData;
+    /// @notice Price feed configuration data for an asset.
+    /// @dev Token address => inUSD => Price feed configuration for `asset`.
+    mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
     mapping(address => mapping(bool => StoredData)) private storedData;
 
@@ -87,7 +87,7 @@ contract RedstoneCoreAdaptor is
 
     /// EVENTS ///
 
-    event AssetAdded(address asset, AdaptorData assetConfig, bool isUpdate);
+    event AssetAdded(address asset, AssetConfig assetConfig, bool isUpdate);
     event AssetRemoved(address asset);
     event SignerUpdated(address signer, bool addPerms);
     /// ERRORS ///
@@ -173,7 +173,7 @@ contract RedstoneCoreAdaptor is
         bool inUSD,
         uint128 redstoneTimestamp
     ) external {
-        AdaptorData memory data = adaptorData[asset][inUSD];
+        AssetConfig memory data = assetConfig[asset][inUSD];
         if (!data.isConfigured) {
             revert RedstoneCoreAdaptor__AssetIsNotSupported();
         }
@@ -273,7 +273,7 @@ contract RedstoneCoreAdaptor is
             );
         }
 
-        AdaptorData storage data = adaptorData[asset][inUSD];
+        AssetConfig storage data = assetConfig[asset][inUSD];
 
         // If decimals == 0 we use default 8 decimals that
         // Redstone typically provides prices in.
@@ -318,8 +318,8 @@ contract RedstoneCoreAdaptor is
         // Wipe config mapping entries for a gas refund.
         // Notify the adaptor to stop supporting the asset.
         delete isSupportedAsset[asset];
-        delete adaptorData[asset][true];
-        delete adaptorData[asset][false];
+        delete assetConfig[asset][true];
+        delete assetConfig[asset][false];
 
         // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
@@ -445,35 +445,36 @@ contract RedstoneCoreAdaptor is
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Retrieves the price of a given asset in USD.
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
     /// @param asset The address of the asset for which the price is needed.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (USD).
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result A struct containing the price, error status, and the
+    ///                quote format of the price (USD vs native).
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal view returns (PriceReturnData memory) {
+    ) internal view returns (PriceReturnData memory result) {
         // Parse data from the format you want if its configured, otherwise
         // price in the other format and manually convert in Oracle Manager.
-        if (adaptorData[asset][inUSD].isConfigured) {
-            return _parseData(asset, adaptorData[asset][inUSD].heartbeat, inUSD);
+        if (!assetConfig[asset][inUSD].isConfigured) {
+            inUSD = !inUSD; 
         }
 
-        return _parseData(asset, adaptorData[asset][!inUSD].heartbeat, !inUSD);
+        result = _parseData(asset, inUSD, assetConfig[asset][inUSD].heartbeat);
     }
 
     /// @notice Extracts the Redstone Core feed data for pricing of an asset.
     /// @dev Extracts price from Redstone Core attached msg.data to get
     ///      the latest data. Natively validates staleness.
     /// @param asset The address of the asset to parse data for.
-    /// @param heartbeat The max amount of time allowed between price updates.
     /// @param inUSD A boolean to denote if the price is in USD.
+    /// @param heartbeat The max amount of time allowed between price updates.
     /// @return pData A structure containing the price, error status,
     ///               and the currency of the price.
     function _parseData(
         address asset,
-        uint256 heartbeat,
-        bool inUSD
+        bool inUSD,
+        uint256 heartbeat
     ) internal view returns (PriceReturnData memory pData) {
         pData.inUSD = inUSD;
         StoredData memory assetData = storedData[asset][inUSD];

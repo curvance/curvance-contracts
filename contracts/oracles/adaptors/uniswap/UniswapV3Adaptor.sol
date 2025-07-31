@@ -21,7 +21,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     /// @param baseDecimals The decimals of base asset you want to price.
     /// @param quoteDecimals The decimals asset price is quoted in.
     /// @param quoteToken The asset twap calulation denominates in.
-    struct AdaptorData {
+    struct AssetConfig {
         address priceSource;
         uint32 secondsAgo;
         uint8 baseDecimals;
@@ -43,15 +43,15 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
 
     /// STORAGE ///
 
-    /// @notice Adaptor configuration data for pricing an asset.
-    /// @dev Asset Address => AdaptorData.
-    mapping(address => AdaptorData) public adaptorData;
+    /// @notice Price feed configuration data for an asset.
+    /// @dev Token address => Price feed configuration for `asset`.
+    mapping(address => AssetConfig) public assetConfig;
 
     /// EVENTS ///
 
     event UniswapV3AssetAdded(
         address asset,
-        AdaptorData assetConfig,
+        AssetConfig assetConfig,
         bool isUpdate
     );
     event UniswapV3AssetRemoved(address asset);
@@ -110,7 +110,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
             revert UniswapV3Adaptor__AssetIsNotSupported();
         }
 
-        AdaptorData memory data = adaptorData[asset];
+        AssetConfig memory data = assetConfig[asset];
 
         address[] memory pools = new address[](1);
         pools[0] = data.priceSource;
@@ -229,7 +229,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param data The adaptor data needed to add `asset`.
-    function addAsset(address asset, AdaptorData memory data) external {
+    function addAsset(address asset, AssetConfig memory data) external {
         _checkElevatedPermissions();
 
         // Verify twap time sample is reasonable.
@@ -253,7 +253,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         } else revert UniswapV3Adaptor__AssetIsNotSupported();
 
         // Save adaptor data and update mapping that we support `asset` now.
-        adaptorData[asset] = data;
+        assetConfig[asset] = data;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -281,7 +281,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         // Wipe config mapping entries for a gas refund.
         // Notify the adaptor to stop supporting the asset.
         delete isSupportedAsset[asset];
-        delete adaptorData[asset];
+        delete assetConfig[asset];
 
         // Notify the Oracle Manager that we are going
         // to stop supporting the asset.

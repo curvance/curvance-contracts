@@ -12,11 +12,10 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
-    /// @title Chainlink Adaptor Data
     /// @notice Stores configuration data for Chainlink price sources.
-    /// @param aggregator The current phase's aggregator address.
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
+    /// @param aggregator The current phase's aggregator address.
     /// @param decimals Returns the number of decimals the aggregator
     ///                 responds with.
     /// @param heartbeat The max amount of time allowed between price updates.
@@ -25,9 +24,9 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     ///            0 defaults to use proxy max price reduced by ~10%.
     /// @param min The minimum valid price of the asset.
     ///            0 defaults to use proxy min price increased by ~10%.
-    struct AdaptorData {
-        IChainlink aggregator;
+    struct AssetConfig {
         bool isConfigured;
+        IChainlink aggregator;
         uint256 decimals;
         uint256 heartbeat;
         uint256 reportedMax;
@@ -45,19 +44,15 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
 
     /// STORAGE ///
 
-    /// @notice Adaptor configuration data for pricing an asset in gas token.
-    /// @dev Chainlink Adaptor Data for pricing in gas token.
-    mapping(address => AdaptorData) public adaptorDataNonUSD;
-
-    /// @notice Adaptor configuration data for pricing an asset in USD.
-    /// @dev Chainlink Adaptor Data for pricing in USD.
-    mapping(address => AdaptorData) public adaptorDataUSD;
+    /// @notice Price feed configuration data for an asset.
+    /// @dev Token address => inUSD => Price feed configuration for `asset`.
+    mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
     /// EVENTS ///
 
     event ChainlinkAssetAdded(
         address asset,
-        AdaptorData assetConfig,
+        AssetConfig assetConfig,
         bool isUpdate
     );
     event ChainlinkAssetRemoved(address asset);
@@ -94,25 +89,19 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD Specifies whether the price format should be in USD (true)
     ///              or a chain's native token (false).
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price.
+    /// @return result A struct containing the price, error status,
+    ///                and the quote format of the price.
     function getPrice(
         address asset,
         bool inUSD,
         bool /* getLower */
-    ) external view override returns (PriceReturnData memory) {
+    ) external view override returns (PriceReturnData memory result) {
         // Validate we support pricing `asset`.
         if (!isSupportedAsset[asset]) {
             revert ChainlinkAdaptor__AssetIsNotSupported();
         }
 
-        // Check whether we want the pricing in USD first,
-        // otherwise price in terms of the gas token.
-        if (inUSD) {
-            return _getPriceInUSD(asset);
-        }
-
-        return _getPriceInNative(asset);
+        result = _getPrice(asset, inUSD);
     }
 
     /// @notice Adds pricing support for `asset` via a new Chainlink feed.
@@ -161,25 +150,19 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
             revert ChainlinkAdaptor__InvalidMinMaxConfig();
         }
 
-        AdaptorData storage data;
-
-        if (inUSD) {
-            data = adaptorDataUSD[asset];
-        } else {
-            data = adaptorDataNonUSD[asset];
-        }
+        AssetConfig storage config = assetConfig[asset][inUSD];
 
         // Save adaptor data and update mapping that we support `asset` now.
-        data.decimals = feedAggregator.decimals();
-        data.reportedMax = bufferedMaxPrice;
-        data.reportedMin = bufferedMinPrice;
-        data.max = type(uint240).max;
+        config.decimals = feedAggregator.decimals();
+        config.reportedMax = bufferedMaxPrice;
+        config.reportedMin = bufferedMinPrice;
+        config.max = type(uint240).max;
         // Data.min is intended to be 0 which is uint256 default value
         // so can skip setting here.
         
-        data.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
-        data.aggregator = IChainlink(aggregator);
-        data.isConfigured = true;
+        config.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
+        config.aggregator = IChainlink(aggregator);
+        config.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -188,7 +171,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit ChainlinkAssetAdded(asset, data, isUpdate);
+        emit ChainlinkAssetAdded(asset, config, isUpdate);
     }
 
     /// @notice Removes a supported asset from the adaptor.
@@ -208,8 +191,8 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         delete isSupportedAsset[asset];
 
         // Wipe config mapping entries for a gas refund.
-        delete adaptorDataUSD[asset];
-        delete adaptorDataNonUSD[asset];
+        delete assetConfig[asset][true];
+        delete assetConfig[asset][false];
 
         // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
@@ -229,50 +212,39 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Retrieves the price of a given asset in USD.
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
     /// @param asset The address of the asset for which the price is needed.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (USD).
-    function _getPriceInUSD(
-        address asset
-    ) internal view returns (PriceReturnData memory) {
-        if (adaptorDataUSD[asset].isConfigured) {
-            return _parseData(asset, true, adaptorDataUSD[asset]);
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result A struct containing the price, error status, and the
+    ///                quote format of the price (USD vs native).
+    function _getPrice(
+        address asset,
+        bool inUSD
+    ) internal view returns (PriceReturnData memory result) {
+        // Parse data from the format you want if its configured, otherwise
+        // price in the other format and manually convert in Oracle Manager.
+        if (!assetConfig[asset][inUSD].isConfigured) {
+            inUSD = !inUSD;  
         }
 
-        return _parseData(asset, false, adaptorDataNonUSD[asset]);
-    }
-
-    /// @notice Retrieves the price of a given asset in the chain's native
-    ///         gas token.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (native).
-    function _getPriceInNative(
-        address asset
-    ) internal view returns (PriceReturnData memory) {
-        if (adaptorDataNonUSD[asset].isConfigured) {
-            return _parseData(asset, false, adaptorDataNonUSD[asset]);
-        }
-
-        return _parseData(asset, true, adaptorDataUSD[asset]);
+        result = _parseData(asset, inUSD, assetConfig[asset][inUSD]);
     }
 
     /// @notice Parses the chainlink feed data for pricing of an asset.
     /// @dev Calls latestRoundData() from Chainlink to get the latest data
     ///      for pricing and staleness.
-    /// @param data Chainlink feed details.
+    /// @param config Chainlink feed details.
     /// @param inUSD A boolean to denote if the price is in USD.
     /// @return pData A structure containing the price, error status,
     ///               and the currency of the price.
     function _parseData(
         address asset,
         bool inUSD,
-        AdaptorData memory data
+        AssetConfig memory config
     ) internal view returns (PriceReturnData memory pData) {
         pData.inUSD = inUSD;
         
-        (, int256 price, , uint256 updatedAt, ) = IChainlink(data.aggregator)
+        (, int256 price, , uint256 updatedAt, ) = IChainlink(config.aggregator)
             .latestRoundData();
 
         // If we got a price of 0 or less, bubble up an error immediately.
@@ -282,8 +254,8 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         }
 
         if (
-            uint256(price) >= data.reportedMax ||
-            uint256(price) <= data.reportedMin
+            uint256(price) >= config.reportedMax ||
+            uint256(price) <= config.reportedMin
             ) {
             pData.hadError = true;
             return pData;
@@ -293,15 +265,15 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
             asset,
             inUSD,
             uint256(price),
-            data.decimals
+            config.decimals
         );
 
         pData.hadError = _verifyData(
             normalizedPrice,
             updatedAt,
-            data.max,
-            data.min,
-            data.heartbeat
+            config.max,
+            config.min,
+            config.heartbeat
         );
 
         pData.price = uint240(normalizedPrice);

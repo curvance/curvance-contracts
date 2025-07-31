@@ -15,14 +15,13 @@ import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol
 abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
-    /// @title Volatile LP Adaptor Data
     /// @notice Stores configuration data for Uniswap V2 volatile style
     ///         Twap price sources.
     /// @param token0 Underlying token0 address.
     /// @param decimals0 Underlying decimals for token0.
     /// @param token1 Underlying token1 address.
     /// @param decimals1 Underlying decimals for token1.
-    struct AdaptorData {
+    struct AssetConfig {
         address token0;
         uint8 decimals0;
         address token1;
@@ -31,9 +30,9 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
 
     /// STORAGE ///
 
-    /// @notice Adaptor configuration data for pricing an asset.
-    /// @dev Volatile pool address => AdaptorData.
-    mapping(address => AdaptorData) public adaptorData;
+    /// @notice Price feed configuration data for an asset.
+    /// @dev Token address => Price feed configuration for `asset`.
+    mapping(address => AssetConfig) public assetConfig;
 
     /// ERRORS ///
 
@@ -117,8 +116,8 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
             revert BaseVolatileLPAdaptor__AssetIsNotSupported();
         }
 
-        // Cache AdaptorData and grab pool tokens.
-        AdaptorData memory data = adaptorData[asset];
+        // Cache asset config and grab pool tokens.
+        AssetConfig memory data = assetConfig[asset];
         IVeloPool pool = IVeloPool(asset);
 
         // Query LP reserves.
@@ -191,7 +190,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     /// @return data The adaptor data for `asset`, returning the underlying tokens and decimals.
     function _addAsset(
         address asset
-    ) internal returns (AdaptorData memory data) {
+    ) internal returns (AssetConfig memory data) {
         IVeloPool pool = IVeloPool(asset);
         if (pool.stable()) {
             revert BaseVolatileLPAdaptor__InvalidAssetType();
@@ -203,7 +202,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         data.decimals1 = IERC20(data.token1).decimals();
 
         // Save adaptor data and update mapping that we support `asset` now.
-        adaptorData[asset] = data;
+        assetConfig[asset] = data;
         isSupportedAsset[asset] = true;
         return data;
     }
@@ -222,7 +221,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         // Wipe config mapping entries for a gas refund.
         // Notify the adaptor to stop supporting the asset.
         delete isSupportedAsset[asset];
-        delete adaptorData[asset];
+        delete assetConfig[asset];
 
         // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
