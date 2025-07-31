@@ -35,8 +35,8 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     ///         900 = 15 minutes.
     uint32 public constant MINIMUM_SECONDS_AGO = 900;
 
-    /// @notice Chain WETH address.
-    address public immutable WETH;
+    /// @notice The address of wrapped native token on this chain.
+    address public immutable wrappedNative;
 
     /// @notice Static uniswap Oracle Manager address.
     IStaticOracle public immutable uniswapOracleManager;
@@ -64,16 +64,28 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
+    /// @param centralRegistry_ The address of central registry.
     constructor(
         ICentralRegistry centralRegistry_,
         IStaticOracle oracleAddress_,
-        address WETH_
-    ) BaseOracleAdaptor(centralRegistry_) {
+        address wrappedNative_,
+        uint256 MAXIMUM_INCREASE_PER_YEAR,
+        uint256 MINIMUM_INCREASE_PER_YEAR,
+        uint256 MAXIMUM_TIMESTAMP_BUFFER,
+        uint256 MINIMUM_TIMESTAMP_BUFFER
+    ) BaseOracleAdaptor(
+        centralRegistry_,
+        MAXIMUM_INCREASE_PER_YEAR,
+        MINIMUM_INCREASE_PER_YEAR,
+        MAXIMUM_TIMESTAMP_BUFFER,
+        MINIMUM_TIMESTAMP_BUFFER
+    ) {
         if (block.chainid != 1) {
             revert UniswapV3Adaptor__ChainIsNotSupported();
         }
+
         uniswapOracleManager = oracleAddress_;
-        WETH = WETH_;
+        wrappedNative = wrappedNative_;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -170,7 +182,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
             return pData;
         }
 
-        if (data.quoteToken != WETH) {
+        if (data.quoteToken != wrappedNative) {
             if (!OracleManager.isSupportedAsset(data.quoteToken)) {
                 // Our Oracle Manager does not know how to value this quote
                 // token so we cant use the twap data.

@@ -68,10 +68,21 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
+    /// @param centralRegistry_ The address of central registry.
     constructor(
         ICentralRegistry centralRegistry_,
-        IPendlePTOracle ptOracle_
-    ) BaseOracleAdaptor(centralRegistry_) {
+        IPendlePTOracle ptOracle_,
+        uint256 MAXIMUM_INCREASE_PER_YEAR,
+        uint256 MINIMUM_INCREASE_PER_YEAR,
+        uint256 MAXIMUM_TIMESTAMP_BUFFER,
+        uint256 MINIMUM_TIMESTAMP_BUFFER
+    ) BaseOracleAdaptor(
+        centralRegistry_,
+        MAXIMUM_INCREASE_PER_YEAR,
+        MINIMUM_INCREASE_PER_YEAR,
+        MAXIMUM_TIMESTAMP_BUFFER,
+        MINIMUM_TIMESTAMP_BUFFER
+    ) {
         ptOracle = ptOracle_;
     }
 

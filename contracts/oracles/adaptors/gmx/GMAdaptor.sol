@@ -77,8 +77,18 @@ contract GMAdaptor is BaseOracleAdaptor {
     constructor(
         ICentralRegistry centralRegistry_,
         address gmxReader_,
-        address gmxDataStore_
-    ) BaseOracleAdaptor(centralRegistry_) {
+        address gmxDataStore_,
+        uint256 MAXIMUM_INCREASE_PER_YEAR,
+        uint256 MINIMUM_INCREASE_PER_YEAR,
+        uint256 MAXIMUM_TIMESTAMP_BUFFER,
+        uint256 MINIMUM_TIMESTAMP_BUFFER
+    ) BaseOracleAdaptor(
+        centralRegistry_,
+        MAXIMUM_INCREASE_PER_YEAR,
+        MINIMUM_INCREASE_PER_YEAR,
+        MAXIMUM_TIMESTAMP_BUFFER,
+        MINIMUM_TIMESTAMP_BUFFER
+    ) {
         if (block.chainid != 42161) {
             revert GMAdaptor__ChainIsNotSupported();
         }
