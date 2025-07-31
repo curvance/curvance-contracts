@@ -193,7 +193,7 @@ contract RedstoneCoreAdaptor is
         // Cache price feed decimals format.
         uint256 quoteDecimals = data.decimals;
         if (quoteDecimals != 18) {
-            price = _normalizePrice(price, quoteDecimals);
+            price = _normalizePrice(asset, inUSD, price, quoteDecimals);
         }
 
         // Validate `price` is not at or above the maximum value allowed.

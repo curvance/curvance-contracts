@@ -237,10 +237,10 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         address asset
     ) internal view returns (PriceReturnData memory) {
         if (adaptorDataUSD[asset].isConfigured) {
-            return _parseData(adaptorDataUSD[asset], true);
+            return _parseData(asset, true, adaptorDataUSD[asset]);
         }
 
-        return _parseData(adaptorDataNonUSD[asset], false);
+        return _parseData(asset, false, adaptorDataNonUSD[asset]);
     }
 
     /// @notice Retrieves the price of a given asset in the chain's native
@@ -252,10 +252,10 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         address asset
     ) internal view returns (PriceReturnData memory) {
         if (adaptorDataNonUSD[asset].isConfigured) {
-            return _parseData(adaptorDataNonUSD[asset], false);
+            return _parseData(asset, false, adaptorDataNonUSD[asset]);
         }
 
-        return _parseData(adaptorDataUSD[asset], true);
+        return _parseData(asset, true, adaptorDataUSD[asset]);
     }
 
     /// @notice Parses the chainlink feed data for pricing of an asset.
@@ -266,8 +266,9 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// @return pData A structure containing the price, error status,
     ///               and the currency of the price.
     function _parseData(
-        AdaptorData memory data,
-        bool inUSD
+        address asset,
+        bool inUSD,
+        AdaptorData memory data
     ) internal view returns (PriceReturnData memory pData) {
         pData.inUSD = inUSD;
         
@@ -289,6 +290,8 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         }
 
         uint256 normalizedPrice = _normalizePrice(
+            asset,
+            inUSD,
             uint256(price),
             data.decimals
         );

@@ -62,8 +62,18 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// @param centralRegistry_ The address of central registry.
     constructor(
         ICentralRegistry centralRegistry_,
-        address _diaOracle
-    ) BaseOracleAdaptor(centralRegistry_) {
+        address _diaOracle,
+        uint256 MAXIMUM_INCREASE_PER_YEAR,
+        uint256 MINIMUM_INCREASE_PER_YEAR,
+        uint256 MAXIMUM_TIMESTAMP_BUFFER,
+        uint256 MINIMUM_TIMESTAMP_BUFFER
+    ) BaseOracleAdaptor(
+        centralRegistry_,
+        MAXIMUM_INCREASE_PER_YEAR,
+        MINIMUM_INCREASE_PER_YEAR,
+        MAXIMUM_TIMESTAMP_BUFFER,
+        MINIMUM_TIMESTAMP_BUFFER
+    ) {
         diaOracle = _diaOracle;
     }
 
@@ -177,10 +187,10 @@ contract DIAAdaptor is BaseOracleAdaptor {
         address asset
     ) internal view returns (PriceReturnData memory) {
         if (adaptorDataUSD[asset].isConfigured) {
-            return _parseData(adaptorDataUSD[asset], true);
+            return _parseData(asset, true, adaptorDataUSD[asset]);
         }
 
-        return _parseData(adaptorDataNonUSD[asset], false);
+        return _parseData(asset, false, adaptorDataNonUSD[asset]);
     }
 
     /// @notice Retrieves the price of a given asset in the chain's native
@@ -192,10 +202,10 @@ contract DIAAdaptor is BaseOracleAdaptor {
         address asset
     ) internal view returns (PriceReturnData memory) {
         if (adaptorDataNonUSD[asset].isConfigured) {
-            return _parseData(adaptorDataNonUSD[asset], false);
+            return _parseData(asset, false, adaptorDataNonUSD[asset]);
         }
 
-        return _parseData(adaptorDataUSD[asset], true);
+        return _parseData(asset, true, adaptorDataUSD[asset]);
     }
 
     /// @notice Parses the DIA feed data for pricing of an asset.
@@ -206,8 +216,9 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// @return pData A structure containing the price, error status,
     ///               and the currency of the price.
     function _parseData(
-        AdaptorData memory data,
-        bool inUSD
+        address asset,
+        bool inUSD,
+        AdaptorData memory data
     ) internal view returns (PriceReturnData memory pData) {
         pData.inUSD = inUSD;
 
@@ -222,6 +233,8 @@ contract DIAAdaptor is BaseOracleAdaptor {
         }
 
         uint256 normalizedPrice = _normalizePrice(
+            asset,
+            inUSD,
             uint256(price),
             data.decimals
         );
