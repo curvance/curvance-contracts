@@ -72,7 +72,6 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
     error Curve2PoolLPAdaptor__Reentrant();
     error Curve2PoolLPAdaptor__BoundsExceeded();
     error Curve2PoolLPAdaptor__UnsupportedPool();
-    error Curve2PoolLPAdaptor__AssetIsNotSupported();
     error Curve2PoolLPAdaptor__QuoteAssetIsNotSupported();
     error Curve2PoolLPAdaptor__InvalidBounds();
 
@@ -322,11 +321,7 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
     ///              the adaptor.
     function removeAsset(address asset) external override {
         _checkElevatedPermissions();
-
-        // Validate that `asset` is currently supported.
-        if (!isSupportedAsset[asset]) {
-            revert Curve2PoolLPAdaptor__AssetIsNotSupported();
-        }
+        _checkSupportedAsset(asset);
 
         // Wipe config mapping entries for a gas refund.
         // Notify the adaptor to stop supporting the asset.
@@ -438,4 +433,20 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
     function _bpToWad(uint256 value) internal pure returns (uint256) {
         return value * 1e14;
     }
+
+    /// INTERNAL FUNCTIONS TO OVERRIDE ///
+
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
+    /// @param asset The address of the asset for which the price is needed.
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
+    function _getPrice(
+        address asset,
+        bool inUSD
+    ) internal virtual view override returns (PriceReturnData memory result) {}
 }

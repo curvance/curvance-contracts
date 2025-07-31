@@ -57,7 +57,6 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
 
     /// ERRORS ///
 
-    error PendleLPTokenAdaptor__AssetIsNotSupported();
     error PendleLPTokenAdaptor__WrongMarket();
     error PendleLPTokenAdaptor__WrongQuote();
     error PendleLPTokenAdaptor__TwapDurationIsLessThanMinimum();
@@ -102,10 +101,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
         bool inUSD,
         bool getLower
     ) external view override returns (PriceReturnData memory pData) {
-        // Validate we support pricing `asset`.
-        if (!isSupportedAsset[asset]) {
-            revert PendleLPTokenAdaptor__AssetIsNotSupported();
-        }
+        _checkSupportedAsset(asset);
 
         AssetConfig memory data = assetConfig[asset];
         // Get LP to underlying asset ratio conversion.
@@ -196,11 +192,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
     ///              the adaptor.
     function removeAsset(address asset) external override {
         _checkElevatedPermissions();
-
-        // Validate that `asset` is currently supported.
-        if (!isSupportedAsset[asset]) {
-            revert PendleLPTokenAdaptor__AssetIsNotSupported();
-        }
+        _checkSupportedAsset(asset);
 
         // Wipe config mapping entries for a gas refund.
         // Notify the adaptor to stop supporting the asset.

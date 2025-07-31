@@ -36,7 +36,6 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
 
     /// ERRORS ///
 
-    error BaseVolatileLPAdaptor__AssetIsNotSupported();
     error BaseVolatileLPAdaptor__InvalidAssetType();
 
     /// CONSTRUCTOR ///
@@ -111,10 +110,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         bool inUSD,
         bool getLower
     ) internal view returns (PriceReturnData memory pData) {
-        // Validate we support pricing `asset`.
-        if (!isSupportedAsset[asset]) {
-            revert BaseVolatileLPAdaptor__AssetIsNotSupported();
-        }
+        _checkSupportedAsset(asset);
 
         // Cache asset config and grab pool tokens.
         AssetConfig memory data = assetConfig[asset];
@@ -213,10 +209,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.
     function _removeAsset(address asset) internal {
-        // Validate that `asset` is currently supported.
-        if (!isSupportedAsset[asset]) {
-            revert BaseVolatileLPAdaptor__AssetIsNotSupported();
-        }
+        _checkSupportedAsset(asset);
 
         // Wipe config mapping entries for a gas refund.
         // Notify the adaptor to stop supporting the asset.

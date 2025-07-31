@@ -105,10 +105,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         bool inUSD,
         bool getLower
     ) external view override returns (PriceReturnData memory pData) {
-        // Validate we support pricing `asset`.
-        if (!isSupportedAsset[asset]) {
-            revert UniswapV3Adaptor__AssetIsNotSupported();
-        }
+        _checkSupportedAsset(asset);
 
         AssetConfig memory data = assetConfig[asset];
 
@@ -272,11 +269,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     ///              the adaptor.
     function removeAsset(address asset) external override {
         _checkElevatedPermissions();
-
-        // Validate that `asset` is currently supported.
-        if (!isSupportedAsset[asset]) {
-            revert UniswapV3Adaptor__AssetIsNotSupported();
-        }
+        _checkSupportedAsset(asset);
 
         // Wipe config mapping entries for a gas refund.
         // Notify the adaptor to stop supporting the asset.
@@ -298,4 +291,20 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     function adaptorType() external pure override returns (uint256) {
         return 7;
     }
+
+    /// INTERNAL FUNCTIONS TO OVERRIDE ///
+
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
+    /// @param asset The address of the asset for which the price is needed.
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
+    function _getPrice(
+        address asset,
+        bool inUSD
+    ) internal virtual view override returns (PriceReturnData memory result) {}
 }

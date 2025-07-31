@@ -52,6 +52,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     error BaseOracleAdaptor__NoPriceGuard();
     error BaseOracleAdaptor__InvalidCentralRegistry();
     error BaseOracleAdaptor__InvalidConfig();
+    error BaseOracleAdaptor__AssetIsNotSupported();
     
     /// CONSTRUCTOR ///
 
@@ -81,20 +82,31 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Retrieves the price of `asset`, in `inUSD` price form.
+    /// @param asset The address of the asset to retrieve a price for.
+    /// @param inUSD Specifies whether the price format should be in USD (true)
+    ///              or a chain's native token (false).
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
+    function getPrice(
+        address asset,
+        bool inUSD,
+        bool /* getLower */
+    ) external virtual view override returns (PriceReturnData memory result) {
+        _checkSupportedAsset(asset);
+
+        result = _getPrice(asset, inUSD);
+    }
+
     function getPriceGuard(
         address asset,
         bool inUSD
     ) external view returns (PriceGuard memory) {
         return priceGuards[asset][inUSD];
-    }
-
-    function disableGuardedPriceConfig(
-        address asset,
-        bool inUSD
-    ) external {
-        _checkMarketPermissions();
-
-        delete priceGuards[asset][inUSD];
     }
 
     function setGuardedPriceConfig(
@@ -183,19 +195,14 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         );
     }
 
-    /// @notice Called by OracleManager to price an asset.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @param inUSD A boolean to determine if the price should be returned in
-    ///              USD or not.
-    /// @param getLower A boolean to determine if lower of two oracle prices
-    ///                 should be retrieved.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price.
-    function getPrice(
+    function disableGuardedPriceConfig(
         address asset,
-        bool inUSD,
-        bool getLower
-    ) external view virtual returns (PriceReturnData memory);
+        bool inUSD
+    ) external {
+        _checkMarketPermissions();
+
+        delete priceGuards[asset][inUSD];
+    }
 
     /// INTERNAL FUNCTIONS ///
     
@@ -254,6 +261,30 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         );
     }
 
+    
+    function _boundPrice(
+        address asset,
+        bool inUSD,
+        uint256 price
+    ) internal view returns (uint256) {
+        PriceGuard memory pg = priceGuards[asset][inUSD];
+        if (pg.guardType == 0) {
+            return price;
+        }
+
+        if (price < pg.minPrice) {
+            return pg.minPrice;
+        }
+
+        if (pg.guardType == 1) {
+            return price > pg.basePrice ? pg.basePrice : price;
+        }
+
+        uint256 boundedPrice = ((block.timestamp - pg.timestampStart) *
+            pg.increasePerSecond) + pg.basePrice;
+        return price > boundedPrice ? boundedPrice : price;
+    }
+
     /// @notice Helper function to check whether `price` would overflow
     ///         based on a uint240 maximum.
     /// @param price The price to check against overflow.
@@ -262,6 +293,14 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 price
     ) internal pure returns (bool result) {
         result = price > type(uint240).max;
+    }
+
+    /// @notice Checks whether `asset` is supported by the adaptor or not.
+    function _checkSupportedAsset(address asset) internal view {
+        // Validate we support pricing `asset`.
+        if (!isSupportedAsset[asset]) {
+            revert BaseOracleAdaptor__AssetIsNotSupported();
+        }
     }
 
     /// @notice Checks whether the caller has sufficient permissioning.
@@ -304,26 +343,17 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
     /// INTERNAL FUNCTIONS TO OVERRIDE ///
 
-    function _boundPrice(
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
+    /// @param asset The address of the asset for which the price is needed.
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
+    function _getPrice(
         address asset,
-        bool inUSD,
-        uint256 price
-    ) internal view returns (uint256) {
-        PriceGuard memory pg = priceGuards[asset][inUSD];
-        if (pg.guardType == 0) {
-            return price;
-        }
-
-        if (price < pg.minPrice) {
-            return pg.minPrice;
-        }
-
-        if (pg.guardType == 1) {
-            return price > pg.basePrice ? pg.basePrice : price;
-        }
-
-        uint256 boundedPrice = ((block.timestamp - pg.timestampStart) *
-            pg.increasePerSecond) + pg.basePrice;
-        return price > boundedPrice ? boundedPrice : price;
-    }
+        bool inUSD
+    ) internal virtual view returns (PriceReturnData memory result);
 }

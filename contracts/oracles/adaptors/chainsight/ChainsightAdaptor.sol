@@ -58,7 +58,6 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
     /// ERRORS ///
 
-    error ChainsightAdaptor__AssetIsNotSupported();
     error ChainsightAdaptor__InvalidPriceConfiguration();
     error ChainsightAdaptor__InvalidHeartbeat();
 
@@ -94,28 +93,6 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     }
 
     /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Retrieves the price of a given asset.
-    /// @dev Uses Chainsight oracles to fetch the price data.
-    ///      Price is returned in USD or a chain's native token depending on
-    ///      'inUSD' parameter.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @param inUSD Specifies whether the price format should be in
-    ///              USD (true) or a chain's native token (false).
-    /// @return result A struct containing the price, error status,
-    ///                and the quote format of the price.
-    function getPrice(
-        address asset,
-        bool inUSD,
-        bool /* getLower */
-    ) external view override returns (PriceReturnData memory result) {
-        // Validate we support pricing `asset`.
-        if (!isSupportedAsset[asset]) {
-            revert ChainsightAdaptor__AssetIsNotSupported();
-        }
-
-        result = _getPrice(asset, inUSD); 
-    }
 
     /// @notice Adds a Chainsight Price Feed as an asset inside this adaptor.
     /// @dev Should be called before `OracleManager:addAssetPriceFeed`
@@ -202,11 +179,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     ///              the adaptor.
     function removeAsset(address asset) external override {
         _checkElevatedPermissions();
-
-        // Validate that `asset` is currently supported.
-        if (!isSupportedAsset[asset]) {
-            revert ChainsightAdaptor__AssetIsNotSupported();
-        }
+        _checkSupportedAsset(asset);
 
         // Notify the adaptor to stop supporting the asset.
         delete isSupportedAsset[asset];
@@ -237,12 +210,16 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     /// @notice Retrieves the price of a given asset in `inUSD` price form.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD Whether `asset` should be priced in USD or native tokens.
-    /// @return result A struct containing the price, error status, and the
-    ///                quote format of the price (USD vs native).
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal view returns (PriceReturnData memory result) {
+    ) internal view override returns (PriceReturnData memory result) {
         // Parse data from the format you want if its configured, otherwise
         // price in the other format and manually convert in Oracle Manager.
         if (!assetConfig[asset][inUSD].isConfigured) {

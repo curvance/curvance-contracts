@@ -47,7 +47,6 @@ contract DIAAdaptor is BaseOracleAdaptor {
 
     /// ERRORS ///
 
-    error DIAAdaptor__AssetIsNotSupported();
     error DIAAdaptor__InvalidHeartbeat();
     error DIAAdaptor__InvalidMinMaxConfig();
 
@@ -72,28 +71,6 @@ contract DIAAdaptor is BaseOracleAdaptor {
     }
 
     /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Retrieves the price of a given asset.
-    /// @dev Uses DIA oracles to fetch the price data.
-    ///      Price is returned in USD or a chain's native token depending on
-    ///      'inUSD' parameter.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @param inUSD Specifies whether the price format should be in USD (true)
-    ///              or a chain's native token (false).
-    /// @return result A struct containing the price, error status,
-    ///                and the quote format of the price.
-    function getPrice(
-        address asset,
-        bool inUSD,
-        bool /* getLower */
-    ) external view override returns (PriceReturnData memory result) {
-        // Validate we support pricing `asset`.
-        if (!isSupportedAsset[asset]) {
-            revert DIAAdaptor__AssetIsNotSupported();
-        }
-
-        result = _getPrice(asset, inUSD);
-    }
 
     /// @notice Adds pricing support for `asset` via a new DIA feed.
     /// @dev Should be called before `OracleManager:addAssetPriceFeed`
@@ -132,11 +109,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
     ///              the adaptor.
     function removeAsset(address asset) external override {
         _checkElevatedPermissions();
-
-        // Validate that `asset` is currently supported.
-        if (!isSupportedAsset[asset]) {
-            revert DIAAdaptor__AssetIsNotSupported();
-        }
+        _checkSupportedAsset(asset);
 
         // Notify the adaptor to stop supporting the asset.
         delete isSupportedAsset[asset];
@@ -166,12 +139,16 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// @notice Retrieves the price of a given asset in `inUSD` price form.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD Whether `asset` should be priced in USD or native tokens.
-    /// @return result A struct containing the price, error status, and the
-    ///                quote format of the price (USD vs native).
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal view returns (PriceReturnData memory result) {
+    ) internal view override returns (PriceReturnData memory result) {
         // Parse data from the format you want if its configured, otherwise
         // price in the other format and manually convert in Oracle Manager.
         if (!assetConfig[asset][inUSD].isConfigured) {
