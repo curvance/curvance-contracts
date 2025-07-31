@@ -268,21 +268,34 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 price
     ) internal view returns (uint256) {
         PriceGuard memory pg = priceGuards[asset][inUSD];
+        // Case with no minimum/maximum guarded prices.
         if (pg.guardType == 0) {
             return price;
         }
 
-        if (price < pg.minPrice) {
-            return pg.minPrice;
-        }
-
+        // Case with static minimum/maximum guarded prices.
         if (pg.guardType == 1) {
+            if (price < pg.minPrice) {
+                return pg.minPrice;
+            }
+
             return price > pg.basePrice ? pg.basePrice : price;
         }
 
-        uint256 boundedPrice = ((block.timestamp - pg.timestampStart) *
-            pg.increasePerSecond) + pg.basePrice;
-        return price > boundedPrice ? boundedPrice : price;
+        // Case with dynamic minimum/maximum guarded prices.
+
+        // Calculate how much to shift up minimum and maximum values from
+        // scaling guarded prices.
+        uint256 dynamicAdjustment = ((block.timestamp - pg.timestampStart) *
+            pg.increasePerSecond);
+        uint256 boundedMin = pg.minPrice + dynamicAdjustment;
+
+        if (price < boundedMin) {
+            return boundedMin;
+        }
+        
+        uint256 boundedMax = pg.basePrice + dynamicAdjustment;
+        return price > boundedMax ? boundedMax : price;
     }
 
     /// @notice Helper function to check whether `price` would overflow

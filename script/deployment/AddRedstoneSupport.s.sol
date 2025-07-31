@@ -31,7 +31,7 @@ contract AddRedstoneSupport is Script {
 
         // Add oracle support
         adaptor.addAsset(asset, true, token.decimals(), 10 minutes);
-        adaptor.adaptorData(asset, true);
+        adaptor.assetConfig(asset, true);
 
         // Push the first price on-chain
         bytes memory encodedFunction = abi.encodeWithSignature(

@@ -11,7 +11,7 @@ pragma solidity ^0.8.19;
 
 //     event CamelotStableLPAssetAdded(
 //         address asset,
-//         AdaptorData assetConfig,
+//         AssetConfig assetConfig,
 //         bool isUpdate
 //     );
 //     event CamelotStableLPAssetRemoved(address asset);
@@ -45,7 +45,7 @@ pragma solidity ^0.8.19;
 //             isUpdate = true;
 //         }
 
-//         AdaptorData memory data = _addAsset(asset);
+//         AssetConfig memory data = _addAsset(asset);
 //         emit CamelotStableLPAssetAdded(asset, data, isUpdate);
 //     }
 

@@ -47,12 +47,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
             ICentralRegistry(address(centralRegistry)),
             IPendlePTOracle(_PT_ORACLE)
         );
-        PendleLPTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.twapDuration = 12;
-        adapterData.quoteAsset = _STETH;
-        adapterData.pt = _PT_STETH;
-        adapterData.quoteAssetDecimals = 18;
-        adaptor.addAsset(_LP_STETH, adapterData);
+        PendleLPTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.pt = _PT_STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        adaptor.addAsset(_LP_STETH, assetConfig);
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPriceFeed(_LP_STETH, address(adaptor));
 

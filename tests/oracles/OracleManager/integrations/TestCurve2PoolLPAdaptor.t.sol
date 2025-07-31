@@ -29,7 +29,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
     }
 
     function testRevertWhenUnderlyingAssetPriceNotSet() public {
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -57,7 +57,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -95,7 +95,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -134,7 +134,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
     // function testRevertAddAsset__UnsupportedPool() public {
     //     adaptor.setReentrancyConfig(2, 6000);
 
-    //     Curve2PoolLPAdaptor.AdaptorData memory data;
+    //     Curve2PoolLPAdaptor.AssetConfig memory data;
     //     data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
     //     data.underlying0 = _ETH_ADDRESS;
     //     data.underlying1 = _STETH_ADDRESS;
@@ -151,7 +151,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
     // }
 
     function testRevertAddAsset__QuoteAssetIsNotSupported() public {
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -190,7 +190,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -229,7 +229,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = address(0);
         data.underlying1 = _STETH_ADDRESS;
@@ -266,7 +266,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -309,7 +309,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -346,7 +346,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -383,7 +383,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;

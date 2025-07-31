@@ -23,7 +23,7 @@ contract TestDIAAdaptor is TestBaseOracleManager {
             _DIA_ORACLE
         );
 
-        DIAAdaptor.AdaptorData memory data;
+        DIAAdaptor.AssetConfig memory data;
         data.isConfigured = true;
         data.decimals = 8;
         data.max = 1000000e18;

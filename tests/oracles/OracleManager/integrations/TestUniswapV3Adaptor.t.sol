@@ -38,10 +38,10 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
             IStaticOracle(_UNISWAP_V3_ORACLE),
             _WETH_ADDRESS
         );
-        UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = _WBTC_WETH;
-        adaptorData.secondsAgo = 3600;
-        adaptor.addAsset(_WBTC_ADDRESS, adaptorData);
+        UniswapV3Adaptor.AssetConfig memory assetConfig;
+        assetConfig.priceSource = _WBTC_WETH;
+        assetConfig.secondsAgo = 3600;
+        adaptor.addAsset(_WBTC_ADDRESS, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
@@ -109,36 +109,36 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
     }
 
     function testRevertAddAsset__SecondsAgoIsLessThanMinimum() public {
-        UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = _WBTC_WETH;
-        adaptorData.secondsAgo = 240;
+        UniswapV3Adaptor.AssetConfig memory assetConfig;
+        assetConfig.priceSource = _WBTC_WETH;
+        assetConfig.secondsAgo = 240;
 
         vm.expectRevert(
             UniswapV3Adaptor
                 .UniswapV3Adaptor__SecondsAgoIsLessThanMinimum
                 .selector
         );
-        adaptor.addAsset(_WBTC_ADDRESS, adaptorData);
+        adaptor.addAsset(_WBTC_ADDRESS, assetConfig);
     }
 
     function testRevertAddAsset__AssetIsNotSupported() public {
-        UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = _WBTC_WETH;
-        adaptorData.secondsAgo = 3600;
+        UniswapV3Adaptor.AssetConfig memory assetConfig;
+        assetConfig.priceSource = _WBTC_WETH;
+        assetConfig.secondsAgo = 3600;
         vm.expectRevert(
             UniswapV3Adaptor.UniswapV3Adaptor__AssetIsNotSupported.selector
         );
-        adaptor.addAsset(_USDC_ADDRESS, adaptorData);
+        adaptor.addAsset(_USDC_ADDRESS, assetConfig);
     }
 
     function testAddAssetForDifferentPair() public {
         testReturnsCorrectPriceInUSD();
         testReturnsCorrectPriceInETH();
 
-        UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = _WBTC_USDC;
-        adaptorData.secondsAgo = 3600;
-        adaptor.addAsset(_WBTC_ADDRESS, adaptorData);
+        UniswapV3Adaptor.AssetConfig memory assetConfig;
+        assetConfig.priceSource = _WBTC_USDC;
+        assetConfig.secondsAgo = 3600;
+        adaptor.addAsset(_WBTC_ADDRESS, assetConfig);
     }
 
     function testRevertRemoveAsset__AssetIsNotSupported() public {
@@ -149,10 +149,10 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
     }
 
     function testGetPriceFromDifferentPair() public {
-        UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = _WBTC_USDC;
-        adaptorData.secondsAgo = 3600;
-        adaptor.addAsset(_USDC_ADDRESS, adaptorData);
+        UniswapV3Adaptor.AssetConfig memory assetConfig;
+        assetConfig.priceSource = _WBTC_USDC;
+        assetConfig.secondsAgo = 3600;
+        adaptor.addAsset(_USDC_ADDRESS, assetConfig);
 
         PricingResult memory data = adaptor.getPrice(
             _USDC_ADDRESS,

@@ -58,7 +58,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         );
         crvAdaptor.setReentrancyConfig(2, 50_000);
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = address(CONVEX_STETH_ETH_POOL);
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;

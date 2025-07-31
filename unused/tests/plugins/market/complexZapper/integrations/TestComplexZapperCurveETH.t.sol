@@ -52,7 +52,7 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
         );
         adaptor.setReentrancyConfig(2, 10000);
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = _CURVE_STETH_LP;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;

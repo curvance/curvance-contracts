@@ -68,12 +68,12 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
             ICentralRegistry(address(centralRegistry)),
             IPendlePTOracle(_PT_ORACLE)
         );
-        PendlePrincipalTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.market = IPMarket(_LP_STETH);
-        adapterData.twapDuration = 12;
-        adapterData.quoteAsset = _STETH;
-        adapterData.quoteAssetDecimals = 18;
-        adaptor.addAsset(_PT_STETH, adapterData);
+        PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.market = IPMarket(_LP_STETH);
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        adaptor.addAsset(_PT_STETH, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPriceFeed(_PT_STETH, address(adaptor));

@@ -30,17 +30,17 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
     }
 
     function testRevertWhenUnderlyingAssetPriceNotSet() public {
-        PendlePrincipalTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.market = IPMarket(_LP_STETH);
-        adapterData.twapDuration = 12;
-        adapterData.quoteAsset = _STETH;
-        adapterData.quoteAssetDecimals = 18;
+        PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.market = IPMarket(_LP_STETH);
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.quoteAssetDecimals = 18;
         vm.expectRevert(
             PendlePrincipalTokenAdaptor
                 .PendlePrincipalTokenAdaptor__QuoteAssetIsNotSupported
                 .selector
         );
-        adapter.addAsset(_PT_STETH, adapterData);
+        adapter.addAsset(_PT_STETH, assetConfig);
     }
 
     function testReturnsCorrectPrice() public {
@@ -56,12 +56,12 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
         );
         oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 
-        PendlePrincipalTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.market = IPMarket(_LP_STETH);
-        adapterData.twapDuration = 12;
-        adapterData.quoteAsset = _STETH;
-        adapterData.quoteAssetDecimals = 18;
-        adapter.addAsset(_PT_STETH, adapterData);
+        PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.market = IPMarket(_LP_STETH);
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        adapter.addAsset(_PT_STETH, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(adapter));
         oracleManager.addAssetPriceFeed(_PT_STETH, address(adapter));
@@ -84,63 +84,63 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
     }
 
     function testRevertAddAsset__WrongMarket() public {
-        PendlePrincipalTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.market = IPMarket(_LP_STETH);
-        adapterData.twapDuration = 12;
-        adapterData.quoteAsset = _STETH;
-        adapterData.quoteAssetDecimals = 18;
+        PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.market = IPMarket(_LP_STETH);
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.quoteAssetDecimals = 18;
 
         vm.expectRevert(
             PendlePrincipalTokenAdaptor
                 .PendlePrincipalTokenAdaptor__WrongMarket
                 .selector
         );
-        adapter.addAsset(address(0), adapterData);
+        adapter.addAsset(address(0), assetConfig);
     }
 
     function testRevertAddAsset__CallIncreaseCardinality() public {
-        PendlePrincipalTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.market = IPMarket(_LP_STETH);
-        adapterData.twapDuration = 1000;
-        adapterData.quoteAsset = _STETH;
-        adapterData.quoteAssetDecimals = 18;
+        PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.market = IPMarket(_LP_STETH);
+        assetConfig.twapDuration = 1000;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.quoteAssetDecimals = 18;
 
         vm.expectRevert(
             PendlePrincipalTokenAdaptor
                 .PendlePrincipalTokenAdaptor__CallIncreaseCardinality
                 .selector
         );
-        adapter.addAsset(_PT_STETH, adapterData);
+        adapter.addAsset(_PT_STETH, assetConfig);
     }
 
     function testRevertAddAsset__TwapDurationIsLessThanMinimum() public {
-        PendlePrincipalTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.market = IPMarket(_LP_STETH);
-        adapterData.twapDuration = 6;
-        adapterData.quoteAsset = _STETH;
-        adapterData.quoteAssetDecimals = 18;
+        PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.market = IPMarket(_LP_STETH);
+        assetConfig.twapDuration = 6;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.quoteAssetDecimals = 18;
 
         vm.expectRevert(
             PendlePrincipalTokenAdaptor
                 .PendlePrincipalTokenAdaptor__TwapDurationIsLessThanMinimum
                 .selector
         );
-        adapter.addAsset(_PT_STETH, adapterData);
+        adapter.addAsset(_PT_STETH, assetConfig);
     }
 
     function testRevertAddAsset__WrongQuote() public {
-        PendlePrincipalTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.market = IPMarket(_LP_STETH);
-        adapterData.twapDuration = 12;
-        adapterData.quoteAsset = address(0);
-        adapterData.quoteAssetDecimals = 18;
+        PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.market = IPMarket(_LP_STETH);
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = address(0);
+        assetConfig.quoteAssetDecimals = 18;
 
         vm.expectRevert(
             PendlePrincipalTokenAdaptor
                 .PendlePrincipalTokenAdaptor__WrongQuote
                 .selector
         );
-        adapter.addAsset(_PT_STETH, adapterData);
+        adapter.addAsset(_PT_STETH, assetConfig);
     }
 
     function testCanUpdateAsset() public {
@@ -157,13 +157,13 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
         );
         oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 
-        PendlePrincipalTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.market = IPMarket(_LP_STETH);
-        adapterData.twapDuration = 12;
-        adapterData.quoteAsset = _STETH;
-        adapterData.quoteAssetDecimals = 18;
-        adapter.addAsset(_PT_STETH, adapterData);
-        adapter.addAsset(_PT_STETH, adapterData);
+        PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.market = IPMarket(_LP_STETH);
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        adapter.addAsset(_PT_STETH, assetConfig);
+        adapter.addAsset(_PT_STETH, assetConfig);
     }
 
     function testRevertRemoveAsset__AssetIsNotSupported() public {

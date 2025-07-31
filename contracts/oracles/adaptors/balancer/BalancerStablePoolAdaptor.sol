@@ -25,7 +25,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
     ///        correlated to the pools virtual base.
     /// @param underlyingOrConstituent The ERC20 underlying asset or
     ///                                the constituent in the pool.
-    struct AdaptorData {
+    struct AssetConfig {
         bytes32 poolId;
         uint8 poolDecimals;
         uint8[8] rateProviderDecimals;
@@ -35,15 +35,15 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
 
     /// STORAGE ///
 
-    /// @notice Adaptor configuration data for pricing an asset.
-    /// @dev Balancer stable pool address => AdaptorData.
-    mapping(address => AdaptorData) public adaptorData;
+    /// @notice Price feed configuration data for an asset.
+    /// @dev Token address => Price feed configuration for `asset`.
+    mapping(address => AssetConfig) public assetConfig;
 
     /// EVENTS ///
 
     event BalancerStablePoolAssetAdded(
         address asset,
-        AdaptorData assetConfig,
+        AssetConfig assetConfig,
         bool isUpdate
     );
     event BalancerStablePoolAssetRemoved(address asset);
@@ -100,7 +100,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         _ensureNotInVaultContext(balancerVault);
 
         // Cache adaptor data.
-        AdaptorData memory data = adaptorData[asset];
+        AssetConfig memory data = assetConfig[asset];
         IBalancerPool pool = IBalancerPool(asset);
 
         result.inUSD = inUSD;
@@ -172,7 +172,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
     ///      is called.
     /// @param asset The address of the BPT to add pricing support for.
     /// @param data The adaptor data needed to add `asset`.
-    function addAsset(address asset, AdaptorData memory data) external {
+    function addAsset(address asset, AssetConfig memory data) external {
         _checkElevatedPermissions();
 
         IBalancerPool pool = IBalancerPool(asset);
@@ -213,7 +213,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         }
 
         // Save adaptor data and update mapping that we support `asset` now.
-        adaptorData[asset] = data;
+        assetConfig[asset] = data;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -237,7 +237,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         // Wipe config mapping entries for a gas refund.
         // Notify the adaptor to stop supporting the asset.
         delete isSupportedAsset[asset];
-        delete adaptorData[asset];
+        delete assetConfig[asset];
 
         // Notify the Oracle Manager that we are going to stop supporting
         // the asset.

@@ -60,7 +60,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             redstoneSignerKeys
         );
 
-        (, bytes32 symbolHash, , , ) = adaptor.adaptorData(_WBTC_ADDRESS, true);
+        (, bytes32 symbolHash, , , ) = adaptor.assetConfig(_WBTC_ADDRESS, true);
         assertEq(symbolHash, bytes32("WBTC"));
         
         bytes memory encodedFunction = abi.encodeWithSignature(
@@ -99,7 +99,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             redstoneSignerKeys
         );
 
-        (, bytes32 symbolHash, , , ) = adaptor.adaptorData(_WETH_ADDRESS, true);
+        (, bytes32 symbolHash, , , ) = adaptor.assetConfig(_WETH_ADDRESS, true);
         assertEq(symbolHash, bytes32("WETH"));
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool,uint128)",
