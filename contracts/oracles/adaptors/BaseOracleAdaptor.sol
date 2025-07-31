@@ -7,6 +7,7 @@ import { SECONDS_PER_YEAR, WAD, BASIS_POINTS } from "contracts/libraries/Constan
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleAdaptor, PricingResult, PriceGuard } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// CONSTANTS ///
@@ -37,6 +38,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
     /// EVENTS ///
 
+    event AssetRemoved(address asset);
     event PriceGuardUpdated(
         address asset,
         bool inUSD,
@@ -204,6 +206,28 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         delete priceGuards[asset][inUSD];
     }
 
+    /// @notice Removes a supported asset from the adaptor.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
+    ///      Requires that `asset` is currently supported.
+    /// @param asset The address of the supported asset to remove from
+    ///              the adaptor.
+    function removeAsset(address asset) external {
+        _checkElevatedPermissions();
+        _checkSupportedAsset(asset);
+
+        // Notify the adaptor to stop supporting the asset.
+        delete isSupportedAsset[asset];
+        _wipeAssetConfigs(asset);
+
+        // Notify the Oracle Manager that we are going to stop supporting
+        // the asset.
+        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
+            asset
+        );
+        
+        emit AssetRemoved(asset);
+    }
+
     /// INTERNAL FUNCTIONS ///
     
     /// @notice Validates the feed data based on various constraints.
@@ -338,13 +362,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @return The adaptor's type.
     function adaptorType() external virtual view returns (uint256);
 
-    /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Manager to notify it of its removal.
-    ///      Requires that `asset` is currently supported.
-    /// @param asset The address of the supported asset to remove from
-    ///              the adaptor.
-    function removeAsset(address asset) external virtual;
-
     /// INTERNAL FUNCTIONS TO OVERRIDE ///
 
     /// @notice Retrieves the price of a given asset in `inUSD` price form.
@@ -360,4 +377,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         address asset,
         bool inUSD
     ) internal virtual view returns (PricingResult memory result);
+
+    /// @notice Wipes supported asset pricing configs from an adaptor.
+    function _wipeAssetConfigs(address /*asset*/ ) internal virtual;
 }

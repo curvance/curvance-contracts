@@ -65,6 +65,10 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     ///         for a Univ2 style volatile pool.
     /// @dev Price is returned in USD or a chain's native token depending on
     ///      'inUSD' parameter.
+    ///      Prices volatile pairs NOT stable pairs.
+    ///      Math source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
+    ///      NOTE: Uses standard volatile asset AMM formula using constant
+    ///            product k >= x * y.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD Specifies whether the price format should be in USD (true)
     ///              or a chain's native token (false).
@@ -80,48 +84,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         address asset,
         bool inUSD,
         bool getLower
-    ) external view virtual override returns (PricingResult memory) {
-        return _getPrice(asset, inUSD, getLower);
-    }
-
-    /// @notice Adds pricing support for `asset`, an lp token for
-    ///         a Univ2 style volatile liquidity pool.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
-    ///      is called.
-    /// @param asset The address of the lp token to support pricing for.
-    function addAsset(address asset) external virtual {}
-
-    /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Manager to notify it of its removal.
-    ///      Requires that `asset` is currently supported.
-    /// @param asset The address of the supported asset to remove from
-    ///              the adaptor.
-    function removeAsset(address asset) external virtual override {}
-
-    /// INTERNAL FUNCTIONS ///
-
-    /// @notice Retrieves the price of `asset`, an lp token,
-    ///         for a standard AMM volatile pool.
-    /// @dev Prices volatile pairs NOT stable pairs.
-    ///      Math source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
-    ///      NOTE: Uses standard volatile asset AMM formula using constant
-    ///            product k >= x * y.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @param inUSD A boolean to determine if the price should be returned in
-    ///              USD or not.
-    /// @param getLower A boolean to determine if lower of two oracle prices
-    ///                 should be retrieved.
-    /// @return result Return data for a priced asset containing:
-    ///                price The price of the asset.
-    ///                inUSD Boolean indicating whether `price` is denominated
-    ///                      in USD (true) or native token (false).
-    ///                hadError Boolean indicating whether the asset was priced
-    ///                         without running into any issues or not.
-    function _getPrice(
-        address asset,
-        bool inUSD,
-        bool getLower
-    ) internal view returns (PricingResult memory result) {
+    ) external virtual view override returns (PricingResult memory result) {
         _checkSupportedAsset(asset);
 
         // Cache asset config and grab pool tokens.
@@ -190,50 +153,37 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         result.price = uint240(finalPrice);
     }
 
-    /// @notice Helper function for pricing support for `asset`,
-    ///         an lp token for a stableSwap style volatile liquidity pool.
+    /// @notice Adds pricing support for `asset`, an lp token for
+    ///         a stable swap style stable liquidity pool.
     /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the lp token to add pricing support for.
-    /// @return data The adaptor data for `asset`, returning the underlying tokens and decimals.
-    function _addAsset(
-        address asset
-    ) internal returns (AssetConfig memory data) {
+    function addAsset(address asset) external {
+        _checkElevatedPermissions();
+
         IVeloPool pool = IVeloPool(asset);
-        if (pool.stable()) {
-            revert BaseVolatileLPAdaptor__InvalidAssetType();
+        _checkLPType(pool);
+
+        // Check whether this is new or updated support for `asset`.
+        bool isUpdate;
+        if (isSupportedAsset[asset]) {
+            isUpdate = true;
         }
 
-        data.token0 = pool.token0();
-        data.token1 = pool.token1();
-        data.decimals0 = IERC20(data.token0).decimals();
-        data.decimals1 = IERC20(data.token1).decimals();
+        AssetConfig memory config;
+        config.token0 = pool.token0();
+        config.token1 = pool.token1();
+        config.decimals0 = IERC20(config.token0).decimals();
+        config.decimals1 = IERC20(config.token1).decimals();
 
-        // Save adaptor data and update mapping that we support `asset` now.
-        assetConfig[asset] = data;
+        // Save asset config and update mapping that we support `asset` now.
+        assetConfig[asset] = config;
         isSupportedAsset[asset] = true;
-        return data;
+
+        emit AssetAdded(asset, config, isUpdate);
     }
 
-    /// @notice Helper function to remove a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Manager to notify it of its removal.
-    ///      Requires that `asset` is currently supported.
-    /// @param asset The address of the supported asset to remove from
-    ///              the adaptor.
-    function _removeAsset(address asset) internal {
-        _checkSupportedAsset(asset);
-
-        // Wipe config mapping entries for a gas refund.
-        // Notify the adaptor to stop supporting the asset.
-        delete isSupportedAsset[asset];
-        delete assetConfig[asset];
-
-        // Notify the Oracle Manager that we are going to stop supporting
-        // the asset.
-        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
-            asset
-        );
-    }
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Helper function in calculating the price of an lp token.
     ///         Uses reserves, and pricing of each underlying token versus
@@ -265,4 +215,29 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     function _sqrt(uint256 x) internal pure returns (uint256) {
         return FixedPointMathLib.sqrt(x);
     }
+
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
+    /// @param asset The address of the asset for which the price is needed.
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
+    function _getPrice(
+        address asset,
+        bool inUSD
+    ) internal virtual view override returns (PricingResult memory result) {}
+
+    /// INTERNAL FUNCTIONS TO OVERRIDE ///
+
+    /// @notice Wipes supported asset pricing configs from an adaptor.
+    function _wipeAssetConfigs(address asset) internal override {
+        delete assetConfig[asset];
+    }
+
+    /// @notice Checks whether `asset` is the proper type of LP to try
+    ///         to support.
+    function _checkLPType(IVeloPool /* asset */) internal virtual view;
 }

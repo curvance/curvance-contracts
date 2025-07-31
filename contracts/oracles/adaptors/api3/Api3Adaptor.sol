@@ -5,7 +5,6 @@ import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IProxy } from "contracts/interfaces/external/api3/IProxy.sol";
 
@@ -44,7 +43,6 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// EVENTS ///
 
     event AssetAdded(address asset, AssetConfig config, bool isUpdate);
-    event Api3AssetRemoved(address asset);
 
     /// ERRORS ///
 
@@ -128,31 +126,6 @@ contract Api3Adaptor is BaseOracleAdaptor {
         emit AssetAdded(asset, config, isUpdate);
     }
 
-    /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Manager to notify it of its removal.
-    ///      Requires that `asset` is currently supported.
-    /// @param asset The address of the supported asset to remove from
-    ///              the adaptor.
-    function removeAsset(address asset) external override {
-        _checkElevatedPermissions();
-        _checkSupportedAsset(asset);
-
-        // Notify the adaptor to stop supporting the asset.
-        delete isSupportedAsset[asset];
-
-        // Wipe config mapping entries for a gas refund.
-        delete assetConfig[asset][true];
-        delete assetConfig[asset][false];
-
-        // Notify the Oracle Manager that we are going to stop supporting
-        // the asset.
-        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
-            asset
-        );
-
-        emit Api3AssetRemoved(asset);
-    }
-
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
@@ -202,5 +175,11 @@ contract Api3Adaptor is BaseOracleAdaptor {
         );
 
         result.price = uint240(uint256(price));
+    }
+
+    /// @notice Wipes supported asset pricing configs from an adaptor.
+    function _wipeAssetConfigs(address asset) internal override {
+        delete assetConfig[asset][true];
+        delete assetConfig[asset][false];
     }
 }

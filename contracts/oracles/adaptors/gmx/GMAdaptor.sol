@@ -48,14 +48,13 @@ contract GMAdaptor is BaseOracleAdaptor {
 
     /// EVENTS ///
 
-    event GMXGMAssetAdded(
+    event AssetAdded(
         address asset,
         address[] marketTokens,
         bool isSynthetic,
         address alteredToken,
         bool isUpdate
     );
-    event GMXGMAssetRemoved(address asset);
 
     /// ERRORS ///
 
@@ -245,35 +244,13 @@ contract GMAdaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit GMXGMAssetAdded(
+        emit AssetAdded(
             asset,
             tokens,
             isSynthetic,
             alteredToken,
             isUpdate
         );
-    }
-
-    /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Manager to notify it of its removal.
-    ///      Requires that `asset` is currently supported.
-    /// @param asset The address of the supported asset to remove from
-    ///              the adaptor.
-    function removeAsset(address asset) external override {
-        _checkElevatedPermissions();
-        _checkSupportedAsset(asset);
-
-        // Wipe config mapping entries for a gas refund.
-        // Notify the adaptor to stop supporting the asset.
-        delete isSupportedAsset[asset];
-        delete marketData[asset];
-
-        // Notify the Oracle Manager that we are going to
-        // stop supporting the asset.
-        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
-            asset
-        );
-        emit GMXGMAssetRemoved(asset);
     }
 
     /// @notice Returns the adaptor's type.
@@ -339,4 +316,9 @@ contract GMAdaptor is BaseOracleAdaptor {
         address asset,
         bool inUSD
     ) internal virtual view override returns (PricingResult memory result) {}
+
+    /// @notice Wipes supported asset pricing configs from an adaptor.
+    function _wipeAssetConfigs(address asset) internal override {
+        delete marketData[asset];
+    }
 }

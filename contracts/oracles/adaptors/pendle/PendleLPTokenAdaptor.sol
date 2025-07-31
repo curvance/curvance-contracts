@@ -49,7 +49,6 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
     /// EVENTS ///
 
     event AssetAdded(address asset, AssetConfig config, bool isUpdate);
-    event PendleLPAssetRemoved(address asset);
 
     /// ERRORS ///
 
@@ -185,28 +184,6 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
         emit AssetAdded(asset, data, isUpdate);
     }
 
-    /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Manager to notify it of its removal.
-    ///      Requires that `asset` is currently supported.
-    /// @param asset The address of the supported asset to remove from
-    ///              the adaptor.
-    function removeAsset(address asset) external override {
-        _checkElevatedPermissions();
-        _checkSupportedAsset(asset);
-
-        // Wipe config mapping entries for a gas refund.
-        // Notify the adaptor to stop supporting the asset.
-        delete isSupportedAsset[asset];
-        delete assetConfig[asset];
-
-        // Notify the Oracle Manager that we are going to stop supporting
-        // the asset.
-        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
-            asset
-        );
-        emit PendleLPAssetRemoved(asset);
-    }
-
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
@@ -251,4 +228,9 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
         address asset,
         bool inUSD
     ) internal virtual view override returns (PricingResult memory result) {}
+
+    /// @notice Wipes supported asset pricing configs from an adaptor.
+    function _wipeAssetConfigs(address asset) internal override {
+        delete assetConfig[asset];
+    }
 }

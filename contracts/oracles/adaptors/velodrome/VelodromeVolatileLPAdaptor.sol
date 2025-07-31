@@ -27,27 +27,6 @@ contract VelodromeVolatileLPAdaptor is BaseVolatileLPAdaptor {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Adds pricing support for `asset`, a new Velodrome Volatile LP.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
-    ///      is called.
-    /// @param asset The address of the lp token to add pricing support for.
-    function addAsset(address asset) external override {
-        _checkElevatedPermissions();
-
-        if (IVeloPool(asset).stable()) {
-            revert BaseVolatileLPAdaptor__InvalidAssetType();
-        }
-
-        // Check whether this is new or updated support for `asset`.
-        bool isUpdate;
-        if (isSupportedAsset[asset]) {
-            isUpdate = true;
-        }
-
-        AssetConfig memory config = _addAsset(asset);
-        emit AssetAdded(asset, config, isUpdate);
-    }
-
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
@@ -56,33 +35,13 @@ contract VelodromeVolatileLPAdaptor is BaseVolatileLPAdaptor {
         return 9;
     }
 
-    /// PUBLIC FUNCTIONS ///
+    /// INTERNAL FUNCTIONS ///
 
-    /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Manager to notify it of its removal.
-    ///      Requires that `asset` is currently supported.
-    /// @param asset The address of the supported asset to remove from
-    ///              the adaptor.
-    function removeAsset(address asset) external virtual override {
-        _checkElevatedPermissions();
-
-        _removeAsset(asset);
-        emit VelodromeVolatileLPAssetRemoved(asset);
+    /// @notice Checks whether `asset` is the proper type of LP to try
+    ///         to support.
+    function _checkLPType(IVeloPool asset) internal view override {
+        if (asset.stable()) {
+            revert BaseVolatileLPAdaptor__InvalidAssetType();
+        }
     }
-
-    /// INTERNAL FUNCTIONS TO OVERRIDE ///
-
-    /// @notice Retrieves the price of a given asset in `inUSD` price form.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
-    /// @return result Return data for a priced asset containing:
-    ///                price The price of the asset.
-    ///                inUSD Boolean indicating whether `price` is denominated
-    ///                      in USD (true) or native token (false).
-    ///                hadError Boolean indicating whether the asset was priced
-    ///                         without running into any issues or not.
-    function _getPrice(
-        address asset,
-        bool inUSD
-    ) internal virtual view override returns (PricingResult memory result) {}
 }

@@ -7,7 +7,6 @@ import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 import { PrimaryProdDataServiceConsumerBase } from "contracts/libraries/external/redstone/PrimaryProdDataServiceConsumerBase.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract RedstoneCoreAdaptor is
@@ -88,8 +87,8 @@ contract RedstoneCoreAdaptor is
     /// EVENTS ///
 
     event AssetAdded(address asset, AssetConfig config, bool isUpdate);
-    event AssetRemoved(address asset);
     event SignerUpdated(address signer, bool addPerms);
+
     /// ERRORS ///
 
     error RedstoneCoreAdaptor__InvalidConfiguration();
@@ -278,30 +277,6 @@ contract RedstoneCoreAdaptor is
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, data, isUpdate);
-    }
-
-    /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Manager to notify it of its removal.
-    ///      Requires that `asset` is currently supported.
-    /// @param asset The address of the supported asset to remove from
-    ///              the adaptor.
-    function removeAsset(address asset) external override {
-        _checkElevatedPermissions();
-        _checkSupportedAsset(asset);
-
-        // Wipe config mapping entries for a gas refund.
-        // Notify the adaptor to stop supporting the asset.
-        delete isSupportedAsset[asset];
-        delete assetConfig[asset][true];
-        delete assetConfig[asset][false];
-
-        // Notify the Oracle Manager that we are going to stop supporting
-        // the asset.
-        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
-            asset
-        );
-
-        emit AssetRemoved(asset);
     }
 
     /// @notice Adds a new supported signer for redstone core msg.data
@@ -507,5 +482,11 @@ contract RedstoneCoreAdaptor is
 
             emit SignerUpdated(signer, true);
         }
+    }
+
+    /// @notice Wipes supported asset pricing configs from an adaptor.
+    function _wipeAssetConfigs(address asset) internal override {
+        delete assetConfig[asset][true];
+        delete assetConfig[asset][false];
     }
 }
