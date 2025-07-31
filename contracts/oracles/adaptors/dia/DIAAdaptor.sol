@@ -87,6 +87,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
             revert DIAAdaptor__InvalidMinMaxConfig();
         }
 
+        // Save `config` and update mapping that we support `asset` now.
         assetConfig[asset][inUSD] = adaptor;
 
         // Check whether this is new or updated support for `asset`.

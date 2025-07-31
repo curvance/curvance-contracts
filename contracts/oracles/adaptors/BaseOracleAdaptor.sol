@@ -98,7 +98,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         address asset,
         bool inUSD,
         bool /* getLower */
-    ) external virtual view override returns (PricingResult memory result) {
+    ) external view virtual override returns (PricingResult memory result) {
         _checkSupportedAsset(asset);
 
         result = _getPrice(asset, inUSD);
@@ -247,7 +247,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 max,
         uint256 min,
         uint256 heartbeat
-    ) internal virtual view returns (bool) {
+    ) internal view virtual returns (bool) {
         // Validate `value` is not at or above the maximum value allowed.
         if (value >= max) {
             return true;
@@ -278,8 +278,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 decimals
     ) internal view returns (uint256) {
         // Normalize price to 18 decimals (WAD).
-        price = FixedPointMathLib.fullMulDiv(price, WAD, 10 ** decimals);
-
+        if (decimals != 18) {
+            price = FixedPointMathLib.fullMulDiv(price, WAD, 10 ** decimals);
+        }
+        
         // Adjust price based on any present price guards.
         PriceGuard memory pg = priceGuards[asset][inUSD];
         
@@ -360,7 +362,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
     /// @return The adaptor's type.
-    function adaptorType() external virtual view returns (uint256);
+    function adaptorType() external view virtual returns (uint256);
 
     /// INTERNAL FUNCTIONS TO OVERRIDE ///
 
@@ -376,7 +378,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal virtual view returns (PricingResult memory result);
+    ) internal view virtual returns (PricingResult memory result);
 
     /// @notice Wipes supported asset pricing configs from an adaptor.
     function _wipeAssetConfigs(address /*asset*/ ) internal virtual;

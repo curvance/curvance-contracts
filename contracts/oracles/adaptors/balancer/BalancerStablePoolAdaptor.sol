@@ -94,8 +94,8 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         // Validate that the vault is not being reentered.
         _ensureNotInVaultContext(balancerVault);
 
-        // Cache adaptor data.
-        AssetConfig memory data = assetConfig[asset];
+        // Cache pricing asset config.
+        AssetConfig memory config = assetConfig[asset];
         IBalancerPool pool = IBalancerPool(asset);
 
         result.inUSD = inUSD;
@@ -104,7 +104,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         );
 
         // Find the minimum price of all the pool tokens.
-        uint256 numUnderlyingOrConstituent = data
+        uint256 numUnderlyingOrConstituent = config
             .underlyingOrConstituent
             .length;
         uint256 averagePrice;
@@ -114,12 +114,12 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         uint256 errorCode;
         for (uint256 i; i < numUnderlyingOrConstituent; ++i) {
             // Break when a zero address is found.
-            if (address(data.underlyingOrConstituent[i]) == address(0)) {
+            if (address(config.underlyingOrConstituent[i]) == address(0)) {
                 break;
             }
 
             (price, errorCode) = oracleManager.getPrice(
-                data.underlyingOrConstituent[i],
+                config.underlyingOrConstituent[i],
                 inUSD,
                 getLower
             );
@@ -133,13 +133,13 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
             // We must first normalize the price using the rate from the RateProvider.
             // If there is no RateProvider, assume a rate of 1
             // (note that `rateProviderDecimals` is unreliable in this case).
-            address rateProvider = data.rateProviders[i];
+            address rateProvider = config.rateProviders[i];
             uint256 normalizedPrice;
             if (rateProvider == address(0)) {
                 normalizedPrice = price;
             } else {
                 normalizedPrice =
-                    (price * (10 ** data.rateProviderDecimals[i])) /
+                    (price * (10 ** config.rateProviderDecimals[i])) /
                     IRateProvider(rateProvider).getRate();
             }
             averagePrice += normalizedPrice;
@@ -167,49 +167,49 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
     /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the BPT to add pricing support for.
-    /// @param data The adaptor data needed to add `asset`.
-    function addAsset(address asset, AssetConfig memory data) external {
+    /// @param config The adaptor data needed to add `asset`.
+    function addAsset(address asset, AssetConfig memory config) external {
         _checkElevatedPermissions();
 
         IBalancerPool pool = IBalancerPool(asset);
 
         // Query the poolId and decimals from the pool contract.
-        data.poolId = pool.getPoolId();
-        data.poolDecimals = pool.decimals();
+        config.poolId = pool.getPoolId();
+        config.poolDecimals = pool.decimals();
 
-        uint256 numUnderlyingOrConstituent = data
+        uint256 numUnderlyingOrConstituent = config
             .underlyingOrConstituent
             .length;
 
         // Make sure we can price all underlying tokens.
         for (uint256 i; i < numUnderlyingOrConstituent; ++i) {
             // Continue when a zero address is found.
-            if (address(data.underlyingOrConstituent[i]) == address(0)) {
+            if (address(config.underlyingOrConstituent[i]) == address(0)) {
                 continue;
             }
 
             if (
                 !IOracleManager(centralRegistry.oracleManager())
-                    .isSupportedAsset(data.underlyingOrConstituent[i])
+                    .isSupportedAsset(config.underlyingOrConstituent[i])
             ) {
                 revert BalancerStablePoolAdaptor__ConfigurationError();
             }
 
-            if (data.rateProviders[i] != address(0)) {
+            if (config.rateProviders[i] != address(0)) {
                 // Make sure decimals were provided.
-                if (data.rateProviderDecimals[i] == 0) {
+                if (config.rateProviderDecimals[i] == 0) {
                     revert BalancerStablePoolAdaptor__ConfigurationError();
                 }
 
                 // Make sure we can call it and get a non zero value.
-                if (IRateProvider(data.rateProviders[i]).getRate() == 0) {
+                if (IRateProvider(config.rateProviders[i]).getRate() == 0) {
                     revert BalancerStablePoolAdaptor__ConfigurationError();
                 }
             }
         }
 
-        // Save adaptor data and update mapping that we support `asset` now.
-        assetConfig[asset] = data;
+        // Save `config` and update mapping that we support `asset` now.
+        assetConfig[asset] = config;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -218,7 +218,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit AssetAdded(asset, data, isUpdate);
+        emit AssetAdded(asset, config, isUpdate);
     }
 
     /// @notice Returns the adaptor's type.
@@ -243,7 +243,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal virtual view override returns (PricingResult memory result) {}
+    ) internal view virtual override returns (PricingResult memory result) {}
 
     /// @notice Wipes supported asset pricing configs from an adaptor.
     function _wipeAssetConfigs(address asset) internal override {

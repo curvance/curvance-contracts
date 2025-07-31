@@ -84,23 +84,23 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         address asset,
         bool inUSD,
         bool getLower
-    ) external virtual view override returns (PricingResult memory result) {
+    ) external view virtual override returns (PricingResult memory result) {
         _checkSupportedAsset(asset);
 
         // Cache asset config and grab pool tokens.
-        AssetConfig memory data = assetConfig[asset];
+        AssetConfig memory config = assetConfig[asset];
         IVeloPool pool = IVeloPool(asset);
 
         // Query LP reserves.
         (uint256 reserve0, uint256 reserve1, ) = pool.getReserves();
 
         // Standardize reserve values to 18 decimals.
-        if (data.decimals0 != 18) {
-            reserve0 = (reserve0 * WAD) / (10 ** data.decimals0);
+        if (config.decimals0 != 18) {
+            reserve0 = (reserve0 * WAD) / (10 ** config.decimals0);
         }
 
-        if (data.decimals1 != 18) {
-            reserve1 = (reserve1 * WAD) / (10 ** data.decimals1);
+        if (config.decimals1 != 18) {
+            reserve1 = (reserve1 * WAD) / (10 ** config.decimals1);
         }
 
         uint256 totalSupply = pool.totalSupply();
@@ -112,7 +112,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
             centralRegistry.oracleManager()
         );
         (price0, errorCode) = oracleManager.getPrice(
-            data.token0,
+            config.token0,
             inUSD,
             getLower
         );
@@ -124,7 +124,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         }
 
         (price1, errorCode) = oracleManager.getPrice(
-            data.token1,
+            config.token1,
             inUSD,
             getLower
         );
@@ -228,7 +228,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal virtual view override returns (PricingResult memory result) {}
+    ) internal view virtual override returns (PricingResult memory result) {}
 
     /// INTERNAL FUNCTIONS TO OVERRIDE ///
 
@@ -239,5 +239,5 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
 
     /// @notice Checks whether `asset` is the proper type of LP to try
     ///         to support.
-    function _checkLPType(IVeloPool /* asset */) internal virtual view;
+    function _checkLPType(IVeloPool /* asset */) internal view virtual;
 }

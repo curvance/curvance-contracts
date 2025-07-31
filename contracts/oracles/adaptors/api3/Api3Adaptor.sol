@@ -105,7 +105,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
         AssetConfig storage config = assetConfig[asset][inUSD];
         config.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
 
-        // Save adaptor data and update mapping that we support `asset` now.
+        // Save `config` and update mapping that we support `asset` now.
 
         // Add a ~10% buffer to maximum price allowed from Api3 can stop
         // updating its price before/above the min/max price. We use a maximum

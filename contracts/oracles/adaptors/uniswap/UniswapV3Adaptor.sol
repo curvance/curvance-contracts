@@ -106,10 +106,10 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     ) external view override returns (PricingResult memory result) {
         _checkSupportedAsset(asset);
 
-        AssetConfig memory data = assetConfig[asset];
+        AssetConfig memory config = assetConfig[asset];
 
         address[] memory pools = new address[](1);
-        pools[0] = data.priceSource;
+        pools[0] = config.priceSource;
         uint256 twapPrice;
 
         // Pull twap price via a staticcall.
@@ -120,11 +120,11 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
                         .quoteSpecificPoolsWithTimePeriod
                         .selector,
                     abi.encode(
-                        10 ** data.baseDecimals,
+                        10 ** config.baseDecimals,
                         asset,
-                        data.quoteToken,
+                        config.quoteToken,
                         pools,
-                        data.secondsAgo
+                        config.secondsAgo
                     )
                 )
             );
@@ -147,7 +147,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         // so find out the price of the quote token in USD then divide
         // so its in USD.
         if (inUSD) {
-            if (!OracleManager.isSupportedAsset(data.quoteToken)) {
+            if (!OracleManager.isSupportedAsset(config.quoteToken)) {
                 // Our Oracle Manager does not know how to value this quote
                 // token, so, we cant use the twap data, bubble up an error.
                 result.hadError = true;
@@ -155,7 +155,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
             }
 
             (uint256 quoteTokenDenominator, uint256 errorCode) = OracleManager
-                .getPrice(data.quoteToken, true, getLower);
+                .getPrice(config.quoteToken, true, getLower);
 
             // Validate we did not run into any errors pricing the quote asset.
             if (errorCode > 0) {
@@ -166,7 +166,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
             // We have a route to USD pricing so we can convert
             // the quote token price to USD and return.
             uint256 newPrice = (twapPrice * quoteTokenDenominator) /
-                (10 ** data.quoteDecimals);
+                (10 ** config.quoteDecimals);
 
             // Validate price will not overflow on conversion to uint240.
             if (_checkOverflow(newPrice)) {
@@ -178,8 +178,8 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
             return result;
         }
 
-        if (data.quoteToken != wrappedNative) {
-            if (!OracleManager.isSupportedAsset(data.quoteToken)) {
+        if (config.quoteToken != wrappedNative) {
+            if (!OracleManager.isSupportedAsset(config.quoteToken)) {
                 // Our Oracle Manager does not know how to value this quote
                 // token so we cant use the twap data.
                 result.hadError = true;
@@ -187,7 +187,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
             }
 
             (uint256 quoteTokenDenominator, uint256 errorCode) = OracleManager
-                .getPrice(data.quoteToken, false, getLower);
+                .getPrice(config.quoteToken, false, getLower);
 
             // Validate we did not run into any errors pricing the quote asset.
             if (errorCode > 0) {
@@ -197,7 +197,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
 
             // Adjust decimals if necessary.
             uint256 newPrice = (twapPrice * quoteTokenDenominator) /
-                (10 ** data.quoteDecimals);
+                (10 ** config.quoteDecimals);
 
             // Validate price will not overflow on conversion to uint240.
             if (_checkOverflow(newPrice)) {
@@ -225,31 +225,31 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param data The adaptor data needed to add `asset`.
-    function addAsset(address asset, AssetConfig memory data) external {
+    function addAsset(address asset, AssetConfig memory config) external {
         _checkElevatedPermissions();
 
         // Verify twap time sample is reasonable.
-        if (data.secondsAgo < MINIMUM_SECONDS_AGO) {
+        if (config.secondsAgo < MINIMUM_SECONDS_AGO) {
             revert UniswapV3Adaptor__SecondsAgoIsLessThanMinimum();
         }
 
-        UniswapV3Pool pool = UniswapV3Pool(data.priceSource);
+        UniswapV3Pool pool = UniswapV3Pool(config.priceSource);
 
         // Query tokens from pool directly to minimize misconfiguration.
         address token0 = pool.token0();
         address token1 = pool.token1();
         if (token0 == asset) {
-            data.baseDecimals = ERC20(asset).decimals();
-            data.quoteDecimals = ERC20(token1).decimals();
-            data.quoteToken = token1;
+            config.baseDecimals = ERC20(asset).decimals();
+            config.quoteDecimals = ERC20(token1).decimals();
+            config.quoteToken = token1;
         } else if (token1 == asset) {
-            data.baseDecimals = ERC20(asset).decimals();
-            data.quoteDecimals = ERC20(token0).decimals();
-            data.quoteToken = token0;
+            config.baseDecimals = ERC20(asset).decimals();
+            config.quoteDecimals = ERC20(token0).decimals();
+            config.quoteToken = token0;
         } else revert UniswapV3Adaptor__AssetIsNotSupported();
 
-        // Save adaptor data and update mapping that we support `asset` now.
-        assetConfig[asset] = data;
+        // Save `config` and update mapping that we support `asset` now.
+        assetConfig[asset] = config;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -258,7 +258,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit AssetAdded(asset, data, isUpdate);
+        emit AssetAdded(asset, config, isUpdate);
     }
 
     /// @notice Returns the adaptor's type.
@@ -283,7 +283,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal virtual view override returns (PricingResult memory result) {}
+    ) internal view virtual override returns (PricingResult memory result) {}
 
     /// @notice Wipes supported asset pricing configs from an adaptor.
     function _wipeAssetConfigs(address asset) internal override {

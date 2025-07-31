@@ -425,7 +425,7 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal virtual view override returns (PricingResult memory result) {}
+    ) internal view virtual override returns (PricingResult memory result) {}
 
     /// @notice Wipes supported asset pricing configs from an adaptor.
     function _wipeAssetConfigs(address asset) internal override {

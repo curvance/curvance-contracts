@@ -151,7 +151,7 @@ contract RedstoneCoreAdaptor is
         uint128 redstoneTimestamp
     ) external {
         AssetConfig memory data = assetConfig[asset][inUSD];
-        if (!data.isConfigured) {
+        if (!config.isConfigured) {
             revert RedstoneCoreAdaptor__AssetIsNotSupported();
         }
 
@@ -165,16 +165,12 @@ contract RedstoneCoreAdaptor is
             tstore(_TRANSIENT_REDSTONE_TIMESTAMP_KEY, redstoneTimestamp)
         }
 
-        uint256 price = getOracleNumericValueFromTxMsg(data.symbolHash);
-
-        // Cache price feed decimals format.
-        uint256 quoteDecimals = data.decimals;
-        if (quoteDecimals != 18) {
-            price = _adjustPrice(asset, inUSD, price, quoteDecimals);
-        }
+        uint256 price = getOracleNumericValueFromTxMsg(config.symbolHash);
+        // Adjust price pulled if necessary.
+        price = _adjustPrice(asset, inUSD, price, config.decimals);
 
         // Validate `price` is not at or above the maximum value allowed.
-        if (price >= data.max) {
+        if (price >= config.max) {
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
@@ -250,24 +246,17 @@ contract RedstoneCoreAdaptor is
             );
         }
 
-        AssetConfig storage data = assetConfig[asset][inUSD];
-
-        // If decimals == 0 we use default 8 decimals that
-        // Redstone typically provides prices in.
-        if (decimals == 0) {
-            data.decimals = 8;
-        } else {
-            // Otherwise, coerce uint8 to uint256 for cheaper
-            // runtime conversion.
-            data.decimals = uint256(decimals);
-        }
-
+        AssetConfig storage config = assetConfig[asset][inUSD];
+        
         // We need to make sure casting to a uint240 will not truncate
         // the reported price.
-        data.max = type(uint240).max;
-        data.symbolHash = symbolHash;
-        data.heartbeat = heartbeat;
-        data.isConfigured = true;
+        config.max = type(uint240).max;
+        config.symbolHash = symbolHash;
+        config.heartbeat = heartbeat;
+        // If decimals == 0 we use default 8 decimals that
+        // Redstone typically provides prices in.
+        config.decimals = decimals != 0 ? uint256(decimals) : 8;
+        config.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -276,7 +265,7 @@ contract RedstoneCoreAdaptor is
         }
 
         isSupportedAsset[asset] = true;
-        emit AssetAdded(asset, data, isUpdate);
+        emit AssetAdded(asset, config, isUpdate);
     }
 
     /// @notice Adds a new supported signer for redstone core msg.data

@@ -102,13 +102,13 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
     ) external view override returns (PricingResult memory result) {
         _checkSupportedAsset(asset);
 
-        AssetConfig memory data = assetConfig[asset];
+        AssetConfig memory config = assetConfig[asset];
         // Get LP to underlying asset ratio conversion.
-        uint256 lpRate = IPMarket(asset).getLpToAssetRate(data.twapDuration);
+        uint256 lpRate = IPMarket(asset).getLpToAssetRate(config.twapDuration);
 
         (uint256 price, uint256 errorCode) = IOracleManager(
             centralRegistry.oracleManager()
-        ).getPrice(data.quoteAsset, inUSD, getLower);
+        ).getPrice(config.quoteAsset, inUSD, getLower);
 
         // Validate we did not run into any errors pricing the quote asset.
         if (errorCode > 0) {
@@ -135,44 +135,44 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
     ///      is called.
     /// @param asset The address of the Pendle lp token to add pricing
     ///              support for.
-    /// @param data The adaptor data needed to add `asset`.
-    function addAsset(address asset, AssetConfig memory data) external {
+    /// @param config The adaptor data needed to add `asset`.
+    function addAsset(address asset, AssetConfig memory config) external {
         _checkElevatedPermissions();
 
         // Make sure pt and market match.
         (IStandardizedYield sy, IPPrincipalToken pt, ) = IPMarket(asset)
             .readTokens();
 
-        // Validate pt pulled from market matches pt inside `data`.
-        if (address(pt) != data.pt) {
+        // Validate pt pulled from market matches pt inside `config`.
+        if (address(pt) != config.pt) {
             revert PendleLPTokenAdaptor__WrongMarket();
         }
 
         // Validate the parameter twap duration is within acceptable bounds.
-        if (data.twapDuration < MINIMUM_TWAP_DURATION) {
+        if (config.twapDuration < MINIMUM_TWAP_DURATION) {
             revert PendleLPTokenAdaptor__TwapDurationIsLessThanMinimum();
         }
 
         // Make sure quote asset is the same as SY `assetInfo.assetAddress`.
         (, address assetAddress, ) = sy.assetInfo();
-        if (assetAddress != data.quoteAsset) {
+        if (assetAddress != config.quoteAsset) {
             revert PendleLPTokenAdaptor__WrongQuote();
         }
 
         // Make sure the underlying PT TWAP is working.
-        _checkPtTwap(asset, data.twapDuration);
+        _checkPtTwap(asset, config.twapDuration);
 
         // Validate we support the pricing quote asset for this LP token.
         if (
             !IOracleManager(centralRegistry.oracleManager()).isSupportedAsset(
-                data.quoteAsset
+                config.quoteAsset
             )
         ) {
             revert PendleLPTokenAdaptor__QuoteAssetIsNotSupported();
         }
 
-        // Save adaptor data and update mapping that we support `asset` now.
-        assetConfig[asset] = data;
+        // Save `config` and update mapping that we support `asset` now.
+        assetConfig[asset] = config;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -181,7 +181,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit AssetAdded(asset, data, isUpdate);
+        emit AssetAdded(asset, config, isUpdate);
     }
 
     /// @notice Returns the adaptor's type.
@@ -227,7 +227,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal virtual view override returns (PricingResult memory result) {}
+    ) internal view virtual override returns (PricingResult memory result) {}
 
     /// @notice Wipes supported asset pricing configs from an adaptor.
     function _wipeAssetConfigs(address asset) internal override {

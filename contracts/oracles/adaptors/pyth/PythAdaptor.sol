@@ -120,6 +120,7 @@ contract PythAdaptor is BaseOracleAdaptor {
             revert PythAdaptor__InvalidMinMaxConfig();
         }
 
+        // Save `config` and update mapping that we support `asset` now.
         config.isConfigured = true;
         assetConfig[asset][inUSD] = config;
 
