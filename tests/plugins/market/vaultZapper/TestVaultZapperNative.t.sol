@@ -93,8 +93,8 @@ contract TestVaultZapperWithNative is TestBaseMarketIsolated {
 
         SwapperLib.Swap memory swapAction;
         swapAction.inputAmount = 100 ether;
-        swapAction.outputToken = address(0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701);
-        swapAction.inputToken = address(0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701);
+        swapAction.outputToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapAction.inputToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
         vm.startPrank(user1);
 

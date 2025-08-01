@@ -52,7 +52,7 @@ contract VaultZapper is BaseVaultZapper {
         uint256 expectedShares,
         bool collateralizeFor,
         address receiver
-    ) override external payable nonReentrant returns (uint256 outAmount) {
+    ) external payable nonReentrant returns (uint256 outAmount) {
 
         IVault vault; 
         vault = IVault(ICToken(cToken).asset());

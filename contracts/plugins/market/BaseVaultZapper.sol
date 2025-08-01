@@ -19,40 +19,6 @@ abstract contract BaseVaultZapper is ZapperBase {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Swaps, then deposits `swapAction.outputToken`, a cToken
-    ///         asset, and enters into Curvance position, for `receiver`.
-    /// @dev Requires plugin approval for collateralization.
-    /// @param cToken The Curvance token (cToken) address to deposit into.
-    /// @param depositAsWrappedNative Used when `inputToken` is the native gas
-    ///                               token, indicates depositing native token
-    ///                               into wrapped version or not.
-    /// @param swapAction Instructions for executing a swap into collateral
-    ///                   asset.
-    ///                   Containing:
-    ///                   inputToken Address of input token to swap from.
-    ///                   inputAmount The amount of `inputToken` to swap.
-    ///                   outputToken Address of token to swap into.
-    ///                   target Address of the swapper, usually an
-    ///                          aggregator.
-    ///                   slippage The amount of value-loss acceptable from
-    ///                            swapping between tokens.
-    ///                   call Swap instruction calldata.
-    /// @param expectedShares The minimum expected amount of shares received
-    ///                       from depositing `amount` of
-    ///                       `swapAction.outputToken` into `cToken` position.
-    /// @param collateralizeFor Whether the zapped deposit should be
-    ///                         collateralized afterwards.
-    /// @param receiver Address that should receive `cToken` shares.
-    /// @return outAmount The `cToken` output shares received by `receiver`.
-    function swapAndDeposit(
-        address cToken,
-        bool depositAsWrappedNative,
-        SwapperLib.Swap memory swapAction,
-        uint256 expectedShares,
-        bool collateralizeFor,
-        address receiver
-    ) virtual external payable nonReentrant returns (uint256 outAmount) {}
-
     /// @notice Withdraws from a Curvance position, and swaps it into
     ///         desired token (swapAction.outputToken).
     /// @dev Requires plugin approval for redemption.
