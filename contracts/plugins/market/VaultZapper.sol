@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ICentralRegistry } from "contracts/plugins/BaseZapper.sol";
-import { BaseVaultZapper } from "./BaseVaultZapper.sol";
+import { BaseVaultZapper, ICentralRegistry } from "contracts/plugins/market/BaseVaultZapper.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
+
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract VaultZapper is BaseVaultZapper {
     /// CONSTRUCTOR ///
@@ -53,9 +52,7 @@ contract VaultZapper is BaseVaultZapper {
         bool collateralizeFor,
         address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
-
-        IVault vault; 
-        vault = IVault(ICToken(cToken).asset());
+        IVault vault = IVault(ICToken(cToken).asset());
         address asset = address(vault.asset());
 
         _prepareSwap(
@@ -72,7 +69,7 @@ contract VaultZapper is BaseVaultZapper {
             swapAction.inputToken = address(wrappedNative);
         }
 
-        if(asset != swapAction.outputToken) {
+        if (asset != swapAction.outputToken) {
             revert BaseZapper__UnderlyingTokenIsNotInputToken();
         }
 
@@ -83,9 +80,13 @@ contract VaultZapper is BaseVaultZapper {
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
-        SwapperLib._approveIfNeeded(swapAction.outputToken, address(vault), outAmount);
+        SwapperLib._approveIfNeeded(
+            swapAction.outputToken,
+            address(vault),
+            outAmount
+        );
 
-        // Validate token address parameters are valid, then deposit into vault.
+        // Deposit into vault.
         outAmount = vault.deposit(
             outAmount,
             address(this)

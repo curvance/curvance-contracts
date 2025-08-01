@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ICentralRegistry } from "contracts/plugins/BaseZapper.sol";
-import { BaseVaultZapper } from "./BaseVaultZapper.sol";
+import { BaseVaultZapper, ICentralRegistry } from "contracts/plugins/market/BaseVaultZapper.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
+
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 contract NativeVaultZapper is BaseVaultZapper {
@@ -50,14 +49,9 @@ contract NativeVaultZapper is BaseVaultZapper {
         bool collateralizeFor,
         address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
-
         IVault vault = IVault(ICToken(cToken).asset());
 
-        _prepareSwap(
-            swapAction.inputToken,
-            swapAction.inputAmount,
-            false
-        );
+        _prepareSwap(swapAction.inputToken, swapAction.inputAmount, false);
 
         if(!CommonLib._isNative(swapAction.outputToken)) {
             revert BaseZapper__UnderlyingTokenIsNotInputToken();
@@ -65,19 +59,24 @@ contract NativeVaultZapper is BaseVaultZapper {
 
         if (swapAction.inputToken == swapAction.outputToken) {
             outAmount = swapAction.inputAmount;        
-        }
-        else if (swapAction.inputToken == wrappedNative) {
-            if (msg.value > 0) revert("no");
-            SwapperLib._approveIfNeeded(wrappedNative, wrappedNative, swapAction.inputAmount);
+        } else if (swapAction.inputToken == wrappedNative) {
+            if (msg.value > 0) {
+                revert BaseZapper__ExecutionError();
+            }
+
+            SwapperLib._approveIfNeeded(
+                wrappedNative,
+                wrappedNative,
+                swapAction.inputAmount
+            );
             IWETH(wrappedNative).withdraw(swapAction.inputAmount);
             outAmount = swapAction.inputAmount;
-        }
-        else {
+        } else {
             // Execute swap into cToken asset.
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
-        // Validate token address parameters are valid, then deposit into vault.
+        // Deposit into vault.
         outAmount = vault.deposit{value: outAmount}(
             outAmount,
             address(this)

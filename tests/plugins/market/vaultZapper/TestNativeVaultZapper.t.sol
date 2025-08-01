@@ -16,7 +16,7 @@ import { IVault } from "contracts/interfaces/IVault.sol";
 
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
-contract TestVaultZapperWithNative is TestBaseMarketIsolated {
+contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
 
     NativeVaultZapper public vaultZapper;
     address public SHMON_ADDRESS = 0x3a98250F98Dd388C211206983453837C8365BDc1;
