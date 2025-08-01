@@ -53,10 +53,10 @@ contract MockRedstoneCoreAdaptor is RedstoneCoreAdaptor {
             inUSD = !inUSD; 
         }
 
-        StoredData memory assetData = storedData[asset][inUSD];
+        StoredPrice memory storedPrice = _storedPrice[asset][inUSD];
         result.inUSD = inUSD;
         // Validate the price returned is not stale.
-        uint256 timestampInSeconds = assetData.redstoneTimestamp / 1000;
+        uint256 timestampInSeconds = storedPrice.redstoneTimestamp / 1000;
         if (
             timestampInSeconds < block.timestamp &&
             block.timestamp - timestampInSeconds > assetConfig[asset][inUSD].heartbeat
@@ -65,7 +65,7 @@ contract MockRedstoneCoreAdaptor is RedstoneCoreAdaptor {
             return result;
         }
 
-        result.price = uint240(assetData.price);
+        result.price = uint240(storedPrice.price);
     }
 
     /// @notice Wipes supported asset pricing configs from an adaptor.

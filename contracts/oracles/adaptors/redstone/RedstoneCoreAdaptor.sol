@@ -31,12 +31,12 @@ contract RedstoneCoreAdaptor is
         uint256 heartbeat;
     }
 
-    /// @notice Stores cached data for Redstone core prices pulled
+    /// @notice Stores cached price data for Redstone core pulled
     ///         from msg.data.
     /// @param price The price recorded for an asset, in `WAD`.
     /// @param redstoneTimestamp The price timestamp reported by Redstone
     ///                          signers, in milliseconds.
-    struct StoredData {
+    struct StoredPrice {
         uint256 price;
         uint256 redstoneTimestamp;
     }
@@ -77,7 +77,7 @@ contract RedstoneCoreAdaptor is
     /// @dev Token address => inUSD => Price feed configuration for `asset`.
     mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
-    mapping(address => mapping(bool => StoredData)) private storedData;
+    mapping(address => mapping(bool => StoredPrice)) internal _storedPrice;
 
     /// @dev A fixed key to use in transient storage for validating that the
     ///      timestamp provided on price write is accurate.
@@ -155,7 +155,7 @@ contract RedstoneCoreAdaptor is
             revert RedstoneCoreAdaptor__AssetIsNotSupported();
         }
 
-        if (storedData[asset][inUSD].redstoneTimestamp >= redstoneTimestamp) {
+        if (_storedPrice[asset][inUSD].redstoneTimestamp >= redstoneTimestamp) {
             return; // Can skip storing the data since the data is stale.
         }
 
@@ -179,7 +179,7 @@ contract RedstoneCoreAdaptor is
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
-        storedData[asset][inUSD] = StoredData({
+        _storedPrice[asset][inUSD] = StoredPrice({
             price: price,
             redstoneTimestamp: redstoneTimestamp
         });
@@ -404,10 +404,10 @@ contract RedstoneCoreAdaptor is
             inUSD = !inUSD; 
         }
 
-        StoredData memory assetData = storedData[asset][inUSD];
+        StoredPrice memory storedPrice = _storedPrice[asset][inUSD];
         result.inUSD = inUSD;
         // Validate the price returned is not stale.
-        uint256 timestampInSeconds = assetData.redstoneTimestamp / 1000;
+        uint256 timestampInSeconds = storedPrice.redstoneTimestamp / 1000;
         if (
             timestampInSeconds < block.timestamp &&
             block.timestamp - timestampInSeconds > assetConfig[asset][inUSD].heartbeat
@@ -416,7 +416,7 @@ contract RedstoneCoreAdaptor is
             return result;
         }
 
-        result.price = uint240(assetData.price);
+        result.price = uint240(storedPrice.price);
     }
 
     /// @dev This logic replicates RedstoneDefaultsLib.validateTimestamp
