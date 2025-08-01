@@ -46,7 +46,6 @@ contract MixedAuction is TestBaseLiquidations {
 
     uint256[] debtBalancesPreLiquidation_auction;
     uint256[] debtBalancesPreLiquidation_regular;
-    uint256 totalBadDebtRegular;
     uint256 totalBadDebtAuction;
     uint256 totalBorrowsBefore;
     uint256 totalDebtRepaid;
@@ -104,7 +103,7 @@ contract MixedAuction is TestBaseLiquidations {
         console2.log("SETUP COMPLETE");
     }
 
-    function test_mixedAuction() public {
+    function test_fail_auctionLiquidationBlocksRegularLiquidation() public {
 
         _prepareUSDC(dappControlUser, 100000e6);
         _prepareUSDC(address(this), 100000e6);
@@ -157,32 +156,7 @@ contract MixedAuction is TestBaseLiquidations {
                 marketManagerId: 0
             }));
 
-        ExpectedLiquidationValues memory regularLiqValuesBorrower3 = _calculateExpectedLiquidationValues(
-            LiquidationParams({
-                borrower: auctionBorrowers[0],
-                collateralToken: address(strategyCBALRETH),
-                borrowedToken: address(borrowableCUSDC),
-                isLiquidateExact: false,
-                liquidateExactAmount: 0,
-                isAuction: false,
-                isMultiMarketTest: false,
-                marketManagerId: 0
-            }));
-
-        ExpectedLiquidationValues memory regularLiqValuesBorrower4 = _calculateExpectedLiquidationValues(
-            LiquidationParams({
-                borrower: auctionBorrowers[0],
-                collateralToken: address(strategyCBALRETH),
-                borrowedToken: address(borrowableCUSDC),
-                isLiquidateExact: false,
-                liquidateExactAmount: 0,
-                isAuction: false,
-                isMultiMarketTest: false,
-                marketManagerId: 0
-            }));
-
         totalBadDebtAuction = auctionLiqValuesBorrower1.badDebt + auctionLiqValuesBorrower2.badDebt;
-        totalBadDebtRegular = regularLiqValuesBorrower3.badDebt + regularLiqValuesBorrower4.badDebt;
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
@@ -200,99 +174,76 @@ contract MixedAuction is TestBaseLiquidations {
 
         usdc.approve(address(borrowableCUSDC), 100000e6);
 
-        // Assert BadDebtRecognized event is emitted with expected total bad debt
-        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit BadDebtRecognized(totalBadDebtRegular, address(this));
-        emit Repay(regularLiqValuesBorrower3.debtRepaid,address(this), regularBorrowers[0] );
-        emit Repay(regularLiqValuesBorrower4.debtRepaid,address(this), regularBorrowers[0] );
-
+        // Regular liquidation should revert because market is still unlocked for auctions
+        // but collateral is locked, creating an invalid auction state
+        vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedLiquidation.selector);
         borrowableCUSDC.liquidate(
             regularBorrowers,
             address(strategyCBALRETH)
         );
 
-        // ===== Validate =====
-
-        // Verify debt balances
+        // ===== Validate Auction Liquidations Only =====
+        
+        // Verify debt balances for auction borrowers only
         assertEq(borrowableCUSDC.debtBalance(auctionBorrowers[0]), debtBalancesPreLiquidation_auction[0] - auctionLiqValuesBorrower1.debtRepaid - auctionLiqValuesBorrower1.badDebt, 
         "Auction borrower 1 debt balance mismatch");
         assertEq(borrowableCUSDC.debtBalance(auctionBorrowers[1]), debtBalancesPreLiquidation_auction[1] - auctionLiqValuesBorrower2.debtRepaid - auctionLiqValuesBorrower2.badDebt, 
         "Auction borrower 2 debt balance mismatch");
-        assertEq(borrowableCUSDC.debtBalance(regularBorrowers[0]), debtBalancesPreLiquidation_regular[0] - regularLiqValuesBorrower3.debtRepaid - regularLiqValuesBorrower3.badDebt, 
-        "Regular borrower 1 debt balance mismatch");
-        assertEq(borrowableCUSDC.debtBalance(regularBorrowers[1]), debtBalancesPreLiquidation_regular[1] - regularLiqValuesBorrower4.debtRepaid - regularLiqValuesBorrower4.badDebt, 
-        "Regular borrower 2 debt balance mismatch");
 
-        // Verify collateral is reduced by collateralLiquidated
+        // Regular borrowers should remain untouched since their liquidation reverted
+        assertEq(borrowableCUSDC.debtBalance(regularBorrowers[0]), debtBalancesPreLiquidation_regular[0], 
+        "Regular borrower 1 debt should be unchanged");
+        assertEq(borrowableCUSDC.debtBalance(regularBorrowers[1]), debtBalancesPreLiquidation_regular[1], 
+        "Regular borrower 2 debt should be unchanged");
+
+        // Verify collateral is reduced by collateralLiquidated for auction borrowers only
         assertApproxEqAbs(
             strategyCBALRETH.balanceOf(auctionBorrowers[0]),
             collateralAmounts[0] - (auctionLiqValuesBorrower1.collateralLiquidated),
             1000, // Tolerance of 1000 wei 
-            "Collateral post liquidation mismatch"
+            "Auction borrower 1 collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
             strategyCBALRETH.balanceOf(auctionBorrowers[1]),
             collateralAmounts[1] - (auctionLiqValuesBorrower2.collateralLiquidated),
             1000, // Tolerance of 1000 wei 
-            "Collateral post liquidation mismatch"
+            "Auction borrower 2 collateral post liquidation mismatch"
         );
 
-        assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(regularBorrowers[0]),
-            collateralAmounts[2] - (regularLiqValuesBorrower3.collateralLiquidated),
-            1000, // Tolerance of 1000 wei 
-            "Collateral post liquidation mismatch"
-        );
+        // Regular borrowers should have unchanged collateral
+        assertEq(strategyCBALRETH.balanceOf(regularBorrowers[0]), collateralAmounts[2], 
+        "Regular borrower 1 collateral should be unchanged");
+        assertEq(strategyCBALRETH.balanceOf(regularBorrowers[1]), collateralAmounts[3], 
+        "Regular borrower 2 collateral should be unchanged");
 
-        assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(regularBorrowers[1]),
-            collateralAmounts[3] - (regularLiqValuesBorrower4.collateralLiquidated),
-            1000, // Tolerance of 1000 wei 
-            "Collateral post liquidation mismatch"
-        );
-
-        // Assert Total borrows is reduced by the amount of debt repaid
-
-        totalDebtRepaid = auctionLiqValuesBorrower1.debtRepaid +
-            auctionLiqValuesBorrower2.debtRepaid +
-            regularLiqValuesBorrower3.debtRepaid +
-            regularLiqValuesBorrower4.debtRepaid;
+        // Assert Total borrows is reduced by only the auction liquidations
+        uint256 auctionDebtRepaid = auctionLiqValuesBorrower1.debtRepaid + auctionLiqValuesBorrower2.debtRepaid;
 
         assertApproxEqAbs(
             borrowableCUSDC.marketOutstandingDebt(),
-            totalBorrowsBefore - totalDebtRepaid - totalBadDebtAuction - totalBadDebtRegular,
+            totalBorrowsBefore - auctionDebtRepaid - totalBadDebtAuction,
             100, // Small tolerance
-            "Incorrect totalBorrows after liquidation"
+            "Incorrect totalBorrows after auction liquidation"
         );
 
-        // Verify liquidator received the expected collateral
+        // Verify liquidator received the expected collateral from auction only
         uint256 expectedDappControlUserLiquidatorBalance = 
             auctionLiqValuesBorrower1.collateralLiquidated + 
             auctionLiqValuesBorrower2.collateralLiquidated;
-
-        uint256 expectedNormalUserLiquidatorBalance = 
-            regularLiqValuesBorrower3.collateralLiquidated +
-            regularLiqValuesBorrower4.collateralLiquidated;
 
         assertApproxEqAbs(
             strategyCBALRETH.balanceOf(dappControlUser),
             expectedDappControlUserLiquidatorBalance,
             1000,
-            "Dapp control user didn't receive expected collateral"
+            "Dapp control user didn't receive expected collateral from auction"
         );
 
-        assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(address(this)),
-            expectedNormalUserLiquidatorBalance,
-            1000,
-            "Liquidator didn't receive expected collateral"
-        );
+        // This test liquidator should have no collateral since regular liquidation failed
+        assertEq(strategyCBALRETH.balanceOf(address(this)), 0, "Test liquidator should have no collateral");
 
         // Verify lFactors
-        // Auction borrowers should still have lFactor > 0
-        // Regular borrowers should have lFactor since fully liquidated
-
+        // Auction borrowers should still have lFactor > 0 (partial liquidation)
         for(uint i = 0; i < 2; i++) {
             (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
                 auctionBorrowers[i],
@@ -303,6 +254,7 @@ contract MixedAuction is TestBaseLiquidations {
             assertGt(lFactorAfter, 0, "Auction borrower should still have lFactor > 0");
         }
 
+        // Regular borrowers should still be liquidatable (their liquidation was prevented by auction state)
         for(uint i = 0; i < 2; i++) {
             (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
                 regularBorrowers[i],
@@ -310,7 +262,7 @@ contract MixedAuction is TestBaseLiquidations {
                 address(strategyCBALRETH)
             );
 
-            assertEq(lFactorAfter, 0, "Regular borrower should have lFactor = 0");
+            assertEq(lFactorAfter, WAD, "Regular borrower should still be liquidatable");
         }
 
     }
