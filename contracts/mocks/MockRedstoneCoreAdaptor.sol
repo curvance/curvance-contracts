@@ -11,10 +11,10 @@ contract MockRedstoneCoreAdaptor is RedstoneCoreAdaptor {
         address[] memory signers,
         uint256 _uniqueSignersThreshold,
         string memory nativeTokenSymbol,
-        MAXIMUM_INCREASE_PER_YEAR,
-        MINIMUM_INCREASE_PER_YEAR,
-        MAXIMUM_TIMESTAMP_BUFFER,
-        MINIMUM_TIMESTAMP_BUFFER
+        uint256 MAXIMUM_INCREASE_PER_YEAR,
+        uint256 MINIMUM_INCREASE_PER_YEAR,
+        uint256 MAXIMUM_TIMESTAMP_BUFFER,
+        uint256 MINIMUM_TIMESTAMP_BUFFER
     ) RedstoneCoreAdaptor(
         centralRegistry_,
         signers,
