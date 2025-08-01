@@ -70,22 +70,6 @@ contract MockOracleAdaptor is BaseOracleAdaptor {
         return 1337;
     }
 
-    function removeAsset(address asset) external override {
-        _checkElevatedPermissions();
-
-        if (!isSupportedAsset[asset]) {
-            revert("Asset not supported");
-        }
-
-        delete isSupportedAsset[asset];
-        delete definedPrices[asset];
-        delete hasSetPrice[asset];
-
-        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
-            asset
-        );
-    }
-
     /// @notice Retrieves the price of a given asset in `inUSD` price form.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD Whether `asset` should be priced in USD or native tokens.

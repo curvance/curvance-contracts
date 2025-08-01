@@ -66,26 +66,4 @@ contract MockPythAdaptor is PythAdaptor {
 
         return false;
     }
-
-    /// @notice Retrieves the price of a given asset in `inUSD` price form.
-    /// @dev Calls getPriceUnsafe() from Pyth to get the latest data
-    ///      for pricing and staleness.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
-    /// @return result Return data for a priced asset containing:
-    ///                price The price of the asset.
-    ///                inUSD Boolean indicating whether `price` is denominated
-    ///                      in USD (true) or native token (false).
-    ///                hadError Boolean indicating whether the asset was priced
-    ///                         without running into any issues or not.
-    function _getPrice(
-        address asset,
-        bool inUSD
-    ) internal view override returns (PricingResult memory result) {}
-
-    /// @notice Wipes supported asset pricing configs from an adaptor.
-    function _wipeAssetConfigs(address asset) internal override {
-        delete assetConfig[asset][true];
-        delete assetConfig[asset][false];
-    }
 }
