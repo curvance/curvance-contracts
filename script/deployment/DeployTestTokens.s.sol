@@ -49,7 +49,13 @@ contract DeployTestTokens is Script {
             // Setup fake oracle feed
             uint240 price = prices[i];
             if (price != 0) {
-                MockOracleAdaptor adaptor = new MockOracleAdaptor(cr);
+                MockOracleAdaptor adaptor = new MockOracleAdaptor(
+                    cr,
+                    .1e18,
+                    0,
+                    30 days,
+                    7 days
+                );
                 oracleManager.addApprovedAdaptor(address(adaptor));
                 adaptor.addAsset(address(token));
                 adaptor.setPrice(address(token), price, price);

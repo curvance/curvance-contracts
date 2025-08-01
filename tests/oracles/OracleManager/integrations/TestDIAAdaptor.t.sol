@@ -20,7 +20,11 @@ contract TestDIAAdaptor is TestBaseOracleManager {
 
         adaptor = new DIAAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            _DIA_ORACLE
+            _DIA_ORACLE,
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
 
         DIAAdaptor.AssetConfig memory data;

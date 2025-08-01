@@ -31,7 +31,13 @@ contract TestApi3Adaptor is TestBaseOracleManager {
             7 days
         );
 
-        adaptor = new Api3Adaptor(ICentralRegistry(address(centralRegistry)));
+        adaptor = new Api3Adaptor(ICentralRegistry(
+            address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
+        );
         adaptor.addAsset(
             _ARB_ADDRESS,
             _ARB_TICKER,

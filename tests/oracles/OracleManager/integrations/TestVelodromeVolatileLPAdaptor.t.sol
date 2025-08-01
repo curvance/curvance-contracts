@@ -95,8 +95,7 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
 
     function testRevertAddAsset__AssetIsNotVolatileLP() public {
         vm.expectRevert(
-            VelodromeVolatileLPAdaptor
-                .VelodromeVolatileLPAdaptor__AssetIsNotVolatileLP
+            BaseVolatileLPAdaptor.BaseVolatileLPAdaptor__InvalidAssetType
                 .selector
         );
         adaptor.addAsset(0x19715771E30c93915A5bbDa134d782b81A820076);

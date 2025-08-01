@@ -28,7 +28,11 @@ contract TestGMAdaptor is TestBaseOracleManager {
         adaptor = new GMAdaptor(
             ICentralRegistry(address(centralRegistry)),
             _GMX_READER,
-            _GMX_DATASTORE
+            _GMX_DATASTORE,
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry)),
@@ -72,7 +76,11 @@ contract TestGMAdaptor is TestBaseOracleManager {
         new GMAdaptor(
             ICentralRegistry(address(0)),
             _GMX_READER,
-            _GMX_DATASTORE
+            _GMX_DATASTORE,
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
     }
 
@@ -81,7 +89,11 @@ contract TestGMAdaptor is TestBaseOracleManager {
         new GMAdaptor(
             ICentralRegistry(address(centralRegistry)),
             address(0),
-            _GMX_DATASTORE
+            _GMX_DATASTORE,
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
     }
 
@@ -92,7 +104,11 @@ contract TestGMAdaptor is TestBaseOracleManager {
         new GMAdaptor(
             ICentralRegistry(address(centralRegistry)),
             _GMX_READER,
-            address(0)
+            address(0),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
     }
 

@@ -34,7 +34,11 @@ contract TestPythAdaptor is TestBaseOracleManager {
             ICentralRegistry(address(centralRegistry)),
             address(0),
             _PYTH_ADDRESS,
-            _WETH_ADDRESS
+            _WETH_ADDRESS,
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
 
         PythAdaptor.AssetConfig memory data;

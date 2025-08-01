@@ -43,7 +43,11 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         adaptor = new UniswapV3Adaptor(
             ICentralRegistry(address(centralRegistry)),
             IStaticOracle(_UNISWAP_V3_ORACLE),
-            _WETH_ADDRESS
+            _WETH_ADDRESS,
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
         UniswapV3Adaptor.AssetConfig memory assetConfig;
         assetConfig.priceSource = _WBTC_WETH;

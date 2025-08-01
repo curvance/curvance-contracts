@@ -92,7 +92,10 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             uint256 nativeReportedMin,
             uint256 nativeMax,
             uint256 nativeMin
-        ) = chainlinkAdaptor.assetConfig(SNX_ADDRESS, false);
+        ) = chainlinkAdaptor.assetConfig(
+            SNX_ADDRESS,
+            false
+        );
         
         // Assert native adaptor data
         assertEq(address(nativeAggregator), address(snxEthPriceFeed));
@@ -153,7 +156,10 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             uint256 reportedMin,
             uint256 max,
             uint256 min
-        ) = chainlinkAdaptor.assetConfig(SNX_ADDRESS);
+        ) = chainlinkAdaptor.assetConfig(
+            SNX_ADDRESS,
+            true
+        );
 
         assertEq(address(aggregator), address(0));
         assertFalse(isConfigured);
@@ -199,7 +205,10 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             uint256 reportedMin,
             uint256 max,
             uint256 min
-        ) = chainlinkAdaptor.assetConfig(SNX_ADDRESS);
+        ) = chainlinkAdaptor.assetConfig(
+            SNX_ADDRESS,
+            true
+        );
 
         // Assert initial heartbeat
         assertEq(heartbeat, 3600);
@@ -208,7 +217,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
 
         emit AssetAdded(SNX_ADDRESS, ChainlinkAdaptor.AssetConfig(
             aggregator, isConfigured, decimals, heartbeat, reportedMax, reportedMin, max, min
-        ), true);
+            ), true
+        );
         
         chainlinkAdaptor.addAsset(
             SNX_ADDRESS,
@@ -218,7 +228,10 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         );
 
         // Verify updated heartbeat
-        (,,, uint256 updatedHeartbeat,,,,) = chainlinkAdaptor.assetConfig(SNX_ADDRESS);
+        (,,, uint256 updatedHeartbeat,,,,) = chainlinkAdaptor.assetConfig(
+            SNX_ADDRESS,
+            true
+        );
         assertEq(updatedHeartbeat, 7200);
     }
 

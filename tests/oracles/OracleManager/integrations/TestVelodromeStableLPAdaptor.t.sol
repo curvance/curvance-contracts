@@ -92,9 +92,7 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
 
     function testRevertAddAsset__AssetIsNotStableLP() public {
         vm.expectRevert(
-            VelodromeStableLPAdaptor
-                .VelodromeStableLPAdaptor__AssetIsNotStableLP
-                .selector
+            BaseStableLPAdaptor.BaseStableLPAdaptor__InvalidAssetType.selector
         );
         adaptor.addAsset(0x0493Bf8b6DBB159Ce2Db2E0E8403E753Abd1235b);
     }
