@@ -81,43 +81,7 @@ contract MockPythAdaptor is PythAdaptor {
     function _getPrice(
         address asset,
         bool inUSD
-    ) internal view override returns (PricingResult memory result) {
-        // Parse data from the format you want if its configured, otherwise
-        // price in the other format and manually convert in Oracle Manager.
-        if (!assetConfig[asset][inUSD].isConfigured) {
-            inUSD = !inUSD;  
-        }
-
-        AssetConfig memory config = assetConfig[asset][inUSD];
-        result.inUSD = inUSD;
-
-        PythStructs.Price memory price = IPyth(pyth).getPriceUnsafe(
-            config.priceId
-        );
-
-        // If we got a price of 0 or less, bubble up an error immediately.
-        if (price.price <= 0) {
-            result.hadError = true;
-            return result;
-        }
-
-        uint256 adjustedPrice = _adjustPrice(
-            asset,
-            inUSD,
-            uint256(int256(price.price)),
-            uint256(int256(-1 * int8(price.expo)))
-        );
-
-        result.hadError = _verifyData(
-            adjustedPrice,
-            price.publishTime,
-            config.max,
-            config.min,
-            config.heartbeat
-        );
-
-        result.price = uint240(adjustedPrice);
-    }
+    ) internal view override returns (PricingResult memory result) {}
 
     /// @notice Wipes supported asset pricing configs from an adaptor.
     function _wipeAssetConfigs(address asset) internal override {

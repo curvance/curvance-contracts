@@ -18,7 +18,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
     MockV3Aggregator internal snxEthPriceFeed;
     MockV3Aggregator internal snxUsdPriceFeed;
 
-    event ChainlinkAssetAdded(
+    event AssetAdded(
         address asset,
         ChainlinkAdaptor.AssetConfig assetConfig,
         bool isUpdate
@@ -206,7 +206,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
 
         vm.expectEmit(true, false, false, false);
 
-        emit ChainlinkAssetAdded(SNX_ADDRESS, ChainlinkAdaptor.AssetConfig(
+        emit AssetAdded(SNX_ADDRESS, ChainlinkAdaptor.AssetConfig(
             aggregator, isConfigured, decimals, heartbeat, reportedMax, reportedMin, max, min
         ), true);
         
