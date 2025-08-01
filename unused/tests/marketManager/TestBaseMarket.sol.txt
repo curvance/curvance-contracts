@@ -359,7 +359,11 @@ contract TestBaseMarket is TestBase {
             chainId
         ] = new BalancerStablePoolAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            IVault(_BAL_VAULT_ADDRESS)
+            IVault(_BAL_VAULT_ADDRESS),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
         BalancerStablePoolAdaptor.AssetConfig memory assetConfig;
         assetConfig.poolId = _BAL_WETH_RETH_POOLID;

@@ -22,7 +22,11 @@ contract TestBalancerStablePoolAdaptor is TestBaseOracleManager {
 
         adaptor = new BalancerStablePoolAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            IVault(_BAL_VAULT_ADDRESS)
+            IVault(_BAL_VAULT_ADDRESS),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
     }
 
@@ -46,7 +50,11 @@ contract TestBalancerStablePoolAdaptor is TestBaseOracleManager {
 
     function testReturnsCorrectPrice() public {
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(_WETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);

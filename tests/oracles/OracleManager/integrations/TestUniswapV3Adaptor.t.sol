@@ -5,10 +5,13 @@ import { UniswapV3Adaptor } from "contracts/oracles/adaptors/uniswap/UniswapV3Ad
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
 import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
+
 import { IStaticOracle } from "contracts/interfaces/external/uniswap/IStaticOracle.sol";
+
+import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract TestUniswapV3Adaptor is TestBaseOracleManager {
     address internal _UNISWAP_V3_ORACLE =
@@ -26,7 +29,11 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         _deployOracleManager();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
 
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
@@ -103,7 +110,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
 
     function testRevertGetPriceInETH__NotSupported() public {
         vm.expectRevert(
-            UniswapV3Adaptor.UniswapV3Adaptor__AssetIsNotSupported.selector
+            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.getPrice(address(0), false, false);
     }
@@ -126,7 +133,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         assetConfig.priceSource = _WBTC_WETH;
         assetConfig.secondsAgo = 3600;
         vm.expectRevert(
-            UniswapV3Adaptor.UniswapV3Adaptor__AssetIsNotSupported.selector
+            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.addAsset(_USDC_ADDRESS, assetConfig);
     }
@@ -143,7 +150,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
 
     function testRevertRemoveAsset__AssetIsNotSupported() public {
         vm.expectRevert(
-            UniswapV3Adaptor.UniswapV3Adaptor__AssetIsNotSupported.selector
+            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.removeAsset(_USDC_ADDRESS);
     }

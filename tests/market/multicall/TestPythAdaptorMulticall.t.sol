@@ -60,7 +60,11 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             ICentralRegistry(address(centralRegistry)),
             address(nativeUniversalBalance),
             _PYTH_ADDRESS,
-            _WETH_ADDRESS
+            _WETH_ADDRESS,
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
 
         PythAdaptor.AssetConfig memory data;

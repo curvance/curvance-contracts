@@ -297,7 +297,11 @@ contract TestBaseMarketIsolated is TestBase {
         );
 
         chainlinkAdaptor = chainlinkAdaptors[chainId] = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
@@ -366,7 +370,13 @@ contract TestBaseMarketIsolated is TestBase {
 
         dualChainlinkAdaptor = dualChainlinkAdaptors[
             chainId
-        ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
+        ] = new ChainlinkAdaptor(ICentralRegistry(
+            address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
+        );
 
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
@@ -428,7 +438,11 @@ contract TestBaseMarketIsolated is TestBase {
             chainId
         ] = new BalancerStablePoolAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            IVault(_BAL_VAULT_ADDRESS)
+            IVault(_BAL_VAULT_ADDRESS),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
         BalancerStablePoolAdaptor.AssetConfig memory assetConfig;
         assetConfig.poolId = _BAL_WETH_RETH_POOLID;

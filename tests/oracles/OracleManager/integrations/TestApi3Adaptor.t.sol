@@ -5,6 +5,8 @@ import { Api3Adaptor } from "contracts/oracles/adaptors/api3/Api3Adaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract TestApi3Adaptor is TestBaseOracleManager {
@@ -22,7 +24,11 @@ contract TestApi3Adaptor is TestBaseOracleManager {
         _deployOracleManager();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
 
         adaptor = new Api3Adaptor(ICentralRegistry(address(centralRegistry)));
@@ -51,7 +57,7 @@ contract TestApi3Adaptor is TestBaseOracleManager {
     }
 
     function testRevertGetPrice__AssetIsNotSupported() public {
-        vm.expectRevert(Api3Adaptor.Api3Adaptor__AssetIsNotSupported.selector);
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector);
         adaptor.getPrice(_USDC_ADDRESS, true, false);
     }
 
@@ -96,7 +102,7 @@ contract TestApi3Adaptor is TestBaseOracleManager {
     }
 
     function testRevertRemoveAsset__AssetIsNotSupported() public {
-        vm.expectRevert(Api3Adaptor.Api3Adaptor__AssetIsNotSupported.selector);
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector);
         adaptor.removeAsset(address(0));
     }
 

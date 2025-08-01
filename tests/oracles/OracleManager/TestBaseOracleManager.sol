@@ -27,10 +27,22 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
 
         chainlinkAdaptor = chainlinkAdaptors[
             block.chainid
-        ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
+        ] = new ChainlinkAdaptor(ICentralRegistry(
+            address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
+        );
         dualChainlinkAdaptor = dualChainlinkAdaptors[
             block.chainid
-        ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
+        ] = new ChainlinkAdaptor(ICentralRegistry(
+            address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
+        );
 
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         dualChainlinkAdaptor.addAsset(

@@ -92,7 +92,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             uint256 nativeReportedMin,
             uint256 nativeMax,
             uint256 nativeMin
-        ) = chainlinkAdaptor.adaptorDataNonUSD(SNX_ADDRESS);
+        ) = chainlinkAdaptor.assetConfig(SNX_ADDRESS, false);
         
         // Assert native adaptor data
         assertEq(address(nativeAggregator), address(snxEthPriceFeed));
@@ -261,7 +261,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
 
     function testGetPriceRevertAssetNotSupported() public {
         // Should revert when asset is not supported
-        vm.expectRevert(ChainlinkAdaptor.ChainlinkAdaptor__AssetIsNotSupported.selector);
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector);
         chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
     }
 

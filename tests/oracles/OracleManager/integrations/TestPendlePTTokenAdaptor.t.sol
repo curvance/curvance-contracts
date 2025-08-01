@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
+
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendlePrincipalTokenAdaptor.sol";
+import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
+import { OracleManager } from "contracts/oracles/OracleManager.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
-import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { OracleManager } from "contracts/oracles/OracleManager.sol";
+
+import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
     address internal _PT_ORACLE = 0x14030836AEc15B2ad48bB097bd57032559339c92;
@@ -25,7 +30,11 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
 
         adapter = new PendlePrincipalTokenAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            IPendlePTOracle(_PT_ORACLE)
+            IPendlePTOracle(_PT_ORACLE),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
     }
 
@@ -45,7 +54,11 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
 
     function testReturnsCorrectPrice() public {
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(_STETH, _CHAINLINK_ETH_USD, 0, true);
@@ -146,7 +159,11 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
     function testCanUpdateAsset() public {
         // set quote asset
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(_STETH, _CHAINLINK_ETH_USD, 0, true);
@@ -168,9 +185,7 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
 
     function testRevertRemoveAsset__AssetIsNotSupported() public {
         vm.expectRevert(
-            PendlePrincipalTokenAdaptor
-                .PendlePrincipalTokenAdaptor__AssetIsNotSupported
-                .selector
+            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adapter.removeAsset(_PT_STETH);
     }

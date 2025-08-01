@@ -5,8 +5,12 @@ import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { BaseVolatileLPAdaptor } from "contracts/oracles/adaptors/stableswapBase/BaseVolatileLPAdaptor.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
@@ -23,11 +27,19 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
         _deployOracleManager();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
 
         adaptor = new VelodromeVolatileLPAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
         adaptor.addAsset(_VELODROME_WETH_USDC);
 
@@ -169,18 +181,14 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
 
     function testRevertGetPrice__AssetIsNotSupported() public {
         vm.expectRevert(
-            BaseVolatileLPAdaptor
-                .BaseVolatileLPAdaptor__AssetIsNotSupported
-                .selector
+            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.getPrice(address(0), true, false);
     }
 
     function testRevertRemoveAsset__AssetIsNotSupported() public {
         vm.expectRevert(
-            BaseVolatileLPAdaptor
-                .BaseVolatileLPAdaptor__AssetIsNotSupported
-                .selector
+            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.removeAsset(address(0));
     }

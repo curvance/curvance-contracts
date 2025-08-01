@@ -31,7 +31,11 @@ contract TestGMAdaptor is TestBaseOracleManager {
             _GMX_DATASTORE
         );
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
 
         oracleManager.addApprovedAdaptor(address(adaptor));
@@ -134,7 +138,7 @@ contract TestGMAdaptor is TestBaseOracleManager {
     function testRemoveAssetRevertWhenGCTokenIsNotSupported() public {
         adaptor.removeAsset(_GM_BTC_USDC);
 
-        vm.expectRevert(GMAdaptor.GMAdaptor__AssetIsNotSupported.selector);
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector);
         adaptor.removeAsset(_GM_BTC_USDC);
     }
 

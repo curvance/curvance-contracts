@@ -51,7 +51,11 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         _deployOracleManager();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
@@ -79,7 +83,11 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         );
 
         adaptor = new VelodromeStableLPAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
         adaptor.addAsset(_VELODROME_DAI_USDC);
         oracleManager.addApprovedAdaptor(address(adaptor));

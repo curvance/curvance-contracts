@@ -48,7 +48,11 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
         );
 
         adaptor = new Curve2PoolLPAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
         adaptor.setReentrancyConfig(2, 10000);
 

@@ -5,8 +5,12 @@ import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/V
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { BaseStableLPAdaptor } from "contracts/oracles/adaptors/stableswapBase/BaseStableLPAdaptor.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
@@ -23,11 +27,19 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
         _deployOracleManager();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
 
         adaptor = new VelodromeStableLPAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            .1e18,
+            0,
+            30 days,
+            7 days
         );
         adaptor.addAsset(_VELODROME_DAI_USDC);
 
@@ -167,18 +179,14 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
 
     function testRevertGetPrice__AssetIsNotSupported() public {
         vm.expectRevert(
-            BaseStableLPAdaptor
-                .BaseStableLPAdaptor__AssetIsNotSupported
-                .selector
+            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.getPrice(address(0), true, false);
     }
 
     function testRevertRemoveAsset__AssetIsNotSupported() public {
         vm.expectRevert(
-            BaseStableLPAdaptor
-                .BaseStableLPAdaptor__AssetIsNotSupported
-                .selector
+            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.removeAsset(address(0));
     }

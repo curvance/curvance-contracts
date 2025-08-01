@@ -220,7 +220,11 @@
 //         chainlinkDaiEth = new MockV3Aggregator(18, 1e18, 1e24, 1e13);
 
 //         chainlinkAdaptor = new ChainlinkAdaptor(
-//             ICentralRegistry(address(centralRegistry))
+//             ICentralRegistry(address(centralRegistry)),
+//             .1e18,
+//             0,
+//             30 days,
+//             7 days
 //         );
 //         chainlinkAdaptor.addAsset(
 //             _WETH_ADDRESS,
