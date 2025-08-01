@@ -22,11 +22,13 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
         // List tokens in the market.
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigCollateralOff(address(strategyCBALRETH), 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
     }
 
     function test_setLiquidationConfig_fail_whenUnauthorized() public {
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+
         // // Non-dapp control user should not be able to set penalty
         vm.startPrank(user1);
         
@@ -37,6 +39,8 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
     }
 
     function test_setLiquidationConfig_fail_whenTokenNotListed() public {
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+
         vm.startPrank(dappControlUser);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector); 
@@ -45,8 +49,6 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
     }
 
     function test_setLiquidationConfig_fail_whenCollateralizationOff() public {
-        _setCTokenConfigCollateralOff(address(strategyCBALRETH), 0);
-
         vm.startPrank(dappControlUser);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedLiquidation.selector); 
@@ -55,6 +57,8 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
     }
 
     function test_setLiquidationConfig_fail_whenInvalidValues() public {
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+
         uint256 tooLowPenalty = 1.0001e18;
         uint256 tooHighPenalty = 1.25e18; 
         uint256 validPenalty = 1.15e18;
@@ -80,6 +84,7 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
     }
 
     function test_setLiquidationConfig_success() public {
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
         _setAuctionConfigs(address(strategyCBALRETH), 1.15e18, 0.30e18);
 
         // Verify the penalty was set correctly

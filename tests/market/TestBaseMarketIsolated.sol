@@ -766,15 +766,15 @@ contract TestBaseMarketIsolated is TestBase {
         MarketManagerIsolated.TokenConfig memory tokenConfig;
         tokenConfig.cToken = cToken;
         tokenConfig.collRatio = 0;
-        tokenConfig.collReqSoft = 5000;
-        tokenConfig.collReqHard = 4000;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
         tokenConfig.liqIncBase = 1000;
         tokenConfig.liqIncHard = 1500;
-        tokenConfig.liqIncMin = 500;
+        tokenConfig.liqIncMin = 10;
         tokenConfig.liqIncMax = 2000;
+        tokenConfig.closeFactorBase = 2000;
         tokenConfig.closeFactorMin = 2000;
         tokenConfig.closeFactorMax = 5000;
-        tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 0;
         tokenConfig.debtCap = debtCap;
 
