@@ -2,8 +2,8 @@
 pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { VaultZapperNative } from "contracts/plugins/market/VaultZapperNative.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { NativeVaultZapper } from "contracts/plugins/market/NativeVaultZapper.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
@@ -18,7 +18,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 
 contract TestVaultZapperWithNative is TestBaseMarketIsolated {
 
-    VaultZapperNative public vaultZapper;
+    NativeVaultZapper public vaultZapper;
     address public SHMON_ADDRESS = 0x3a98250F98Dd388C211206983453837C8365BDc1;
     address public WMON_ADDRESS = 0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701;
     
@@ -43,7 +43,7 @@ contract TestVaultZapperWithNative is TestBaseMarketIsolated {
         _deployOracleManager();
         _deployBorrowableCUSDC();
 
-        vaultZapper = new VaultZapperNative(ICentralRegistry(address(centralRegistry)), WMON_ADDRESS);
+        vaultZapper = new NativeVaultZapper(ICentralRegistry(address(centralRegistry)), WMON_ADDRESS);
 
         centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_SWAP_ROUTER,

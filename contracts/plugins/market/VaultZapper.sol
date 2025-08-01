@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+import { ICentralRegistry } from "contracts/plugins/BaseZapper.sol";
 import { BaseVaultZapper } from "./BaseVaultZapper.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -73,7 +73,7 @@ contract VaultZapper is BaseVaultZapper {
         }
 
         if(asset != swapAction.outputToken) {
-            revert ZapperBase__UnderlyingTokenIsNotInputToken();
+            revert BaseZapper__UnderlyingTokenIsNotInputToken();
         }
 
         if (swapAction.inputToken == swapAction.outputToken) {

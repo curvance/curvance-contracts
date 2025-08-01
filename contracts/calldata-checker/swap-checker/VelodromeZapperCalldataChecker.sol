@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { BaseSwapChecker } from "./BaseSwapChecker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
@@ -84,7 +84,7 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
             funcSigHash == VelodromeZapper.redeemAndExitVelodrome.selector
         ) {
             (
-                ZapperBase.RedeemAction memory redeemAction,
+                BaseZapper.RedeemAction memory redeemAction,
                 ,
                 VelodromeZapper.ZapAction memory desc,
                 ,
@@ -92,7 +92,7 @@ contract VelodromeZapperCalldataChecker is BaseSwapChecker {
             ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
-                        ZapperBase.RedeemAction,
+                        BaseZapper.RedeemAction,
                         address,
                         VelodromeZapper.ZapAction,
                         SwapperLib.Swap[],

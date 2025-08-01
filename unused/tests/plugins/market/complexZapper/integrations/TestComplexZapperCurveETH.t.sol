@@ -6,7 +6,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
@@ -265,7 +265,7 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
         vm.prank(user1);
         pToken.setDelegateApproval(address(complexZapper), true);
 
-        ZapperBase.RedeemAction memory redeemAction;
+        BaseZapper.RedeemAction memory redeemAction;
         redeemAction.mToken = address(pToken);
         redeemAction.shares = 2.9 ether;
         redeemAction.forceRedeemCollateral = false;

@@ -6,7 +6,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
-import { TestBaseSimpleRewardZapper, ZapperBase, SimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
+import { TestBaseSimpleRewardZapper, BaseZapper, SimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
 contract ClaimRewardsTest is TestBaseSimpleRewardZapper {

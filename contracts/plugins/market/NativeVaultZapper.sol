@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+import { ICentralRegistry } from "contracts/plugins/BaseZapper.sol";
 import { BaseVaultZapper } from "./BaseVaultZapper.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -11,7 +11,7 @@ import { IVault } from "contracts/interfaces/IVault.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
-contract VaultZapperNative is BaseVaultZapper {
+contract NativeVaultZapper is BaseVaultZapper {
     /// CONSTRUCTOR ///
 
     constructor(
@@ -60,7 +60,7 @@ contract VaultZapperNative is BaseVaultZapper {
         );
 
         if(!CommonLib._isNative(swapAction.outputToken)) {
-            revert ZapperBase__UnderlyingTokenIsNotInputToken();
+            revert BaseZapper__UnderlyingTokenIsNotInputToken();
         }
 
         if (swapAction.inputToken == swapAction.outputToken) {

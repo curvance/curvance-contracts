@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ZapperBase, SwapperLib, CommonLib, IPToken, SafeTransferLib, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper, SwapperLib, CommonLib, IPToken, SafeTransferLib, ICentralRegistry } from "contracts/plugins/BaseZapper.sol";
 
 import { CurveLib } from "contracts/libraries/CurveLib.sol";
 import { BalancerLib } from "contracts/libraries/BalancerLib.sol";
@@ -11,7 +11,7 @@ import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 
-contract ComplexZapper is ZapperBase {
+contract ComplexZapper is BaseZapper {
     /// TYPES ///
 
     /// @param inputToken Address of input token to Zap from.
@@ -50,7 +50,7 @@ contract ComplexZapper is ZapperBase {
     constructor(
         ICentralRegistry centralRegistry_,
         address wrappedNative_
-    ) ZapperBase(centralRegistry_, wrappedNative_) {}
+    ) BaseZapper(centralRegistry_, wrappedNative_) {}
 
     /// EXTERNAL FUNCTIONS ///
 

@@ -13,7 +13,7 @@ import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
-abstract contract ZapperBase is ReentrancyGuard {
+abstract contract BaseZapper is ReentrancyGuard {
     /// TYPES ///
 
     /// @param cToken The address of the cToken corresponding to the
@@ -35,16 +35,16 @@ abstract contract ZapperBase is ReentrancyGuard {
     /// @notice The address of wrapped native token on this chain.
     address public immutable wrappedNative;
 
-    /// @dev `bytes4(keccak256(bytes("ZapperBase__Unauthorized()")))`.
+    /// @dev `bytes4(keccak256(bytes("BaseZapper__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xa1b2f000;
 
     /// ERRORS ///
 
-    error ZapperBase__Unauthorized();
-    error ZapperBase__UnderlyingTokenIsNotInputToken();
-    error ZapperBase__ExecutionError();
-    error ZapperBase__InsufficientToRepay();
-    error ZapperBase__InvalidCentralRegistry();
+    error BaseZapper__Unauthorized();
+    error BaseZapper__UnderlyingTokenIsNotInputToken();
+    error BaseZapper__ExecutionError();
+    error BaseZapper__InsufficientToRepay();
+    error BaseZapper__InvalidCentralRegistry();
 
     /// CONSTRUCTOR ///
 
@@ -55,7 +55,7 @@ abstract contract ZapperBase is ReentrancyGuard {
                 type(ICentralRegistry).interfaceId
             )
         ) {
-            revert ZapperBase__InvalidCentralRegistry();
+            revert BaseZapper__InvalidCentralRegistry();
         }
 
         centralRegistry = centralRegistry_;
@@ -154,7 +154,7 @@ abstract contract ZapperBase is ReentrancyGuard {
 
         // Make sure `receiver` got sufficient shares.
         if (shares < expectedShares) {
-            revert ZapperBase__ExecutionError();
+            revert BaseZapper__ExecutionError();
         }
 
         // Remove any leftover approval.
@@ -226,7 +226,7 @@ abstract contract ZapperBase is ReentrancyGuard {
 
         // Validate output of redemption is sufficient.
         if (assets < expectedAssets) {
-            revert ZapperBase__ExecutionError();
+            revert BaseZapper__ExecutionError();
         }
 
         // Return any excess assets remaining back to the user.
@@ -254,7 +254,7 @@ abstract contract ZapperBase is ReentrancyGuard {
     ) internal returns (uint256) {
         // Revert if the swap experienced too much slippage.
         if (assetsHeld < repayAssets) {
-            revert ZapperBase__InsufficientToRepay();
+            revert BaseZapper__InsufficientToRepay();
         }
 
         // Approve `debtAsset` transfer to cToken contract, if needed.
@@ -296,7 +296,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         if (CommonLib._isNative(inputToken)) {
             // Validate message has gas token attached.
             if (inputAmount != msg.value) {
-                revert ZapperBase__ExecutionError();
+                revert BaseZapper__ExecutionError();
             }
 
             if (depositAsWrappedNative) {
@@ -324,14 +324,14 @@ abstract contract ZapperBase is ReentrancyGuard {
         // Validate `cToken` exists, otherwise transfer their tokens
         // back and return.
         if (cToken == address(0)) {
-            revert ZapperBase__ExecutionError ();
+            revert BaseZapper__ExecutionError ();
         }
 
         cTokenAsset = ICToken(cToken).asset();
 
         // Validate `asset` matches asset of cToken contract.
         if (asset != cTokenAsset) {
-            revert ZapperBase__UnderlyingTokenIsNotInputToken();
+            revert BaseZapper__UnderlyingTokenIsNotInputToken();
         }
     }
 

@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { VaultZapper } from "contracts/plugins/market/VaultZapper.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
@@ -204,7 +204,7 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
 
         simpleCSFRAX.setDelegateApproval(address(vaultZapper), true);
 
-        ZapperBase.RedeemAction memory redeemAction;
+        BaseZapper.RedeemAction memory redeemAction;
         redeemAction.cToken = address(simpleCSFRAX);
         redeemAction.shares = cTokenShares;
         redeemAction.forceRedeemCollateral = false;
@@ -264,7 +264,7 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
 
         simpleCSFRAX.setDelegateApproval(address(vaultZapper), true);
 
-        ZapperBase.RedeemAction memory redeemAction;
+        BaseZapper.RedeemAction memory redeemAction;
         redeemAction.cToken = address(simpleCSFRAX);
         redeemAction.shares = cTokenShares;
         redeemAction.forceRedeemCollateral = false;
@@ -360,7 +360,7 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
 
         simpleCSFRAX.setDelegateApproval(address(vaultZapper), true);
 
-        ZapperBase.RedeemAction memory redeemAction;
+        BaseZapper.RedeemAction memory redeemAction;
         redeemAction.cToken = address(simpleCSFRAX);
         redeemAction.shares = cTokenShares;
         redeemAction.forceRedeemCollateral = false;

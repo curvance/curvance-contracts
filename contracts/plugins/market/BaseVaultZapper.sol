@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ZapperBase, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper, ICentralRegistry } from "contracts/plugins/BaseZapper.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
@@ -9,13 +9,13 @@ import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-abstract contract BaseVaultZapper is ZapperBase {
+abstract contract BaseVaultZapper is BaseZapper {
     /// CONSTRUCTOR ///
 
     constructor(
         ICentralRegistry centralRegistry_,
         address wrappedNative_
-    ) ZapperBase(centralRegistry_, wrappedNative_) {}
+    ) BaseZapper(centralRegistry_, wrappedNative_) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -52,7 +52,7 @@ abstract contract BaseVaultZapper is ZapperBase {
         address asset = address(vault.asset());
 
         if(asset != swapAction.inputToken) {
-            revert ZapperBase__UnderlyingTokenIsNotInputToken();
+            revert BaseZapper__UnderlyingTokenIsNotInputToken();
         }
 
         // Exit Curvance position.

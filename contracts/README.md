@@ -119,7 +119,7 @@ Core lending infrastructure that implements Curvance's unique Dynamic Liquidatio
 **Contents**:
 - 📁 `market/`: Contains specialized zapper contracts that facilitate seamless interactions between users and various DeFi protocols (like Pendle and Velodrome), enabling complex multi-step operations to be executed in single transactions within the Curvance ecosystem.
 - 📁 `rewards/`: Contracts that streamline the process of claiming rewards and reinvesting them into the protocol in a single transactions.
-- 📄 `ZapperBase.sol`: An abstract contract that provides the foundational infrastructure for various zapper implementations in the Curvance protocol, handling common functionality such as token routing, protocol interactions, and slippage controls.
+- 📄 `BaseZapper.sol`: An abstract contract that provides the foundational infrastructure for various zapper implementations in the Curvance protocol, handling common functionality such as token routing, protocol interactions, and slippage controls.
 ---
 ### 📁 testnet
 

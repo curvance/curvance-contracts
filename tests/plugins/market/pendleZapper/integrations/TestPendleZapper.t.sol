@@ -12,7 +12,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
@@ -295,7 +295,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
     function testRedeemAndExitPendle() public {
         testEnterPendleWithCTokenWithCollateralize();
 
-        ZapperBase.RedeemAction memory redeemAction;
+        BaseZapper.RedeemAction memory redeemAction;
         redeemAction.cToken = address(pendleCTokenSTETH);
         redeemAction.shares = 1.24 ether;
         redeemAction.forceRedeemCollateral = false;
