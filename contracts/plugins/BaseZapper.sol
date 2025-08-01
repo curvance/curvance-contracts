@@ -36,7 +36,7 @@ abstract contract BaseZapper is ReentrancyGuard {
     address public immutable wrappedNative;
 
     /// @dev `bytes4(keccak256(bytes("BaseZapper__Unauthorized()")))`.
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xa1b2f000;
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x2e88661c;
 
     /// ERRORS ///
 
