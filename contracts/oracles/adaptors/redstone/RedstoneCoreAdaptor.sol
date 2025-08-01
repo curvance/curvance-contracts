@@ -150,7 +150,7 @@ contract RedstoneCoreAdaptor is
         bool inUSD,
         uint128 redstoneTimestamp
     ) external {
-        AssetConfig memory data = assetConfig[asset][inUSD];
+        AssetConfig memory config = assetConfig[asset][inUSD];
         if (!config.isConfigured) {
             revert RedstoneCoreAdaptor__AssetIsNotSupported();
         }

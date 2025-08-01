@@ -122,7 +122,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ) external {
         _checkMarketPermissions();
 
-        if (guardType == 0 || guardType > 3) {
+        if (guardType == 0 || guardType > 2) {
             _revert(_INVALID_CONFIG_SELECTOR);
         }
         
@@ -181,6 +181,12 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         }
 
         PriceGuard storage model = priceGuards[asset][inUSD];
+
+        // New `timestampStart` needs to start after the current one.
+        if (model.timestampStart > timestampStart) {
+            _revert(_INVALID_CONFIG_SELECTOR);
+        }
+
         model.guardType = guardType;
         model.increasePerSecond = increasePerSecond;
         model.timestampStart = timestampStart;
