@@ -137,7 +137,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         assetConfig.priceSource = _WBTC_WETH;
         assetConfig.secondsAgo = 3600;
         vm.expectRevert(
-            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
+            UniswapV3Adaptor.UniswapV3Adaptor__AssetIsNotSupported.selector
         );
         adaptor.addAsset(_USDC_ADDRESS, assetConfig);
     }
