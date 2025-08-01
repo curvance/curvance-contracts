@@ -50,8 +50,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         assertTrue(chainlinkAdaptor.isSupportedAsset(SNX_ADDRESS));
         
         (
-            IChainlink aggregator,
             bool isConfigured,
+            IChainlink aggregator,
             uint256 decimals,
             uint256 heartbeat,
             uint256 reportedMax,
@@ -84,8 +84,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         );
 
         (
-            IChainlink nativeAggregator,
             bool nativeIsConfigured,
+            IChainlink nativeAggregator,
             uint256 nativeDecimals,
             uint256 nativeHeartbeat,
             uint256 nativeReportedMax,
@@ -148,8 +148,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
 
         // Assert USD adaptor data is cleared
         (
-            IChainlink aggregator,
             bool isConfigured,
+            IChainlink aggregator,
             uint256 decimals,
             uint256 heartbeat,
             uint256 reportedMax,
@@ -197,8 +197,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         );
         
         (
-            IChainlink aggregator,
             bool isConfigured,
+            IChainlink aggregator,
             uint256 decimals,
             uint256 heartbeat,
             uint256 reportedMax,
@@ -216,7 +216,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         vm.expectEmit(true, false, false, false);
 
         emit AssetAdded(SNX_ADDRESS, ChainlinkAdaptor.AssetConfig(
-            aggregator, isConfigured, decimals, heartbeat, reportedMax, reportedMin, max, min
+            isConfigured, aggregator, decimals, heartbeat, reportedMax, reportedMin, max, min
             ), true
         );
         
