@@ -49,31 +49,34 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         // Assert asset is now supported
         assertTrue(chainlinkAdaptor.isSupportedAsset(SNX_ADDRESS));
         
-        (
-            bool isConfigured,
-            IChainlink aggregator,
-            uint256 decimals,
-            uint256 heartbeat,
-            uint256 reportedMax,
-            uint256 reportedMin,
-            uint256 max,
-            uint256 min
-        ) = chainlinkAdaptor.assetConfig(SNX_ADDRESS, true);
+        // Test USD configuration
+        {
+            (
+                bool isConfigured,
+                IChainlink aggregator,
+                uint256 decimals,
+                uint256 heartbeat,
+                uint256 reportedMax,
+                uint256 reportedMin,
+                uint256 max,
+                uint256 min
+            ) = chainlinkAdaptor.assetConfig(SNX_ADDRESS, true);
 
-        assertEq(address(aggregator), address(snxUsdPriceFeed));
-        assertTrue(isConfigured);
+            assertEq(address(aggregator), address(snxUsdPriceFeed));
+            assertTrue(isConfigured);
 
-        assertEq(decimals, 8);
-        assertEq(heartbeat, chainlinkAdaptor.DEFAULT_HEART_BEAT());
+            assertEq(decimals, 8);
+            assertEq(heartbeat, chainlinkAdaptor.DEFAULT_HEART_BEAT());
 
-        // Assert USD adaptor data
-        // buffered max: 1e11 * 9/10
-        // buffered min: 1e6 * 11/10
-        assertEq(reportedMax, (1e11 * 9) / 10);
-        assertEq(reportedMin, (1e6 * 11) / 10);
+            // Assert USD adaptor data
+            // buffered max: 1e11 * 9/10
+            // buffered min: 1e6 * 11/10
+            assertEq(reportedMax, (1e11 * 9) / 10);
+            assertEq(reportedMin, (1e6 * 11) / 10);
 
-        assertEq(max, type(uint240).max);
-        assertEq(min, 0);
+            assertEq(max, type(uint240).max);
+            assertEq(min, 0);
+        }
 
         // Add native feed
         chainlinkAdaptor.addAsset(
@@ -83,37 +86,44 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             false
         );
 
-        (
-            bool nativeIsConfigured,
-            IChainlink nativeAggregator,
-            uint256 nativeDecimals,
-            uint256 nativeHeartbeat,
-            uint256 nativeReportedMax,
-            uint256 nativeReportedMin,
-            uint256 nativeMax,
-            uint256 nativeMin
-        ) = chainlinkAdaptor.assetConfig(
-            SNX_ADDRESS,
-            false
-        );
-        
-        // Assert native adaptor data
-        assertEq(address(nativeAggregator), address(snxEthPriceFeed));
-        assertTrue(nativeIsConfigured);
+        // Test native configuration
+        {
+            (
+                bool nativeIsConfigured,
+                IChainlink nativeAggregator,
+                uint256 nativeDecimals,
+                uint256 nativeHeartbeat,
+                uint256 nativeReportedMax,
+                uint256 nativeReportedMin,
+                uint256 nativeMax,
+                uint256 nativeMin
+            ) = chainlinkAdaptor.assetConfig(
+                SNX_ADDRESS,
+                false
+            );
+            
+            // Assert native adaptor data
+            assertEq(address(nativeAggregator), address(snxEthPriceFeed));
+            assertTrue(nativeIsConfigured);
 
-        assertEq(nativeDecimals, 8);
-        assertEq(nativeHeartbeat, chainlinkAdaptor.DEFAULT_HEART_BEAT());
+            assertEq(nativeDecimals, 8);
+            assertEq(nativeHeartbeat, chainlinkAdaptor.DEFAULT_HEART_BEAT());
 
+            assertEq(nativeReportedMax, (1e11 * 9) / 10);
+            assertEq(nativeReportedMin, (1e6 * 11) / 10);
 
-        assertEq(nativeReportedMax, (1e11 * 9) / 10);
-        assertEq(nativeReportedMin, (1e6 * 11) / 10);
+            assertEq(nativeMax, type(uint240).max);
+            assertEq(nativeMin, 0);
+        }
 
-        assertEq(nativeMax, type(uint240).max);
-        assertEq(nativeMin, 0);
-
-        // Both usd and native should be configured
-        assertTrue(isConfigured);
-        assertTrue(nativeIsConfigured);
+        // Verify both configurations are still valid
+        {
+            (bool isConfigured,,,,,,,) = chainlinkAdaptor.assetConfig(SNX_ADDRESS, true);
+            (bool nativeIsConfigured,,,,,,,) = chainlinkAdaptor.assetConfig(SNX_ADDRESS, false);
+            
+            assertTrue(isConfigured);
+            assertTrue(nativeIsConfigured);
+        }
 
         // Should successfully add to oracle manager
         oracleManager.addAssetPriceFeed(
