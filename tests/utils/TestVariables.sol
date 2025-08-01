@@ -214,6 +214,7 @@ contract TestVariables {
         _initArbitrumVariables();
         _initOptimismVariables();
         _initBaseVariables();
+        _initMonadVariables();
     }
 
     function _initMainnetVariables() internal {
@@ -349,6 +350,12 @@ contract TestVariables {
         _UNISWAP_V2_ROUTERS[
             chainId
         ] = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
+    }
+
+    function _initMonadVariables() internal {
+        uint256 chainId = 10143;
+
+        _USDC_ADDRESSES[chainId] = 0xf817257fed379853cDe0fa4F97AB987181B1E5Ea;
     }
 
     function _initMainConstantVariables() internal {
