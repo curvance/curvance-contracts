@@ -51,7 +51,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
     ) public returns (bytes memory) {
         string[] memory args = new string[](8);
         args[0] = "node";
-        args[1] = "getOdosSwapAction.js";
+        args[1] = "getOdosSwapData.js";
         args[2] = vm.toString(chainId);
         args[3] = vm.toString(fromToken);
         args[4] = vm.toString(toToken);
