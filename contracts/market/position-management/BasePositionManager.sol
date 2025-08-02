@@ -109,7 +109,7 @@ abstract contract BasePositionManager is
     ) PluginDelegable(cr) {
         // Validate that `mm` is configured as a Market Manager inside the
         // Protocol Central Registry.
-        if (!centralRegistry_.isMarketManager(mm)) {
+        if (!cr.isMarketManager(mm)) {
             revert BasePositionManager__InvalidMarketManager();
         }
 

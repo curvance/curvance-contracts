@@ -41,7 +41,7 @@ abstract contract BaseCTokenWithYield is BaseCToken {
     /// @param vestingPeriod_ The length of time a vesting period will last,
     ///                       in seconds.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         IERC20 asset_,
         address mm,
         uint256 vestingPeriod_

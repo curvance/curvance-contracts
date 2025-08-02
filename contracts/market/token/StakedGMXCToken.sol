@@ -37,18 +37,13 @@ contract StakedGMXCToken is StrategyCToken {
     /// @param vestingPeriod_ The length of time a vesting period will last,
     ///                       in seconds.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         IERC20 asset_, // GMX
         address mm,
         address rewardRouter_,
         address weth_,
         uint256 vestingPeriod_
-    ) StrategyCToken(
-        centralRegistry_,
-        asset_,
-        mm,
-        vestingPeriod_
-    ) {
+    ) StrategyCToken(cr, asset_, mm, vestingPeriod_) {
         if (block.chainid != _ARBITRUM_CHAIN_ID) {
             revert StakedGMXCToken__ChainIsNotSupported();
         }
