@@ -11,6 +11,43 @@ interface IInterestRateModel {
     ///         contract.
     function linkedToken() external view returns (address);
 
+    /// @notice Calculates the current borrow rate, per second.
+    /// @dev This function's intention is for frontend data querying and
+    ///     should not be used for onchain execution.
+    /// @param assetsHeld The amount of underlying assets held in the pool.
+    /// @param debt The amount of outstanding debt in the pool.
+    /// @return result The borrow interest rate percentage, per second,
+    ///                in `WAD`.
+    function getBorrowRate(
+        uint256 assetsHeld,
+        uint256 debt
+    ) external view returns (uint256 result);
+
+    /// @notice Calculates the current borrow rate per second,
+    ///         with updated vertex multiplier applied.
+    /// @param assetsHeld The amount of underlying assets held in the pool.
+    /// @param debt The amount of outstanding debt in the pool.
+    /// @return result The borrow rate percentage per second, in `WAD`.
+    function getPredictedBorrowRate(
+        uint256 assetsHeld,
+        uint256 debt
+    ) external view returns (uint256 result);
+
+    /// @notice Calculates the current supply rate, per second.
+    /// @dev This function's intention is for frontend data querying and
+    ///     should not be used for onchain execution.
+    /// @param assetsHeld The amount of underlying assets held in the pool.
+    /// @param debt The amount of outstanding debt in the pool.
+    /// @param interestFee The current interest rate protocol fee
+    ///                    for the market token.
+    /// @return result The supply interest rate percentage, per second,
+    ///                in `WAD`.
+    function getSupplyRate(
+        uint256 assetsHeld,
+        uint256 debt,
+        uint256 interestFee
+    ) external view returns (uint256 result);
+
     /// @notice Calculates the current borrow rate per second,
     ///         and updates the vertex multiplier if necessary.
     /// @param assetsHeld The amount of underlying assets held in the pool.

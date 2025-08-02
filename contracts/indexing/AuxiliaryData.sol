@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { WAD } from "contracts/libraries/Constants.sol";
+import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/Constants.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -397,10 +397,10 @@ contract AuxiliaryData {
     ) public view returns (uint256) {
         IBorrowableCToken token = IBorrowableCToken(cToken);
         return
-            token.interestRateModel().getBorrowRatePerYear(
+            token.interestRateModel().getBorrowRate(
                 token.assetsHeld(),
                 token.marketOutstandingDebt()
-            );
+            ) * SECONDS_PER_YEAR;
     }
 
     /// @notice Returns predicted upcoming borrow interest rate per year
@@ -413,10 +413,10 @@ contract AuxiliaryData {
     ) public view returns (uint256) {
         IBorrowableCToken token = IBorrowableCToken(cToken);
         return
-            token.interestRateModel().getPredictedBorrowRatePerYear(
+            token.interestRateModel().getPredictedBorrowRate(
                 token.assetsHeld(),
                 token.marketOutstandingDebt()
-            );
+            ) * SECONDS_PER_YEAR;
     }
 
     /// @notice Returns the current supply interest rate per year for `cToken`.
@@ -427,11 +427,11 @@ contract AuxiliaryData {
     ) public view returns (uint256) {
         IBorrowableCToken token = IBorrowableCToken(cToken);
         return
-            token.interestRateModel().getSupplyRatePerYear(
+            token.interestRateModel().getSupplyRate(
                 token.assetsHeld(),
                 token.marketOutstandingDebt(),
                 token.interestFee()
-            );
+            ) * SECONDS_PER_YEAR;
     }
 
     function getBaseRewards(address token) public view returns (uint256) {}
