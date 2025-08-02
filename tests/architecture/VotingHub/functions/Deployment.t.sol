@@ -13,10 +13,9 @@ contract VotingHubDeploymentTest is TestBaseVotingHub {
     function test_votingHubDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(
-            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
-                .selector
-        );
+        // No selector here since it will fail on
+        // centralRegistry_.crosschainCore() call before selector error is hit.
+        vm.expectRevert();
         new VotingHub(ICentralRegistry(address(1)));
     }
 

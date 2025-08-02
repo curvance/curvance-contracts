@@ -444,7 +444,7 @@ contract AuxiliaryData {
         bool inUSD,
         bool getLower
     ) public view returns (uint256, uint256) {
-        return _getOracleManager().getPrice(assets, inUSD, getLower);
+        return _getOracleManager().getPrice(asset, inUSD, getLower);
     }
 
     function hasRewards(address user) public view returns (bool) {
