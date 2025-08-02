@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
-import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
+
+import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/Constants.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import "forge-std/console2.sol";
 
 // new DynamicInterestRateModel(
@@ -33,7 +36,6 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
     uint256 constant INITIAL_DEPOSIT = 200000e18;
     uint256 constant BORROW_AMOUNT_BELOW_VERTEX = 40_000e18; // 20% utilization
     uint256 constant BORROW_AMOUNT_ABOVE_VERTEX = 160_000e18; // 80% utilization
-    uint256 internal constant SECONDS_PER_YEAR = 31_536_000;
     uint256 public constant INTEREST_ACCRUAL_PERIOD = 10 minutes;
     
     function setUp() public virtual override {
@@ -104,7 +106,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
-        uint256 initialBorrowRate = interestRateModel.getBorrowRatePerYear(
+        uint256 initialBorrowRate = interestRateModel.getBorrowRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
@@ -116,7 +118,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
-        uint256 newBorrowRate = interestRateModel.getBorrowRatePerYear(
+        uint256 newBorrowRate = interestRateModel.getBorrowRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
@@ -148,13 +150,11 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         // (util * baseInterestRate) / WAD
         (uint256 baseInterestRate, , , , , , , , , , ) = interestRateModel
             .ratesConfig();
-        uint256 expectedRate = (SECONDS_PER_YEAR *
-            (newUtilization * baseInterestRate)) /
-            WAD;
+        uint256 expectedRate = (newUtilization * baseInterestRate) / WAD;
         assertApproxEqRel(
             newBorrowRate,
             expectedRate,
-            0.01e18, // 1% tolerance
+            0.005e18, // 0.5% tolerance
             "Borrow rate should match base rate calculation"
         );
 
@@ -176,7 +176,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
-        uint256 initialBorrowRate = interestRateModel.getBorrowRatePerYear(
+        uint256 initialBorrowRate = interestRateModel.getBorrowRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
@@ -190,7 +190,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
-        uint256 newBorrowRate = interestRateModel.getBorrowRatePerYear(
+        uint256 newBorrowRate = interestRateModel.getBorrowRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
@@ -238,13 +238,12 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         uint256 vertexComponent = ((newUtilization - vertexPoint) *
             vertexInterestRate *
             vertexMultiplier) / (WAD * WAD);
-        uint256 expectedRate = (SECONDS_PER_YEAR *
-            (baseComponent + vertexComponent));
+        uint256 expectedRate = baseComponent + vertexComponent;
 
         assertApproxEqRel(
             newBorrowRate,
             expectedRate,
-            0.01e18, // 1% tolerance
+            0.005e18, // 0.5% tolerance
             "Borrow rate should match vertex rate calculation"
         );
 
