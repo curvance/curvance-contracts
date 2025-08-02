@@ -4,9 +4,7 @@ pragma solidity ^0.8.26;
 import { BaseMulticallChecker } from "contracts/calldata-checker/multicall-checker/BaseMulticallChecker.sol";
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 
-import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-
 
 contract PythAdaptorMulticallChecker is BaseMulticallChecker {
     /// CONSTRUCTOR ///

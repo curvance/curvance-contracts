@@ -4,8 +4,9 @@ pragma solidity ^0.8.26;
 import { BaseCalldataChecker } from "contracts/calldata-checker/BaseCalldataChecker.sol";
 
 import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
@@ -83,7 +84,7 @@ abstract contract BaseMulticallChecker is
 
     function _checkIsApprovedAdaptor(
         address adaptor,
-        uint256 type
+        uint256 adaptorType
     ) internal view {
         // Validate that `adaptor` is approved inside the Oracle Manager.
         if (
@@ -94,7 +95,7 @@ abstract contract BaseMulticallChecker is
         }
 
         // Validate that `adaptor` is the expected adaptor type.
-        if (IOracleAdaptor(adaptor).adaptorType() != type) {
+        if (IOracleAdaptor(adaptor).adaptorType() != adaptorType) {
             revert MulticallChecker__TargetError();
         }
     }
