@@ -77,7 +77,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         adapter.addAsset(_WBTC_ADDRESS, true, data);
         vm.warp(1711335100);
 
-        multicallChecker = new PythAdaptorMulticallChecker(centralRegistry);
+        multicallChecker = new PythAdaptorMulticallChecker(ICentralRegistry(address(centralRegistry)));
         centralRegistry.setMulticallChecker(
             address(adapter),
             address(multicallChecker)

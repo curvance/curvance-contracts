@@ -72,7 +72,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         adapter.addAsset(_WBTC_ADDRESS, false, 18, 10 minutes);
 
         multicallChecker = new RedstoneAdaptorMulticallChecker(
-            centralRegistry
+            ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.setMulticallChecker(
             address(adapter),
