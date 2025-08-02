@@ -34,7 +34,7 @@ abstract contract StrategyCTokenWithGauge is StrategyCToken {
         IERC20 asset_,
         address mm,
         uint256 vestingPeriod_
-    ) StrategyCToken(centralRegistry_, asset_, mm, vestingPeriod_) {
+    ) StrategyCToken(cr, asset_, mm, vestingPeriod_) {
         address gaugeManagerAddress = centralRegistry.gaugeManager();
 
         // Validate Gauge Manager has been set.

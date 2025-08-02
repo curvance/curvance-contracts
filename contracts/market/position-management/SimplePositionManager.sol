@@ -6,6 +6,10 @@ import { BasePositionManager, SwapperLib, ICentralRegistry } from "contracts/mar
 contract SimplePositionManager is BasePositionManager {
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
+    /// @param wrappedNative_ The address of wrapped native token.
     constructor(
         ICentralRegistry cr,
         address mm,
