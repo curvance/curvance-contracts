@@ -526,10 +526,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         _checkElevatedPermissions();
 
         messageTransmitter = newMessageTransmitter;
-        emit CoreContractUpdated(
-            "Message Transmitter",
-            newMessageTransmitter
-        );
+        emit CoreContractUpdated("Message Transmitter", newMessageTransmitter);
     }
 
     /// @notice Sets the domain.

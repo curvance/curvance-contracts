@@ -58,12 +58,6 @@ abstract contract BaseCToken is
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x471656c5;
     /// @dev `bytes4(keccak256(bytes("BaseCToken__InsufficientLiquidity()")))`
     uint256 internal constant _INSUFFICIENT_LIQUIDITY_SELECTOR = 0xe6c95926;
-    /// @dev `keccak256(bytes("Deposit(address,address,uint256,uint256)"))`.
-    uint256 internal constant _DEPOSIT_EVENT_SIGNATURE =
-        0xdcbc1c05240f31ff3ad067ef1ee35ce4997762752e3a095284754544f4c709d7;
-    /// @dev `keccak256(bytes("Withdraw(address,address,address,uint256,uint256)"))`.
-    uint256 internal constant _WITHDRAW_EVENT_SIGNATURE =
-        0xfbde797d201c681b91056529119e0b02407c7bb96a4a2c75c01fc9667232c8db;
     /// @dev `keccak256(bytes("Transfer(address,address,uint256)"))`.
     uint256 internal constant _TRANSFER_EVENT_SIGNATURE =
         0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
@@ -971,16 +965,8 @@ abstract contract BaseCToken is
         // NOTE: This is the erc20 mint function, meaning this is effectively
         //       super._mint().
         _mint(receiver, shares);
-        
-        /// @solidity memory-safe-assembly
-        assembly {
-            // Emit the {Deposit} event.
-            mstore(0x00, assets)
-            mstore(0x20, shares)
-            let m := shr(96, not(0))
-            log3(0x00, 0x40, _DEPOSIT_EVENT_SIGNATURE, and(m, by), and(m, receiver))
-        }
 
+        emit Deposit(by, receiver, assets, shares);
         _afterDepositAction(shares, receiver);
     }
 
@@ -1014,21 +1000,7 @@ abstract contract BaseCToken is
         // Transfer the underlying assets to `receiver`.
         SafeTransferLib.safeTransfer(asset(), receiver, assets);
 
-        /// @solidity memory-safe-assembly
-        assembly {
-            // Emit the {Withdraw} event.
-            mstore(0x00, assets)
-            mstore(0x20, shares)
-            let m := shr(96, not(0))
-            log4(
-                0x00,
-                0x40,
-                _WITHDRAW_EVENT_SIGNATURE,
-                and(m, by),
-                and(m, receiver),
-                and(m, owner)
-            )
-        }
+        emit Withdraw(by, receiver, owner, assets, shares);
     }
 
     /// @notice Used by a Position Manager contract to redeem assets from
@@ -1156,20 +1128,7 @@ abstract contract BaseCToken is
         _mint(cTokenAddress, shares);
         _totalAssets = assets;
 
-        assembly {
-            // Emit the {Deposit} event.
-            mstore(0x00, assets)
-            mstore(0x20, shares)
-            let m := shr(96, not(0))
-            log3(
-                0x00,
-                0x40,
-                _DEPOSIT_EVENT_SIGNATURE,
-                and(m, cTokenAddress),
-                and(m, cTokenAddress)
-            )
-        }
-
+        emit Deposit(cTokenAddress, cTokenAddress, assets, shares);
         _afterDepositAction(shares, cTokenAddress);
     }
 

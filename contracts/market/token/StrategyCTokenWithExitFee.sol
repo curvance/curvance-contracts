@@ -178,7 +178,7 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
     ///                   in basis points.
     function _setExitFee(uint256 newExitFee) internal {
         // Convert `newExitFee` parameter from `basis points` to `WAD`.
-        newExitFee = _bpToWad(newExitFee);
+        newExitFee = newExitFee * 1e14;
 
         // Check if the proposed exit fee is above the allowed maximum.
         if (newExitFee > MAXIMUM_EXIT_FEE) {
@@ -191,14 +191,5 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
         // Set new exit fee.
         exitFee = newExitFee;
         emit ExitFeeSet(oldExitFee, newExitFee);
-    }
-
-    /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
-    ///         to WAD.
-    /// @dev Internal helper function for easily converting between scalars.
-    /// @param value The value to convert from basis points to WAD.
-    /// @return The value in WAD.
-    function _bpToWad(uint256 value) internal pure returns (uint256) {
-        return value * 1e14;
     }
 }
