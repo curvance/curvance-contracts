@@ -1062,7 +1062,7 @@ contract MarketManagerIsolated is
     /// @param newAddress The address to add position management
     ///                   permissions for.
     function addPositionManager(address newAddress) external {
-        _checkElevatedPermissions();
+        _checkMarketPermissions();
 
         if (
             !ERC165Checker.supportsInterface(
@@ -1091,7 +1091,7 @@ contract MarketManagerIsolated is
     /// @param addressApproved The address to remove position
     ///                        management permissions for.
     function removePositionManager(address addressApproved) external {
-        _checkElevatedPermissions();
+        _checkMarketPermissions();
 
         // Validate `addressApproved` already has permissions.
         if (!isPositionManager[addressApproved]) {
@@ -1825,13 +1825,6 @@ contract MarketManagerIsolated is
         return 0;
     }
 
-    /// @dev Checks whether the caller has sufficient permissions.
-    function _checkElevatedPermissions() internal view {
-        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-    }
-
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkMarketPermissions() internal view virtual {
         if (!centralRegistry.hasMarketPermissions(msg.sender)) {
@@ -1856,7 +1849,9 @@ contract MarketManagerIsolated is
             return;
         }
 
-        _checkElevatedPermissions();
+        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
     }
 
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`

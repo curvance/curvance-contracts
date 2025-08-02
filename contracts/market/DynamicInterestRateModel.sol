@@ -197,8 +197,6 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     uint256 internal constant _BITPOS_UPDATE_TIMESTAMP = 192;
     /// @dev `bytes4(keccak256(bytes("DynamicInterestRateModel__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xf7ff5148;
-    /// @dev `bytes4(keccak256(bytes("DynamicInterestRateModel__InvalidToken()")))`.
-    uint256 internal constant _INVALID_TOKEN_SELECTOR = 0x65fb74c1;
 
     /// STORAGE ///
 
@@ -325,7 +323,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         // if the token is not a Curvance token this will also natively fail,
         // which is fine too.
         if (!IBorrowableCToken(cTokenAddress).isBorrowable()) {
-            _revert(_INVALID_TOKEN_SELECTOR);
+            revert DynamicInterestRateModel__InvalidToken();
         }
 
         // Validate that the token is actually expecting this interest
@@ -334,7 +332,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
             address(IBorrowableCToken(cTokenAddress).interestRateModel()) !=
             address(this)
         ) {
-            _revert(_INVALID_TOKEN_SELECTOR);
+            revert DynamicInterestRateModel__InvalidToken();
         }
 
         linkedToken = cTokenAddress;
@@ -371,9 +369,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 decayRate,
         bool vertexReset
     ) external {
-        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
+        _checkMarketPermissions();
 
         _updateDynamicInterestRateModel(
             baseRatePerYear,
@@ -1071,6 +1067,13 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         assembly {
             mstore(0x00, s)
             revert(0x1c, 0x04)
+        }
+    }
+
+    /// @dev Checks whether the caller has sufficient permissioning.
+    function _checkMarketPermissions() internal view virtual {
+        if (!centralRegistry.hasMarketPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
 

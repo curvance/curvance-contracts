@@ -12,6 +12,17 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 ///      totalAssets is not actually using the balances stored in the
 ///      contract, rather it only uses an internal balance.
 abstract contract StrategyCToken is BaseCTokenWithYield {
+    /// TYPES ///
+
+    /// @notice Storage configuration for pending vesting update.
+    /// @param updateNeeded Whether there is a pending update to vault
+    ///                     vesting schedule.
+    /// @param newVestingPeriod The pending new compounding vesting schedule.
+    struct NewVestingData {
+        bool updateNeeded;
+        uint248 newVestingPeriod;
+    }
+
     /// CONSTANTS ///
 
     /// @dev Mask of vesting rate in `_vestingData`.
@@ -29,6 +40,10 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     /// @notice Whether harvesting is currently paused.
     /// @dev Starts paused until market started, 1 = unpaused; 2 = paused.
     uint256 public harvestingPaused = 2;
+
+    /// @notice Whether there is a pending update to vesting period,
+    ///         after this vesting period ends.
+    NewVestingData public pendingVestingPeriodUpdate;
 
     /// @notice Whether a particular token is an approved asset for swapping.
     /// @dev Token => Is approved swap token.
@@ -70,6 +85,18 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     ) {}
 
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Permissioned function to set a new compounding vesting period.
+    /// @dev Requires dao authority, `newVestingPeriod` cannot be longer
+    ///      than `_MAXIMUM_VESTING_PERIOD` (3 days).
+    /// @param newPeriod New vesting period, in seconds.
+    function setVestingPeriod(uint256 newPeriod) external {
+        _checkDaoPermissions();
+        _checkVestingPeriod(newPeriod);
+
+        pendingVestingPeriodUpdate.updateNeeded = true;
+        pendingVestingPeriodUpdate.newVestingPeriod = uint248(newPeriod);
+    }
 
     /// @notice Permissioned function to set harvesting paused.
     /// @dev Requires elevated authority if unpausing.
@@ -273,6 +300,19 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
 
         _setlastVestingClaim(uint40(block.timestamp));
         harvestingPaused = 1;
+    }
+
+    /// @notice Updates the vesting period, if needed.
+    /// @dev If there a pending vesting update,
+    ///      and prior vest is done then `vestingPeriod` is updated.
+    function _updateVestingPeriodIfNeeded() internal {
+        // Check whether there is a pending update to reward vesting schedule.
+        if (pendingVestingPeriodUpdate.updateNeeded) {
+            // Update vesting period.
+            vestingPeriod = pendingVestingPeriodUpdate.newVestingPeriod;
+            // Remove pending vesting update flag.
+            delete pendingVestingPeriodUpdate.updateNeeded;
+        }
     }
 
     /// @notice Checks if the caller can harvest pending strategy yield.

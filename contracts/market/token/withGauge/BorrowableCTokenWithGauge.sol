@@ -104,7 +104,7 @@ contract BorrowableCTokenWithGauge is BorrowableCToken {
     /// @param account The account having collateral seized.
     /// @param liquidator The account receiving seized collateral.
     /// @param shares The total number of cTokens shares to seize.
-    function _beforeLiquidationAction(
+    function _beforeLiqAction(
         uint256 shares,
         address liquidator,
         address account

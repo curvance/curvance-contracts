@@ -401,7 +401,7 @@ abstract contract BaseCToken is
             account = accounts[i];
 
             // Execute any prior liquidation action.
-            _beforeLiquidationAction(shares, liquidator, account);
+            _beforeLiqAction(shares, liquidator, account);
             totalShares += shares;
 
             // Update `account` collateral posted invariant and transfer
@@ -1403,31 +1403,17 @@ abstract contract BaseCToken is
 
     /// @notice An optional set of instructions to execute before processing
     ///         a deposit of `receiver`'s shares.
-    function _afterDepositAction(
-        uint256 /* shares */,
-        address /* receiver */
-    ) internal virtual {}
+    function _afterDepositAction(uint256, address) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
     ///         a withdrawal of `owners`'s shares.
-    function _beforeWithdrawAction(
-        uint256 /* shares */,
-        address /* owner */
-    ) internal virtual {}
+    function _beforeWithdrawAction(uint256, address) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
     ///         a transfer of `owner`'s shares to `receiver`.
-    function _beforeTransferAction(
-        uint256 /* shares */,
-        address /* receiver */,
-        address /* owner */
-    ) internal virtual {}
+    function _beforeTransferAction(uint256, address, address) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
     ///         liquidation of `account`'s collateral.
-    function _beforeLiquidationAction(
-        uint256 /* shares */,
-        address /* liquidator */,
-        address /* account */
-    ) internal virtual {}
+    function _beforeLiqAction(uint256, address, address) internal virtual {}
 }

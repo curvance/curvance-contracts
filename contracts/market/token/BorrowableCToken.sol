@@ -123,7 +123,12 @@ contract BorrowableCToken is BaseCTokenWithYield {
         emit NewInterestFee(0, newInterestFee);
     }
 
-    function getVestingData() external returns(uint256, uint256, uint256, uint256) {
+    function getVestingData() external view returns(
+        uint256,
+        uint256,
+        uint256,
+        uint256
+    ) {
         uint256 vestingData = _vestingData;
         return (
             uint96(vestingData),
@@ -430,14 +435,12 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Updates pending interest and returns the up-to-date exchange
     ///         rate from the underlying to the BorrowableCToken.
     /// @dev Oracle Manager calculates cToken value from this exchange rate.
-    /// @return result The share -> asset exchange rate, in `WAD`.
-    function exchangeRateUpdated() external nonReentrant returns (
-        uint256 result
-    ) {
+    /// @return r The share -> asset exchange rate, in `WAD`.
+    function exchangeRateUpdated() external nonReentrant returns (uint256 r) {
         // Accrue interest if needed.
         _accrueIfNeeded();
         
-        result = _convertToAssets(WAD, _getTotalAssets());
+        r = _convertToAssets(WAD, _getTotalAssets());
     }
 
     /// @notice Updates pending interest and returns the current outstanding
@@ -728,10 +731,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///      May emit {PositionUpdated} event inside Market Manager.
     /// @param shares The amount of shares to post as collateral.
     /// @param owner The account posting collateral.
-    function _postCollateral(
-        uint256 shares,
-        address owner
-    ) internal override {
+    function _postCollateral(uint256 shares, address owner) internal override {
         // Cannot post collateral if `owner` already has outstanding debt
         // in this token.
         if (uint176(_debtOf[owner]) > 0) {
@@ -815,7 +815,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 // yieldToVest needs to be added to both as we do not want to
                 // give the protocol additional rewards for vested interest in
                 // the past.
-                protocolFees = FixedPointMathLib.mulDiv(
+                protocolFees = _mulDiv(
                     protocolFees * accrualPeriod * outstandingDebt,
                     cachedTa,
                     (cachedTa +
@@ -999,13 +999,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Calculates pending yield that have been vested.
     /// @dev If there are no pending yield or the vesting period has ended,
     ///      it returns 0.
-    /// @return pendingYield The calculated pending yield.
-    function _getPendingYield() internal view override returns (
-        uint256 pendingYield
-    ) {
+    /// @return y The calculated pending yield.
+    function _getPendingYield() internal view override returns (uint256 y) {
         // Cache vesting data.
         uint256 vestingData = _vestingData;
-        pendingYield =  _getPendingYield(
+        y =  _getPendingYield(
             uint96(vestingData),
             marketOutstandingDebt,
             uint40(vestingData >> _BITPOS_VEST_END),

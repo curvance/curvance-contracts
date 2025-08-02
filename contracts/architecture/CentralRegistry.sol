@@ -235,7 +235,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @dev Address => Auction permission status.
     mapping(address => bool) public hasAuctionPermissions;
     /// @notice Indicates if an address has market permissions or not.
-    /// @dev Address => Market permission status.
+    /// @dev Market Perms double as a check for `hasElevatedPermissions` in
+    ///      many cases as long as a "risk council" contract is not explicitly
+    ///      hooked up to the a particular permissioned function.
+    ///      Address => Market permission status.
     mapping(address => bool) public hasMarketPermissions;
     /// @notice Indicates if an address has harvest permissions or not.
     /// @dev Address => Harvest permission status.
@@ -521,12 +524,12 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Sets the Message Transmitter contract address.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Emits a {CoreContractUpdated} event.
-    /// @param newMessageTransmitter The new Message Transmitter address.
-    function setMessageTransmitter(address newMessageTransmitter) external {
+    /// @param newTransmitter The new Message Transmitter address.
+    function setMessageTransmitter(address newTransmitter) external {
         _checkElevatedPermissions();
 
-        messageTransmitter = newMessageTransmitter;
-        emit CoreContractUpdated("Message Transmitter", newMessageTransmitter);
+        messageTransmitter = newTransmitter;
+        emit CoreContractUpdated("Message Transmitter", newTransmitter);
     }
 
     /// @notice Sets the domain.
@@ -617,10 +620,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///               interest fees of.
     /// @param value The new fee to take on interest generated
     ///              by a debt token, in `basis points`.
-    function setProtocolInterestFee(
-        address market,
-        uint256 value
-    ) external {
+    function setProtocolInterestFee(address market, uint256 value) external {
         _checkElevatedPermissions();
 
         // Interest fee cannot be more than 75%.
@@ -1296,16 +1296,16 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///      Emits a {CalldataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as 1Inch V5.
-    /// @param calldataChecker The contract that will check calldata prior
-    ///                        to execution in `target`.
+    /// @param checker The contract that will check calldata prior to
+    ///                execution in `target`.
     function setExternalCalldataChecker(
         address target,
-        address calldataChecker
+        address checker
     ) external {
         _checkElevatedPermissions();
 
-        externalCalldataChecker[target] = calldataChecker;
-        emit CalldataCheckerSet("External", target, calldataChecker);
+        externalCalldataChecker[target] = checker;
+        emit CalldataCheckerSet("External", target, checker);
     }
 
     /// @notice Sets a multicall calldata checker contract.
@@ -1313,16 +1313,13 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///      Emits a {CalldataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as Pyth or Redstone.
-    /// @param calldataChecker The contract that will check calldata prior
-    ///                        to execution in `target`.
-    function setMulticallChecker(
-        address target,
-        address calldataChecker
-    ) external {
+    /// @param checker The contract that will check calldata prior to
+    ///                execution in `target`.
+    function setMulticallChecker(address target, address checker) external {
         _checkElevatedPermissions();
 
-        multicallChecker[target] = calldataChecker;
-        emit CalldataCheckerSet("Multicall", target, calldataChecker);
+        multicallChecker[target] = checker;
+        emit CalldataCheckerSet("Multicall", target, checker);
     }
 
     /// @notice Sets multicall provider contracts, either enabling,
