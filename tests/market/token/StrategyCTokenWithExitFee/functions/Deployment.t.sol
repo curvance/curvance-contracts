@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import "forge-std/StdStorage.sol";
-import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
-import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
-import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
-import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { StrategyCTokenWithExitFee } from "contracts/market/token/StrategyCTokenWithExitFee.sol";
+import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+
+import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
+import { TestBaseStrategyCTokenWithExitFee } from "../TestBaseStrategyCTokenWithExitFee.sol";
+import "forge-std/StdStorage.sol";
 
 contract StrategyCTokenWithExitFeeDeploymentTest is
     TestBaseStrategyCTokenWithExitFee
@@ -21,7 +24,8 @@ contract StrategyCTokenWithExitFeeDeploymentTest is
         public
     {
         vm.expectRevert(
-            PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
+                .selector
         );
         new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(0)),
