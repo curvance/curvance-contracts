@@ -52,6 +52,17 @@ contract Faucet is Ownable {
         }
     }
 
+    function multiLastClaimed(
+        address wallet,
+        address[] calldata tokens
+    ) public view returns (uint256[] memory) {
+        uint256[] memory lastClaimed = new uint256[](tokens.length);
+        for (uint256 i; i < tokens.length; ++i) {
+            lastClaimed[i] = userLastClaimed[wallet][tokens[i]];
+        }
+        return lastClaimed;
+    }
+
     function _claim(address user, address token, uint256 amount) internal {
         uint256 tokenMaxClaim = _getMaxClaim(token);
         require(
