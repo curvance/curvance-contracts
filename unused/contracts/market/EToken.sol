@@ -997,7 +997,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // Set new interest rate model and compound rate.
         interestRateModel = newInterestRateModel;
-        marketData.accrualPeriod = newInterestRateModel.accrualPeriod();
+        marketData.accrualPeriod = newInterestRateModel.INTEREST_ACCRUAL_PERIOD();
 
         emit NewMarketInterestRateModel(
             oldInterestRateModel,

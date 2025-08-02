@@ -98,7 +98,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         address interestRateModel_
     ) BaseCTokenWithYield(cr, asset_, mm, IInterestRateModel(
         interestRateModel_
-    ).accrualPeriod()) {
+    ).INTEREST_ACCRUAL_PERIOD()) {
         // This essentially redundantly sets vestingPeriod twice since we also set
         // it as part of `BaseCTokenWithYield` deployment, but we want to make sure
         // _setInterestRateModel includes this setter incase the interest rate
@@ -907,13 +907,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Set new interest rate model and compound rate.
         interestRateModel = newInterestRateModel;
-        uint256 newVestingPeriod = newInterestRateModel.accrualPeriod();
-        vestingPeriod = newVestingPeriod;
+        uint256 newPeriod = newInterestRateModel.INTEREST_ACCRUAL_PERIOD();
+        vestingPeriod = newPeriod;
 
         emit NewMarketInterestRateModel(
             oldInterestRateModel,
             address(newInterestRateModel),
-            newVestingPeriod
+            newPeriod
         );
     }
 

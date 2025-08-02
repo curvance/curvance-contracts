@@ -131,6 +131,10 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// CONSTANTS ///
 
+    /// @notice The interval at which interest accrual is calculated,
+    ///         in seconds.
+    /// @dev 10 minutes = 600 seconds.
+    uint256 public constant INTEREST_ACCRUAL_PERIOD = 10 minutes;
     
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
@@ -187,10 +191,6 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///         to, in `WAD`.
     ///         E.g. 1 * WAD = 100% Minimum vertex multiplier maximum value.
     uint256 internal constant _MINIMUM_VERTEX_MULTIPLIER_MAX = 1e18;
-    /// @notice The interval at which interest accrual is calculated,
-    ///         in seconds.
-    /// @dev 10 minutes = 600 seconds.
-    uint256 internal constant _INTEREST_ACCRUAL_PERIOD = 10 minutes;
     /// @notice Mask of `vertexMultiplier` in `_currentRates`.
     uint256 internal constant _BITMASK_VERTEX_MULTIPLIER = (1 << 192) - 1;
     /// @notice The bit position of `nextUpdateTimestamp` in `_currentRates`.
@@ -428,64 +428,6 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
                 uint64(block.timestamp + config.adjustmentRate)
             );
         }
-    }
-
-    /// @notice Calculates the current borrow rate per year,
-    ///         with updated vertex multiplier applied.
-    /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param debt The amount of outstanding debt in the pool.
-    /// @return The borrow rate percentage per year, in `WAD`.
-    function getPredictedBorrowRatePerYear(
-        uint256 assetsHeld,
-        uint256 debt
-    ) external view returns (uint256) {
-        return
-            SECONDS_PER_YEAR * getPredictedBorrowRate(assetsHeld, debt);
-    }
-
-    /// @notice Calculates the current borrow rate per year.
-    /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param debt The amount of outstanding debt in the pool.
-    /// @return The borrow rate percentage per year, in `WAD`.
-    function getBorrowRatePerYear(
-        uint256 assetsHeld,
-        uint256 debt
-    ) external view returns (uint256) {
-        return
-            SECONDS_PER_YEAR * getBorrowRate(assetsHeld, debt);
-    }
-
-    /// @notice Calculates the current supply rate per year.
-    /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param debt The amount of outstanding debt in the pool.
-    /// @param interestFee The current interest accrual fee for the market.
-    /// @return The supply rate percentage per year, in `WAD`.
-    function getSupplyRatePerYear(
-        uint256 assetsHeld,
-        uint256 debt,
-        uint256 interestFee
-    ) external view returns (uint256) {
-        return
-            SECONDS_PER_YEAR * getSupplyRate(assetsHeld, debt, interestFee);
-    }
-
-    /// @notice Returns the interval at which interest accrual is calculated.
-    /// @notice The interval at which interest accrual is calculated,
-    ///         in seconds.
-    function accrualPeriod() external pure returns (uint256) {
-        return _INTEREST_ACCRUAL_PERIOD;
-    }
-
-    /// @notice Returns the unpacked values from `_currentRates`.
-    /// @return The current Vertex Multiplier, in `WAD`.
-    /// @return The timestamp for the next vertex multiplier update,
-    ///         in unix time.
-    function currentRatesData() external view returns (uint256, uint256) {
-        uint256 currentRates = _currentRates;
-        return (
-            uint192(currentRates),
-            uint64(currentRates >> _BITPOS_UPDATE_TIMESTAMP)
-        );
     }
 
     /// PUBLIC FUNCTIONS ///
