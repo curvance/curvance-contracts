@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BaseVaultZapper, ICentralRegistry } from "contracts/plugins/market/BaseVaultZapper.sol";
+import { BaseVaultZapper, ICentralRegistry, SwapperLib, ICToken, IVault } from "contracts/plugins/market/BaseVaultZapper.sol";
 
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
-import { ICToken } from "contracts/interfaces/ICToken.sol";
-import { IVault } from "contracts/interfaces/IVault.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 contract NativeVaultZapper is BaseVaultZapper {

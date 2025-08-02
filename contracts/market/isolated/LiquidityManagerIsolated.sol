@@ -228,8 +228,8 @@ abstract contract LiquidityManagerIsolated {
 
     /// ERRORS ///
 
-    error LiquidityManager__InvalidCentralRegistry;
     error LiquidityManager__InsufficientLoanSize();
+    error LiquidityManager__InvalidCentralRegistry();
 
     constructor(ICentralRegistry centralRegistry_) {
         if (
