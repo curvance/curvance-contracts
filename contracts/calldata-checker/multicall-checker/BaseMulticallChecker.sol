@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
 import { BaseCalldataChecker } from "contracts/calldata-checker/BaseCalldataChecker.sol";
+
+import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 /// @title BaseMulticallChecker
 /// @notice A base contract for validating multicall operations related to oracle price updates
@@ -35,18 +40,30 @@ abstract contract BaseMulticallChecker is
     BaseCalldataChecker
 {  
     /// ERRORS ///
+
     error MulticallChecker__TargetError();
     error MulticallChecker__InvalidFuncSig();
     error MulticallChecker__InvalidCalldata();
+    error MulticallChecker__InvalidCentralRegistry();
 
     /// STORAGE ///
-    /// @notice The address of the central registry
-    address public centralRegistry;
+
+    /// @notice Curvance DAO hub.
+    ICentralRegistry public immutable centralRegistry;
 
     /// CONSTRUCTOR ///
 
-    constructor(address _centralRegistry) {
-        centralRegistry = _centralRegistry;
+    constructor(ICentralRegistry cr) {
+        if (
+            !ERC165Checker.supportsInterface(
+                address(cr),
+                type(ICentralRegistry).interfaceId
+            )
+        ) {
+            revert MulticallChecker__InvalidCentralRegistry();
+        }
+
+        centralRegistry = cr;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -61,4 +78,24 @@ abstract contract BaseMulticallChecker is
         address target,
         bytes memory data
     ) external virtual override;
+
+    /// INTERNAL FUNCTIONS ///
+
+    function _checkIsApprovedAdaptor(
+        address adaptor,
+        uint256 type
+    ) internal view {
+        // Validate that `adaptor` is approved inside the Oracle Manager.
+        if (
+            !IOracleManager(centralRegistry.oracleManager())
+                .isApprovedAdaptor(adaptor)
+        ) {
+            revert MulticallChecker__TargetError();
+        }
+
+        // Validate that `adaptor` is the expected adaptor type.
+        if (IOracleAdaptor(adaptor).adaptorType() != type) {
+            revert MulticallChecker__TargetError();
+        }
+    }
 }

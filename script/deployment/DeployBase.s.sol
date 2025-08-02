@@ -74,7 +74,7 @@ contract DeployBase is Script {
         );
         emit ContractDeployed(address(adaptor), "RedstoneCoreAdaptor");
         RedstoneAdaptorMulticallChecker multicallChecker = new RedstoneAdaptorMulticallChecker(
-                address(icr)
+                icr
             );
         emit ContractDeployed(
             address(multicallChecker),

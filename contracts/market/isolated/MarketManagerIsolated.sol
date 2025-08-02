@@ -209,9 +209,7 @@ contract MarketManagerIsolated is
     
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_
-    ) LiquidityManagerIsolated(centralRegistry_) {}
+    constructor(ICentralRegistry cr) LiquidityManagerIsolated(cr) {}
 
     /// EXTERNAL FUNCTIONS ///
 

@@ -228,7 +228,7 @@ abstract contract LiquidityManagerIsolated {
 
     /// ERRORS ///
 
-    error LiquidityManager__InvalidParameter();
+    error LiquidityManager__InvalidCentralRegistry;
     error LiquidityManager__InsufficientLoanSize();
 
     constructor(ICentralRegistry centralRegistry_) {
@@ -238,8 +238,7 @@ abstract contract LiquidityManagerIsolated {
                 type(ICentralRegistry).interfaceId
             )
         ) {
-            // bytes4(keccak256(bytes("LiquidityManager__InvalidParameter()"))).
-            _revert(0x78eefdcc);
+            revert LiquidityManager__InvalidCentralRegistry();
         }
 
         centralRegistry = centralRegistry_;

@@ -81,7 +81,7 @@ interface ICToken {
     ///         This can be used to update oracle prices before
     ///         a liquidity dependent action.
     function multicall(
-        Multicall.MulticallData[] memory calls
+        Multicall.MulticallAction[] memory calls
     ) external returns (bytes[] memory results);
 
     /// @notice Caller deposits `assets` into the market and `receiver`

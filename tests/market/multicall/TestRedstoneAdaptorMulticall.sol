@@ -72,7 +72,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         adapter.addAsset(_WBTC_ADDRESS, false, 18, 10 minutes);
 
         multicallChecker = new RedstoneAdaptorMulticallChecker(
-            address(centralRegistry)
+            centralRegistry
         );
         centralRegistry.setMulticallChecker(
             address(adapter),
@@ -200,7 +200,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         vm.prank(user1);
         wbtc.approve(address(simpleCWBTC), 1e8);
 
-        Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
+        Multicall.MulticallAction[] memory calls = new Multicall.MulticallAction[](
             2
         );
         calls[0].target = address(adapter);
@@ -250,7 +250,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         vm.prank(user1);
         usdc.approve(address(borrowableCUSDC), 1e6);
 
-        Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
+        Multicall.MulticallAction[] memory calls = new Multicall.MulticallAction[](
             2
         );
         calls[0].target = address(adapter);
@@ -336,7 +336,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         );
         leverageAction.auxData = bytes("");
 
-        Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
+        Multicall.MulticallAction[] memory calls = new Multicall.MulticallAction[](
             2
         );
         calls[0].target = address(adapter);

@@ -160,9 +160,7 @@ contract GaugeManager is
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_
-    ) PluginDelegable(centralRegistry_) {
+    constructor(ICentralRegistry cr) PluginDelegable(cr) {
         // Query epoch and token configuration directly to minimize potential
         // human error.
         epochDuration = centralRegistry.EPOCH_DURATION();
