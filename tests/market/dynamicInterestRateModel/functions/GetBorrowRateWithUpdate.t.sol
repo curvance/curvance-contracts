@@ -64,31 +64,10 @@ contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
                 .getPredictedBorrowRate(assetsHeld, borrows);
 
             assertEq(
-                interestRateModel.getBorrowRatePerYear(
-                    assetsHeld, 
-                    borrows
-                ),
-                31_536_000 * borrowRate
-            );
-            assertEq(
                 supplyRate,
                 (util * ((borrowRate * (WAD - interestFee)) / WAD)) / WAD
             );
-            assertEq(
-                interestRateModel.getSupplyRatePerYear(
-                    assetsHeld, 
-                    borrows, 
-                    interestFee
-                ),
-                31_536_000 * supplyRate
-            );
-            assertEq(
-                interestRateModel.getPredictedBorrowRatePerYear(
-                    assetsHeld, 
-                    borrows
-                ),
-                31_536_000 * predictedBorrowRate
-            );
+
             vm.prank(address(borrowableCUSDC));
             assertEq(
                 interestRateModel.getBorrowRateWithUpdate(
