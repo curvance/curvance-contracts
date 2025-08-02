@@ -437,14 +437,14 @@ contract AuxiliaryData {
     function getBaseRewards(address token) public view returns (uint256) {}
     function getCVERewards(address token) public view returns (uint256) {}
 
-    /// Oracle Manager FUNCTIONS ///
+    /// PRICING FUNCTIONS ///
 
-    function getPrices(
-        address[] calldata assets,
-        bool[] calldata inUSD,
-        bool[] calldata getLower
-    ) public view returns (uint256[] memory, uint256[] memory) {
-        return _getOracleManager().getPrices(assets, inUSD, getLower);
+    function getPrice(
+        address asset,
+        bool inUSD,
+        bool getLower
+    ) public view returns (uint256, uint256) {
+        return _getOracleManager().getPrice(assets, inUSD, getLower);
     }
 
     function hasRewards(address user) public view returns (bool) {
@@ -547,9 +547,11 @@ contract AuxiliaryData {
         uint256 assets
     ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
         IMarketManager mm = ICToken(borrowableCToken).marketManager();
-        (uint256 price, uint256 errorCode) = IOracleManager(
-            ICentralRegistry(centralRegistry).oracleManager()
-        ).getPrice(address(cToken), true, true);
+        (uint256 price, uint256 errorCode) = _getOracleManager().getPrice(
+            address(cToken),
+            true,
+            true
+        );
 
         // Validate we got a price for `cToken`.
         if (errorCode != 0) {
@@ -600,9 +602,11 @@ contract AuxiliaryData {
             sumCollateral - maxDebt
         ) / WAD;
 
-        (price, errorCode) = IOracleManager(
-            ICentralRegistry(centralRegistry).oracleManager()
-        ).getPrice(address(borrowableCToken), true, false);
+        (price, errorCode) = _getOracleManager().getPrice(
+            address(borrowableCToken),
+            true,
+            false
+        );
 
         // Validate we got a price for `borrowableCToken`.
         if (errorCode != 0) {
@@ -676,8 +680,8 @@ contract AuxiliaryData {
             cTokenData.totalCollateralPosted = ICToken(collateralTokens[i])
                 .marketCollateralPosted();
             cTokenData.collateralCap = mm.collateralCaps(collateralTokens[i]);
-            cTokenData.sharePrice = _getTokenPrice(collateralTokens[i], true);
-            cTokenData.tokenPrice = _getTokenPrice(address(token), true);
+            cTokenData.sharePrice = _getPriceUSD(collateralTokens[i], true);
+            cTokenData.tokenPrice = _getPriceUSD(address(token), true);
             cTokenData.config = _getTokenConfig(
                 collateralTokens[i],
                 ILiquidityManager(address(mm))
@@ -732,11 +736,11 @@ contract AuxiliaryData {
             eTokenData.utilizationRate = getUtilizationRate(
                 borrowableCTokens[i]
             );
-            eTokenData.sharePrice = _getTokenPrice(
+            eTokenData.sharePrice = _getPriceUSD(
                 borrowableCTokens[i],
                 false
             );
-            eTokenData.tokenPrice = _getTokenPrice(address(token), false);
+            eTokenData.tokenPrice = _getPriceUSD(address(token), false);
             eTokenData.config = _getTokenConfig(
                 borrowableCTokens[i],
                 ILiquidityManager(address(mm))
@@ -826,7 +830,7 @@ contract AuxiliaryData {
         for (uint256 i; i < numAssets; ) {
             asset = assets[i++];
             result +=
-                (_getTokenPrice(asset, true) *
+                (_getPriceUSD(asset, true) *
                     ICToken(asset).marketCollateralPosted()) /
                 10 ** ICToken(asset).decimals();
         }
@@ -963,7 +967,7 @@ contract AuxiliaryData {
     ) public view returns (uint256 result) {
         // Get current shares total supply then query price and return.
         result =
-            (_getTokenPrice(token, getLower) *
+            (_getPriceUSD(token, getLower) *
                 (ICToken(token).totalSupply() - MARKET_ASSET_RESERVE)) /
             10 ** ICToken(token).decimals();
     }
@@ -978,14 +982,14 @@ contract AuxiliaryData {
 
         // Get outstanding debt then query price and return.
         result =
-            (_getTokenPrice(token.asset(), false) *
+            (_getPriceUSD(token.asset(), false) *
                 token.marketOutstandingDebt()) /
             10 ** token.decimals();
     }
 
     function getTokenPrice(address token) public view returns (uint256) {
         return
-            _getTokenPrice(
+            _getPriceUSD(
                 token,
                 !ICToken(token).isBorrowable() ? true : false
             );
@@ -1086,13 +1090,13 @@ contract AuxiliaryData {
         return IOracleManager(centralRegistry.oracleManager());
     }
 
-    function _getTokenPrice(
-        address mToken,
+    function _getPriceUSD(
+        address cToken,
         bool getLower
     ) internal view returns (uint256 price) {
         uint256 errorCode;
         (price, errorCode) = _getOracleManager().getPrice(
-            mToken,
+            cToken,
             true,
             getLower
         );

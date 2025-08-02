@@ -72,23 +72,12 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 contract OracleManager is IOracleManager {
     /// TYPES ///
 
-    /// @notice Structured data to be retrieved from an Oracle Adaptor.
-    /// @param price Price of the asset in some asset, either the chain's
-    ///              native token or USD.The price is stored as a uint240 to
-    ///              avoid precision loss.
-    /// @param hadError Success/Failure return data. True if adaptor could not
-    ///                 price an asset, false if successfully priced.
-    struct FeedData {
-        uint240 price;
-        bool hadError;
-    }
-
     /// @notice Stored data to facilitate pricing Curvance tokens (cTokens).
     /// @param isCToken Used to indicate if the provided address is a
     ///                 Curvance token or not.
     /// @param underlying Address of the underlying asset for the Curvance
     ///                   token.
-    struct CTokenData {
+    struct CToken {
         bool isCToken;
         address underlying;
     }
@@ -98,12 +87,9 @@ contract OracleManager is IOracleManager {
     /// @notice Address identifying a chain's native token.
     address public constant native =
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    /// @notice Curvance DAO hub.
-    ICentralRegistry public immutable centralRegistry;
     /// @notice Time to pass before accepting answers when sequencer
     ///         comes back up.
     uint256 public constant GRACE_PERIOD_TIME = 3600;
-
     /// @notice Minimum value that a divergence flag can be set as
     ///         inside the protocol.
     /// @dev 1.002e4 = 0.2%.
@@ -112,6 +98,10 @@ contract OracleManager is IOracleManager {
     ///         inside the protocol.
     /// @dev 1.03e4 = 3.0%.
     uint256 public constant MAX_DIVERGENCE_FLAG_VALUE = 1.03e4;
+
+    /// @notice Curvance DAO hub.
+    ICentralRegistry public immutable centralRegistry;
+
     /// @dev `bytes4(keccak256(bytes("OracleManager__NotSupported()")))`.
     uint256 internal constant _NOT_SUPPORTED_SELECTOR = 0x37ccbfb5;
     /// @dev `bytes4(keccak256(bytes("OracleManager__InvalidParameter()")))`.
@@ -135,7 +125,7 @@ contract OracleManager is IOracleManager {
     // Address => Price Feed addresses.
     mapping(address => address[]) public assetPriceFeeds;
     // Address => Curvance token metadata.
-    mapping(address => CTokenData) public cTokenAssets;
+    mapping(address => CToken) public cTokens;
 
     /// ERRORS ///
 
@@ -203,7 +193,6 @@ contract OracleManager is IOracleManager {
     /// @param asset The address of the asset.
     function notifyFeedRemoval(address asset) external {
         _checkIsApprovedAdaptor(msg.sender);
-
         _removeFeed(asset, msg.sender);
     }
 
@@ -213,15 +202,15 @@ contract OracleManager is IOracleManager {
     function addCTokenSupport(address newCToken) external {
         _checkElevatedPermissions();
 
-        if (cTokenAssets[newCToken].isCToken) {
+        if (cTokens[newCToken].isCToken) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // We call a Curvance-specific token function as a sanity check.
         ICToken(newCToken).isBorrowable();
 
-        cTokenAssets[newCToken].isCToken = true;
-        cTokenAssets[newCToken].underlying = ICToken(newCToken).asset();
+        cTokens[newCToken].isCToken = true;
+        cTokens[newCToken].underlying = ICToken(newCToken).asset();
     }
 
     /// @notice Removes a Curvance token's support in the Oracle Manager.
@@ -231,11 +220,11 @@ contract OracleManager is IOracleManager {
     function removeCTokenSupport(address cTokenToRemove) external {
         _checkElevatedPermissions();
 
-        if (!cTokenAssets[cTokenToRemove].isCToken) {
+        if (!cTokens[cTokenToRemove].isCToken) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        delete cTokenAssets[cTokenToRemove];
+        delete cTokens[cTokenToRemove];
     }
 
     /// @notice Adds `newAdaptor` as an approved adaptor.
@@ -286,7 +275,6 @@ contract OracleManager is IOracleManager {
     /// @param adaptorToRemove The address of the adaptor to remove.
     function removeApprovedAdaptor(address adaptorToRemove) external {
         _checkElevatedPermissions();
-
         // Validate `adaptorToRemove` is currently supported.
         _checkIsApprovedAdaptor(adaptorToRemove);
 
@@ -342,9 +330,8 @@ contract OracleManager is IOracleManager {
     function getAdaptorTypes(
         address asset
     ) external view returns (uint256, uint256) {
-        bool isCToken = cTokenAssets[asset].isCToken;
-        if (isCToken) {
-            asset = cTokenAssets[asset].underlying;
+        if (cTokens[asset].isCToken) {
+            asset = cTokens[asset].underlying;
         }
 
         uint256 numFeeds = assetPriceFeeds[asset].length;
@@ -387,8 +374,8 @@ contract OracleManager is IOracleManager {
     /// @param asset The address of the asset to check.
     /// @return True if the asset is supported, false otherwise.
     function isSupportedAsset(address asset) external view returns (bool) {
-        if (cTokenAssets[asset].isCToken) {
-            return assetPriceFeeds[cTokenAssets[asset].underlying].length > 0;
+        if (cTokens[asset].isCToken) {
+            return assetPriceFeeds[cTokens[asset].underlying].length > 0;
         }
 
         return assetPriceFeeds[asset].length > 0;
@@ -431,13 +418,13 @@ contract OracleManager is IOracleManager {
 
         address cToken;
         // Check whether `asset` is Curvance token.
-        if (cTokenAssets[asset].isCToken) {
+        if (cTokens[asset].isCToken) {
             cToken = asset;
-            asset = cTokenAssets[asset].underlying;
+            asset = cTokens[asset].underlying;
         }
 
         // Route pricing to a single feed source or dual feed source.
-        if (_checkHasSupportedFeeds(asset) < 2) {
+        if (_checkFeeds(asset) < 2) {
             bool hadError;
             (price, hadError) = _getPriceFromFeed(asset, 0, inUSD, getLower);
             if (hadError) {
@@ -460,46 +447,6 @@ contract OracleManager is IOracleManager {
         }
     }
 
-    /// @notice Retrieves the prices of multiple assets.
-    /// @param assets An array of asset addresses to retrieve the prices for.
-    /// @param inUSD An array indicating whether the price format should be in
-    ///              USD (true) or a chain's native token (false).
-    /// @param getLower An array of bools indicating whether the lower
-    ///                 or higher price should be returned if two feeds
-    ///                 are available.
-    /// @return Two arrays. The first one contains prices for each asset,
-    ///         and the second one contains corresponding error
-    ///         flags (if any).
-    function getPrices(
-        address[] calldata assets,
-        bool[] calldata inUSD,
-        bool[] calldata getLower
-    ) external view returns (uint256[] memory, uint256[] memory) {
-        uint256 numAssets = assets.length;
-        // Validate we are not trying to price zero assets.
-        if (numAssets == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Validate that each array is properly structured.
-        if (numAssets != inUSD.length || numAssets != getLower.length) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        uint256[] memory prices = new uint256[](numAssets);
-        uint256[] memory hadError = new uint256[](numAssets);
-
-        for (uint256 i; i < numAssets; ++i) {
-            (prices[i], hadError[i]) = getPrice(
-                assets[i],
-                inUSD[i],
-                getLower[i]
-            );
-        }
-
-        return (prices, hadError);
-    }
-
     /// @notice Retrieves the prices of a collateral token and debt token
     ///         underlyings.
     /// @param collateralToken The cToken currently collateralized to price.
@@ -520,7 +467,7 @@ contract OracleManager is IOracleManager {
     ) {
         uint256 errorCode;
         (collateralUnderlyingPrice, errorCode) = getPrice(
-            cTokenAssets[collateralToken].underlying,
+            cTokens[collateralToken].underlying,
             true,
             true
         );
@@ -529,7 +476,7 @@ contract OracleManager is IOracleManager {
         }
 
         (debtUnderlyingPrice, errorCode) = getPrice(
-            cTokenAssets[debtToken].underlying,
+            cTokens[debtToken].underlying,
             true,
             false
         );
@@ -567,7 +514,7 @@ contract OracleManager is IOracleManager {
             snapshots[i] = ICToken(asset).getSnapshot(account);
 
             (underlyingPrices[i], errorCode) = getPrice(
-                cTokenAssets[asset].underlying,
+                cTokens[asset].underlying,
                 true,
                 snapshots[i].isCollateral
             );
@@ -610,13 +557,13 @@ contract OracleManager is IOracleManager {
 
         // Validate that the feed returns a usable price for us with a sample
         // query.
-        PricingResult memory sampleData = IOracleAdaptor(feed).getPrice(
+        PricingResult memory result = IOracleAdaptor(feed).getPrice(
             asset,
             true,
             true
         );
 
-        if (sampleData.price == 0 || sampleData.hadError) {
+        if (result.price == 0 || result.hadError) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -628,7 +575,7 @@ contract OracleManager is IOracleManager {
     /// @param asset The address of the asset.
     /// @param feed The address of the feed to be removed.
     function _removeFeed(address asset, address feed) internal {
-        uint256 numFeeds = _checkHasSupportedFeeds(asset);
+        uint256 numFeeds = _checkFeeds(asset);
 
         // If theres two feeds, figure out which to remove,
         // otherwise we know the feed to remove is the first entry.
@@ -659,55 +606,53 @@ contract OracleManager is IOracleManager {
 
     /// @notice Retrieves the price of a specified asset from two specific
     ///         price feeds.
+    /// @dev If both price feeds return an error, it returns (0, BAD_SOURCE).
+    ///      If one of the price feeds return an error, it returns the
+    ///      price from the working feed along with a CAUTION flag.
+    ///      Otherwise, it returns (price, NO_ERROR).
     /// @param asset The address of the asset to retrieve the price for.
     /// @param inUSD Specifies whether the price format should be in
     ///              USD (true) or a chain's native token (false).
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
-    /// @return A tuple containing the asset's price and an error flag
-    ///         (if any).
-    ///         If both price feeds return an error, it returns
-    ///         (0, BAD_SOURCE).
-    ///         If one of the price feeds return an error, it returns the
-    ///         price from the working feed along with a CAUTION flag.
-    ///         Otherwise, it returns (price, NO_ERROR).
+    /// @return uint256 The current price of `asset`.
+    /// @return bool An error flag (if any).
     function _getPriceDualFeed(
         address asset,
         bool inUSD,
         bool getLower
     ) internal view returns (uint256, uint256) {
-        (uint256 feed0Price, bool feed0Error) = _getPriceFromFeed(
+        (uint256 price0, bool error0) = _getPriceFromFeed(
             asset, 0, inUSD, getLower
         );
-        (uint256 feed1Price, bool feed1Error)= _getPriceFromFeed(
+        (uint256 price1, bool error1)= _getPriceFromFeed(
             asset, 1, inUSD, getLower
         );
 
         // Check if we had any working price feeds,
         // if not we need to block any market operations.
-        if (feed0Error && feed1Error){
+        if (error0 && error1){
             return (0, BAD_SOURCE);
         }
         // Check if we had an error in either price that should block
         // borrowing/redemption.
-        if (feed0Error || feed1Error) {
+        if (error0 || error1) {
             // We know based on context of when this if statement block is
             // called that one but not both feeds have an error.
             // So, if feed0 had the error, feed1 is usable, and vice versa.
-            if (feed0Error) {
-                return (feed1Price, CAUTION);
+            if (error0) {
+                return (price1, CAUTION);
             }
 
-            return (feed0Price, CAUTION);
+            return (price0, CAUTION);
         }
 
-        uint256 errorCode = _checkBounds(feed0Price, feed1Price);
+        uint256 errorCode = _checkBounds(price0, price1);
         if (getLower) {
-            return (feed1Price < feed0Price
-                ? feed1Price : feed0Price, errorCode);
+            return (price1 < price0 ? price1 : price0, errorCode);
         }
 
-        return (feed1Price > feed0Price ? feed1Price : feed0Price, errorCode);
+        return (price1 > price0 ? price1 : price0, errorCode);
     }
 
     /// @notice Retrieves the price of a specified asset from a specific
@@ -721,10 +666,8 @@ contract OracleManager is IOracleManager {
     ///              USD (true) or a chain's native token (false).
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
-    /// @return An instance of FeedData containing the asset's price
-    ///         and an error flag (if any).
-    ///         If the price feed returns an error, it returns feedData
-    ///         with price 0 and hadError set to true.
+    /// @return uint256 The current price of `asset`.
+    /// @return bool Whether the adaptor ran into an error when pricing.
     function _getPriceFromFeed(
         address asset,
         uint256 feedNumber,
@@ -734,33 +677,33 @@ contract OracleManager is IOracleManager {
         address adaptor = assetPriceFeeds[asset][feedNumber];
         _checkIsApprovedAdaptor(adaptor);
 
-        PricingResult memory data = IOracleAdaptor(adaptor).getPrice(
+        PricingResult memory result = IOracleAdaptor(adaptor).getPrice(
             asset,
             inUSD,
             getLower
         );
 
         // If we had an error pricing the asset, bubble up we had a error.
-        if (data.hadError) {
+        if (result.hadError) {
             return (0, true);
         }
 
         // If the feed denomination is not in the proper form, modify it.
-        if (data.inUSD != inUSD) {
+        if (result.inUSD != inUSD) {
             uint256 newPrice;
             bool nativeUsdLower = inUSD ? getLower : !getLower;
-            (newPrice, data.hadError) = _getNativeUSD(nativeUsdLower);
-            if (data.hadError) {
+            (newPrice, result.hadError) = _getNativeUSD(nativeUsdLower);
+            if (result.hadError) {
                 return (0, true);
             }
 
             return (
-                _convertNativeUSD(data.price, newPrice, data.inUSD),
-                data.hadError
+                _convertNativeUSD(result.price, newPrice, result.inUSD),
+                result.hadError
             );
         }
 
-        return (uint256(data.price), data.hadError);
+        return (uint256(result.price), result.hadError);
     }
 
     /// @notice Queries the current price of a chain's native token in USD
@@ -769,15 +712,12 @@ contract OracleManager is IOracleManager {
     ///      is fresh and a positive value.
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
-    /// @return A tuple containing the price of the chain's native token
-    ///         in USD and an error flag.
-    ///         If the Oracle Manager data is stale or negative,
-    ///         it returns (answer, true).
-    ///         Where true corresponds to hasError = true.
+    /// @return uint256 The current price of `native`.
+    /// @return bool Whether the adaptor ran into an error when pricing.
     function _getNativeUSD(
         bool getLower
     ) internal view returns (uint256, bool) {
-        uint256 numFeeds = _checkHasSupportedFeeds(native);
+        uint256 numFeeds = _checkFeeds(native);
         uint256 price;
         uint256 errorCode;
 
@@ -907,13 +847,11 @@ contract OracleManager is IOracleManager {
     /// @notice Checks whether `asset` has supported adaptor feeds or not.
     ///         Reverts if `asset` is no approved feeds.
     /// @param asset The address of the asset to check.
-    /// @return numFeeds The number of supported feeds for `asset`.
-    function _checkHasSupportedFeeds(
-        address asset
-    ) internal view returns (uint256 numFeeds) {
-        numFeeds = assetPriceFeeds[asset].length;
+    /// @return f The number of supported feeds for `asset`.
+    function _checkFeeds(address asset) internal view returns (uint256 f) {
+        f = assetPriceFeeds[asset].length;
         // Validate we have a feed or feeds to price `asset`.
-        if (numFeeds == 0) {
+        if (f == 0) {
             _revert(_NOT_SUPPORTED_SELECTOR);
         }
     }

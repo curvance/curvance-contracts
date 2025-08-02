@@ -295,18 +295,18 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// CONSTRUCTOR ///
 
     constructor(
-        address daoAddress_,
-        address emergencyCouncil_,
+        address dao,
+        address ec,
         uint256 genesisEpoch_,
         address sequencer_,
         address feeToken_
     ) {
-        if (daoAddress_ == address(0)) {
-            daoAddress_ = msg.sender;
+        if (dao == address(0)) {
+            dao = msg.sender;
         }
 
-        if (emergencyCouncil_ == address(0)) {
-            emergencyCouncil_ = msg.sender;
+        if (ec == address(0)) {
+            ec = msg.sender;
         }
 
         // Check to make sure that genesis epoch is at least at the beginning
@@ -317,30 +317,22 @@ contract CentralRegistry is ERC165, ActionRegistry {
         }
 
         // Configure DAO permission data.
-        daoAddress = daoAddress_;
-        emergencyCouncil = emergencyCouncil_;
+        daoAddress = dao;
+        emergencyCouncil = ec;
 
-        emit PermissionsTransferred(
-            "DAO Permissions",
-            address(0),
-            daoAddress_
-        );
-        emit PermissionsTransferred(
-            "Emergency Council",
-            address(0),
-            emergencyCouncil_
-        );
+        emit PermissionsTransferred("DAO Permissions", address(0), dao);
+        emit PermissionsTransferred("Emergency Council", address(0), ec);
 
-        // Provide base dao permissions to `daoAddress_`,
-        // and `emergencyCouncil_`.
-        hasDaoPermissions[daoAddress_] = true;
-        hasDaoPermissions[emergencyCouncil_] = true;
+        // Provide base dao permissions to `dao`,
+        // and `ec`.
+        hasDaoPermissions[dao] = true;
+        hasDaoPermissions[ec] = true;
 
         // Provide market and elevated dao permissions to `emergencyCouncil`.
-        hasMarketPermissions[emergencyCouncil_] = true;
-        hasElevatedPermissions[emergencyCouncil_] = true;
+        hasMarketPermissions[ec] = true;
+        hasElevatedPermissions[ec] = true;
 
-        emit PermissionsUpdated("Market", emergencyCouncil_, true);
+        emit PermissionsUpdated("Market", ec, true);
 
         genesisEpoch = genesisEpoch_;
         sequencer = sequencer_;

@@ -25,22 +25,6 @@ interface IOracleManager {
         bool getLower
     ) external view returns (uint256 price, uint256 errorCode);
 
-    /// @notice Retrieves the prices of multiple assets.
-    /// @param assets An array of asset addresses to retrieve the prices for.
-    /// @param inUSD An array of bools indicating whether the price should be
-    ///              returned in USD or ETH.
-    /// @param getLower An array of bools indiciating whether the lower
-    ///                 or higher price should be returned if two feeds
-    ///                 are available.
-    /// @return Two arrays. The first one contains prices for each asset,
-    ///         and the second one contains corresponding error
-    ///         flags (if any).
-    function getPrices(
-        address[] calldata assets,
-        bool[] calldata inUSD,
-        bool[] calldata getLower
-    ) external view returns (uint256[] memory, uint256[] memory);
-
     /// @notice Retrieves the prices of a collateral token and debt token
     ///         underlyings.
     /// @param collateralToken The cToken currently collateralized to price.
