@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMessagingHub } from "contracts/interfaces/IMessagingHub.sol";
@@ -58,15 +59,7 @@ abstract contract CVEBase is ERC20 {
     /// CONSTRUCTOR ///
 
     constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert CVE__ParametersAreInvalid();
-        }
-
+        CentralRegistryLib._isCentralRegistry(centralRegistry_);
         centralRegistry = centralRegistry_;
     }
 

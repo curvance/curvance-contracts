@@ -17,17 +17,11 @@ contract PendleLPPositionManager is BasePositionManager {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
-        address marketManager_,
+        ICentralRegistry cr,
+        address mm,
         address wrappedNative_,
         IPendleRouter router_
-    )
-        BasePositionManager(
-            centralRegistry_,
-            marketManager_,
-            wrappedNative_
-        )
-    {
+    ) BasePositionManager(cr, mm, wrappedNative_) {
         router = router_;
     }
 

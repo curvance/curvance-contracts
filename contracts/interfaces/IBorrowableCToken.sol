@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { ICToken, IPositionManager } from "contracts/interfaces/ICToken.sol";
 import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
-import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
 interface IBorrowableCToken is ICToken {
     /// @notice Address of the current Interest Rate Model.

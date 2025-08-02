@@ -18,18 +18,12 @@ contract VelodromePositionManager is BasePositionManager {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
-        address marketManager_,
+        ICentralRegistry cr,
+        address mm,
         address wrappedNative_,
         address router_,
         address pairFactory_
-    )
-        BasePositionManager(
-            centralRegistry_,
-            marketManager_,
-            wrappedNative_
-        )
-    {
+    ) BasePositionManager(cr, mm, wrappedNative_) {
         router = router_;
         pairFactory = pairFactory_;
     }

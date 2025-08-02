@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
+
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
@@ -50,7 +52,6 @@ contract Predeposit {
 
     /// ERRORS ///
 
-    error Predeposit__InvalidCentralRegistry();
     error Predeposit__MigrationNotPossible();
     error Predeposit__PredepositDepositsBlocked();
     error Predeposit__Unauthorized();
@@ -73,15 +74,7 @@ contract Predeposit {
         address manager,
         uint256 endTimestamp
     ) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert Predeposit__InvalidCentralRegistry();
-        }
-
+        CentralRegistryLib._isCentralRegistry(centralRegistry_);
         centralRegistry = centralRegistry_;
 
         predepositManager = manager;

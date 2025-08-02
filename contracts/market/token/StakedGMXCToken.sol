@@ -30,17 +30,23 @@ contract StakedGMXCToken is StrategyCToken {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param asset_ The address of the underlying asset for this cToken.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
+    /// @param vestingPeriod_ The length of time a vesting period will last,
+    ///                       in seconds.
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_, // GMX
-        address marketManager_,
+        address mm,
         address rewardRouter_,
         address weth_,
         uint256 vestingPeriod_
     ) StrategyCToken(
         centralRegistry_,
         asset_,
-        marketManager_,
+        mm,
         vestingPeriod_
     ) {
         if (block.chainid != _ARBITRUM_CHAIN_ID) {

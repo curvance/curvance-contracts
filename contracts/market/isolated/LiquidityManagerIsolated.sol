@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
@@ -229,18 +229,9 @@ abstract contract LiquidityManagerIsolated {
     /// ERRORS ///
 
     error LiquidityManager__InsufficientLoanSize();
-    error LiquidityManager__InvalidCentralRegistry();
 
     constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert LiquidityManager__InvalidCentralRegistry();
-        }
-
+        CentralRegistryLib._isCentralRegistry(centralRegistry_);
         centralRegistry = centralRegistry_;
     }
 

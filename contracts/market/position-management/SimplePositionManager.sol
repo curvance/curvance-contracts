@@ -7,16 +7,10 @@ contract SimplePositionManager is BasePositionManager {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
-        address marketManager_,
+        ICentralRegistry cr,
+        address mm,
         address wrappedNative_
-    )
-        BasePositionManager(
-            centralRegistry_,
-            marketManager_,
-            wrappedNative_
-        )
-    {}
+    ) BasePositionManager(cr, mm, wrappedNative_) {}
 
     /// @notice Callback function on borrowing tokens from an borrowableCToken
     ///         contract providing instant liquidity in the borrowableCToken

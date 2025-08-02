@@ -74,10 +74,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         address newInterestRateModel,
         uint256 newInterestAccrualPeriod
     );
-    event NewInterestFee(
-        uint256 oldInterestFee,
-        uint256 newInterestFee
-    );
+    event NewInterestFee(uint256 oldInterestFee, uint256 newInterestFee);
 
     /// ERRORS ///
 
@@ -88,25 +85,20 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param cr The address of the Protocol Central Registry.
     /// @param asset_ The address of the underlying asset for this cToken.
-    /// @param marketManager_ The address of the MarketManager which manages
-    ///                       liquidity positions between linked cTokens
-    ///                       inside a joint market.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
     /// @param interestRateModel_ The address of the interest rate model to
     ///                           manage outstanding loans.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         IERC20 asset_,
-        address marketManager_,
+        address mm,
         address interestRateModel_
-    ) BaseCTokenWithYield(
-        centralRegistry_,
-        asset_,
-        marketManager_,
-        IInterestRateModel(interestRateModel_).accrualPeriod()
-    ) {
-
+    ) BaseCTokenWithYield(cr, asset_, mm, IInterestRateModel(
+        interestRateModel_
+    ).accrualPeriod()) {
         // This essentially redundantly sets vestingPeriod twice since we also set
         // it as part of `BaseCTokenWithYield` deployment, but we want to make sure
         // _setInterestRateModel includes this setter incase the interest rate
@@ -115,9 +107,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Assign the portion of interest paid by borrowers that goes to the
         // protocol.
-        uint256 newInterestFee = centralRegistry.protocolInterestFee(
-            marketManager_
-        );
+        uint256 newInterestFee = centralRegistry.protocolInterestFee(mm);
         interestFee = newInterestFee;
 
         emit NewInterestFee(0, newInterestFee);

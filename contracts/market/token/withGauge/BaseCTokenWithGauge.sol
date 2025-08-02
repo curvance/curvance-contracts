@@ -53,16 +53,15 @@ abstract contract BaseCTokenWithGauge is BaseCToken {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param cr The address of the Protocol Central Registry.
     /// @param asset_ The address of the underlying asset for this cToken.
-    /// @param marketManager_ The address of the MarketManager which manages
-    ///                       liquidity positions between linked cTokens
-    ///                       inside a joint market.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         IERC20 asset_,
-        address marketManager_
-    ) BaseCToken(centralRegistry_, asset_, marketManager_) {
+        address mm
+    ) BaseCToken(cr, asset_, mm) {
         address gaugeManagerAddress = centralRegistry.gaugeManager();
 
         // Validate Gauge Manager has been set.

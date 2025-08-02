@@ -103,17 +103,17 @@ abstract contract BasePositionManager is
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
-        address marketManager_,
+        ICentralRegistry cr,
+        address mm,
         address wrappedNative_
-    ) PluginDelegable(centralRegistry_) {
-        // Validate that `marketManager_` is configured as a market manager
-        // inside the Central Registry.
-        if (!centralRegistry_.isMarketManager(marketManager_)) {
+    ) PluginDelegable(cr) {
+        // Validate that `mm` is configured as a Market Manager inside the
+        // Protocol Central Registry.
+        if (!centralRegistry_.isMarketManager(mm)) {
             revert BasePositionManager__InvalidMarketManager();
         }
 
-        marketManager = IMarketManager(marketManager_);
+        marketManager = IMarketManager(mm);
         wrappedNative = wrappedNative_;
     }
 

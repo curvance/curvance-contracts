@@ -23,19 +23,18 @@ abstract contract StrategyCTokenWithGauge is StrategyCToken {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param cr The address of the Protocol Central Registry.
     /// @param asset_ The address of the underlying asset for this cToken.
-    /// @param marketManager_ The address of the MarketManager which manages
-    ///                       liquidity positions between linked cTokens
-    ///                       inside a joint market.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
     /// @param vestingPeriod_ The length of time a vesting period will last,
     ///                       in seconds.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         IERC20 asset_,
-        address marketManager_,
+        address mm,
         uint256 vestingPeriod_
-    ) StrategyCToken(centralRegistry_, asset_, marketManager_, vestingPeriod_) {
+    ) StrategyCToken(centralRegistry_, asset_, mm, vestingPeriod_) {
         address gaugeManagerAddress = centralRegistry.gaugeManager();
 
         // Validate Gauge Manager has been set.

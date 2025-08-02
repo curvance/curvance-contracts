@@ -2,8 +2,8 @@
 pragma solidity ^0.8.26;
 
 import { WAD } from "contracts/libraries/Constants.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
@@ -133,21 +133,12 @@ contract AuxiliaryData {
     /// ERRORS ///
 
     error AuxiliaryData__ParametersMisconfigured();
-    error AuxiliaryData__InvalidCentralRegistry();
     error AuxiliaryData__Unauthorized();
 
     /// CONSTRUCTOR ///
 
     constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert AuxiliaryData__InvalidCentralRegistry();
-        }
-
+        CentralRegistryLib._isCentralRegistry(centralRegistry_);
         centralRegistry = centralRegistry_;
     }
 

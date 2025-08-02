@@ -2,13 +2,15 @@
 pragma solidity ^0.8.26;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
+
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
@@ -23,7 +25,6 @@ contract CCTPBorrowZapper is ReentrancyGuard {
 
     /// ERRORS ///
 
-    error CCTPBorrowZapper__InvalidCentralRegistry();
     error CCTPBorrowZapper__InvalidSwapAction();
     error CCTPBorrowZapper__InsufficientGasToken();
     error CCTPBorrowZapper__CCTPIsNotConfigured();
@@ -33,15 +34,7 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     receive() external payable {}
 
     constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert CCTPBorrowZapper__InvalidCentralRegistry();
-        }
-
+        CentralRegistryLib._isCentralRegistry(centralRegistry_);
         centralRegistry = centralRegistry_;
     }
 

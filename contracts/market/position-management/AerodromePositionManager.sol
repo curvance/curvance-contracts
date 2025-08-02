@@ -7,15 +7,15 @@ contract AerodromePositionManager is VelodromePositionManager {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
-        address marketManager_,
+        ICentralRegistry cr,
+        address mm,
         address wrappedNative_,
         address router_,
         address pairFactory_
     )
         VelodromePositionManager(
-            centralRegistry_,
-            marketManager_,
+            cr,
+            mm,
             wrappedNative_,
             router_,
             pairFactory_

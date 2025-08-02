@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
@@ -73,7 +73,6 @@ contract FeeManager is ReentrancyGuard {
     /// ERRORS ///
 
     error FeeManager__Unauthorized();
-    error FeeManager__InvalidCentralRegistry();
     error FeeManager__SwapActionsAndTokenLengthMismatch(
         uint256 numSwapActions,
         uint256 numTokens
@@ -103,15 +102,7 @@ contract FeeManager is ReentrancyGuard {
     /// CONSTRUCTOR ///
 
     constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert FeeManager__InvalidCentralRegistry();
-        }
-
+        CentralRegistryLib._isCentralRegistry(centralRegistry_);
         centralRegistry = centralRegistry_;
     }
 

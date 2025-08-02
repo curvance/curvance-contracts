@@ -3,12 +3,12 @@ pragma solidity ^0.8.26;
 
 import { BaseCalldataChecker } from "contracts/calldata-checker/BaseCalldataChecker.sol";
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
-
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 /// @title BaseMulticallChecker
 /// @notice A base contract for validating multicall operations related to oracle price updates
@@ -45,7 +45,6 @@ abstract contract BaseMulticallChecker is
     error MulticallChecker__TargetError();
     error MulticallChecker__InvalidFuncSig();
     error MulticallChecker__InvalidCalldata();
-    error MulticallChecker__InvalidCentralRegistry();
 
     /// STORAGE ///
 
@@ -55,15 +54,7 @@ abstract contract BaseMulticallChecker is
     /// CONSTRUCTOR ///
 
     constructor(ICentralRegistry cr) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(cr),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert MulticallChecker__InvalidCentralRegistry();
-        }
-
+        CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
     }
 

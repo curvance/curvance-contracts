@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { SECONDS_PER_YEAR, WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { IBorrowableCToken, IInterestRateModel } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -241,7 +241,6 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     error DynamicInterestRateModel__Unauthorized();
     error DynamicInterestRateModel__InvalidToken();
-    error DynamicInterestRateModel__InvalidCentralRegistry();
     error DynamicInterestRateModel__InvalidUtilizationStart();
     error DynamicInterestRateModel__InvalidInterestRatePerYear();
     error DynamicInterestRateModel__InvalidAdjustmentRate();
@@ -252,6 +251,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
     /// @param baseRatePerYear The rate of increase in interest rate by
     ///                        utilization rate, in `basis points`.
     /// @param vertexRatePerYear The rate of increase in interest rate by
@@ -268,7 +268,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     /// @param decayRate Rate at which the vertex multiplier will decay per
     ///                  update, in `basis points`.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         uint256 baseRatePerYear,
         uint256 vertexRatePerYear,
         uint256 vertexUtilStart,
@@ -277,16 +277,8 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 vertexMultiplierMax,
         uint256 decayRate
     ) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert DynamicInterestRateModel__InvalidCentralRegistry();
-        }
-
-        centralRegistry = centralRegistry_;
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
         _updateDynamicInterestRateModel(
             baseRatePerYear,

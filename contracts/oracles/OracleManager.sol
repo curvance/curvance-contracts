@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { WAD, BASIS_POINTS, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/Constants.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
-import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { IOracleAdaptor, PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+
+import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 
 /// @title Curvance Dynamic Pessimistic Dual Oracle Manager.
 /// @notice Provides a universal interface allowing contracts
@@ -147,15 +148,7 @@ contract OracleManager is IOracleManager {
     /// CONSTRUCTOR ///
 
     constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
+        CentralRegistryLib._isCentralRegistry(centralRegistry_);
         centralRegistry = centralRegistry_;
     }
 

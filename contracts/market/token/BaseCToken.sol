@@ -6,6 +6,7 @@ import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
+
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -116,28 +117,28 @@ abstract contract BaseCToken is
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param cr The address of the Protocol Central Registry.
     /// @param asset_ The address of the underlying asset for this cToken.
-    /// @param marketManager_ The address of the MarketManager which manages
-    ///                       liquidity positions between linked cTokens
-    ///                       inside a joint market.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         IERC20 asset_,
-        address marketManager_
-    ) PluginDelegable(centralRegistry_) {
+        address mm
+    ) PluginDelegable(cr) {
         _asset = asset_;
         _name = string.concat("Curvance ", asset_.name());
         _symbol = string.concat("c", asset_.symbol());
         _decimals = asset_.decimals();
 
-        // Ensure that `marketManager_` is a marketManager.
-        if (!centralRegistry.isMarketManager(marketManager_)) {
+        // Validate that `mm` is configured as a Market Manager inside the
+        // Protocol Central Registry.
+        if (!centralRegistry.isMarketManager(mm)) {
             revert BaseCToken__InvalidMarketManager();
         }
 
         // Set `marketManager`.
-        marketManager = IMarketManager(marketManager_);
+        marketManager = IMarketManager(mm);
 
         // Sanity check of _asset so that we know users will not need to
         // mint anywhere close to causing an overflow.

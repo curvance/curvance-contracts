@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -45,20 +45,11 @@ abstract contract BaseZapper is ReentrancyGuard {
     error BaseZapper__UnderlyingTokenIsNotInputToken();
     error BaseZapper__ExecutionError();
     error BaseZapper__InsufficientToRepay();
-    error BaseZapper__InvalidCentralRegistry();
 
     /// CONSTRUCTOR ///
 
     constructor(ICentralRegistry centralRegistry_, address wrappedNative_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert BaseZapper__InvalidCentralRegistry();
-        }
-
+        CentralRegistryLib._isCentralRegistry(centralRegistry_);
         centralRegistry = centralRegistry_;
         wrappedNative = wrappedNative_;
     }

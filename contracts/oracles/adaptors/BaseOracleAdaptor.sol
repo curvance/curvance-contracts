@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { SECONDS_PER_YEAR, WAD, BASIS_POINTS } from "contracts/libraries/Constants.sol";
+
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleAdaptor, PricingResult, PriceGuard } from "contracts/interfaces/IOracleAdaptor.sol";
@@ -52,7 +53,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
     error BaseOracleAdaptor__Unauthorized();
     error BaseOracleAdaptor__NoPriceGuard();
-    error BaseOracleAdaptor__InvalidCentralRegistry();
     error BaseOracleAdaptor__InvalidConfig();
     error BaseOracleAdaptor__AssetIsNotSupported();
     
@@ -65,14 +65,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 MAXIMUM_TIMESTAMP_BUFFER,
         uint256 MINIMUM_TIMESTAMP_BUFFER
     ) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert BaseOracleAdaptor__InvalidCentralRegistry();
-        }
+        CentralRegistryLib._isCentralRegistry(centralRegistry_);
 
         _MAXIMUM_INCREASE_PER_YEAR = MAXIMUM_INCREASE_PER_YEAR;
         _MINIMUM_INCREASE_PER_YEAR = MINIMUM_INCREASE_PER_YEAR;

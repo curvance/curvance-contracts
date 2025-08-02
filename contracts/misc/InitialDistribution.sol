@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
 
@@ -47,7 +48,6 @@ contract InitialDistribution is ReentrancyGuard {
     /// ERRORS ///
 
     error InitialDistribution__Paused();
-    error InitialDistribution__InvalidCentralRegistry();
     error InitialDistribution__ParametersAreInvalid();
     error InitialDistribution__Unauthorized();
     error InitialDistribution__TransferError();
@@ -58,14 +58,7 @@ contract InitialDistribution is ReentrancyGuard {
         ICentralRegistry centralRegistry_,
         uint256 maximumClaimAmount_
     ) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert InitialDistribution__InvalidCentralRegistry();
-        }
+        CentralRegistryLib._isCentralRegistry(centralRegistry_);
         centralRegistry = centralRegistry_;
 
         // Sanity check that maximumClaimAmount and lockedClaimMultiplier

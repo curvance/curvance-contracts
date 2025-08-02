@@ -3,8 +3,9 @@ pragma solidity ^0.8.26;
 
 import { TimelockController } from "@openzeppelin/contracts/governance/TimelockController.sol";
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
@@ -46,31 +47,15 @@ contract DAOTimelock is TimelockController, ERC165 {
     /// @notice Curvance Emergency Council address.
     address internal _EMERGENCY_COUNCIL;
 
-    /// ERRORS ///
-
-    error DAOTimelock__InvalidParameter();
-
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_
-    )
-        TimelockController(
-            MINIMUM_DELAY,
-            new address[](0),
-            new address[](0),
-            address(0)
-        )
-    {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert DAOTimelock__InvalidParameter();
-        }
-
+    constructor(ICentralRegistry centralRegistry_) TimelockController(
+        MINIMUM_DELAY,
+        new address[](0),
+        new address[](0),
+        address(0)
+    ) {
+        CentralRegistryLib._isCentralRegistry(centralRegistry_);
         centralRegistry = centralRegistry_;
 
         // Grant proposer/executor/canceller role to DAO operator.

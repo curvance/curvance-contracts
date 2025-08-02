@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
 
 contract InvalidCentralRegistry {
     function crosschainCore() external pure returns (address) {
@@ -17,7 +21,10 @@ contract MessagingHubDeploymentTest is TestBaseMessagingHub {
     {
         address invalidCentralRegistry = address(new InvalidCentralRegistry());
 
-        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
+        vm.expectRevert(
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
+                .selector
+        );
         new MessagingHub(ICentralRegistry(invalidCentralRegistry));
     }
 

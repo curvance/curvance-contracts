@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { WAD, BASIS_POINTS } from "contracts/libraries/Constants.sol";
-import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
-import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
+
+import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
 import { ICVE } from "contracts/interfaces/ICVE.sol";
@@ -193,22 +194,14 @@ contract VeCVE is ERC20, ReentrancyGuard {
     error VeCVE__PostEpochRestriction();
     error VeCVE__EpochNotDelivered();
     error VeCVE__VeCVEShutdown();
-    error VeCVE__ParametersAreInvalid();
     error VeCVE__InvariantError();
 
     /// CONSTRUCTOR ///
 
     constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert VeCVE__ParametersAreInvalid();
-        }
-
+        CentralRegistryLib._isCentralRegistry(centralRegistry_);
         centralRegistry = centralRegistry_;
+
         // Query epoch duration directly to minimize potential human error.
         epochDuration = centralRegistry.EPOCH_DURATION();
         lockDuration = epochDuration * LOCK_DURATION_EPOCHS;

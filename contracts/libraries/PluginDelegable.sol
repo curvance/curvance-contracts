@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
 /// @title Curvance Plugin Delegation Manager.
@@ -37,22 +38,13 @@ abstract contract PluginDelegable is IPluginDelegable {
     /// ERRORS ///
 
     error PluginDelegable__Unauthorized();
-    error PluginDelegable__InvalidCentralRegistry();
     error PluginDelegable__DelegatingDisabled();
     error PluginDelegable_InvalidParameter();
 
     /// CONSTRUCTOR ///
 
     constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert PluginDelegable__InvalidCentralRegistry();
-        }
-
+        CentralRegistryLib._isCentralRegistry(centralRegistry_);
         centralRegistry = centralRegistry_;
     }
 
