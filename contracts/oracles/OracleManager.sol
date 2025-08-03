@@ -7,7 +7,7 @@ import { WAD, BASIS_POINTS, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libr
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IOracleAdaptor, PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+import { IOracleManager, CToken } from "contracts/interfaces/IOracleManager.sol";
 
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 
@@ -70,18 +70,6 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 ///      each other. "Don't trust, verify."
 ///
 contract OracleManager is IOracleManager {
-    /// TYPES ///
-
-    /// @notice Stored data to facilitate pricing Curvance tokens (cTokens).
-    /// @param isCToken Used to indicate if the provided address is a
-    ///                 Curvance token or not.
-    /// @param underlying Address of the underlying asset for the Curvance
-    ///                   token.
-    struct CToken {
-        bool isCToken;
-        address underlying;
-    }
-
     /// CONSTANTS ///
 
     /// @notice Address identifying a chain's native token.
@@ -320,52 +308,18 @@ contract OracleManager is IOracleManager {
         badSourceDivergenceFlag = maxBadSourceDivergence;
     }
 
-    /// @notice Returns the types of adaptors pricing `asset` uses.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @param  asset The asset whose adaptor types should be returned.
-    /// @return A tuple containing the types of adaptors pricing `asset`
-    ///         uses, a value of 0 indicates an unsupported or empty
-    ///         adaptor slot.
-    function getAdaptorTypes(
+    /// @notice Returns the token data of `cToken`.
+    /// @param cToken The address of the cToken to get data of.
+    function getCToken(address cToken) external view returns (CToken memory) {
+        return cTokens[cToken];
+    }
+
+    /// @notice Returns the price feeds for `asset`.
+    /// @param asset The address of the asset to get price feeds of.
+    function getPriceFeeds(
         address asset
-    ) external view returns (uint256, uint256) {
-        if (cTokens[asset].isCToken) {
-            asset = cTokens[asset].underlying;
-        }
-
-        uint256 numFeeds = assetPriceFeeds[asset].length;
-        if (numFeeds == 0) {
-            return (0, 0);
-        }
-
-        address adaptor;
-
-        // If the asset only has one price feed, we know it will be in
-        // feed slot 0 so get both prices and return
-        if (numFeeds < 2) {
-            adaptor = assetPriceFeeds[asset][0];
-            if (!isApprovedAdaptor[adaptor]) {
-                return (0, 0);
-            }
-
-            return (IOracleAdaptor(adaptor).adaptorType(), 0);
-        }
-
-        uint256 adaptorTypeA;
-        uint256 adaptorTypeB;
-
-        adaptor = assetPriceFeeds[asset][0];
-        adaptorTypeA = isApprovedAdaptor[adaptor]
-            ? IOracleAdaptor(adaptor).adaptorType()
-            : 0;
-
-        adaptor = assetPriceFeeds[asset][1];
-        adaptorTypeB = isApprovedAdaptor[adaptor]
-            ? IOracleAdaptor(adaptor).adaptorType()
-            : 0;
-
-        return (adaptorTypeA, adaptorTypeB);
+    ) external view returns(address[] memory) {
+        return assetPriceFeeds[asset];
     }
 
     /// @notice Checks if a given asset is supported by the Oracle Manager.

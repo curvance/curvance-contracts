@@ -11,7 +11,7 @@ import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+import { IOracleManager, CToken } from "contracts/interfaces/IOracleManager.sol";
 import { IOracleAdaptor, PriceGuard } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
@@ -130,11 +130,6 @@ contract AuxiliaryData {
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
-    /// ERRORS ///
-
-    error AuxiliaryData__ParametersMisconfigured();
-    error AuxiliaryData__Unauthorized();
-
     /// CONSTRUCTOR ///
 
     constructor(ICentralRegistry centralRegistry_) {
@@ -227,7 +222,7 @@ contract AuxiliaryData {
             ) {
                 marketPositions[i] = AccountMarketPosition({
                     healthFactor: debt > 0
-                        ? _calculateHealthFactor(market, lookup.account)
+                        ? getPositionHealth(market, lookup.account)
                         : 0,
                     collateral: collateral,
                     maxDebt: maxDebt,
@@ -434,17 +429,26 @@ contract AuxiliaryData {
             ) * SECONDS_PER_YEAR;
     }
 
-    function getBaseRewards(address token) public view returns (uint256) {}
-    function getCVERewards(address token) public view returns (uint256) {}
-
     /// PRICING FUNCTIONS ///
 
     function getPrice(
         address asset,
         bool inUSD,
         bool getLower
-    ) public view returns (uint256, uint256) {
-        return _getOracleManager().getPrice(asset, inUSD, getLower);
+    ) public view returns (uint256 price, uint256 errorCode) {
+        (price, errorCode) = _getOracleManager()
+            .getPrice(asset, inUSD, getLower);
+        if (errorCode == 2) {
+            price = 0;
+        }
+    }
+
+    function getPriceOnly(
+        address asset,
+        bool inUSD,
+        bool getLower
+    ) public view returns (uint256 price) {
+        (price, ) = getPrice(asset, inUSD, getLower);
     }
 
     function hasRewards(address user) public view returns (bool) {
@@ -500,7 +504,7 @@ contract AuxiliaryData {
             if (result.userMarketPosition.debt > 0) {
                 result
                     .userMarketPosition
-                    .healthFactor = _calculateHealthFactor(market, account);
+                    .healthFactor = getPositionHealth(market, account);
             } else {
                 result.userMarketPosition.healthFactor = 0;
             }
@@ -547,7 +551,7 @@ contract AuxiliaryData {
         uint256 assets
     ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
         IMarketManager mm = ICToken(borrowableCToken).marketManager();
-        (uint256 price, uint256 errorCode) = _getOracleManager().getPrice(
+        (uint256 price, uint256 errorCode) = getPrice(
             address(cToken),
             true,
             true
@@ -602,11 +606,7 @@ contract AuxiliaryData {
             sumCollateral - maxDebt
         ) / WAD;
 
-        (price, errorCode) = _getOracleManager().getPrice(
-            address(borrowableCToken),
-            true,
-            false
-        );
+        (price, errorCode) = getPrice(address(borrowableCToken), true, false);
 
         // Validate we got a price for `borrowableCToken`.
         if (errorCode != 0) {
@@ -628,6 +628,55 @@ contract AuxiliaryData {
         }
     }
 
+    /// @notice Returns the types of adaptors pricing `asset` uses.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    /// @param  asset The asset whose adaptor types should be returned.
+    /// @return A tuple containing the types of adaptors pricing `asset`
+    ///         uses, a value of 0 indicates an unsupported or empty
+    ///         adaptor slot.
+    function getAdaptorTypes(
+        address asset
+    ) public view returns (uint256, uint256) {
+        IOracleManager om = _getOracleManager();
+        CToken memory cToken = om.cTokens(asset);
+        if (cToken.isCToken) {
+            asset = cToken.underlying;
+        }
+
+        address[] memory feeds = om.getPriceFeeds(asset);
+
+        uint256 numFeeds = feeds.length;
+        if (numFeeds == 0) {
+            return (0, 0);
+        }
+
+        address adaptor;
+
+        // If the asset only has one price feed, we know it will be in
+        // feed slot 0 so get both prices and return
+        if (numFeeds < 2) {
+            adaptor = feeds[0];
+            if (!om.isApprovedAdaptor(adaptor)) {
+                return (0, 0);
+            }
+
+            return (IOracleAdaptor(adaptor).adaptorType(), 0);
+        }
+
+        adaptor = feeds[0];
+        uint256 adaptorTypeA = om.isApprovedAdaptor(adaptor)
+            ? IOracleAdaptor(adaptor).adaptorType()
+            : 0;
+
+        adaptor = feeds[1];
+        uint256 adaptorTypeB = om.isApprovedAdaptor(adaptor)
+            ? IOracleAdaptor(adaptor).adaptorType()
+            : 0;
+
+        return (adaptorTypeA, adaptorTypeB);
+    }
+
     /// @notice Returns market asset data for a specific market.
     /// @param market The market to get asset data for.
     /// @param account The account to get asset data for.
@@ -643,7 +692,6 @@ contract AuxiliaryData {
         view
         returns (MarketBorrowableCTokens[] memory, MarketCTokenData[] memory)
     {
-        IOracleManager router = _getOracleManager();
         IMarketManager mm = IMarketManager(market);
         address[] memory collateralTokens = getMarketCollateralAssets(market);
         uint256 numTokens = collateralTokens.length;
@@ -680,13 +728,13 @@ contract AuxiliaryData {
             cTokenData.totalCollateralPosted = ICToken(collateralTokens[i])
                 .marketCollateralPosted();
             cTokenData.collateralCap = mm.collateralCaps(collateralTokens[i]);
-            cTokenData.sharePrice = _getPriceUSD(collateralTokens[i], true);
-            cTokenData.tokenPrice = _getPriceUSD(address(token), true);
+            cTokenData.sharePrice = getPriceOnly(collateralTokens[i], true, true);
+            cTokenData.tokenPrice = getPriceOnly(address(token), true, true);
             cTokenData.config = _getTokenConfig(
                 collateralTokens[i],
                 ILiquidityManager(address(mm))
             );
-            (uint256 oracleA, uint256 oracleB) = router.getAdaptorTypes(
+            (uint256 oracleA, uint256 oracleB) = this.getAdaptorTypes(
                 collateralTokens[i]
             );
             cTokenData.adaptorTypes = [oracleA, oracleB];
@@ -736,11 +784,12 @@ contract AuxiliaryData {
             eTokenData.utilizationRate = getUtilizationRate(
                 borrowableCTokens[i]
             );
-            eTokenData.sharePrice = _getPriceUSD(
+            eTokenData.sharePrice = getPriceOnly(
                 borrowableCTokens[i],
+                true,
                 false
             );
-            eTokenData.tokenPrice = _getPriceUSD(address(token), false);
+            eTokenData.tokenPrice = getPriceOnly(address(token), true, false);
             eTokenData.config = _getTokenConfig(
                 borrowableCTokens[i],
                 ILiquidityManager(address(mm))
@@ -753,7 +802,7 @@ contract AuxiliaryData {
             } else {
                 eTokenData.liquidityAvailable = 0;
             }
-            (uint256 oracleA, uint256 oracleB) = router.getAdaptorTypes(
+            (uint256 oracleA, uint256 oracleB) = this.getAdaptorTypes(
                 borrowableCTokens[i]
             );
             eTokenData.adaptorTypes = [oracleA, oracleB];
@@ -830,7 +879,7 @@ contract AuxiliaryData {
         for (uint256 i; i < numAssets; ) {
             asset = assets[i++];
             result +=
-                (_getPriceUSD(asset, true) *
+                (getPriceOnly(asset, true, true) *
                     ICToken(asset).marketCollateralPosted()) /
                 10 ** ICToken(asset).decimals();
         }
@@ -951,11 +1000,13 @@ contract AuxiliaryData {
     }
 
     /// PUBLIC TOKEN-SPECIFIC FUNCTIONS ///
-    function getHealthFactor(
+    function getPositionHealth(
         address market,
         address account
     ) public view returns (uint256) {
-        return _calculateHealthFactor(market, account);
+        (uint256 soft, , uint256 debt) = IMarketManager(market)
+            .liquidationValuesOf(account);
+        return (soft * WAD) / debt;
     }
 
     /// @notice Returns the current TVL inside an MToken token.
@@ -967,8 +1018,8 @@ contract AuxiliaryData {
     ) public view returns (uint256 result) {
         // Get current shares total supply then query price and return.
         result =
-            (_getPriceUSD(token, getLower) *
-                (ICToken(token).totalSupply() - MARKET_ASSET_RESERVE)) /
+            (getPriceOnly(token, true, getLower)
+                * (ICToken(token).totalSupply() - MARKET_ASSET_RESERVE)) /
             10 ** ICToken(token).decimals();
     }
 
@@ -981,18 +1032,9 @@ contract AuxiliaryData {
         IBorrowableCToken token = IBorrowableCToken(cToken);
 
         // Get outstanding debt then query price and return.
-        result =
-            (_getPriceUSD(token.asset(), false) *
-                token.marketOutstandingDebt()) /
+        result = (getPriceOnly(token.asset(), true, false)
+                * token.marketOutstandingDebt()) /
             10 ** token.decimals();
-    }
-
-    function getTokenPrice(address token) public view returns (uint256) {
-        return
-            _getPriceUSD(
-                token,
-                !ICToken(token).isBorrowable() ? true : false
-            );
     }
 
     function getGuardedPriceMax(
@@ -1029,15 +1071,6 @@ contract AuxiliaryData {
     }
 
     /// INTERNAL FUNCTIONS ///
-    function _calculateHealthFactor(
-        address market,
-        address account
-    ) internal view returns (uint256) {
-        IMarketManager mm = IMarketManager(market);
-        (uint256 accountCollateralSoft, , uint256 accountDebt) = mm
-            .liquidationValuesOf(account);
-        return (accountCollateralSoft * WAD) / accountDebt;
-    }
 
     /// @dev Returns `floor(x * y / d)`.
     /// Reverts if `x * y` overflows, or `d` is zero.
@@ -1088,22 +1121,5 @@ contract AuxiliaryData {
 
     function _getOracleManager() internal view returns (IOracleManager) {
         return IOracleManager(centralRegistry.oracleManager());
-    }
-
-    function _getPriceUSD(
-        address cToken,
-        bool getLower
-    ) internal view returns (uint256 price) {
-        uint256 errorCode;
-        (price, errorCode) = _getOracleManager().getPrice(
-            cToken,
-            true,
-            getLower
-        );
-        // If we could not price the asset, bubble up a price of 0.
-        if (errorCode == 2) {
-            price = 0;
-            return price;
-        }
     }
 }
