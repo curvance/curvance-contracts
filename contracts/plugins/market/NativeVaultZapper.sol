@@ -43,8 +43,6 @@ contract NativeVaultZapper is BaseVaultZapper {
         bool collateralizeFor,
         address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
-        IVault vault = IVault(ICToken(cToken).asset());
-
         _prepareSwap(swapAction.inputToken, swapAction.inputAmount, false);
 
         if(!CommonLib._isNative(swapAction.outputToken)) {
@@ -54,6 +52,8 @@ contract NativeVaultZapper is BaseVaultZapper {
         if (swapAction.inputToken == swapAction.outputToken) {
             outAmount = swapAction.inputAmount;        
         } else if (swapAction.inputToken == wrappedNative) {
+            // Make sure they are not attaching native tokens when
+            // we want wrapped native.
             if (msg.value > 0) {
                 revert BaseZapper__ExecutionError();
             }
@@ -70,11 +70,10 @@ contract NativeVaultZapper is BaseVaultZapper {
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
+        IVault vault = IVault(ICToken(cToken).asset());
+
         // Deposit into vault.
-        outAmount = vault.deposit{value: outAmount}(
-            outAmount,
-            address(this)
-        );
+        outAmount = vault.deposit{value: outAmount}(outAmount, address(this));
         
         // Enter Curvance position.
         outAmount = _enterCurvance(

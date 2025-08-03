@@ -254,7 +254,6 @@ abstract contract BaseZapper is ReentrancyGuard {
 
         // Remove any excess approval.
         SwapperLib._removeApprovalIfNeeded(debtAsset, borrowableCToken);
-
         assetsHeld -= repayAssets;
 
         // Transfer any remaining `debtAsset` to `receiver`.

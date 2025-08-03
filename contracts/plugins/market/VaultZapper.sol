@@ -49,9 +49,6 @@ contract VaultZapper is BaseVaultZapper {
         bool collateralizeFor,
         address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
-        IVault vault = IVault(ICToken(cToken).asset());
-        address asset = address(vault.asset());
-
         _prepareSwap(
             swapAction.inputToken,
             swapAction.inputAmount,
@@ -65,6 +62,9 @@ contract VaultZapper is BaseVaultZapper {
             // Switch inputToken to wrapped native token address.
             swapAction.inputToken = address(wrappedNative);
         }
+
+        IVault vault = IVault(ICToken(cToken).asset());
+        address asset = address(vault.asset());
 
         if (asset != swapAction.outputToken) {
             revert BaseZapper__UnderlyingTokenIsNotInputToken();
@@ -84,10 +84,7 @@ contract VaultZapper is BaseVaultZapper {
         );
 
         // Deposit into vault.
-        outAmount = vault.deposit(
-            outAmount,
-            address(this)
-        );
+        outAmount = vault.deposit(outAmount, address(this));
         
         // Enter Curvance position.
         outAmount = _enterCurvance(

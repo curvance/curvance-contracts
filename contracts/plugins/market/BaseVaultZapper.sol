@@ -40,7 +40,6 @@ abstract contract BaseVaultZapper is BaseZapper {
         SwapperLib.Swap memory swapAction,
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
-        
         IVault vault = IVault(ICToken(redeemAction.cToken).asset());
         address asset = address(vault.asset());
 

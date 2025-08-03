@@ -1111,6 +1111,6 @@ contract AuxiliaryData {
     }
 
     function _getOracleManager() internal view returns (IOracleManager) {
-        return CommonLib._oracleManager(centralRegistry);;
+        return CommonLib._oracleManager(centralRegistry);
     }
 }
