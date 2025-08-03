@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { ActionRegistry } from "contracts/libraries/ActionRegistry.sol";
-import { BASIS_POINTS } from "contracts/libraries/Constants.sol";
+import { BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
 
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -157,8 +157,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Protocol slippage limit for safe swap.
     uint256 public slippageLimit = 1000 * 1e14;
 
-    // ATLAS PARAMETER
-    // Controls which markets Atlas liquidators can act on
+    // AUCTION TRANSACTION STORAGE
+    // Controls which Market Manager auction liquidators can act inside.
     bytes32 internal constant _TRANSIENT_MARKET_UNLOCKED_KEY
         = 0x3456789012345678901234567890123456789012345678901234567890123457;
 

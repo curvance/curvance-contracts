@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 contract CanLiquidateTest is TestBaseMarketManager {

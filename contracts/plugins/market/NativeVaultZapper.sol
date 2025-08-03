@@ -10,10 +10,7 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 contract NativeVaultZapper is BaseVaultZapper {
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        address wrappedNative_
-    ) BaseVaultZapper(centralRegistry_, wrappedNative_) {}
+    constructor(ICentralRegistry cr, address wNative) BaseVaultZapper(cr, wNative) {}
 
     /// EXTERNAL FUNCTIONS ///
 

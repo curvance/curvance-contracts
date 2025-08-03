@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
-import { WAD, BASIS_POINTS, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/Constants.sol";
+import { WAD, BASIS_POINTS, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
@@ -125,9 +125,9 @@ contract OracleManager is IOracleManager {
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) {
-        CentralRegistryLib._isCentralRegistry(centralRegistry_);
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
     }
 
     /// EXTERNAL FUNCTIONS ///

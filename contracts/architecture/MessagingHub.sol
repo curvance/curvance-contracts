@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
-import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";

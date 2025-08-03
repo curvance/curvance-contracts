@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { BASIS_POINTS, WAD } from "contracts/libraries/Constants.sol";
+import { BASIS_POINTS, WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";

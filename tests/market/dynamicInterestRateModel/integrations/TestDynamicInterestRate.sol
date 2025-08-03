@@ -5,7 +5,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 
-import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/Constants.sol";
+import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 

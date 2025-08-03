@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 

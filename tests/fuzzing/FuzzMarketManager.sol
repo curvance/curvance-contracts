@@ -3,7 +3,7 @@
 // import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 // import { ICToken } from "contracts/interfaces/ICToken.sol";
 // import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-// import { WAD } from "contracts/libraries/Constants.sol";
+// import { WAD } from "contracts/libraries/ConstantsLib.sol";
 // import { OracleManager } from "contracts/oracles/OracleManager.sol";
 // import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 // import { FuzzLiquidations } from "tests/fuzzing/stateless/FuzzLiquidations.sol";

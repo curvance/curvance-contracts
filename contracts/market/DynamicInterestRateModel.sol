@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
-import { SECONDS_PER_YEAR, WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+import { SECONDS_PER_YEAR, WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";

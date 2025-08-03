@@ -36,9 +36,6 @@ abstract contract BaseZapper is ReentrancyGuard {
     /// @notice The address of wrapped native token on this chain.
     address public immutable wrappedNative;
 
-    /// @dev `bytes4(keccak256(bytes("BaseZapper__Unauthorized()")))`.
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x2e88661c;
-
     /// ERRORS ///
 
     error BaseZapper__Unauthorized();
@@ -48,9 +45,9 @@ abstract contract BaseZapper is ReentrancyGuard {
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_, address wrappedNative_) {
-        CentralRegistryLib._isCentralRegistry(centralRegistry_);
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr, address wrappedNative_) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
         wrappedNative = wrappedNative_;
     }
 
@@ -136,7 +133,7 @@ abstract contract BaseZapper is ReentrancyGuard {
                     receiver
                 );
             } else {
-                _revert(_UNAUTHORIZED_SELECTOR);
+                revert BaseZapper__Unauthorized();
             }
         } else {
             // User wants to enter an uncollateralized a position so we dont
@@ -343,14 +340,5 @@ abstract contract BaseZapper is ReentrancyGuard {
         }
 
         SafeTransferLib.safeTransfer(token, receiver, amount);
-    }
-
-    /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x00, s)
-            revert(0x1c, 0x04)
-        }
     }
 }

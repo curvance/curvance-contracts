@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";

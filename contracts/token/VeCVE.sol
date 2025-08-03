@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
-import { WAD, BASIS_POINTS } from "contracts/libraries/Constants.sol";
+import { WAD, BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
 
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";

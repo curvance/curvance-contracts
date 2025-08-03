@@ -27,7 +27,7 @@ import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/B
 import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 

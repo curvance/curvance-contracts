@@ -12,10 +12,7 @@ import { IVault } from "contracts/interfaces/IVault.sol";
 contract VaultZapper is BaseVaultZapper {
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        address wrappedNative_
-    ) BaseVaultZapper(centralRegistry_, wrappedNative_) {}
+    constructor(ICentralRegistry cr, address wNative) BaseVaultZapper(cr, wNative) {}
 
     /// EXTERNAL FUNCTIONS ///
 

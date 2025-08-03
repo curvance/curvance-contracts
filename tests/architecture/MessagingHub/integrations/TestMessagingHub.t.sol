@@ -8,7 +8,7 @@ import { VeCVE } from "contracts/token/VeCVE.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { WAD_SQUARED } from "contracts/libraries/Constants.sol";
+import { WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";

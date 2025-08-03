@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
-import { SECONDS_PER_YEAR, WAD, BASIS_POINTS } from "contracts/libraries/Constants.sol";
+import { SECONDS_PER_YEAR, WAD, BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -16,10 +16,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
-    /// @dev `bytes4(keccak256(bytes("BaseOracleAdaptor__Unauthorized()")))`.
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xfb56769a;
-    /// @dev `bytes4(keccak256(bytes("BaseOracleAdaptor__InvalidConfig()")))`.
-    uint256 internal constant _INVALID_CONFIG_SELECTOR = 0xbdb91f6b;
     uint256 internal constant _MINIMUM_YEAR_OVERFLOW = 5;
     uint256 internal constant _MAXIMUM_BASE_PRICE_DIFFERENCE = 1000;
 
@@ -116,22 +112,22 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         _checkMarketPermissions();
 
         if (guardType == 0 || guardType > 2) {
-            _revert(_INVALID_CONFIG_SELECTOR);
+            revert BaseOracleAdaptor__InvalidConfig();
         }
         
         if (timestampStart > block.timestamp) {
-            _revert(_INVALID_CONFIG_SELECTOR);
+            revert BaseOracleAdaptor__InvalidConfig();
         }
 
         if (minPrice > basePrice) {
-            _revert(_INVALID_CONFIG_SELECTOR);
+            revert BaseOracleAdaptor__InvalidConfig();
         }
 
         if (
             block.timestamp - timestampStart > _MAXIMUM_TIMESTAMP_BUFFER ||
             block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
         ) {
-            _revert(_INVALID_CONFIG_SELECTOR);
+            revert BaseOracleAdaptor__InvalidConfig();
         }
 
         // Convert `increasePerYear` from basis points to WAD.
@@ -141,14 +137,14 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             increasePerYear > _MAXIMUM_INCREASE_PER_YEAR ||
             increasePerYear < _MINIMUM_INCREASE_PER_YEAR
         ) {
-            _revert(_INVALID_CONFIG_SELECTOR);
+            revert BaseOracleAdaptor__InvalidConfig();
         }
 
         if (
             (_MINIMUM_YEAR_OVERFLOW * increasePerYear) + basePrice >
             type(uint240).max
             ) {
-                _revert(_INVALID_CONFIG_SELECTOR);
+                revert BaseOracleAdaptor__InvalidConfig();
         }
 
         uint256 increasePerSecond = increasePerYear / SECONDS_PER_YEAR;
@@ -166,18 +162,18 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             BASIS_POINTS
         );
 
-        PricingResult memory pricingResult = this.getPrice(asset, inUSD, true);
-        uint256 oraclePrice = pricingResult.price;
+        PricingResult memory result = this.getPrice(asset, inUSD, true);
+        uint256 oraclePrice = result.price;
 
         if (boundedPriceHigh < oraclePrice || boundedPriceLow > oraclePrice) {
-            _revert(_INVALID_CONFIG_SELECTOR);
+            revert BaseOracleAdaptor__InvalidConfig();
         }
 
         PriceGuard storage model = priceGuards[asset][inUSD];
 
         // New `timestampStart` needs to start after the current one.
         if (model.timestampStart > timestampStart) {
-            _revert(_INVALID_CONFIG_SELECTOR);
+            revert BaseOracleAdaptor__InvalidConfig();
         }
 
         model.guardType = guardType;
@@ -196,12 +192,8 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         );
     }
 
-    function disableGuardedPriceConfig(
-        address asset,
-        bool inUSD
-    ) external {
+    function disableGuardedPriceConfig(address asset, bool inUSD) external {
         _checkMarketPermissions();
-
         delete priceGuards[asset][inUSD];
     }
 
@@ -317,11 +309,9 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @notice Helper function to check whether `price` would overflow
     ///         based on a uint240 maximum.
     /// @param price The price to check against overflow.
-    /// @return result Whether `price` will overflow on conversion to uint240.
-    function _checkOverflow(
-        uint256 price
-    ) internal pure returns (bool result) {
-        result = price > type(uint240).max;
+    /// @return o Whether `price` will overflow on conversion to uint240.
+    function _checkOverflow(uint256 price) internal pure returns (bool o) {
+        o = price > type(uint240).max;
     }
 
     /// @notice Checks whether `asset` is supported by the adaptor or not.
@@ -335,23 +325,14 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @notice Checks whether the caller has sufficient permissioning.
     function _checkElevatedPermissions() internal view {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert BaseOracleAdaptor__Unauthorized();
         }
     }
 
     /// @notice Checks whether the caller has sufficient permissioning.
     function _checkMarketPermissions() internal view {
         if (!centralRegistry.hasMarketPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-    }
-
-    /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x00, s)
-            revert(0x1c, 0x04)
+            revert BaseOracleAdaptor__Unauthorized();
         }
     }
 

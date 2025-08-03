@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { StrategyCToken, ICentralRegistry, IERC20 } from "contracts/market/token/StrategyCToken.sol";
 
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";

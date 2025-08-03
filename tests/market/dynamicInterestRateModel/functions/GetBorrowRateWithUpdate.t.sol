@@ -2,7 +2,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseDynamicInterestRateModel } from "../TestBaseDynamicInterestRateModel.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
-import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
     uint256 public baseInterestRate;

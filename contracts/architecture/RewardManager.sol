@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";

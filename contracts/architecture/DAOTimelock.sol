@@ -49,23 +49,23 @@ contract DAOTimelock is TimelockController, ERC165 {
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) TimelockController(
+    constructor(ICentralRegistry cr) TimelockController(
         MINIMUM_DELAY,
         new address[](0),
         new address[](0),
         address(0)
     ) {
-        CentralRegistryLib._isCentralRegistry(centralRegistry_);
-        centralRegistry = centralRegistry_;
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
         // Grant proposer/executor/canceller role to DAO operator.
-        _DAO_ADDRESS = centralRegistry.daoAddress();
+        _DAO_ADDRESS = cr.daoAddress();
         _grantRole(PROPOSER_ROLE, _DAO_ADDRESS);
         _grantRole(EXECUTOR_ROLE, _DAO_ADDRESS);
         _grantRole(CANCELLER_ROLE, _DAO_ADDRESS);
 
         // Grant canceller role to DAO Emergency Council.
-        _EMERGENCY_COUNCIL = centralRegistry.emergencyCouncil();
+        _EMERGENCY_COUNCIL = cr.emergencyCouncil();
         _grantRole(CANCELLER_ROLE, _EMERGENCY_COUNCIL);
     }
 
