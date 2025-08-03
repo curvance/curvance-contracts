@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
+
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
 struct AccountSnapshot {

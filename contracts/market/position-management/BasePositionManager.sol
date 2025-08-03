@@ -315,23 +315,14 @@ abstract contract BasePositionManager is
         LeverageAction memory action
     ) external override {
         address debtAsset = IBorrowableCToken(borrowableCToken).asset();
-
         // Take protocol fee, if any.
-        uint256 fee = _getFee(
+        action.borrowAssets = _validateInputsAndApplyFee(
             borrowableCToken,
             borrowAssets,
             address(action.borrowableCToken),
             action.borrowAssets,
             debtAsset
         );
-        if (fee > 0) {
-            action.borrowAssets -= fee;
-            SafeTransferLib.safeTransfer(
-                debtAsset,
-                centralRegistry.daoAddress(),
-                fee
-            );
-        }
 
         // We do not need to check whether cToken is listed
         // or not as even if they found a way to input a malicious
@@ -398,24 +389,15 @@ abstract contract BasePositionManager is
         address owner,
         DeleverageAction memory action
     ) external override {
-        // Take protocol fee, if any.
         address collateralAsset = ICToken(cToken).asset();
-        uint256 fee = _getFee(
+        // Take protocol fee, if any.
+        action.collateralAssets = _validateInputsAndApplyFee(
             cToken,
             collateralAssets,
             address(action.cToken),
             action.collateralAssets,
             collateralAsset
         );
-
-        if (fee > 0) {
-            action.collateralAssets -= fee;
-            SafeTransferLib.safeTransfer(
-                collateralAsset,
-                centralRegistry.daoAddress(),
-                fee
-            );
-        }
 
         _swapCollateralAssetToDebtAsset(action);
 
@@ -514,22 +496,22 @@ abstract contract BasePositionManager is
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Validate action parameters versus function parameters and
-    ///         calculate protocol fee.
-    function _getFee(
+    /// @notice Validate `action` parameters versus function parameters and
+    ///         apply any protocol fee.
+    function _validateInputsAndApplyFee(
         address cToken,
         uint256 assets,
         address actionToken,
         uint256 actionAssets,
-        address collateralAsset
-    ) internal view returns (uint256 result) {
+        address cTokenUnderlying
+    ) internal view returns (uint256) {
         // Validate that the token itself is executing the callback and
         // `cToken` is actually listed in this Market Manager.
         if (msg.sender != cToken || !marketManager.isListed(cToken)) {
             revert BasePositionManager__Unauthorized();
         }
 
-        if (IERC20(collateralAsset).balanceOf(address(this)) < assets) {
+        if (IERC20(cTokenUnderlying).balanceOf(address(this)) < assets) {
             revert BasePositionManager__InvalidAmount();
         }
 
@@ -538,11 +520,21 @@ abstract contract BasePositionManager is
         }
 
         // Fee is rounded up in favor of protocol.
-        result = FixedPointMathLib.mulDivUp(
-            assets,
+        uint256 fee = FixedPointMathLib.mulDivUp(
+            actionAssets,
             centralRegistry.protocolLeverageFee(),
             WAD
-        );
+
+        if (fee > 0) {
+            actionAssets -= fee;
+            SafeTransferLib.safeTransfer(
+                cTokenUnderlying,
+                centralRegistry.daoAddress(),
+                fee
+            );
+        }
+
+        return actionAssets;
     }
 
     /// @notice Leverages an active Curvance position in favor of increasing

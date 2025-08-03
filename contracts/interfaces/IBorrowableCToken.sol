@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ICToken, IPositionManager } from "contracts/interfaces/ICToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
+import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
 interface IBorrowableCToken is ICToken {
     /// @notice Address of the current Interest Rate Model.
@@ -25,9 +26,7 @@ interface IBorrowableCToken is ICToken {
     /// @dev Note: Pending interest is not applied in this calculation.
     /// @param account The address whose debt balance should be calculated.
     /// @return result The current outstanding debt balance of `account`.
-    function debtBalance(
-        address account
-    ) external view returns (uint256);
+    function debtBalance(address account) external view returns (uint256);
 
     /// @notice Updates pending interest and returns the up-to-date exchange
     ///         rate from the underlying to the BorrowableCToken.
