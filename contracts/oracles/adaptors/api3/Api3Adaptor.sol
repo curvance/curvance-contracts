@@ -5,7 +5,6 @@ import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IProxy } from "contracts/interfaces/external/api3/IProxy.sol";
 
 contract Api3Adaptor is BaseOracleAdaptor {

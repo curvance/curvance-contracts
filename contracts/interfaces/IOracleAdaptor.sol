@@ -1,30 +1,29 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-/// TYPES ///
-
-/// @notice Return data from pricing an asset.
-/// @param price The price of the asset.
-/// @param inUsd Boolean indicating whether `price` is denominated
-///              in USD (true) or native token (false).
-/// @param hadError Boolean indicating whether the asset was priced
-///                 without running into any issues or not.
-struct PricingResult {
-    uint240 price;
-    bool inUSD;
-    bool hadError;
-}
-
-
-struct PriceGuard {
-    uint256 guardType;
-    uint256 timestampStart;
-    uint256 increasePerSecond;
-    uint256 basePrice;
-    uint256 minPrice;
-}
-
 interface IOracleAdaptor {
+    /// TYPES ///
+
+    /// @notice Return data from pricing an asset.
+    /// @param price The price of the asset.
+    /// @param inUsd Boolean indicating whether `price` is denominated
+    ///              in USD (true) or native token (false).
+    /// @param hadError Boolean indicating whether the asset was priced
+    ///                 without running into any issues or not.
+    struct PricingResult {
+        uint240 price;
+        bool inUSD;
+        bool hadError;
+    }
+
+    struct PriceGuard {
+        uint256 guardType;
+        uint256 timestampStart;
+        uint256 increasePerSecond;
+        uint256 basePrice;
+        uint256 minPrice;
+    }
+
     /// @notice Called by OracleManager to price an asset.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD A boolean to determine if the price should be returned in

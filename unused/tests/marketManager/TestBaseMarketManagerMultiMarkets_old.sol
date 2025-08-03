@@ -7,7 +7,7 @@
 
 // import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 // import { WAD } from "contracts/libraries/Constants.sol";
-// import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
+// import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 // import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 // import "forge-std/console2.sol";
@@ -221,7 +221,7 @@
 //         uint256 debtAmount = (cFactor * _eToken.debtBalance(_user)) /
 //             WAD;
 
-//         PricingResult memory data = chainlinkAdaptor.getPrice(
+//         IOracleAdaptor.PricingResult memory data = chainlinkAdaptor.getPrice(
 //             _cToken.underlying(),
 //             true,
 //             true
@@ -263,7 +263,7 @@
 
 //         ) = marketManagerIsolated.tokenData(address(_cToken));
 
-//         PricingResult memory debtTokenData = chainlinkAdaptor.getPrice(
+//         IOracleAdaptor.PricingResult memory debtTokenData = chainlinkAdaptor.getPrice(
 //             _eToken.underlying(),
 //             true,
 //             true

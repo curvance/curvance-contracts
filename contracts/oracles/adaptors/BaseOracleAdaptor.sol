@@ -7,7 +7,7 @@ import { SECONDS_PER_YEAR, WAD, BASIS_POINTS } from "contracts/libraries/Constan
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleAdaptor, PricingResult, PriceGuard } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 abstract contract BaseOracleAdaptor is IOracleAdaptor {

@@ -279,9 +279,8 @@ contract MarketManagerIsolated is
     function liquidationValuesOf(
         address account
     ) external view returns (uint256, uint256, uint256) {
-        (
-            AccountLiqResult memory result,,,
-        ) = _liquidationValuesOf(account, address(0), address(0));
+        (AccountLiqResult memory result, , , )
+            = _liquidationValuesOf(account, address(0), address(0));
         return (result.cSoft, result.cHard, result.debt);
     }
 

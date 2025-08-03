@@ -4,7 +4,6 @@ pragma solidity ^0.8.26;
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 
 contract ChainlinkAdaptor is BaseOracleAdaptor {
@@ -104,19 +103,15 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
             IChainlink(aggregator).aggregator()
         );
 
-        // Query Max and Min feed prices from Chainlink aggregator.
-        uint256 maxFromChainlink = uint256(
+        // Query Max and Min feed prices from Chainlink aggregator,
+        // Then add a ~10% buffer because Chainlink can stop updating
+        // its price before/above the min/max price.
+        uint256 bufferedMaxPrice = (uint256(
             uint192(feedAggregator.maxAnswer())
-        );
-        uint256 minFromChainklink = uint256(
+        ) * 9) / 10;
+        uint256 bufferedMinPrice = (uint256(
             uint192(feedAggregator.minAnswer())
-        );
-
-        // Add a ~10% buffer to minimum and maximum price from Chainlink
-        // because Chainlink can stop updating its price before/above
-        // the min/max price.
-        uint256 bufferedMaxPrice = (maxFromChainlink * 9) / 10;
-        uint256 bufferedMinPrice = (minFromChainklink * 11) / 10;
+        ) * 11) / 10;
 
         if (bufferedMinPrice >= bufferedMaxPrice) {
             revert ChainlinkAdaptor__InvalidMinMaxConfig();

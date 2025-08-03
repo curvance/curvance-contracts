@@ -7,7 +7,6 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { IVault } from "contracts/interfaces/external/balancer/IVault.sol";
 import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerPool.sol";
 import { IRateProvider } from "contracts/interfaces/external/balancer/IRateProvider.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 

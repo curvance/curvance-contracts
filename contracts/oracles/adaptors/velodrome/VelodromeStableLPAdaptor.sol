@@ -5,7 +5,6 @@ import { BaseStableLPAdaptor } from "contracts/oracles/adaptors/stableswapBase/B
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract VelodromeStableLPAdaptor is BaseStableLPAdaptor {
     /// CONSTRUCTOR ///

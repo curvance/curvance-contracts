@@ -11,7 +11,6 @@ import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtO
 import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {

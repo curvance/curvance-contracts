@@ -6,8 +6,8 @@ import { WAD, BASIS_POINTS, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libr
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
-import { IOracleAdaptor, PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
-import { IOracleManager, CToken } from "contracts/interfaces/IOracleManager.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 
@@ -511,11 +511,8 @@ contract OracleManager is IOracleManager {
 
         // Validate that the feed returns a usable price for us with a sample
         // query.
-        PricingResult memory result = IOracleAdaptor(feed).getPrice(
-            asset,
-            true,
-            true
-        );
+        IOracleAdaptor.PricingResult memory result = IOracleAdaptor(feed)
+            .getPrice(asset, true, true);
 
         if (result.price == 0 || result.hadError) {
             _revert(_INVALID_PARAMETER_SELECTOR);
@@ -631,11 +628,8 @@ contract OracleManager is IOracleManager {
         address adaptor = assetPriceFeeds[asset][feedNumber];
         _checkIsApprovedAdaptor(adaptor);
 
-        PricingResult memory result = IOracleAdaptor(adaptor).getPrice(
-            asset,
-            inUSD,
-            getLower
-        );
+        IOracleAdaptor.PricingResult memory result = IOracleAdaptor(adaptor)
+            .getPrice(asset, inUSD, getLower);
 
         // If we had an error pricing the asset, bubble up we had a error.
         if (result.hadError) {

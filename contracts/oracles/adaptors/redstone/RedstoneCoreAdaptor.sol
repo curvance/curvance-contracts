@@ -169,13 +169,9 @@ contract RedstoneCoreAdaptor is
         // Adjust price pulled if necessary.
         price = _adjustPrice(asset, inUSD, price, config.decimals);
 
-        // Validate `price` is not at or above the maximum value allowed.
-        if (price >= config.max) {
-            revert RedstoneCoreAdaptor__InvalidPrice();
-        }
-
-        // Validate `price` is not truncated or misreported with a 0 value.
-        if (price == 0) {
+        // Validate `price` is not at or above the maximum value allowed,
+        // and `price` is not truncated or misreported with a 0 value.
+        if (price == 0 || price >= config.max) {
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
@@ -457,10 +453,9 @@ contract RedstoneCoreAdaptor is
         address[] memory signers
     ) internal override {
         uint256 numSigners = signers.length;
-        address signer;
 
         for (uint256 i; i < numSigners; ++i) {
-            signer = signers[i];
+            address signer = signers[i];
             /// Validate that `signer` is not already authorised.
             if (_isAuthorisedSigner[signer] != 0) {
                 revert RedstoneCoreAdaptor__InvalidConfiguration();

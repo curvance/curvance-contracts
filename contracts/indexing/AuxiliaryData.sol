@@ -11,8 +11,8 @@ import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleManager, CToken } from "contracts/interfaces/IOracleManager.sol";
-import { IOracleAdaptor, PriceGuard } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -639,7 +639,7 @@ contract AuxiliaryData {
         address asset
     ) public view returns (uint256, uint256) {
         IOracleManager om = _getOracleManager();
-        CToken memory cToken = om.getCToken(asset);
+        IOracleManager.CToken memory cToken = om.getCToken(asset);
         if (cToken.isCToken) {
             asset = cToken.underlying;
         }
@@ -1042,7 +1042,7 @@ contract AuxiliaryData {
         address asset,
         bool inUSD
     ) external view returns (uint256) {
-        PriceGuard memory pg = IOracleAdaptor(adaptor)
+        IOracleAdaptor.PriceGuard memory pg = IOracleAdaptor(adaptor)
             .getPriceGuard(asset, inUSD);
         if (pg.guardType == 0) {
             return type(uint256).max;
@@ -1061,7 +1061,7 @@ contract AuxiliaryData {
         address asset,
         bool inUSD
     ) external view returns (uint256) {
-        PriceGuard memory pg = IOracleAdaptor(adaptor)
+        IOracleAdaptor.PriceGuard memory pg = IOracleAdaptor(adaptor)
             .getPriceGuard(asset, inUSD);
         if (pg.guardType == 0) {
             return 0;

@@ -7,7 +7,6 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { ICurvePool } from "contracts/interfaces/external/curve/ICurvePool.sol";
 

@@ -3,19 +3,19 @@ pragma solidity ^0.8.26;
 
 import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 
-/// TYPES ///
-
-/// @notice Stored data to facilitate pricing Curvance tokens (cTokens).
-/// @param isCToken Used to indicate if the provided address is a
-///                 Curvance token or not.
-/// @param underlying Address of the underlying asset for the Curvance
-///                   token.
-struct CToken {
-    bool isCToken;
-    address underlying;
-}
-
 interface IOracleManager {
+    /// TYPES ///
+
+    /// @notice Stored data to facilitate pricing Curvance tokens (cTokens).
+    /// @param isCToken Used to indicate if the provided address is a
+    ///                 Curvance token or not.
+    /// @param underlying Address of the underlying asset for the Curvance
+    ///                   token.
+    struct CToken {
+        bool isCToken;
+        address underlying;
+    }
+
     /// @notice Retrieves the price of a specified asset from either single
     ///         or dual oracles.
     /// @dev If the asset has one oracle, it fetches the price from a single feed.

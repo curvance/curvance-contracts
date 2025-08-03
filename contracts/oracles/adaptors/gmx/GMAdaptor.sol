@@ -6,7 +6,6 @@ import { WAD } from "contracts/libraries/Constants.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IReader } from "contracts/interfaces/external/gmx/IReader.sol";
 

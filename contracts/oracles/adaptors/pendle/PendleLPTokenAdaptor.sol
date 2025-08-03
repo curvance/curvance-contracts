@@ -12,7 +12,6 @@ import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincip
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract PendleLPTokenAdaptor is BaseOracleAdaptor {
     using PendleLpOracleLib for IPMarket;

@@ -7,7 +7,6 @@ import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBa
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IPyth } from "contracts/interfaces/external/pyth/IPyth.sol";
 import { PythStructs } from "contracts/interfaces/external/pyth/PythStructs.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";

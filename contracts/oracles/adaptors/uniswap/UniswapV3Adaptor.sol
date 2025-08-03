@@ -6,7 +6,6 @@ import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IStaticOracle } from "contracts/interfaces/external/uniswap/IStaticOracle.sol";
 import { UniswapV3Pool } from "contracts/interfaces/external/uniswap/UniswapV3Pool.sol";
 

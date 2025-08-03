@@ -6,7 +6,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { IStaticOracle } from "contracts/interfaces/external/uniswap/IStaticOracle.sol";
@@ -165,19 +165,19 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         assetConfig.secondsAgo = 3600;
         adaptor.addAsset(_USDC_ADDRESS, assetConfig);
 
-        PricingResult memory data = adaptor.getPrice(
+        IOracleAdaptor.PricingResult memory result = adaptor.getPrice(
             _USDC_ADDRESS,
             true,
             false
         );
-        assertGt(data.price, 0);
-        assertFalse(data.hadError);
-        assertTrue(data.inUSD);
+        assertGt(result.price, 0);
+        assertFalse(result.hadError);
+        assertTrue(result.inUSD);
 
-        data = adaptor.getPrice(_USDC_ADDRESS, false, false);
-        assertGt(data.price, 0);
-        assertFalse(data.hadError);
-        assertFalse(data.inUSD);
+        result = adaptor.getPrice(_USDC_ADDRESS, false, false);
+        assertGt(result.price, 0);
+        assertFalse(result.hadError);
+        assertFalse(result.inUSD);
     }
 
     function testRevertRemoveAsset__Unauthorized() public {

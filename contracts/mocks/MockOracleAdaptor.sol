@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract MockOracleAdaptor is BaseOracleAdaptor {
     struct MockPrice {

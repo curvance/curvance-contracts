@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
@@ -233,12 +233,12 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         simpleCWBTC.multicall(calls);
 
         assertEq(simpleCWBTC.balanceOf(user1), 1e8);
-        PricingResult memory priceData = adapter.getPrice(
+        IOracleAdaptor.PricingResult memory result = adapter.getPrice(
             _WBTC_ADDRESS,
             true,
             true
         );
-        assertEq(priceData.price, 61000e18);
+        assertEq(result.price, 61000e18);
     }
 
     function testBorrowableCTokenMintWithMulticall() public {
@@ -285,12 +285,12 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         borrowableCUSDC.multicall(calls);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 1e6);
-        PricingResult memory priceData = adapter.getPrice(
+        IOracleAdaptor.PricingResult memory result = adapter.getPrice(
             _WBTC_ADDRESS,
             true,
             true
         );
-        assertEq(priceData.price, 61000e18);
+        assertEq(result.price, 61000e18);
     }
 
     function testPositionLeverage() public {

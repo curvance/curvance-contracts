@@ -4,7 +4,6 @@ pragma solidity ^0.8.26;
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IManagementOracle } from "contracts/interfaces/external/chainsight/IManagementOracle.sol";
 
 contract ChainsightAdaptor is BaseOracleAdaptor {
