@@ -466,10 +466,12 @@ abstract contract BasePositionManager is
     ///         can borrow for maximum leverage.
     /// @dev NOTE: This can overestimate maximum executeable leverage when
     ///            swapping due to AMM fees and slippage.
-    /// @param account The account to query maximum borrow amount for.
+    /// @param account The account to calculate the maximum amount of
+    ///                `borrowableCToken` that can be borrowed for maximum
+    ///                leverage.
     /// @param borrowableCToken The token that `account` will borrow assets
     ///                         from to achieve leverage.
-    /// @return result The maximum remaining borrow amount allowed from
+    /// @return result The maximum remaining debt amount allowed from
     ///                `borrowableCToken`, measured in debt assets.
     function maxRemainingLeverageOf(
         address account,
@@ -478,11 +480,35 @@ abstract contract BasePositionManager is
         (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
             marketManager.statusOf(account);
 
-        result = _maxRemainingLeverageOf(
+        (uint256 price, uint256 errorCode) =
+            CommonLib._oracleManager(centralRegistry)
+                .getPrice(address(borrowableCToken), true, false);
+
+        // Validate we got a price for `borrowableCToken`.
+        if (errorCode != 0) {
+            revert BasePositionManager__InvalidTokenPrice();
+        }
+
+        // We can calculate terminal leverage by calculating the infinite
+        // series of swapping to maximum LTV over and over, which results
+        // in the equation 1 / (1 - LTV).
+        //
+        // For example, 80% LTV will result in terminal maximum leverage of:
+        // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
+        // The equation below is equal to this equation,
+        // just extrapolated for an account's collateral vs debt.
+        /// NOTE: This can overestimate maximum executeable leverage when
+        ///       swapping due to AMM fees and slippage.
+        uint256 maxLeverage = _mulDiv(
+            maxDebt - sumDebt,
             sumCollateral,
-            maxDebt,
-            sumDebt,
-            borrowableCToken
+            sumCollateral - maxDebt
+        );
+
+        result = _mulDiv(
+            _mulDiv(maxLeverage, WAD, price),
+            10 ** IERC20(borrowableCToken).decimals(),
+            WAD
         );
     }
 
@@ -619,55 +645,6 @@ abstract contract BasePositionManager is
             action.collateralAssets,
             account,
             action
-        );
-    }
-
-    /// @notice Calculates the maximum amount of `borrowableCToken` assets
-    ///         `account` can borrow for maximum leverage.
-    /// @dev NOTE: This can overestimate maximum executeable leverage when
-    ///            swapping due to AMM fees and slippage.
-    /// @param sumCollateral Current total collateral amount of the account.
-    /// @param maxDebt Max allowed debt amount of account.
-    /// @param sumDebt Current outstanding debt amount of the account.
-    /// @param borrowableCToken The token that `account` will borrow from
-    ///                         to achieve leverage.
-    /// @return result The maximum remaining debt amount allowed from
-    ///                `borrowableCToken`, measured in debt assets.
-    function _maxRemainingLeverageOf(
-        uint256 sumCollateral,
-        uint256 maxDebt,
-        uint256 sumDebt,
-        address borrowableCToken
-    ) internal view returns (uint256 result) {
-        // We can calculate terminal leverage by calculating the infinite
-        // series of swapping to maximum LTV over and over, which results
-        // in the equation 1 / (1 - LTV).
-        //
-        // For example, 80% LTV will result in terminal maximum leverage of:
-        // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
-        // The equation below is equal to this equation,
-        // just extrapolated for an account's collateral vs debt.
-        /// NOTE: This can overestimate maximum executeable leverage when
-        ///       swapping due to AMM fees and slippage.
-        uint256 maxLeverage = _mulDiv(
-            maxDebt - sumDebt,
-            sumCollateral,
-            sumCollateral - maxDebt
-        );
-
-        (uint256 price, uint256 errorCode) =
-            CommonLib._oracleManager(centralRegistry)
-                .getPrice(address(borrowableCToken), true, false);
-
-        // Validate we got a price for `borrowableCToken`.
-        if (errorCode != 0) {
-            revert BasePositionManager__InvalidTokenPrice();
-        }
-
-        result = _mulDiv(
-            _mulDiv(maxLeverage, WAD, price),
-            10 ** IERC20(borrowableCToken).decimals(),
-            WAD
         );
     }
 
