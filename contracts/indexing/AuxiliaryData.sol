@@ -123,7 +123,6 @@ contract AuxiliaryData {
 
     /// CONSTANTS ///
     uint256 public constant MARKET_ASSET_RESERVE = 77777;
-    uint256 public constant MAX_LEVERAGE = 0.99e18;
 
     /// STORAGE ///
 
@@ -528,9 +527,8 @@ contract AuxiliaryData {
         /// @notice Calculates the hypothetical maximum amount of
     ///         `borrowableCToken` assets `account` can borrow for maximum
     ///         leverage based on a new `cToken` collateralized deposit.
-    /// @dev Applies a minor dampening effect to calculated maximum leverage
-    ///      via `MAX_LEVERAGE`. Offsets maximum borrowable debt amount if
-    ///      there is insufficient liquidity to borrow in the target market.
+    /// @dev NOTE: This can overestimate maximum leverage when swapping due to
+    ///            AMM fees and slippage.
     /// @param account The account to query maximum borrow amount for.
     /// @param borrowableCToken The token that `account` will borrow assets
     ///                         from to achieve leverage.
@@ -596,13 +594,11 @@ contract AuxiliaryData {
         // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
         // The equation below is equal to this equation,
         // just extrapolated for an account's collateral vs debt.
-        //
-        // We also embed a `MAX_LEVERAGE` dampening effect to minimize
-        // transaction failure from imperfect execution due to things
-        // such as price fluctuations, and AMM fees.
+        /// @dev NOTE: This can overestimate maximum leverage when swapping due to
+        ///            AMM fees and slippage.
         uint256 maxLeverage = _mulDiv(
             maxDebt - sumDebt,
-            sumCollateral * MAX_LEVERAGE,
+            sumCollateral,
             sumCollateral - maxDebt
         ) / WAD;
 

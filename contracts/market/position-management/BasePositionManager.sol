@@ -35,13 +35,6 @@ abstract contract BasePositionManager is
 {
     /// CONSTANTS ///
 
-    /// @notice Maximum desired leverage output, we choose 99% of what is
-    ///         possible to minimize reversion from things like price
-    ///         fluctuations, swap fees, and oracle vs pool price divergence,
-    ///         in WAD (1e18).
-    /// @dev 0.99e18 = 99%.
-    uint256 public constant MAX_LEVERAGE = 0.99e18;
-
     /// @notice The address of wrapped native token on this chain.
     address public immutable wrappedNative;
     /// @notice Address of the Market Manager linked to this contract.
@@ -489,8 +482,8 @@ abstract contract BasePositionManager is
 
     /// @notice Calculates the maximum amount of `borrowableCToken` `account`
     ///         can borrow for maximum leverage.
-    /// @dev Applies a minor dampening effect to calculated maximum leverage
-    ///      via `MAX_LEVERAGE`.
+    /// @dev NOTE: This can overestimate maximum leverage when swapping due to
+    ///            AMM fees and slippage.
     /// @param account The account to query maximum borrow amount for.
     /// @param borrowableCToken The token that `account` will borrow assets
     ///                         from to achieve leverage.
@@ -627,8 +620,8 @@ abstract contract BasePositionManager is
 
     /// @notice Calculates the maximum amount of `borrowableCToken` assets
     ///         `account` can borrow for maximum leverage.
-    /// @dev Applies a minor dampening effect to calculated maximum leverage
-    ///      via `MAX_LEVERAGE`.
+    /// @dev NOTE: This can overestimate maximum leverage when swapping due to
+    ///            AMM fees and slippage.
     /// @param sumCollateral Current total collateral amount of the account.
     /// @param maxDebt Max allowed debt amount of account.
     /// @param sumDebt Current outstanding debt amount of the account.
@@ -650,13 +643,11 @@ abstract contract BasePositionManager is
         // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
         // The equation below is equal to this equation,
         // just extrapolated for an account's collateral vs debt.
-        //
-        // We also embed a `MAX_LEVERAGE` dampening effect to minimize
-        // transaction failure from imperfect execution due to things
-        // such as price fluctuations, and AMM fees.
+        /// @dev NOTE: This can overestimate maximum leverage when swapping due to
+        ///            AMM fees and slippage.
         uint256 maxLeverage = _mulDiv(
             maxDebt - sumDebt,
-            sumCollateral * MAX_LEVERAGE,
+            sumCollateral,
             sumCollateral - maxDebt
         ) / WAD;
 
