@@ -75,11 +75,9 @@ contract VotingHub is QueryResponse {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_
-    ) QueryResponse(address(centralRegistry_.crosschainCore())) {
-        CentralRegistryLib._isCentralRegistry(centralRegistry_);
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) QueryResponse(address(cr.crosschainCore())) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
         // Query epoch and token configuration directly to minimize potential
         // human error.

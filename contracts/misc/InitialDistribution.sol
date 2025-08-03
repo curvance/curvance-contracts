@@ -55,11 +55,11 @@ contract InitialDistribution is ReentrancyGuard {
     error InitialDistribution__InvalidlockedClaimMultiplier();
 
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         uint256 maximumClaimAmount_
     ) {
-        CentralRegistryLib._isCentralRegistry(centralRegistry_);
-        centralRegistry = centralRegistry_;
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
         // Sanity check that maximumClaimAmount and lockedClaimMultiplier
         // are not horribly misconfigured. A single claim taking the entire

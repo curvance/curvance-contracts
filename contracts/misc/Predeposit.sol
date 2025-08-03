@@ -70,12 +70,12 @@ contract Predeposit {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address manager,
         uint256 endTimestamp
     ) {
-        CentralRegistryLib._isCentralRegistry(centralRegistry_);
-        centralRegistry = centralRegistry_;
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
         predepositManager = manager;
         predepositEndTimestamp = endTimestamp;

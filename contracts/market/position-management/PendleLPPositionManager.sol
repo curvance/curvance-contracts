@@ -19,14 +19,14 @@ contract PendleLPPositionManager is BasePositionManager {
     /// @param cr The address of the Protocol Central Registry.
     /// @param mm The address of the MarketManager which manages liquidity
     ///           positions between linked cTokens inside a joint market.
-    /// @param wrappedNative_ The address of wrapped native token.
+    /// @param wNative The address of wrapped native token.
     /// @param router_ Address of the Pendle router.
     constructor(
         ICentralRegistry cr,
         address mm,
-        address wrappedNative_,
+        address wNative,
         IPendleRouter router_
-    ) BasePositionManager(cr, mm, wrappedNative_) {
+    ) BasePositionManager(cr, mm, wNative) {
         router = router_;
     }
 

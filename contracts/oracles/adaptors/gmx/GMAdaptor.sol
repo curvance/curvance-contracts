@@ -67,11 +67,11 @@ contract GMAdaptor is BaseOracleAdaptor {
     /// CONSTRUCTOR ///
 
     /// @dev Only deployable on Arbitrum.
-    /// @param centralRegistry_ The address of central registry.
+    /// @param cr The address of central registry.
     /// @param gmxReader_ The address of GMX Reader.
     /// @param gmxDataStore_ The address of GMX DataStore.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address gmxReader_,
         address gmxDataStore_,
         uint256 MAXIMUM_INCREASE_PER_YEAR,
@@ -79,7 +79,7 @@ contract GMAdaptor is BaseOracleAdaptor {
         uint256 MAXIMUM_TIMESTAMP_BUFFER,
         uint256 MINIMUM_TIMESTAMP_BUFFER
     ) BaseOracleAdaptor(
-        centralRegistry_,
+        cr,
         MAXIMUM_INCREASE_PER_YEAR,
         MINIMUM_INCREASE_PER_YEAR,
         MAXIMUM_TIMESTAMP_BUFFER,

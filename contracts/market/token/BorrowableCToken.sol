@@ -257,8 +257,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         _borrow(assets, msg.sender, owner);
 
-        // Callback to Position Manager that executes remaining leverage
-        // logic.
+        // Callback to Position Manager to execute remaining leverage logic.
         IPositionManager(msg.sender).onBorrow(
             address(this),
             assets,

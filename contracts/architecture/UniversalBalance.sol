@@ -105,9 +105,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address borrowableCToken
-    ) PluginDelegable(centralRegistry_) {
+    ) PluginDelegable(cr) {
         // Validate `borrowableCToken` is actually lendable.
         if (!IBorrowableCToken(borrowableCToken).isBorrowable()) {
             _revert(_INVALID_PARAMETER_SELECTOR);

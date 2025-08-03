@@ -42,9 +42,6 @@ abstract contract BasePositionManager is
     /// @dev 0.99e18 = 99%.
     uint256 public constant MAX_LEVERAGE = 0.99e18;
 
-    /// @dev `bytes4(keccak256(bytes("BasePositionManager__Unauthorized()")))`
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xdb6ad9f5;
-
     /// @notice The address of wrapped native token on this chain.
     address public immutable wrappedNative;
     /// @notice Address of the Market Manager linked to this contract.
@@ -105,11 +102,11 @@ abstract contract BasePositionManager is
     /// @param cr The address of the Protocol Central Registry.
     /// @param mm The address of the MarketManager which manages liquidity
     ///           positions between linked cTokens inside a joint market.
-    /// @param wrappedNative_ The address of wrapped native token.
+    /// @param wNative The address of wrapped native token.
     constructor(
         ICentralRegistry cr,
         address mm,
-        address wrappedNative_
+        address wNative
     ) PluginDelegable(cr) {
         // Validate that `mm` is configured as a Market Manager inside the
         // Protocol Central Registry.
@@ -118,7 +115,7 @@ abstract contract BasePositionManager is
         }
 
         marketManager = IMarketManager(mm);
-        wrappedNative = wrappedNative_;
+        wrappedNative = wNative;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -232,7 +229,6 @@ abstract contract BasePositionManager is
         uint256 slippage
     ) external checkSlippage(account, slippage) nonReentrant {
         _checkDelegate(account, msg.sender);
-
         _leverage(action, account);
     }
 
@@ -294,7 +290,6 @@ abstract contract BasePositionManager is
         uint256 slippage
     ) external checkSlippage(account, slippage) nonReentrant {
         _checkDelegate(account, msg.sender);
-
         _deleverage(action, account);
     }
 
@@ -505,11 +500,8 @@ abstract contract BasePositionManager is
         address account,
         address borrowableCToken
     ) public view returns (uint256 result) {
-        (
-            uint256 sumCollateral,
-            uint256 maxDebt,
-            uint256 sumDebt
-        ) = marketManager.statusOf(account);
+        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
+            marketManager.statusOf(account);
 
         result = _maxRemainingLeverageOf(
             sumCollateral,
@@ -522,9 +514,8 @@ abstract contract BasePositionManager is
     /// @inheritdoc ERC165
     function supportsInterface(
         bytes4 interfaceId
-    ) public view override returns (bool) {
-        return
-            interfaceId == type(IPositionManager).interfaceId ||
+    ) public view override returns (bool result) {
+        result = interfaceId == type(IPositionManager).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
@@ -541,12 +532,12 @@ abstract contract BasePositionManager is
     ) internal view returns (uint256 result) {
         // Validate that the token itself is executing the callback.
         if (msg.sender != cToken) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert BasePositionManager__Unauthorized();
         }
 
         // Validate `cToken` is actually listed in this Market Manager.
         if (!marketManager.isListed(cToken)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert BasePositionManager__Unauthorized();
         }
 
         if (IERC20(collateralAsset).balanceOf(address(this)) < assets) {
@@ -669,9 +660,9 @@ abstract contract BasePositionManager is
             sumCollateral - maxDebt
         ) / WAD;
 
-        (uint256 price, uint256 errorCode) = IOracleManager(
-            ICentralRegistry(centralRegistry).oracleManager()
-        ).getPrice(address(borrowableCToken), true, false);
+        (uint256 price, uint256 errorCode) =
+            IOracleManager(centralRegistry.oracleManager())
+                .getPrice(address(borrowableCToken), true, false);
 
         // Validate we got a price for `borrowableCToken`.
         if (errorCode != 0) {
@@ -716,15 +707,6 @@ abstract contract BasePositionManager is
         z = FixedPointMathLib.mulDiv(x, y, d);
     }
 
-    /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x00, s)
-            revert(0x1c, 0x04)
-        }
-    }
-
     /// @notice Returns the Central Registry contract in interface form.
     function _getCentralRegistry()
         internal
@@ -744,7 +726,7 @@ abstract contract BasePositionManager is
     ///         creating/increasing a leveraged spot position.
     /// @dev MUST be overridden in every Position Manager implementation.
     function _swapDebtAssetToCollateralAsset(
-        LeverageAction memory action,
+        LeverageAction memory, /* action */
         address /* receiver */
     ) internal virtual;
 
@@ -755,6 +737,6 @@ abstract contract BasePositionManager is
     ///         a leveraged spot position.
     /// @dev MUST be overridden in every Position Manager implementation.
     function _swapCollateralAssetToDebtAsset(
-        DeleverageAction memory action
+        DeleverageAction memory /* action */
     ) internal virtual;
 }

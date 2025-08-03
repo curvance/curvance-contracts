@@ -61,18 +61,18 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of central registry.
+    /// @param cr The address of central registry.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address nativeUniversalBalance_,
         address pyth_,
-        address wrappedNative_,
+        address wNative,
         uint256 MAXIMUM_INCREASE_PER_YEAR,
         uint256 MINIMUM_INCREASE_PER_YEAR,
         uint256 MAXIMUM_TIMESTAMP_BUFFER,
         uint256 MINIMUM_TIMESTAMP_BUFFER
     ) BaseOracleAdaptor(
-        centralRegistry_,
+        cr,
         MAXIMUM_INCREASE_PER_YEAR,
         MINIMUM_INCREASE_PER_YEAR,
         MAXIMUM_TIMESTAMP_BUFFER,
@@ -80,7 +80,7 @@ contract PythAdaptor is BaseOracleAdaptor {
     ) {
         nativeUniversalBalance = nativeUniversalBalance_;
         pyth = pyth_;
-        wrappedNative = wrappedNative_;
+        wrappedNative = wNative;
     }
 
     receive() external payable {}

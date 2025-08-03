@@ -19,12 +19,9 @@ library CommonLib {
 
     /// @notice Returns balance of `token` for this contract.
     /// @param token The token address to query balance of.
-    /// @return The balance of `token` inside address(this).
-    function _getBalanceOf(address token) internal view returns (uint256) {
-        if (_isNative(token)) {
-            return address(this).balance;
-        }
-
-        return IERC20(token).balanceOf(address(this));
+    /// @return b The balance of `token` inside address(this).
+    function _getBalanceOf(address token) internal view returns (uint256 b) {
+        b = _isNative(token) ? address(this).balance :
+            IERC20(token).balanceOf(address(this));
     }
 }

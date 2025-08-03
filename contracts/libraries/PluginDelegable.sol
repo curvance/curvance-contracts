@@ -14,6 +14,8 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 ///      features such as limit orders, crosschain actions, reward auto
 ///      compounding, chained (multiple sequential) actions, etc.
 abstract contract PluginDelegable is IPluginDelegable {
+    /// CONSTANTS ///
+    
     /// @notice Curvance DAO Hub.
     ICentralRegistry public immutable centralRegistry;
 
@@ -43,9 +45,9 @@ abstract contract PluginDelegable is IPluginDelegable {
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) {
-        CentralRegistryLib._isCentralRegistry(centralRegistry_);
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -127,11 +129,7 @@ abstract contract PluginDelegable is IPluginDelegable {
             !_isDelegate[user][centralRegistry
                 .userApprovalIndex(user)][delegate]
         ) {
-            /// @solidity memory-safe-assembly
-            assembly {
-                mstore(0x00, 0xcfdc5602) // bytes4(keccak256(bytes("PluginDelegable__Unauthorized()")))
-                revert(0x1c, 0x04)
-            }
+            revert PluginDelegable__Unauthorized();
         }
     }
 }

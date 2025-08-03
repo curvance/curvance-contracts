@@ -20,14 +20,14 @@ contract VelodromePositionManager is BasePositionManager {
     /// @param cr The address of the Protocol Central Registry.
     /// @param mm The address of the MarketManager which manages liquidity
     ///           positions between linked cTokens inside a joint market.
-    /// @param wrappedNative_ The address of wrapped native token.
+    /// @param wNative The address of wrapped native token.
     constructor(
         ICentralRegistry cr,
         address mm,
-        address wrappedNative_,
+        address wNative,
         address router_,
         address pairFactory_
-    ) BasePositionManager(cr, mm, wrappedNative_) {
+    ) BasePositionManager(cr, mm, wNative) {
         router = router_;
         pairFactory = pairFactory_;
     }

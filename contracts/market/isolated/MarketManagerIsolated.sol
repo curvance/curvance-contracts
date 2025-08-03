@@ -1646,12 +1646,9 @@ contract MarketManagerIsolated is
 
         // Liquidations are only blocked if an error code of 2 (NO_SOURCE)
         // is calculated.
-        (
-            tData.collateralUnderlyingPrice,
-            tData.debtUnderlyingPrice
-        ) = IOracleManager(
-            centralRegistry.oracleManager()
-        ).getPriceIsolatedPair(collateralToken, debtToken, 2);
+        (tData.collateralUnderlyingPrice, tData.debtUnderlyingPrice) =
+            IOracleManager(centralRegistry.oracleManager())
+                .getPriceIsolatedPair(collateralToken, debtToken, 2);
 
         // Will revert if this liquidation is an attempted auction liquidator
         // and liquidator has chosen incorrect collateral or market.

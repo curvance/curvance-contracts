@@ -97,9 +97,9 @@ contract RedstoneCoreAdaptor is
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of central registry.
+    /// @param cr The address of central registry.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address[] memory signers,
         uint256 uniqueSignersThreshold_,
         string memory nativeTokenSymbol,
@@ -108,7 +108,7 @@ contract RedstoneCoreAdaptor is
         uint256 MAXIMUM_TIMESTAMP_BUFFER,
         uint256 MINIMUM_TIMESTAMP_BUFFER
     ) BaseOracleAdaptor(
-        centralRegistry_,
+        cr,
         MAXIMUM_INCREASE_PER_YEAR,
         MINIMUM_INCREASE_PER_YEAR,
         MAXIMUM_TIMESTAMP_BUFFER,

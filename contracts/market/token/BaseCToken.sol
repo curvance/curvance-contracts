@@ -1033,8 +1033,7 @@ abstract contract BaseCToken is
         uint256 balancePrior,
         IPositionManager.DeleverageAction memory action
     ) internal virtual {
-        // Callback to Position Panager that executes remaining deleverage
-        // logic.
+        // Callback to Position Manager to execute remaining deleverage logic.
         IPositionManager(msg.sender).onRedeem(
             address(this),
             assets,

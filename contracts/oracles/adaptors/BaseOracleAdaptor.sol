@@ -55,20 +55,19 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         uint256 MAXIMUM_INCREASE_PER_YEAR,
         uint256 MINIMUM_INCREASE_PER_YEAR,
         uint256 MAXIMUM_TIMESTAMP_BUFFER,
         uint256 MINIMUM_TIMESTAMP_BUFFER
     ) {
-        CentralRegistryLib._isCentralRegistry(centralRegistry_);
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
         _MAXIMUM_INCREASE_PER_YEAR = MAXIMUM_INCREASE_PER_YEAR;
         _MINIMUM_INCREASE_PER_YEAR = MINIMUM_INCREASE_PER_YEAR;
         _MAXIMUM_TIMESTAMP_BUFFER = MAXIMUM_TIMESTAMP_BUFFER;
         _MINIMUM_TIMESTAMP_BUFFER = MINIMUM_TIMESTAMP_BUFFER;
-
-        centralRegistry = centralRegistry_;
     }
 
     /// EXTERNAL FUNCTIONS ///

@@ -36,7 +36,7 @@ abstract contract Multicall {
     function multicall(
         MulticallAction[] calldata calls
     ) external returns (bytes[] memory results) {
-        ICentralRegistry centralRegistry = _getCentralRegistry();
+        ICentralRegistry cr = _getCentralRegistry();
         uint256 numCalls = calls.length;
         results = new bytes[](numCalls);
         MulticallAction memory cachedCall;
@@ -47,9 +47,7 @@ abstract contract Multicall {
             if (cachedCall.isPriceUpdate) {
                 // CASE: We need to update a pull based price oracle and we
                 //       need a direct call to the target address.
-                address checker = centralRegistry.multicallChecker(
-                    cachedCall.target
-                );
+                address checker = cr.multicallChecker(cachedCall.target);
 
                 // Validate we know how to verify this calldata.
                 if (checker == address(0)) {
@@ -62,10 +60,9 @@ abstract contract Multicall {
                     cachedCall.data
                 );
 
-                results[i] = LowLevelCallsHelper._call(
-                    cachedCall.target,
-                    cachedCall.data
-                );
+                results[i] = LowLevelCallsHelper.
+                    _call(cachedCall.target, cachedCall.data);
+                
                 continue;
             }
 
@@ -76,10 +73,8 @@ abstract contract Multicall {
                 revert Multicall__InvalidTarget();
             }
 
-            results[i] = LowLevelCallsHelper._delegateCall(
-                address(this),
-                cachedCall.data
-            );
+            results[i] = LowLevelCallsHelper.
+                _delegateCall(address(this), cachedCall.data);
         }
     }
 

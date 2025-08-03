@@ -45,10 +45,10 @@ abstract contract BaseZapper is ReentrancyGuard {
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry cr, address wrappedNative_) {
+    constructor(ICentralRegistry cr, address wNative) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
-        wrappedNative = wrappedNative_;
+        wrappedNative = wNative;
     }
 
     /// EXTERNAL FUNCTIONS ///

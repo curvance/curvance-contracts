@@ -198,9 +198,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) {
-        CentralRegistryLib._isCentralRegistry(centralRegistry_);
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
         // Query epoch duration directly to minimize potential human error.
         epochDuration = centralRegistry.EPOCH_DURATION();

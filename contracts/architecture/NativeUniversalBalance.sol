@@ -41,13 +41,13 @@ contract NativeUniversalBalance is UniversalBalance {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address borrowableCToken,
-        address nativeWrappedToken
-    ) UniversalBalance(centralRegistry_, borrowableCToken) {
+        address wNative
+    ) UniversalBalance(cr, borrowableCToken) {
         // Validate that `borrowableCToken` and native wrapped token
         // are the same token.
-        if (IBorrowableCToken(borrowableCToken).asset() != nativeWrappedToken) {
+        if (IBorrowableCToken(borrowableCToken).asset() != wNative) {
             revert NativeUniversalBalance__UnderlyingTokenMismatch();
         }
     }

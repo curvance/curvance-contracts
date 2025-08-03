@@ -195,8 +195,6 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     uint256 internal constant _BITMASK_VERTEX_MULTIPLIER = (1 << 192) - 1;
     /// @notice The bit position of `nextUpdateTimestamp` in `_currentRates`.
     uint256 internal constant _BITPOS_UPDATE_TIMESTAMP = 192;
-    /// @dev `bytes4(keccak256(bytes("DynamicInterestRateModel__Unauthorized()")))`.
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xf7ff5148;
 
     /// STORAGE ///
 
@@ -302,13 +300,13 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///                      to this interest rate model contract.
     function setLinkedToken(address cTokenAddress) external {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert DynamicInterestRateModel__Unauthorized();
         }
 
         // Validate that a borrowable Curvance token has not already been
         // linked to this smart contract.
         if (linkedToken != address(0)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert DynamicInterestRateModel__Unauthorized();
         }
 
         // Validate that the token being linked is actually a borrowable token
@@ -387,7 +385,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         // Validate that the linked token itself is calling to update
         // its interest accrued.
         if (msg.sender != linkedToken) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert DynamicInterestRateModel__Unauthorized();
         }
 
         uint256 util = utilizationRate(assetsHeld, debt);
@@ -995,19 +993,10 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         z = FixedPointMathLib.mulDiv(x, y, d);
     }
 
-    /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x00, s)
-            revert(0x1c, 0x04)
-        }
-    }
-
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkMarketPermissions() internal view virtual {
         if (!centralRegistry.hasMarketPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert DynamicInterestRateModel__Unauthorized();
         }
     }
 

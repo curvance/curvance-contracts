@@ -9,12 +9,12 @@ contract SimplePositionManager is BasePositionManager {
     /// @param cr The address of the Protocol Central Registry.
     /// @param mm The address of the MarketManager which manages liquidity
     ///           positions between linked cTokens inside a joint market.
-    /// @param wrappedNative_ The address of wrapped native token.
+    /// @param wNative The address of wrapped native token.
     constructor(
         ICentralRegistry cr,
         address mm,
-        address wrappedNative_
-    ) BasePositionManager(cr, mm, wrappedNative_) {}
+        address wNative
+    ) BasePositionManager(cr, mm, wNative) {}
 
     /// @notice Callback function on borrowing tokens from an borrowableCToken
     ///         contract providing instant liquidity in the borrowableCToken

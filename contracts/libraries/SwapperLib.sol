@@ -75,10 +75,8 @@ library SwapperLib {
         }
 
         // Verify calldata integrity.
-        IExternalCalldataChecker(callDataChecker).checkCalldata(
-            action,
-            address(this)
-        );
+        IExternalCalldataChecker(callDataChecker)
+            .checkCalldata(action, address(this));
 
         // Approve `action.inputToken` to target contract, if necessary.
         _approveIfNeeded(action.inputToken, action.target, action.inputAmount);
@@ -87,9 +85,8 @@ library SwapperLib {
         address outputToken = action.outputToken;
         uint256 balanceBefore = CommonLib._getBalanceOf(outputToken);
 
-        uint256 callValue = CommonLib._isNative(action.inputToken)
-            ? action.inputAmount
-            : 0;
+        uint256 callValue = CommonLib._isNative(action.inputToken) ?
+            action.inputAmount : 0;
 
         // Execute the swap.
         LowLevelCallsHelper._callWithNative(
