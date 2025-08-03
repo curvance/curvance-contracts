@@ -69,11 +69,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     event Repay(uint256 assets, address payer, address account);
     event Flashloan(uint256 assets, uint256 assetsFee, address account);
     event BadDebtRecognized(uint256 assets, address liquidator);
-    event NewMarketInterestRateModel(
-        address oldInterestRateModel,
-        address newInterestRateModel,
-        uint256 newInterestAccrualPeriod
-    );
+    event NewIRM(address oldIRM, address newIRM, uint256 newVestingPeriod);
     event NewInterestFee(uint256 oldInterestFee, uint256 newInterestFee);
 
     /// ERRORS ///
@@ -131,17 +127,16 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Accrues pending interest and updates the interest rate
     ///         model (`interestRateModel`) used by this borrowableCToken.
     /// @dev Admin function to update the interest rate model.
-    ///      Emits a {NewMarketInterestRateModel} event.
-    /// @param newInterestRateModel The new interest rate model to determine
-    ///                             interest paid by borrowers to lenders for
-    ///                             outstanding debt.
-    function setInterestRateModel(address newInterestRateModel) external {
+    ///      Emits a {NewIRM} event.
+    /// @param newIRM The new interest rate model to determine interest
+    ///               paid by borrowers to lenders for outstanding debt.
+    function setInterestRateModel(address newIRM) external {
         _checkElevatedPermissions();
 
         // Accrue interest if needed.
         _accrueIfNeeded();
 
-        _setInterestRateModel(IInterestRateModel(newInterestRateModel));
+        _setInterestRateModel(IInterestRateModel(newIRM));
     }
 
     /// @notice Accrues pending interest and updates the fee that the protocol
@@ -393,16 +388,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
         address account
     ) external view override returns (AccountSnapshot memory result) {
         uint256 outstandingDebt = debtBalance(account);
-        result = (
-            AccountSnapshot({
-                asset: address(this),
-                decimals: decimals(),
-                isCollateral: outstandingDebt > 0 ? false : true,
-                exchangeRate: _convertToAssets(WAD, _getTotalAssets()),
-                collateralPosted: collateralPosted[account],
-                debtBalance: outstandingDebt
-            })
-        );
+
+        result.asset = address(this);
+        result.decimals = decimals();
+        result.isCollateral = outstandingDebt > 0 ? false : true;
+        result.exchangeRate = _convertToAssets(WAD, _getTotalAssets());
+        result.collateralPosted = collateralPosted[account];
+        result.debtBalance = outstandingDebt;
     }
 
     /// @notice Updates pending interest and then returns the current
@@ -452,29 +444,26 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Returns the current debt balance for `account`.
     /// @dev Note: Pending interest is not applied in this calculation.
     /// @param account The address whose debt balance should be calculated.
-    /// @return result The current outstanding debt balance of `account`.
-    function debtBalance(
-        address account
-    ) public view returns (uint256 result) {
+    /// @return r The current outstanding debt balance of `account`.
+    function debtBalance(address account) public view returns (uint256 r) {
         // Cache debt data to save gas.
         uint256 debtOf = _debtOf[account];
         uint256 outstandingDebt = uint176(debtOf);
         
         // If theres no outstanding debt, can return immediately with 0.
         if (outstandingDebt == 0) {
-            return result;
+            return r;
         }
 
         // Calculate debt balance using the debt indexes:
         // Debt balance calculation:
         // ((Account's outstanding debt * Market's debt index) /
         // Account's debt index).
-        result =
-            FixedPointMathLib.mulDivUp(
-                outstandingDebt,
-                uint80(_vestingData >> _BITPOS_DEBT_INDEX), // pull the last 80 bits of vesting data to grab the market debt index
-                uint80(debtOf >> _BITPOS_DEBT_INDEX) // pull the last 80 bits of debtOf to grab the account debt index
-            );
+        r = FixedPointMathLib.mulDivUp(
+            outstandingDebt,
+            uint80(_vestingData >> _BITPOS_DEBT_INDEX), // pull the last 80 bits of vesting data to grab the market debt index
+            uint80(debtOf >> _BITPOS_DEBT_INDEX) // pull the last 80 bits of debtOf to grab the account debt index
+        );
     }
 
     /// @notice The fee to be charged for a given flashloan.
@@ -566,12 +555,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        SafeTransferLib.safeTransferFrom(
-            asset(),
-            payer,
-            address(this),
-            assets
-        );
+        SafeTransferLib.safeTransferFrom(asset(), payer, address(this), assets);
 
         // Update the account and market outstanding debt balance data.
         _setDebtOf(
@@ -632,10 +616,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Fails if liquidation not allowed, trying to repay too much debt
         // will revert.
-        (
-            result,
-            debtAmounts
-        ) = marketManager.canLiquidate(
+        (result, debtAmounts) = marketManager.canLiquidate(
             debtAmounts,
             liquidator,
             accounts,
@@ -759,13 +740,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
         lastVestingClaim = block.timestamp > vestingPeriodEnd
             ? vestingPeriodEnd : block.timestamp;
 
-        uint256 protocolFees;
+        uint256 protocolFee;
 
         // Check if it is time to start a new vesting period.
         if (block.timestamp >= vestingPeriodEnd) {
             // Cache interest accrual fee, and vesting period to save gas.
             uint256 accrualPeriod = vestingPeriod;
-            uint256 protocolInterestFee = interestFee;
+            uint256 accrualFee = interestFee;
 
             // Calculate the interest vesting cycles for new vesting period.
             // The weird multiplication logic here is to round down to
@@ -780,18 +761,15 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 outstandingDebt
             );
 
+            protocolFee = FixedPointMathLib.mulDivUp(rate, accrualFee, WAD);
             // Check whether the DAO takes a cut of interest, and whether new
             // assets will vest over time the next vesting period.
-            if (protocolInterestFee > 0  && rate > 0) {
-                // Fees are initially calculated off vesting rate giving us
-                // essentially fees per second, in assets. Which we can then
-                // subtract directly from `rate` so theres no precision loss.
-                protocolFees = FixedPointMathLib.mulDivUp(
-                    rate,
-                    protocolInterestFee,
-                    WAD
-                );
-                rate = rate - protocolFees;
+            if (protocolFee > 0) {
+                // `protocolFee` is initially calculated in `rate` giving us
+                // fees per second, in assets. Which we can then subtract
+                // directly from `rate` so theres no precision loss.
+                rate = rate - protocolFee;
+
                 // We can now convert the per second assets value to the
                 // amount of assets to be minted by the end of the new
                 // `vestingPeriodEnd`. Next we need to discount the amount of
@@ -800,12 +778,12 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 // be calculated with:
                 // assets * (current assets / current assets + future assets)
                 // `rate` is in WAD which means we need to divide the
-                // output by WAD to get protocolFees in `assets`.
+                // output by WAD to get protocolFee in `assets`.
                 // yieldToVest needs to be added to both as we do not want to
                 // give the protocol additional rewards for vested interest in
                 // the past.
-                protocolFees = _mulDiv(
-                    protocolFees * accrualPeriod * outstandingDebt,
+                protocolFee = _mulDiv(
+                    protocolFee * accrualPeriod * outstandingDebt,
                     cachedTa,
                     (cachedTa +
                         _mulDiv(rate * accrualPeriod, outstandingDebt, WAD)) * WAD
@@ -829,19 +807,16 @@ contract BorrowableCToken is BaseCTokenWithYield {
         yieldToVest = yieldToVest + newYieldToVest;
 
         // If theres fees we need to mint new shares for the protocol.
-        if (protocolFees > 0) {
+        if (protocolFee > 0) {
             // Convert assets to shares and mint to protocol address. Calculate
             // before adding the protocols assets so effectively all assets go
             // to the protocol.
-            uint256 protocolFeesInShares = _convertToShares(
-                protocolFees, 
-                cachedTa
-            );
+            uint256 protocolFeeShares = _convertToShares(protocolFee, cachedTa);
             // Cache the current dao address then mint shares to the dao.
             address daoAddress = centralRegistry.daoAddress();
-            _mint(daoAddress, protocolFeesInShares);
-            _afterDepositAction(protocolFeesInShares, daoAddress);
-            cachedTa = cachedTa + protocolFees;
+            _mint(daoAddress, protocolFeeShares);
+            _afterDepositAction(protocolFeeShares, daoAddress);
+            cachedTa = cachedTa + protocolFee;
         }
 
         // Vest pending yield, if there is any.
@@ -884,36 +859,29 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// @notice Updates the interest rate model (`interestRateModel`) used
     ///         by this borrowableCToken.
-    /// @dev Emits a {NewMarketInterestRateModel} event.
-    /// @param newInterestRateModel The new interest rate model to determine
-    ///                             interest paid by borrowers to lenders for
-    ///                             outstanding debt.
-    function _setInterestRateModel(
-        IInterestRateModel newInterestRateModel
-    ) internal {
+    /// @dev Emits a {NewIRM} event.
+    /// @param newIRM The new interest rate model to determine interest paid
+    ///               by borrowers to lenders for outstanding debt.
+    function _setInterestRateModel(IInterestRateModel newIRM) internal {
         // Ensure we are switching to an actual Interest Rate Model.
         if (
             !ERC165Checker.supportsInterface(
-                address(newInterestRateModel),
+                address(newIRM),
                 type(IInterestRateModel).interfaceId
             )
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Cache the current interest rate model to save gas.
-        address oldInterestRateModel = address(interestRateModel);
+        // Cache the current interest rate model for event emission.
+        address oldIRM = address(interestRateModel);
 
         // Set new interest rate model and compound rate.
-        interestRateModel = newInterestRateModel;
-        uint256 newPeriod = newInterestRateModel.INTEREST_ACCRUAL_PERIOD();
+        interestRateModel = newIRM;
+        uint256 newPeriod = newIRM.INTEREST_ACCRUAL_PERIOD();
         vestingPeriod = newPeriod;
 
-        emit NewMarketInterestRateModel(
-            oldInterestRateModel,
-            address(newInterestRateModel),
-            newPeriod
-        );
+        emit NewIRM(oldIRM, address(newIRM), newPeriod);
     }
 
     /// @notice Updates the fee that the protocol takes on interest paid
@@ -1024,13 +992,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // PY = vestingRate * (vestingPeriodEnd - lastTimeVestClaimed)).
             // Then in either case:
             // Divide the pending yield by `WAD` (1e18) for precision.
-            pendingYield =
-                ((
-                    block.timestamp < vestingPeriodEnd
-                        ? vestingRate * (block.timestamp - lastVestingClaim)
-                        : vestingRate * (vestingPeriodEnd - lastVestingClaim)
-                ) * outstandingDebt) /
-                WAD;
+            pendingYield = _mulDiv(
+                block.timestamp < vestingPeriodEnd
+                    ? vestingRate * (block.timestamp - lastVestingClaim)
+                    : vestingRate * (vestingPeriodEnd - lastVestingClaim),
+                outstandingDebt,
+                WAD
+            );
         }
     }
 

@@ -47,11 +47,8 @@ contract SimplePositionManager is BasePositionManager {
             return;
         }
 
-        if (swapAction.call.length == 0) {
-            revert BasePositionManager__InvalidParam();
-        }
-
         if (
+            swapAction.call.length == 0 ||
             swapAction.target == address(0) ||
             swapAction.inputToken != debtAsset ||
             swapAction.outputToken != collateralAsset ||
@@ -87,6 +84,8 @@ contract SimplePositionManager is BasePositionManager {
         DeleverageAction memory action
     ) internal virtual override {
         SwapperLib.Swap[] memory swapActions = action.swapActions;
+        
+        // For simple actions there should only ever be one swap.
         if (swapActions.length != 1) {
             revert BasePositionManager__InvalidParam();
         }
@@ -99,11 +98,8 @@ contract SimplePositionManager is BasePositionManager {
             return;
         }
 
-        if (swapAction.call.length == 0) {
-            revert BasePositionManager__InvalidParam();
-        }
-
         if (
+            swapAction.call.length == 0 ||
             swapAction.target == address(0) ||
             swapAction.inputToken != collateralAsset ||
             swapAction.outputToken != debtAsset ||

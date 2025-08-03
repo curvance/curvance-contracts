@@ -124,7 +124,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     event Borrow(address account, uint256 amount);
     event Repay(address payer, address account, uint256 amount);
     event BadDebtRecognized(address liquidator, uint256 amount);
-    event NewMarketInterestRateModel(
+    event NewIRM(
         address oldInterestRateModel,
         address newInterestRateModel,
         uint256 newInterestAccrualPeriod
@@ -976,7 +976,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Updates the interest rate model.
-    /// @dev Emits a {NewMarketInterestRateModel} event.
+    /// @dev Emits a {NewIRM} event.
     /// @param newInterestRateModel The new interest rate model for this
     ///                             eToken to use.
     function _setInterestRateModel(
@@ -999,7 +999,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         interestRateModel = newInterestRateModel;
         marketData.accrualPeriod = newInterestRateModel.INTEREST_ACCRUAL_PERIOD();
 
-        emit NewMarketInterestRateModel(
+        emit NewIRM(
             oldInterestRateModel,
             address(newInterestRateModel),
             marketData.accrualPeriod

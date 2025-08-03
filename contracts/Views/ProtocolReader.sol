@@ -18,10 +18,10 @@ import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-/// @title Curvance Auxiliary Data.
+/// @title Curvance Protocol Reader.
 /// @notice An auxiliary contract for querying nuanced data
 ///         inside the Curvance ecosystem.
-/// @dev The Curvance Auxiliary Data contract aims to be an all in one
+/// @dev The Curvance Protocol Reader contract aims to be an all in one
 ///      interface for pulling data related to Curvance Protocol. The
 ///      secondary benefit is to minimize external RPC calls to pull said
 ///      data, by compressing multiple variable calls together this reduces
@@ -29,7 +29,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 ///      call(s). Because this auxiliary contract is all view functions
 ///      with no active storage values new versions can be deployed at any
 ///      time, to support new query or data formats.
-contract AuxiliaryData {
+contract ProtocolReader {
     /// TYPES ///
     struct AccountMarketPosition {
         uint256 debt;

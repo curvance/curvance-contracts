@@ -254,8 +254,7 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     function _checkVestingFinished(
         uint256 vestingData
     ) internal pure override returns (bool result) {
-        result = 
-            uint40(vestingData >> _BITPOS_LAST_VEST) >=
+        result =  uint40(vestingData >> _BITPOS_LAST_VEST) >=
             uint40(vestingData >> _BITPOS_VEST_END);
     }
 

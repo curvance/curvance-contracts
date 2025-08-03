@@ -137,14 +137,14 @@ abstract contract BaseCToken is
             revert BaseCToken__InvalidMarketManager();
         }
 
-        // Set `marketManager`.
-        marketManager = IMarketManager(mm);
-
-        // Sanity check of _asset so that we know users will not need to
+        // Sanity check of `asset_` so that we know users will not need to
         // mint anywhere close to causing an overflow.
         if (asset_.totalSupply() >= type(uint216).max) {
             revert BaseCToken__UnsupportedAsset();
         }
+
+        // Set `marketManager`.
+        marketManager = IMarketManager(mm);
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -435,11 +435,9 @@ abstract contract BaseCToken is
 
     /// @notice Returns share -> asset exchange rate, in `WAD`.
     /// @dev Oracle Manager calculates cToken value from this exchange rate.
-    /// @return result The share -> asset exchange rate, in `WAD`.
-    function exchangeRate() external view nonReadReentrant returns (
-        uint256 result
-    ) {
-        result = _convertToAssets(WAD, _getTotalAssets());
+    /// @return r The share -> asset exchange rate, in `WAD`.
+    function exchangeRate() external view nonReadReentrant returns (uint256 r) {
+        r = _convertToAssets(WAD, _getTotalAssets());
     }
 
     /// @notice Returns a snapshot of the cToken and `account` data.
@@ -450,16 +448,13 @@ abstract contract BaseCToken is
     function getSnapshot(
         address account
     ) external view virtual returns (AccountSnapshot memory result) {
-        result = (
-            AccountSnapshot({
-                asset: address(this),
-                decimals: decimals(),
-                isCollateral: true, // Defaults to true, only overridden in BorrowableCToken.
-                exchangeRate: _convertToAssets(WAD, _getTotalAssets()),
-                collateralPosted: collateralPosted[account],
-                debtBalance: 0 // Defaults to zero, only overridden in BorrowableCToken.
-            })
-        );
+        result.asset = address(this);
+        result.decimals = decimals();
+        // Can only be true for non-BorrowableCTokens.
+        result.isCollateral = true;
+        result.exchangeRate = _convertToAssets(WAD, _getTotalAssets());
+        result.collateralPosted = collateralPosted[account];
+        // result.debtBalance is 0 for non-BorrowableCTokens, no need to set.
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -641,12 +636,11 @@ abstract contract BaseCToken is
     /// @dev Returns true that this contract implements both ERC4626
     ///      and ICToken interfaces.
     /// @param interfaceId The interface ID to check.
-    /// @return Whether the contract implements the interface.
+    /// @return result Whether the contract implements the interface.
     function supportsInterface(
         bytes4 interfaceId
-    ) public pure virtual returns (bool) {
-        return
-            interfaceId == type(ICToken).interfaceId ||
+    ) public pure virtual returns (bool result) {
+        result = interfaceId == type(ICToken).interfaceId ||
             interfaceId == type(ERC4626).interfaceId;
     }
 
@@ -911,11 +905,7 @@ abstract contract BaseCToken is
         address owner
     ) internal virtual {
         uint256 newNetCollateral = marketCollateralPosted + shares;
-        marketManager.canCollateralize(
-            address(this),
-            owner,
-            newNetCollateral
-        );
+        marketManager.canCollateralize(address(this), owner, newNetCollateral);
         // Update user and market collateral posted invariants.
         collateralPosted[owner] = collateralPosted[owner] + shares;
         marketCollateralPosted = newNetCollateral;

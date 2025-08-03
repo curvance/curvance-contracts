@@ -523,13 +523,9 @@ abstract contract BasePositionManager is
         uint256 actionAssets,
         address collateralAsset
     ) internal view returns (uint256 result) {
-        // Validate that the token itself is executing the callback.
-        if (msg.sender != cToken) {
-            revert BasePositionManager__Unauthorized();
-        }
-
-        // Validate `cToken` is actually listed in this Market Manager.
-        if (!marketManager.isListed(cToken)) {
+        // Validate that the token itself is executing the callback and
+        // `cToken` is actually listed in this Market Manager.
+        if (msg.sender != cToken || !marketManager.isListed(cToken)) {
             revert BasePositionManager__Unauthorized();
         }
 

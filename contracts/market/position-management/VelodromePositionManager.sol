@@ -148,12 +148,7 @@ contract VelodromePositionManager is BasePositionManager {
         address debtAsset = action.borrowableCToken.asset();
         SwapperLib.Swap[] memory swapActions = action.swapActions;
 
-        VelodromeLib._exitVelodrome(
-            router,
-            pool,
-            action.collateralAssets
-        );
-
+        VelodromeLib._exitVelodrome(router, pool, action.collateralAssets);
         uint256 numSwaps = swapActions.length;
 
         // Check to make sure there is calldata attached to execute the swap.

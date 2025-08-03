@@ -115,7 +115,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///                          multiplier will begin to decrease.
     /// @param decreaseThresholdMax The utilization rate at which the vertex
     ///                             multiplier negative velocity will max out.
-    struct RatesConfiguration {
+    struct RatesConfig {
         uint256 baseInterestRate;
         uint256 vertexInterestRate;
         uint256 vertexStartingPoint;
@@ -209,7 +209,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// @notice Struct containing current configuration data for the
     ///         dynamic interest rate model.
-    RatesConfiguration public ratesConfig;
+    RatesConfig public ratesConfig;
     /// @dev Internal stored rates data.
     ///      Bits Layout:
     ///      - [0..191]   `vertexMultiplier`.
@@ -218,7 +218,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// EVENTS ///
 
-    event NewDynamicInterestRateModel(
+    event NewIRM(
         uint256 baseInterestRate,
         uint256 vertexInterestRate,
         uint256 vertexStartingPoint,
@@ -389,7 +389,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         }
 
         uint256 util = utilizationRate(assetsHeld, debt);
-        RatesConfiguration memory config = ratesConfig;
+        RatesConfig memory config = ratesConfig;
         uint256 vertexPoint = config.vertexStartingPoint;
 
         bool belowVertex = (util <= vertexPoint);
@@ -456,7 +456,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 debt
     ) public view returns (uint256 result) {
         uint256 util = utilizationRate(assetsHeld, debt);
-        RatesConfiguration memory config = ratesConfig;
+        RatesConfig memory config = ratesConfig;
         uint256 vertexPoint = config.vertexStartingPoint;
 
         // Query base interest rate directly since vertex multiplier is not
@@ -494,9 +494,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 vertexPoint = ratesConfig.vertexStartingPoint;
 
         if (util <= vertexPoint) {
-            unchecked {
-                return _getBaseRate(util);
-            }
+            return _getBaseRate(util);
         }
 
         result =
@@ -549,12 +547,11 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// @inheritdoc ERC165
     /// @param interfaceId The interface ID to check.
-    /// @return Whether the contract implements the interface.
+    /// @return result Whether the contract implements the interface.
     function supportsInterface(
         bytes4 interfaceId
-    ) public view override returns (bool) {
-        return
-            interfaceId == type(IInterestRateModel).interfaceId ||
+    ) public view override returns (bool result) {
+        result = interfaceId == type(IInterestRateModel).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
@@ -562,11 +559,9 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// @notice Calculates the interest rate for `util` market utilization.
     /// @param util The utilization rate of the market, in `WAD`.
-    /// @return result The calculated base interest rate, in `WAD`.
-    function _getBaseRate(
-        uint256 util
-    ) internal view returns (uint256 result) {
-        result = _mulDiv(util, ratesConfig.baseInterestRate, WAD);
+    /// @return r The calculated base interest rate, in `WAD`.
+    function _getBaseRate(uint256 util) internal view returns (uint256 r) {
+        r = _mulDiv(util, ratesConfig.baseInterestRate, WAD);
     }
 
     /// @notice Calculates the interest rate under `vertexInterestRate`
@@ -574,12 +569,10 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///         utilization.
     /// @param util The utilization rate of the market above
     ///            `vertexStartingPoint`, in `WAD`.
-    /// @return result The calculated vertex interest rate, in `WAD`.
-    function _getVertexRate(
-        uint256 util
-    ) internal view returns (uint256 result) {
+    /// @return r The calculated vertex interest rate, in `WAD`.
+    function _getVertexRate(uint256 util) internal view returns (uint256 r) {
         // We divide by WAD_SQUARED instead of WAD to maintain precision.
-        result = _mulDiv(
+        r = _mulDiv(
             util,
             ratesConfig.vertexInterestRate * vertexMultiplier(),
             WAD_SQUARED
@@ -591,7 +584,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     /// @dev This function sets various parameters for the dynamic interest
     ///      rate model, adjusting how interest rates are calculated based
     ///      on system utilization.
-    ///      Emits a {NewDynamicInterestRateModel} event.
+    ///      Emits a {NewIRM} event.
     /// @param baseRatePerYear The base interest rate per year,
     ///                        in `basis points`.
     /// @param vertexRatePerYear The vertex interest rate per year,
@@ -666,7 +659,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
             revert DynamicInterestRateModel__InvalidMultiplierMax();
         }
 
-        RatesConfiguration storage config = ratesConfig;
+        RatesConfig storage config = ratesConfig;
 
         config.baseInterestRate = _mulDiv(
             baseRatePerYear,
@@ -707,9 +700,9 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         config.decreaseThreshold = vertexUtilStart;
         config.decreaseThresholdMax = vertexUtilStart - thresholdLength;
 
-        RatesConfiguration memory cachedConfig = config;
+        RatesConfig memory cachedConfig = config;
 
-        emit NewDynamicInterestRateModel(
+        emit NewIRM(
             cachedConfig.baseInterestRate, // base rate.
             cachedConfig.vertexInterestRate, // vertex base rate.
             vertexUtilStart, // Vertex utilization rate start.
@@ -721,7 +714,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
             WAD, // Vertex increase threshold max.
             cachedConfig.decreaseThreshold, // Vertex decrease threshold.
             cachedConfig.decreaseThresholdMax, // Vertex decrease threshold max.
-            vertexReset // Was vertex multiplier reset.
+            vertexReset // Was `vertexMultiplier` reset.
         );
     }
 
@@ -738,13 +731,13 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///      If the utilization is higher, it calculates a new multiplier by
     ///      applying a positive curve value to the adjustment.
     ///      This adjustment is also subjected to the decay multiplier.
-    /// @param config The cached version of the current `RatesConfiguration`.
+    /// @param config The cached version of the current `RatesConfig`.
     /// @param util The current utilization value, used to determine how the
     ///             multiplier should be adjusted.
     /// @return The updated multiplier after applying decay and
     ///         adjustments based on the current utilization level.
     function _updateForAboveVertex(
-        RatesConfiguration memory config,
+        RatesConfig memory config,
         uint256 util
     ) internal view returns (uint256) {
         uint256 currentMultiplier = vertexMultiplier();
@@ -800,13 +793,13 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///      a new multiplier is calculated by applying a negative curve value
     ///      to the adjustment. This new multiplier is also subjected to the
     ///      decay multiplier.
-    /// @param config The cached version of the current `RatesConfiguration`.
+    /// @param config The cached version of the current `RatesConfig`.
     /// @param util The current utilization value, used to determine how the
     ///             multiplier should be adjusted.
     /// @return The updated multiplier after applying decay and
     ///         adjustments based on the current utilization level.
     function _updateForBelowVertex(
-        RatesConfiguration memory config,
+        RatesConfig memory config,
         uint256 util
     ) internal view returns (uint256) {
         uint256 currentMultiplier = vertexMultiplier();
