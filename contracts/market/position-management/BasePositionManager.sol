@@ -291,7 +291,7 @@ abstract contract BasePositionManager is
     ///         new collateralized shares for `owner`.
     /// @dev Measures slippage after this callback validating that `owner`
     ///      is still within acceptable liquidity requirements.
-    /// @param borrowableCToken The borrow token borrowed from.
+    /// @param borrowableCToken The borrowable token borrowed from.
     /// @param borrowAssets The amount of `borrowableCToken`'s asset borrowed.
     /// @param owner The account borrowing that will be swapped into
     ///              collateral assets deposited into Curvance.
@@ -498,13 +498,25 @@ abstract contract BasePositionManager is
 
     /// @notice Validate `action` parameters versus function parameters and
     ///         apply any protocol fee.
+    /// @param cToken The Curvance token given from function parameters,
+    ///               should be token used during the callback action.
+    /// @param assets The amount of `cTokenUnderlying` given from function
+    ///               parameters to be used during the callback action.
+    /// @param actionToken The Curvance token given from `action` parameters,
+    ///                    should be token used during the callback action.
+    /// @param actionAssets The amount of `cTokenUnderlying` given from
+    ///                     `action` parameters to be used during the callback
+    ///                     action.
+    /// @param cTokenUnderlying The `asset()` token of `cToken`.
+    /// @return The `cTokenUnderlying` assets for callback action potentially
+    ///         with fee applied.
     function _validateInputsAndApplyFee(
         address cToken,
         uint256 assets,
         address actionToken,
         uint256 actionAssets,
         address cTokenUnderlying
-    ) internal view returns (uint256) {
+    ) internal returns (uint256) {
         // Validate that the token itself is executing the callback and
         // `cToken` is actually listed in this Market Manager.
         if (msg.sender != cToken || !marketManager.isListed(cToken)) {
@@ -524,7 +536,9 @@ abstract contract BasePositionManager is
             actionAssets,
             centralRegistry.protocolLeverageFee(),
             WAD
+        );
 
+        // Apply protocol fee, if any to apply.
         if (fee > 0) {
             actionAssets -= fee;
             SafeTransferLib.safeTransfer(
@@ -534,6 +548,8 @@ abstract contract BasePositionManager is
             );
         }
 
+        // Return `cTokenUnderlying` assets for callback action potentially
+        // with fee applied.
         return actionAssets;
     }
 

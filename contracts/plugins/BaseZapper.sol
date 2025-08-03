@@ -278,7 +278,7 @@ abstract contract BaseZapper is ReentrancyGuard {
         bool depositAsWrappedNative
     ) internal {
         if (CommonLib._isNative(inputToken)) {
-            // Validate message has gas token attached.
+            // Validate `inputAmount` token attached equal to `msg.value`.
             if (inputAmount != msg.value) {
                 revert BaseZapper__ExecutionError();
             }
