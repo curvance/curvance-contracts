@@ -55,7 +55,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         ICentralRegistry cr,
         IVault vault
     ) BalancerBaseAdaptor(cr, vault) {
-        balancerVault = balancerVault_;
+        balancerVault = vault;
     }
 
     /// EXTERNAL FUNCTIONS ///

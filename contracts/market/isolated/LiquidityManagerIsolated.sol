@@ -250,7 +250,7 @@ abstract contract LiquidityManagerIsolated {
         uint256 collateral,
         uint256 maxDebt,
         uint256 debt
-    ){
+    ) {
         (
             AccountSnapshot[] memory snapshots,
             uint256[] memory underlyingPrices,
@@ -460,10 +460,10 @@ abstract contract LiquidityManagerIsolated {
     ///                debt The account's total debt value.
     /// @return lFactor The liquidation factor determining liquidation
     ///                 severity.
-    /// @return collateralTokenPrice The price of the underlying asset of
-    ///                              `collateralToken`.
-    /// @return debtTokenPrice The price of the underlying asset of
-    ///                        `debtToken`.
+    /// @return collateralUnderlyingPrice The price of the underlying asset of
+    ///                                   `collateralToken`.
+    /// @return debtUnderlyingPrice The price of the underlying asset of
+    ///                             `debtToken`.
     function _liquidationValuesOf(
         address account,
         address collateralToken,
@@ -471,8 +471,8 @@ abstract contract LiquidityManagerIsolated {
     ) internal view returns (
         AccountLiqResult memory result,
         uint256 lFactor,
-        uint256 collateralTokenPrice,
-        uint256 debtTokenPrice
+        uint256 collateralUnderlyingPrice,
+        uint256 debtUnderlyingPrice
     ) {
         (
             AccountSnapshot[] memory snapshots,
@@ -486,7 +486,7 @@ abstract contract LiquidityManagerIsolated {
 
             if (snap.isCollateral) {
                 if (snap.asset == collateralToken) {
-                    collateralTokenPrice = underlyingPrices[i];
+                    collateralUnderlyingPrice = underlyingPrices[i];
                 }
 
                 (result.cSoft, result.cHard) = _addLiquidationValues(
@@ -498,7 +498,7 @@ abstract contract LiquidityManagerIsolated {
                 );
             } else {
                 if (snap.asset == debtToken) {
-                    debtTokenPrice = underlyingPrices[i];
+                    debtUnderlyingPrice = underlyingPrices[i];
                 }
 
                 // If they have a debt balance,
@@ -661,12 +661,11 @@ abstract contract LiquidityManagerIsolated {
         internal
         view
         returns (AccountSnapshot[] memory, uint256[] memory, uint256) {
-        return
-            CommonLib._oracleManager(centralRegistry).getPricesForMarket(
-                account,
-                accountAssets[account].assets,
-                errorCodeBreakpoint
-            );
+        return CommonLib._oracleManager(centralRegistry).getPricesForMarket(
+            account,
+            accountAssets[account].assets,
+            errorCodeBreakpoint
+        );
     }
 
     /// @notice Calculates an assets value based on its `price`,
