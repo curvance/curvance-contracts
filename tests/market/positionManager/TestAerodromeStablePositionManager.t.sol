@@ -464,7 +464,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) 2;
+        ) / 2;
 
         AerodromePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));

@@ -247,11 +247,7 @@ abstract contract BaseZapper is ReentrancyGuard {
         }
 
         // Approve `debtAsset` transfer to cToken contract, if needed.
-        SwapperLib._approveIfNeeded(
-            debtAsset,
-            borrowableCToken,
-            repayAssets
-        );
+        SwapperLib._approveIfNeeded(debtAsset, borrowableCToken, repayAssets);
 
         // Execute repayment of outstanding debt.
         IBorrowableCToken(borrowableCToken).repayFor(repayAssets, receiver);
@@ -313,7 +309,7 @@ abstract contract BaseZapper is ReentrancyGuard {
         // Validate `cToken` exists, otherwise transfer their tokens
         // back and return.
         if (cToken == address(0)) {
-            revert BaseZapper__ExecutionError ();
+            revert BaseZapper__ExecutionError();
         }
 
         cTokenAsset = ICToken(cToken).asset();
@@ -335,8 +331,11 @@ abstract contract BaseZapper is ReentrancyGuard {
         address receiver,
         uint256 amount
     ) internal {
+        // If the token to refund is the chains' native gas token we wrap
+        // then transfer it to prevent callback attack vectors.
         if (CommonLib._isNative(token)) {
-            return SafeTransferLib.safeTransferETH(receiver, amount);
+            IWETH(wrappedNative).deposit{ value: amount }();
+            token = wrappedNative;
         }
 
         SafeTransferLib.safeTransfer(token, receiver, amount);
