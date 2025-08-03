@@ -10,10 +10,10 @@ contract WstETHAggregator is VaultAggregator {
     /// CONSTRUCTOR ///
     
     constructor(
-        address _wstETH,
-        address _stETH,
-        address _stETHAggregator
-    ) VaultAggregator(_wstETH, _stETH, _stETHAggregator) {}
+        address wstETH,
+        address stETH,
+        address stETHAggregator
+    ) VaultAggregator(wstETH, stETH, stETHAggregator) {}
 
     /// @notice Returns the current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.

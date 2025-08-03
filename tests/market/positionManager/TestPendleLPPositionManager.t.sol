@@ -75,11 +75,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
 
         adaptor = new PendleLPTokenAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            IPendlePTOracle(_PT_ORACLE),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            IPendlePTOracle(_PT_ORACLE)
         );
         PendleLPTokenAdaptor.AssetConfig memory assetConfig;
         assetConfig.twapDuration = 12;

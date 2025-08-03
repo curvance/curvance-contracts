@@ -41,7 +41,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     address public immutable wrappedNative;
 
     /// @notice Static uniswap Oracle Manager address.
-    IStaticOracle public immutable uniswapOracleManager;
+    IStaticOracle public immutable uniswapOracle;
 
     /// STORAGE ///
 
@@ -64,24 +64,14 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     /// @param cr The address of central registry.
     constructor(
         ICentralRegistry cr,
-        IStaticOracle oracleAddress_,
-        address wNative,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) BaseOracleAdaptor(
-        cr,
-        MAXIMUM_INCREASE_PER_YEAR,
-        MINIMUM_INCREASE_PER_YEAR,
-        MAXIMUM_TIMESTAMP_BUFFER,
-        MINIMUM_TIMESTAMP_BUFFER
-    ) {
+        IStaticOracle uniOracle,
+        address wNative
+    ) BaseOracleAdaptor(cr) {
         if (block.chainid != 1) {
             revert UniswapV3Adaptor__ChainIsNotSupported();
         }
 
-        uniswapOracleManager = oracleAddress_;
+        uniswapOracle = uniOracle;
         wrappedNative = wNative;
     }
 
@@ -115,10 +105,10 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         uint256 twapPrice;
 
         // Pull twap price via a staticcall.
-        (bool success, bytes memory returnData) = address(uniswapOracleManager)
+        (bool success, bytes memory returnData) = address(uniswapOracle)
             .staticcall(
                 abi.encodePacked(
-                    uniswapOracleManager
+                    uniswapOracle
                         .quoteSpecificPoolsWithTimePeriod
                         .selector,
                     abi.encode(

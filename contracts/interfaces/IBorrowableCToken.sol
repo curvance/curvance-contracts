@@ -65,9 +65,7 @@ interface IBorrowableCToken {
     ///               for conversion to assets.
     /// @return The number of assets a user would receive for converting
     ///         `shares`.
-    function convertToAssets(
-        uint256 shares
-    ) external view returns (uint256);
+    function convertToAssets(uint256 shares) external view returns (uint256);
 
     /// @notice Returns share -> asset exchange rate, in `WAD`.
     /// @dev Oracle Manager calculates cToken value from this exchange rate.
@@ -195,9 +193,7 @@ interface IBorrowableCToken {
     /// @notice Shares of this token that an account has posted as collateral.
     /// @param account The address of the account to check collateral posted
     ///                of.
-    function collateralPosted(
-        address account
-    ) external view returns (uint256);
+    function collateralPosted(address account) external view returns (uint256);
 
     /// @notice Transfers tokens from `account` to `liquidator`.
     /// @dev Will fail unless called by a cToken during the process

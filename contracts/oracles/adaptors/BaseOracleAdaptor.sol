@@ -17,13 +17,18 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
-    uint256 internal constant _MINIMUM_YEAR_OVERFLOW = 5;
-    uint256 internal constant _MAXIMUM_BASE_PRICE_DIFFERENCE = 1000;
-
-    uint256 internal immutable _MAXIMUM_INCREASE_PER_YEAR;
-    uint256 internal immutable _MINIMUM_INCREASE_PER_YEAR;
-    uint256 internal immutable _MAXIMUM_TIMESTAMP_BUFFER;
-    uint256 internal immutable _MINIMUM_TIMESTAMP_BUFFER;
+    /// @notice The enforced minimum amount of time that a price guard grows
+    ///         before overflowing type(uint240).max, in years.
+    /// @dev 5 = 5 years.
+    uint256 internal constant _MINIMUM_YEARS_BEFORE_OVERFLOW = 5;
+    /// @notice The maximum difference between current oracle price and
+    ///         min/max allowed for successful `setGuardedPriceConfig` call,
+    ///         in `BASIS_POINTS`.
+    /// @dev 1000 = 10%.
+    uint256 internal constant _MAXIMUM_PRICE_DIFFERENCE = 1000;
+    /// @notice The minimum amount of time allowed between `timestampStart`
+    ///         and `block.timestamp` on `setGuardedPriceConfig` call.
+    uint256 internal constant _MINIMUM_TIMESTAMP_BUFFER = 7 days;
 
     /// STORAGE ///
 
@@ -55,20 +60,9 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry cr,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) {
+    constructor(ICentralRegistry cr) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
-
-        _MAXIMUM_INCREASE_PER_YEAR = MAXIMUM_INCREASE_PER_YEAR;
-        _MINIMUM_INCREASE_PER_YEAR = MINIMUM_INCREASE_PER_YEAR;
-        _MAXIMUM_TIMESTAMP_BUFFER = MAXIMUM_TIMESTAMP_BUFFER;
-        _MINIMUM_TIMESTAMP_BUFFER = MINIMUM_TIMESTAMP_BUFFER;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -115,7 +109,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
         
-        if (timestampStart > block.timestamp) {
+        if (
+            timestampStart > block.timestamp ||
+            block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
+            ) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
@@ -123,25 +120,11 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        if (
-            block.timestamp - timestampStart > _MAXIMUM_TIMESTAMP_BUFFER ||
-            block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
-        ) {
-            revert BaseOracleAdaptor__InvalidConfig();
-        }
-
         // Convert `increasePerYear` from basis points to WAD.
         increasePerYear = increasePerYear * 1e14;
 
         if (
-            increasePerYear > _MAXIMUM_INCREASE_PER_YEAR ||
-            increasePerYear < _MINIMUM_INCREASE_PER_YEAR
-        ) {
-            revert BaseOracleAdaptor__InvalidConfig();
-        }
-
-        if (
-            (_MINIMUM_YEAR_OVERFLOW * increasePerYear) + basePrice >
+            (_MINIMUM_YEARS_BEFORE_OVERFLOW * increasePerYear) + basePrice >
             type(uint240).max
             ) {
                 revert BaseOracleAdaptor__InvalidConfig();
@@ -153,12 +136,12 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             ((block.timestamp - timestampStart) * increasePerSecond) + basePrice;
         uint256 boundedPriceHigh = FixedPointMathLib.mulDiv(
             boundedPrice,
-            (BASIS_POINTS + _MAXIMUM_BASE_PRICE_DIFFERENCE),
+            BASIS_POINTS + _MAXIMUM_PRICE_DIFFERENCE,
             BASIS_POINTS
         );
         uint256 boundedPriceLow = FixedPointMathLib.mulDiv(
             boundedPrice,
-            (BASIS_POINTS - _MAXIMUM_BASE_PRICE_DIFFERENCE),
+            BASIS_POINTS - _MAXIMUM_PRICE_DIFFERENCE,
             BASIS_POINTS
         );
 

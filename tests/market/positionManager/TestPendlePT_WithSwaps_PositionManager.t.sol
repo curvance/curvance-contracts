@@ -77,11 +77,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
 
         adaptor = new PendlePrincipalTokenAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            IPendlePTOracle(_PT_ORACLE),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            IPendlePTOracle(_PT_ORACLE)
         );
         PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
         assetConfig.market = IPMarket(_LP_STETH);

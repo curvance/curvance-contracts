@@ -37,22 +37,14 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         _setRedstoneSigners();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
 
         adaptor = new MockRedstoneCoreAdaptor(
             ICentralRegistry(address(centralRegistry)),
             redstoneSigners,
             3,
-            "ETH",
-            .1e18,
-            0,
-            30 days,
-            7 days
+            "ETH"
         );
         adaptor.addAsset(_WBTC_ADDRESS, true, 8, 10 minutes);
         adaptor.addAsset(_WBTC_ADDRESS, false, 18, 10 minutes);

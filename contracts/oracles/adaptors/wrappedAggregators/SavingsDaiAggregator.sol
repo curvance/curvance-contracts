@@ -11,10 +11,10 @@ contract SavingsDaiAggregator is VaultAggregator {
     /// CONSTRUCTOR ///
 
     constructor(
-        address _sDai,
-        address _dai,
-        address _daiAggregator
-    ) VaultAggregator(_sDai, _dai, _daiAggregator) {}
+        address sDai,
+        address dai,
+        address daiAggregator
+    ) VaultAggregator(sDai, dai, daiAggregator) {}
 
     /// @notice Returns the current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.

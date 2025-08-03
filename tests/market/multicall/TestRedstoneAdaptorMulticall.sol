@@ -61,11 +61,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             ICentralRegistry(address(centralRegistry)),
             redstoneSigners,
             3,
-            "ETH",
-            .1e18,
-            0,
-            30 days,
-            7 days
+            "ETH"
         );
 
         adapter.addAsset(_WBTC_ADDRESS, true, 8, 10 minutes);

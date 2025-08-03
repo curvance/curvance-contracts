@@ -29,11 +29,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         _deployOracleManager();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
 
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
@@ -43,11 +39,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         adaptor = new UniswapV3Adaptor(
             ICentralRegistry(address(centralRegistry)),
             IStaticOracle(_UNISWAP_V3_ORACLE),
-            _WETH_ADDRESS,
-            .1e18,
-            0,
-            30 days,
-            7 days
+            _WETH_ADDRESS
         );
         UniswapV3Adaptor.AssetConfig memory assetConfig;
         assetConfig.priceSource = _WBTC_WETH;

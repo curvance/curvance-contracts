@@ -74,19 +74,7 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of central registry.
-    constructor(
-        ICentralRegistry cr,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) CurveBaseAdaptor(
-        cr,
-        MAXIMUM_INCREASE_PER_YEAR,
-        MINIMUM_INCREASE_PER_YEAR,
-        MAXIMUM_TIMESTAMP_BUFFER,
-        MINIMUM_TIMESTAMP_BUFFER
-    ) {}
+    constructor(ICentralRegistry cr) CurveBaseAdaptor(cr) {}
 
     /// EXTERNAL FUNCTIONS ///
 

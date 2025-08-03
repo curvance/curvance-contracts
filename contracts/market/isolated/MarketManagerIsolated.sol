@@ -908,7 +908,7 @@ contract MarketManagerIsolated is
         // Assign the outstanding debt cap of `c.cToken`.
         debtCaps[c.cToken] = c.debtCap;
 
-        emit TokenConfigUpdated(config);
+        emit TokenConfigUpdated(c);
     }
 
     /// @notice Admin function to set market-wide liquidation status.

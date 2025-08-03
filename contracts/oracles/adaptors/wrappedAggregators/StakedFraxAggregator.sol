@@ -10,10 +10,10 @@ contract StakedFraxAggregator is VaultAggregator {
     /// CONSTRUCTOR ///
 
     constructor(
-        address _sFrax,
-        address _frax,
-        address _fraxAggregator
-    ) VaultAggregator(_sFrax, _frax, _fraxAggregator) {}
+        address sFrax,
+        address frax,
+        address fraxAggregator
+    ) VaultAggregator(sFrax, frax, fraxAggregator) {}
 
     /// @notice Returns the current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.

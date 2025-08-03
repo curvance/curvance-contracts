@@ -54,11 +54,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         _refreshMockFeeds();
     
         Curve2PoolLPAdaptor crvAdaptor = new Curve2PoolLPAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         crvAdaptor.setReentrancyConfig(2, 50_000);
 
