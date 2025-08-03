@@ -336,7 +336,7 @@ contract Convex2PoolCToken is StrategyCToken {
         uint256 value;
         for (uint256 i; i < 2; ++i) {
             underlyingToken = strategyData.underlyingTokens[i];
-            amounts[i] = CommonLib._getBalanceOf(underlyingToken);
+            amounts[i] = CommonLib._balanceOf(underlyingToken);
 
             if (CommonLib._isNative(underlyingToken)) {
                 value = amounts[i];

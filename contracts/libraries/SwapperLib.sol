@@ -83,7 +83,7 @@ library SwapperLib {
 
         // Cache output token from struct for easier querying.
         address outputToken = action.outputToken;
-        uint256 balanceBefore = CommonLib._getBalanceOf(outputToken);
+        uint256 balanceBefore = CommonLib._balanceOf(outputToken);
 
         uint256 callValue = CommonLib._isNative(action.inputToken) ?
             action.inputAmount : 0;
@@ -98,7 +98,7 @@ library SwapperLib {
         // Remove any excess approval.
         _removeApprovalIfNeeded(action.inputToken, action.target);
 
-        outAmount = CommonLib._getBalanceOf(outputToken) - balanceBefore;
+        outAmount = CommonLib._balanceOf(outputToken) - balanceBefore;
     }
 
     /// @notice Swaps `action.inputToken` into a `action.outputToken`
@@ -121,7 +121,7 @@ library SwapperLib {
     ) internal returns (uint256 outAmount) {
         outAmount = _swapUnsafe(cr, action);
 
-        IOracleManager om = IOracleManager(cr.oracleManager());
+        IOracleManager om = CommonLib._oracleManager(cr);
         uint256 valueIn = _getValue(om, action.inputToken, action.inputAmount);
         uint256 valueOut = _getValue(om, action.outputToken, outAmount);
 

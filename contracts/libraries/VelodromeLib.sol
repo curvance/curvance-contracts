@@ -97,7 +97,7 @@ library VelodromeLib {
             lpOutAmount += newLpOutAmount;
         }
 
-        amount1 = CommonLib._getBalanceOf(token1);
+        amount1 = CommonLib._balanceOf(token1);
 
         // Check if we are entering through token1 leg.
         if (amount1 > 0) {

@@ -97,8 +97,8 @@ contract VelodromeZapper is BaseZapper {
             router,
             factory,
             zapAction.outputToken,
-            CommonLib._getBalanceOf(IVeloPair(zapAction.outputToken).token0()),
-            CommonLib._getBalanceOf(IVeloPair(zapAction.outputToken).token1()),
+            CommonLib._balanceOf(IVeloPair(zapAction.outputToken).token0()),
+            CommonLib._balanceOf(IVeloPair(zapAction.outputToken).token1()),
             zapAction.minimumOut
         );
 
@@ -254,7 +254,7 @@ contract VelodromeZapper is BaseZapper {
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
+        outAmount = CommonLib._balanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapAction.minimumOut) {
             revert VelodromeZapper__SlippageError();

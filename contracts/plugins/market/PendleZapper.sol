@@ -349,7 +349,7 @@ contract PendleZapper is BaseZapper {
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
+        outAmount = CommonLib._balanceOf(zapAction.outputToken);
         // Validate action output is sufficient.
         if (outAmount < zapAction.minimumOut) {
             revert PendleZapper__SlippageError();
