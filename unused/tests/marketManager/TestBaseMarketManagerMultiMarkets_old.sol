@@ -323,7 +323,7 @@
 //         console2.log("_liquidateExact");
 //         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
 //             for (uint256 j = 0; j < noOfCollateralTokens; j++) {
-//                 if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(cTokens[j]))) {
+//                 if (!protocolReader.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(cTokens[j]))) {
 //                     console2.log(
 //                         "user %s not flagged for liquidation",
 //                         users[i]
@@ -360,7 +360,7 @@
 //         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
 //             console2.log("user %s", users[i]);
 //             for (uint256 j = 0; j < noOfCollateralTokens; j++) {
-//                 if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(cTokens[j]))) {
+//                 if (!protocolReader.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(cTokens[j]))) {
 //                     console2.log(
 //                         "user %s not flagged for liquidation",
 //                         users[i]

@@ -29,7 +29,7 @@ import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol"
 import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
-import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
+import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
 contract TestVariables {
     uint256 internal constant _ONE = 1e18;
@@ -107,7 +107,7 @@ contract TestVariables {
     ChainlinkAdaptor public dualChainlinkAdaptor;
     MarketManagerIsolated public marketManagerIsolated;
     OracleManager public oracleManager;
-    AuxiliaryData public auxiliaryData;
+    ProtocolReader public protocolReader;
     DAOTimelock public daoTimelock;
     BorrowableCToken public borrowableCUSDC;
     BorrowableCToken public borrowableCDAI;
@@ -150,7 +150,7 @@ contract TestVariables {
     mapping(uint256 => ChainlinkAdaptor) public chainlinkAdaptors;
     mapping(uint256 => ChainlinkAdaptor) public dualChainlinkAdaptors;
     mapping(uint256 => MarketManagerIsolated) public marketManagersIsolated;
-    mapping(uint256 => AuxiliaryData) public auxiliaryDatas;
+    mapping(uint256 => ProtocolReader) public protocolReaders;
     mapping(uint256 => DAOTimelock) public daoTimelocks;
     mapping(uint256 => OracleManager) public oracleManagers;
     mapping(uint256 => BorrowableCToken) public borrowableCUSDCs;
@@ -411,7 +411,7 @@ contract TestVariables {
         dualChainlinkAdaptor = dualChainlinkAdaptors[chainId];
         marketManagerIsolated = marketManagersIsolated[chainId];
         oracleManager = oracleManagers[chainId];
-        auxiliaryData = auxiliaryDatas[chainId];
+        protocolReader = protocolReaders[chainId];
         borrowableCUSDC = borrowableCUSDCs[chainId];
         borrowableCDAI = borrowableCDAIs[chainId];
 

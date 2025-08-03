@@ -24,7 +24,7 @@ import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
-import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
+import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
@@ -149,8 +149,7 @@ contract TestBaseMarketIsolated is TestBase {
         _deployMessagingHub();
         _deployVotingHub();
         _deployFeeManager();
-        _deployAuxiliaryData();
-
+        _deployProtocolReader();
 
         vm.warp(centralRegistry.genesisEpoch());
         rewardManager.startRewardManager();
@@ -250,8 +249,8 @@ contract TestBaseMarketIsolated is TestBase {
         centralRegistry.setFeeManager(address(feeManager));
     }
 
-    function _deployAuxiliaryData() internal initMainVariables {
-        auxiliaryData = auxiliaryDatas[block.chainid] = new AuxiliaryData(
+    function _deployProtocolReader() internal initMainVariables {
+        protocolReaders = protocolReaders[block.chainid] = new ProtocolReader(
             ICentralRegistry(address(centralRegistry))
         );
     }

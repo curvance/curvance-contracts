@@ -301,7 +301,7 @@
 
 //         assertEq(positionsToClose.length, 1);
 //         assertFalse(positionsToClose[0]);
-//         (bool hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
+//         (bool hasPosition, , ) = protocolReader.tokenDataOf(
 //             users[0],
 //             address(cTokens[0])
 //         );
@@ -310,7 +310,7 @@
 //         vm.prank(users[0]);
 //         cTokens[0].removeCollateral(1 ether);
 
-//         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
+//         (hasPosition, , ) = protocolReader.tokenDataOf(
 //             users[0],
 //             address(cTokens[0])
 //         );
@@ -366,7 +366,7 @@
 
 //         assertEq(positionsToClose.length, 1);
 //         assertFalse(positionsToClose[0]);
-//         (bool hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
+//         (bool hasPosition, , ) = protocolReader.tokenDataOf(
 //             users[0],
 //             address(cTokens[0])
 //         );
@@ -375,7 +375,7 @@
 //         vm.prank(users[0]);
 //         cTokens[0].withdrawCollateral(1 ether, users[0], users[0]);
 
-//         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
+//         (hasPosition, , ) = protocolReader.tokenDataOf(
 //             users[0],
 //             address(cTokens[0])
 //         );
@@ -441,17 +441,17 @@
 //         assertFalse(positionsToClose[0]);
 //         assertFalse(positionsToClose[1]);
 //         assertFalse(positionsToClose[2]);
-//         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
+//         (hasPosition, , ) = protocolReader.tokenDataOf(
 //             users[0],
 //             address(cTokens[0])
 //         );
 //         assertTrue(hasPosition);
-//         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
+//         (hasPosition, , ) = protocolReader.tokenDataOf(
 //             users[0],
 //             address(debtTokens[0])
 //         );
 //         assertTrue(hasPosition);
-//         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
+//         (hasPosition, , ) = protocolReader.tokenDataOf(
 //             users[0],
 //             address(debtTokens[1])
 //         );
@@ -466,17 +466,17 @@
 //         assertFalse(positionsToClose[0]);
 //         assertTrue(positionsToClose[1]);
 //         assertFalse(positionsToClose[2]);
-//         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
+//         (hasPosition, , ) = protocolReader.tokenDataOf(
 //             users[0],
 //             address(cTokens[0])
 //         );
 //         assertTrue(hasPosition);
-//         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
+//         (hasPosition, , ) = protocolReader.tokenDataOf(
 //             users[0],
 //             address(debtTokens[0])
 //         );
 //         assertTrue(hasPosition);
-//         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
+//         (hasPosition, , ) = protocolReader.tokenDataOf(
 //             users[0],
 //             address(debtTokens[1])
 //         );
@@ -491,17 +491,17 @@
 //         assertEq(positionsToClose.length, 2);
 //         assertFalse(positionsToClose[0]);
 //         assertFalse(positionsToClose[1]);
-//         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
+//         (hasPosition, , ) = protocolReader.tokenDataOf(
 //             users[0],
 //             address(cTokens[0])
 //         );
 //         assertTrue(hasPosition);
-//         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
+//         (hasPosition, , ) = protocolReader.tokenDataOf(
 //             users[0],
 //             address(debtTokens[0])
 //         );
 //         assertFalse(hasPosition);
-//         (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
+//         (hasPosition, , ) = protocolReader.tokenDataOf(
 //             users[0],
 //             address(debtTokens[1])
 //         );

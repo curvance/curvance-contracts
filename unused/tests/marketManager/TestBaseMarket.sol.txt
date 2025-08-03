@@ -33,7 +33,7 @@ import { QueryTest } from "tests/utils/QueryTest.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
+import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
 contract TestBaseMarket is TestBase {
     struct PerChainData {
@@ -181,8 +181,8 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setFeeManager(address(feeManager));
     }
 
-    function _deployAuxiliaryData() internal initMainVariables {
-        auxiliaryData = auxiliaryDatas[block.chainid] = new AuxiliaryData(
+    function _deployProtocolReader() internal initMainVariables {
+        protocolReader = protocolReaders[block.chainid] = new ProtocolReader(
             ICentralRegistry(address(centralRegistry))
         );
     }

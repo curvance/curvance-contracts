@@ -795,7 +795,7 @@ contract MarketManagerIsolated is
         if (
             c.collRatio > MAX_COLLATERALIZATION_RATIO ||
             c.collReqSoft > MAX_COLLATERAL_REQUIREMENT ||
-            c.collReqHard >= c.collReqSoft ||
+            c.collReqHard >= c.collReqSoft
             ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }

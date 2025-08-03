@@ -98,7 +98,8 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         vm.stopPrank();
 
         bool hasPosition;
-        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(borrowableCUSDC));
+        (hasPosition, , ) =
+            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
 
         assertFalse(hasPosition);
         address[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
@@ -112,7 +113,8 @@ contract CanBorrowTest is TestBaseMarketIsolated {
             1_000e6
         );
 
-        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(borrowableCUSDC));
+        (hasPosition, , ) =
+            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
 
         assertTrue(hasPosition);
 
