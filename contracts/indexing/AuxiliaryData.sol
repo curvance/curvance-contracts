@@ -639,7 +639,7 @@ contract AuxiliaryData {
         address asset
     ) public view returns (uint256, uint256) {
         IOracleManager om = _getOracleManager();
-        CToken memory cToken = om.cTokens(asset);
+        CToken memory cToken = om.getCToken(asset);
         if (cToken.isCToken) {
             asset = cToken.underlying;
         }
