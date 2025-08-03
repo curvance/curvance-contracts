@@ -482,8 +482,8 @@ abstract contract BasePositionManager is
 
     /// @notice Calculates the maximum amount of `borrowableCToken` `account`
     ///         can borrow for maximum leverage.
-    /// @dev NOTE: This can overestimate maximum leverage when swapping due to
-    ///            AMM fees and slippage.
+    /// @dev NOTE: This can overestimate maximum executeable leverage when
+    ///            swapping due to AMM fees and slippage.
     /// @param account The account to query maximum borrow amount for.
     /// @param borrowableCToken The token that `account` will borrow assets
     ///                         from to achieve leverage.
@@ -620,8 +620,8 @@ abstract contract BasePositionManager is
 
     /// @notice Calculates the maximum amount of `borrowableCToken` assets
     ///         `account` can borrow for maximum leverage.
-    /// @dev NOTE: This can overestimate maximum leverage when swapping due to
-    ///            AMM fees and slippage.
+    /// @dev NOTE: This can overestimate maximum executeable leverage when
+    ///            swapping due to AMM fees and slippage.
     /// @param sumCollateral Current total collateral amount of the account.
     /// @param maxDebt Max allowed debt amount of account.
     /// @param sumDebt Current outstanding debt amount of the account.
@@ -643,13 +643,13 @@ abstract contract BasePositionManager is
         // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
         // The equation below is equal to this equation,
         // just extrapolated for an account's collateral vs debt.
-        /// @dev NOTE: This can overestimate maximum leverage when swapping due to
-        ///            AMM fees and slippage.
+        /// NOTE: This can overestimate maximum executeable leverage when
+        ///       swapping due to AMM fees and slippage.
         uint256 maxLeverage = _mulDiv(
             maxDebt - sumDebt,
             sumCollateral,
             sumCollateral - maxDebt
-        ) / WAD;
+        );
 
         (uint256 price, uint256 errorCode) =
             IOracleManager(centralRegistry.oracleManager())

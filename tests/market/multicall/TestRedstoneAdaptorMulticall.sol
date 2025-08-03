@@ -307,10 +307,11 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         simpleCWBTC.postCollateral(0.1e8);
         assertEq(simpleCWBTC.balanceOf(user1), 0.1e8);
 
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user1,
             address(borrowableCUSDC)
-        ) * 50) / 100;
+        ) / 2;
 
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));

@@ -524,11 +524,11 @@ contract AuxiliaryData {
         }
     }
 
-        /// @notice Calculates the hypothetical maximum amount of
+    /// @notice Calculates the hypothetical maximum amount of
     ///         `borrowableCToken` assets `account` can borrow for maximum
     ///         leverage based on a new `cToken` collateralized deposit.
-    /// @dev NOTE: This can overestimate maximum leverage when swapping due to
-    ///            AMM fees and slippage.
+    /// @dev NOTE: This can overestimate maximum executeable leverage when
+    ///            swapping due to AMM fees and slippage.
     /// @param account The account to query maximum borrow amount for.
     /// @param borrowableCToken The token that `account` will borrow assets
     ///                         from to achieve leverage.
@@ -549,22 +549,16 @@ contract AuxiliaryData {
         uint256 assets
     ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
         IMarketManager mm = ICToken(borrowableCToken).marketManager();
-        (uint256 price, uint256 errorCode) = getPrice(
-            address(cToken),
-            true,
-            true
-        );
+        (uint256 price, uint256 errorCode) =
+            getPrice(address(cToken), true, true);
 
         // Validate we got a price for `cToken`.
         if (errorCode != 0) {
             revert();
         }
 
-        (
-            uint256 sumCollateral,
-            uint256 maxDebt,
-            uint256 sumDebt
-        ) = mm.statusOf(account);
+        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
+            mm.statusOf(account);
 
         {
             uint256 newCollateral = _mulDiv(
@@ -594,13 +588,13 @@ contract AuxiliaryData {
         // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
         // The equation below is equal to this equation,
         // just extrapolated for an account's collateral vs debt.
-        /// @dev NOTE: This can overestimate maximum leverage when swapping due to
-        ///            AMM fees and slippage.
+        /// NOTE: This can overestimate maximum executeable leverage when
+        ///       swapping due to AMM fees and slippage.
         uint256 maxLeverage = _mulDiv(
             maxDebt - sumDebt,
             sumCollateral,
             sumCollateral - maxDebt
-        ) / WAD;
+        );
 
         (price, errorCode) = getPrice(address(borrowableCToken), true, false);
 
