@@ -66,8 +66,7 @@ contract DeployBase is Script {
             icr,
             redstoneSigners,
             3,
-            "ETH",
-
+            "ETH"
         );
         emit ContractDeployed(address(adaptor), "RedstoneCoreAdaptor");
         RedstoneAdaptorMulticallChecker multicallChecker = new RedstoneAdaptorMulticallChecker(

@@ -31,6 +31,7 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
         adapter = new PendlePrincipalTokenAdaptor(
             ICentralRegistry(address(centralRegistry)),
             IPendlePTOracle(_PT_ORACLE)
+        );
     }
 
     function testRevertWhenUnderlyingAssetPriceNotSet() public {
