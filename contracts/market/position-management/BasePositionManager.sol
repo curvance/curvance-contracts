@@ -652,7 +652,7 @@ abstract contract BasePositionManager is
         );
 
         (uint256 price, uint256 errorCode) =
-            IOracleManager(centralRegistry.oracleManager())
+            CommonLib._oracleManager(centralRegistry)
                 .getPrice(address(borrowableCToken), true, false);
 
         // Validate we got a price for `borrowableCToken`.

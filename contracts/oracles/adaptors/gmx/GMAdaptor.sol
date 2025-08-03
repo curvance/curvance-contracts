@@ -2,6 +2,8 @@
 pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -115,9 +117,7 @@ contract GMAdaptor is BaseOracleAdaptor {
         _checkSupportedAsset(asset);
 
         // Cache the Oracle Manager.
-        IOracleManager oracleManager = IOracleManager(
-            centralRegistry.oracleManager()
-        );
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
 
         uint256[] memory prices = new uint256[](3);
         address[] memory tokens = marketData[asset];
@@ -129,11 +129,7 @@ contract GMAdaptor is BaseOracleAdaptor {
         for (uint256 i; i < 3; ++i) {
             token = tokens[i];
 
-            (prices[i], errorCode) = oracleManager.getPrice(
-                token,
-                true,
-                getLower
-            );
+            (prices[i], errorCode) = om.getPrice(token, true, getLower);
             if (errorCode > 0) {
                 result.hadError = true;
                 return result;
@@ -208,9 +204,7 @@ contract GMAdaptor is BaseOracleAdaptor {
             revert GMAdaptor__AlteredTokenIsInvalid();
         }
 
-        IOracleManager oracleManager = IOracleManager(
-            centralRegistry.oracleManager()
-        );
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
 
         address[] memory tokens = new address[](4);
         tokens[0] = isSynthetic ? alteredToken : market.indexToken;
@@ -224,7 +218,7 @@ contract GMAdaptor is BaseOracleAdaptor {
         for (uint256 i; i < 3; ++i) {
             token = tokens[i];
 
-            if (!oracleManager.isSupportedAsset(token)) {
+            if (!om.isSupportedAsset(token)) {
                 revert GMAdaptor__MarketTokenIsNotSupported(token);
             }
 

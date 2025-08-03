@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { SECONDS_PER_YEAR, WAD, BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
 
@@ -211,9 +212,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
         // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
-        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
-            asset
-        );
+        CommonLib._oracleManager(centralRegistry).notifyFeedRemoval(asset);
         
         emit AssetRemoved(asset);
     }

@@ -3,7 +3,9 @@ pragma solidity ^0.8.26;
 
 import { CurveBaseAdaptor } from "contracts/oracles/adaptors/curve/CurveBaseAdaptor.sol";
 
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
+
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -135,26 +137,16 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
         _enforceBounds(virtualPrice, data.lowerBound, data.upperBound);
 
         // Get underlying token prices.
-        IOracleManager oracleManager = IOracleManager(
-            centralRegistry.oracleManager()
-        );
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
         uint256 price0;
         uint256 price1;
         uint256 errorCode;
-        (price0, errorCode) = oracleManager.getPrice(
-            data.underlying0,
-            inUSD,
-            getLower
-        );
+        (price0, errorCode) = om.getPrice(data.underlying0, inUSD, getLower);
         if (errorCode > 0) {
             result.hadError = true;
             return result;
         }
-        (price1, errorCode) = oracleManager.getPrice(
-            data.underlying1,
-            inUSD,
-            getLower
-        );
+        (price1, errorCode) = om.getPrice(data.underlying1, inUSD, getLower);
         if (errorCode > 0) {
             result.hadError = true;
             return result;
@@ -213,21 +205,17 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
             revert Curve2PoolLPAdaptor__UnsupportedPool();
         }
 
-        address oracleManager = centralRegistry.oracleManager();
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
 
         // Make sure that the underlying asset is supported
         // by the Oracle Manager.
-        if (
-            !IOracleManager(oracleManager).isSupportedAsset(data.underlying0)
-        ) {
+        if (!om.isSupportedAsset(data.underlying0)) {
             revert Curve2PoolLPAdaptor__QuoteAssetIsNotSupported();
         }
 
         // Make sure that the underlying asset is supported
         // by the Oracle Manager.
-        if (
-            !IOracleManager(oracleManager).isSupportedAsset(data.underlying1)
-        ) {
+        if (om.isSupportedAsset(data.underlying1)) {
             revert Curve2PoolLPAdaptor__QuoteAssetIsNotSupported();
         }
 

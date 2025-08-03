@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
-import { LiquidityManagerIsolated, ICToken, IOracleManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
+import { LiquidityManagerIsolated, CommonLib, ICToken, IOracleManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -923,7 +923,7 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        (, uint256 errorCode) = IOracleManager(centralRegistry.oracleManager())
+        (, uint256 errorCode) = CommonLib._oracleManager(centralRegistry)
             .getPrice(config.cToken, true, true);
 
         // Validate that we get a usable price.
@@ -1647,7 +1647,7 @@ contract MarketManagerIsolated is
         // Liquidations are only blocked if an error code of 2 (NO_SOURCE)
         // is calculated.
         (tData.collateralUnderlyingPrice, tData.debtUnderlyingPrice) =
-            IOracleManager(centralRegistry.oracleManager())
+            CommonLib._oracleManager(centralRegistry)
                 .getPriceIsolatedPair(collateralToken, debtToken, 2);
 
         // Will revert if this liquidation is an attempted auction liquidator

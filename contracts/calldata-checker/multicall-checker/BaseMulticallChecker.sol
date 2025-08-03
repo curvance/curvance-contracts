@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import { BaseCalldataChecker } from "contracts/calldata-checker/BaseCalldataChecker.sol";
 
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
@@ -78,8 +79,7 @@ abstract contract BaseMulticallChecker is
         uint256 adaptorType
     ) internal view {
         // Validate that `adaptor` is approved inside the Oracle Manager.
-        if (
-            !IOracleManager(centralRegistry.oracleManager())
+        if (!CommonLib._oracleManager(centralRegistry)
                 .isApprovedAdaptor(adaptor)
         ) {
             revert MulticallChecker__TargetError();

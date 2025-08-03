@@ -3,7 +3,9 @@ pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
+
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -107,14 +109,8 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         uint256 price1;
         uint256 errorCode;
 
-        IOracleManager oracleManager = IOracleManager(
-            centralRegistry.oracleManager()
-        );
-        (price0, errorCode) = oracleManager.getPrice(
-            config.token0,
-            inUSD,
-            getLower
-        );
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
+        (price0, errorCode) = om.getPrice(config.token0, inUSD, getLower);
 
         // Validate we did not run into any errors pricing token0.
         if (errorCode > 0) {
@@ -122,11 +118,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-        (price1, errorCode) = oracleManager.getPrice(
-            config.token1,
-            inUSD,
-            getLower
-        );
+        (price1, errorCode) = om.getPrice(config.token1, inUSD, getLower);
 
         // Validate we did not run into any errors pricing token1.
         if (errorCode > 0) {

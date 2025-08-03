@@ -3,6 +3,8 @@ pragma solidity ^0.8.26;
 
 import { UniversalBalance, IBorrowableCToken } from "contracts/architecture/UniversalBalance.sol";
 
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IWETH } from "contracts/interfaces/IWETH.sol";
@@ -262,10 +264,8 @@ contract NativeUniversalBalance is UniversalBalance {
         uint256 amount
     ) external {
         // Validate an approved adaptor is calling the function.
-        if (
-            !IOracleManager(centralRegistry.oracleManager()).isApprovedAdaptor(
-                msg.sender
-            )
+        if (!CommonLib._oracleManager(centralRegistry)
+                .isApprovedAdaptor(msg.sender)
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }

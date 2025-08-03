@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/ConstantsLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
@@ -1110,6 +1111,6 @@ contract AuxiliaryData {
     }
 
     function _getOracleManager() internal view returns (IOracleManager) {
-        return IOracleManager(centralRegistry.oracleManager());
+        return CommonLib._oracleManager(centralRegistry);;
     }
 }

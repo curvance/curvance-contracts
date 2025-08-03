@@ -3,8 +3,10 @@ pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
-import { PendlePtOracleLib } from "contracts/libraries/external/pendle/PendlePtOracleLib.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
+
+import { PendlePtOracleLib } from "contracts/libraries/external/pendle/PendlePtOracleLib.sol";
 
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
@@ -106,9 +108,9 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
         // Get PT to underlying asset ratio conversion.
         uint256 ptRate = config.market.getPtToAssetRate(config.twapDuration);
 
-        (uint256 price, uint256 errorCode) = IOracleManager(
-            centralRegistry.oracleManager()
-        ).getPrice(config.quoteAsset, inUSD, getLower);
+        (uint256 price, uint256 errorCode) =
+            CommonLib._oracleManager(centralRegistry)
+                .getPrice(config.quoteAsset, inUSD, getLower);
 
         // Validate we did not run into any errors pricing the quote asset.
         if (errorCode > 0) {
@@ -164,10 +166,8 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
         _checkPtTwap(address(config.market), config.twapDuration);
 
         // Validate we support the pricing quote asset for this principal token.
-        if (
-            !IOracleManager(centralRegistry.oracleManager()).isSupportedAsset(
-                config.quoteAsset
-            )
+        if (!CommonLib._oracleManager(centralRegistry)
+                .isSupportedAsset(config.quoteAsset)
         ) {
             revert PendlePrincipalTokenAdaptor__QuoteAssetIsNotSupported();
         }

@@ -2,6 +2,8 @@
 pragma solidity ^0.8.26;
 
 import { BalancerBaseAdaptor } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
+
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { IVault } from "contracts/interfaces/external/balancer/IVault.sol";
@@ -98,9 +100,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         IBalancerPool pool = IBalancerPool(asset);
 
         result.inUSD = inUSD;
-        IOracleManager oracleManager = IOracleManager(
-            centralRegistry.oracleManager()
-        );
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
 
         // Find the minimum price of all the pool tokens.
         uint256 numUnderlyingOrConstituent = config
@@ -117,7 +117,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
                 break;
             }
 
-            (price, errorCode) = oracleManager.getPrice(
+            (price, errorCode) = om.getPrice(
                 config.underlyingOrConstituent[i],
                 inUSD,
                 getLower
@@ -187,8 +187,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
                 continue;
             }
 
-            if (
-                !IOracleManager(centralRegistry.oracleManager())
+            if (!CommonLib._oracleManager(centralRegistry)
                     .isSupportedAsset(config.underlyingOrConstituent[i])
             ) {
                 revert BalancerStablePoolAdaptor__ConfigurationError();

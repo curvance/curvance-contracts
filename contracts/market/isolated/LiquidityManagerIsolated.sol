@@ -3,6 +3,8 @@ pragma solidity ^0.8.26;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -683,7 +685,7 @@ abstract contract LiquidityManagerIsolated {
         returns (AccountSnapshot[] memory, uint256[] memory, uint256)
     {
         return
-            IOracleManager(centralRegistry.oracleManager()).getPricesForMarket(
+            CommonLib._oracleManager(centralRegistry).getPricesForMarket(
                 account,
                 accountAssets[account].assets,
                 errorCodeBreakpoint
