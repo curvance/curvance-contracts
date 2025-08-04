@@ -5,21 +5,53 @@ import { Script } from "forge-std/Script.sol";
 import { Vm } from "forge-std/Vm.sol";
 import { DeploymentLogger } from "../utils/DeploymentLogger.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
+import { RedstoneClassicAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneClassicAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract AddRedstoneSupport is Script {
     event ContractDeployed(address contractAddress, string contractName);
-    event Test(string message);
 
     DeploymentLogger logger;
+
+    struct PullFeed {
+        bytes payload;
+        uint128 timestamp;
+    }
+
+    struct PushFeed {
+        address aggregator;
+        uint256 heartbeat;
+        bool inUSD;
+    }
 
     function run(
         address asset,
         address adaptor,
         address oracleManager,
-        bytes memory redstonePayload,
-        uint128 redstoneTimestamp
+        PushFeed memory feed
+    ) external {
+        logger = new DeploymentLogger();
+        vm.recordLogs();
+        vm.startBroadcast();
+
+        RedstoneClassicAdaptor adaptor = RedstoneClassicAdaptor(adaptor);
+        OracleManager manager = OracleManager(oracleManager);
+        IERC20 token = IERC20(asset);
+
+        adaptor.addAsset(asset, feed.aggregator, feed.heartbeat, feed.inUSD);
+        manager.addAssetPriceFeed(asset, address(adaptor));
+
+        vm.stopBroadcast();
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        logger.saveLogsToDeployment(logs);
+    }
+
+    function run(
+        address asset,
+        address adaptor,
+        address oracleManager,
+        PullFeed memory feed
     ) external {
         logger = new DeploymentLogger();
         vm.recordLogs();
@@ -38,15 +70,10 @@ contract AddRedstoneSupport is Script {
             "writePrice(address,bool,uint128)",
             asset,
             true,
-            redstoneTimestamp
+            feed.timestamp
         );
-        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
-            encodedFunction,
-            redstonePayload
-        );
-        (bool success, ) = address(adaptor).call(
-            encodedFunctionWithRedstonePayload
-        );
+        bytes memory write = abi.encodePacked(encodedFunction, feed.payload);
+        (bool success, ) = address(adaptor).call(write);
         require(success, "Failed to write price");
 
         // Finalize oracle support

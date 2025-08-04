@@ -39,7 +39,7 @@ contract MockV3Aggregator is IChainlink {
         updateAnswer(_initialAnswer);
     }
 
-    function updateAnswer(int256 _answer) public {
+    function updateAnswer(int256 _answer) public virtual {
         latestAnswer = _answer;
         latestTimestamp = block.timestamp;
         latestRound++;
@@ -53,7 +53,7 @@ contract MockV3Aggregator is IChainlink {
         int256 _answer,
         uint256 _timestamp,
         uint256 _startedAt
-    ) public {
+    ) public virtual {
         latestRound = _roundId;
         latestAnswer = _answer;
         latestTimestamp = _timestamp;
