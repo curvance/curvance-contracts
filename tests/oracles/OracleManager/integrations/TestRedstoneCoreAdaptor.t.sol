@@ -12,6 +12,7 @@ import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
     MockRedstoneCoreAdaptor public adaptor;
+    
 
     function getRedstonePayload(
         // dataFeedId:value:decimals
@@ -136,16 +137,16 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
     {
         testAddNewSignersUpdatePriceWithNewSigners();
 
-        bytes32[] memory fewerRedstoneSignerKeys;
-        fewerRedstoneSignerKeys.push(
-            0x56938289786ae24fdb687a2a740e755d6ed7e72a1f82f8f9c3ed6eac5b38ba23
-        );
-        fewerRedstoneSignerKeys.push(
-            0x4022f8e215d01e76d90987d7f56a09513fe76f97add10db250215bdbfab3e9c1
-        );
-        fewerRedstoneSignerKeys.push(
-            0x00b2ff109fc6421974dff44f7e2f95a0ebbba51acb43b6975b77615c6cba12b2
-        );
+        bytes32[] memory fewerRedstoneSignerKeys = new bytes32[](3);
+        fewerRedstoneSignerKeys[
+            0
+        ] = 0x56938289786ae24fdb687a2a740e755d6ed7e72a1f82f8f9c3ed6eac5b38ba23;
+        fewerRedstoneSignerKeys[
+            1
+        ] = 0x4022f8e215d01e76d90987d7f56a09513fe76f97add10db250215bdbfab3e9c1;
+        fewerRedstoneSignerKeys[
+            2
+        ] = 0x00b2ff109fc6421974dff44f7e2f95a0ebbba51acb43b6975b77615c6cba12b2;
 
         bytes memory redstonePayload = getRedstonePayload(
             "WBTC:61000:8",
