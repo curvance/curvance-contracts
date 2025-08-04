@@ -56,7 +56,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addApprovedAdaptor(address(adaptor));
     }
 
-    function test_success_AddNewSignersUpdatePriceWithNewSigners() public {
+    function testAddNewSignersUpdatePriceWithNewSigners() public {
         address[] memory newSigners = new address[](3);
         bytes32[] memory newSignerKeys = new bytes32[](3);
 
