@@ -38,7 +38,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
     uint256 constant INITIAL_DEPOSIT = 200000e18;
     uint256 constant BORROW_AMOUNT_BELOW_VERTEX = 40_000e18; // 20% utilization
     uint256 constant BORROW_AMOUNT_ABOVE_VERTEX = 160_000e18; // 80% utilization
-    uint256 constant BORROW_AMOUNT_JUST_UNDER_CAP = 199_900e18; // 99.95% utilization
+    uint256 constant BORROW_AMOUNT_JUST_UNDER_CAP = 199_000e18; // 99.5% utilization
     uint256 public constant INTEREST_ACCRUAL_PERIOD = 10 minutes;
     
     function setUp() public virtual override {
@@ -414,9 +414,9 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         vm.startPrank(user);
 
         // Set up collateral for borrowing
-        _prepareUSDC(user, 2000000e6);
-        usdc.approve(address(simpleCUSDC), 2000000e6);
-        simpleCUSDC.depositAsCollateral(2000000e6, user);
+        _prepareUSDC(user, 3000000e6);
+        usdc.approve(address(simpleCUSDC), 3000000e6);
+        simpleCUSDC.depositAsCollateral(3000000e6, user);
 
         (
             ,
@@ -440,9 +440,8 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
             borrowableCDAI.accrueIfNeeded();
         }
 
-        uint256 finalMultiplier = interestRateModel.vertexMultiplier();
         assertEq(
-            finalMultiplier,
+            interestRateModel.vertexMultiplier(),
             vertexMultiplierMax,
             "Multiplier should be equal to vertexMultiplierMax"
         );
@@ -512,6 +511,8 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         }
 
         // This should push utilization to ~60% or so.
+        _prepareDAI(user, BORROW_AMOUNT_BELOW_VERTEX);
+        dai.approve(address(borrowableCDAI), BORROW_AMOUNT_BELOW_VERTEX);
         borrowableCDAI.repay(BORROW_AMOUNT_BELOW_VERTEX);
 
         // Decay Rate is configured as 1% in this test.
