@@ -16,8 +16,7 @@ interface IVault {
     ) external returns (uint256 assets);
 
     function previewDeposit(
-        uint256 assets,
-        address receiver
+        uint256 assets
     ) external returns (uint256 shares);
 
     function previewRedeem(

@@ -87,6 +87,9 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
 
         deal(user1, 100 ether);
 
+        uint256 previewDepositAmount = IVault(simpleCSHMON.asset()).previewDeposit(100 ether);
+        uint256 initialEthBalance = user1.balance;
+
         SwapperLib.Swap memory swapAction;
         swapAction.inputAmount = 100 ether;
         swapAction.outputToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
@@ -94,7 +97,7 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
 
-        vaultZapper.swapAndDeposit{value: 100 ether}
+        uint256 returnedShares = vaultZapper.swapAndDeposit{value: 100 ether}
         (
             address(simpleCSHMON),
             swapAction,
@@ -105,13 +108,20 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        assertGt(simpleCSHMON.balanceOf(user1), 0, "User should have received SimpleCSHMON shares");
-
+        assertEq(user1.balance, initialEthBalance - 100 ether, "User ETH balance should decrease by input amount");
+        assertEq(simpleCSHMON.balanceOf(user1), previewDepositAmount, "User cToken balance should increase, cToken exchange rate is 1:1 in this test");
+        assertEq(simpleCSHMON.balanceOf(user1), returnedShares, "Returned shares should match user balance");
+        assertEq(IERC20(simpleCSHMON.asset()).balanceOf(address(simpleCSHMON)), previewDepositAmount + 77777, "Vault balance in cToken should increase");
+        assertEq(simpleCSHMON.totalAssets(), previewDepositAmount + 77777, "cToken totalAssets should increase");
+        assertEq(address(vaultZapper).balance, 0, "Zapper should not hold any ETH after operation");
     }
 
     function test_vaultZapper_success_swapAndDeposit_NoSwap_WrappedNative() public {
 
         deal(WMON_ADDRESS, user1, 100 ether);
+
+        uint256 previewDepositAmount = IVault(simpleCSHMON.asset()).previewDeposit(100 ether);
+        uint256 initialWMONBalance = IERC20(WMON_ADDRESS).balanceOf(user1);
 
         SwapperLib.Swap memory swapAction;
         swapAction.inputAmount = 100 ether;
@@ -122,7 +132,7 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
 
         IERC20(WMON_ADDRESS).approve(address(vaultZapper), 100 ether);
 
-        vaultZapper.swapAndDeposit(
+        uint256 returnedShares = vaultZapper.swapAndDeposit(
             address(simpleCSHMON),
             swapAction,
             0,
@@ -130,6 +140,14 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
             user1
         );
 
-        
+        vm.stopPrank();
+
+        assertEq(IERC20(WMON_ADDRESS).balanceOf(user1), initialWMONBalance - 100 ether, "User WMON balance should decrease by input amount");
+        assertEq(simpleCSHMON.balanceOf(user1), previewDepositAmount, "User cToken balance should increase, cToken exchange rate is 1:1 in this test");
+        assertEq(simpleCSHMON.balanceOf(user1), returnedShares, "Returned shares should match user balance");
+        assertEq(IERC20(simpleCSHMON.asset()).balanceOf(address(simpleCSHMON)), previewDepositAmount + 77777, "Vault balance in cToken should increase");
+        assertEq(simpleCSHMON.totalAssets(), previewDepositAmount + 77777, "cToken totalAssets should increase");
+        assertEq(IERC20(WMON_ADDRESS).balanceOf(address(vaultZapper)), 0, "Zapper should not hold WMON after operation");
+        assertEq(address(vaultZapper).balance, 0, "Zapper should not hold ETH after operation");
     }
 }
