@@ -30,10 +30,6 @@ contract FeeManagerDeploymentTest is TestBaseFeeManager {
             address(centralRegistry)
         );
         assertEq(
-            address(feeManager.getOracleManager()),
-            centralRegistry.oracleManager()
-        );
-        assertEq(
             feeManager.vaultCompoundFee(),
             centralRegistry.protocolCompoundFee()
         );

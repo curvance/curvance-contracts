@@ -250,7 +250,7 @@ contract TestBaseMarketIsolated is TestBase {
     }
 
     function _deployProtocolReader() internal initMainVariables {
-        protocolReaders = protocolReaders[block.chainid] = new ProtocolReader(
+        protocolReader = protocolReaders[block.chainid] = new ProtocolReader(
             ICentralRegistry(address(centralRegistry))
         );
     }
