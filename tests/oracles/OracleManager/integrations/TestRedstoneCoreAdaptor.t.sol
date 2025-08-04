@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
+import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
@@ -53,7 +56,122 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addApprovedAdaptor(address(adaptor));
     }
 
-    function testReturnsCorrectPrice() public {
+    function test_success_AddNewSignersUpdatePriceWithNewSigners() public {
+        address[] memory newSigners = new address[](3);
+        bytes32[] memory newSignerKeys = new bytes32[](3);
+
+        // Private keys (randomly generated)
+        newSignerKeys[
+            0
+        ] = 0x98fe1d834ed6a59e53f16b92d57f76bc764bc6179a97fb6d1c0f57e2c6498bc6;
+        newSignerKeys[
+            1
+        ] = 0x2c5b761dbc30b7cf827b9d12d057550e8a07fe6da7dff5f2385562f6165a8748;
+        newSignerKeys[
+            2
+        ] = 0x91198cc0ab98d7832d653bf079615e8849fcb17c4b55d2e858ef13df35295742;
+
+        // Corresponding addresses (derived from private keys)
+        newSigners[0] = 0x55dfD892609471ccf030E830F127F3fe0f485C60;
+        newSigners[1] = 0xb8b84E31308a9B64bE64ee061Df99a0DaBfb6f4D;
+        newSigners[2] = 0x017f6D0d1DC16cb59Fa374D2716bf5D2A83c2b08;
+
+        // Add new signers to the adaptor
+        adaptor.addSigner(newSigners[0], false);
+        adaptor.addSigner(newSigners[1], false);
+        adaptor.addSigner(newSigners[2], false);
+
+        // Test price update with new signers
+        bytes memory redstonePayload = getRedstonePayload(
+            "WBTC:61000:8",
+            newSignerKeys
+        );
+
+        bytes memory encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool,uint128)",
+            _WBTC_ADDRESS,
+            true,
+            uint128(block.timestamp * 1000)
+        );
+        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+
+        // Update price with new signers
+        (bool success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayload
+        );
+        assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
+
+        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
+
+        // Verify price was updated correctly
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _WBTC_ADDRESS,
+            true,
+            false
+        );
+        assertEq(errorCode, 0, "Should have had no error code returned when pricing via redstone core adaptor");
+        assertEq(price, 61000e18, "We expect to get the 61k price back from the payload we built");
+    }
+
+    function test_fail_RemoveOldSignerBelowSignerThreshold() public {
+        testAddNewSignersUpdatePriceWithNewSigners();
+
+        adaptor.removeSigner(redstoneSigners[6], false);
+        adaptor.removeSigner(redstoneSigners[5], false);
+        adaptor.removeSigner(redstoneSigners[4], false);
+        adaptor.removeSigner(redstoneSigners[3], false);
+
+        vm.expectRevert(
+            RedstoneCoreAdaptor.RedstoneCoreAdaptor__InvalidConfiguration
+                .selector
+        );
+        adaptor.removeSigner(redstoneSigners[2], false);
+    }
+
+    function test_fail_RemoveOldSignerAndFailToUpdatePriceWithOldSignersKeys()
+        public
+    {
+        testAddNewSignersUpdatePriceWithNewSigners();
+
+        bytes32[] memory fewerRedstoneSignerKeys;
+        fewerRedstoneSignerKeys.push(
+            0x56938289786ae24fdb687a2a740e755d6ed7e72a1f82f8f9c3ed6eac5b38ba23
+        );
+        fewerRedstoneSignerKeys.push(
+            0x4022f8e215d01e76d90987d7f56a09513fe76f97add10db250215bdbfab3e9c1
+        );
+        fewerRedstoneSignerKeys.push(
+            0x00b2ff109fc6421974dff44f7e2f95a0ebbba51acb43b6975b77615c6cba12b2
+        );
+
+        bytes memory redstonePayload = getRedstonePayload(
+            "WBTC:61000:8",
+            fewerRedstoneSignerKeys
+        );
+
+        bytes memory encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool,uint128)",
+            _WBTC_ADDRESS,
+            true,
+            uint128(block.timestamp * 1000)
+        );
+        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+
+        adaptor.removeSigner(redstoneSigners[0], false);
+
+        (bool success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayload
+        );
+        assertFalse(success, "Writing Price should have failed since only 2 of 3 signers are approved");
+    }
+
+        function test_success_ReturnsCorrectPrice() public {
         bytes memory redstonePayload = getRedstonePayload(
             "WBTC:60000:8",
             redstoneSignerKeys
@@ -135,120 +253,5 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         );
 
         assertNotEq(errorCode, 0, "We expect an error message returned since the price feed should be stale now");
-    }
-
-    function testAddNewSignersUpdatePriceWithNewSigners() public {
-        address[] memory newSigners = new address[](3);
-        bytes32[] memory newSignerKeys = new bytes32[](3);
-
-        // Private keys (randomly generated)
-        newSignerKeys[
-            0
-        ] = 0x98fe1d834ed6a59e53f16b92d57f76bc764bc6179a97fb6d1c0f57e2c6498bc6;
-        newSignerKeys[
-            1
-        ] = 0x2c5b761dbc30b7cf827b9d12d057550e8a07fe6da7dff5f2385562f6165a8748;
-        newSignerKeys[
-            2
-        ] = 0x91198cc0ab98d7832d653bf079615e8849fcb17c4b55d2e858ef13df35295742;
-
-        // Corresponding addresses (derived from private keys)
-        newSigners[0] = 0x55dfD892609471ccf030E830F127F3fe0f485C60;
-        newSigners[1] = 0xb8b84E31308a9B64bE64ee061Df99a0DaBfb6f4D;
-        newSigners[2] = 0x017f6D0d1DC16cb59Fa374D2716bf5D2A83c2b08;
-
-        // Add new signers to the adaptor
-        adaptor.addSigner(newSigners[0], false);
-        adaptor.addSigner(newSigners[1], false);
-        adaptor.addSigner(newSigners[2], false);
-
-        // Test price update with new signers
-        bytes memory redstonePayload = getRedstonePayload(
-            "WBTC:61000:8",
-            newSignerKeys
-        );
-
-        bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool,uint128)",
-            _WBTC_ADDRESS,
-            true,
-            uint128(block.timestamp * 1000)
-        );
-        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
-            encodedFunction,
-            redstonePayload
-        );
-
-        // Update price with new signers
-        (bool success, ) = address(adaptor).call(
-            encodedFunctionWithRedstonePayload
-        );
-        assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
-
-        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
-
-        // Verify price was updated correctly
-        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
-            _WBTC_ADDRESS,
-            true,
-            false
-        );
-        assertEq(errorCode, 0, "Should have had no error code returned when pricing via redstone core adaptor");
-        assertEq(price, 61000e18, "We expect to get the 61k price back from the payload we built");
-    }
-
-    function testRemoveOldSignerBelowSignerThreshold() public {
-        testAddNewSignersUpdatePriceWithNewSigners();
-
-        adaptor.removeSigner(redstoneSigners[6], false);
-        adaptor.removeSigner(redstoneSigners[5], false);
-        adaptor.removeSigner(redstoneSigners[4], false);
-        adaptor.removeSigner(redstoneSigners[3], false);
-
-        vm.expectRevert(
-            RedstoneCoreAdaptor.RedstoneCoreAdaptor__InvalidConfiguration
-                .selector
-        );
-        adaptor.removeSigner(redstoneSigners[2], false);
-    }
-
-    function testRemoveOldSignerAndFailToUpdatePriceWithOldSignersKeys()
-        public
-    {
-        testAddNewSignersUpdatePriceWithNewSigners();
-
-        bytes32[] memory fewerRedstoneSignerKeys;
-        fewerRedstoneSignerKeys.push(
-            0x56938289786ae24fdb687a2a740e755d6ed7e72a1f82f8f9c3ed6eac5b38ba23
-        );
-        fewerRedstoneSignerKeys.push(
-            0x4022f8e215d01e76d90987d7f56a09513fe76f97add10db250215bdbfab3e9c1
-        );
-        fewerRedstoneSignerKeys.push(
-            0x00b2ff109fc6421974dff44f7e2f95a0ebbba51acb43b6975b77615c6cba12b2
-        );
-
-        bytes memory redstonePayload = getRedstonePayload(
-            "WBTC:61000:8",
-            fewerRedstoneSignerKeys
-        );
-
-        bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool,uint128)",
-            _WBTC_ADDRESS,
-            true,
-            uint128(block.timestamp * 1000)
-        );
-        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
-            encodedFunction,
-            redstonePayload
-        );
-
-        adaptor.removeSigner(redstoneSigners[0], false);
-
-        (bool success, ) = address(adaptor).call(
-            encodedFunctionWithRedstonePayload
-        );
-        assertFalse(success, "Writing Price should have failed since only 2 of 3 signers are approved");
     }
 }
