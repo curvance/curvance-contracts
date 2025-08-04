@@ -11,15 +11,15 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 
 import "forge-std/console2.sol";
 
-// ## Scenario 4: Mixed Auction and Regular Liquidations, all using liquidate() function
+// ## Scenario 4: Mixed Regular and Auction Liquidations, all using liquidate() function
 // - Setup: 4 users with varying positions
 // - User 1: 1.9 strategyCBALRETH ($2,850), 2500 USDC debt (for Auction)
 // - User 2: 1.9 strategyCBALRETH ($2,850), 2500 USDC debt (for Auction)
 // - User 3: 1.9 strategyCBALRETH ($2,850), 2500 USDC debt (for regular)
 // - User 4: 1.9 strategyCBALRETH ($2,850), 2500 USDC debt (for regular)
-// - Action 1: Price drop by to ~$1,300, Auction transaction with custom parameters for User 1 and User 2
-// - Action 2: Regular liquidation attempt for User 3 and User 4
-// - Expected: Users 1 and 2 liquidated via Auction with custom parameters, Users 3 and 4 via regular liquidation
+// - Action 1: Price drop to ~$1,300, Regular liquidation for User 3 and User 4
+// - Action 2: Auction transaction with custom parameters for User 1 and User 2
+// - Expected: Users 3 and 4 liquidated via regular liquidation first, then Users 1 and 2 via Auction
 //          All users have the same underwater position, so each accrue bad debt at the moment.
 //          Users who are liquidated via Auction accrue less bad debt because their positions are not completely closed
 //                  because they use a lower close factor than using liquiding the maximum amount.
@@ -47,6 +47,7 @@ contract MixedAuction is TestBaseLiquidations {
     uint256[] debtBalancesPreLiquidation_auction;
     uint256[] debtBalancesPreLiquidation_regular;
     uint256 totalBadDebtAuction;
+    uint256 totalBadDebtRegular;
     uint256 totalBorrowsBefore;
     uint256 totalDebtRepaid;
 
@@ -103,7 +104,7 @@ contract MixedAuction is TestBaseLiquidations {
         console2.log("SETUP COMPLETE");
     }
 
-    function test_fail_auctionLiquidationBlocksRegularLiquidation() public {
+    function test_fail_auctionLiquidationBlocksRegularLiquidation_sameTx() public {
 
         _prepareUSDC(dappControlUser, 100000e6);
         _prepareUSDC(address(this), 100000e6);
@@ -266,6 +267,223 @@ contract MixedAuction is TestBaseLiquidations {
         }
 
     }
+
+    function test_fail_regularLiquidationThenAuctionLiquidation_sameTx() public {
+
+        _prepareUSDC(dappControlUser, 100000e6);
+        _prepareUSDC(address(this), 100000e6);
+
+        // ===== Cache liquidation values =====
+
+        totalBorrowsBefore = borrowableCUSDC.marketOutstandingDebt();
+
+        debtBalancesPreLiquidation_auction = _getDebtBalancePreLiquidation(auctionBorrowers);
+
+        debtBalancesPreLiquidation_regular = _getDebtBalancePreLiquidation(regularBorrowers);
+
+        console2.log("CHECKPOINT 1");
+
+        // ===== Calculate Expected Values =====
+
+        ExpectedLiquidationValues memory regularLiqValuesBorrower3 = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: regularBorrowers[0],
+                collateralToken: address(strategyCBALRETH),
+                borrowedToken: address(borrowableCUSDC),
+                isLiquidateExact: false,
+                liquidateExactAmount: 0,
+                isAuction: false,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            }));
+
+        ExpectedLiquidationValues memory regularLiqValuesBorrower4 = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: regularBorrowers[1],
+                collateralToken: address(strategyCBALRETH),
+                borrowedToken: address(borrowableCUSDC),
+                isLiquidateExact: false,
+                liquidateExactAmount: 0,
+                isAuction: false,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            }));
+
+        totalBadDebtRegular = regularLiqValuesBorrower3.badDebt + regularLiqValuesBorrower4.badDebt;
+
+        // ===== Regular Liquidations First =====
+
+        usdc.approve(address(borrowableCUSDC), 100000e6);
+
+        // Assert BadDebtRecognized event is emitted with expected total bad debt
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit BadDebtRecognized(totalBadDebtRegular, address(this));
+        emit Repay(regularLiqValuesBorrower3.debtRepaid,address(this), regularBorrowers[0]);
+        emit Repay(regularLiqValuesBorrower4.debtRepaid,address(this), regularBorrowers[1]);
+
+        borrowableCUSDC.liquidate(
+            regularBorrowers,
+            address(strategyCBALRETH)
+        );
+
+        // ===== Auction Liquidations Second =====
+
+        vm.startPrank(dappControlUser);
+        usdc.approve(address(borrowableCUSDC), 100000e6);
+
+        marketManagerIsolated.setLiquidationConfig(
+            address(borrowableCUSDC),  
+            validPenalty,
+            closeFactor
+        );
+
+        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
+        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
+
+        ExpectedLiquidationValues memory auctionLiqValuesBorrower1 = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: auctionBorrowers[0],
+                collateralToken: address(strategyCBALRETH),
+                borrowedToken: address(borrowableCUSDC),
+                isLiquidateExact: false,
+                liquidateExactAmount: 0,
+                isAuction: true,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            }));
+
+        ExpectedLiquidationValues memory auctionLiqValuesBorrower2 = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: auctionBorrowers[1],
+                collateralToken: address(strategyCBALRETH),
+                borrowedToken: address(borrowableCUSDC),
+                isLiquidateExact: false,
+                liquidateExactAmount: 0,
+                isAuction: true,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            }));
+
+        totalBadDebtAuction = auctionLiqValuesBorrower1.badDebt + auctionLiqValuesBorrower2.badDebt;
+
+        // Assert BadDebtRecognized event is emitted with expected total bad debt
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit BadDebtRecognized(totalBadDebtAuction, dappControlUser);
+        emit Repay(auctionLiqValuesBorrower1.debtRepaid,dappControlUser, auctionBorrowers[0]);
+        emit Repay(auctionLiqValuesBorrower2.debtRepaid,dappControlUser, auctionBorrowers[1]);
+
+        borrowableCUSDC.liquidate(
+            auctionBorrowers,
+            address(strategyCBALRETH)
+        );
+        marketManagerIsolated.lockAuctionCollateral();
+        marketManagerIsolated.resetLiquidationConfig();
+        vm.stopPrank();
+
+        // ===== Validate =====
+
+        // Verify debt balances
+        assertEq(borrowableCUSDC.debtBalance(auctionBorrowers[0]), debtBalancesPreLiquidation_auction[0] - auctionLiqValuesBorrower1.debtRepaid - auctionLiqValuesBorrower1.badDebt, 
+        "Auction borrower 1 debt balance mismatch");
+        assertEq(borrowableCUSDC.debtBalance(auctionBorrowers[1]), debtBalancesPreLiquidation_auction[1] - auctionLiqValuesBorrower2.debtRepaid - auctionLiqValuesBorrower2.badDebt, 
+        "Auction borrower 2 debt balance mismatch");
+        assertEq(borrowableCUSDC.debtBalance(regularBorrowers[0]), debtBalancesPreLiquidation_regular[0] - regularLiqValuesBorrower3.debtRepaid - regularLiqValuesBorrower3.badDebt, 
+        "Regular borrower 1 debt balance mismatch");
+        assertEq(borrowableCUSDC.debtBalance(regularBorrowers[1]), debtBalancesPreLiquidation_regular[1] - regularLiqValuesBorrower4.debtRepaid - regularLiqValuesBorrower4.badDebt, 
+        "Regular borrower 2 debt balance mismatch");
+
+        // Verify collateral is reduced by collateralLiquidated
+        assertApproxEqAbs(
+            strategyCBALRETH.balanceOf(auctionBorrowers[0]),
+            collateralAmounts[0] - (auctionLiqValuesBorrower1.collateralLiquidated),
+            1000, // Tolerance of 1000 wei 
+            "Collateral post liquidation mismatch"
+        );
+
+        assertApproxEqAbs(
+            strategyCBALRETH.balanceOf(auctionBorrowers[1]),
+            collateralAmounts[1] - (auctionLiqValuesBorrower2.collateralLiquidated),
+            1000, // Tolerance of 1000 wei 
+            "Collateral post liquidation mismatch"
+        );
+
+        assertApproxEqAbs(
+            strategyCBALRETH.balanceOf(regularBorrowers[0]),
+            collateralAmounts[2] - (regularLiqValuesBorrower3.collateralLiquidated),
+            1000, // Tolerance of 1000 wei 
+            "Collateral post liquidation mismatch"
+        );
+
+        assertApproxEqAbs(
+            strategyCBALRETH.balanceOf(regularBorrowers[1]),
+            collateralAmounts[3] - (regularLiqValuesBorrower4.collateralLiquidated),
+            1000, // Tolerance of 1000 wei 
+            "Collateral post liquidation mismatch"
+        );
+
+        // Assert Total borrows is reduced by the amount of debt repaid
+
+        totalDebtRepaid = auctionLiqValuesBorrower1.debtRepaid +
+            auctionLiqValuesBorrower2.debtRepaid +
+            regularLiqValuesBorrower3.debtRepaid +
+            regularLiqValuesBorrower4.debtRepaid;
+
+        assertApproxEqAbs(
+            borrowableCUSDC.marketOutstandingDebt(),
+            totalBorrowsBefore - totalDebtRepaid - totalBadDebtAuction - totalBadDebtRegular,
+            100, // Small tolerance
+            "Incorrect totalBorrows after liquidation"
+        );
+
+        // Verify liquidator received the expected collateral
+        uint256 expectedDappControlUserLiquidatorBalance = 
+            auctionLiqValuesBorrower1.collateralLiquidated + 
+            auctionLiqValuesBorrower2.collateralLiquidated;
+
+        uint256 expectedNormalUserLiquidatorBalance = 
+            regularLiqValuesBorrower3.collateralLiquidated +
+            regularLiqValuesBorrower4.collateralLiquidated;
+
+        assertApproxEqAbs(
+            strategyCBALRETH.balanceOf(dappControlUser),
+            expectedDappControlUserLiquidatorBalance,
+            1000,
+            "Dapp control user didn't receive expected collateral"
+        );
+
+        assertApproxEqAbs(
+            strategyCBALRETH.balanceOf(address(this)),
+            expectedNormalUserLiquidatorBalance,
+            1000,
+            "Liquidator didn't receive expected collateral"
+        );
+
+        // Verify lFactors
+        // Auction borrowers should still have lFactor > 0
+        // Regular borrowers should have lFactor since fully liquidated
+
+        for(uint i = 0; i < 2; i++) {
+            (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
+                auctionBorrowers[i],
+                address(borrowableCUSDC),
+                address(strategyCBALRETH)
+            );
+
+            assertGt(lFactorAfter, 0, "Auction borrower should still have lFactor > 0");
+        }
+
+        for(uint i = 0; i < 2; i++) {
+            (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
+                regularBorrowers[i],
+                address(borrowableCUSDC),
+                address(strategyCBALRETH)
+            );
+
+            assertEq(lFactorAfter, 0, "Regular borrower should have lFactor = 0");
+        }
+
+    }
+
 
 
     function _createPositions() internal {
