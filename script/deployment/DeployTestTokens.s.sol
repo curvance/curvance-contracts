@@ -30,8 +30,12 @@ contract DeployTestTokens is Script {
         ICentralRegistry cr = ICentralRegistry(registry);
         OracleManager oracleManager = OracleManager(cr.oracleManager());
 
+        MockOracleAdaptor adaptor = new MockOracleAdaptor(cr);
+        oracleManager.addApprovedAdaptor(address(adaptor));
+        emit ContractDeployed(address(adaptor), string.concat("MockOracle"));
+
         for (uint256 i = 0; i < names.length; i++) {
-            // Create underlying token
+            // Create fake test token
             string memory symbol = symbols[i];
             TestnetToken token = new TestnetToken(
                 names[i],
@@ -49,17 +53,11 @@ contract DeployTestTokens is Script {
             // Setup fake oracle feed
             uint240 price = prices[i];
             if (price != 0) {
-                MockOracleAdaptor adaptor = new MockOracleAdaptor(cr);
-                oracleManager.addApprovedAdaptor(address(adaptor));
                 adaptor.addAsset(address(token));
                 adaptor.setPrice(address(token), price, price);
                 oracleManager.addAssetPriceFeed(
                     address(token),
                     address(adaptor)
-                );
-                emit ContractDeployed(
-                    address(adaptor),
-                    string.concat(symbol, "-Oracle")
                 );
             }
         }
