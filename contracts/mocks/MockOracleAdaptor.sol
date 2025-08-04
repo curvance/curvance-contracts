@@ -26,11 +26,7 @@ contract MockOracleAdaptor is BaseOracleAdaptor {
             revert("Price not set by MockOracle");
         }
 
-        if (inUSD) {
-            return PricingResult(definedPrices[asset].usdPrice, false, true);
-        }
-
-        return PricingResult(definedPrices[asset].nativePrice, false, false);
+        return PricingResult(definedPrices[asset].nativePrice, inUSD, false);
     }
 
     function setPrice(
