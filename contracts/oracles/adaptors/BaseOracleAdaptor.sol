@@ -83,10 +83,14 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         bool /* getLower */
     ) external view virtual override returns (PricingResult memory result) {
         _checkSupportedAsset(asset);
-
         result = _getPrice(asset, inUSD);
     }
 
+    /// @notice Returns PriceGuard data for pricing `asset` denominated either
+    ///         USD or native tokens depending on `inUSD`.
+    /// @param asset The address of the asset to retrieve any PriceGuard data on.
+    /// @param inUSD Specifies whether the PriceGuard returned should be in
+    ///              USD (true) or a chain's native token (false).
     function getPriceGuard(
         address asset,
         bool inUSD
@@ -94,6 +98,28 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         return priceGuards[asset][inUSD];
     }
 
+    /// @notice Sets a PriceGuard when pricing `asset` denominated either USD
+    ///         or native tokens depending on `inUSD`.
+    /// @param asset The address of the asset to set a PriceGuard data on.
+    /// @param inUSD Specifies whether the PriceGuard should be in
+    ///              USD (true) or a chain's native token (false).
+    /// @param guardType The type of PriceGuard to set on `asset`. 
+    ///                  Where:
+    ///                  1: Indicates a static maximum of `basePrice` and
+    ///                     minimum of `minPrice`.
+    ///                  2: Indicates an ever increasing maximum of
+    ///                     `basePrice` and minimum of `minPrice` continually
+    ///                     growing by `increasePerYear` % per year.
+    /// @param increasePerYear The magnitude that `basePrice` should increase
+    ///                        overtime from `timestampStart`, inputted in
+    ///                        `BASIS_POINTS` per year.
+    /// @param timestampStart When `increasePerYear` should start increasing
+    ///                       `basePrice` raising the maximum price returned
+    ///                       when pricing `asset`.
+    /// @param basePrice The base price that should be the maximum price
+    ///                  returned when pricing `asset`.
+    /// @param minPrice The minimum price that should be allowed to be
+    ///                 returned when pricing `asset`.
     function setGuardedPriceConfig(
         address asset,
         bool inUSD,
@@ -175,6 +201,11 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         );
     }
 
+    /// @notice Disables any PriceGuard active when pricing `asset`
+    ///         denominated either USD or native tokens depending on `inUSD`.
+    /// @param asset The address of the asset to disable any PriceGuard data on.
+    /// @param inUSD Specifies whether the PriceGuard disabled should be in
+    ///              USD (true) or a chain's native token (false).
     function disableGuardedPriceConfig(address asset, bool inUSD) external {
         _checkMarketPermissions();
         delete priceGuards[asset][inUSD];
