@@ -208,7 +208,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         vm.expectRevert(
             RedstoneCoreAdaptor.RedstoneCoreAdaptor__InvalidConfiguration
                 .selector
-        )
+        );
         adaptor.removeSigner(redstoneSigners[2], false);
     }
 
