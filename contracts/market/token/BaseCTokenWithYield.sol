@@ -64,14 +64,14 @@ abstract contract BaseCTokenWithYield is BaseCToken {
     ///         including pending rewards that are vested.
     /// @return r The total number of underlying assets.
     function _getTotalAssets() internal view override returns (uint256 r) {
-        r = _totalAssets + _getPendingYield();
+        r = _totalAssets + _assetsToVest();
     }
 
-    /// @notice Calculates pending yield that have been vested.
-    /// @dev If there are no pending yield or the vesting period has ended,
+    /// @notice Calculates pending assets that have been vested.
+    /// @dev If there are no pending assets or the vesting period has ended,
     ///      it returns 0.
-    /// @return The calculated pending yield.
-    function _getPendingYield() internal view virtual returns (uint256);
+    /// @return The calculated pending assets to vest.
+    function _assetsToVest() internal view virtual returns (uint256);
 
     /// @notice Returns whether the current vesting period has ended,
     ///         based on the last vest timestamp.
