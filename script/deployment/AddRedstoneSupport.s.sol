@@ -14,12 +14,12 @@ contract AddRedstoneSupport is Script {
 
     DeploymentLogger logger;
 
-    struct PushFeed {
+    struct PullFeed {
         bytes payload;
         uint128 timestamp;
     }
 
-    struct PullFeed {
+    struct PushFeed {
         address aggregator;
         uint256 heartbeat;
         bool inUSD;
@@ -29,7 +29,7 @@ contract AddRedstoneSupport is Script {
         address asset,
         address adaptor,
         address oracleManager,
-        PullFeed memory feed
+        PushFeed memory feed
     ) external {
         logger = new DeploymentLogger();
         vm.recordLogs();
@@ -51,7 +51,7 @@ contract AddRedstoneSupport is Script {
         address asset,
         address adaptor,
         address oracleManager,
-        PushFeed memory feed
+        PullFeed memory feed
     ) external {
         logger = new DeploymentLogger();
         vm.recordLogs();
