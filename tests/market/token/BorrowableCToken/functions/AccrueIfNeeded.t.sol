@@ -30,8 +30,8 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         _prepareUSDC(liquidityProvider, 100_000e6);
 
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(borrowableCUSDC), 100_000e6);
-        borrowableCUSDC.deposit(100_000e6, liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+        borrowableCUSDC.deposit(1000e6, liquidityProvider);
         vm.stopPrank();
 
         mockUsdcFeed.setMockAnswer(1e9);
@@ -42,7 +42,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
     }
     
     function test_vestingPeriod_skipTenMinutesPlus1Second() public {
-       uint256 borrowAmount = 10_000e6;
+       uint256 borrowAmount = 500e6;
         borrowableCUSDC.accrueIfNeeded();
         
         _prepareBALRETH(user1, 250e18);
@@ -63,7 +63,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         console2.log("daoShares:", daoSharesBefore);
 
         for(uint i; i < 10; i++) {
-            skip(10 minutes);
+            skip(10 minutes + 1 seconds);
             borrowableCUSDC.accrueIfNeeded();
         }
 
