@@ -118,25 +118,19 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
     }
 
     function test_fail_RemoveOldSignerBelowSignerThreshold() public {
-        testAddNewSignersUpdatePriceWithNewSigners();
-
-        adaptor.removeSigner(redstoneSigners[6], false);
-        adaptor.removeSigner(redstoneSigners[5], false);
-        adaptor.removeSigner(redstoneSigners[4], false);
-        adaptor.removeSigner(redstoneSigners[3], false);
-
+        adaptor.removeSigner(redstoneSigners[0], false);
+        
         vm.expectRevert(
             RedstoneCoreAdaptor.RedstoneCoreAdaptor__InvalidConfiguration
                 .selector
         );
-        adaptor.removeSigner(redstoneSigners[2], false);
+        
+        adaptor.removeSigner(redstoneSigners[1], false);
     }
 
     function test_fail_RemoveOldSignerAndFailToUpdatePriceWithOldSignersKeys()
         public
     {
-        testAddNewSignersUpdatePriceWithNewSigners();
-
         bytes32[] memory fewerRedstoneSignerKeys = new bytes32[](3);
         fewerRedstoneSignerKeys[
             0
@@ -172,7 +166,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         assertFalse(success, "Writing Price should have failed since only 2 of 3 signers are approved");
     }
 
-        function test_success_ReturnsCorrectPrice() public {
+    function test_success_ReturnsCorrectPrice() public {
         bytes memory redstonePayload = getRedstonePayload(
             "WBTC:60000:8",
             redstoneSignerKeys
