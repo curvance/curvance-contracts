@@ -397,7 +397,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
 
         uint256 finalMultiplier = interestRateModel.vertexMultiplier();
         assertGt(
-                vertexMultiplier(),
+                finalMultiplier,
                 WAD,
                 "Multiplier should be above base WAD"
             );
@@ -521,7 +521,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         // Loop through multiple periods making sure only decay applies.
         adjustmentPeriods = 10;
         for (uint256 i = 0; i < adjustmentPeriods; i++) {
-            currentMultiplier = vertexMultiplier();
+            currentMultiplier = interestRateModel.vertexMultiplier();
             uint256 decay = FixedPointMathLib.mulDiv(
                 currentMultiplier,
                 decayRate,
@@ -533,7 +533,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
 
             // New vertexMultiplier should decrease by exactly decay if 
             assertEq(
-                vertexMultiplier(),
+                interestRateModel.vertexMultiplier(),
                 currentMultiplier - decay,
                 "New vertexMultiplier should decrease by exactly decay."
             );

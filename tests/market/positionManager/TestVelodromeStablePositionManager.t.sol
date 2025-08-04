@@ -314,7 +314,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory strategyCTokenUSDCDAIBeforeSnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
 
         deleverageAction.cToken = ICToken(address(strategyCTokenUSDCDAI));
-        deleverageAction.collateralAssets = 0.00003 ether;
+        deleverageAction.collateralAssets = 0.000033 ether;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
         uint256 usdcAmount = 27729063;
@@ -376,7 +376,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
         AccountSnapshot memory strategyCTokenUSDCDAIBeforeSnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
 
-        uint256 collateralAmount = 0.00003 ether;
+        uint256 collateralAmount = 0.000033 ether;
         uint256 leverageFee = collateralAmount / 100;
         uint256 protocolBalanceBeforeDeLeverage = IERC20(_VELODROME_DAI_USDC)
             .balanceOf(centralRegistry.daoAddress());
@@ -514,7 +514,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory strategyCTokenUSDCDAIBeforeSnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
 
         deleverageAction.cToken = ICToken(address(strategyCTokenUSDCDAI));
-        deleverageAction.collateralAssets = 0.00003 ether;
+        deleverageAction.collateralAssets = 0.000033 ether;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
         uint256 usdcAmount = 27729063;

@@ -347,7 +347,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         uint256 strategyCTokenWETHUSDCBalanceBefore = strategyCTokenWETHUSDC.collateralPosted(user);
 
         deleverageAction.cToken = ICToken(address(strategyCTokenWETHUSDC));
-        deleverageAction.collateralAssets = 0.00003 ether;
+        deleverageAction.collateralAssets = 0.000033 ether;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
         uint256 wethAmount = 0.7488 ether;
@@ -428,7 +428,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
         uint256 strategyCTokenWETHUSDCBalanceBefore = strategyCTokenWETHUSDC.collateralPosted(user);
 
-        uint256 collateralAmount = 0.00003 ether;
+        uint256 collateralAmount = 0.000033 ether;
         uint256 leverageFee = collateralAmount / 100;
         uint256 protocolBalanceBeforeDeLeverage = IERC20(_VELODROME_WETH_USDC)
             .balanceOf(centralRegistry.daoAddress());
@@ -586,7 +586,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         uint256 strategyCTokenWETHUSDCBalanceBefore = strategyCTokenWETHUSDC.collateralPosted(user);
 
         deleverageAction.cToken = ICToken(address(strategyCTokenWETHUSDC));
-        deleverageAction.collateralAssets = 0.00003 ether;
+        deleverageAction.collateralAssets = 0.000033 ether;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
         uint256 wethAmount = 0.7488 ether;
