@@ -31,7 +31,6 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
     function setUp() public override {
         _fork(18031848);
 
-        
         _deployCentralRegistry();
         _deployOracleManager();
         _setRedstoneSigners();
@@ -198,16 +197,40 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         assertEq(price, 61000e18, "We expect to get the 61k price back from the payload we built");
     }
 
+    function testRemoveOldSignerBelowSignerThreshold() public {
+        testAddNewSignersUpdatePriceWithNewSigners();
+
+        adaptor.removeSigner(redstoneSigners[6], false);
+        adaptor.removeSigner(redstoneSigners[5], false);
+        adaptor.removeSigner(redstoneSigners[4], false);
+        adaptor.removeSigner(redstoneSigners[3], false);
+
+        vm.expectRevert(
+            RedstoneCoreAdaptor.RedstoneCoreAdaptor__InvalidConfiguration
+                .selector
+        )
+        adaptor.removeSigner(redstoneSigners[2], false);
+    }
+
     function testRemoveOldSignerAndFailToUpdatePriceWithOldSignersKeys()
         public
     {
         testAddNewSignersUpdatePriceWithNewSigners();
 
-        adaptor.removeSigner(redstoneSigners[0], false);
+        bytes32[] memory fewerRedstoneSignerKeys;
+        fewerRedstoneSignerKeys.push(
+            0x56938289786ae24fdb687a2a740e755d6ed7e72a1f82f8f9c3ed6eac5b38ba23
+        );
+        fewerRedstoneSignerKeys.push(
+            0x4022f8e215d01e76d90987d7f56a09513fe76f97add10db250215bdbfab3e9c1
+        );
+        fewerRedstoneSignerKeys.push(
+            0x00b2ff109fc6421974dff44f7e2f95a0ebbba51acb43b6975b77615c6cba12b2
+        );
 
         bytes memory redstonePayload = getRedstonePayload(
             "WBTC:61000:8",
-            redstoneSignerKeys
+            fewerRedstoneSignerKeys
         );
 
         bytes memory encodedFunction = abi.encodeWithSignature(
@@ -220,6 +243,8 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             encodedFunction,
             redstonePayload
         );
+
+        adaptor.removeSigner(redstoneSigners[0], false);
 
         (bool success, ) = address(adaptor).call(
             encodedFunctionWithRedstonePayload

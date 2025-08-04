@@ -727,13 +727,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
         uint256 vestingPeriodEnd = uint40(vestingData >> _BITPOS_LAST_VEST);
         uint256 marketDebtIndex = uint80(vestingData >> _BITPOS_DEBT_INDEX);
         uint256 outstandingDebt = marketOutstandingDebt;
+        uint256 cachedTa = _totalAssets;
         uint256 yieldToVest = _getPendingYield(
             rate,
             outstandingDebt,
             vestingPeriodEnd,
             lastVestingClaim
         );
-        uint256 cachedTa = _totalAssets + yieldToVest;
 
         // Update last claim timestamp, stopping at vesting end if vesting
         // period is over.
@@ -751,8 +751,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // Calculate the interest vesting cycles for new vesting period.
             // The weird multiplication logic here is to round down to
             // discrete vesting cycles.
-            accrualPeriod = ((block.timestamp - lastVestingClaim) /
-                accrualPeriod) * accrualPeriod;
+            accrualPeriod = (((block.timestamp - lastVestingClaim) /
+                accrualPeriod) * accrualPeriod) + accrualPeriod;
             vestingPeriodEnd = lastVestingClaim + accrualPeriod;
 
             // Calculate the new interest rate for borrowers, in seconds.
