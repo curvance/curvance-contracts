@@ -317,7 +317,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         deleverageAction.collateralAssets = 0.00003 ether;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
-        uint256 usdcAmount = 27451772;
+        uint256 usdcAmount = 27729063;
         deleverageAction.swapActions = new SwapperLib.Swap[](1);
         deleverageAction.swapActions[0].inputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].inputAmount = usdcAmount;
@@ -385,7 +385,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         deleverageAction.collateralAssets = collateralAmount;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
-        uint256 usdcAmount = 27177254;
+        uint256 usdcAmount = 27451772;
         deleverageAction.swapActions = new SwapperLib.Swap[](1);
         deleverageAction.swapActions[0].inputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].inputAmount = usdcAmount;
@@ -517,7 +517,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         deleverageAction.collateralAssets = 0.00003 ether;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
-        uint256 usdcAmount = 27451772;
+        uint256 usdcAmount = 27729063;
         deleverageAction.swapActions = new SwapperLib.Swap[](1);
         deleverageAction.swapActions[0].inputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].inputAmount = usdcAmount;

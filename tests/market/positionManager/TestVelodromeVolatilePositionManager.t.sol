@@ -350,9 +350,10 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         deleverageAction.collateralAssets = 0.00003 ether;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
+        uint256 wethAmount = 0.7488 ether;
         deleverageAction.swapActions = new SwapperLib.Swap[](2);
         deleverageAction.swapActions[0].inputToken = _WETH_ADDRESS;
-        deleverageAction.swapActions[0].inputAmount = 0.7413 ether;
+        deleverageAction.swapActions[0].inputAmount = wethAmount;
         deleverageAction.swapActions[0].outputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].target = address(veloRouter);
         deleverageAction.swapActions[0].slippage = 1e18;
@@ -363,7 +364,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         routes[0].factory = address(veloPairFactory);
         deleverageAction.swapActions[0].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
-            0.7413 ether,
+            wethAmount,
             0,
             routes,
             address(positionManager),
@@ -436,9 +437,10 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         deleverageAction.collateralAssets = collateralAmount;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
+        uint256 wethAmount = 0.7413 ether;
         deleverageAction.swapActions = new SwapperLib.Swap[](2);
         deleverageAction.swapActions[0].inputToken = _WETH_ADDRESS;
-        deleverageAction.swapActions[0].inputAmount = 0.733897 ether;
+        deleverageAction.swapActions[0].inputAmount = wethAmount;
         deleverageAction.swapActions[0].outputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].target = address(veloRouter);
         deleverageAction.swapActions[0].slippage = 1e18;
@@ -449,7 +451,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         routes[0].factory = address(veloPairFactory);
         deleverageAction.swapActions[0].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
-            0.733897 ether,
+            wethAmount,
             0,
             routes,
             address(positionManager),
@@ -587,9 +589,10 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         deleverageAction.collateralAssets = 0.00003 ether;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
+        uint256 wethAmount = 0.7488 ether;
         deleverageAction.swapActions = new SwapperLib.Swap[](2);
         deleverageAction.swapActions[0].inputToken = _WETH_ADDRESS;
-        deleverageAction.swapActions[0].inputAmount = 0.7413 ether;
+        deleverageAction.swapActions[0].inputAmount = wethAmount;
         deleverageAction.swapActions[0].outputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].target = address(veloRouter);
         deleverageAction.swapActions[0].slippage = 1e18;
@@ -600,7 +603,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         routes[0].factory = address(veloPairFactory);
         deleverageAction.swapActions[0].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
-            0.7413 ether,
+            wethAmount,
             0,
             routes,
             address(positionManager),
