@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidations.sol";
-import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
+
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
-import "forge-std/console2.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+
+import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidations.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { console2 } from "forge-std/console2.sol";
 
 // ## Scenario 4: Mixed Regular and Auction Liquidations, all using liquidate() function
 // - Setup: 4 users with varying positions

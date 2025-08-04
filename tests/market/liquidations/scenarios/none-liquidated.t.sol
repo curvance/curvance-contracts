@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
 import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidations.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 // ## Scenario 3: No Users Liquidated, all using liquidate() function
 // - Setup: 3 users with healthy positions

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 
 import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidations.sol";

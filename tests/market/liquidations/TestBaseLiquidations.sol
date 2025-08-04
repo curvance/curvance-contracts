@@ -1,17 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
-import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
-import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
-
-import "forge-std/console.sol";
 
 contract TestBaseLiquidations is TestBaseMarketIsolated {
 
