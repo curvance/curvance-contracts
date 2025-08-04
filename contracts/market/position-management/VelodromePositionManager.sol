@@ -17,19 +17,17 @@ contract VelodromePositionManager is BasePositionManager {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
+    /// @param wNative The address of wrapped native token.
     constructor(
-        ICentralRegistry centralRegistry_,
-        address marketManager_,
-        address wrappedNative_,
+        ICentralRegistry cr,
+        address mm,
+        address wNative,
         address router_,
         address pairFactory_
-    )
-        BasePositionManager(
-            centralRegistry_,
-            marketManager_,
-            wrappedNative_
-        )
-    {
+    ) BasePositionManager(cr, mm, wNative) {
         router = router_;
         pairFactory = pairFactory_;
     }
@@ -138,9 +136,9 @@ contract VelodromePositionManager is BasePositionManager {
     ///                                will have its debt paid.
     ///               repayAssets The amount of `borrowableCToken` asset that
     ///                           will be repaid to lenders.
-    ///               swapAction Swap actions instructions converting
-    ///                          collateral asset into debt asset to
-    ///                          facilitate deleveraging.
+    ///               swapActions Swap actions instructions converting
+    ///                           collateral asset into debt asset to
+    ///                           facilitate deleveraging.
     ///               auxData Optional auxiliary data for execution of a
     ///                       deleverage action.
     function _swapCollateralAssetToDebtAsset(
@@ -150,12 +148,7 @@ contract VelodromePositionManager is BasePositionManager {
         address debtAsset = action.borrowableCToken.asset();
         SwapperLib.Swap[] memory swapActions = action.swapActions;
 
-        VelodromeLib._exitVelodrome(
-            router,
-            pool,
-            action.collateralAssets
-        );
-
+        VelodromeLib._exitVelodrome(router, pool, action.collateralAssets);
         uint256 numSwaps = swapActions.length;
 
         // Check to make sure there is calldata attached to execute the swap.

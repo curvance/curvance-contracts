@@ -35,7 +35,7 @@ contract AddCTokenSupportTest is TestBaseOracleManager {
     }
 
     function test_addCTokenSupport_success() public {
-        (bool isCToken, address underlying) = oracleManager.cTokenAssets(
+        (bool isCToken, address underlying) = oracleManager.cTokens(
             address(borrowableCUSDC)
         );
 
@@ -44,7 +44,7 @@ contract AddCTokenSupportTest is TestBaseOracleManager {
 
         oracleManager.addCTokenSupport(address(borrowableCUSDC));
 
-        (isCToken, underlying) = oracleManager.cTokenAssets(address(borrowableCUSDC));
+        (isCToken, underlying) = oracleManager.cTokens(address(borrowableCUSDC));
 
         assertTrue(isCToken);
         assertEq(underlying, _USDC_ADDRESS);

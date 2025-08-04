@@ -24,19 +24,11 @@ contract TestApi3Adaptor is TestBaseOracleManager {
         _deployOracleManager();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
 
         adaptor = new Api3Adaptor(ICentralRegistry(
-            address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            address(centralRegistry))
         );
         adaptor.addAsset(
             _ARB_ADDRESS,

@@ -64,10 +64,8 @@ contract CanRedeemTest is TestBaseMarketIsolated {
         vm.stopPrank();
 
         bool hasPosition;
-        (hasPosition, , ) = auxiliaryData.tokenDataOf(
-            user1,
-            address(strategyCBALRETH)
-        );
+        (hasPosition, , ) =
+            protocolReader.tokenDataOf(user1, address(strategyCBALRETH));
 
         assertTrue(hasPosition);
 
@@ -88,7 +86,8 @@ contract CanRedeemTest is TestBaseMarketIsolated {
 
     function test_canRedeem_success_whenRedeemerHasNoPosition() public {
         bool hasPosition;
-        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(borrowableCUSDC));
+        (hasPosition, , ) =
+            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
 
         assertFalse(hasPosition);
         marketManagerIsolated.canRedeem(address(borrowableCUSDC), 100e6, user1);

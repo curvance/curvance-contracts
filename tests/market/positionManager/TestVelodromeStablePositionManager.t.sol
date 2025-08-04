@@ -51,11 +51,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         _deployOracleManager();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
@@ -83,11 +79,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         );
 
         adaptor = new VelodromeStableLPAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         adaptor.addAsset(_VELODROME_DAI_USDC);
         oracleManager.addApprovedAdaptor(address(adaptor));
@@ -184,11 +176,11 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
-        // Try leverage with 50% of max.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
 
         VelodromePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -247,11 +239,11 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
-        // Try leverage with 50% of max.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
 
         uint256 protocolBalanceBeforeLeverage = dai.balanceOf(
             centralRegistry.daoAddress()
@@ -322,10 +314,10 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory strategyCTokenUSDCDAIBeforeSnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
 
         deleverageAction.cToken = ICToken(address(strategyCTokenUSDCDAI));
-        deleverageAction.collateralAssets = 0.00003 ether;
+        deleverageAction.collateralAssets = 0.000033 ether;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
-        uint256 usdcAmount = 27451772;
+        uint256 usdcAmount = 27729063;
         deleverageAction.swapActions = new SwapperLib.Swap[](1);
         deleverageAction.swapActions[0].inputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].inputAmount = usdcAmount;
@@ -384,7 +376,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
         AccountSnapshot memory strategyCTokenUSDCDAIBeforeSnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
 
-        uint256 collateralAmount = 0.00003 ether;
+        uint256 collateralAmount = 0.000033 ether;
         uint256 leverageFee = collateralAmount / 100;
         uint256 protocolBalanceBeforeDeLeverage = IERC20(_VELODROME_DAI_USDC)
             .balanceOf(centralRegistry.daoAddress());
@@ -393,7 +385,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         deleverageAction.collateralAssets = collateralAmount;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
-        uint256 usdcAmount = 27177254;
+        uint256 usdcAmount = 27451772;
         deleverageAction.swapActions = new SwapperLib.Swap[](1);
         deleverageAction.swapActions[0].inputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].inputAmount = usdcAmount;
@@ -459,11 +451,11 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
-        // Try leverage with 50% of max.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
 
         VelodromePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -522,10 +514,10 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory strategyCTokenUSDCDAIBeforeSnapshot = strategyCTokenUSDCDAI.getSnapshot(user);
 
         deleverageAction.cToken = ICToken(address(strategyCTokenUSDCDAI));
-        deleverageAction.collateralAssets = 0.00003 ether;
+        deleverageAction.collateralAssets = 0.000033 ether;
         deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
 
-        uint256 usdcAmount = 27451772;
+        uint256 usdcAmount = 27729063;
         deleverageAction.swapActions = new SwapperLib.Swap[](1);
         deleverageAction.swapActions[0].inputToken = _USDC_ADDRESS;
         deleverageAction.swapActions[0].inputAmount = usdcAmount;

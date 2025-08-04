@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import "forge-std/StdStorage.sol";
-import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
-import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+
+import { TestBaseStrategyCToken } from "../TestBaseStrategyCToken.sol";
+import "forge-std/StdStorage.sol";
 
 contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
     using stdStorage for StdStorage;
@@ -18,7 +21,8 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
         public
     {
         vm.expectRevert(
-            PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
+                .selector
         );
         new AuraCToken(
             ICentralRegistry(address(0)),

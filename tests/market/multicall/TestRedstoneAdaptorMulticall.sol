@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
@@ -61,18 +61,14 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             ICentralRegistry(address(centralRegistry)),
             redstoneSigners,
             3,
-            "ETH",
-            .1e18,
-            0,
-            30 days,
-            7 days
+            "ETH"
         );
 
         adapter.addAsset(_WBTC_ADDRESS, true, 8, 10 minutes);
         adapter.addAsset(_WBTC_ADDRESS, false, 18, 10 minutes);
 
         multicallChecker = new RedstoneAdaptorMulticallChecker(
-            address(centralRegistry)
+            ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.setMulticallChecker(
             address(adapter),
@@ -200,7 +196,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         vm.prank(user1);
         wbtc.approve(address(simpleCWBTC), 1e8);
 
-        Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
+        Multicall.MulticallAction[] memory calls = new Multicall.MulticallAction[](
             2
         );
         calls[0].target = address(adapter);
@@ -233,12 +229,12 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         simpleCWBTC.multicall(calls);
 
         assertEq(simpleCWBTC.balanceOf(user1), 1e8);
-        PricingResult memory priceData = adapter.getPrice(
+        IOracleAdaptor.PricingResult memory result = adapter.getPrice(
             _WBTC_ADDRESS,
             true,
             true
         );
-        assertEq(priceData.price, 61000e18);
+        assertEq(result.price, 61000e18);
     }
 
     function testBorrowableCTokenMintWithMulticall() public {
@@ -250,7 +246,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         vm.prank(user1);
         usdc.approve(address(borrowableCUSDC), 1e6);
 
-        Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
+        Multicall.MulticallAction[] memory calls = new Multicall.MulticallAction[](
             2
         );
         calls[0].target = address(adapter);
@@ -285,12 +281,12 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         borrowableCUSDC.multicall(calls);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 1e6);
-        PricingResult memory priceData = adapter.getPrice(
+        IOracleAdaptor.PricingResult memory result = adapter.getPrice(
             _WBTC_ADDRESS,
             true,
             true
         );
-        assertEq(priceData.price, 61000e18);
+        assertEq(result.price, 61000e18);
     }
 
     function testPositionLeverage() public {
@@ -307,10 +303,11 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         simpleCWBTC.postCollateral(0.1e8);
         assertEq(simpleCWBTC.balanceOf(user1), 0.1e8);
 
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user1,
             address(borrowableCUSDC)
-        ) * 50) / 100;
+        ) / 2;
 
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
@@ -336,7 +333,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         );
         leverageAction.auxData = bytes("");
 
-        Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
+        Multicall.MulticallAction[] memory calls = new Multicall.MulticallAction[](
             2
         );
         calls[0].target = address(adapter);

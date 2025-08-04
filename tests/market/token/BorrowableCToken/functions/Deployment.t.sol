@@ -3,10 +3,12 @@ pragma solidity ^0.8.19;
 
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import "forge-std/StdStorage.sol";
@@ -25,7 +27,8 @@ contract BorrowableCTokenDeploymentTest is TestBaseBorrowableCToken {
 
     function test_borrowableCTokenDeployment_fail_whenCentralRegistryIsInvalid() public {
         vm.expectRevert(
-            PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
+                .selector
         );
         new BorrowableCToken(
             ICentralRegistry(address(0)),

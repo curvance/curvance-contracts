@@ -3,11 +3,12 @@ pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
-import { WAD } from "contracts/libraries/Constants.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
+
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
@@ -44,20 +45,8 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of central registry.
-    constructor(
-        ICentralRegistry centralRegistry_,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) BaseOracleAdaptor(
-        centralRegistry_,
-        MAXIMUM_INCREASE_PER_YEAR,
-        MINIMUM_INCREASE_PER_YEAR,
-        MAXIMUM_TIMESTAMP_BUFFER,
-        MINIMUM_TIMESTAMP_BUFFER
-    ) {}
+    /// @param cr The address of central registry.
+    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -109,14 +98,8 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
         uint256 price1;
         uint256 errorCode;
 
-        IOracleManager oracleManager = IOracleManager(
-            centralRegistry.oracleManager()
-        );
-        (price0, errorCode) = oracleManager.getPrice(
-            config.token0,
-            inUSD,
-            getLower
-        );
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
+        (price0, errorCode) = om.getPrice(config.token0, inUSD, getLower);
 
         // Validate we did not run into any errors pricing token0.
         if (errorCode > 0) {
@@ -124,11 +107,7 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-        (price1, errorCode) = oracleManager.getPrice(
-            config.token1,
-            inUSD,
-            getLower
-        );
+        (price1, errorCode) = om.getPrice(config.token1, inUSD, getLower);
 
         // Validate we did not run into any errors pricing token1.
         if (errorCode > 0) {

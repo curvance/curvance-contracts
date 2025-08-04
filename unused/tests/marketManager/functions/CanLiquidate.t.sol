@@ -3,8 +3,8 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 contract CanLiquidateTest is TestBaseMarketManager {
@@ -234,7 +234,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
         uint256 cFactor = closeFactorBase + ((closeFactorCurve * 1e18) / WAD);
         uint256 debtAmount = (cFactor * borrowableCUSDC.debtBalance(user1)) / WAD;
 
-        PricingResult memory data = balRETHAdapter.getPrice(
+        IOracleAdaptor.PricingResult memory result = balRETHAdapter.getPrice(
             _BAL_WETH_RETH_ADDRESS,
             true,
             true
@@ -258,7 +258,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
             uint256 incentive = liqBaseIncentive + liqCurve;
             uint256 debtToCollateralRatio = (incentive *
                 earnTokenPrice *
-                WAD) / (data.price * simpleCBALRETH.exchangeRate());
+                WAD) / (result.price * simpleCBALRETH.exchangeRate());
             uint256 amountAdjusted = (debtAmount *
                 (10 ** simpleCBALRETH.decimals())) / (10 ** borrowableCUSDC.decimals());
             uint256 expectedLiquidatedTokens = (amountAdjusted *

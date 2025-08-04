@@ -66,15 +66,11 @@ contract DeployBase is Script {
             icr,
             redstoneSigners,
             3,
-            "ETH",
-            .1e18,
-            0,
-            30 days,
-            7 days
+            "ETH"
         );
         emit ContractDeployed(address(adaptor), "RedstoneCoreAdaptor");
         RedstoneAdaptorMulticallChecker multicallChecker = new RedstoneAdaptorMulticallChecker(
-                address(icr)
+                icr
             );
         emit ContractDeployed(
             address(multicallChecker),

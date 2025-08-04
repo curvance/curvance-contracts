@@ -3,7 +3,7 @@
 // import { FuzzMarketManager } from "tests/fuzzing/FuzzMarketManager.sol";
 // import { EToken } from "contracts/market/token/EToken.sol";
 // import { IERC20 } from "contracts/interfaces/IERC20.sol";
-// import { WAD } from "contracts/libraries/Constants.sol";
+// import { WAD } from "contracts/libraries/ConstantsLib.sol";
 // import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 // contract FuzzEToken is FuzzMarketManager {

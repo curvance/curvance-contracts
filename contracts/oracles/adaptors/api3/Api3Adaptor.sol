@@ -5,7 +5,6 @@ import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IProxy } from "contracts/interfaces/external/api3/IProxy.sol";
 
 contract Api3Adaptor is BaseOracleAdaptor {
@@ -51,20 +50,8 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of central registry.
-    constructor(
-        ICentralRegistry centralRegistry_,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) BaseOracleAdaptor(
-        centralRegistry_,
-        MAXIMUM_INCREASE_PER_YEAR,
-        MINIMUM_INCREASE_PER_YEAR,
-        MAXIMUM_TIMESTAMP_BUFFER,
-        MINIMUM_TIMESTAMP_BUFFER
-    ) {}
+    /// @param cr The address of central registry.
+    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
 
     /// EXTERNAL FUNCTIONS ///
 

@@ -28,19 +28,11 @@ contract TestOracleManager is TestBaseOracleManager {
         _deployMarketManager();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
 
         adaptor = new VelodromeVolatileLPAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         adaptor.addAsset(_VELODROME_WETH_USDC);
 

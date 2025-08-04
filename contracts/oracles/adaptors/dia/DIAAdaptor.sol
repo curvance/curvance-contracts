@@ -4,7 +4,6 @@ pragma solidity ^0.8.26;
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IDiaOracle } from "contracts/interfaces/external/dia/IDiaOracle.sol";
 
 contract DIAAdaptor is BaseOracleAdaptor {
@@ -49,22 +48,9 @@ contract DIAAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of central registry.
-    constructor(
-        ICentralRegistry centralRegistry_,
-        address _diaOracle,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) BaseOracleAdaptor(
-        centralRegistry_,
-        MAXIMUM_INCREASE_PER_YEAR,
-        MINIMUM_INCREASE_PER_YEAR,
-        MAXIMUM_TIMESTAMP_BUFFER,
-        MINIMUM_TIMESTAMP_BUFFER
-    ) {
-        diaOracle = _diaOracle;
+    /// @param cr The address of central registry.
+    constructor(ICentralRegistry cr, address dia) BaseOracleAdaptor(cr) {
+        diaOracle = dia;
     }
 
     /// EXTERNAL FUNCTIONS ///

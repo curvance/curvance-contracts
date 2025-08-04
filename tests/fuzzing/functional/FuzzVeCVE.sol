@@ -3,7 +3,7 @@
 
 // import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 // import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
-// import { BASIS_POINTS, WAD } from "contracts/libraries/Constants.sol";
+// import { BASIS_POINTS, WAD } from "contracts/libraries/ConstantsLib.sol";
 
 // contract FuzzVeCVE is StatefulBaseMarket {
 //     RewardsData defaultRewardData;

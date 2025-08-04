@@ -405,8 +405,8 @@ contract ComplexZapper is BaseZapper {
             router,
             factory,
             zapAction.outputToken,
-            CommonLib._getBalanceOf(IVeloPair(zapAction.outputToken).token0()),
-            CommonLib._getBalanceOf(IVeloPair(zapAction.outputToken).token1()),
+            CommonLib._balanceOf(IVeloPair(zapAction.outputToken).token0()),
+            CommonLib._balanceOf(IVeloPair(zapAction.outputToken).token1()),
             zapAction.minimumOut
         );
 
@@ -673,7 +673,7 @@ contract ComplexZapper is BaseZapper {
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
+        outAmount = CommonLib._balanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapAction.minimumOut) {
             revert ComplexZapper__SlippageError();
@@ -727,7 +727,7 @@ contract ComplexZapper is BaseZapper {
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
+        outAmount = CommonLib._balanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapAction.minimumOut) {
             revert ComplexZapper__SlippageError();
@@ -764,7 +764,7 @@ contract ComplexZapper is BaseZapper {
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
+        outAmount = CommonLib._balanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapAction.minimumOut) {
             revert ComplexZapper__SlippageError();
@@ -810,7 +810,7 @@ contract ComplexZapper is BaseZapper {
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
+        outAmount = CommonLib._balanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapAction.minimumOut) {
             revert ComplexZapper__SlippageError();

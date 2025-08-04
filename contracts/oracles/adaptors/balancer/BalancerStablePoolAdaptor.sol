@@ -2,12 +2,13 @@
 pragma solidity ^0.8.26;
 
 import { BalancerBaseAdaptor } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { IVault } from "contracts/interfaces/external/balancer/IVault.sol";
 import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerPool.sol";
 import { IRateProvider } from "contracts/interfaces/external/balancer/IRateProvider.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
@@ -49,23 +50,12 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of central registry.
+    /// @param cr The address of central registry.
     constructor(
-        ICentralRegistry centralRegistry_,
-        IVault balancerVault_,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) BalancerBaseAdaptor(
-        centralRegistry_,
-        balancerVault_,
-        MAXIMUM_INCREASE_PER_YEAR,
-        MINIMUM_INCREASE_PER_YEAR,
-        MAXIMUM_TIMESTAMP_BUFFER,
-        MINIMUM_TIMESTAMP_BUFFER
-    ) {
-        balancerVault = balancerVault_;
+        ICentralRegistry cr,
+        IVault vault
+    ) BalancerBaseAdaptor(cr, vault) {
+        balancerVault = vault;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -99,9 +89,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         IBalancerPool pool = IBalancerPool(asset);
 
         result.inUSD = inUSD;
-        IOracleManager oracleManager = IOracleManager(
-            centralRegistry.oracleManager()
-        );
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
 
         // Find the minimum price of all the pool tokens.
         uint256 numUnderlyingOrConstituent = config
@@ -118,7 +106,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
                 break;
             }
 
-            (price, errorCode) = oracleManager.getPrice(
+            (price, errorCode) = om.getPrice(
                 config.underlyingOrConstituent[i],
                 inUSD,
                 getLower
@@ -188,8 +176,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
                 continue;
             }
 
-            if (
-                !IOracleManager(centralRegistry.oracleManager())
+            if (!CommonLib._oracleManager(centralRegistry)
                     .isSupportedAsset(config.underlyingOrConstituent[i])
             ) {
                 revert BalancerStablePoolAdaptor__ConfigurationError();

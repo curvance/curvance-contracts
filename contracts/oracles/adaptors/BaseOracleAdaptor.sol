@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+import { SECONDS_PER_YEAR, WAD, BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
+
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { SECONDS_PER_YEAR, WAD, BASIS_POINTS } from "contracts/libraries/Constants.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleAdaptor, PricingResult, PriceGuard } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 abstract contract BaseOracleAdaptor is IOracleAdaptor {
@@ -15,17 +17,18 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
-    /// @dev `bytes4(keccak256(bytes("BaseOracleAdaptor__Unauthorized()")))`.
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xfb56769a;
-    /// @dev `bytes4(keccak256(bytes("BaseOracleAdaptor__InvalidConfig()")))`.
-    uint256 internal constant _INVALID_CONFIG_SELECTOR = 0xbdb91f6b;
-    uint256 internal constant _MINIMUM_YEAR_OVERFLOW = 5;
-    uint256 internal constant _MAXIMUM_BASE_PRICE_DIFFERENCE = 1000;
-
-    uint256 internal immutable _MAXIMUM_INCREASE_PER_YEAR;
-    uint256 internal immutable _MINIMUM_INCREASE_PER_YEAR;
-    uint256 internal immutable _MAXIMUM_TIMESTAMP_BUFFER;
-    uint256 internal immutable _MINIMUM_TIMESTAMP_BUFFER;
+    /// @notice The enforced minimum amount of time that a price guard grows
+    ///         before overflowing type(uint240).max, in years.
+    /// @dev 5 = 5 years.
+    uint256 internal constant _MINIMUM_YEARS_BEFORE_OVERFLOW = 5;
+    /// @notice The maximum difference between current oracle price and
+    ///         min/max allowed for successful `setGuardedPriceConfig` call,
+    ///         in `BASIS_POINTS`.
+    /// @dev 1000 = 10%.
+    uint256 internal constant _MAXIMUM_PRICE_DIFFERENCE = 1000;
+    /// @notice The minimum amount of time allowed between `timestampStart`
+    ///         and `block.timestamp` on `setGuardedPriceConfig` call.
+    uint256 internal constant _MINIMUM_TIMESTAMP_BUFFER = 7 days;
 
     /// STORAGE ///
 
@@ -52,34 +55,14 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
     error BaseOracleAdaptor__Unauthorized();
     error BaseOracleAdaptor__NoPriceGuard();
-    error BaseOracleAdaptor__InvalidCentralRegistry();
     error BaseOracleAdaptor__InvalidConfig();
     error BaseOracleAdaptor__AssetIsNotSupported();
     
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert BaseOracleAdaptor__InvalidCentralRegistry();
-        }
-
-        _MAXIMUM_INCREASE_PER_YEAR = MAXIMUM_INCREASE_PER_YEAR;
-        _MINIMUM_INCREASE_PER_YEAR = MINIMUM_INCREASE_PER_YEAR;
-        _MAXIMUM_TIMESTAMP_BUFFER = MAXIMUM_TIMESTAMP_BUFFER;
-        _MINIMUM_TIMESTAMP_BUFFER = MINIMUM_TIMESTAMP_BUFFER;
-
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -123,39 +106,28 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         _checkMarketPermissions();
 
         if (guardType == 0 || guardType > 2) {
-            _revert(_INVALID_CONFIG_SELECTOR);
+            revert BaseOracleAdaptor__InvalidConfig();
         }
         
-        if (timestampStart > block.timestamp) {
-            _revert(_INVALID_CONFIG_SELECTOR);
+        if (
+            timestampStart > block.timestamp ||
+            block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
+            ) {
+            revert BaseOracleAdaptor__InvalidConfig();
         }
 
         if (minPrice > basePrice) {
-            _revert(_INVALID_CONFIG_SELECTOR);
-        }
-
-        if (
-            block.timestamp - timestampStart > _MAXIMUM_TIMESTAMP_BUFFER ||
-            block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
-        ) {
-            _revert(_INVALID_CONFIG_SELECTOR);
+            revert BaseOracleAdaptor__InvalidConfig();
         }
 
         // Convert `increasePerYear` from basis points to WAD.
         increasePerYear = increasePerYear * 1e14;
 
         if (
-            increasePerYear > _MAXIMUM_INCREASE_PER_YEAR ||
-            increasePerYear < _MINIMUM_INCREASE_PER_YEAR
-        ) {
-            _revert(_INVALID_CONFIG_SELECTOR);
-        }
-
-        if (
-            (_MINIMUM_YEAR_OVERFLOW * increasePerYear) + basePrice >
+            (_MINIMUM_YEARS_BEFORE_OVERFLOW * increasePerYear) + basePrice >
             type(uint240).max
             ) {
-                _revert(_INVALID_CONFIG_SELECTOR);
+                revert BaseOracleAdaptor__InvalidConfig();
         }
 
         uint256 increasePerSecond = increasePerYear / SECONDS_PER_YEAR;
@@ -164,27 +136,27 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             ((block.timestamp - timestampStart) * increasePerSecond) + basePrice;
         uint256 boundedPriceHigh = FixedPointMathLib.mulDiv(
             boundedPrice,
-            (BASIS_POINTS + _MAXIMUM_BASE_PRICE_DIFFERENCE),
+            BASIS_POINTS + _MAXIMUM_PRICE_DIFFERENCE,
             BASIS_POINTS
         );
         uint256 boundedPriceLow = FixedPointMathLib.mulDiv(
             boundedPrice,
-            (BASIS_POINTS - _MAXIMUM_BASE_PRICE_DIFFERENCE),
+            BASIS_POINTS - _MAXIMUM_PRICE_DIFFERENCE,
             BASIS_POINTS
         );
 
-        PricingResult memory pricingResult = this.getPrice(asset, inUSD, true);
-        uint256 oraclePrice = pricingResult.price;
+        PricingResult memory result = this.getPrice(asset, inUSD, true);
+        uint256 oraclePrice = result.price;
 
         if (boundedPriceHigh < oraclePrice || boundedPriceLow > oraclePrice) {
-            _revert(_INVALID_CONFIG_SELECTOR);
+            revert BaseOracleAdaptor__InvalidConfig();
         }
 
         PriceGuard storage model = priceGuards[asset][inUSD];
 
         // New `timestampStart` needs to start after the current one.
         if (model.timestampStart > timestampStart) {
-            _revert(_INVALID_CONFIG_SELECTOR);
+            revert BaseOracleAdaptor__InvalidConfig();
         }
 
         model.guardType = guardType;
@@ -203,12 +175,8 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         );
     }
 
-    function disableGuardedPriceConfig(
-        address asset,
-        bool inUSD
-    ) external {
+    function disableGuardedPriceConfig(address asset, bool inUSD) external {
         _checkMarketPermissions();
-
         delete priceGuards[asset][inUSD];
     }
 
@@ -227,9 +195,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
         // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
-        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
-            asset
-        );
+        CommonLib._oracleManager(centralRegistry).notifyFeedRemoval(asset);
         
         emit AssetRemoved(asset);
     }
@@ -324,11 +290,9 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @notice Helper function to check whether `price` would overflow
     ///         based on a uint240 maximum.
     /// @param price The price to check against overflow.
-    /// @return result Whether `price` will overflow on conversion to uint240.
-    function _checkOverflow(
-        uint256 price
-    ) internal pure returns (bool result) {
-        result = price > type(uint240).max;
+    /// @return o Whether `price` will overflow on conversion to uint240.
+    function _checkOverflow(uint256 price) internal pure returns (bool o) {
+        o = price > type(uint240).max;
     }
 
     /// @notice Checks whether `asset` is supported by the adaptor or not.
@@ -342,23 +306,14 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @notice Checks whether the caller has sufficient permissioning.
     function _checkElevatedPermissions() internal view {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert BaseOracleAdaptor__Unauthorized();
         }
     }
 
     /// @notice Checks whether the caller has sufficient permissioning.
     function _checkMarketPermissions() internal view {
         if (!centralRegistry.hasMarketPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-    }
-
-    /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x00, s)
-            revert(0x1c, 0x04)
+            revert BaseOracleAdaptor__Unauthorized();
         }
     }
 

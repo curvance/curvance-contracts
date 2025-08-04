@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -98,9 +98,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_
-    ) PluginDelegable(centralRegistry_) {
+    constructor(ICentralRegistry cr) PluginDelegable(cr) {
         // Query epoch and token configuration directly to minimize potential
         // human error.
         epochDuration = centralRegistry.EPOCH_DURATION();

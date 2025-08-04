@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
 /// @title Curvance Plugin Delegation Manager.
@@ -13,6 +14,8 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 ///      features such as limit orders, crosschain actions, reward auto
 ///      compounding, chained (multiple sequential) actions, etc.
 abstract contract PluginDelegable is IPluginDelegable {
+    /// CONSTANTS ///
+    
     /// @notice Curvance DAO Hub.
     ICentralRegistry public immutable centralRegistry;
 
@@ -37,23 +40,14 @@ abstract contract PluginDelegable is IPluginDelegable {
     /// ERRORS ///
 
     error PluginDelegable__Unauthorized();
-    error PluginDelegable__InvalidCentralRegistry();
     error PluginDelegable__DelegatingDisabled();
     error PluginDelegable_InvalidParameter();
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert PluginDelegable__InvalidCentralRegistry();
-        }
-
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -135,11 +129,7 @@ abstract contract PluginDelegable is IPluginDelegable {
             !_isDelegate[user][centralRegistry
                 .userApprovalIndex(user)][delegate]
         ) {
-            /// @solidity memory-safe-assembly
-            assembly {
-                mstore(0x00, 0xcfdc5602) // bytes4(keccak256(bytes("PluginDelegable__Unauthorized()")))
-                revert(0x1c, 0x04)
-            }
+            revert PluginDelegable__Unauthorized();
         }
     }
 }

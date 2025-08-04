@@ -4,7 +4,6 @@ pragma solidity ^0.8.26;
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IManagementOracle } from "contracts/interfaces/external/chainsight/IManagementOracle.sol";
 
 contract ChainsightAdaptor is BaseOracleAdaptor {
@@ -56,33 +55,16 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of central registry.
-    /// @param managementOracle_ The proxy address location for
-    ///                          Chainsight's oracles on this chain.
-    constructor(
-        ICentralRegistry centralRegistry_,
-        address managementOracle_,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) BaseOracleAdaptor(
-        centralRegistry_,
-        MAXIMUM_INCREASE_PER_YEAR,
-        MINIMUM_INCREASE_PER_YEAR,
-        MAXIMUM_TIMESTAMP_BUFFER,
-        MINIMUM_TIMESTAMP_BUFFER
-    ) {
-        IManagementOracle(managementOracle_).readAsUint256WithTimestamp(
-            address(0),
-            bytes32(0)
-        );
-        IManagementOracle(managementOracle_).readAsInt256WithTimestamp(
-            address(0),
-            bytes32(0)
-        );
+    /// @param cr The address of central registry.
+    /// @param proxy The proxy address location for Chainsight's oracles.
+    constructor(ICentralRegistry cr,address proxy) BaseOracleAdaptor(cr) {
+        // Sanity checks calls to `proxy` to make sure its Chainsight's proxy.
+        IManagementOracle(proxy)
+            .readAsUint256WithTimestamp(address(0), bytes32(0));
+        IManagementOracle(proxy)
+            .readAsInt256WithTimestamp(address(0), bytes32(0));
 
-        MANAGEMENT_ORACLE = IManagementOracle(managementOracle_);
+        MANAGEMENT_ORACLE = IManagementOracle(proxy);
     }
 
     /// EXTERNAL FUNCTIONS ///

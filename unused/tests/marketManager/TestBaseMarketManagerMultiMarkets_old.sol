@@ -6,8 +6,8 @@
 // import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
 
 // import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-// import { WAD } from "contracts/libraries/Constants.sol";
-// import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
+// import { WAD } from "contracts/libraries/ConstantsLib.sol";
+// import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 // import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 // import "forge-std/console2.sol";
@@ -221,7 +221,7 @@
 //         uint256 debtAmount = (cFactor * _eToken.debtBalance(_user)) /
 //             WAD;
 
-//         PricingResult memory data = chainlinkAdaptor.getPrice(
+//         IOracleAdaptor.PricingResult memory data = chainlinkAdaptor.getPrice(
 //             _cToken.underlying(),
 //             true,
 //             true
@@ -263,7 +263,7 @@
 
 //         ) = marketManagerIsolated.tokenData(address(_cToken));
 
-//         PricingResult memory debtTokenData = chainlinkAdaptor.getPrice(
+//         IOracleAdaptor.PricingResult memory debtTokenData = chainlinkAdaptor.getPrice(
 //             _eToken.underlying(),
 //             true,
 //             true
@@ -323,7 +323,7 @@
 //         console2.log("_liquidateExact");
 //         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
 //             for (uint256 j = 0; j < noOfCollateralTokens; j++) {
-//                 if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(cTokens[j]))) {
+//                 if (!protocolReader.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(cTokens[j]))) {
 //                     console2.log(
 //                         "user %s not flagged for liquidation",
 //                         users[i]
@@ -360,7 +360,7 @@
 //         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
 //             console2.log("user %s", users[i]);
 //             for (uint256 j = 0; j < noOfCollateralTokens; j++) {
-//                 if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(cTokens[j]))) {
+//                 if (!protocolReader.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(cTokens[j]))) {
 //                     console2.log(
 //                         "user %s not flagged for liquidation",
 //                         users[i]

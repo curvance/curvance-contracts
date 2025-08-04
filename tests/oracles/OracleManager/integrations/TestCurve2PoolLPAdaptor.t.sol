@@ -24,11 +24,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
         _deployOracleManager();
 
         adaptor = new Curve2PoolLPAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
 
         adaptor.setReentrancyConfig(2, 10000);
@@ -54,11 +50,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
 
     function testRevertWhenUnderlyingAssetPriceNotSet2() public {
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
@@ -86,11 +78,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
 
     function testReturnsCorrectPrice() public {
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(
@@ -185,11 +173,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
 
     function testRevertAddAsset__InvalidBounds() public {
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(
@@ -226,11 +210,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
 
     function testRevertAddAsset__UnsupportedPool_Underlying() public {
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         chainlinkAdaptor.addAsset(address(0), _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
@@ -269,11 +249,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
 
     function testUpdateAsset() public {
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(
@@ -316,11 +292,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
 
     function testRevertGetPrice__Curve2PoolLPAdaptor__BoundsExceeded() public {
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(
@@ -357,11 +329,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
 
     function testRevertGetPrice__Curve2PoolLPAdaptor__InvalidBounds2() public {
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(
@@ -398,11 +366,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
 
     function testRaiseBounds() public {
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(

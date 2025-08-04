@@ -4,8 +4,9 @@ pragma solidity ^0.8.26;
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
+
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -58,12 +59,6 @@ abstract contract BaseCToken is
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x471656c5;
     /// @dev `bytes4(keccak256(bytes("BaseCToken__InsufficientLiquidity()")))`
     uint256 internal constant _INSUFFICIENT_LIQUIDITY_SELECTOR = 0xe6c95926;
-    /// @dev `keccak256(bytes("Deposit(address,address,uint256,uint256)"))`.
-    uint256 internal constant _DEPOSIT_EVENT_SIGNATURE =
-        0xdcbc1c05240f31ff3ad067ef1ee35ce4997762752e3a095284754544f4c709d7;
-    /// @dev `keccak256(bytes("Withdraw(address,address,address,uint256,uint256)"))`.
-    uint256 internal constant _WITHDRAW_EVENT_SIGNATURE =
-        0xfbde797d201c681b91056529119e0b02407c7bb96a4a2c75c01fc9667232c8db;
     /// @dev `keccak256(bytes("Transfer(address,address,uint256)"))`.
     uint256 internal constant _TRANSFER_EVENT_SIGNATURE =
         0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
@@ -122,34 +117,34 @@ abstract contract BaseCToken is
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param cr The address of the Protocol Central Registry.
     /// @param asset_ The address of the underlying asset for this cToken.
-    /// @param marketManager_ The address of the MarketManager which manages
-    ///                       liquidity positions between linked cTokens
-    ///                       inside a joint market.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         IERC20 asset_,
-        address marketManager_
-    ) PluginDelegable(centralRegistry_) {
+        address mm
+    ) PluginDelegable(cr) {
         _asset = asset_;
         _name = string.concat("Curvance ", asset_.name());
         _symbol = string.concat("c", asset_.symbol());
         _decimals = asset_.decimals();
 
-        // Ensure that `marketManager_` is a marketManager.
-        if (!centralRegistry.isMarketManager(marketManager_)) {
+        // Validate that `mm` is configured as a Market Manager inside the
+        // Protocol Central Registry.
+        if (!centralRegistry.isMarketManager(mm)) {
             revert BaseCToken__InvalidMarketManager();
         }
 
-        // Set `marketManager`.
-        marketManager = IMarketManager(marketManager_);
-
-        // Sanity check of _asset so that we know users will not need to
+        // Sanity check of `asset_` so that we know users will not need to
         // mint anywhere close to causing an overflow.
         if (asset_.totalSupply() >= type(uint216).max) {
             revert BaseCToken__UnsupportedAsset();
         }
+
+        // Set `marketManager`.
+        marketManager = IMarketManager(mm);
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -184,9 +179,9 @@ abstract contract BaseCToken is
     ///                                will have its debt paid.
     ///               repayAssets The amount of `borrowableCToken` asset that
     ///                           will be repaid to lenders.
-    ///               swapAction Swap actions instructions converting
-    ///                          collateral asset into debt asset to
-    ///                          facilitate deleveraging.
+    ///               swapActions Swap actions instructions converting
+    ///                           collateral asset into debt asset to
+    ///                           facilitate deleveraging.
     ///               auxData Optional auxiliary data for execution of a
     ///                       deleverage action.
     function withdrawByPositionManager(
@@ -407,7 +402,7 @@ abstract contract BaseCToken is
             account = accounts[i];
 
             // Execute any prior liquidation action.
-            _beforeLiquidationAction(shares, liquidator, account);
+            _beforeLiqAction(shares, liquidator, account);
             totalShares += shares;
 
             // Update `account` collateral posted invariant and transfer
@@ -440,11 +435,9 @@ abstract contract BaseCToken is
 
     /// @notice Returns share -> asset exchange rate, in `WAD`.
     /// @dev Oracle Manager calculates cToken value from this exchange rate.
-    /// @return result The share -> asset exchange rate, in `WAD`.
-    function exchangeRate() external view nonReadReentrant returns (
-        uint256 result
-    ) {
-        result = _convertToAssets(WAD, _getTotalAssets());
+    /// @return r The share -> asset exchange rate, in `WAD`.
+    function exchangeRate() external view nonReadReentrant returns (uint256 r) {
+        r = _convertToAssets(WAD, _getTotalAssets());
     }
 
     /// @notice Returns a snapshot of the cToken and `account` data.
@@ -455,16 +448,13 @@ abstract contract BaseCToken is
     function getSnapshot(
         address account
     ) external view virtual returns (AccountSnapshot memory result) {
-        result = (
-            AccountSnapshot({
-                asset: address(this),
-                decimals: decimals(),
-                isCollateral: true, // Defaults to true, only overridden in BorrowableCToken.
-                exchangeRate: _convertToAssets(WAD, _getTotalAssets()),
-                collateralPosted: collateralPosted[account],
-                debtBalance: 0 // Defaults to zero, only overridden in BorrowableCToken.
-            })
-        );
+        result.asset = address(this);
+        result.decimals = decimals();
+        // Can only be true for non-BorrowableCTokens.
+        result.isCollateral = true;
+        result.exchangeRate = _convertToAssets(WAD, _getTotalAssets());
+        result.collateralPosted = collateralPosted[account];
+        // result.debtBalance is 0 for non-BorrowableCTokens, no need to set.
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -646,12 +636,11 @@ abstract contract BaseCToken is
     /// @dev Returns true that this contract implements both ERC4626
     ///      and ICToken interfaces.
     /// @param interfaceId The interface ID to check.
-    /// @return Whether the contract implements the interface.
+    /// @return result Whether the contract implements the interface.
     function supportsInterface(
         bytes4 interfaceId
-    ) public pure virtual returns (bool) {
-        return
-            interfaceId == type(ICToken).interfaceId ||
+    ) public pure virtual returns (bool result) {
+        result = interfaceId == type(ICToken).interfaceId ||
             interfaceId == type(ERC4626).interfaceId;
     }
 
@@ -916,11 +905,7 @@ abstract contract BaseCToken is
         address owner
     ) internal virtual {
         uint256 newNetCollateral = marketCollateralPosted + shares;
-        marketManager.canCollateralize(
-            address(this),
-            owner,
-            newNetCollateral
-        );
+        marketManager.canCollateralize(address(this), owner, newNetCollateral);
         // Update user and market collateral posted invariants.
         collateralPosted[owner] = collateralPosted[owner] + shares;
         marketCollateralPosted = newNetCollateral;
@@ -971,16 +956,8 @@ abstract contract BaseCToken is
         // NOTE: This is the erc20 mint function, meaning this is effectively
         //       super._mint().
         _mint(receiver, shares);
-        
-        /// @solidity memory-safe-assembly
-        assembly {
-            // Emit the {Deposit} event.
-            mstore(0x00, assets)
-            mstore(0x20, shares)
-            let m := shr(96, not(0))
-            log3(0x00, 0x40, _DEPOSIT_EVENT_SIGNATURE, and(m, by), and(m, receiver))
-        }
 
+        emit Deposit(by, receiver, assets, shares);
         _afterDepositAction(shares, receiver);
     }
 
@@ -1014,21 +991,7 @@ abstract contract BaseCToken is
         // Transfer the underlying assets to `receiver`.
         SafeTransferLib.safeTransfer(asset(), receiver, assets);
 
-        /// @solidity memory-safe-assembly
-        assembly {
-            // Emit the {Withdraw} event.
-            mstore(0x00, assets)
-            mstore(0x20, shares)
-            let m := shr(96, not(0))
-            log4(
-                0x00,
-                0x40,
-                _WITHDRAW_EVENT_SIGNATURE,
-                and(m, by),
-                and(m, receiver),
-                and(m, owner)
-            )
-        }
+        emit Withdraw(by, receiver, owner, assets, shares);
     }
 
     /// @notice Used by a Position Manager contract to redeem assets from
@@ -1048,9 +1011,9 @@ abstract contract BaseCToken is
     ///                                will have its debt paid.
     ///               repayAssets The amount of `borrowableCToken` asset that
     ///                           will be repaid to lenders.
-    ///               swapAction Swap actions instructions converting
-    ///                          collateral asset into debt asset to
-    ///                          facilitate deleveraging.
+    ///               swapActions Swap actions instructions converting
+    ///                           collateral asset into debt asset to
+    ///                           facilitate deleveraging.
     ///               auxData Optional auxiliary data for execution of a
     ///                       deleverage action.
     function _processPositionManagerRedemption(
@@ -1060,8 +1023,7 @@ abstract contract BaseCToken is
         uint256 balancePrior,
         IPositionManager.DeleverageAction memory action
     ) internal virtual {
-        // Callback to Position Panager that executes remaining deleverage
-        // logic.
+        // Callback to Position Manager to execute remaining deleverage logic.
         IPositionManager(msg.sender).onRedeem(
             address(this),
             assets,
@@ -1156,20 +1118,7 @@ abstract contract BaseCToken is
         _mint(cTokenAddress, shares);
         _totalAssets = assets;
 
-        assembly {
-            // Emit the {Deposit} event.
-            mstore(0x00, assets)
-            mstore(0x20, shares)
-            let m := shr(96, not(0))
-            log3(
-                0x00,
-                0x40,
-                _DEPOSIT_EVENT_SIGNATURE,
-                and(m, cTokenAddress),
-                and(m, cTokenAddress)
-            )
-        }
-
+        emit Deposit(cTokenAddress, cTokenAddress, assets, shares);
         _afterDepositAction(shares, cTokenAddress);
     }
 
@@ -1444,31 +1393,17 @@ abstract contract BaseCToken is
 
     /// @notice An optional set of instructions to execute before processing
     ///         a deposit of `receiver`'s shares.
-    function _afterDepositAction(
-        uint256 /* shares */,
-        address /* receiver */
-    ) internal virtual {}
+    function _afterDepositAction(uint256, address) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
     ///         a withdrawal of `owners`'s shares.
-    function _beforeWithdrawAction(
-        uint256 /* shares */,
-        address /* owner */
-    ) internal virtual {}
+    function _beforeWithdrawAction(uint256, address) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
     ///         a transfer of `owner`'s shares to `receiver`.
-    function _beforeTransferAction(
-        uint256 /* shares */,
-        address /* receiver */,
-        address /* owner */
-    ) internal virtual {}
+    function _beforeTransferAction(uint256, address, address) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
     ///         liquidation of `account`'s collateral.
-    function _beforeLiquidationAction(
-        uint256 /* shares */,
-        address /* liquidator */,
-        address /* account */
-    ) internal virtual {}
+    function _beforeLiqAction(uint256, address, address) internal virtual {}
 }

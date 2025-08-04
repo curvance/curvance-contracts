@@ -5,11 +5,48 @@ interface IInterestRateModel {
     /// @notice Returns the interval at which interest accrual is calculated.
     /// @notice The interval at which interest accrual is calculated,
     ///         in seconds.
-    function accrualPeriod() external view returns (uint256);
+    function INTEREST_ACCRUAL_PERIOD() external view returns (uint256);
 
     /// @notice The borrowable token linked to this interest rate model
     ///         contract.
     function linkedToken() external view returns (address);
+
+    /// @notice Calculates the current borrow rate, per second.
+    /// @dev This function's intention is for frontend data querying and
+    ///     should not be used for onchain execution.
+    /// @param assetsHeld The amount of underlying assets held in the pool.
+    /// @param debt The amount of outstanding debt in the pool.
+    /// @return result The borrow interest rate percentage, per second,
+    ///                in `WAD`.
+    function getBorrowRate(
+        uint256 assetsHeld,
+        uint256 debt
+    ) external view returns (uint256 result);
+
+    /// @notice Calculates the current borrow rate per second,
+    ///         with updated vertex multiplier applied.
+    /// @param assetsHeld The amount of underlying assets held in the pool.
+    /// @param debt The amount of outstanding debt in the pool.
+    /// @return result The borrow rate percentage per second, in `WAD`.
+    function getPredictedBorrowRate(
+        uint256 assetsHeld,
+        uint256 debt
+    ) external view returns (uint256 result);
+
+    /// @notice Calculates the current supply rate, per second.
+    /// @dev This function's intention is for frontend data querying and
+    ///     should not be used for onchain execution.
+    /// @param assetsHeld The amount of underlying assets held in the pool.
+    /// @param debt The amount of outstanding debt in the pool.
+    /// @param interestFee The current interest rate protocol fee
+    ///                    for the market token.
+    /// @return result The supply interest rate percentage, per second,
+    ///                in `WAD`.
+    function getSupplyRate(
+        uint256 assetsHeld,
+        uint256 debt,
+        uint256 interestFee
+    ) external view returns (uint256 result);
 
     /// @notice Calculates the current borrow rate per second,
     ///         and updates the vertex multiplier if necessary.
@@ -20,36 +57,6 @@ interface IInterestRateModel {
         uint256 assetsHeld,
         uint256 outstandingDebt
     ) external returns (uint256);
-
-    /// @notice Calculates the current borrow rate per year,
-    ///         with updated vertex multiplier applied.
-    /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param outstandingDebt The amount of outstanding debt in the pool.
-    /// @return The borrow rate percentage per year, in `WAD`.
-    function getPredictedBorrowRatePerYear(
-        uint256 assetsHeld,
-        uint256 outstandingDebt
-    ) external view returns (uint256);
-    
-    /// @notice Calculates the current borrow rate per year.
-    /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param outstandingDebt The amount of outstanding debt in the pool.
-    /// @return The borrow rate percentage per year, in `WAD`.
-    function getBorrowRatePerYear(
-        uint256 assetsHeld,
-        uint256 outstandingDebt
-    ) external view returns (uint256);
-
-    /// @notice Calculates the current supply rate per year.
-    /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param outstandingDebt The amount of outstanding debt in the pool.
-    /// @param interestFee The current interest accrual fee for the market.
-    /// @return The supply rate percentage per year, in `WAD`.
-    function getSupplyRatePerYear(
-        uint256 assetsHeld,
-        uint256 outstandingDebt,
-        uint256 interestFee
-    ) external view returns (uint256);
 
     /// @notice Calculates the borrow utilization rate of the market.
     /// @param assetsHeld The amount of underlying assets held in the pool.

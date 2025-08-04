@@ -23,26 +23,18 @@ contract BorrowableCTokenWithGauge is BorrowableCToken {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param cr The address of the Protocol Central Registry.
     /// @param asset_ The address of the underlying asset for this cToken.
-    /// @param marketManager_ The address of the MarketManager which manages
-    ///                       liquidity positions between linked cTokens
-    ///                       inside a joint market.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
     /// @param interestRateModel_ The address of the interest rate model to
     ///                           manage outstanding loans.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         IERC20 asset_,
-        address marketManager_,
+        address mm,
         address interestRateModel_
-    )
-        BorrowableCToken(
-            centralRegistry_,
-            asset_,
-            marketManager_,
-            interestRateModel_
-        )
-    {
+    ) BorrowableCToken(cr, asset_, mm, interestRateModel_) {
         address gaugeManagerAddress = centralRegistry.gaugeManager();
 
         // Validate Gauge Manager has been set.
@@ -104,7 +96,7 @@ contract BorrowableCTokenWithGauge is BorrowableCToken {
     /// @param account The account having collateral seized.
     /// @param liquidator The account receiving seized collateral.
     /// @param shares The total number of cTokens shares to seize.
-    function _beforeLiquidationAction(
+    function _beforeLiqAction(
         uint256 shares,
         address liquidator,
         address account

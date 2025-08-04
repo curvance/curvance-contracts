@@ -1,8 +1,12 @@
 pragma solidity ^0.8.19;
 
-import { TestBaseDynamicInterestRateModel } from "../TestBaseDynamicInterestRateModel.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { TestBaseDynamicInterestRateModel } from "../TestBaseDynamicInterestRateModel.sol";
 
 contract DynamicInterestRateModelDeploymentTest is
     TestBaseDynamicInterestRateModel
@@ -11,8 +15,7 @@ contract DynamicInterestRateModelDeploymentTest is
         public
     {
         vm.expectRevert(
-            DynamicInterestRateModel
-                .DynamicInterestRateModel__InvalidCentralRegistry
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
                 .selector
         );
         new DynamicInterestRateModel(

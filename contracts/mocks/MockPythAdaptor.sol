@@ -2,30 +2,17 @@
 pragma solidity ^0.8.17;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PythAdaptor, PricingResult } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
+import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 
 contract MockPythAdaptor is PythAdaptor {
     bool skipHeartBeatCheck = true;
     
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address universalBalance_,
         address pyth_,
-        address weth_,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) PythAdaptor(
-        centralRegistry_,
-        universalBalance_,
-        pyth_,
-        weth_,
-        MAXIMUM_INCREASE_PER_YEAR,
-        MINIMUM_INCREASE_PER_YEAR,
-        MAXIMUM_TIMESTAMP_BUFFER,
-        MINIMUM_TIMESTAMP_BUFFER
-    ) {}
+        address weth_
+    ) PythAdaptor(cr, universalBalance_, pyth_, weth_) {}
 
     function setSkipHeartBeatCheck(bool skip) external {
         skipHeartBeatCheck = skip;

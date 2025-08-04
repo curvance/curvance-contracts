@@ -2,14 +2,13 @@
 pragma solidity ^0.8.26;
 
 import { ActionRegistry } from "contracts/libraries/ActionRegistry.sol";
-import { BASIS_POINTS } from "contracts/libraries/Constants.sol";
+import { BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
 
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
@@ -157,8 +156,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Protocol slippage limit for safe swap.
     uint256 public slippageLimit = 1000 * 1e14;
 
-    // ATLAS PARAMETER
-    // Controls which markets Atlas liquidators can act on
+    // AUCTION TRANSACTION STORAGE
+    // Controls which Market Manager auction liquidators can act inside.
     bytes32 internal constant _TRANSIENT_MARKET_UNLOCKED_KEY
         = 0x3456789012345678901234567890123456789012345678901234567890123457;
 
@@ -235,7 +234,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @dev Address => Auction permission status.
     mapping(address => bool) public hasAuctionPermissions;
     /// @notice Indicates if an address has market permissions or not.
-    /// @dev Address => Market permission status.
+    /// @dev Market Perms double as a check for `hasElevatedPermissions` in
+    ///      many cases as long as a "risk council" contract is not explicitly
+    ///      hooked up to the a particular permissioned function.
+    ///      Address => Market permission status.
     mapping(address => bool) public hasMarketPermissions;
     /// @notice Indicates if an address has harvest permissions or not.
     /// @dev Address => Harvest permission status.
@@ -292,18 +294,18 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// CONSTRUCTOR ///
 
     constructor(
-        address daoAddress_,
-        address emergencyCouncil_,
+        address dao,
+        address ec,
         uint256 genesisEpoch_,
         address sequencer_,
         address feeToken_
     ) {
-        if (daoAddress_ == address(0)) {
-            daoAddress_ = msg.sender;
+        if (dao == address(0)) {
+            dao = msg.sender;
         }
 
-        if (emergencyCouncil_ == address(0)) {
-            emergencyCouncil_ = msg.sender;
+        if (ec == address(0)) {
+            ec = msg.sender;
         }
 
         // Check to make sure that genesis epoch is at least at the beginning
@@ -314,30 +316,22 @@ contract CentralRegistry is ERC165, ActionRegistry {
         }
 
         // Configure DAO permission data.
-        daoAddress = daoAddress_;
-        emergencyCouncil = emergencyCouncil_;
+        daoAddress = dao;
+        emergencyCouncil = ec;
 
-        emit PermissionsTransferred(
-            "DAO Permissions",
-            address(0),
-            daoAddress_
-        );
-        emit PermissionsTransferred(
-            "Emergency Council",
-            address(0),
-            emergencyCouncil_
-        );
+        emit PermissionsTransferred("DAO Permissions", address(0), dao);
+        emit PermissionsTransferred("Emergency Council", address(0), ec);
 
-        // Provide base dao permissions to `daoAddress_`,
-        // and `emergencyCouncil_`.
-        hasDaoPermissions[daoAddress_] = true;
-        hasDaoPermissions[emergencyCouncil_] = true;
+        // Provide base dao permissions to `dao`,
+        // and `ec`.
+        hasDaoPermissions[dao] = true;
+        hasDaoPermissions[ec] = true;
 
         // Provide market and elevated dao permissions to `emergencyCouncil`.
-        hasMarketPermissions[emergencyCouncil_] = true;
-        hasElevatedPermissions[emergencyCouncil_] = true;
+        hasMarketPermissions[ec] = true;
+        hasElevatedPermissions[ec] = true;
 
-        emit PermissionsUpdated("Market", emergencyCouncil_, true);
+        emit PermissionsUpdated("Market", ec, true);
 
         genesisEpoch = genesisEpoch_;
         sequencer = sequencer_;
@@ -521,15 +515,12 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Sets the Message Transmitter contract address.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Emits a {CoreContractUpdated} event.
-    /// @param newMessageTransmitter The new Message Transmitter address.
-    function setMessageTransmitter(address newMessageTransmitter) external {
+    /// @param newTransmitter The new Message Transmitter address.
+    function setMessageTransmitter(address newTransmitter) external {
         _checkElevatedPermissions();
 
-        messageTransmitter = newMessageTransmitter;
-        emit CoreContractUpdated(
-            "Message Transmitter",
-            newMessageTransmitter
-        );
+        messageTransmitter = newTransmitter;
+        emit CoreContractUpdated("Message Transmitter", newTransmitter);
     }
 
     /// @notice Sets the domain.
@@ -620,10 +611,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///               interest fees of.
     /// @param value The new fee to take on interest generated
     ///              by a debt token, in `basis points`.
-    function setProtocolInterestFee(
-        address market,
-        uint256 value
-    ) external {
+    function setProtocolInterestFee(address market, uint256 value) external {
         _checkElevatedPermissions();
 
         // Interest fee cannot be more than 75%.
@@ -1299,16 +1287,16 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///      Emits a {CalldataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as 1Inch V5.
-    /// @param calldataChecker The contract that will check calldata prior
-    ///                        to execution in `target`.
+    /// @param checker The contract that will check calldata prior to
+    ///                execution in `target`.
     function setExternalCalldataChecker(
         address target,
-        address calldataChecker
+        address checker
     ) external {
         _checkElevatedPermissions();
 
-        externalCalldataChecker[target] = calldataChecker;
-        emit CalldataCheckerSet("External", target, calldataChecker);
+        externalCalldataChecker[target] = checker;
+        emit CalldataCheckerSet("External", target, checker);
     }
 
     /// @notice Sets a multicall calldata checker contract.
@@ -1316,16 +1304,13 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///      Emits a {CalldataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as Pyth or Redstone.
-    /// @param calldataChecker The contract that will check calldata prior
-    ///                        to execution in `target`.
-    function setMulticallChecker(
-        address target,
-        address calldataChecker
-    ) external {
+    /// @param checker The contract that will check calldata prior to
+    ///                execution in `target`.
+    function setMulticallChecker(address target, address checker) external {
         _checkElevatedPermissions();
 
-        multicallChecker[target] = calldataChecker;
-        emit CalldataCheckerSet("Multicall", target, calldataChecker);
+        multicallChecker[target] = checker;
+        emit CalldataCheckerSet("Multicall", target, checker);
     }
 
     /// @notice Sets multicall provider contracts, either enabling,

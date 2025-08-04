@@ -24,10 +24,10 @@ import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
-import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
+import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -149,8 +149,7 @@ contract TestBaseMarketIsolated is TestBase {
         _deployMessagingHub();
         _deployVotingHub();
         _deployFeeManager();
-        _deployAuxiliaryData();
-
+        _deployProtocolReader();
 
         vm.warp(centralRegistry.genesisEpoch());
         rewardManager.startRewardManager();
@@ -250,8 +249,8 @@ contract TestBaseMarketIsolated is TestBase {
         centralRegistry.setFeeManager(address(feeManager));
     }
 
-    function _deployAuxiliaryData() internal initMainVariables {
-        auxiliaryData = auxiliaryDatas[block.chainid] = new AuxiliaryData(
+    function _deployProtocolReader() internal initMainVariables {
+        protocolReader = protocolReaders[block.chainid] = new ProtocolReader(
             ICentralRegistry(address(centralRegistry))
         );
     }
@@ -297,11 +296,7 @@ contract TestBaseMarketIsolated is TestBase {
         );
 
         chainlinkAdaptor = chainlinkAdaptors[chainId] = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
@@ -370,13 +365,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         dualChainlinkAdaptor = dualChainlinkAdaptors[
             chainId
-        ] = new ChainlinkAdaptor(ICentralRegistry(
-            address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
-        );
+        ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
 
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
@@ -438,11 +427,7 @@ contract TestBaseMarketIsolated is TestBase {
             chainId
         ] = new BalancerStablePoolAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            IVault(_BAL_VAULT_ADDRESS),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            IVault(_BAL_VAULT_ADDRESS)
         );
         BalancerStablePoolAdaptor.AssetConfig memory assetConfig;
         assetConfig.poolId = _BAL_WETH_RETH_POOLID;

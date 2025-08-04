@@ -34,53 +34,46 @@ library Bytes32Helper {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Converts `tokenAddress` to bytes32 based on its ERC20 symbol.
-    /// @param tokenAddress Address of desired token to pull ERC20 symbol
-    ///                     from.
-    function _toBytes32(
-        address tokenAddress
-    ) internal view returns (bytes32 result) {
-        result = stringToBytes32(string.concat(_getSymbol(tokenAddress)));
+    /// @notice Converts `token` to bytes32 based on its ERC20 symbol.
+    /// @param token Address of desired token to pull ERC20 symbol from.
+    /// @return r The bytes 32 output of `token`'s ERC20 symbol.
+    function _toBytes32(address token) internal view returns (bytes32 r) {
+        r = stringToBytes32(string.concat(_getSymbol(token)));
     }
 
-    /// @notice Converts `tokenAddress` to bytes32 based on its ERC20 symbol,
+    /// @notice Converts `token` to bytes32 based on its ERC20 symbol,
     ///         and "/`tokenSymbol`" appended.
-    /// @param tokenAddress Address of desired token to pull append symbol to.
-    /// @param tokenSymbol Symbol to append with `tokenAddress`'s symbol.
-    /// @return result The bytes32 result of `tokenAddress`'s symbol with
+    /// @param token Address of desired token to pull append symbol to.
+    /// @param tokenSymbol Symbol to append with `token`'s symbol.
+    /// @return result The bytes32 result of `token`'s symbol with
     ///                "/`tokenSymbol`".
     function _toBytes32WithSymbol(
-        address tokenAddress,
+        address token,
         string memory tokenSymbol
     ) internal view returns (bytes32 result) {
         result = stringToBytes32(string.concat(
-            string.concat(_getSymbol(tokenAddress), "/"),
+            string.concat(_getSymbol(token), "/"),
             tokenSymbol
         ));
     }
 
-    /// @notice Converts `tokenAddress` to bytes32 based on its ERC20 symbol,
+    /// @notice Converts `token` to bytes32 based on its ERC20 symbol,
     ///         and "/USD" appended.
-    /// @param tokenAddress Address of desired token to pull ERC20 symbol
-    ///                     from.
-    /// @return result The bytes32 result of `tokenAddress`'s symbol with
+    /// @param token Address of desired token to pull ERC20 symbol from.
+    /// @return result The bytes32 result of `token`'s symbol with
     ///                /USD appended.
     function _toBytes32WithUSD(
-        address tokenAddress
+        address token
     ) internal view returns (bytes32 result) {
-        result = stringToBytes32(string.concat(
-            _getSymbol(tokenAddress),
-            "/USD"
-        ));
+        result = stringToBytes32(string.concat(_getSymbol(token), "/USD"));
     }
 
-    /// @notice Returns `tokenAddress`'s ERC20 symbol as a string.
-    /// @param tokenAddress Address of desired token to pull ERC20 symbol
-    ///                     from.
-    /// @return result The erc20 symbol of `tokenAddress` in string form.
+    /// @notice Returns `token`'s ERC20 symbol as a string.
+    /// @param token Address of desired token to pull ERC20 symbol from.
+    /// @return result The erc20 symbol of `token` in string form.
     function _getSymbol(
-        address tokenAddress
+        address token
     ) internal view returns (string memory result) {
-        result = IERC20(tokenAddress).symbol();
+        result = IERC20(token).symbol();
     }
 }

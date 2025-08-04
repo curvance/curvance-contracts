@@ -3,15 +3,16 @@ pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
+
 import { PendlePtOracleLib } from "contracts/libraries/external/pendle/PendlePtOracleLib.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
 
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
@@ -62,21 +63,11 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of central registry.
+    /// @param cr The address of central registry.
     constructor(
-        ICentralRegistry centralRegistry_,
-        IPendlePTOracle ptOracle_,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) BaseOracleAdaptor(
-        centralRegistry_,
-        MAXIMUM_INCREASE_PER_YEAR,
-        MINIMUM_INCREASE_PER_YEAR,
-        MAXIMUM_TIMESTAMP_BUFFER,
-        MINIMUM_TIMESTAMP_BUFFER
-    ) {
+        ICentralRegistry cr,
+        IPendlePTOracle ptOracle_
+    ) BaseOracleAdaptor(cr) {
         ptOracle = ptOracle_;
     }
 
@@ -107,9 +98,9 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
         // Get PT to underlying asset ratio conversion.
         uint256 ptRate = config.market.getPtToAssetRate(config.twapDuration);
 
-        (uint256 price, uint256 errorCode) = IOracleManager(
-            centralRegistry.oracleManager()
-        ).getPrice(config.quoteAsset, inUSD, getLower);
+        (uint256 price, uint256 errorCode) =
+            CommonLib._oracleManager(centralRegistry)
+                .getPrice(config.quoteAsset, inUSD, getLower);
 
         // Validate we did not run into any errors pricing the quote asset.
         if (errorCode > 0) {
@@ -165,10 +156,8 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
         _checkPtTwap(address(config.market), config.twapDuration);
 
         // Validate we support the pricing quote asset for this principal token.
-        if (
-            !IOracleManager(centralRegistry.oracleManager()).isSupportedAsset(
-                config.quoteAsset
-            )
+        if (!CommonLib._oracleManager(centralRegistry)
+                .isSupportedAsset(config.quoteAsset)
         ) {
             revert PendlePrincipalTokenAdaptor__QuoteAssetIsNotSupported();
         }

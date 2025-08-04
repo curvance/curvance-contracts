@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -124,7 +124,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     event Borrow(address account, uint256 amount);
     event Repay(address payer, address account, uint256 amount);
     event BadDebtRecognized(address liquidator, uint256 amount);
-    event NewMarketInterestRateModel(
+    event NewIRM(
         address oldInterestRateModel,
         address newInterestRateModel,
         uint256 newInterestAccrualPeriod
@@ -976,7 +976,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Updates the interest rate model.
-    /// @dev Emits a {NewMarketInterestRateModel} event.
+    /// @dev Emits a {NewIRM} event.
     /// @param newInterestRateModel The new interest rate model for this
     ///                             eToken to use.
     function _setInterestRateModel(
@@ -997,9 +997,9 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // Set new interest rate model and compound rate.
         interestRateModel = newInterestRateModel;
-        marketData.accrualPeriod = newInterestRateModel.accrualPeriod();
+        marketData.accrualPeriod = newInterestRateModel.INTEREST_ACCRUAL_PERIOD();
 
-        emit NewMarketInterestRateModel(
+        emit NewIRM(
             oldInterestRateModel,
             address(newInterestRateModel),
             marketData.accrualPeriod

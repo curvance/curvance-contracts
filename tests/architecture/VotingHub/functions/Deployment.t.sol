@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseVotingHub } from "../TestBaseVotingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { TestBaseVotingHub } from "../TestBaseVotingHub.sol";
 
 contract VotingHubDeploymentTest is TestBaseVotingHub {
     function test_votingHubDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
+        // No selector here since it will fail on
+        // centralRegistry_.crosschainCore() call before selector error is hit.
         vm.expectRevert();
         new VotingHub(ICentralRegistry(address(1)));
     }

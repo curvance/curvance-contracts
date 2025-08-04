@@ -30,11 +30,7 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
 
         adapter = new PendlePrincipalTokenAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            IPendlePTOracle(_PT_ORACLE),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            IPendlePTOracle(_PT_ORACLE)
         );
     }
 
@@ -54,11 +50,7 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
 
     function testReturnsCorrectPrice() public {
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(_STETH, _CHAINLINK_ETH_USD, 0, true);
@@ -159,11 +151,7 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
     function testCanUpdateAsset() public {
         // set quote asset
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(_STETH, _CHAINLINK_ETH_USD, 0, true);

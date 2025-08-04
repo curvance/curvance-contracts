@@ -1,15 +1,22 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBasePredeposit } from "../TestBasePredeposit.sol";
 import { Predeposit } from "contracts/misc/Predeposit.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { TestBasePredeposit } from "../TestBasePredeposit.sol";
 
 contract PredepositDeploymentTest is TestBasePredeposit {
     function test_predepositDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert();
+        vm.expectRevert(
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
+                .selector
+        );
         new Predeposit(
             ICentralRegistry(address(1)),
             manager,

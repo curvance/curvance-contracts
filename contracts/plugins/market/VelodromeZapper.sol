@@ -35,10 +35,7 @@ contract VelodromeZapper is BaseZapper {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        address wrappedNative_
-    ) BaseZapper(centralRegistry_, wrappedNative_) {}
+    constructor(ICentralRegistry cr, address wNative) BaseZapper(cr, wNative) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -100,8 +97,8 @@ contract VelodromeZapper is BaseZapper {
             router,
             factory,
             zapAction.outputToken,
-            CommonLib._getBalanceOf(IVeloPair(zapAction.outputToken).token0()),
-            CommonLib._getBalanceOf(IVeloPair(zapAction.outputToken).token1()),
+            CommonLib._balanceOf(IVeloPair(zapAction.outputToken).token0()),
+            CommonLib._balanceOf(IVeloPair(zapAction.outputToken).token1()),
             zapAction.minimumOut
         );
 
@@ -257,7 +254,7 @@ contract VelodromeZapper is BaseZapper {
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
+        outAmount = CommonLib._balanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapAction.minimumOut) {
             revert VelodromeZapper__SlippageError();

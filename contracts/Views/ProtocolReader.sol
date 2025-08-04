@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { WAD } from "contracts/libraries/Constants.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/ConstantsLib.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
@@ -12,15 +13,15 @@ import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { IOracleAdaptor, PriceGuard } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-/// @title Curvance Auxiliary Data.
+/// @title Curvance Protocol Reader.
 /// @notice An auxiliary contract for querying nuanced data
 ///         inside the Curvance ecosystem.
-/// @dev The Curvance Auxiliary Data contract aims to be an all in one
+/// @dev The Curvance Protocol Reader contract aims to be an all in one
 ///      interface for pulling data related to Curvance Protocol. The
 ///      secondary benefit is to minimize external RPC calls to pull said
 ///      data, by compressing multiple variable calls together this reduces
@@ -28,7 +29,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 ///      call(s). Because this auxiliary contract is all view functions
 ///      with no active storage values new versions can be deployed at any
 ///      time, to support new query or data formats.
-contract AuxiliaryData {
+contract ProtocolReader {
     /// TYPES ///
     struct AccountMarketPosition {
         uint256 debt;
@@ -123,32 +124,17 @@ contract AuxiliaryData {
 
     /// CONSTANTS ///
     uint256 public constant MARKET_ASSET_RESERVE = 77777;
-    uint256 public constant MAX_LEVERAGE = 0.99e18;
 
     /// STORAGE ///
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
-    /// ERRORS ///
-
-    error AuxiliaryData__ParametersMisconfigured();
-    error AuxiliaryData__InvalidCentralRegistry();
-    error AuxiliaryData__Unauthorized();
-
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert AuxiliaryData__InvalidCentralRegistry();
-        }
-
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -236,7 +222,7 @@ contract AuxiliaryData {
             ) {
                 marketPositions[i] = AccountMarketPosition({
                     healthFactor: debt > 0
-                        ? _calculateHealthFactor(market, lookup.account)
+                        ? getPositionHealth(market, lookup.account)
                         : 0,
                     collateral: collateral,
                     maxDebt: maxDebt,
@@ -406,10 +392,10 @@ contract AuxiliaryData {
     ) public view returns (uint256) {
         IBorrowableCToken token = IBorrowableCToken(cToken);
         return
-            token.interestRateModel().getBorrowRatePerYear(
+            token.interestRateModel().getBorrowRate(
                 token.assetsHeld(),
                 token.marketOutstandingDebt()
-            );
+            ) * SECONDS_PER_YEAR;
     }
 
     /// @notice Returns predicted upcoming borrow interest rate per year
@@ -422,10 +408,10 @@ contract AuxiliaryData {
     ) public view returns (uint256) {
         IBorrowableCToken token = IBorrowableCToken(cToken);
         return
-            token.interestRateModel().getPredictedBorrowRatePerYear(
+            token.interestRateModel().getPredictedBorrowRate(
                 token.assetsHeld(),
                 token.marketOutstandingDebt()
-            );
+            ) * SECONDS_PER_YEAR;
     }
 
     /// @notice Returns the current supply interest rate per year for `cToken`.
@@ -436,24 +422,33 @@ contract AuxiliaryData {
     ) public view returns (uint256) {
         IBorrowableCToken token = IBorrowableCToken(cToken);
         return
-            token.interestRateModel().getSupplyRatePerYear(
+            token.interestRateModel().getSupplyRate(
                 token.assetsHeld(),
                 token.marketOutstandingDebt(),
                 token.interestFee()
-            );
+            ) * SECONDS_PER_YEAR;
     }
 
-    function getBaseRewards(address token) public view returns (uint256) {}
-    function getCVERewards(address token) public view returns (uint256) {}
+    /// PRICING FUNCTIONS ///
 
-    /// Oracle Manager FUNCTIONS ///
+    function getPrice(
+        address asset,
+        bool inUSD,
+        bool getLower
+    ) public view returns (uint256 price, uint256 errorCode) {
+        (price, errorCode) = _getOracleManager()
+            .getPrice(asset, inUSD, getLower);
+        if (errorCode == 2) {
+            price = 0;
+        }
+    }
 
-    function getPrices(
-        address[] calldata assets,
-        bool[] calldata inUSD,
-        bool[] calldata getLower
-    ) public view returns (uint256[] memory, uint256[] memory) {
-        return _getOracleManager().getPrices(assets, inUSD, getLower);
+    function getPriceOnly(
+        address asset,
+        bool inUSD,
+        bool getLower
+    ) public view returns (uint256 price) {
+        (price, ) = getPrice(asset, inUSD, getLower);
     }
 
     function hasRewards(address user) public view returns (bool) {
@@ -509,7 +504,7 @@ contract AuxiliaryData {
             if (result.userMarketPosition.debt > 0) {
                 result
                     .userMarketPosition
-                    .healthFactor = _calculateHealthFactor(market, account);
+                    .healthFactor = getPositionHealth(market, account);
             } else {
                 result.userMarketPosition.healthFactor = 0;
             }
@@ -530,12 +525,11 @@ contract AuxiliaryData {
         }
     }
 
-        /// @notice Calculates the hypothetical maximum amount of
+    /// @notice Calculates the hypothetical maximum amount of
     ///         `borrowableCToken` assets `account` can borrow for maximum
     ///         leverage based on a new `cToken` collateralized deposit.
-    /// @dev Applies a minor dampening effect to calculated maximum leverage
-    ///      via `MAX_LEVERAGE`. Offsets maximum borrowable debt amount if
-    ///      there is insufficient liquidity to borrow in the target market.
+    /// @dev NOTE: This can overestimate maximum executeable leverage when
+    ///            swapping due to AMM fees and slippage.
     /// @param account The account to query maximum borrow amount for.
     /// @param borrowableCToken The token that `account` will borrow assets
     ///                         from to achieve leverage.
@@ -556,20 +550,16 @@ contract AuxiliaryData {
         uint256 assets
     ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
         IMarketManager mm = ICToken(borrowableCToken).marketManager();
-        (uint256 price, uint256 errorCode) = IOracleManager(
-            ICentralRegistry(centralRegistry).oracleManager()
-        ).getPrice(address(cToken), true, true);
+        (uint256 price, uint256 errorCode) =
+            getPrice(address(cToken), true, true);
 
         // Validate we got a price for `cToken`.
         if (errorCode != 0) {
             revert();
         }
 
-        (
-            uint256 sumCollateral,
-            uint256 maxDebt,
-            uint256 sumDebt
-        ) = mm.statusOf(account);
+        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
+            mm.statusOf(account);
 
         {
             uint256 newCollateral = _mulDiv(
@@ -599,19 +589,15 @@ contract AuxiliaryData {
         // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
         // The equation below is equal to this equation,
         // just extrapolated for an account's collateral vs debt.
-        //
-        // We also embed a `MAX_LEVERAGE` dampening effect to minimize
-        // transaction failure from imperfect execution due to things
-        // such as price fluctuations, and AMM fees.
+        /// NOTE: This can overestimate maximum executeable leverage when
+        ///       swapping due to AMM fees and slippage.
         uint256 maxLeverage = _mulDiv(
             maxDebt - sumDebt,
-            sumCollateral * MAX_LEVERAGE,
+            sumCollateral,
             sumCollateral - maxDebt
-        ) / WAD;
+        );
 
-        (price, errorCode) = IOracleManager(
-            ICentralRegistry(centralRegistry).oracleManager()
-        ).getPrice(address(borrowableCToken), true, false);
+        (price, errorCode) = getPrice(address(borrowableCToken), true, false);
 
         // Validate we got a price for `borrowableCToken`.
         if (errorCode != 0) {
@@ -633,6 +619,55 @@ contract AuxiliaryData {
         }
     }
 
+    /// @notice Returns the types of adaptors pricing `asset` uses.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    /// @param  asset The asset whose adaptor types should be returned.
+    /// @return A tuple containing the types of adaptors pricing `asset`
+    ///         uses, a value of 0 indicates an unsupported or empty
+    ///         adaptor slot.
+    function getAdaptorTypes(
+        address asset
+    ) public view returns (uint256, uint256) {
+        IOracleManager om = _getOracleManager();
+        IOracleManager.CToken memory cToken = om.getCToken(asset);
+        if (cToken.isCToken) {
+            asset = cToken.underlying;
+        }
+
+        address[] memory feeds = om.getPriceFeeds(asset);
+
+        uint256 numFeeds = feeds.length;
+        if (numFeeds == 0) {
+            return (0, 0);
+        }
+
+        address adaptor;
+
+        // If the asset only has one price feed, we know it will be in
+        // feed slot 0 so get both prices and return
+        if (numFeeds < 2) {
+            adaptor = feeds[0];
+            if (!om.isApprovedAdaptor(adaptor)) {
+                return (0, 0);
+            }
+
+            return (IOracleAdaptor(adaptor).adaptorType(), 0);
+        }
+
+        adaptor = feeds[0];
+        uint256 adaptorTypeA = om.isApprovedAdaptor(adaptor)
+            ? IOracleAdaptor(adaptor).adaptorType()
+            : 0;
+
+        adaptor = feeds[1];
+        uint256 adaptorTypeB = om.isApprovedAdaptor(adaptor)
+            ? IOracleAdaptor(adaptor).adaptorType()
+            : 0;
+
+        return (adaptorTypeA, adaptorTypeB);
+    }
+
     /// @notice Returns market asset data for a specific market.
     /// @param market The market to get asset data for.
     /// @param account The account to get asset data for.
@@ -648,7 +683,6 @@ contract AuxiliaryData {
         view
         returns (MarketBorrowableCTokens[] memory, MarketCTokenData[] memory)
     {
-        IOracleManager router = _getOracleManager();
         IMarketManager mm = IMarketManager(market);
         address[] memory collateralTokens = getMarketCollateralAssets(market);
         uint256 numTokens = collateralTokens.length;
@@ -685,13 +719,13 @@ contract AuxiliaryData {
             cTokenData.totalCollateralPosted = ICToken(collateralTokens[i])
                 .marketCollateralPosted();
             cTokenData.collateralCap = mm.collateralCaps(collateralTokens[i]);
-            cTokenData.sharePrice = _getTokenPrice(collateralTokens[i], true);
-            cTokenData.tokenPrice = _getTokenPrice(address(token), true);
+            cTokenData.sharePrice = getPriceOnly(collateralTokens[i], true, true);
+            cTokenData.tokenPrice = getPriceOnly(address(token), true, true);
             cTokenData.config = _getTokenConfig(
                 collateralTokens[i],
                 ILiquidityManager(address(mm))
             );
-            (uint256 oracleA, uint256 oracleB) = router.getAdaptorTypes(
+            (uint256 oracleA, uint256 oracleB) = this.getAdaptorTypes(
                 collateralTokens[i]
             );
             cTokenData.adaptorTypes = [oracleA, oracleB];
@@ -741,11 +775,12 @@ contract AuxiliaryData {
             eTokenData.utilizationRate = getUtilizationRate(
                 borrowableCTokens[i]
             );
-            eTokenData.sharePrice = _getTokenPrice(
+            eTokenData.sharePrice = getPriceOnly(
                 borrowableCTokens[i],
+                true,
                 false
             );
-            eTokenData.tokenPrice = _getTokenPrice(address(token), false);
+            eTokenData.tokenPrice = getPriceOnly(address(token), true, false);
             eTokenData.config = _getTokenConfig(
                 borrowableCTokens[i],
                 ILiquidityManager(address(mm))
@@ -758,7 +793,7 @@ contract AuxiliaryData {
             } else {
                 eTokenData.liquidityAvailable = 0;
             }
-            (uint256 oracleA, uint256 oracleB) = router.getAdaptorTypes(
+            (uint256 oracleA, uint256 oracleB) = this.getAdaptorTypes(
                 borrowableCTokens[i]
             );
             eTokenData.adaptorTypes = [oracleA, oracleB];
@@ -835,7 +870,7 @@ contract AuxiliaryData {
         for (uint256 i; i < numAssets; ) {
             asset = assets[i++];
             result +=
-                (_getTokenPrice(asset, true) *
+                (getPriceOnly(asset, true, true) *
                     ICToken(asset).marketCollateralPosted()) /
                 10 ** ICToken(asset).decimals();
         }
@@ -956,11 +991,13 @@ contract AuxiliaryData {
     }
 
     /// PUBLIC TOKEN-SPECIFIC FUNCTIONS ///
-    function getHealthFactor(
+    function getPositionHealth(
         address market,
         address account
     ) public view returns (uint256) {
-        return _calculateHealthFactor(market, account);
+        (uint256 soft, , uint256 debt) = IMarketManager(market)
+            .liquidationValuesOf(account);
+        return (soft * WAD) / debt;
     }
 
     /// @notice Returns the current TVL inside an MToken token.
@@ -972,8 +1009,8 @@ contract AuxiliaryData {
     ) public view returns (uint256 result) {
         // Get current shares total supply then query price and return.
         result =
-            (_getTokenPrice(token, getLower) *
-                (ICToken(token).totalSupply() - MARKET_ASSET_RESERVE)) /
+            (getPriceOnly(token, true, getLower)
+                * (ICToken(token).totalSupply() - MARKET_ASSET_RESERVE)) /
             10 ** ICToken(token).decimals();
     }
 
@@ -986,18 +1023,9 @@ contract AuxiliaryData {
         IBorrowableCToken token = IBorrowableCToken(cToken);
 
         // Get outstanding debt then query price and return.
-        result =
-            (_getTokenPrice(token.asset(), false) *
-                token.marketOutstandingDebt()) /
+        result = (getPriceOnly(token.asset(), true, false)
+                * token.marketOutstandingDebt()) /
             10 ** token.decimals();
-    }
-
-    function getTokenPrice(address token) public view returns (uint256) {
-        return
-            _getTokenPrice(
-                token,
-                !ICToken(token).isBorrowable() ? true : false
-            );
     }
 
     function getGuardedPriceMax(
@@ -1005,7 +1033,7 @@ contract AuxiliaryData {
         address asset,
         bool inUSD
     ) external view returns (uint256) {
-        PriceGuard memory pg = IOracleAdaptor(adaptor)
+        IOracleAdaptor.PriceGuard memory pg = IOracleAdaptor(adaptor)
             .getPriceGuard(asset, inUSD);
         if (pg.guardType == 0) {
             return type(uint256).max;
@@ -1024,7 +1052,7 @@ contract AuxiliaryData {
         address asset,
         bool inUSD
     ) external view returns (uint256) {
-        PriceGuard memory pg = IOracleAdaptor(adaptor)
+        IOracleAdaptor.PriceGuard memory pg = IOracleAdaptor(adaptor)
             .getPriceGuard(asset, inUSD);
         if (pg.guardType == 0) {
             return 0;
@@ -1034,15 +1062,6 @@ contract AuxiliaryData {
     }
 
     /// INTERNAL FUNCTIONS ///
-    function _calculateHealthFactor(
-        address market,
-        address account
-    ) internal view returns (uint256) {
-        IMarketManager mm = IMarketManager(market);
-        (uint256 accountCollateralSoft, , uint256 accountDebt) = mm
-            .liquidationValuesOf(account);
-        return (accountCollateralSoft * WAD) / accountDebt;
-    }
 
     /// @dev Returns `floor(x * y / d)`.
     /// Reverts if `x * y` overflows, or `d` is zero.
@@ -1092,23 +1111,6 @@ contract AuxiliaryData {
     }
 
     function _getOracleManager() internal view returns (IOracleManager) {
-        return IOracleManager(centralRegistry.oracleManager());
-    }
-
-    function _getTokenPrice(
-        address mToken,
-        bool getLower
-    ) internal view returns (uint256 price) {
-        uint256 errorCode;
-        (price, errorCode) = _getOracleManager().getPrice(
-            mToken,
-            true,
-            getLower
-        );
-        // If we could not price the asset, bubble up a price of 0.
-        if (errorCode == 2) {
-            price = 0;
-            return price;
-        }
+        return CommonLib._oracleManager(centralRegistry);
     }
 }

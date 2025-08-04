@@ -18,18 +18,17 @@ contract PendlePTPositionManager is BasePositionManager {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
+    /// @param wNative The address of wrapped native token.
+    /// @param router_ Address of the Pendle router.
     constructor(
-        ICentralRegistry centralRegistry_,
-        address marketManager_,
-        address wrappedNative_,
+        ICentralRegistry cr,
+        address mm,
+        address wNative,
         IPendleRouter router_
-    )
-        BasePositionManager(
-            centralRegistry_,
-            marketManager_,
-            wrappedNative_
-        )
-    {
+    ) BasePositionManager(cr, mm, wNative) {
         router = router_;
     }
 
@@ -124,9 +123,9 @@ contract PendlePTPositionManager is BasePositionManager {
     ///                                will have its debt paid.
     ///               repayAssets The amount of `borrowableCToken` asset that
     ///                           will be repaid to lenders.
-    ///               swapAction Swap actions instructions converting
-    ///                          collateral asset into debt asset to
-    ///                          facilitate deleveraging.
+    ///               swapActions Swap actions instructions converting
+    ///                           collateral asset into debt asset to
+    ///                           facilitate deleveraging.
     ///               auxData Optional auxiliary data for execution of a
     ///                       deleverage action.
     function _swapCollateralAssetToDebtAsset(

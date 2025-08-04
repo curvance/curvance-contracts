@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -105,9 +105,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address borrowableCToken
-    ) PluginDelegable(centralRegistry_) {
+    ) PluginDelegable(cr) {
         // Validate `borrowableCToken` is actually lendable.
         if (!IBorrowableCToken(borrowableCToken).isBorrowable()) {
             _revert(_INVALID_PARAMETER_SELECTOR);

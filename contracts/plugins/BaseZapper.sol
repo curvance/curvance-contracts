@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
+
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -35,31 +36,19 @@ abstract contract BaseZapper is ReentrancyGuard {
     /// @notice The address of wrapped native token on this chain.
     address public immutable wrappedNative;
 
-    /// @dev `bytes4(keccak256(bytes("BaseZapper__Unauthorized()")))`.
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x2e88661c;
-
     /// ERRORS ///
 
     error BaseZapper__Unauthorized();
     error BaseZapper__UnderlyingTokenIsNotInputToken();
     error BaseZapper__ExecutionError();
     error BaseZapper__InsufficientToRepay();
-    error BaseZapper__InvalidCentralRegistry();
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_, address wrappedNative_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert BaseZapper__InvalidCentralRegistry();
-        }
-
-        centralRegistry = centralRegistry_;
-        wrappedNative = wrappedNative_;
+    constructor(ICentralRegistry cr, address wNative) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
+        wrappedNative = wNative;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -144,7 +133,7 @@ abstract contract BaseZapper is ReentrancyGuard {
                     receiver
                 );
             } else {
-                _revert(_UNAUTHORIZED_SELECTOR);
+                revert BaseZapper__Unauthorized();
             }
         } else {
             // User wants to enter an uncollateralized a position so we dont
@@ -258,18 +247,13 @@ abstract contract BaseZapper is ReentrancyGuard {
         }
 
         // Approve `debtAsset` transfer to cToken contract, if needed.
-        SwapperLib._approveIfNeeded(
-            debtAsset,
-            borrowableCToken,
-            repayAssets
-        );
+        SwapperLib._approveIfNeeded(debtAsset, borrowableCToken, repayAssets);
 
         // Execute repayment of outstanding debt.
         IBorrowableCToken(borrowableCToken).repayFor(repayAssets, receiver);
 
         // Remove any excess approval.
         SwapperLib._removeApprovalIfNeeded(debtAsset, borrowableCToken);
-
         assetsHeld -= repayAssets;
 
         // Transfer any remaining `debtAsset` to `receiver`.
@@ -294,7 +278,7 @@ abstract contract BaseZapper is ReentrancyGuard {
         bool depositAsWrappedNative
     ) internal {
         if (CommonLib._isNative(inputToken)) {
-            // Validate message has gas token attached.
+            // Validate `inputAmount` token attached equal to `msg.value`.
             if (inputAmount != msg.value) {
                 revert BaseZapper__ExecutionError();
             }
@@ -324,7 +308,7 @@ abstract contract BaseZapper is ReentrancyGuard {
         // Validate `cToken` exists, otherwise transfer their tokens
         // back and return.
         if (cToken == address(0)) {
-            revert BaseZapper__ExecutionError ();
+            revert BaseZapper__ExecutionError();
         }
 
         cTokenAsset = ICToken(cToken).asset();
@@ -346,19 +330,13 @@ abstract contract BaseZapper is ReentrancyGuard {
         address receiver,
         uint256 amount
     ) internal {
+        // If the token to refund is the chains' native gas token we wrap
+        // then transfer it to prevent callback attack vectors.
         if (CommonLib._isNative(token)) {
-            return SafeTransferLib.safeTransferETH(receiver, amount);
+            IWETH(wrappedNative).deposit{ value: amount }();
+            token = wrappedNative;
         }
 
         SafeTransferLib.safeTransfer(token, receiver, amount);
-    }
-
-    /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x00, s)
-            revert(0x1c, 0x04)
-        }
     }
 }

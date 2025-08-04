@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { SECONDS_PER_YEAR, WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+import { SECONDS_PER_YEAR, WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { IBorrowableCToken, IInterestRateModel } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -115,7 +115,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///                          multiplier will begin to decrease.
     /// @param decreaseThresholdMax The utilization rate at which the vertex
     ///                             multiplier negative velocity will max out.
-    struct RatesConfiguration {
+    struct RatesConfig {
         uint256 baseInterestRate;
         uint256 vertexInterestRate;
         uint256 vertexStartingPoint;
@@ -131,6 +131,10 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// CONSTANTS ///
 
+    /// @notice The interval at which interest accrual is calculated,
+    ///         in seconds.
+    /// @dev 10 minutes = 600 seconds.
+    uint256 public constant INTEREST_ACCRUAL_PERIOD = 10 minutes;
     
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
@@ -187,18 +191,10 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///         to, in `WAD`.
     ///         E.g. 1 * WAD = 100% Minimum vertex multiplier maximum value.
     uint256 internal constant _MINIMUM_VERTEX_MULTIPLIER_MAX = 1e18;
-    /// @notice The interval at which interest accrual is calculated,
-    ///         in seconds.
-    /// @dev 10 minutes = 600 seconds.
-    uint256 internal constant _INTEREST_ACCRUAL_PERIOD = 10 minutes;
     /// @notice Mask of `vertexMultiplier` in `_currentRates`.
     uint256 internal constant _BITMASK_VERTEX_MULTIPLIER = (1 << 192) - 1;
     /// @notice The bit position of `nextUpdateTimestamp` in `_currentRates`.
     uint256 internal constant _BITPOS_UPDATE_TIMESTAMP = 192;
-    /// @dev `bytes4(keccak256(bytes("DynamicInterestRateModel__Unauthorized()")))`.
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xf7ff5148;
-    /// @dev `bytes4(keccak256(bytes("DynamicInterestRateModel__InvalidToken()")))`.
-    uint256 internal constant _INVALID_TOKEN_SELECTOR = 0x65fb74c1;
 
     /// STORAGE ///
 
@@ -213,7 +209,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// @notice Struct containing current configuration data for the
     ///         dynamic interest rate model.
-    RatesConfiguration public ratesConfig;
+    RatesConfig public ratesConfig;
     /// @dev Internal stored rates data.
     ///      Bits Layout:
     ///      - [0..191]   `vertexMultiplier`.
@@ -222,7 +218,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// EVENTS ///
 
-    event NewDynamicInterestRateModel(
+    event NewIRM(
         uint256 baseInterestRate,
         uint256 vertexInterestRate,
         uint256 vertexStartingPoint,
@@ -243,7 +239,6 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     error DynamicInterestRateModel__Unauthorized();
     error DynamicInterestRateModel__InvalidToken();
-    error DynamicInterestRateModel__InvalidCentralRegistry();
     error DynamicInterestRateModel__InvalidUtilizationStart();
     error DynamicInterestRateModel__InvalidInterestRatePerYear();
     error DynamicInterestRateModel__InvalidAdjustmentRate();
@@ -254,6 +249,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
     /// @param baseRatePerYear The rate of increase in interest rate by
     ///                        utilization rate, in `basis points`.
     /// @param vertexRatePerYear The rate of increase in interest rate by
@@ -270,7 +266,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     /// @param decayRate Rate at which the vertex multiplier will decay per
     ///                  update, in `basis points`.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         uint256 baseRatePerYear,
         uint256 vertexRatePerYear,
         uint256 vertexUtilStart,
@@ -279,16 +275,8 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 vertexMultiplierMax,
         uint256 decayRate
     ) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert DynamicInterestRateModel__InvalidCentralRegistry();
-        }
-
-        centralRegistry = centralRegistry_;
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
         _updateDynamicInterestRateModel(
             baseRatePerYear,
@@ -312,20 +300,20 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///                      to this interest rate model contract.
     function setLinkedToken(address cTokenAddress) external {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert DynamicInterestRateModel__Unauthorized();
         }
 
         // Validate that a borrowable Curvance token has not already been
         // linked to this smart contract.
         if (linkedToken != address(0)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert DynamicInterestRateModel__Unauthorized();
         }
 
         // Validate that the token being linked is actually a borrowable token
         // if the token is not a Curvance token this will also natively fail,
         // which is fine too.
         if (!IBorrowableCToken(cTokenAddress).isBorrowable()) {
-            _revert(_INVALID_TOKEN_SELECTOR);
+            revert DynamicInterestRateModel__InvalidToken();
         }
 
         // Validate that the token is actually expecting this interest
@@ -334,7 +322,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
             address(IBorrowableCToken(cTokenAddress).interestRateModel()) !=
             address(this)
         ) {
-            _revert(_INVALID_TOKEN_SELECTOR);
+            revert DynamicInterestRateModel__InvalidToken();
         }
 
         linkedToken = cTokenAddress;
@@ -371,9 +359,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 decayRate,
         bool vertexReset
     ) external {
-        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
+        _checkMarketPermissions();
 
         _updateDynamicInterestRateModel(
             baseRatePerYear,
@@ -399,11 +385,11 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         // Validate that the linked token itself is calling to update
         // its interest accrued.
         if (msg.sender != linkedToken) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert DynamicInterestRateModel__Unauthorized();
         }
 
         uint256 util = utilizationRate(assetsHeld, debt);
-        RatesConfiguration memory config = ratesConfig;
+        RatesConfig memory config = ratesConfig;
         uint256 vertexPoint = config.vertexStartingPoint;
 
         bool belowVertex = (util <= vertexPoint);
@@ -442,64 +428,6 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         }
     }
 
-    /// @notice Calculates the current borrow rate per year,
-    ///         with updated vertex multiplier applied.
-    /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param debt The amount of outstanding debt in the pool.
-    /// @return The borrow rate percentage per year, in `WAD`.
-    function getPredictedBorrowRatePerYear(
-        uint256 assetsHeld,
-        uint256 debt
-    ) external view returns (uint256) {
-        return
-            SECONDS_PER_YEAR * getPredictedBorrowRate(assetsHeld, debt);
-    }
-
-    /// @notice Calculates the current borrow rate per year.
-    /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param debt The amount of outstanding debt in the pool.
-    /// @return The borrow rate percentage per year, in `WAD`.
-    function getBorrowRatePerYear(
-        uint256 assetsHeld,
-        uint256 debt
-    ) external view returns (uint256) {
-        return
-            SECONDS_PER_YEAR * getBorrowRate(assetsHeld, debt);
-    }
-
-    /// @notice Calculates the current supply rate per year.
-    /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param debt The amount of outstanding debt in the pool.
-    /// @param interestFee The current interest accrual fee for the market.
-    /// @return The supply rate percentage per year, in `WAD`.
-    function getSupplyRatePerYear(
-        uint256 assetsHeld,
-        uint256 debt,
-        uint256 interestFee
-    ) external view returns (uint256) {
-        return
-            SECONDS_PER_YEAR * getSupplyRate(assetsHeld, debt, interestFee);
-    }
-
-    /// @notice Returns the interval at which interest accrual is calculated.
-    /// @notice The interval at which interest accrual is calculated,
-    ///         in seconds.
-    function accrualPeriod() external pure returns (uint256) {
-        return _INTEREST_ACCRUAL_PERIOD;
-    }
-
-    /// @notice Returns the unpacked values from `_currentRates`.
-    /// @return The current Vertex Multiplier, in `WAD`.
-    /// @return The timestamp for the next vertex multiplier update,
-    ///         in unix time.
-    function currentRatesData() external view returns (uint256, uint256) {
-        uint256 currentRates = _currentRates;
-        return (
-            uint192(currentRates),
-            uint64(currentRates >> _BITPOS_UPDATE_TIMESTAMP)
-        );
-    }
-
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Calculates the borrow utilization rate of the market.
@@ -528,7 +456,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 debt
     ) public view returns (uint256 result) {
         uint256 util = utilizationRate(assetsHeld, debt);
-        RatesConfiguration memory config = ratesConfig;
+        RatesConfig memory config = ratesConfig;
         uint256 vertexPoint = config.vertexStartingPoint;
 
         // Query base interest rate directly since vertex multiplier is not
@@ -566,9 +494,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         uint256 vertexPoint = ratesConfig.vertexStartingPoint;
 
         if (util <= vertexPoint) {
-            unchecked {
-                return _getBaseRate(util);
-            }
+            return _getBaseRate(util);
         }
 
         result =
@@ -621,12 +547,11 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// @inheritdoc ERC165
     /// @param interfaceId The interface ID to check.
-    /// @return Whether the contract implements the interface.
+    /// @return result Whether the contract implements the interface.
     function supportsInterface(
         bytes4 interfaceId
-    ) public view override returns (bool) {
-        return
-            interfaceId == type(IInterestRateModel).interfaceId ||
+    ) public view override returns (bool result) {
+        result = interfaceId == type(IInterestRateModel).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
@@ -634,11 +559,9 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
 
     /// @notice Calculates the interest rate for `util` market utilization.
     /// @param util The utilization rate of the market, in `WAD`.
-    /// @return result The calculated base interest rate, in `WAD`.
-    function _getBaseRate(
-        uint256 util
-    ) internal view returns (uint256 result) {
-        result = _mulDiv(util, ratesConfig.baseInterestRate, WAD);
+    /// @return r The calculated base interest rate, in `WAD`.
+    function _getBaseRate(uint256 util) internal view returns (uint256 r) {
+        r = _mulDiv(util, ratesConfig.baseInterestRate, WAD);
     }
 
     /// @notice Calculates the interest rate under `vertexInterestRate`
@@ -646,12 +569,10 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///         utilization.
     /// @param util The utilization rate of the market above
     ///            `vertexStartingPoint`, in `WAD`.
-    /// @return result The calculated vertex interest rate, in `WAD`.
-    function _getVertexRate(
-        uint256 util
-    ) internal view returns (uint256 result) {
+    /// @return r The calculated vertex interest rate, in `WAD`.
+    function _getVertexRate(uint256 util) internal view returns (uint256 r) {
         // We divide by WAD_SQUARED instead of WAD to maintain precision.
-        result = _mulDiv(
+        r = _mulDiv(
             util,
             ratesConfig.vertexInterestRate * vertexMultiplier(),
             WAD_SQUARED
@@ -663,7 +584,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     /// @dev This function sets various parameters for the dynamic interest
     ///      rate model, adjusting how interest rates are calculated based
     ///      on system utilization.
-    ///      Emits a {NewDynamicInterestRateModel} event.
+    ///      Emits a {NewIRM} event.
     /// @param baseRatePerYear The base interest rate per year,
     ///                        in `basis points`.
     /// @param vertexRatePerYear The vertex interest rate per year,
@@ -738,7 +659,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
             revert DynamicInterestRateModel__InvalidMultiplierMax();
         }
 
-        RatesConfiguration storage config = ratesConfig;
+        RatesConfig storage config = ratesConfig;
 
         config.baseInterestRate = _mulDiv(
             baseRatePerYear,
@@ -779,9 +700,9 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         config.decreaseThreshold = vertexUtilStart;
         config.decreaseThresholdMax = vertexUtilStart - thresholdLength;
 
-        RatesConfiguration memory cachedConfig = config;
+        RatesConfig memory cachedConfig = config;
 
-        emit NewDynamicInterestRateModel(
+        emit NewIRM(
             cachedConfig.baseInterestRate, // base rate.
             cachedConfig.vertexInterestRate, // vertex base rate.
             vertexUtilStart, // Vertex utilization rate start.
@@ -793,7 +714,7 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
             WAD, // Vertex increase threshold max.
             cachedConfig.decreaseThreshold, // Vertex decrease threshold.
             cachedConfig.decreaseThresholdMax, // Vertex decrease threshold max.
-            vertexReset // Was vertex multiplier reset.
+            vertexReset // Was `vertexMultiplier` reset.
         );
     }
 
@@ -810,13 +731,13 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///      If the utilization is higher, it calculates a new multiplier by
     ///      applying a positive curve value to the adjustment.
     ///      This adjustment is also subjected to the decay multiplier.
-    /// @param config The cached version of the current `RatesConfiguration`.
+    /// @param config The cached version of the current `RatesConfig`.
     /// @param util The current utilization value, used to determine how the
     ///             multiplier should be adjusted.
     /// @return The updated multiplier after applying decay and
     ///         adjustments based on the current utilization level.
     function _updateForAboveVertex(
-        RatesConfiguration memory config,
+        RatesConfig memory config,
         uint256 util
     ) internal view returns (uint256) {
         uint256 currentMultiplier = vertexMultiplier();
@@ -872,13 +793,13 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     ///      a new multiplier is calculated by applying a negative curve value
     ///      to the adjustment. This new multiplier is also subjected to the
     ///      decay multiplier.
-    /// @param config The cached version of the current `RatesConfiguration`.
+    /// @param config The cached version of the current `RatesConfig`.
     /// @param util The current utilization value, used to determine how the
     ///             multiplier should be adjusted.
     /// @return The updated multiplier after applying decay and
     ///         adjustments based on the current utilization level.
     function _updateForBelowVertex(
-        RatesConfiguration memory config,
+        RatesConfig memory config,
         uint256 util
     ) internal view returns (uint256) {
         uint256 currentMultiplier = vertexMultiplier();
@@ -1065,12 +986,10 @@ contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
         z = FixedPointMathLib.mulDiv(x, y, d);
     }
 
-    /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x00, s)
-            revert(0x1c, 0x04)
+    /// @dev Checks whether the caller has sufficient permissioning.
+    function _checkMarketPermissions() internal view virtual {
+        if (!centralRegistry.hasMarketPermissions(msg.sender)) {
+            revert DynamicInterestRateModel__Unauthorized();
         }
     }
 

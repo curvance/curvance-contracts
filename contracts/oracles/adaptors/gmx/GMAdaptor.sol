@@ -2,11 +2,12 @@
 pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IReader } from "contracts/interfaces/external/gmx/IReader.sol";
 
@@ -68,24 +69,14 @@ contract GMAdaptor is BaseOracleAdaptor {
     /// CONSTRUCTOR ///
 
     /// @dev Only deployable on Arbitrum.
-    /// @param centralRegistry_ The address of central registry.
+    /// @param cr The address of central registry.
     /// @param gmxReader_ The address of GMX Reader.
     /// @param gmxDataStore_ The address of GMX DataStore.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address gmxReader_,
-        address gmxDataStore_,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) BaseOracleAdaptor(
-        centralRegistry_,
-        MAXIMUM_INCREASE_PER_YEAR,
-        MINIMUM_INCREASE_PER_YEAR,
-        MAXIMUM_TIMESTAMP_BUFFER,
-        MINIMUM_TIMESTAMP_BUFFER
-    ) {
+        address gmxDataStore_
+    ) BaseOracleAdaptor(cr) {
         if (block.chainid != 42161) {
             revert GMAdaptor__ChainIsNotSupported();
         }
@@ -116,9 +107,7 @@ contract GMAdaptor is BaseOracleAdaptor {
         _checkSupportedAsset(asset);
 
         // Cache the Oracle Manager.
-        IOracleManager oracleManager = IOracleManager(
-            centralRegistry.oracleManager()
-        );
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
 
         uint256[] memory prices = new uint256[](3);
         address[] memory tokens = marketData[asset];
@@ -130,11 +119,7 @@ contract GMAdaptor is BaseOracleAdaptor {
         for (uint256 i; i < 3; ++i) {
             token = tokens[i];
 
-            (prices[i], errorCode) = oracleManager.getPrice(
-                token,
-                true,
-                getLower
-            );
+            (prices[i], errorCode) = om.getPrice(token, true, getLower);
             if (errorCode > 0) {
                 result.hadError = true;
                 return result;
@@ -209,9 +194,7 @@ contract GMAdaptor is BaseOracleAdaptor {
             revert GMAdaptor__AlteredTokenIsInvalid();
         }
 
-        IOracleManager oracleManager = IOracleManager(
-            centralRegistry.oracleManager()
-        );
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
 
         address[] memory tokens = new address[](4);
         tokens[0] = isSynthetic ? alteredToken : market.indexToken;
@@ -225,7 +208,7 @@ contract GMAdaptor is BaseOracleAdaptor {
         for (uint256 i; i < 3; ++i) {
             token = tokens[i];
 
-            if (!oracleManager.isSupportedAsset(token)) {
+            if (!om.isSupportedAsset(token)) {
                 revert GMAdaptor__MarketTokenIsNotSupported(token);
             }
 

@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { StrategyCToken, ICentralRegistry, IERC20 } from "contracts/market/token/StrategyCToken.sol";
 
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
@@ -37,27 +37,21 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param cr The address of the Protocol Central Registry.
     /// @param asset_ The address of the underlying asset for this cToken.
-    /// @param marketManager_ The address of the MarketManager which manages
-    ///                       liquidity positions between linked cTokens
-    ///                       inside a joint market.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
     /// @param vestingPeriod_ The length of time a vesting period will last,
     ///                       in seconds.
     /// @param exitFee_ The exit fee paid by users when withdrawing from the
     ///                 strategyCToken position, in basis points.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         IERC20 asset_,
-        address marketManager_,
+        address mm,
         uint256 vestingPeriod_,
         uint256 exitFee_
-    ) StrategyCToken(
-        centralRegistry_,
-        asset_,
-        marketManager_,
-        vestingPeriod_
-    ) {
+    ) StrategyCToken(cr, asset_, mm, vestingPeriod_) {
         _setExitFee(exitFee_);
     }
 
@@ -111,9 +105,9 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
     ///                                will have its debt paid.
     ///               repayAssets The amount of `borrowableCToken` asset that
     ///                           will be repaid to lenders.
-    ///               swapAction Swap actions instructions converting
-    ///                          collateral asset into debt asset to
-    ///                          facilitate deleveraging.
+    ///               swapActions Swap actions instructions converting
+    ///                           collateral asset into debt asset to
+    ///                           facilitate deleveraging.
     ///               auxData Optional auxiliary data for execution of a
     ///                       deleverage action.
     function _processPositionManagerRedemption(
@@ -178,7 +172,7 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
     ///                   in basis points.
     function _setExitFee(uint256 newExitFee) internal {
         // Convert `newExitFee` parameter from `basis points` to `WAD`.
-        newExitFee = _bpToWad(newExitFee);
+        newExitFee = newExitFee * 1e14;
 
         // Check if the proposed exit fee is above the allowed maximum.
         if (newExitFee > MAXIMUM_EXIT_FEE) {
@@ -191,14 +185,5 @@ abstract contract StrategyCTokenWithExitFee is StrategyCToken {
         // Set new exit fee.
         exitFee = newExitFee;
         emit ExitFeeSet(oldExitFee, newExitFee);
-    }
-
-    /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
-    ///         to WAD.
-    /// @dev Internal helper function for easily converting between scalars.
-    /// @param value The value to convert from basis points to WAD.
-    /// @return The value in WAD.
-    function _bpToWad(uint256 value) internal pure returns (uint256) {
-        return value * 1e14;
     }
 }

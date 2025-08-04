@@ -32,7 +32,7 @@ contract OdosCalldataChecker is BaseSwapChecker {
         address _target,
         address[] memory addresses
     ) BaseSwapChecker(_target) {
-        for (uint256 i = 0; i < addresses.length; i++) {
+        for (uint256 i; i < addresses.length; i++) {
             addressList.push(addresses[i]);
         }
     }

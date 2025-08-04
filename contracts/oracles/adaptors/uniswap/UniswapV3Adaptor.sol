@@ -2,11 +2,13 @@
 pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IStaticOracle } from "contracts/interfaces/external/uniswap/IStaticOracle.sol";
 import { UniswapV3Pool } from "contracts/interfaces/external/uniswap/UniswapV3Pool.sol";
 
@@ -39,7 +41,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     address public immutable wrappedNative;
 
     /// @notice Static uniswap Oracle Manager address.
-    IStaticOracle public immutable uniswapOracleManager;
+    IStaticOracle public immutable uniswapOracle;
 
     /// STORAGE ///
 
@@ -59,28 +61,18 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of central registry.
+    /// @param cr The address of central registry.
     constructor(
-        ICentralRegistry centralRegistry_,
-        IStaticOracle oracleAddress_,
-        address wrappedNative_,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) BaseOracleAdaptor(
-        centralRegistry_,
-        MAXIMUM_INCREASE_PER_YEAR,
-        MINIMUM_INCREASE_PER_YEAR,
-        MAXIMUM_TIMESTAMP_BUFFER,
-        MINIMUM_TIMESTAMP_BUFFER
-    ) {
+        ICentralRegistry cr,
+        IStaticOracle uniOracle,
+        address wNative
+    ) BaseOracleAdaptor(cr) {
         if (block.chainid != 1) {
             revert UniswapV3Adaptor__ChainIsNotSupported();
         }
 
-        uniswapOracleManager = oracleAddress_;
-        wrappedNative = wrappedNative_;
+        uniswapOracle = uniOracle;
+        wrappedNative = wNative;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -113,10 +105,10 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         uint256 twapPrice;
 
         // Pull twap price via a staticcall.
-        (bool success, bytes memory returnData) = address(uniswapOracleManager)
+        (bool success, bytes memory returnData) = address(uniswapOracle)
             .staticcall(
                 abi.encodePacked(
-                    uniswapOracleManager
+                    uniswapOracle
                         .quoteSpecificPoolsWithTimePeriod
                         .selector,
                     abi.encode(
@@ -138,24 +130,22 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
             return result;
         }
 
-        IOracleManager OracleManager = IOracleManager(
-            centralRegistry.oracleManager()
-        );
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
         result.inUSD = inUSD;
 
         // We want the asset price in USD which uniswap cant do,
         // so find out the price of the quote token in USD then divide
         // so its in USD.
         if (inUSD) {
-            if (!OracleManager.isSupportedAsset(config.quoteToken)) {
+            if (!om.isSupportedAsset(config.quoteToken)) {
                 // Our Oracle Manager does not know how to value this quote
                 // token, so, we cant use the twap data, bubble up an error.
                 result.hadError = true;
                 return result;
             }
 
-            (uint256 quoteTokenDenominator, uint256 errorCode) = OracleManager
-                .getPrice(config.quoteToken, true, getLower);
+            (uint256 quoteTokenDenominator, uint256 errorCode) =
+                om.getPrice(config.quoteToken, true, getLower);
 
             // Validate we did not run into any errors pricing the quote asset.
             if (errorCode > 0) {
@@ -179,15 +169,15 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         }
 
         if (config.quoteToken != wrappedNative) {
-            if (!OracleManager.isSupportedAsset(config.quoteToken)) {
+            if (!om.isSupportedAsset(config.quoteToken)) {
                 // Our Oracle Manager does not know how to value this quote
                 // token so we cant use the twap data.
                 result.hadError = true;
                 return result;
             }
 
-            (uint256 quoteTokenDenominator, uint256 errorCode) = OracleManager
-                .getPrice(config.quoteToken, false, getLower);
+            (uint256 quoteTokenDenominator, uint256 errorCode) =
+                om.getPrice(config.quoteToken, false, getLower);
 
             // Validate we did not run into any errors pricing the quote asset.
             if (errorCode > 0) {

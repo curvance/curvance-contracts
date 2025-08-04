@@ -15,7 +15,7 @@ contract PendleLPCToken is StrategyCToken {
 
     /// @title Strategy Data
     /// @dev Data for a Pendle LP token.
-    /// @param router Address of Pendle Router.
+    /// @param router Address of the Pendle router.
     /// @param lp Address of strategyCToken underlying Pendle lp token.
     /// @param sy Address of Standardized Yield for minting pt/yt.
     /// @param pt Address of Pendle principal token.
@@ -39,18 +39,20 @@ contract PendleLPCToken is StrategyCToken {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param asset_ The address of the underlying asset for this cToken.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
+    /// @param router_ Address of the Pendle router.
+    /// @param vestingPeriod_ The length of time a vesting period will last,
+    ///                       in seconds.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         IERC20 asset_,
-        address marketManager_,
+        address mm,
         IPendleRouter router_,
         uint256 vestingPeriod_
-    ) StrategyCToken(
-        centralRegistry_,
-        asset_,
-        marketManager_,
-        vestingPeriod_
-    ) {
+    ) StrategyCToken(cr, asset_, mm, vestingPeriod_) {
         strategyData.router = router_;
         strategyData.lp = IPMarket(address(asset_));
         // Query actual Pendle pool configuration data.

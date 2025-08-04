@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract MockOracleAdaptor is BaseOracleAdaptor {
     struct MockPrice {
@@ -16,19 +15,7 @@ contract MockOracleAdaptor is BaseOracleAdaptor {
     mapping(address => MockPrice) public definedPrices;
     mapping(address => bool) public hasSetPrice;
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) BaseOracleAdaptor(
-        centralRegistry_,
-        MAXIMUM_INCREASE_PER_YEAR,
-        MINIMUM_INCREASE_PER_YEAR,
-        MAXIMUM_TIMESTAMP_BUFFER,
-        MINIMUM_TIMESTAMP_BUFFER
-    ) {}
+    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
 
     function getPrice(
         address asset,

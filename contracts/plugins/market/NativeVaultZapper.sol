@@ -1,22 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BaseVaultZapper, ICentralRegistry } from "contracts/plugins/market/BaseVaultZapper.sol";
+import { BaseVaultZapper, ICentralRegistry, SwapperLib, ICToken, IVault } from "contracts/plugins/market/BaseVaultZapper.sol";
 
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
-import { ICToken } from "contracts/interfaces/ICToken.sol";
-import { IVault } from "contracts/interfaces/IVault.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 contract NativeVaultZapper is BaseVaultZapper {
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        address wrappedNative_
-    ) BaseVaultZapper(centralRegistry_, wrappedNative_) {}
+    constructor(ICentralRegistry cr, address wNative) BaseVaultZapper(cr, wNative) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -49,8 +43,6 @@ contract NativeVaultZapper is BaseVaultZapper {
         bool collateralizeFor,
         address receiver
     ) external payable nonReentrant returns (uint256 outAmount) {
-        IVault vault = IVault(ICToken(cToken).asset());
-
         _prepareSwap(swapAction.inputToken, swapAction.inputAmount, false);
 
         if(!CommonLib._isNative(swapAction.outputToken)) {
@@ -60,6 +52,8 @@ contract NativeVaultZapper is BaseVaultZapper {
         if (swapAction.inputToken == swapAction.outputToken) {
             outAmount = swapAction.inputAmount;        
         } else if (swapAction.inputToken == wrappedNative) {
+            // Make sure they are not attaching native tokens when
+            // we want wrapped native.
             if (msg.value > 0) {
                 revert BaseZapper__ExecutionError();
             }
@@ -76,11 +70,10 @@ contract NativeVaultZapper is BaseVaultZapper {
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
+        IVault vault = IVault(ICToken(cToken).asset());
+
         // Deposit into vault.
-        outAmount = vault.deposit{value: outAmount}(
-            outAmount,
-            address(this)
-        );
+        outAmount = vault.deposit{value: outAmount}(outAmount, address(this));
         
         // Enter Curvance position.
         outAmount = _enterCurvance(

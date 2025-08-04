@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -34,16 +34,6 @@ abstract contract BasePositionManager is
     Multicall
 {
     /// CONSTANTS ///
-
-    /// @notice Maximum desired leverage output, we choose 99% of what is
-    ///         possible to minimize reversion from things like price
-    ///         fluctuations, swap fees, and oracle vs pool price divergence,
-    ///         in WAD (1e18).
-    /// @dev 0.99e18 = 99%.
-    uint256 public constant MAX_LEVERAGE = 0.99e18;
-
-    /// @dev `bytes4(keccak256(bytes("BasePositionManager__Unauthorized()")))`
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xdb6ad9f5;
 
     /// @notice The address of wrapped native token on this chain.
     address public immutable wrappedNative;
@@ -102,19 +92,23 @@ abstract contract BasePositionManager is
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
+    /// @param wNative The address of wrapped native token.
     constructor(
-        ICentralRegistry centralRegistry_,
-        address marketManager_,
-        address wrappedNative_
-    ) PluginDelegable(centralRegistry_) {
-        // Validate that `marketManager_` is configured as a market manager
-        // inside the Central Registry.
-        if (!centralRegistry_.isMarketManager(marketManager_)) {
+        ICentralRegistry cr,
+        address mm,
+        address wNative
+    ) PluginDelegable(cr) {
+        // Validate that `mm` is configured as a Market Manager inside the
+        // Protocol Central Registry.
+        if (!cr.isMarketManager(mm)) {
             revert BasePositionManager__InvalidMarketManager();
         }
 
-        marketManager = IMarketManager(marketManager_);
-        wrappedNative = wrappedNative_;
+        marketManager = IMarketManager(mm);
+        wrappedNative = wNative;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -228,7 +222,6 @@ abstract contract BasePositionManager is
         uint256 slippage
     ) external checkSlippage(account, slippage) nonReentrant {
         _checkDelegate(account, msg.sender);
-
         _leverage(action, account);
     }
 
@@ -248,9 +241,9 @@ abstract contract BasePositionManager is
     ///                                will have its debt paid.
     ///               repayAssets The amount of `borrowableCToken` asset that
     ///                           will be repaid to lenders.
-    ///               swapAction Swap actions instructions converting
-    ///                          collateral asset into debt asset to
-    ///                          facilitate deleveraging.
+    ///               swapActions Swap actions instructions converting
+    ///                           collateral asset into debt asset to
+    ///                           facilitate deleveraging.
     ///               auxData Optional auxiliary data for execution of a
     ///                       deleverage action.
     /// @param slippage Slippage accepted by the user for execution of
@@ -275,9 +268,9 @@ abstract contract BasePositionManager is
     ///                                will have its debt paid.
     ///               repayAssets The amount of `borrowableCToken` asset that
     ///                           will be repaid to lenders.
-    ///               swapAction Swap actions instructions converting
-    ///                          collateral asset into debt asset to
-    ///                          facilitate deleveraging.
+    ///               swapActions Swap actions instructions converting
+    ///                           collateral asset into debt asset to
+    ///                           facilitate deleveraging.
     ///               auxData Optional auxiliary data for execution of a
     ///                       deleverage action.
     /// @param account The account to deleverage an active Curvance position
@@ -290,7 +283,6 @@ abstract contract BasePositionManager is
         uint256 slippage
     ) external checkSlippage(account, slippage) nonReentrant {
         _checkDelegate(account, msg.sender);
-
         _deleverage(action, account);
     }
 
@@ -299,7 +291,7 @@ abstract contract BasePositionManager is
     ///         new collateralized shares for `owner`.
     /// @dev Measures slippage after this callback validating that `owner`
     ///      is still within acceptable liquidity requirements.
-    /// @param borrowableCToken The borrow token borrowed from.
+    /// @param borrowableCToken The borrowable token borrowed from.
     /// @param borrowAssets The amount of `borrowableCToken`'s asset borrowed.
     /// @param owner The account borrowing that will be swapped into
     ///              collateral assets deposited into Curvance.
@@ -323,23 +315,14 @@ abstract contract BasePositionManager is
         LeverageAction memory action
     ) external override {
         address debtAsset = IBorrowableCToken(borrowableCToken).asset();
-
         // Take protocol fee, if any.
-        uint256 fee = _getFee(
+        action.borrowAssets = _validateInputsAndApplyFee(
             borrowableCToken,
             borrowAssets,
             address(action.borrowableCToken),
             action.borrowAssets,
             debtAsset
         );
-        if (fee > 0) {
-            action.borrowAssets -= fee;
-            SafeTransferLib.safeTransfer(
-                debtAsset,
-                centralRegistry.daoAddress(),
-                fee
-            );
-        }
 
         // We do not need to check whether cToken is listed
         // or not as even if they found a way to input a malicious
@@ -395,9 +378,9 @@ abstract contract BasePositionManager is
     ///                                will have its debt paid.
     ///               repayAssets The amount of `borrowableCToken` asset that
     ///                           will be repaid to lenders.
-    ///               swapAction Swap actions instructions converting
-    ///                          collateral asset into debt asset to
-    ///                          facilitate deleveraging.
+    ///               swapActions Swap actions instructions converting
+    ///                           collateral asset into debt asset to
+    ///                           facilitate deleveraging.
     ///               auxData Optional auxiliary data for execution of a
     ///                       deleverage action.
     function onRedeem(
@@ -406,24 +389,15 @@ abstract contract BasePositionManager is
         address owner,
         DeleverageAction memory action
     ) external override {
-        // Take protocol fee, if any.
         address collateralAsset = ICToken(cToken).asset();
-        uint256 fee = _getFee(
+        // Take protocol fee, if any.
+        action.collateralAssets = _validateInputsAndApplyFee(
             cToken,
             collateralAssets,
             address(action.cToken),
             action.collateralAssets,
             collateralAsset
         );
-
-        if (fee > 0) {
-            action.collateralAssets -= fee;
-            SafeTransferLib.safeTransfer(
-                collateralAsset,
-                centralRegistry.daoAddress(),
-                fee
-            );
-        }
 
         _swapCollateralAssetToDebtAsset(action);
 
@@ -490,62 +464,92 @@ abstract contract BasePositionManager is
 
     /// @notice Calculates the maximum amount of `borrowableCToken` `account`
     ///         can borrow for maximum leverage.
-    /// @dev Applies a minor dampening effect to calculated maximum leverage
-    ///      via `MAX_LEVERAGE`.
-    /// @param account The account to query maximum borrow amount for.
+    /// @dev NOTE: This can overestimate maximum executeable leverage when
+    ///            swapping due to AMM fees and slippage.
+    /// @param account The account to calculate the maximum amount of
+    ///                `borrowableCToken` that can be borrowed for maximum
+    ///                leverage.
     /// @param borrowableCToken The token that `account` will borrow assets
     ///                         from to achieve leverage.
-    /// @return result The maximum remaining borrow amount allowed from
+    /// @return result The maximum remaining debt amount allowed from
     ///                `borrowableCToken`, measured in debt assets.
     function maxRemainingLeverageOf(
         address account,
         address borrowableCToken
     ) public view returns (uint256 result) {
-        (
-            uint256 sumCollateral,
-            uint256 maxDebt,
-            uint256 sumDebt
-        ) = marketManager.statusOf(account);
+        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
+            marketManager.statusOf(account);
 
-        result = _maxRemainingLeverageOf(
+        (uint256 price, uint256 errorCode) =
+            CommonLib._oracleManager(centralRegistry)
+                .getPrice(address(borrowableCToken), true, false);
+
+        // Validate we got a price for `borrowableCToken`.
+        if (errorCode != 0) {
+            revert BasePositionManager__InvalidTokenPrice();
+        }
+
+        // We can calculate terminal leverage by calculating the infinite
+        // series of swapping to maximum LTV over and over, which results
+        // in the equation 1 / (1 - LTV).
+        //
+        // For example, 80% LTV will result in terminal maximum leverage of:
+        // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
+        // The equation below is equal to this equation,
+        // just extrapolated for an account's collateral vs debt.
+        /// NOTE: This can overestimate maximum executeable leverage when
+        ///       swapping due to AMM fees and slippage.
+        uint256 maxLeverage = _mulDiv(
+            maxDebt - sumDebt,
             sumCollateral,
-            maxDebt,
-            sumDebt,
-            borrowableCToken
+            sumCollateral - maxDebt
+        );
+
+        result = _mulDiv(
+            _mulDiv(maxLeverage, WAD, price),
+            10 ** IERC20(borrowableCToken).decimals(),
+            WAD
         );
     }
 
     /// @inheritdoc ERC165
     function supportsInterface(
         bytes4 interfaceId
-    ) public view override returns (bool) {
-        return
-            interfaceId == type(IPositionManager).interfaceId ||
+    ) public view override returns (bool result) {
+        result = interfaceId == type(IPositionManager).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Validate action parameters versus function parameters and
-    ///         calculate protocol fee.
-    function _getFee(
+    /// @notice Validate `action` parameters versus function parameters and
+    ///         apply any protocol fee.
+    /// @param cToken The Curvance token given from function parameters,
+    ///               should be token used during the callback action.
+    /// @param assets The amount of `cTokenUnderlying` given from function
+    ///               parameters to be used during the callback action.
+    /// @param actionToken The Curvance token given from `action` parameters,
+    ///                    should be token used during the callback action.
+    /// @param actionAssets The amount of `cTokenUnderlying` given from
+    ///                     `action` parameters to be used during the callback
+    ///                     action.
+    /// @param cTokenUnderlying The `asset()` token of `cToken`.
+    /// @return The `cTokenUnderlying` assets for callback action potentially
+    ///         with fee applied.
+    function _validateInputsAndApplyFee(
         address cToken,
         uint256 assets,
         address actionToken,
         uint256 actionAssets,
-        address collateralAsset
-    ) internal view returns (uint256 result) {
-        // Validate that the token itself is executing the callback.
-        if (msg.sender != cToken) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+        address cTokenUnderlying
+    ) internal returns (uint256) {
+        // Validate that the token itself is executing the callback and
+        // `cToken` is actually listed in this Market Manager.
+        if (msg.sender != cToken || !marketManager.isListed(cToken)) {
+            revert BasePositionManager__Unauthorized();
         }
 
-        // Validate `cToken` is actually listed in this Market Manager.
-        if (!marketManager.isListed(cToken)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        if (IERC20(collateralAsset).balanceOf(address(this)) < assets) {
+        if (IERC20(cTokenUnderlying).balanceOf(address(this)) < assets) {
             revert BasePositionManager__InvalidAmount();
         }
 
@@ -554,11 +558,25 @@ abstract contract BasePositionManager is
         }
 
         // Fee is rounded up in favor of protocol.
-        result = FixedPointMathLib.mulDivUp(
-            assets,
+        uint256 fee = FixedPointMathLib.mulDivUp(
+            actionAssets,
             centralRegistry.protocolLeverageFee(),
             WAD
         );
+
+        // Apply protocol fee, if any to apply.
+        if (fee > 0) {
+            actionAssets -= fee;
+            SafeTransferLib.safeTransfer(
+                cTokenUnderlying,
+                centralRegistry.daoAddress(),
+                fee
+            );
+        }
+
+        // Return `cTokenUnderlying` assets for callback action potentially
+        // with fee applied.
+        return actionAssets;
     }
 
     /// @notice Leverages an active Curvance position in favor of increasing
@@ -612,9 +630,9 @@ abstract contract BasePositionManager is
     ///                                will have its debt paid.
     ///               repayAssets The amount of `borrowableCToken` asset that
     ///                           will be repaid to lenders.
-    ///               swapAction Swap actions instructions converting
-    ///                          collateral asset into debt asset to
-    ///                          facilitate deleveraging.
+    ///               swapActions Swap actions instructions converting
+    ///                           collateral asset into debt asset to
+    ///                            facilitate deleveraging.
     ///               auxData Optional auxiliary data for execution of a
     ///                       deleverage action.
     /// @param account The account to deleverage an active Curvance position
@@ -627,57 +645,6 @@ abstract contract BasePositionManager is
             action.collateralAssets,
             account,
             action
-        );
-    }
-
-    /// @notice Calculates the maximum amount of `borrowableCToken` assets
-    ///         `account` can borrow for maximum leverage.
-    /// @dev Applies a minor dampening effect to calculated maximum leverage
-    ///      via `MAX_LEVERAGE`.
-    /// @param sumCollateral Current total collateral amount of the account.
-    /// @param maxDebt Max allowed debt amount of account.
-    /// @param sumDebt Current outstanding debt amount of the account.
-    /// @param borrowableCToken The token that `account` will borrow from
-    ///                         to achieve leverage.
-    /// @return result The maximum remaining debt amount allowed from
-    ///                `borrowableCToken`, measured in debt assets.
-    function _maxRemainingLeverageOf(
-        uint256 sumCollateral,
-        uint256 maxDebt,
-        uint256 sumDebt,
-        address borrowableCToken
-    ) internal view returns (uint256 result) {
-        // We can calculate terminal leverage by calculating the infinite
-        // series of swapping to maximum LTV over and over, which results
-        // in the equation 1 / (1 - LTV).
-        //
-        // For example, 80% LTV will result in terminal maximum leverage of:
-        // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
-        // The equation below is equal to this equation,
-        // just extrapolated for an account's collateral vs debt.
-        //
-        // We also embed a `MAX_LEVERAGE` dampening effect to minimize
-        // transaction failure from imperfect execution due to things
-        // such as price fluctuations, and AMM fees.
-        uint256 maxLeverage = _mulDiv(
-            maxDebt - sumDebt,
-            sumCollateral * MAX_LEVERAGE,
-            sumCollateral - maxDebt
-        ) / WAD;
-
-        (uint256 price, uint256 errorCode) = IOracleManager(
-            ICentralRegistry(centralRegistry).oracleManager()
-        ).getPrice(address(borrowableCToken), true, false);
-
-        // Validate we got a price for `borrowableCToken`.
-        if (errorCode != 0) {
-            revert BasePositionManager__InvalidTokenPrice();
-        }
-
-        result = _mulDiv(
-            _mulDiv(maxLeverage, WAD, price),
-            10 ** IERC20(borrowableCToken).decimals(),
-            WAD
         );
     }
 
@@ -712,15 +679,6 @@ abstract contract BasePositionManager is
         z = FixedPointMathLib.mulDiv(x, y, d);
     }
 
-    /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x00, s)
-            revert(0x1c, 0x04)
-        }
-    }
-
     /// @notice Returns the Central Registry contract in interface form.
     function _getCentralRegistry()
         internal
@@ -740,7 +698,7 @@ abstract contract BasePositionManager is
     ///         creating/increasing a leveraged spot position.
     /// @dev MUST be overridden in every Position Manager implementation.
     function _swapDebtAssetToCollateralAsset(
-        LeverageAction memory action,
+        LeverageAction memory, /* action */
         address /* receiver */
     ) internal virtual;
 
@@ -751,6 +709,6 @@ abstract contract BasePositionManager is
     ///         a leveraged spot position.
     /// @dev MUST be overridden in every Position Manager implementation.
     function _swapCollateralAssetToDebtAsset(
-        DeleverageAction memory action
+        DeleverageAction memory /* action */
     ) internal virtual;
 }

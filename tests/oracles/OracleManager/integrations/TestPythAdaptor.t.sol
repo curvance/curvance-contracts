@@ -23,22 +23,14 @@ contract TestPythAdaptor is TestBaseOracleManager {
         _deployOracleManager();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            .1e18,
-            0,
-            30 days,
-            7 days
+            ICentralRegistry(address(centralRegistry))
         );
 
         adaptor = new PythAdaptor(
             ICentralRegistry(address(centralRegistry)),
             address(0),
             _PYTH_ADDRESS,
-            _WETH_ADDRESS,
-            .1e18,
-            0,
-            30 days,
-            7 days
+            _WETH_ADDRESS
         );
 
         PythAdaptor.AssetConfig memory data;

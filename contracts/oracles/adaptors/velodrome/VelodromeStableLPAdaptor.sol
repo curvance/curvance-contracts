@@ -5,25 +5,12 @@ import { BaseStableLPAdaptor } from "contracts/oracles/adaptors/stableswapBase/B
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
-import { PricingResult } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract VelodromeStableLPAdaptor is BaseStableLPAdaptor {
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of central registry.
-    constructor(
-        ICentralRegistry centralRegistry_,
-        uint256 MAXIMUM_INCREASE_PER_YEAR,
-        uint256 MINIMUM_INCREASE_PER_YEAR,
-        uint256 MAXIMUM_TIMESTAMP_BUFFER,
-        uint256 MINIMUM_TIMESTAMP_BUFFER
-    ) BaseStableLPAdaptor(
-        centralRegistry_,
-        MAXIMUM_INCREASE_PER_YEAR,
-        MINIMUM_INCREASE_PER_YEAR,
-        MAXIMUM_TIMESTAMP_BUFFER,
-        MINIMUM_TIMESTAMP_BUFFER
-    ) {}
+    /// @param cr The address of central registry.
+    constructor(ICentralRegistry cr) BaseStableLPAdaptor(cr) {}
 
     /// EXTERNAL FUNCTIONS ///
 

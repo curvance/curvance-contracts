@@ -4,17 +4,6 @@ pragma solidity ^0.8.26;
 import { BaseCToken, FixedPointMathLib, WAD, IERC20, ICentralRegistry } from "contracts/market/token/BaseCToken.sol";
 
 abstract contract BaseCTokenWithYield is BaseCToken {
-    /// TYPES ///
-
-    /// @notice Storage configuration for pending vesting update.
-    /// @param updateNeeded Whether there is a pending update to vault
-    ///                     vesting schedule.
-    /// @param newVestingPeriod The pending new compounding vesting schedule.
-    struct NewVestingData {
-        bool updateNeeded;
-        uint248 newVestingPeriod;
-    }
-
     /// CONSTANTS ///
 
     /// @notice The maximum length of time between vesting periods.
@@ -25,9 +14,6 @@ abstract contract BaseCTokenWithYield is BaseCToken {
     /// @notice The period of time harvested rewards are vested over,
     ///         in seconds.
     uint256 public vestingPeriod;
-    /// @notice Whether there is a pending update to vesting period,
-    ///         after this vesting period ends.
-    NewVestingData public pendingVestingPeriodUpdate;
 
     /// @dev Internal packed vesting data:
     ///      StrategyCToken Bits Layout:
@@ -48,73 +34,37 @@ abstract contract BaseCTokenWithYield is BaseCToken {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param cr The address of the Protocol Central Registry.
     /// @param asset_ The address of the underlying asset for this cToken.
-    /// @param marketManager_ The address of the MarketManager which manages
-    ///                       liquidity positions between linked cTokens
-    ///                       inside a joint market.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
     /// @param vestingPeriod_ The length of time a vesting period will last,
     ///                       in seconds.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         IERC20 asset_,
-        address marketManager_,
+        address mm,
         uint256 vestingPeriod_
-    ) BaseCToken(centralRegistry_, asset_, marketManager_) {
-        if (
-            vestingPeriod_ > _MAXIMUM_VESTING_PERIOD &&
-            vestingPeriod_ != 0
-            ) {
-            revert BaseCTokenWithYield__InvalidVestingPeriod();
-        }
-        
+    ) BaseCToken(cr, asset_, mm) {
+        _checkVestingPeriod(vestingPeriod_);
         vestingPeriod = vestingPeriod_;
-    }
-
-    /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Permissioned function to set a new compounding vesting period.
-    /// @dev Requires dao authority, `newVestingPeriod` cannot be longer
-    ///      than a week (7 days).
-    /// @param newVestingPeriod New vesting period, in seconds.
-    function setVestingPeriod(uint256 newVestingPeriod) external {
-        _checkDaoPermissions();
-
-        if (
-            newVestingPeriod > _MAXIMUM_VESTING_PERIOD &&
-            newVestingPeriod != 0
-            ) {
-            revert BaseCTokenWithYield__InvalidVestingPeriod();
-        }
-
-        pendingVestingPeriodUpdate.updateNeeded = true;
-        pendingVestingPeriodUpdate.newVestingPeriod = uint248(
-            newVestingPeriod
-        );
     }
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Returns the total amount of the underlying asset in the vault,
-    ///         including pending rewards that are vested.
-    /// @return result The total number of underlying assets.
-    function _getTotalAssets() internal view override returns (
-        uint256 result
-    ) {
-        result = _totalAssets + _getPendingYield();
+    /// @notice Validates whether `newPeriod` is a valid value for
+    ///         `vestingPeriod`.
+    function _checkVestingPeriod(uint256 newPeriod) internal pure {
+         if (newPeriod > _MAXIMUM_VESTING_PERIOD && newPeriod != 0) {
+            revert BaseCTokenWithYield__InvalidVestingPeriod();
+        }
     }
 
-    /// @notice Updates the vesting period, if needed.
-    /// @dev If there a pending vesting update,
-    ///      and prior vest is done then `vestingPeriod` is updated.
-    function _updateVestingPeriodIfNeeded() internal {
-        // Check whether there is a pending update to reward vesting schedule.
-        if (pendingVestingPeriodUpdate.updateNeeded) {
-            // Update vesting period.
-            vestingPeriod = pendingVestingPeriodUpdate.newVestingPeriod;
-            // Remove pending vesting update flag.
-            delete pendingVestingPeriodUpdate.updateNeeded;
-        }
+    /// @notice Returns the total amount of the underlying asset in the vault,
+    ///         including pending rewards that are vested.
+    /// @return r The total number of underlying assets.
+    function _getTotalAssets() internal view override returns (uint256 r) {
+        r = _totalAssets + _getPendingYield();
     }
 
     /// @notice Calculates pending yield that have been vested.
@@ -125,10 +75,5 @@ abstract contract BaseCTokenWithYield is BaseCToken {
 
     /// @notice Returns whether the current vesting period has ended,
     ///         based on the last vest timestamp.
-    /// @param packedVestingData Current packed vault data value.
-    /// @return result Boolean value indicating whether the current
-    ///                vesting period has ended or not.
-    function _checkVestingFinished(
-        uint256 packedVestingData
-    ) internal pure virtual returns (bool result) {}
+    function _checkVestingFinished(uint256) internal pure virtual returns (bool) {}
 }

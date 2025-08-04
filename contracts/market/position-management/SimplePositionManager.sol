@@ -6,17 +6,15 @@ import { BasePositionManager, SwapperLib, ICentralRegistry } from "contracts/mar
 contract SimplePositionManager is BasePositionManager {
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
+    /// @param wNative The address of wrapped native token.
     constructor(
-        ICentralRegistry centralRegistry_,
-        address marketManager_,
-        address wrappedNative_
-    )
-        BasePositionManager(
-            centralRegistry_,
-            marketManager_,
-            wrappedNative_
-        )
-    {}
+        ICentralRegistry cr,
+        address mm,
+        address wNative
+    ) BasePositionManager(cr, mm, wNative) {}
 
     /// @notice Callback function on borrowing tokens from an borrowableCToken
     ///         contract providing instant liquidity in the borrowableCToken
@@ -49,11 +47,8 @@ contract SimplePositionManager is BasePositionManager {
             return;
         }
 
-        if (swapAction.call.length == 0) {
-            revert BasePositionManager__InvalidParam();
-        }
-
         if (
+            swapAction.call.length == 0 ||
             swapAction.target == address(0) ||
             swapAction.inputToken != debtAsset ||
             swapAction.outputToken != collateralAsset ||
@@ -80,15 +75,17 @@ contract SimplePositionManager is BasePositionManager {
     ///                                will have its debt paid.
     ///               repayAssets The amount of `borrowableCToken` asset that
     ///                           will be repaid to lenders.
-    ///               swapAction Swap actions instructions converting
-    ///                          collateral asset into debt asset to
-    ///                          facilitate deleveraging.
+    ///               swapActions Swap actions instructions converting
+    ///                           collateral asset into debt asset to
+    ///                           facilitate deleveraging.
     ///               auxData Optional auxiliary data for execution of a
     ///                       deleverage action.
     function _swapCollateralAssetToDebtAsset(
         DeleverageAction memory action
     ) internal virtual override {
         SwapperLib.Swap[] memory swapActions = action.swapActions;
+        
+        // For simple actions there should only ever be one swap.
         if (swapActions.length != 1) {
             revert BasePositionManager__InvalidParam();
         }
@@ -101,11 +98,8 @@ contract SimplePositionManager is BasePositionManager {
             return;
         }
 
-        if (swapAction.call.length == 0) {
-            revert BasePositionManager__InvalidParam();
-        }
-
         if (
+            swapAction.call.length == 0 ||
             swapAction.target == address(0) ||
             swapAction.inputToken != collateralAsset ||
             swapAction.outputToken != debtAsset ||

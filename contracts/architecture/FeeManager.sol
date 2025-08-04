@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
@@ -73,7 +74,6 @@ contract FeeManager is ReentrancyGuard {
     /// ERRORS ///
 
     error FeeManager__Unauthorized();
-    error FeeManager__InvalidCentralRegistry();
     error FeeManager__SwapActionsAndTokenLengthMismatch(
         uint256 numSwapActions,
         uint256 numTokens
@@ -102,17 +102,9 @@ contract FeeManager is ReentrancyGuard {
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert FeeManager__InvalidCentralRegistry();
-        }
-
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -223,16 +215,14 @@ contract FeeManager is ReentrancyGuard {
         }
 
         // Cache router to save gas.
-        IOracleManager oracleManager = IOracleManager(
-            centralRegistry.oracleManager()
-        );
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
 
         address feeToken = _getFeeToken();
 
-        (uint256 OTCTokenPrice, uint256 errorCodeSwap) = oracleManager
-            .getPrice(tokenToOTC, true, true);
-        (uint256 feeTokenPrice, uint256 errorCodeFeeToken) = oracleManager
-            .getPrice(feeToken, true, true);
+        (uint256 OTCTokenPrice, uint256 errorCodeSwap) =
+            om.getPrice(tokenToOTC, true, true);
+        (uint256 feeTokenPrice, uint256 errorCodeFeeToken) =
+            om.getPrice(feeToken, true, true);
 
         // Validate we have fresh, functional prices.
         if (errorCodeFeeToken == 2 || errorCodeSwap == 2) {
@@ -491,12 +481,6 @@ contract FeeManager is ReentrancyGuard {
     }
 
     /// PUBLIC FUNCTIONS ///
-
-    /// @notice Fetches the current Oracle Manager from the central registry.
-    /// @return Current OracleManager interface address.
-    function getOracleManager() public view returns (IOracleManager) {
-        return IOracleManager(centralRegistry.oracleManager());
-    }
 
     /// @notice Vault compound fee represented in basis point form (100 = 1%).
     /// @dev Returns the vaults current amount of yield used
