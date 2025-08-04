@@ -7,6 +7,8 @@ import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 
 import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/ConstantsLib.sol";
 
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
@@ -36,6 +38,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
     uint256 constant INITIAL_DEPOSIT = 200000e18;
     uint256 constant BORROW_AMOUNT_BELOW_VERTEX = 40_000e18; // 20% utilization
     uint256 constant BORROW_AMOUNT_ABOVE_VERTEX = 160_000e18; // 80% utilization
+    uint256 constant BORROW_AMOUNT_JUST_UNDER_CAP = 199_900e18; // 99.95% utilization
     uint256 public constant INTEREST_ACCRUAL_PERIOD = 10 minutes;
     
     function setUp() public virtual override {
@@ -66,9 +69,12 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, INITIAL_DEPOSIT - 100e18);
+
         vm.startPrank(liquidityProvider);
+
         dai.approve(address(borrowableCDAI), INITIAL_DEPOSIT - 100e18);
         borrowableCDAI.deposit(INITIAL_DEPOSIT - 100e18, liquidityProvider);
+
         vm.stopPrank();
     }
 
@@ -231,7 +237,6 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
             ,
             ,
             ,
-
         ) = interestRateModel.ratesConfig();
         uint256 vertexMultiplier = interestRateModel.vertexMultiplier();
         uint256 baseComponent = (vertexPoint * baseInterestRate) / WAD;
@@ -271,7 +276,6 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
             ,
             ,
             ,
-
         ) = interestRateModel.ratesConfig();
 
         // Borrow enough to push utilization above increaseThreshold
@@ -299,6 +303,8 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
             initialMultiplier,
             "Vertex multiplier should increase"
         );
+
+        vm.stopPrank();
     }
 
     function testVertexMultiplierDecreaseBelowThreshold() public {
@@ -326,8 +332,8 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
             ,
             ,
             ,
-            uint256 decreaseThreshold,
-
+            uint256 decreaseThreshold
+            ,
         ) = interestRateModel.ratesConfig();
 
         // Move time forward to trigger multiplier update
@@ -359,7 +365,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testVertexMultiplierMaximumCap() public {
+    function testVertexMultiplierUnderMaximumCap() public {
         vm.startPrank(user);
 
         // Set up collateral for borrowing
@@ -378,7 +384,6 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
             ,
             ,
             ,
-
         ) = interestRateModel.ratesConfig();
 
         // Borrow to push utilization very high
@@ -391,16 +396,62 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         }
 
         uint256 finalMultiplier = interestRateModel.vertexMultiplier();
+        assertGt(
+                vertexMultiplier(),
+                WAD,
+                "Multiplier should be above base WAD"
+            );
         assertLe(
             finalMultiplier,
             vertexMultiplierMax,
             "Multiplier should not exceed maximum"
         );
+
         vm.stopPrank();
     }
 
-    function testVertexMultiplierMinimumFloor() public {
-        // First increase the multiplier
+    function testVertexMultiplierMaximumCapHit() public {
+        vm.startPrank(user);
+
+        // Set up collateral for borrowing
+        _prepareUSDC(user, 2000000e6);
+        usdc.approve(address(simpleCUSDC), 2000000e6);
+        simpleCUSDC.depositAsCollateral(2000000e6, user);
+
+        (
+            ,
+            ,
+            ,
+            uint256 adjustmentRate,
+            ,
+            uint256 vertexMultiplierMax,
+            ,
+            ,
+            ,
+            ,
+        ) = interestRateModel.ratesConfig();
+
+        // Borrow to push utilization extremely high.
+        borrowableCDAI.borrow(BORROW_AMOUNT_JUST_UNDER_CAP, user);
+
+        // Move time forward multiple periods to allow multiplier to increase.
+        for (uint256 i = 0; i < 500; i++) {
+            vm.warp(block.timestamp + adjustmentRate);
+            borrowableCDAI.accrueIfNeeded();
+        }
+
+        uint256 finalMultiplier = interestRateModel.vertexMultiplier();
+        assertEq(
+            finalMultiplier,
+            vertexMultiplierMax,
+            "Multiplier should be equal to vertexMultiplierMax"
+        );
+
+        vm.stopPrank();
+    }
+
+    function testVertexMultiplierMinimumFloorHit() public {
+        // First increase the multiplier.
         testVertexMultiplierIncreaseAboveThreshold();
 
         vm.startPrank(user);
@@ -410,22 +461,83 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         dai.approve(address(borrowableCDAI), currentDebt);
         borrowableCDAI.repay(currentDebt);
 
-        // Move time forward several adjustment periods
-        uint256 adjustmentPeriods = 10;
         (, , , uint256 adjustmentRate, , , , , , , ) = interestRateModel
             .ratesConfig();
 
+        // Move time forward several adjustment periods
+        uint256 adjustmentPeriods = 100;
         for (uint256 i = 0; i < adjustmentPeriods; i++) {
             vm.warp(block.timestamp + adjustmentRate);
             borrowableCDAI.accrueIfNeeded();
         }
 
-        uint256 finalMultiplier = interestRateModel.vertexMultiplier();
-        assertGe(
-            finalMultiplier,
+        assertEq(
+            interestRateModel.vertexMultiplier(),
             WAD,
-            "Multiplier should not fall below 1 WAD"
+            "Multiplier should be at floor of 1 WAD"
         );
+
+        vm.stopPrank();
+    }
+
+    function testOnlyDecayRateApplied() public {
+        vm.startPrank(user);
+
+        // Set up collateral for borrowing.
+        _prepareUSDC(user, 2000000e6);
+        usdc.approve(address(simpleCUSDC), 2000000e6);
+        simpleCUSDC.depositAsCollateral(2000000e6, user);
+
+        (
+            ,
+            ,
+            ,
+            uint256 adjustmentRate,
+            ,
+            uint256 vertexMultiplierMax,
+            ,
+            ,
+            ,
+            ,
+        ) = interestRateModel.ratesConfig();
+
+        // Borrow to push utilization very high.
+        borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX, user);
+
+        // Move time forward multiple periods to allow multiplier to increase.
+        uint256 adjustmentPeriods = 20;
+        for (uint256 i = 0; i < adjustmentPeriods; i++) {
+            vm.warp(block.timestamp + adjustmentRate);
+            borrowableCDAI.accrueIfNeeded();
+        }
+
+        // This should push utilization to ~60% or so.
+        borrowableCDAI.repay(BORROW_AMOUNT_BELOW_VERTEX);
+
+        // Decay Rate is configured as 1% in this test.
+        uint256 decayRate = 1e16;
+        uint256 currentMultiplier;
+
+        // Loop through multiple periods making sure only decay applies.
+        adjustmentPeriods = 10;
+        for (uint256 i = 0; i < adjustmentPeriods; i++) {
+            currentMultiplier = vertexMultiplier();
+            uint256 decay = FixedPointMathLib.mulDiv(
+                currentMultiplier,
+                decayRate,
+                WAD
+            );
+
+            vm.warp(block.timestamp + adjustmentRate);
+            borrowableCDAI.accrueIfNeeded();
+
+            // New vertexMultiplier should decrease by exactly decay if 
+            assertEq(
+                vertexMultiplier(),
+                currentMultiplier - decay,
+                "New vertexMultiplier should decrease by exactly decay."
+            );
+        }
 
         vm.stopPrank();
     }
