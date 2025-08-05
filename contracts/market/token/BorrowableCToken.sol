@@ -716,7 +716,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @dev May emit a {InterestAccrualUpdate} event.
     function _accrueIfNeeded() internal override {
         uint256 vestingData = _vestingData;
-        uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_VEST_END);
+        uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
 
         // If no time has passed since the last accrual can exit immediately.
         if (block.timestamp == lastVestingClaim) {
@@ -724,7 +724,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         }
 
         uint256 rate = uint96(vestingData);
-        uint256 vestingPeriodEnd = uint40(vestingData >> _BITPOS_LAST_VEST);
+        uint256 vestingPeriodEnd = uint40(vestingData >> _BITPOS_VEST_END);
         uint256 marketDebtIndex = uint80(vestingData >> _BITPOS_DEBT_INDEX);
         uint256 outstandingDebt = marketOutstandingDebt;
         uint256 cachedTa = _totalAssets;

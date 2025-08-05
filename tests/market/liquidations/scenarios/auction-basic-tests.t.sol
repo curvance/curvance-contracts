@@ -3,6 +3,8 @@ pragma solidity ^0.8.26;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
+
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 
 import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidations.sol";
@@ -61,7 +63,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
         vm.stopPrank();
 
-        (, cTokenPrice, ) = marketManagerIsolated.liquidationStatusOf(
+        (, uint256 cTokenPrice, ) = marketManagerIsolated.liquidationStatusOf(
             user1,
             address(strategyCBALRETH),
             address(borrowableCUSDC)
@@ -213,6 +215,43 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
         uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
         assertEq(liquidatorUSDCBalance, debtBalance - closeBalance);
+    }
+
+    function _calculateExpectedLiquidatedTokensWithDefaultPenalty() internal view returns (uint256) {
+        uint256 WAD = 1e18;
+        uint256 WAD_SQUARED = 1e36;
+
+        uint256 debtTokenPrice = 2e18; 
+        uint256 cTokenPrice;
+        uint256 exchangeRate = strategyCBALRETH.exchangeRate();
+
+        (, cTokenPrice, ) = marketManagerIsolated.liquidationStatusOf(
+            user1,
+            address(strategyCBALRETH),
+            address(borrowableCUSDC)
+        );
+
+        (uint256 lFactor,,) = marketManagerIsolated.liquidationStatusOf(
+            user1,
+            address(strategyCBALRETH),
+            address(borrowableCUSDC)
+        );
+
+        uint256 liqBaseIncentive = 1.1e18;
+        uint256 liqCurve = 5e16;
+
+        uint256 incentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
+
+        uint256 collateralDecimals = 10**18;
+        uint256 debtDecimals = 10**6;
+        uint256 debtAmount = 250e6;
+
+        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_SQUARED) /
+            (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
+
+        uint256 collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
+
+        return collateralLiquidated;
     }
 
     function _calculateExpectedLiquidatedTokens(uint256 incentive) internal view returns (uint256) {
