@@ -113,19 +113,19 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
         emit HarvestingPaused(state);
     }
 
-    /// @notice Returns the current cToken yield status information.
-    /// @return vestingRate Yield per second in `asset()`.
-    /// @return vestingPeriodEnd When the current vesting period ends and
-    ///                          a new harvest can execute.
+    /// @notice Returns the current vesting yield information.
+    /// @return vestingRate % per second in `asset()`.
+    /// @return vestingEnd When the current vesting period ends and a new
+    ///                    harvest can execute.
     /// @return lastVestingClaim Last time pending vested yield was claimed.
-    function getVestingYieldData() external view nonReadReentrant returns (
+    function getYieldInformation() external view nonReadReentrant returns (
         uint256 vestingRate,
-        uint256 vestingPeriodEnd,
+        uint256 vestingEnd,
         uint256 lastVestingClaim
     ) {
         uint256 vestingData = _vestingData;
         vestingRate = uint176(vestingData);
-        vestingPeriodEnd = uint40(vestingData >> _BITPOS_VEST_END);
+        vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
         lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
     }
 
@@ -169,26 +169,25 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     /// @return assets The calculated pending assets to vest.
     function _assetsToVest(
         uint256 vestingRate,
-        uint256 vestingPeriodEnd,
+        uint256 vestingEnd,
         uint256 lastVestingClaim
     ) internal view returns (uint256 assets) {
         // Check whether there are pending yield vesting.
-        if (vestingRate > 0 && lastVestingClaim < vestingPeriodEnd) {
+        if (vestingRate > 0 && lastVestingClaim < vestingEnd) {
             // When calculating pending yield:
             // assets =
             // If the vesting period has not ended:
             // PY = vestingRate * (block.timestamp - lastTimeVestClaimed).
             // If the vesting period has ended:
-            // PY = vestingRate * (vestingPeriodEnd - lastTimeVestClaimed)).
+            // PY = vestingRate * (vestingEnd - lastTimeVestClaimed)).
             // Then in either case:
             // Divide the pending yield by `WAD` (1e18) for precision.
             assets =
                 (
-                    block.timestamp < vestingPeriodEnd
+                    block.timestamp < vestingEnd
                         ? vestingRate * (block.timestamp - lastVestingClaim)
-                        : vestingRate * (vestingPeriodEnd - lastVestingClaim)
-                ) /
-                WAD;
+                        : vestingRate * (vestingEnd - lastVestingClaim)
+                ) / WAD;
         }
     }
 

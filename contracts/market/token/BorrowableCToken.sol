@@ -34,7 +34,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @dev Mask of all bits in `_vestingData` except the 80 bits
     ///      for a debt index value.
     uint256 internal constant _BITMASK_DEBT_INDEX_COMPLEMENT = (1 << 176) - 1;
-    /// @dev The bit position of `vestingPeriodEnd` in `_vestingData`.
+    /// @dev The bit position of `vestingEnd` in `_vestingData`.
     uint256 internal constant _BITPOS_VEST_END = 96;
     /// @dev The bit position of `lastVestingClaim` in `_vestingData`.
     uint256 internal constant _BITPOS_LAST_VEST = 136;
@@ -109,19 +109,20 @@ contract BorrowableCToken is BaseCTokenWithYield {
         emit NewInterestFee(0, newInterestFee);
     }
 
-    function getVestingData() external view returns(
-        uint256,
-        uint256,
-        uint256,
-        uint256
+    /// @notice Returns the current vesting yield information.
+    /// @return vestingRate % per second in `asset()`.
+    /// @return vestingEnd When the current vesting period ends and interest
+    ///                    rates paid will update.
+    /// @return lastVestingClaim Last time pending vested yield was claimed.
+    function getYieldInformation() external view nonReadReentrant returns (
+        uint256 vestingRate,
+        uint256 vestingEnd,
+        uint256 lastVestingClaim
     ) {
         uint256 vestingData = _vestingData;
-        return (
-            uint96(vestingData),
-            marketOutstandingDebt,
-            uint40(vestingData >> _BITPOS_VEST_END),
-            uint40(vestingData >> _BITPOS_LAST_VEST)
-        );
+        vestingRate = uint96(vestingData);
+        vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
+        lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
     }
 
     /// @notice Accrues pending interest and updates the interest rate
@@ -951,23 +952,23 @@ contract BorrowableCToken is BaseCTokenWithYield {
     function _assetsToVest(
         uint256 vestingRate,
         uint256 outstandingDebt,
-        uint256 vestingPeriodEnd,
+        uint256 vestingEnd,
         uint256 lastVestingClaim
     ) internal view returns (uint256 assets) {
-        // Check whether there are pending yield vesting.
-        if (vestingRate > 0 && lastVestingClaim < vestingPeriodEnd) {
+        // Check whether there are pending assets vesting.
+        if (vestingRate > 0 && lastVestingClaim < vestingEnd) {
             // When calculating pending yield:
             // assets =
             // If the vesting period has not ended:
             // PY = vestingRate * (block.timestamp - lastTimeVestClaimed).
             // If the vesting period has ended:
-            // PY = vestingRate * (vestingPeriodEnd - lastTimeVestClaimed)).
+            // PY = vestingRate * (vestingEnd - lastTimeVestClaimed)).
             // Then in either case:
             // Divide the pending yield by `WAD` (1e18) for precision.
             assets = _mulDiv(
-                block.timestamp < vestingPeriodEnd
+                block.timestamp < vestingEnd
                     ? vestingRate * (block.timestamp - lastVestingClaim)
-                    : vestingRate * (vestingPeriodEnd - lastVestingClaim),
+                    : vestingRate * (vestingEnd - lastVestingClaim),
                 outstandingDebt,
                 WAD
             );
