@@ -440,10 +440,22 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
             borrowableCDAI.accrueIfNeeded();
         }
 
+        // Multiplier should be at cap now.
         assertEq(
             interestRateModel.vertexMultiplier(),
             vertexMultiplierMax,
             "Multiplier should be equal to vertexMultiplierMax"
+        );
+
+        vm.warp(block.timestamp + adjustmentRate);
+        borrowableCDAI.accrueIfNeeded();
+
+        // Make sure multiplier is still at the cap even though it
+        // theoretically could warrant being raised more.
+        assertEq(
+            interestRateModel.vertexMultiplier(),
+            vertexMultiplierMax,
+            "Multiplier should be equal to vertexMultiplierMax still"
         );
 
         vm.stopPrank();

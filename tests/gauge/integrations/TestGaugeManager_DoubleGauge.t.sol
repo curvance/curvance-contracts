@@ -94,8 +94,6 @@ contract TestGaugeManager_DoubleGauge is TestBaseGaugeManager {
         vm.prank(users[0]);
         IBorrowableCToken(borrowableCDAIWithGauge).deposit(100 ether, users[0]);
 
-
-
         vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
 

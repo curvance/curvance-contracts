@@ -718,39 +718,39 @@ contract BorrowableCToken is BaseCTokenWithYield {
         uint256 vestingData = _vestingData;
         uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
 
-        // If no time has passed since the last accrual can exit immediately.
+        // If no time has passed since the last vest can exit immediately.
         if (block.timestamp == lastVestingClaim) {
             return;
         }
 
         uint256 rate = uint96(vestingData);
-        uint256 vestingPeriodEnd = uint40(vestingData >> _BITPOS_VEST_END);
+        uint256 vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
         uint256 marketDebtIndex = uint80(vestingData >> _BITPOS_DEBT_INDEX);
         uint256 outstandingDebt = marketOutstandingDebt;
         uint256 cachedTa = _totalAssets;
         uint256 assetsToVest = _assetsToVest(
             rate,
             outstandingDebt,
-            vestingPeriodEnd,
+            vestingEnd,
             lastVestingClaim
         );
 
-        // Update last claim timestamp, stopping at vesting end if vesting
-        // period is over.
-        lastVestingClaim = block.timestamp > vestingPeriodEnd
-            ? vestingPeriodEnd : block.timestamp;
+        // Update `lastVestingClaim`, stopping at vesting end if current
+        // vesting period is over.
+        lastVestingClaim = block.timestamp > vestingEnd ?
+            vestingEnd : block.timestamp;
 
         // Check if it is time to start a new vesting period.
-        if (block.timestamp >= vestingPeriodEnd) {
-            // Cache vesting period to save gas.
+        if (block.timestamp >= vestingEnd) {
+            // Cache `vestingPeriod` to save gas.
             uint256 accrualPeriod = vestingPeriod;
             
-            // Calculate the interest vesting cycles for new vesting period.
-            // The weird multiplication logic here is to round down to
-            // discrete vesting cycles.
-            accrualPeriod = (((block.timestamp - vestingPeriodEnd) /
+            // The multiplication logic here is to round down to
+            // discrete vesting periods, e.g. if block.timestamp is 3
+            // accrualPeriod's ahead then start vesting all of them for users.
+            accrualPeriod = (((block.timestamp - vestingEnd) /
                 accrualPeriod) * accrualPeriod) + accrualPeriod;
-            vestingPeriodEnd = vestingPeriodEnd + accrualPeriod; 
+            vestingEnd = vestingEnd + accrualPeriod; 
 
             // Calculate the new interest rate for borrowers, in seconds.
             rate = interestRateModel.getBorrowRateWithUpdate(
@@ -760,17 +760,18 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
             emit InterestAccrualUpdate(rate, accrualPeriod);
 
-            // Check if theres new yield to be vested from the new accrual period,
-            // which could happen if the previous vesting period ended and current
-            // block.timestamp extends into the new vesting period.
+            // Check if theres new yield to be vested from the new vesting
+            // period, which could happen if the previous vesting period ended
+            // and block.timestamp extends into the new vesting period.
             assetsToVest += _assetsToVest(
                 rate,
                 outstandingDebt,
-                vestingPeriodEnd,
+                vestingEnd,
                 lastVestingClaim
             );
         }
 
+        // Calculate any protocol fee on `assetsToVest`.
         uint256 protocolFee = FixedPointMathLib.mulDivUp(
             assetsToVest,
             interestFee,
@@ -814,13 +815,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // Mask `rate` to the lower 96 bits, in case
             // the upper bits somehow aren't clean.
             rate := and(rate, _BITMASK_VESTING_RATE)
-            // Equals rate | (vestingPeriodEnd << _BITPOS_VEST_END) |
+            // Equals rate | (vestingEnd << _BITPOS_VEST_END) |
             //        block.timestamp << _BITPOS_LAST_VEST | marketDebtIndex.
             vestingData := or(
                 rate,
                 or(
                     or(
-                        shl(_BITPOS_VEST_END, vestingPeriodEnd),
+                        shl(_BITPOS_VEST_END, vestingEnd),
                         shl(_BITPOS_LAST_VEST, timestamp())
                     ),
                     shl(_BITPOS_DEBT_INDEX, marketDebtIndex)
