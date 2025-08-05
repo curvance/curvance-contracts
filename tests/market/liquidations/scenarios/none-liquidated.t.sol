@@ -140,20 +140,6 @@ contract NoneLiquidated is TestBaseLiquidations {
         vm.stopPrank();
     }
 
-    function _getLFactorsPreLiquidation() internal view returns (uint256[] memory lFactors) {
-        lFactors = new uint256[](3);
-
-        for(uint i; i < 3; i++) {
-            (lFactors[i],,) = marketManagerIsolated.liquidationStatusOf(
-                borrowers[i],
-                address(strategyCBALRETH),
-                address(borrowableCUSDC)
-            );
-        }
-
-        return lFactors;
-    }
-
     function _getDebtBalancePreLiquidation() internal view returns (uint256[] memory debtBalances) {
         debtBalances = new uint256[](3);
         for(uint i; i < 3; i++) {

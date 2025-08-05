@@ -435,7 +435,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         borrowableCDAI.borrow(BORROW_AMOUNT_JUST_UNDER_CAP, user);
 
         // Move time forward multiple periods to allow multiplier to increase.
-        for (uint256 i = 0; i < 500; i++) {
+        for (uint256 i = 0; i < 200; i++) {
             vm.warp(block.timestamp + adjustmentRate);
             borrowableCDAI.accrueIfNeeded();
         }

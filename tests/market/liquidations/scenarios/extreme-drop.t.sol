@@ -7,7 +7,6 @@ import { console2 } from "forge-std/console2.sol";
 
 contract ExtremeDropTest is TestBaseLiquidations {
     
-
     function setUp() public override {
         super.setUp();
         
@@ -41,9 +40,6 @@ contract ExtremeDropTest is TestBaseLiquidations {
         usdc.approve(address(borrowableCUSDC), 100000e6);
 
         borrowableCUSDC.liquidate(borrowers, address(borrowableCDAI));
-        
-
-        
     }
 
     function _setUpMarketPreLiquidation() internal {

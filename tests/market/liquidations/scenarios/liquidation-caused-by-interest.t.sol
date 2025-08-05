@@ -76,7 +76,6 @@ contract TestLiquidationCausedByInterest is TestBaseLiquidations {
         } while (lFactor == 0);
         console2.log("lFactor", lFactor);
         console2.log("time", ((block.timestamp - timeBefore) / 1 days));
-
     }
 
 

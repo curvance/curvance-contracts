@@ -107,7 +107,6 @@ contract MixedAuction is TestBaseLiquidations {
     }
 
     function test_fail_auctionLiquidationBlocksRegularLiquidation_sameTx() public {
-
         _prepareUSDC(dappControlUser, 100000e6);
         _prepareUSDC(address(this), 100000e6);
 
@@ -267,11 +266,9 @@ contract MixedAuction is TestBaseLiquidations {
 
             assertEq(lFactorAfter, WAD, "Regular borrower should still be liquidatable");
         }
-
     }
 
     function test_fail_regularLiquidationThenAuctionLiquidation_sameTx() public {
-
         _prepareUSDC(dappControlUser, 100000e6);
         _prepareUSDC(address(this), 100000e6);
 
@@ -483,10 +480,7 @@ contract MixedAuction is TestBaseLiquidations {
 
             assertEq(lFactorAfter, 0, "Regular borrower should have lFactor = 0");
         }
-
     }
-
-
 
     function _createPositions() internal {
         _prepareBALRETH(borrower1, collateralAmounts[0]);
@@ -518,20 +512,6 @@ contract MixedAuction is TestBaseLiquidations {
         borrowableCUSDC.borrow(borrowAmount, borrower4);
         vm.stopPrank();
 
-    }
-
-    function _getLFactorsPreLiquidation(address[] memory borrowers) internal view returns (uint256[] memory lFactors) {
-        lFactors = new uint256[](2);
-
-        for(uint i; i < borrowers.length; i++) {
-            (lFactors[i],,) = marketManagerIsolated.liquidationStatusOf(
-                borrowers[i],
-                address(borrowableCUSDC),
-                address(strategyCBALRETH)
-            );
-        }
-
-        return lFactors;
     }
 
     function _getDebtBalancePreLiquidation(address[] memory borrowers) internal view returns (uint256[] memory debtBalances) {

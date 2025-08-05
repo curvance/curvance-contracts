@@ -68,14 +68,11 @@ contract TestLiquidationBuffer is TestBaseMarketIsolated {
     }
 
     function test_fail_NonAuctionLiquidation() public {
-    
         vm.expectRevert(abi.encodeWithSelector(MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector));    
         borrowableCUSDC.liquidate(borrowers, address(borrowableCDAI));
-
     }
 
     function test_success_AuctionLiquidation() public {
-
         _prepareUSDC(dappControlUser, 1000e6);
 
         vm.startPrank(dappControlUser);

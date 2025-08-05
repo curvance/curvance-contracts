@@ -280,8 +280,6 @@ contract LiquidateExactMix is TestBaseLiquidations {
 
         // Verify remaining debt calculation was correct
         assertApproxEqAbs(remainingDebt_after_third, 0, 1, "Remaining debt should be approximately zero");
-        
-
     }
 
     function _createPositions() internal {
@@ -292,7 +290,6 @@ contract LiquidateExactMix is TestBaseLiquidations {
         strategyCBALRETH.depositAsCollateral(collateralAmountStart, borrower1);
         borrowableCUSDC.borrow(borrowAmount, borrower1);
         vm.stopPrank();
-
     }
 
     function _getLFactorPreLiquidation(address _borrower) internal view returns (uint256 lFactor) {

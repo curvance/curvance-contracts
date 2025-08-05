@@ -95,11 +95,9 @@ contract VaryingHealthFactors is TestBaseLiquidations {
         mockRethFeed.setMockAnswer(1100e8);
 
         // vm.warp(block.timestamp + 20 minutes); skipping so no interest accrues which keeps it simple
-
     }
 
     function test_multipleUsersLiquidatedWithVaryingHealthFactors() public {
-
         _prepareUSDC(address(this), 100000e6);
 
         // ===== Cache liquidation values =====
