@@ -748,9 +748,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // Calculate the interest vesting cycles for new vesting period.
             // The weird multiplication logic here is to round down to
             // discrete vesting cycles.
-            accrualPeriod = (((block.timestamp - lastVestingClaim) /
+            accrualPeriod = (((block.timestamp - vestingPeriodEnd) /
                 accrualPeriod) * accrualPeriod) + accrualPeriod;
-            vestingPeriodEnd = lastVestingClaim + accrualPeriod;
+            vestingPeriodEnd = vestingPeriodEnd + accrualPeriod; 
 
             // Calculate the new interest rate for borrowers, in seconds.
             rate = interestRateModel.getBorrowRateWithUpdate(

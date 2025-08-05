@@ -61,6 +61,8 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         console2.log("totalShares:", totalSharesBefore);
         console2.log("outstandingDebt:", outstandingDebtBefore);
         console2.log("daoShares:", daoSharesBefore);
+        console2.log("vestingEndBefore:", vestingEndBefore);
+        console2.log("lastVestBefore:", lastVestBefore);
 
         for(uint i; i < 10; i++) {
             skip(10 minutes + 1 seconds);
@@ -76,6 +78,8 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         console2.log("totalShares:", totalSharesAfter);
         console2.log("outstandingDebt:", outstandingDebtAfter);
         console2.log("daoShares:", daoSharesAfter);
+        console2.log("vestingEndAfter:", vestingEndAfter);
+        console2.log("lastVestAfter:", lastVestAfter);
 
         uint256 assetIncrease = totalAssetsAfter - totalAssetsBefore;
         uint256 sharesIncrease = totalSharesAfter - totalSharesBefore;
