@@ -392,7 +392,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         deleverageAction.repayAssets = 2420e18;
 
         strategyCTokenWETHUSDC.approve(address(positionManager), type(uint256).max);
-        positionManager.deleverage(deleverageAction, 0.052e18); // 5.2% slippage
+        positionManager.deleverage(deleverageAction, 0.08e18); // 8% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
@@ -634,7 +634,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManager.deleverageFor(deleverageAction, user, 0.052e18); // 5.2% slippage
+        positionManager.deleverageFor(deleverageAction, user, 0.08e18); // 8% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
         assertEq(borrowableCDAI.balanceOf(user), 0);
