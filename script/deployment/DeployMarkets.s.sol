@@ -12,7 +12,7 @@ import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { VaultZapper } from "contracts/plugins/market/VaultZapper.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
@@ -155,7 +155,7 @@ contract DeployMarkets is Script {
     ) internal returns (address) {
         IERC20 asset = IERC20(config.asset);
 
-        DynamicInterestRateModel interestRateModel = new DynamicInterestRateModel(
+        DynamicIRM IRM = new DynamicIRM(
                 icr,
                 config.interestConfig.baseRatePerYear,
                 config.interestConfig.vertexRatePerYear,
@@ -166,12 +166,12 @@ contract DeployMarkets is Script {
                 config.interestConfig.decayRate
             );
         emit ContractDeployed(
-            address(interestRateModel),
+            address(IRM),
             string.concat(
                 marketName,
                 ".",
                 asset.symbol(),
-                "-DynamicInterestRateModel"
+                "-DynamicIRM"
             )
         );
 
@@ -180,7 +180,7 @@ contract DeployMarkets is Script {
                 icr,
                 asset,
                 address(market),
-                address(interestRateModel)
+                address(IRM)
             )
         );
         emit ContractDeployed(
@@ -188,7 +188,7 @@ contract DeployMarkets is Script {
             string.concat(marketName, ".tokens.", asset.symbol())
         );
 
-        interestRateModel.setLinkedToken(cToken);
+        IRM.setLinkedToken(cToken);
         asset.approve(cToken, 1 * 10 ** asset.decimals());
 
         return cToken;

@@ -14,7 +14,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
+import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
@@ -94,7 +94,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @notice Interest rate reserve factor.
     uint256 public interestFactor;
     /// @notice Address of the current Interest Rate Model.
-    IInterestRateModel public interestRateModel;
+    IDynamicIRM public IRM;
     /// @notice Information corresponding to borrow exchange rate.
     MarketData public marketData;
 
@@ -125,8 +125,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     event Repay(address payer, address account, uint256 amount);
     event BadDebtRecognized(address liquidator, uint256 amount);
     event NewIRM(
-        address oldInterestRateModel,
-        address newInterestRateModel,
+        address oldIRM,
+        address newIRM,
         uint256 newInterestAccrualPeriod
     );
     event NewInterestFactor(
@@ -149,12 +149,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @param underlying_ The address of the underlying asset
     ///                    for this eToken.
     /// @param marketManager_ The address of the MarketManager.
-    /// @param interestRateModel_ The address of the interest rate model.
+    /// @param IRM_ The address of the interest rate model.
     constructor(
         ICentralRegistry centralRegistry_,
         address underlying_,
         address marketManager_,
-        address interestRateModel_
+        address IRM_
     ) PluginDelegable(centralRegistry_) {
         // Set the marketManager after consulting Central Registry.
         // Ensure that marketManager parameter is a marketManager.
@@ -169,7 +169,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         marketData.lastTimestampUpdated = uint40(block.timestamp);
         marketData.exchangeRate = uint216(WAD);
 
-        _setInterestRateModel(IInterestRateModel(interestRateModel_));
+        _setIRM(IDynamicIRM(IRM_));
 
         // Assign the interest factor for interest generated
         // inside this market.
@@ -214,15 +214,15 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
     /// @notice Accrues pending interest and updates the interest rate model.
     /// @dev Admin function to update the interest rate model.
-    /// @param newInterestRateModel The new interest rate model for this
+    /// @param newIRM The new interest rate model for this
     ///                             eToken to use.
-    function setInterestRateModel(address newInterestRateModel) external {
+    function setIRM(address newIRM) external {
         _checkElevatedPermissions();
 
         // Update pending interest.
         accrueInterest();
 
-        _setInterestRateModel(IInterestRateModel(newInterestRateModel));
+        _setIRM(IDynamicIRM(newIRM));
     }
 
     /// @notice Accrues pending interest and updates the interest factor.
@@ -252,7 +252,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // Validate that the interest rate model has been properly linked
         // to this token contract.
-        if (interestRateModel.linkedToken() != address(this)) {
+        if (IRM.linkedToken() != address(this)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -753,7 +753,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 exchangeRatePrior = cachedData.exchangeRate;
 
         // Calculate the current borrow interest rate.
-        uint256 borrowRate = interestRateModel.getBorrowRate(
+        uint256 borrowRate = IRM.borrowRate(
             marketUnderlyingHeld(),
             borrowsPrior,
             reservesPrior
@@ -929,7 +929,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 exchangeRatePrior = cachedData.exchangeRate;
 
         // Calculate the current borrow interest rate.
-        uint256 borrowRate = interestRateModel.getBorrowRateWithUpdate(
+        uint256 borrowRate = IRM.adjustedBorrowRate(
             marketUnderlyingHeld(),
             borrowsPrior,
             convertToAssets(reservesPrior)
@@ -977,31 +977,31 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
     /// @notice Updates the interest rate model.
     /// @dev Emits a {NewIRM} event.
-    /// @param newInterestRateModel The new interest rate model for this
+    /// @param newIRM The new interest rate model for this
     ///                             eToken to use.
-    function _setInterestRateModel(
-        IInterestRateModel newInterestRateModel
+    function _setIRM(
+        IDynamicIRM newIRM
     ) internal {
         // Ensure we are switching to an actual Interest Rate Model.
         if (
             !ERC165Checker.supportsInterface(
-                address(newInterestRateModel),
-                type(IInterestRateModel).interfaceId
+                address(newIRM),
+                type(IDynamicIRM).interfaceId
             )
         ) {
             _revert(_VALIDATION_FAILED_SELECTOR);
         }
 
         // Cache the current interest rate model to save gas.
-        address oldInterestRateModel = address(interestRateModel);
+        address oldIRM = address(IRM);
 
         // Set new interest rate model and compound rate.
-        interestRateModel = newInterestRateModel;
-        marketData.accrualPeriod = newInterestRateModel.INTEREST_ACCRUAL_PERIOD();
+        IRM = newIRM;
+        marketData.accrualPeriod = newIRM.INTEREST_ACCRUAL_PERIOD();
 
         emit NewIRM(
-            oldInterestRateModel,
-            address(newInterestRateModel),
+            oldIRM,
+            address(newIRM),
             marketData.accrualPeriod
         );
     }

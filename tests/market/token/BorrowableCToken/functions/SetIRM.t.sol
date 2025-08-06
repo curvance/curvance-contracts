@@ -3,17 +3,17 @@ pragma solidity ^0.8.19;
 
 import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
-contract SetInterestRateModelTest is TestBaseBorrowableCToken {
-    DynamicInterestRateModel public newDynamicInterestRateModel;
+contract SetIRMTest is TestBaseBorrowableCToken {
+    DynamicIRM public newDynamicIRM;
 
     function setUp() public override {
         super.setUp();
 
-        newDynamicInterestRateModel = new DynamicInterestRateModel(
+        newDynamicIRM = new DynamicIRM(
             ICentralRegistry(address(centralRegistry)),
             1000, // baseRatePerYear
             1000, // vertexRatePerYear
@@ -25,33 +25,33 @@ contract SetInterestRateModelTest is TestBaseBorrowableCToken {
         );
     }
 
-    function test_setInterestRateModel_fail_whenCallerIsNotAuthorized()
+    function test_setIRM_fail_whenCallerIsNotAuthorized()
         public
     {
         vm.prank(address(1));
 
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
-        borrowableCUSDC.setInterestRateModel(address(newDynamicInterestRateModel));
+        borrowableCUSDC.setIRM(address(newDynamicIRM));
     }
 
-    function test_setInterestRateModel_fail_whenInvalidInterestRateModel()
+    function test_setIRM_fail_whenInvalidIRM()
         public
     {
         vm.expectRevert();
-        borrowableCUSDC.setInterestRateModel(address(1));
+        borrowableCUSDC.setIRM(address(1));
     }
 
-    function test_setInterestRateModel_success() public {
+    function test_setIRM_success() public {
         assertEq(
-            address(borrowableCUSDC.interestRateModel()),
-            address(interestRateModels[block.chainid][_USDC_ADDRESS])
+            address(borrowableCUSDC.IRM()),
+            address(IRMs[block.chainid][_USDC_ADDRESS])
         );
 
-        borrowableCUSDC.setInterestRateModel(address(newDynamicInterestRateModel));
+        borrowableCUSDC.setIRM(address(newDynamicIRM));
 
         assertEq(
-            address(borrowableCUSDC.interestRateModel()),
-            address(newDynamicInterestRateModel)
+            address(borrowableCUSDC.IRM()),
+            address(newDynamicIRM)
         );
     }
 }

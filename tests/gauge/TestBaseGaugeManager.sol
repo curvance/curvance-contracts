@@ -21,10 +21,10 @@ contract TestBaseGaugeManager is TestBaseMarketIsolated {
             ICentralRegistry(address(centralRegistry)),
             IERC20(token),
             address(marketManagerIsolated),
-            _deployDynamicInterestRateModel(token)
+            _deployDynamicIRM(token)
         )); 
 
-        interestRateModels[block.chainid][token].setLinkedToken(
+        IRMs[block.chainid][token].setLinkedToken(
             address(borrowableCUSDCWithGauge)
         );
     }
@@ -37,7 +37,7 @@ contract TestBaseGaugeManager is TestBaseMarketIsolated {
             ICentralRegistry(address(centralRegistry)),
             IERC20(token),
             address(marketManagerIsolated),
-            _deployDynamicInterestRateModel(token)
+            _deployDynamicIRM(token)
         )); 
     }
 }

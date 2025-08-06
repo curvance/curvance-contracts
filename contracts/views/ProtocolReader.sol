@@ -378,7 +378,7 @@ contract ProtocolReader {
     function getUtilizationRate(address cToken) public view returns (uint256) {
         IBorrowableCToken token = IBorrowableCToken(cToken);
         return
-            token.interestRateModel().utilizationRate(
+            token.IRM().utilizationRate(
                 token.assetsHeld(),
                 token.marketOutstandingDebt()
             );
@@ -392,7 +392,7 @@ contract ProtocolReader {
     ) public view returns (uint256) {
         IBorrowableCToken token = IBorrowableCToken(cToken);
         return
-            token.interestRateModel().getBorrowRate(
+            token.IRM().borrowRate(
                 token.assetsHeld(),
                 token.marketOutstandingDebt()
             ) * SECONDS_PER_YEAR;
@@ -408,7 +408,7 @@ contract ProtocolReader {
     ) public view returns (uint256) {
         IBorrowableCToken token = IBorrowableCToken(cToken);
         return
-            token.interestRateModel().getPredictedBorrowRate(
+            token.IRM().predictedBorrowRate(
                 token.assetsHeld(),
                 token.marketOutstandingDebt()
             ) * SECONDS_PER_YEAR;
@@ -422,7 +422,7 @@ contract ProtocolReader {
     ) public view returns (uint256) {
         IBorrowableCToken token = IBorrowableCToken(cToken);
         return
-            token.interestRateModel().getSupplyRate(
+            token.IRM().supplyRate(
                 token.assetsHeld(),
                 token.marketOutstandingDebt(),
                 token.interestFee()

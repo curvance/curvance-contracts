@@ -1,22 +1,22 @@
 pragma solidity ^0.8.19;
 
-import { TestBaseDynamicInterestRateModel } from "../TestBaseDynamicInterestRateModel.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { TestBaseDynamicIRM } from "../TestBaseDynamicIRM.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 
-contract UpdateDynamicInterestRateModelTest is
-    TestBaseDynamicInterestRateModel
+contract UpdateDynamicIRMTest is
+    TestBaseDynamicIRM
 {
-    function test_updateDynamicInterestRateModel_fail_whenCallerIsNotAuthorized()
+    function test_updateDynamicIRM_fail_whenCallerIsNotAuthorized()
         public
     {
         vm.prank(address(1));
 
         vm.expectRevert(
-            DynamicInterestRateModel
-                .DynamicInterestRateModel__Unauthorized
+            DynamicIRM
+                .DynamicIRM__Unauthorized
                 .selector
         );
-        interestRateModel.updateDynamicInterestRateModel(
+        IRM.updateDynamicIRM(
             1500,
             1500,
             5500,
@@ -28,17 +28,17 @@ contract UpdateDynamicInterestRateModelTest is
         );
     }
 
-    function test_updateDynamicInterestRateModel_fail_whenAdjustmentVelocityExceedsMaximum()
+    function test_updateDynamicIRM_fail_whenAdjustmentVelocityExceedsMaximum()
         public
     {
         uint256 maxVertexAdjustmentVelocity = 1e18;
 
         vm.expectRevert(
-            DynamicInterestRateModel
-                .DynamicInterestRateModel__InvalidAdjustmentVelocity
+            DynamicIRM
+                .DynamicIRM__InvalidAdjustmentVelocity
                 .selector
         );
-        interestRateModel.updateDynamicInterestRateModel(
+        IRM.updateDynamicIRM(
             1000,
             1000,
             5000,
@@ -50,18 +50,18 @@ contract UpdateDynamicInterestRateModelTest is
         );
     }
 
-    function test_updateDynamicInterestRateModel_fail_whenAdjustmentVelocityIsBelowMinimum()
+    function test_updateDynamicIRM_fail_whenAdjustmentVelocityIsBelowMinimum()
         public
     {
         uint256 minVertexAdjustmentVelocity = 0.1e18;
 
         vm.expectRevert(
-            DynamicInterestRateModel
-                .DynamicInterestRateModel__InvalidAdjustmentVelocity
+            DynamicIRM
+                .DynamicIRM__InvalidAdjustmentVelocity
                 .selector
         );
 
-        interestRateModel.updateDynamicInterestRateModel(
+        IRM.updateDynamicIRM(
             1000,
             1000,
             5000,
@@ -73,17 +73,17 @@ contract UpdateDynamicInterestRateModelTest is
         );
     }
 
-    function test_updateDynamicInterestRateModel_fail_whenAdjustmentRateExceedsMaximum()
+    function test_updateDynamicIRM_fail_whenAdjustmentRateExceedsMaximum()
         public
     {
         uint256 maxVertexAdjustmentRate = 4 hours;
 
         vm.expectRevert(
-            DynamicInterestRateModel
-                .DynamicInterestRateModel__InvalidAdjustmentRate
+            DynamicIRM
+                .DynamicIRM__InvalidAdjustmentRate
                 .selector
         );
-        interestRateModel.updateDynamicInterestRateModel(
+        IRM.updateDynamicIRM(
             1000,
             1000,
             5000,
@@ -95,17 +95,17 @@ contract UpdateDynamicInterestRateModelTest is
         );
     }
 
-    function test_updateDynamicInterestRateModel_fail_whenAdjustmentRateIsBelowMinimum()
+    function test_updateDynamicIRM_fail_whenAdjustmentRateIsBelowMinimum()
         public
     {
         uint256 minVertexAdjustmentRate = 20 minutes;
 
         vm.expectRevert(
-            DynamicInterestRateModel
-                .DynamicInterestRateModel__InvalidAdjustmentRate
+            DynamicIRM
+                .DynamicIRM__InvalidAdjustmentRate
                 .selector
         );
-        interestRateModel.updateDynamicInterestRateModel(
+        IRM.updateDynamicIRM(
             1000,
             1000,
             5000,
@@ -117,17 +117,17 @@ contract UpdateDynamicInterestRateModelTest is
         );
     }
 
-    function test_updateDynamicInterestRateModel_fail_whenDecayRateExceedsMaximum()
+    function test_updateDynamicIRM_fail_whenDecayRateExceedsMaximum()
         public
     {
         uint256 maxVertexDecayRate = 0.05e18;
 
         vm.expectRevert(
-            DynamicInterestRateModel
-                .DynamicInterestRateModel__InvalidDecayRate
+            DynamicIRM
+                .DynamicIRM__InvalidDecayRate
                 .selector
         );
-        interestRateModel.updateDynamicInterestRateModel(
+        IRM.updateDynamicIRM(
             1000,
             1000,
             5000,
@@ -139,15 +139,15 @@ contract UpdateDynamicInterestRateModelTest is
         );
     }
 
-    function test_updateDynamicInterestRateModel_fail_whenTheoreticalMultiplierOverflows()
+    function test_updateDynamicIRM_fail_whenTheoreticalMultiplierOverflows()
         public
     {
         vm.expectRevert(
-            DynamicInterestRateModel
-                .DynamicInterestRateModel__InvalidMultiplierMax
+            DynamicIRM
+                .DynamicIRM__InvalidMultiplierMax
                 .selector
         );
-        interestRateModel.updateDynamicInterestRateModel(
+        IRM.updateDynamicIRM(
             1000,
             1000,
             5000,
@@ -159,8 +159,8 @@ contract UpdateDynamicInterestRateModelTest is
         );
     }
 
-    function test_updateDynamicInterestRateModel_success() public {
-        interestRateModel.updateDynamicInterestRateModel(
+    function test_updateDynamicIRM_success() public {
+        IRM.updateDynamicIRM(
             1500,
             1500,
             5500,

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-interface IInterestRateModel {
-    /// @notice Returns the interval at which interest accrual is calculated.
-    /// @notice The interval at which interest accrual is calculated,
+interface IDynamicIRM {
+    /// @notice Returns the interval at which interest rates are adjusted.
+    /// @notice The interval at which interest rates are adjusted,
     ///         in seconds.
-    function INTEREST_ACCRUAL_PERIOD() external view returns (uint256);
+    function ADJUSTMENT_RATE() external view returns (uint256);
 
     /// @notice The borrowable token linked to this interest rate model
     ///         contract.
@@ -18,7 +18,7 @@ interface IInterestRateModel {
     /// @param debt The amount of outstanding debt in the pool.
     /// @return result The borrow interest rate percentage, per second,
     ///                in `WAD`.
-    function getBorrowRate(
+    function borrowRate(
         uint256 assetsHeld,
         uint256 debt
     ) external view returns (uint256 result);
@@ -28,7 +28,7 @@ interface IInterestRateModel {
     /// @param assetsHeld The amount of underlying assets held in the pool.
     /// @param debt The amount of outstanding debt in the pool.
     /// @return result The borrow rate percentage per second, in `WAD`.
-    function getPredictedBorrowRate(
+    function predictedBorrowRate(
         uint256 assetsHeld,
         uint256 debt
     ) external view returns (uint256 result);
@@ -42,21 +42,25 @@ interface IInterestRateModel {
     ///                    for the market token.
     /// @return result The supply interest rate percentage, per second,
     ///                in `WAD`.
-    function getSupplyRate(
+    function supplyRate(
         uint256 assetsHeld,
         uint256 debt,
         uint256 interestFee
     ) external view returns (uint256 result);
 
-    /// @notice Calculates the current borrow rate per second,
-    ///         and updates the vertex multiplier if necessary.
+    /// @notice Calculates the interest rate paid per second by borrowers,
+    ///         in percentage paid, per second, in `WAD`, and updates
+    ///         `vertexMultiplier` if necessary.
     /// @param assetsHeld The amount of underlying assets held in the pool.
-    /// @param outstandingDebt The amount of outstanding debt in the pool.
-    /// @return borrowRate The borrow rate percentage per second, in `WAD`.
-    function getBorrowRateWithUpdate(
+    /// @param debt The amount of outstanding debt in the pool.
+    /// @return ratePerSecond The interest rate paid per second by borrowers,
+    ///                       in percentage paid, per second, in `WAD`.
+    /// @return adjustmentRate The period of time at which interest rates are
+    ///                        adjusted, in seconds.
+    function adjustedBorrowRate(
         uint256 assetsHeld,
-        uint256 outstandingDebt
-    ) external returns (uint256);
+        uint256 debt
+    ) external returns (uint256 ratePerSecond, uint256 adjustmentRate);
 
     /// @notice Calculates the borrow utilization rate of the market.
     /// @param assetsHeld The amount of underlying assets held in the pool.

@@ -8,7 +8,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
-import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
+import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
 import { IFlashLoan } from "contracts/interfaces/IFlashLoan.sol";
 
 contract BorrowableCToken is BaseCTokenWithYield {
@@ -47,7 +47,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// @notice Address of the current Interest Rate Model used to determine
     ///         interest paid by borrowers to lenders for outstanding debt.
-    IInterestRateModel public interestRateModel;
+    IDynamicIRM public IRM;
     /// @notice The portion of interest paid by borrowers that goes to the
     ///         protocol, in `WAD`.
     uint256 public interestFee;
@@ -64,7 +64,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// EVENTS ///
 
-    event InterestAccrualUpdate(uint256 debtPerSecond, uint256 vestingPeriod);
+    event RatesAdjusted(uint256 debtPerSecond, uint256 nextAdjustment);
     event Borrow(uint256 assets, address account);
     event Repay(uint256 assets, address payer, address account);
     event Flashloan(uint256 assets, uint256 assetsFee, address account);
@@ -85,21 +85,19 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param asset_ The address of the underlying asset for this cToken.
     /// @param mm The address of the MarketManager which manages liquidity
     ///           positions between linked cTokens inside a joint market.
-    /// @param interestRateModel_ The address of the interest rate model to
-    ///                           manage outstanding loans.
+    /// @param IRM_ The interest rate model to determine interest
+    ///             paid by borrowers to lenders for outstanding debt.
     constructor(
         ICentralRegistry cr,
         IERC20 asset_,
         address mm,
-        address interestRateModel_
-    ) BaseCTokenWithYield(cr, asset_, mm, IInterestRateModel(
-        interestRateModel_
-    ).INTEREST_ACCRUAL_PERIOD()) {
-        // This essentially redundantly sets vestingPeriod twice since we also set
-        // it as part of `BaseCTokenWithYield` deployment, but we want to make sure
-        // _setInterestRateModel includes this setter incase the interest rate
-        // model is ever changed.
-        _setInterestRateModel(IInterestRateModel(interestRateModel_));
+        address IRM_
+    ) BaseCTokenWithYield(cr, asset_, mm, IDynamicIRM(IRM_).ADJUSTMENT_RATE()) {
+        // We configure `vestingRate` via both `BaseCTokenWithYield()` and
+        // `_setIRM()` but this is only for frontends on onchain contracts to
+        // call, its more efficient for us to call `ADJUSTMENT_RATE` inside
+        // `IRM` to avoid an sLOAD cost on every adjustment period.
+        _setIRM(IDynamicIRM(IRM_));
 
         // Assign the portion of interest paid by borrowers that goes to the
         // protocol.
@@ -126,18 +124,18 @@ contract BorrowableCToken is BaseCTokenWithYield {
     }
 
     /// @notice Accrues pending interest and updates the interest rate
-    ///         model (`interestRateModel`) used by this borrowableCToken.
+    ///         model (`IRM`) used by this borrowableCToken.
     /// @dev Admin function to update the interest rate model.
     ///      Emits a {NewIRM} event.
     /// @param newIRM The new interest rate model to determine interest
     ///               paid by borrowers to lenders for outstanding debt.
-    function setInterestRateModel(address newIRM) external {
+    function setIRM(address newIRM) external {
         _checkElevatedPermissions();
 
         // Accrue interest if needed.
         _accrueIfNeeded();
 
-        _setInterestRateModel(IInterestRateModel(newIRM));
+        _setIRM(IDynamicIRM(newIRM));
     }
 
     /// @notice Accrues pending interest and updates the fee that the protocol
@@ -714,7 +712,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// @notice Can accrue interest yield, configure next interest accrual
     ///         period, and updates vesting data, if needed.
-    /// @dev May emit a {InterestAccrualUpdate} event.
+    /// @dev May emit a {RatesAdjusted} event.
     function _accrueIfNeeded() internal override {
         uint256 vestingData = _vestingData;
         uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
@@ -743,23 +741,21 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Check if it is time to start a new vesting period.
         if (block.timestamp >= vestingEnd) {
-            // Cache `vestingPeriod` to save gas.
-            uint256 accrualPeriod = vestingPeriod;
+            uint256 nextAdjustment;
             
-            // The multiplication logic here is to round down to
-            // discrete vesting periods, e.g. if block.timestamp is 3
-            // accrualPeriod's ahead then start vesting all of them for users.
-            accrualPeriod = (((block.timestamp - vestingEnd) /
-                accrualPeriod) * accrualPeriod) + accrualPeriod;
-            vestingEnd = vestingEnd + accrualPeriod; 
-
             // Calculate the new interest rate for borrowers, in seconds.
-            rate = interestRateModel.getBorrowRateWithUpdate(
-                assetsHeld(),
-                outstandingDebt
-            );
+            (rate, adjustmentRate)
+                = IRM.adjustedBorrowRate(assetsHeld(), outstandingDebt);
 
-            emit InterestAccrualUpdate(rate, accrualPeriod);
+            // The multiplication logic here is to round down to
+            // discrete `adjustmentRate` cycles, e.g. if block.timestamp is 3
+            // `adjustmentRate`'s ahead then begin vesting all of them for
+            // users at once.
+            adjustmentRate = (((block.timestamp - vestingEnd) /
+                adjustmentRate) * adjustmentRate) + adjustmentRate;
+            vestingEnd = vestingEnd + adjustmentRate;
+
+            emit RatesAdjusted(rate, vestingEnd);
 
             // Check if theres new yield to be vested from the new vesting
             // period, which could happen if the previous vesting period ended
@@ -834,28 +830,28 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _vestingData = vestingData;
     }
 
-    /// @notice Updates the interest rate model (`interestRateModel`) used
+    /// @notice Updates the interest rate model (`IRM`) used
     ///         by this borrowableCToken.
     /// @dev Emits a {NewIRM} event.
     /// @param newIRM The new interest rate model to determine interest paid
     ///               by borrowers to lenders for outstanding debt.
-    function _setInterestRateModel(IInterestRateModel newIRM) internal {
+    function _setIRM(IDynamicIRM newIRM) internal {
         // Ensure we are switching to an actual Interest Rate Model.
         if (
             !ERC165Checker.supportsInterface(
                 address(newIRM),
-                type(IInterestRateModel).interfaceId
+                type(IDynamicIRM).interfaceId
             )
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Cache the current interest rate model for event emission.
-        address oldIRM = address(interestRateModel);
+        address oldIRM = address(IRM);
 
         // Set new interest rate model and compound rate.
-        interestRateModel = newIRM;
-        uint256 newPeriod = newIRM.INTEREST_ACCRUAL_PERIOD();
+        IRM = newIRM;
+        uint256 newPeriod = newIRM.ADJUSTMENT_RATE();
         vestingPeriod = newPeriod;
 
         emit NewIRM(oldIRM, address(newIRM), newPeriod);
@@ -917,7 +913,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param by The account initializing deposits.
     function _initializeDeposits(address by) internal override {
         // Validate that the interest rate model is linked to this token.
-        if (interestRateModel.linkedToken() != address(this)) {
+        if (IRM.linkedToken() != address(this)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 

@@ -14,7 +14,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
@@ -464,12 +464,12 @@ contract TestBaseMarketIsolated is TestBase {
         );
     }
 
-    function _deployDynamicInterestRateModel(
+    function _deployDynamicIRM(
         address underlyingToken
     ) internal returns (address) {
-        interestRateModels[block.chainid][
+        IRMs[block.chainid][
             underlyingToken
-        ] = new DynamicInterestRateModel(
+        ] = new DynamicIRM(
             ICentralRegistry(address(centralRegistry)),
             1000, // baseRatePerYear
             1000, // vertexRatePerYear
@@ -480,7 +480,7 @@ contract TestBaseMarketIsolated is TestBase {
             100 // decayRate
         );
 
-        return address(interestRateModels[block.chainid][underlyingToken]);
+        return address(IRMs[block.chainid][underlyingToken]);
     }
 
     function _deployBorrowableCUSDC() internal initMainVariables returns (BorrowableCToken) {
@@ -500,10 +500,10 @@ contract TestBaseMarketIsolated is TestBase {
             ICentralRegistry(address(centralRegistry)),
             IERC20(underlyingAsset),
             address(marketManagerIsolated),
-            _deployDynamicInterestRateModel(underlyingAsset)
+            _deployDynamicIRM(underlyingAsset)
         );
 
-        interestRateModels[block.chainid][underlyingAsset].setLinkedToken(
+        IRMs[block.chainid][underlyingAsset].setLinkedToken(
             address(borrowableCToken)
         );
 

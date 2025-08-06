@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 
@@ -18,11 +18,11 @@ contract BorrowableCTokenDeploymentTest is TestBaseBorrowableCToken {
 
     event NewInterestFee(uint256 oldInterestFee, uint256 newInterestFee);
 
-    DynamicInterestRateModel public interestRateModel;
+    DynamicIRM public IRM;
 
     function setUp() public virtual override {
         super.setUp();
-        interestRateModel = interestRateModels[block.chainid][_USDC_ADDRESS];
+        IRM = IRMs[block.chainid][_USDC_ADDRESS];
     }
 
     function test_borrowableCTokenDeployment_fail_whenCentralRegistryIsInvalid() public {
@@ -34,7 +34,7 @@ contract BorrowableCTokenDeploymentTest is TestBaseBorrowableCToken {
             ICentralRegistry(address(0)),
             IERC20(_USDC_ADDRESS),
             address(marketManagerIsolated),
-            address(interestRateModel)
+            address(IRM)
         );
     }
 
@@ -46,11 +46,11 @@ contract BorrowableCTokenDeploymentTest is TestBaseBorrowableCToken {
             ICentralRegistry(address(centralRegistry)),
             IERC20(_USDC_ADDRESS),
             address(1),
-            address(interestRateModel)
+            address(IRM)
         );
     }
 
-    function test_borrowableCTokenDeployment_fail_whenInterestRateModelIsInvalid()
+    function test_borrowableCTokenDeployment_fail_whenIRMIsInvalid()
         public
     {
         vm.expectRevert();
@@ -76,7 +76,7 @@ contract BorrowableCTokenDeploymentTest is TestBaseBorrowableCToken {
             ICentralRegistry(address(centralRegistry)),
             IERC20(_USDC_ADDRESS),
             address(marketManagerIsolated),
-            address(interestRateModel)
+            address(IRM)
         );
     }
 
@@ -91,14 +91,14 @@ contract BorrowableCTokenDeploymentTest is TestBaseBorrowableCToken {
             ICentralRegistry(address(centralRegistry)),
             IERC20(_USDC_ADDRESS),
             address(marketManagerIsolated),
-            address(interestRateModel)
+            address(IRM)
         );
 
         assertEq(address(borrowableCUSDC.centralRegistry()), address(centralRegistry));
         assertEq(address(borrowableCUSDC.asset()), _USDC_ADDRESS);
         assertEq(
-            address(borrowableCUSDC.interestRateModel()),
-            address(interestRateModel)
+            address(borrowableCUSDC.IRM()),
+            address(IRM)
         );
         assertEq(address(borrowableCUSDC.marketManager()), address(marketManagerIsolated));
     }

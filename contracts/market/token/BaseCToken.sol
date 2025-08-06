@@ -720,7 +720,7 @@ abstract contract BaseCToken is
 
     /// @notice Can accrue pending yield, configure next vesting
     ///         period, and updates vesting data, if needed.
-    /// @dev May emit a {InterestAccrualUpdate} event.
+    /// @dev May emit a {RatesAdjusted} event.
     function accrueIfNeeded() external nonReentrant {
         _accrueIfNeeded();
     }

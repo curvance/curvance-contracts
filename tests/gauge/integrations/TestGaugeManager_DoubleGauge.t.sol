@@ -46,18 +46,18 @@ contract TestGaugeManager_DoubleGauge is TestBaseGaugeManager {
             ICentralRegistry(address(centralRegistry)),
             IERC20(dai),
             address(marketManagerIsolated),
-            _deployDynamicInterestRateModel(address(dai))
+            _deployDynamicIRM(address(dai))
         )); 
         borrowableCUSDCWithGauge = address( new BorrowableCTokenWithGauge(
             ICentralRegistry(address(centralRegistry)),
             IERC20(usdc),
             address(marketManagerIsolated),
-            _deployDynamicInterestRateModel(address(usdc))
+            _deployDynamicIRM(address(usdc))
         )); 
 
         // Link the interest rate models to the tokens
-        interestRateModels[block.chainid][address(dai)].setLinkedToken(borrowableCDAIWithGauge);
-        interestRateModels[block.chainid][address(usdc)].setLinkedToken(borrowableCUSDCWithGauge);
+        IRMs[block.chainid][address(dai)].setLinkedToken(borrowableCDAIWithGauge);
+        IRMs[block.chainid][address(usdc)].setLinkedToken(borrowableCUSDCWithGauge);
 
         dai.approve(borrowableCDAIWithGauge, 77777);
         usdc.approve(borrowableCUSDCWithGauge, 77777);

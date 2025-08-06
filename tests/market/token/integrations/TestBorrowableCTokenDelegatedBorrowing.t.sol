@@ -216,12 +216,12 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
                     ICentralRegistry(address(centralRegistry)),
                     IERC20(asset),
                     address(marketManagerIsolated),
-                    _deployDynamicInterestRateModel(asset)
+                    _deployDynamicIRM(asset)
                 )
             )
         );
 
-        interestRateModels[block.chainid][asset].setLinkedToken(
+        IRMs[block.chainid][asset].setLinkedToken(
             address(borrowableCToken)
         );
 

@@ -16,7 +16,7 @@ import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { PendleZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/PendleZapperCalldataChecker.sol";
@@ -405,12 +405,12 @@ contract TestBaseMarket is TestBase {
             marketInterestFactor);
     }
 
-    function _deployDynamicInterestRateModel(
+    function _deployDynamicIRM(
         address underlyingToken
     ) internal returns (address) {
-        interestRateModels[block.chainid][
+        IRMs[block.chainid][
             underlyingToken
-        ] = new DynamicInterestRateModel(
+        ] = new DynamicIRM(
             ICentralRegistry(address(centralRegistry)),
             1000, // baseRatePerYear
             1000, // vertexRatePerYear
@@ -421,14 +421,14 @@ contract TestBaseMarket is TestBase {
             100 // decayRate
         );
 
-        return address(interestRateModels[block.chainid][underlyingToken]);
+        return address(IRMs[block.chainid][underlyingToken]);
     }
 
-    function _deployIsolatedDynamicInterestRateModel(
+    function _deployIsolatedDynamicIRM(
         address underlyingToken
         ) internal returns (address) {
-            isolatedInterestRateModels[block.chainid][underlyingToken] =
-            new DynamicInterestRateModel(
+            isolatedIRMs[block.chainid][underlyingToken] =
+            new DynamicIRM(
                 ICentralRegistry(address(centralRegistry)),
                 1000, // baseRatePerYear
                 1000, // vertexRatePerYear
@@ -439,7 +439,7 @@ contract TestBaseMarket is TestBase {
                 100 // decayRate
             );
 
-        return address(isolatedInterestRateModels[block.chainid][underlyingToken]);
+        return address(isolatedIRMs[block.chainid][underlyingToken]);
     }
 
     function _deployBorrowableCUSDC() internal initMainVariables returns (EToken) {
@@ -459,10 +459,10 @@ contract TestBaseMarket is TestBase {
             ICentralRegistry(address(centralRegistry)),
             token,
             address(marketManager),
-            _deployDynamicInterestRateModel(token)
+            _deployDynamicIRM(token)
         );
 
-        interestRateModels[block.chainid][token].setLinkedToken(
+        IRMs[block.chainid][token].setLinkedToken(
             address(eToken)
         );
 

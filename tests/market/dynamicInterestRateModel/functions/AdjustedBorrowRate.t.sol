@@ -1,10 +1,10 @@
 pragma solidity ^0.8.19;
 
-import { TestBaseDynamicInterestRateModel } from "../TestBaseDynamicInterestRateModel.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { TestBaseDynamicIRM } from "../TestBaseDynamicIRM.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
-contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
+contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
     uint256 public baseInterestRate;
     uint256 public vertexInterestRate;
     uint256 public vertexPoint;
@@ -12,18 +12,18 @@ contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
     uint256 public util;
     uint256 public vertexMultiplier;
 
-    function test_getBorrowRateWithUpdate_fail_whenCallerIsNotLinkedToken()
+    function test_adjustedBorrowRate_fail_whenCallerIsNotLinkedToken()
         public
     {
         vm.expectRevert(
-            DynamicInterestRateModel
-                .DynamicInterestRateModel__Unauthorized
+            DynamicIRM
+                .DynamicIRM__Unauthorized
                 .selector
         );
-        interestRateModel.getBorrowRateWithUpdate(0, 0);
+        IRM.adjustedBorrowRate(0, 0);
     }
 
-    function test_getBorrowRateWithUpdate_success_fuzzed(
+    function test_adjustedBorrowRate_success_fuzzed(
         uint256 assetsHeld,
         uint256 borrows,
         uint256 interestFee,
@@ -47,21 +47,21 @@ contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
                 increaseThreshold,
                 ,
                 ,
-            ) = interestRateModel.ratesConfig();
-            util = interestRateModel.utilizationRate(assetsHeld, borrows);
-            vertexMultiplier = interestRateModel.vertexMultiplier();
+            ) = IRM.ratesConfig();
+            util = IRM.utilizationRate(assetsHeld, borrows);
+            vertexMultiplier = IRM.vertexMultiplier();
 
-            uint256 borrowRate = interestRateModel.getBorrowRate(
+            uint256 borrowRate = IRM.borrowRate(
                 assetsHeld,
                 borrows
             );
-            uint256 supplyRate = interestRateModel.getSupplyRate(
+            uint256 supplyRate = IRM.supplyRate(
                 assetsHeld,
                 borrows,
                 interestFee
             );
-            uint256 predictedBorrowRate = interestRateModel
-                .getPredictedBorrowRate(assetsHeld, borrows);
+            uint256 predictedBorrowRate = IRM
+                .predictedBorrowRate(assetsHeld, borrows);
 
             assertEq(
                 supplyRate,
@@ -70,7 +70,7 @@ contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
 
             vm.prank(address(borrowableCUSDC));
             assertEq(
-                interestRateModel.getBorrowRateWithUpdate(
+                IRM.adjustedBorrowRate(
                     assetsHeld,
                     borrows
                 ),

@@ -20,7 +20,7 @@
 // import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 // import { EToken } from "contracts/market/token/EToken.sol";
 // import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
-// import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+// import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 // 
 // import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 // import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
@@ -51,7 +51,7 @@
 //     MessagingHub public messagingHub;
 //     ChainlinkAdaptor public chainlinkAdaptor;
 //     ChainlinkAdaptor public dualChainlinkAdaptor;
-//     DynamicInterestRateModel public interestRateModel;
+//     DynamicIRM public IRM;
 //     MarketManager public marketManager;
 //     OracleManager public oracleManager;
 
@@ -120,8 +120,8 @@
 //         _deployGaugeManager();
 //         emit LogString("DEPLOYED: MarketManager");
 //         _deployMarketManager();
-//         emit LogString("DEPLOYED: DynamicInterestRateModel");
-//         _deployDynamicInterestRateModel();
+//         emit LogString("DEPLOYED: DynamicIRM");
+//         _deployDynamicIRM();
 //         emit LogString("DEPLOYED: EUSDC");
 //         _deployBorrowableCUSDC();
 //         emit LogString("DEPLOYED: EDAI");
@@ -363,8 +363,8 @@
 //         );
 //     }
 
-//     function _deployDynamicInterestRateModel() internal {
-//         interestRateModel = new DynamicInterestRateModel(
+//     function _deployDynamicIRM() internal {
+//         IRM = new DynamicIRM(
 //             ICentralRegistry(address(centralRegistry)),
 //             1000, // baseRatePerYear
 //             1000, // vertexRatePerYear
@@ -410,7 +410,7 @@
 //                 ICentralRegistry(address(centralRegistry)),
 //                 token,
 //                 address(marketManager),
-//                 address(interestRateModel)
+//                 address(IRM)
 //             );
 //     }
 
