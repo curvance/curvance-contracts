@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { console2 } from "forge-std/console2.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
@@ -49,7 +50,8 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         vm.stopPrank();
 
         (,uint256 initialVestEnd,) = borrowableCUSDC.getYieldInformation();
-        console2.log("initialVestEnd: ", initialVestEnd);
+        uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
+        uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
 
         // Skip to trigger first vesting period
         skip(5 minutes);
@@ -65,10 +67,13 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         borrowableCUSDC.accrueIfNeeded();
 
         (,uint256 finalVestEnd,) = borrowableCUSDC.getYieldInformation();
-        console2.log("finalVestEnd: ", finalVestEnd);
+        uint256 finalMarketDebt = borrowableCUSDC.marketOutstandingDebt();
+        uint256 finalTotalAssets = borrowableCUSDC.totalAssets();
         
         assertEq(finalVestEnd - initialVestEnd, 1200, "Should advance by exactly 1200 seconds total");
 
+        // CRITICAL INVARIANT! TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!
+        assertEq(finalMarketDebt - initialMarketDebt, finalTotalAssets - initialTotalAssets, "TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!");
     }
 
     function test_success_accrueIfNeeded_multipleVestingPeriods() public {
@@ -82,18 +87,20 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
         (,uint256 initialVestEnd,) = borrowableCUSDC.getYieldInformation();
         uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
-        console2.log("initialMarketDebt: ", initialMarketDebt);
-        console2.log("initialVestEnd: ", initialVestEnd);
+        uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
         
         // Skip 2.5 periods
         skip(25 minutes);
         borrowableCUSDC.accrueIfNeeded();
 
         (,uint256 finalVestEnd,) = borrowableCUSDC.getYieldInformation();
-        console2.log("finalVestEnd: ", finalVestEnd);
+        uint256 finalMarketDebt = borrowableCUSDC.marketOutstandingDebt();
+        uint256 finalTotalAssets = borrowableCUSDC.totalAssets();
 
         assertEq(finalVestEnd - initialVestEnd, 1800, "Should advance by 3 full periods");
-        
+
+        // CRITICAL INVARIANT! TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!
+        assertEq(finalMarketDebt - initialMarketDebt, finalTotalAssets - initialTotalAssets, "TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!");
     }
 
     function test_success_accrueIfNeeded_noTimeElapsed() public {
@@ -107,18 +114,21 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
         (uint256 beforeRate, uint256 beforeVestEnd, uint256 beforeLastVest) = borrowableCUSDC.getYieldInformation();
         uint256 beforeDebt = borrowableCUSDC.marketOutstandingDebt();
-        console2.log("beforeDebt: ", beforeDebt);
-        console2.log("beforeVestEnd: ", beforeVestEnd);
+        uint256 beforeTotalAssets = borrowableCUSDC.totalAssets();
 
         borrowableCUSDC.accrueIfNeeded();
 
         (uint256 afterRate, uint256 afterVestEnd, uint256 afterLastVest) = borrowableCUSDC.getYieldInformation();
         uint256 afterDebt = borrowableCUSDC.marketOutstandingDebt();
+        uint256 afterTotalAssets = borrowableCUSDC.totalAssets();
 
         assertEq(afterRate, beforeRate, "Interest rate should not change");
         assertEq(afterDebt, beforeDebt, "Outstanding debt should not change");
         assertEq(afterVestEnd, beforeVestEnd, "Vesting end should not change");
         assertEq(afterLastVest, beforeLastVest, "Last vest claim should not change");
+
+        // CRITICAL INVARIANT! TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!
+        assertEq(afterDebt - beforeDebt, afterTotalAssets - beforeTotalAssets, "TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!");
     }
 
     function test_success_accrueIfNeeded_vestingPeriodTransition() public {
@@ -133,6 +143,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         // at block.timestamp
         (,uint256 initialVestEnd,) = borrowableCUSDC.getYieldInformation();
         uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
+        uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
         
         // Get interest rate
         uint256 borrowRate = borrowableCUSDC.interestRateModel().getBorrowRate(
@@ -169,17 +180,19 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
         (,uint256 finalVestEnd, uint256 finalLastVest) = borrowableCUSDC.getYieldInformation();
         uint256 finalMarketDebt = borrowableCUSDC.marketOutstandingDebt();
+        uint256 finalTotalAssets = borrowableCUSDC.totalAssets();
 
         assertEq(finalVestEnd - initialVestEnd, 1200, "Should remain at 1200 seconds total");
         assertEq(finalLastVest, block.timestamp, "Last vest should update to current timestamp");
-        console2.log("midMarketDebt: ", midMarketDebt);
-        console2.log("finalMarketDebt: ", finalMarketDebt);
 
         // Validate yield calculation for additional 1 second
         timeElapsed = 1 seconds;  
         expectedYield = (midMarketDebt * borrowRate * timeElapsed) / 1e18;
         actualYield = finalMarketDebt - midMarketDebt;
         assertEq(actualYield, expectedYield, "Second period yield should match calculated yield with updated rate");
+
+        // CRITICAL INVARIANT! TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!
+        assertEq(finalMarketDebt - initialMarketDebt, finalTotalAssets - initialTotalAssets, "TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!");
     }
 
     function test_success_accrueIfNeeded_verifyAccountingAllParties() public {
@@ -192,23 +205,23 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         vm.stopPrank();
 
         uint256 testContractShares = borrowableCUSDC.balanceOf(address(this));
-        uint256 lpShares = borrowableCUSDC.balanceOf(liquidityProvider); 
-        uint256 totalAssets = borrowableCUSDC.totalAssets();
-        uint256 totalShares = borrowableCUSDC.totalSupply();
+        uint256 initialLpShares = borrowableCUSDC.balanceOf(liquidityProvider); 
+        uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
+        uint256 initialTotalShares = borrowableCUSDC.totalSupply();
         console2.log("testContractShares: ", testContractShares);
         
         // LP deposited 1000e6, + 77777 initialization deposit
-        assertEq(totalAssets, 1000e6 + 77777, "Total assets should be lp deposit plus initialization");
-        assertEq(lpShares, 1000e6, "LP should have shares equal to their deposit");
-        assertEq(totalShares, 1000e6 + 77777, "Total shares should equal total assets initially");
+        assertEq(initialTotalAssets, 1000e6 + 77777, "Total assets should be lp deposit plus initialization");
+        assertEq(initialLpShares, 1000e6, "LP should have shares equal to their deposit");
+        assertEq(initialTotalShares, 1000e6 + 77777, "Total shares should equal total assets initially");
         assertEq(borrowableCUSDC.debtBalance(user1), 500e6, "Borrower should have initial debt");
 
-        uint256 beforeMarketDebt = borrowableCUSDC.marketOutstandingDebt();
+        uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         
         // Get interest rate for yield validation
         uint256 borrowRate = borrowableCUSDC.interestRateModel().getBorrowRate(
             borrowableCUSDC.assetsHeld(),
-            beforeMarketDebt
+            initialMarketDebt
         );
 
         // trigger vesting period
@@ -221,16 +234,16 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         uint256 afterMarketDebt = borrowableCUSDC.marketOutstandingDebt();
 
         // calculate expected values
-        uint256 assetIncrease = afterAssets - totalAssets;
-        uint256 shareIncrease = afterShares - totalShares;
-        uint256 debtIncrease = afterMarketDebt - beforeMarketDebt;
+        uint256 assetIncrease = afterAssets - initialTotalAssets;
+        uint256 shareIncrease = afterShares - initialTotalShares;
+        uint256 debtIncrease = afterMarketDebt - initialMarketDebt;
 
         assertEq(assetIncrease, debtIncrease, "asset increase should equal debt increase");
         assertEq(shareIncrease, afterDaoShares, "Only dao should receive new shares");
         
         // assert yield calculation
         uint256 timeElapsed = 10 minutes;  
-        uint256 expectedYield = (beforeMarketDebt * borrowRate * timeElapsed) / 1e18;
+        uint256 expectedYield = (initialMarketDebt * borrowRate * timeElapsed) / 1e18;
         assertEq(assetIncrease, expectedYield, "actual yield should match calculated yield");
         
         // dao gets 10% of interest as new shares
@@ -245,6 +258,9 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
         assertEq(borrowableCUSDC.debtBalance(user1), 500e6 + assetIncrease, "Borrower debt should increase by total interest amount");
         assertEq(borrowableCUSDC.balanceOf(liquidityProvider), 1000e6, "LP shares should not change");
+
+        // CRITICAL INVARIANT! TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!
+        assertEq(debtIncrease, assetIncrease, "TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!");
     }
 
     // More targeted assertions for dao
@@ -288,8 +304,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         assertEq(totalAssetsIncrease, marketDebtIncrease, "Asset increase must equal debt increase");
         assertEq(totalSharesIncrease, daoSharesIncrease, "Only dao receives new shares");
 
-        uint256 timeElapsed = 30 minutes;  
-        uint256 expectedYield = (initialMarketDebt * borrowRate * timeElapsed) / 1e18;
+        uint256 expectedYield = (initialMarketDebt * borrowRate * 30 minutes) / 1e18;
         assertEq(totalAssetsIncrease, expectedYield, "Actual yield should match calculated yield");
 
         // dao gets exactly 10% of interest as new shares
@@ -298,6 +313,8 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         
         assertEq(protocolFeeAssetValue, expectedProtocolFee,"Protocol fee should be exactly 10% of interest");
         
+        // CRITICAL INVARIANT! TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!
+        assertEq(finalMarketDebt - initialMarketDebt, finalTotalAssets - initialTotalAssets, " TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!");
     }
 
     function test_success_accrueIfNeeded_noProtocolFee() public {
@@ -337,9 +354,8 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         uint256 marketDebtIncrease = finalMarketDebt - initialMarketDebt;
         assertEq(totalAssetsIncrease, marketDebtIncrease, "Asset increase must equal debt increase");
 
-        // assert yield calculation
-        uint256 timeElapsed = 30 minutes;  
-        uint256 expectedYield = (initialMarketDebt * borrowRate * timeElapsed) / 1e18;
+        // assert yield calculation 
+        uint256 expectedYield = (initialMarketDebt * borrowRate * 30 minutes) / 1e18;
         assertEq(totalAssetsIncrease, expectedYield, "Actual yield should match calculated yield");
 
         // Total shares should not increase
@@ -355,6 +371,9 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         // Borrower debt increases by total interest
         uint256 borrowerDebtIncrease = borrowableCUSDC.debtBalance(user1) - 500e6;
         assertEq(borrowerDebtIncrease, totalAssetsIncrease, "Borrower debt should increase by total interest");
+
+        // CRITICAL INVARIANT! TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!
+        assertEq(finalMarketDebt - initialMarketDebt, finalTotalAssets - initialTotalAssets, "TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!");
     }
 
     function test_success_accrueIfNeeded_loopedVestingPeriods() public {
@@ -379,10 +398,6 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         uint256 initialDaoShares = borrowableCUSDC.balanceOf(daoAddress);
         (,uint256 initialVestEnd,) = borrowableCUSDC.getYieldInformation();
         
-        uint256 borrowRate = borrowableCUSDC.interestRateModel().getBorrowRate(
-            borrowableCUSDC.assetsHeld(),
-            initialMarketDebt
-        );
 
         // Loop 20 times, skipping 5 minutes each loop, 100 minutes total
         uint256 previousMarketDebt = initialMarketDebt;
@@ -416,14 +431,19 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
             
             // assert protocol fee
             uint256 protocolFeeValue = borrowableCUSDC.convertToAssets(daoSharesIncrease);
-            uint256 expectedProtocolFee = (debtIncrease * 1000) / 10000;
+            uint256 expectedProtocolFee = (debtIncrease * borrowableCUSDC.interestFee()) / 1e18;
             assertEq(protocolFeeValue, expectedProtocolFee, "Protocol fee should be exactly 10% per loop");
             
-            // assert LP value increase
+            // LP value validation with 1-unit tolerance
+            // Protocol uses mulDivUp for debt/fee calculations,(which favors protocol), and mulDiv for 
+            // user asset conversions,(rounds down against users). This creates small precision
+            // differences that compound across multiple accruals
             uint256 currentLpValue = borrowableCUSDC.convertToAssets(borrowableCUSDC.balanceOf(liquidityProvider));
             uint256 lpValueIncrease = currentLpValue - previousLpValue;
-            uint256 expectedLpIncrease = (debtIncrease * 90000) / 100000;
-            assertEq(lpValueIncrease, expectedLpIncrease, "LP should get exactly 90% per loop");
+            uint256 expectedLpIncrease = (debtIncrease * (0.9e18)) / 1e18;
+            assertApproxEqAbs(lpValueIncrease, expectedLpIncrease, 1, "LP should get ~90% per loop");
+            console2.log("lpValueIncrease", lpValueIncrease);
+            console2.log("expectedLpIncrease", expectedLpIncrease);
             
             // update for next iteration
             previousMarketDebt = currentMarketDebt;
@@ -433,7 +453,6 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
         uint256 finalMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 finalTotalAssets = borrowableCUSDC.totalAssets();
-        uint256 finalDaoShares = borrowableCUSDC.balanceOf(daoAddress);
         (,uint256 finalVestEnd,) = borrowableCUSDC.getYieldInformation();
 
         // validate vesting period, 100 minutes + initial period = 11 periods
@@ -442,12 +461,84 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         // Calculate changes
         uint256 totalAssetsIncrease = finalTotalAssets - initialTotalAssets;
         uint256 marketDebtIncrease = finalMarketDebt - initialMarketDebt;
-        uint256 daoSharesIncrease = finalDaoShares - initialDaoShares;
 
-        // Assert debt asset and debt increase
-        assertEq(totalAssetsIncrease, marketDebtIncrease, "Asset increase must equal debt increase");
+        // Individual user debt validation (users get rounded up, so debt >= expected)
+        uint256 userDebt = borrowableCUSDC.debtBalance(user1);
+        uint256 expectedUserDebt = 25000e6 + totalAssetsIncrease;
+        assertGe(userDebt, expectedUserDebt, "user debt should be greater than or equal to expected");
+        assertLe(userDebt - expectedUserDebt, 5, "user debt should be within 5 units of expected");
 
-        // borrower debt increase
-        assertEq(borrowableCUSDC.debtBalance(user1), 25000e6 + totalAssetsIncrease, "Borrower debt should increase by total interest");
+        // CRITICAL INVARIANT! TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!
+        assertEq(marketDebtIncrease, totalAssetsIncrease, "TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!");
+    }
+        
+    // Setup multiple borrowers with higher utilization, ~80%
+    function test_success_accrueIfNeeded_multiUserRoundingInvariants() public {
+
+        // Create multiple users with different borrow amounts
+        address user2 = makeAddr("user2");
+        address user3 = makeAddr("user3");
+
+        // Add more liquidity
+        _prepareUSDC(liquidityProvider, 80_000e6);
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 80000e6);
+        borrowableCUSDC.deposit(80000e6, liquidityProvider);
+        vm.stopPrank();
+
+        _prepareBALRETH(user1, 2000e18);
+        vm.startPrank(user1);
+        balRETH.approve(address(strategyCBALRETH), 2000e18);
+        strategyCBALRETH.depositAsCollateral(2000e18, user1);
+        borrowableCUSDC.borrow(35000e6, user1);
+        vm.stopPrank();
+
+        _prepareBALRETH(user2, 1000e18);
+        vm.startPrank(user2);
+        balRETH.approve(address(strategyCBALRETH), 1000e18);
+        strategyCBALRETH.depositAsCollateral(1000e18, user2);
+        borrowableCUSDC.borrow(20000e6, user2);
+        vm.stopPrank();
+
+        _prepareBALRETH(user3, 500e18);
+        vm.startPrank(user3);
+        balRETH.approve(address(strategyCBALRETH), 500e18);
+        strategyCBALRETH.depositAsCollateral(500e18, user3);
+        borrowableCUSDC.borrow(10000e6, user3);
+        vm.stopPrank();
+
+        // Accrue interest
+        for(uint i; i < 30; i++) {
+            skip(5 minutes);
+            borrowableCUSDC.accrueIfNeeded();
+        }
+
+        // Test rounding invariants
+        uint256 totalOutstandingDebt = borrowableCUSDC.marketOutstandingDebt();
+        uint256 totalVaultAssets = borrowableCUSDC.totalAssets();
+
+        // Sum individual user debts
+        uint256 sumUserDebts = borrowableCUSDC.debtBalance(user1) + 
+                               borrowableCUSDC.debtBalance(user2) + 
+                               borrowableCUSDC.debtBalance(user3);
+                               
+        // Sum individual user assets, LP shares converted to assets
+        uint256 sumUserAssets = borrowableCUSDC.convertToAssets(borrowableCUSDC.balanceOf(liquidityProvider)) +
+                                borrowableCUSDC.convertToAssets(borrowableCUSDC.balanceOf(address(this)));
+
+        // CRITICAL ROUNDING INVARIANTS:
+        // Users get rounded UP on borrows (favors protocol)
+        assertGe(sumUserDebts, totalOutstandingDebt, 
+            "sum of user borrows should be greater than or equal to total outstanding debt");
+        console2.log("Sum user debts: ", sumUserDebts);
+        console2.log("Total outstanding debt: ", totalOutstandingDebt);
+        console2.log("User debt advantage (should be >= 0): ", sumUserDebts - totalOutstandingDebt);
+
+        // Users get rounded DOWN on assets (favors protocol) 
+        assertLe(sumUserAssets, totalVaultAssets, 
+            "sum of user assets should always be less than or equal to total assets");
+        console2.log("Sum user assets: ", sumUserAssets);
+        console2.log("Total vault assets: ", totalVaultAssets);
+        console2.log("Protocol asset advantage (should be >= 0): ", totalVaultAssets - sumUserAssets);
     }
 }
