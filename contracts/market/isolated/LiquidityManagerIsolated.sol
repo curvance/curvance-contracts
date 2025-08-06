@@ -73,17 +73,17 @@ abstract contract LiquidityManagerIsolated {
     /// @dev In `WAD` format, e.g. 0.4e18 = 40% maximum close factor.
     struct CurvanceToken {
         bool isListed;
-        uint256 collRatio;
-        uint256 collReqSoft;
-        uint256 collReqHard;
-        uint256 liqIncBase;
-        uint256 liqIncCurve;
-        uint256 liqIncMin;
-        uint256 liqIncMax;
-        uint256 closeFactorBase;
-        uint256 closeFactorCurve;
-        uint256 closeFactorMin;
-        uint256 closeFactorMax;
+        uint80 collRatio;
+        uint80 collReqSoft;
+        uint80 collReqHard;
+        uint64 liqIncBase;
+        uint64 liqIncCurve;
+        uint64 liqIncMin;
+        uint64 liqIncMax;
+        uint64 closeFactorBase;
+        uint64 closeFactorCurve;
+        uint64 closeFactorMin;
+        uint64 closeFactorMax;
     }
 
     /// @notice Data structure containing information on hypothetical action

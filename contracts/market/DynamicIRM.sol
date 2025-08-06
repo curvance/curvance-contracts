@@ -195,7 +195,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     /// EVENTS ///
 
     event NewIRM(RatesConfig config);
-    event TokenLinked(address cTokenAddress);
+    event TokenLinked(address borrowableCToken);
 
     /// ERRORS ///
 

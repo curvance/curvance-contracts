@@ -874,33 +874,33 @@ contract MarketManagerIsolated is
         // Set new collateralization ratio.
         // Note that a collateralization ratio of 0 corresponds to
         // no collateralization of `cToken`.
-        ctData.collRatio = c.collRatio;
+        ctData.collRatio = uint80(c.collRatio);
 
         // Store the collateral requirement as a premium above `WAD`,
         // that way we can calculate solvency via division
         // efficiently in _liquidationStatusOf.
-        ctData.collReqSoft = c.collReqSoft + WAD;
-        ctData.collReqHard = c.collReqHard + WAD;
+        ctData.collReqSoft = uint80(c.collReqSoft + WAD);
+        ctData.collReqHard = uint80(c.collReqHard + WAD);
 
         // We use the liquidation incentive values as a premium in
         // `calculateLiquidatedTokens`, so it needs to be 1 + incentive.
-        ctData.liqIncBase = WAD + c.liqIncBase;
-        ctData.liqIncMin = WAD + c.liqIncMin;
-        ctData.liqIncMax = WAD + c.liqIncMax;
+        ctData.liqIncBase = uint64(WAD + c.liqIncBase);
+        ctData.liqIncMin = uint64(WAD + c.liqIncMin);
+        ctData.liqIncMax = uint64(WAD + c.liqIncMax);
 
         // Store the distance between liquidation incentive A & B,
         // so we can quickly scale between [base, 100%] based on lFactor.
-        ctData.liqIncCurve = c.liqIncHard - c.liqIncBase;
+        ctData.liqIncCurve = uint64(c.liqIncHard - c.liqIncBase);
 
         // Assign the base cFactor.
-        ctData.closeFactorBase = c.closeFactorBase;
+        ctData.closeFactorBase = uint64(c.closeFactorBase);
         // Store the distance between base cFactor and 100%,
         // that way we can quickly scale between [base, 100%] based on lFactor.
-        ctData.closeFactorCurve = WAD - c.closeFactorBase;
+        ctData.closeFactorCurve = uint64(WAD - c.closeFactorBase);
 
         // Assign the min and max effective closeFactor.
-        ctData.closeFactorMin = c.closeFactorMin;
-        ctData.closeFactorMax = c.closeFactorMax;
+        ctData.closeFactorMin = uint64(c.closeFactorMin);
+        ctData.closeFactorMax = uint64(c.closeFactorMax);
 
         // Assign the collateral posted cap of `c.cToken`.
         collateralCaps[c.cToken] = c.collateralCap;
