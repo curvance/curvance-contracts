@@ -14,17 +14,14 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
     /// @param proxyFeed The current proxy's feed address.
-    /// @param dapiNameHash The bytes32 encoded name hash of the price feed.
     /// @param heartbeat The max amount of time between price updates.
     ///                  0 defaults to using DEFAULT_HEART_BEAT.
-    /// @param max The max valid price of the asset.
-    ///            0 defaults to use proxy max price reduced by ~10%.
+    /// @param dapiNameHash The bytes32 encoded name hash of the price feed. 
     struct AssetConfig {
         bool isConfigured;
         IProxy proxyFeed;
+        uint24 heartbeat;
         bytes32 dapiNameHash;
-        uint256 heartbeat;
-        uint256 max;
     }
 
     /// CONSTANTS ///
@@ -90,15 +87,9 @@ contract Api3Adaptor is BaseOracleAdaptor {
         }
 
         AssetConfig storage config = assetConfig[asset][inUSD];
-        config.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
+        config.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT);
 
         // Save `config` and update mapping that we support `asset` now.
-
-        // Add a ~10% buffer to maximum price allowed from Api3 can stop
-        // updating its price before/above the min/max price. We use a maximum
-        // buffered price of 2^224 - 1, which could overflow when trying to
-        // save the final value into an uint240.
-        config.max = (uint256(int256(type(int224).max)) * 9) / 10;
         config.dapiNameHash = dapiNameHash;
         config.proxyFeed = IProxy(proxyFeed);
         config.isConfigured = true;
@@ -156,7 +147,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
         result.hadError = _verifyData(
             uint256(price),
             updatedAt,
-            config.max,
+            _MAXIMUM_PRICE_ALLOWED,
             0,
             config.heartbeat
         );

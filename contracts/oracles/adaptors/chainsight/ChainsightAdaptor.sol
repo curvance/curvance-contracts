@@ -14,20 +14,17 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     ///                     false = unconfigured; true = configured.
     /// @param sender The sender address corresponding to `asset`'s feed
     ///               inside Management Oracle.
-    /// @param feedKey The ICP VRF randomized key for the asset feed.
-    /// @param decimals Returns the number of decimals the Feed Key
-    ///                 responds with.
     /// @param heartbeat The max amount of time between price updates.
     ///                  0 defaults to using DEFAULT_HEART_BEAT.
-    /// @param max The max valid price of the asset.
-    ///            0 defaults to use uint224 max price reduced by ~10%.
+    /// @param decimals Returns the number of decimals the Feed Key
+    ///                 responds with.
+    /// @param feedKey The ICP VRF randomized key for the asset feed.
     struct AssetConfig {
         bool isConfigured;
         address sender;
+        uint8 decimals;
+        uint24 heartbeat;
         bytes32 feedKey;
-        uint256 decimals;
-        uint256 heartbeat;
-        uint256 max;
     }
 
     /// CONSTANTS ///
@@ -75,19 +72,19 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the token to add pricing support for.
     /// @param sender The sender address corresponding to `asset`'s feed
     ///               inside Management Oracle.
-    /// @param feedKey The ICP VRF randomized key for the asset feed.
     /// @param decimals Returns the number of decimals the Feed Key
     ///                 responds with.
     /// @param heartbeat Chainsight heartbeat to use when validating prices
     ///                  for `asset`. 0 = `DEFAULT_HEART_BEAT`.
+    /// @param feedKey The ICP VRF randomized key for the asset feed.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
     function addAsset(
         address asset,
         address sender,
-        bytes32 feedKey,
-        uint256 decimals,
+        uint8 decimals,
         uint256 heartbeat,
+        bytes32 feedKey,
         bool inUSD
     ) external {
         _checkElevatedPermissions();
@@ -119,22 +116,17 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
         AssetConfig storage config = assetConfig[asset][inUSD];
 
-        config.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
+        config.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT);
 
         if (block.timestamp - readTimestampSigned > heartbeat) {
             revert ChainsightAdaptor__InvalidPriceConfiguration();
         }
 
-        // Save adaptor data and update mapping that we support `asset` now.
-
-        // Add a ~10% buffer to maximum price allowed from Chainsight can stop
-        // updating its price before/above the min/max price. We use a maximum
-        // buffered price of 2^240 - 1, which could overflow when trying to
-        // save the final value into an uint240.
-        config.max = (uint256(int256(type(int240).max)) * 9) / 10;
+        // Update `config` and make sure `isSupportedAsset` returns true
+        // for `asset`.
         config.sender = sender;
         config.feedKey = feedKey;
-        config.decimals = decimals;
+        config.decimals = uint8(decimals);
         config.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
@@ -204,7 +196,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
         result.hadError = _verifyData(
             adjustedPrice,
             updatedAt,
-            config.max,
+            _MAXIMUM_PRICE_ALLOWED,
             0,
             config.heartbeat
         );

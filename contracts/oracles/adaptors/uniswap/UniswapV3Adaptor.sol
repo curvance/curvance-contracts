@@ -238,7 +238,8 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
             config.quoteToken = token0;
         } else revert UniswapV3Adaptor__AssetIsNotSupported();
 
-        // Save `config` and update mapping that we support `asset` now.
+        // Update `assetConfig` and make sure `isSupportedAsset` returns true
+        // for `asset`.
         assetConfig[asset] = config;
 
         // Check whether this is new or updated support for `asset`.
