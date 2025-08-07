@@ -127,8 +127,8 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             borrowableCDAI.marketOutstandingDebt()
         );
         DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
-        baseRatePerSecond = c.baseRatePerSecond;
-        vertexStart = c.vertexStart;
+        uint256 baseRatePerSecond = c.baseRatePerSecond;
+        uint256 vertexStart = c.vertexStart;
         
         // Verify utilization is below vertex point
         assertLt(
@@ -198,9 +198,9 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             borrowableCDAI.marketOutstandingDebt()
         );
         DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
-        baseRatePerSecond = c.baseRatePerSecond;
-        vertexRatePerSecond = c.vertexRatePerSecond;
-        vertexStart = c.vertexStart;
+        uint256 baseRatePerSecond = c.baseRatePerSecond;
+        uint256 vertexRatePerSecond = c.vertexRatePerSecond;
+        uint256 vertexStart = c.vertexStart;
 
         // Verify utilization is above vertex point
         assertGt(
@@ -253,7 +253,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         // Initial state checks
         uint256 initialMultiplier = IRM.vertexMultiplier();
         DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
-        increaseThreshold = c.increaseThreshold;
+        uint256 increaseThreshold = c.increaseThreshold;
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Borrow enough to push utilization above increaseThreshold
@@ -300,7 +300,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         dai.approve(address(borrowableCDAI), repayAmount);
         borrowableCDAI.repay(repayAmount);
         DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
-        decreaseThreshold = c.decreaseThreshold;
+        uint256 decreaseThreshold = c.decreaseThreshold;
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Move time forward to trigger multiplier update
@@ -340,7 +340,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         usdc.approve(address(simpleCUSDC), 2000000e6);
         simpleCUSDC.depositAsCollateral(2000000e6, user);
         DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
-        vertexMultiplierMax = c.vertexMultiplierMax;
+        uint256 vertexMultiplierMax = c.vertexMultiplierMax;
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Borrow to push utilization very high
@@ -375,7 +375,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         usdc.approve(address(simpleCUSDC), 3000000e6);
         simpleCUSDC.depositAsCollateral(3000000e6, user);
         DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
-        vertexMultiplierMax = c.vertexMultiplierMax;
+        uint256 vertexMultiplierMax = c.vertexMultiplierMax;
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Borrow to push utilization extremely high.
@@ -445,7 +445,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         usdc.approve(address(simpleCUSDC), 2000000e6);
         simpleCUSDC.depositAsCollateral(2000000e6, user);
         DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
-        vertexMultiplierMax = c.vertexMultiplierMax;
+        uint256 vertexMultiplierMax = c.vertexMultiplierMax;
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Borrow to push utilization very high.
