@@ -63,13 +63,8 @@ contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
             );
 
             vm.prank(address(borrowableCUSDC));
-            assertEq(
-                IRM.adjustedBorrowRate(
-                    assetsHeld,
-                    borrows
-                ),
-                borrowRate
-            );
+            (uint256 adjustedRate, ) = IRM.adjustedBorrowRate(assetsHeld, borrows);
+            assertEq(adjustedRate, borrowRate);
 
             if (util <= vertexStart) {
                 assertEq(borrowRate, (util * baseRatePerSecond) / WAD);
