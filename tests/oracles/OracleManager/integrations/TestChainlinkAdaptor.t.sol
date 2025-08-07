@@ -195,8 +195,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         (
             bool isConfigured,
             IChainlink aggregator,
-            uint256 decimals,
-            uint256 heartbeat,
+            uint8 decimals,
+            uint24 heartbeat,
             uint256 reportedMax,
             uint256 reportedMin
         ) = chainlinkAdaptor.assetConfig(
