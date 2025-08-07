@@ -19,7 +19,6 @@ contract SetLinkedTokenTest is TestBaseDynamicIRM {
             1000, // baseRatePerYear
             1000, // vertexRatePerYear
             5000, // vertexUtilizationStart
-            4 hours, // adjustmentRate
             5000, // adjustmentVelocity
             100000000, // 1000x maximum vertex multiplier
             100 // decayRate

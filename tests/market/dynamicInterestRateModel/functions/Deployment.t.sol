@@ -21,7 +21,6 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             1000,
             5000,
-            12 hours,
             5000,
             100000000,
             100
@@ -43,7 +42,6 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             1000,
             5000,
-            12 hours,
             (maxVertexAdjustmentVelocity) / 1e14 + 1,
             100000000,
             100
@@ -63,7 +61,6 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             15001,
             1000,
             5000,
-            12 hours,
             5000,
             100000000,
             100
@@ -83,7 +80,6 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             20001,
             5000,
-            12 hours,
             5000,
             100000000,
             100
@@ -105,52 +101,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             1000,
             5000,
-            12 hours,
             (minVertexAdjustmentVelocity) / 1e14 - 1,
-            100000000,
-            100
-        );
-    }
-
-    function test_dynamicIRMDeployment_fail_whenAdjustmentRateExceedsMaximum()
-        public
-    {
-        uint256 maxVertexAdjustmentRate = 4 hours;
-
-        vm.expectRevert(
-            DynamicIRM
-                .DynamicIRM__InvalidAdjustmentRate
-                .selector
-        );
-        new DynamicIRM(
-            ICentralRegistry(address(centralRegistry)),
-            1000,
-            1000,
-            5000,
-            maxVertexAdjustmentRate + 1,
-            5000,
-            100000000,
-            100
-        );
-    }
-
-    function test_dynamicIRMDeployment_fail_whenAdjustmentRateIsBelowMinimum()
-        public
-    {
-        uint256 minVertexAdjustmentRate = 20 minutes;
-
-        vm.expectRevert(
-            DynamicIRM
-                .DynamicIRM__InvalidAdjustmentRate
-                .selector
-        );
-        new DynamicIRM(
-            ICentralRegistry(address(centralRegistry)),
-            1000,
-            1000,
-            5000,
-            minVertexAdjustmentRate - 1,
-            5000,
             100000000,
             100
         );
@@ -171,7 +122,6 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             1000,
             5000,
-            4 hours,
             5000,
             100000000,
             (maxVertexDecayRate / 1e14) + 1
@@ -191,7 +141,6 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             1000,
             5000,
-            4 hours,
             5000,
             type(uint192).max / (1000 * 1e14) / 1e14 + 1,
             100
@@ -204,7 +153,6 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1500,
             1500,
             5500,
-            4 hours,
             5500,
             150000000,
             150

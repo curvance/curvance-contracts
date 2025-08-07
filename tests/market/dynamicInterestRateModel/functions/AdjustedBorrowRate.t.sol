@@ -5,9 +5,9 @@ import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
-    uint256 public baseInterestRate;
-    uint256 public vertexInterestRate;
-    uint256 public vertexPoint;
+    uint256 public baseRatePerSecond;
+    uint256 public vertexRatePerSecond;
+    uint256 public vertexStart;
     uint256 public increaseThreshold;
     uint256 public util;
     uint256 public vertexMultiplier;
@@ -36,18 +36,12 @@ contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
         vm.warp(timestamp);
 
         for (uint256 i = 0; i < 3; i++) {
-            (
-                baseInterestRate,
-                vertexInterestRate,
-                vertexPoint,
-                ,
-                ,
-                ,
-                ,
-                increaseThreshold,
-                ,
-                ,
-            ) = IRM.ratesConfig();
+            RatesConfig memory c = IRM.ratesConfig();
+            baseRatePerSecond = c.baseRatePerSecond;
+            vertexRatePerSecond = c.vertexRatePerSecond;
+            vertexStart = c.vertexStart;
+            increaseThreshold = c.increaseThreshold;
+
             util = IRM.utilizationRate(assetsHeld, borrows);
             vertexMultiplier = IRM.vertexMultiplier();
 
@@ -77,17 +71,17 @@ contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
                 borrowRate
             );
 
-            if (util <= vertexPoint) {
-                assertEq(borrowRate, (util * baseInterestRate) / WAD);
-                assertEq(predictedBorrowRate, (util * baseInterestRate) / WAD);
+            if (util <= vertexStart) {
+                assertEq(borrowRate, (util * baseRatePerSecond) / WAD);
+                assertEq(predictedBorrowRate, (util * baseRatePerSecond) / WAD);
             } else {
                 assertEq(
                     borrowRate,
-                    ((util - vertexPoint) *
-                        vertexInterestRate *
+                    ((util - vertexStart) *
+                        vertexRatePerSecond *
                         vertexMultiplier) /
                         WAD_SQUARED +
-                        (vertexPoint * baseInterestRate) /
+                        (vertexStart * baseRatePerSecond) /
                         WAD
                 );
 

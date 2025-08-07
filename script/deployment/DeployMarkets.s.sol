@@ -160,7 +160,6 @@ contract DeployMarkets is Script {
                 config.interestConfig.baseRatePerYear,
                 config.interestConfig.vertexRatePerYear,
                 config.interestConfig.vertexUtilStart,
-                config.interestConfig.adjustmentRate,
                 config.interestConfig.adjustmentVelocity,
                 config.interestConfig.vertexMultiplierMax,
                 config.interestConfig.decayRate
