@@ -40,9 +40,8 @@ contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
                 vertexRatePerSecond,
                 vertexStart,
                 ,
-                ,
-                ,
                 increaseThreshold,
+                ,
                 ,
                 ,
             ) = IRM.ratesConfig();

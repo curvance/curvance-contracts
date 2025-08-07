@@ -70,6 +70,18 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 ///      each other. "Don't trust, verify."
 ///
 contract OracleManager is IOracleManager {
+    /// TYPES ///
+
+    /// @notice The maximum allowed price divergence values before a
+    ///         particular error code is returned, in `BASIS_POINTS`.
+    /// @param caution The maximum allowed divergence between prices
+    ///                before CAUTION is flipped, in `BASIS_POINTS`.
+    /// @notice badSource The maximum allowed divergence between prices
+    ///                   before BAD_SOURCE is flipped, in `BASIS_POINTS`.
+    struct Flags {
+        uint128 caution;
+        uint128 badSource;
+    }
     /// CONSTANTS ///
 
     /// @notice Address identifying a chain's native token.
@@ -78,14 +90,14 @@ contract OracleManager is IOracleManager {
     /// @notice Time to pass before accepting answers when sequencer
     ///         comes back up.
     uint256 public constant GRACE_PERIOD_TIME = 3600;
-    /// @notice Minimum value that a divergence flag can be set as
-    ///         inside the protocol.
-    /// @dev 1.002e4 = 0.2%.
-    uint256 public constant MIN_DIVERGENCE_FLAG_VALUE = 1.002e4;
-    /// @notice Maximum value that a divergence flag can be set as
+    /// @notice Maximum value that a price divergence flag can be set as
     ///         inside the protocol.
     /// @dev 1.03e4 = 3.0%.
-    uint256 public constant MAX_DIVERGENCE_FLAG_VALUE = 1.03e4;
+    uint256 public constant MAX_DIVERGENCE_VALUE = 10300;
+    /// @notice Minimum value that a price divergence flag can be set as
+    ///         inside the protocol.
+    /// @dev 1.002e4 = 0.2%.
+    uint256 public constant MIN_DIVERGENCE_VALUE = 10020;
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
@@ -99,14 +111,10 @@ contract OracleManager is IOracleManager {
 
     /// STORAGE ///
 
-    /// @notice The maximum allowed divergence between prices
-    ///         before CAUTION is flipped, in `BASIS_POINTS`.
+    /// @notice The maximum allowed price divergence values before a
+    ///         particular error code is returned, in `BASIS_POINTS`.
     ///         10050 = 0.5% = 50 basis point deviation.
-    uint256 public cautionDivergenceFlag = 1.005e4;
-    /// @notice The maximum allowed divergence between prices
-    ///         before BAD_SOURCE is flipped, in `BASIS_POINTS`.
-    ///         10100 = 1% = 100 basis point deviation.
-    uint256 public badSourceDivergenceFlag = 1.01e4;
+    Flags public divergenceFlags;
 
     // Address => Adaptor approval status.
     mapping(address => bool) public isApprovedAdaptor;
@@ -128,6 +136,9 @@ contract OracleManager is IOracleManager {
     constructor(ICentralRegistry cr) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
+
+        divergenceFlags.caution = 10050;
+        divergenceFlags.badSource = 10100;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -269,43 +280,44 @@ contract OracleManager is IOracleManager {
         delete isApprovedAdaptor[adaptorToRemove];
     }
 
+    /// @notice Returns the maximum divergence values for price feeds
+    ///         before CAUTION or BAD_SOURCE is activated.
+    /// @return The maximum divergence before a caution flag is returned.
+    /// @return The maximum divergence before a bad source flag is returned.
+    function getDivergenceFlags() external view returns (uint256, uint256) {
+        return (divergenceFlags.caution, divergenceFlags.badSource);
+    }
+
     /// @notice Sets a new maximum divergence for price feeds
     ///         before CAUTION or BAD_SOURCE is activated.
-    /// @dev Requires that the new divergences is greater than
-    ///      or equal to 10200 aka 2% and less than or equal to 12000 aka 20%.
-    /// @param maxCautionDivergence The new maximum divergence
-    ///                             for a caution flag to be returned.
-    /// @param maxBadSourceDivergence The new maximum divergence
-    ///                               for a bad source flag to be returned.
+    /// @param newCaution The new maximum price divergence before a
+    ///                   caution error code is returned.
+    /// @param newBadSource The new maximum price divergence before a
+    ///                     bad source error code is returned.
     function setDivergenceFlags(
-        uint256 maxCautionDivergence,
-        uint256 maxBadSourceDivergence
+        uint256 newCaution,
+        uint256 newBadSource
     ) external {
         _checkElevatedPermissions();
 
         // Validate that the caution divergence flag does not occur after
         // the bad source divergence flag as bad source is a more
         // significant error than caution.
-        if (maxCautionDivergence >= maxBadSourceDivergence) {
+        if (newCaution >= newBadSource) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         if (
-            maxCautionDivergence < MIN_DIVERGENCE_FLAG_VALUE ||
-            maxCautionDivergence > MAX_DIVERGENCE_FLAG_VALUE
-            ) {
+            newCaution > MAX_DIVERGENCE_VALUE ||
+            newCaution < MIN_DIVERGENCE_VALUE ||
+            newBadSource > MAX_DIVERGENCE_VALUE ||
+            newBadSource < MIN_DIVERGENCE_VALUE
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        if (
-            maxBadSourceDivergence < MIN_DIVERGENCE_FLAG_VALUE ||
-            maxBadSourceDivergence > MAX_DIVERGENCE_FLAG_VALUE
-            ) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        cautionDivergenceFlag = maxCautionDivergence;
-        badSourceDivergenceFlag = maxBadSourceDivergence;
+        divergenceFlags.caution = uint128(newCaution);
+        divergenceFlags.badSource = uint128(newBadSource);
     }
 
     /// @notice Returns the token data of `cToken`.
@@ -755,14 +767,14 @@ contract OracleManager is IOracleManager {
         uint256 a,
         uint256 b
     ) internal view returns (uint256) {
+        Flags memory f = divergenceFlags;
         if (a <= b) {
-            // Check if both feeds are within `cautionDivergenceFlag`
-            // of each other.
-            if (((a * cautionDivergenceFlag) / BASIS_POINTS) < b) {
+            // Check if both feeds are within `f.caution` of each other.
+            if (((a * f.caution) / BASIS_POINTS) < b) {
                 // Notify that the price is dangerous and to treat data as a
                 // bad source because we are outside the accepted range of
                 // divergence.
-                if (((a * badSourceDivergenceFlag) / BASIS_POINTS) < b) {
+                if (((a * f.badSource) / BASIS_POINTS) < b) {
                     return BAD_SOURCE;
                 }
 
@@ -774,13 +786,12 @@ contract OracleManager is IOracleManager {
             return NO_ERROR;
         }
 
-        // Check if both feeds are within `cautionDivergenceFlag`
-        // of each other.
-        if (((b * cautionDivergenceFlag) / BASIS_POINTS) < a) {
+        // Check if both feeds are within `f.caution` of each other.
+        if (((b * f.caution) / BASIS_POINTS) < a) {
             // Notify that the price is dangerous and to treat data as a
             // bad source because we are outside the accepted range of
             // divergence.
-            if (((b * badSourceDivergenceFlag) / BASIS_POINTS) < a) {
+            if (((b * f.badSource) / BASIS_POINTS) < a) {
                 return BAD_SOURCE;
             }
 

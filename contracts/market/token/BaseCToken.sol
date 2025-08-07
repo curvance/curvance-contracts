@@ -92,8 +92,8 @@ abstract contract BaseCToken is
     string internal _name;
     /// @notice Token symbol metadata.
     string internal _symbol;
-    /// @notice Total amount of `asset()` in this vault, minus
-    ///         pending vesting.
+    /// @notice Total amount of `asset()` in this vault, minus pending
+    ///         vesting.
     uint256 internal _totalAssets;
 
     /// @notice Shares of this token that an account has posted as collateral.

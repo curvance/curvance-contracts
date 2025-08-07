@@ -796,7 +796,7 @@ contract MarketManagerIsolated is
             c.collRatio > MAX_COLLATERALIZATION_RATIO ||
             c.collReqSoft > MAX_COLLATERAL_REQUIREMENT ||
             c.collReqHard >= c.collReqSoft
-            ) {
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -812,7 +812,7 @@ contract MarketManagerIsolated is
             c.liqIncBase >= c.liqIncHard || c.liqIncBase > c.liqIncMax ||
             c.liqIncBase < c.liqIncMin || c.liqIncMin >= c.liqIncMax ||
             c.liqIncMax > MAX_LIQUIDATION_INCENTIVE
-            ) {
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -823,7 +823,7 @@ contract MarketManagerIsolated is
         if (
             c.liqIncHard + MIN_EXCESS_COLL_REQUIRED > c.collReqHard ||
             c.liqIncMax + MIN_EXCESS_COLL_REQUIRED > c.collReqHard
-            ) {
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -831,7 +831,7 @@ contract MarketManagerIsolated is
         if (
             c.closeFactorBase > MAX_BASE_CFACTOR ||
             c.closeFactorBase < MIN_BASE_CFACTOR
-            ) {
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 

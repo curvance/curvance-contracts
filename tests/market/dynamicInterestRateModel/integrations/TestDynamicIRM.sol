@@ -135,7 +135,6 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             ,
-            ,
         ) = IRM.ratesConfig();
 
         // Verify utilization is below vertex point
@@ -214,7 +213,6 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             ,
-            ,
         ) = IRM.ratesConfig();
 
         // Verify utilization is above vertex point
@@ -273,14 +271,13 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             ,
-            uint256 increaseThreshold,
-            ,
+        uint256 increaseThresholdStart,
             ,
             ,
         ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
-        // Borrow enough to push utilization above increaseThreshold
+        // Borrow enough to push utilization above increaseThresholdStart
         borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX, user);
 
         // Move time forward to trigger multiplier update
@@ -297,7 +294,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
 
         assertGt(
             utilization,
-            increaseThreshold,
+            increaseThresholdStart,
             "Utilization should be above increase threshold"
         );
         assertGt(
@@ -328,11 +325,10 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             ,
+            uint256 vertexStart,
             ,
             ,
             ,
-            ,
-            uint256 decreaseThreshold,
             ,
         ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
@@ -354,8 +350,8 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
 
         assertLt(
             utilization,
-            decreaseThreshold,
-            "Utilization should be below decrease threshold"
+            vertexStart,
+            "Utilization should be below vertexStart aka decrease threshold start"
         );
         assertLt(
             newMultiplier,
@@ -379,7 +375,6 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             uint256 vertexMultiplierMax,
-            ,
             ,
             ,
             ,
@@ -423,7 +418,6 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             uint256 vertexMultiplierMax,
-            ,
             ,
             ,
             ,
@@ -503,7 +497,6 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             uint256 vertexMultiplierMax,
-            ,
             ,
             ,
             ,

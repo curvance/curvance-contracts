@@ -251,29 +251,12 @@ contract CentralRegistry is ERC165, ActionRegistry {
     event InterestFeeSet(address indexed market, uint256 newFee);
     event MultiplierSet(string indexed multiplier, uint256 newMultiplier);
     event SlippageLimit(uint256 newSlippage);
-    event CoreContractUpdated(
-        string indexed contractType,
-        address addressUpdated
-    );
+    event CoreContractUpdated(string indexed coreType, address core);
     event ContractUpdated(
         string indexed contractType,
         address addressUpdated,
         bool isAdded
     );
-    event DomainSet(uint32 newDomain);
-    event NewChainAdded(uint256 chainId, address relayer);
-    event RemovedChain(
-        uint256 chainId,
-        address messagingHub,
-        address votingHub
-    );
-    event CalldataCheckerSet(
-        string indexed calldataType,
-        address targetAddress,
-        address calldataChecker
-    );
-    event MulticallProviderSet(address provider, bool isSupported);
-    event EraEmissionsAllotmentSet(uint256 epochEmissionAllotment);
     event PermissionsTransferred(
         string indexed permissionsType,
         address previousAddress,
@@ -284,6 +267,16 @@ contract CentralRegistry is ERC165, ActionRegistry {
         address addressUpdated,
         bool isAdded
     );
+    event DomainSet(uint32 newDomain);
+    event NewChainAdded(uint256 chainId, address relayer);
+    event RemovedChain(uint256 chainId, address messagingHub, address votingHub);
+    event CalldataCheckerSet(
+        string indexed calldataType,
+        address targetAddress,
+        address calldataChecker
+    );
+    event MulticallProviderSet(address provider, bool isSupported);
+    event EraEmissionsAllotmentSet(uint256 epochEmissionAllotment);
 
     /// ERRORS ///
 

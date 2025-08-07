@@ -56,7 +56,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      The Vertex Multiplier adjustment logic is as follows:
 ///
 ///      When utilization is below `vertexStart`:
-///         If the utilization is below the 'decreaseThresholdMax',
+///         If the utilization is below the 'decreaseThresholdEnd',
 ///         decay rate and maximum adjustment velocity is applied.
 ///         For higher utilizations (but still below the vertex),
 ///         a new multiplier is calculated by applying a negative curve value
@@ -64,7 +64,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///         decay multiplier.
 ///
 ///      When utilization is above `vertexStart`:
-///         If the utilization rate is below the 'increaseThreshold',
+///         If the utilization rate is below the 'increaseThresholdStart',
 ///         it simply applies the decay to the current multiplier.
 ///         If the utilization is higher, it calculates a new multiplier by
 ///         applying a positive curve value to the adjustment. This adjustment
@@ -100,25 +100,25 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///                            can be.
     /// @param decayPerAdjustment Rate at which vertexMultiplier will
     ///                           decay per adjustment, in `WAD`.
-    /// @param increaseThreshold The utilization rate at which the vertex
-    ///                          multiplier will begin to increase.
-    /// @param increaseThresholdMax The utilization rate at which the vertex
-    ///                             multiplier positive velocity will max out.
-    /// @param decreaseThreshold The utilization rate at which the vertex
-    ///                          multiplier will begin to decrease.
-    /// @param decreaseThresholdMax The utilization rate at which the vertex
+    /// @param increaseThresholdStart The utilization rate at which the vertex
+    ///                                multiplier will begin to increase.
+    /// @param decreaseThresholdEnd The utilization rate at which the vertex
     ///                             multiplier negative velocity will max out.
+    /// @param linkedToken The borrowable Curvance token linked to this interest rate
+    ///                    model contract.
+    /// @dev Once this token is set it can never be changed, like an immutable
+    ///      variable, this IRM will also be depreciated if that token ever
+    ///      switches IRMs.
     struct RatesConfig {
         uint64 baseRatePerSecond;
         uint64 vertexRatePerSecond;
         uint64 vertexStart;
         uint64 adjustmentVelocity;
-        uint192 vertexMultiplierMax;
+        uint128 vertexMultiplierMax;
+        uint64 increaseThresholdStart;
+        uint64 decreaseThresholdEnd;
         uint64 decayPerAdjustment;
-        uint64 increaseThreshold;
-        uint64 increaseThresholdMax;
-        uint64 decreaseThreshold;
-        uint64 decreaseThresholdMax;
+        address linkedToken;
     }
 
     /// CONSTANTS ///
@@ -150,6 +150,10 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///         be set to begin at, in `WAD`.
     ///         E.g. 0.99 * WAD = Vertex rate begins at 99% utilization.
     uint256 internal constant _MAX_VERTEX_START = 0.99e18;
+    /// @notice The minimum value that the vertex interest rate can
+    ///         be set to begin at, in `WAD`.
+    ///         E.g. 0.50 * WAD = Vertex rate begins at 50% utilization.
+    uint256 internal constant _MIN_VERTEX_START = 0.5e18;
     /// @notice The maximum value that the annual base interest rate can
     ///         be set to, in `WAD`.
     ///         E.g. 1.5 * WAD = 150% Base Interest Rate value at
@@ -162,29 +166,14 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     uint256 internal constant _MAX_VERTEX_INTEREST_RATE_PER_YEAR = 2e18;
     /// @notice The maximum value that `vertexMultiplierMax` can be set
     ///         to, in `WAD`.
-    ///         E.g. 1 * WAD = 100% Maximum `vertexMultiplierMax` maximum value.
-    /// @dev Our theoretical limit for `vertexMultiplier` is:
-    ///      (2^256 - 1) / 3e36 = 3.8597e40.
-    ///      Where 3e36 is the theoretical maximum value of shift and
-    ///      2^256 - 1 is type(uint256).max.
-    ///      As a result, we cap the vertex maximum before this number to
-    ///      prevent any overflows on values.
-    uint256 internal constant _MAXIMUM_VERTEX_MULTIPLIER_MAX = 1e40;
-    /// @notice The minimum value that `vertexMultiplierMax` can be set
-    ///         to, in `WAD`.
-    ///         E.g. 1 * WAD = 100% Minimum `vertexMultiplierMax` maximum value.
+    ///         E.g. 1 * WAD = 100% Maximum `vertexMultiplierMax` value.
+    uint256 internal constant _MAXIMUM_VERTEX_MULTIPLIER_MAX = type(uint128).max;
+    /// @notice The minimum value that `vertexMultiplierMax` can be set to,
+    ///         in `WAD`.
+    ///         E.g. 1 * WAD = 100% Minimum `vertexMultiplierMax` value.
     uint256 internal constant _MINIMUM_VERTEX_MULTIPLIER_MAX = WAD;
 
     /// STORAGE ///
-
-    /// @notice The borrowable Curvance token linked to this interest rate
-    ///         model contract.
-    /// @dev Once this token is set it can never be changed again
-    ///      replicating an immutable value, it also will be completely
-    ///      depreciated if that token ever switches to another
-    ///      interest rate model, automatically depreciating this
-    ///      implementation.
-    address public linkedToken;
 
     uint256 public vertexMultiplier;
 
@@ -207,7 +196,6 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     error DynamicIRM__InvalidAdjustmentVelocity();
     error DynamicIRM__InvalidDecayRate();
     error DynamicIRM__InvalidMultiplierMax();
-    error DynamicIRM__InvalidThresholdLength();
 
     /// CONSTRUCTOR ///
 
@@ -251,6 +239,16 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice The borrowable Curvance token linked to this interest rate
+    ///         model contract.
+    /// @dev Once this token is set it can never be changed, like an immutable
+    ///      variable, this IRM will also be depreciated if that token ever
+    ///      switches IRMs.
+    /// @return result The linked borrowableCToken address.
+    function linkedToken() external view returns(address result) {
+        result = ratesConfig.linkedToken;
+    }
+
     /// @notice Sets the dynamic interest rate model's linked borrowable
     ///         Curvance token (cToken) which interest rates this contract
     ///         will manage.
@@ -262,9 +260,11 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
             revert DynamicIRM__Unauthorized();
         }
 
+        RatesConfig storage c = ratesConfig;
+
         // Validate that a borrowable Curvance token has not already been
         // linked to this smart contract.
-        if (linkedToken != address(0)) {
+        if (c.linkedToken != address(0)) {
             revert DynamicIRM__Unauthorized();
         }
 
@@ -284,7 +284,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
             revert DynamicIRM__InvalidToken();
         }
 
-        linkedToken = cTokenAddress;
+        c.linkedToken = cTokenAddress;
 
         emit TokenLinked(cTokenAddress);
     }
@@ -345,14 +345,15 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint256 assetsHeld,
         uint256 debt
     ) external returns (uint256 ratePerSecond, uint256 adjustmentRate) {
+        RatesConfig memory c = ratesConfig;
+
         // Validate that the linked token itself is calling to update
         // its interest accrued.
-        if (msg.sender != linkedToken) {
+        if (msg.sender != c.linkedToken) {
             revert DynamicIRM__Unauthorized();
         }
 
         uint256 util = utilizationRate(assetsHeld, debt);
-        RatesConfig memory c = ratesConfig;
         uint256 vertexPoint = c.vertexStart;
         uint256 multiplier = vertexMultiplier;
         bool belowVertex = (util <= vertexPoint);
@@ -372,7 +373,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
 
         // If `vertexMultiplier` is already at its minimum,
         // and would decrease more, can break here.
-        if (multiplier == WAD && util < c.increaseThreshold) {
+        if (multiplier == WAD && util < c.increaseThresholdStart) {
             return (ratePerSecond, ADJUSTMENT_RATE);
         }
 
@@ -411,7 +412,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         }
 
         uint256 multiplier = vertexMultiplier;
-        if (multiplier == WAD && util < c.increaseThreshold) {
+        if (multiplier == WAD && util < c.increaseThresholdStart) {
             return _vertexRate(
                 util,
                 c.baseRatePerSecond,
@@ -594,15 +595,17 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         decayPerAdjustment = _bpToWad(decayPerAdjustment);
 
         /// Validate config values are within allowed constraints.
-        if (vertexStart > _MAX_VERTEX_START) {
+        if (
+            vertexStart > _MAX_VERTEX_START ||
+            vertexStart < _MIN_VERTEX_START
+        ) {
             revert DynamicIRM__InvalidUtilizationStart();
         }
 
-        if (baseRatePerYear > _MAX_BASE_INTEREST_RATE_PER_YEAR) {
-            revert DynamicIRM__InvalidInterestRatePerYear();
-        }
-
-        if (vertexRatePerYear > _MAX_VERTEX_INTEREST_RATE_PER_YEAR) {
+        if (
+            baseRatePerYear > _MAX_BASE_INTEREST_RATE_PER_YEAR ||
+            vertexRatePerYear > _MAX_VERTEX_INTEREST_RATE_PER_YEAR
+        ) {
             revert DynamicIRM__InvalidInterestRatePerYear();
         }
 
@@ -640,24 +643,18 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
 
         config.vertexStart = uint64(vertexStart);
         config.adjustmentVelocity = uint64(adjustmentVelocity);
-        config.vertexMultiplierMax = uint192(vertexMultiplierMax);
+        config.vertexMultiplierMax = uint128(vertexMultiplierMax);
         config.decayPerAdjustment = uint64(decayPerAdjustment);
         vertexMultiplier = vertexReset ? WAD : vertexMultiplier;
 
         // Dynamic rates start increasing halfway between desired
         // utilization and 100% utilization, in `WAD`.
         uint256 thresholdLength = (WAD - vertexStart) / 2;
-        config.increaseThreshold = uint64(vertexStart + thresholdLength);
-        config.increaseThresholdMax = uint64(WAD);
-
-        if (vertexStart < thresholdLength) {
-            revert DynamicIRM__InvalidThresholdLength();
-        }
+        config.increaseThresholdStart = uint64(vertexStart + thresholdLength);
 
         // Dynamic rates start decreasing as soon as we are below desired
         // utilization (vertexStart).
-        config.decreaseThreshold = uint64(vertexStart);
-        config.decreaseThresholdMax = uint64(vertexStart - thresholdLength);
+        config.decreaseThresholdEnd = uint64(vertexStart - thresholdLength);
 
         emit NewIRM(config);
     }
@@ -670,7 +667,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///      multiplier, and ensures the multiplier does not fall below 1,
     ///      in WAD.
     ///      NOTE: The multiplier is updated with the following logic:
-    ///      If the utilization is below the 'increaseThreshold',
+    ///      If the utilization is below the 'increaseThresholdStart',
     ///      it simply applies the decay to the current multiplier.
     ///      If the utilization is higher, it calculates a new multiplier by
     ///      applying a positive curve value to the adjustment.
@@ -689,7 +686,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // Calculate decay rate.
         uint256 decay = _mulDiv(multiplier, c.decayPerAdjustment, WAD);
 
-        if (util <= c.increaseThreshold) {
+        if (util <= c.increaseThresholdStart) {
             newMultiplier = multiplier - decay;
 
             // Check if decay rate sends new rate below 1.
@@ -697,15 +694,14 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         }
 
         // Apply a positive multiplier to the current multiplier based on
-        // `util` vs `increaseThreshold` and `increaseThresholdMax`.
+        // `util` vs `increaseThresholdStart` and `WAD`.
         // Then apply decay effect.
         newMultiplier = _positiveShift(
             multiplier, // `multiplier`.
             c.adjustmentVelocity, // `adjustmentVelocity`.
             decay, // `decay`.
             util, // `current`.
-            c.increaseThreshold, // `start`.
-            c.increaseThresholdMax // `end`.
+            c.increaseThresholdStart // `start`.
         );
 
         // Update and return with adjustment and decay rate applied.
@@ -729,7 +725,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///      multiplier, and ensures the multiplier does not fall below 1,
     ///      in WAD.
     ///      NOTE: The multiplier is updated with the following logic:
-    ///      If the utilization is below the 'decreaseThresholdMax',
+    ///      If the utilization is below the 'decreaseThresholdEnd',
     ///      decay rate and maximum adjustment velocity is applied.
     ///      For higher utilizations (but still below the vertex),
     ///      a new multiplier is calculated by applying a negative curve value
@@ -749,7 +745,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // Calculate decay rate.
         uint256 decay = _mulDiv(multiplier, c.decayPerAdjustment, WAD);
 
-        if (util <= c.decreaseThresholdMax) {
+        if (util <= c.decreaseThresholdEnd) {
             // Apply maximum adjustVelocity reduction (shift = 1).
             // We only need to adjust for 1e18 precision since `shift`
             // is not used here.
@@ -765,15 +761,15 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         }
 
         // Apply a negative multiplier to the current multiplier based on
-        // `util` vs `decreaseThreshold` and `decreaseThresholdMax`.
+        // `util` vs `vertexStart` and `decreaseThresholdEnd`.
         // Then apply decay effect.
         newMultiplier = _negativeShift(
             multiplier, // `multiplier`.
             c.adjustmentVelocity, // `adjustmentVelocity`.
             decay, // `decay`.
             util, // `current`.
-            c.decreaseThreshold, // `start`.
-            c.decreaseThresholdMax // `end`.
+            c.vertexStart, // `start`.
+            c.decreaseThresholdEnd // `end`.
         );
 
         // Update and return with adjustment and decay rate applied.
@@ -800,8 +796,6 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     /// @param current The current value, representing a point on the curve.
     /// @param start The start value of the curve, marking the beginning of
     ///              the calculation range.
-    /// @param end The end value of the curve, marking the end of the
-    ///            calculation range.
     /// @return result The new multiplier with the calculated shift value,
     ///                and decay rate applied.
     function _positiveShift(
@@ -809,14 +803,13 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint256 adjustmentVelocity,
         uint256 decay,
         uint256 current, // `util`.
-        uint256 start, // `increaseThreshold`.
-        uint256 end // `increaseThresholdMax`.
+        uint256 start // `increaseThresholdStart`.
     ) internal pure returns (uint256 result) {
         // We do not need to check for current >= end, since we know util is
         // the absolute maximum utilization is 100%, and thus current == end.
         // Which will result in WAD result for `shift`.
         // Thus, this will be bound between [0, WAD].
-        uint256 shift = _mulDiv(current - start, WAD, end - start);
+        uint256 shift = _mulDiv(current - start, WAD, WAD - start);
 
         // Apply shift result to adjustment velocity.
         // Then add 100% on top for final adjustment value to `multiplier`.
@@ -845,7 +838,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///              in `WAD`.
     /// @param current The current value, representing a point on the curve.
     /// @param start The start value of the curve, marking the beginning of
-    ///              the calculation range.
+    ///              the calculation range, equal to `vertexStart`.
     /// @param end The end value of the curve, marking the end of the
     ///            calculation range.
     /// @return result The new multiplier with the calculated shift value,
@@ -855,8 +848,8 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint256 adjustmentVelocity,
         uint256 decay,
         uint256 current, // `util`.
-        uint256 start, // `decreaseThreshold`.
-        uint256 end // `decreaseThresholdMax`.
+        uint256 start, // `vertexStart`.
+        uint256 end // `decreaseThresholdEnd`.
     ) internal pure returns (uint256 result) {
         // Calculate linear curve multiplier. We know that current > end,
         // based on pre conditional checks.
