@@ -741,7 +741,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Check if it is time to start a new vesting period.
         if (block.timestamp >= vestingEnd) {
-            uint256 nextAdjustment;
+            uint256 adjustmentRate;
             
             // Calculate the new interest rate for borrowers, in seconds.
             (rate, adjustmentRate)

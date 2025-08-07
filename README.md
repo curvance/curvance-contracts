@@ -46,13 +46,17 @@ Main dependencies:
 9. Internal Functions
 10. Private Functions; At the bottom of the contract
 
+### Custom Struct Types
+
+In cases of custom structs used for storing permanent data such as token or oracle configurations we try to pack the data as tightly as possible to reduce runtime SLOAD costs, while runtime local memory structs always use full size e.g. uint256 to save on converting local values back and forth from uint256.
+
 ### A/B state variables
 
 Instead of booleans, we use 0, 1, 2 (0 for false, 1/2 for true) in hotpath areas to minimize runtime gas costs such as our Reentryguard implementation.
 
 ### Precompiled selectors
 
-In instances of 3 or more calls to a specific custom error, uint256 selectors are pre calculated and stored as documented constants with direct reversion to minimize runtime gas costs, while also decreasing smart contract size.
+For contracts close to the Spurious Dragon contract size limit we store specific custom error selectors. In instances of 3 or more calls to a specific custom error, uint256 selectors are pre calculated and stored as documented constants with direct reversion to minimize runtime gas costs, while also decreasing smart contract size.
 
 ### Permissioned function validation
 
