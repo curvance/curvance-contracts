@@ -31,7 +31,7 @@ contract SetMintPausedTest is TestBaseMarketIsolated {
 
         marketManagerIsolated.canMint(address(borrowableCUSDC));
 
-        assert(_mintPaused(address(borrowableCUSDC)));
+        assertFalse(_mintPaused(address(borrowableCUSDC)));
 
         vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit TokenActionPaused(address(borrowableCUSDC), "Mint Paused", true);
@@ -41,14 +41,14 @@ contract SetMintPausedTest is TestBaseMarketIsolated {
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         marketManagerIsolated.canMint(address(borrowableCUSDC));
 
-        assert(!_mintPaused(address(borrowableCUSDC)));
+        assertTrue(_mintPaused(address(borrowableCUSDC)));
 
         vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit TokenActionPaused(address(borrowableCUSDC), "Mint Paused", false);
 
         marketManagerIsolated.setMintPaused(address(borrowableCUSDC), false);
 
-        assert(_mintPaused(address(borrowableCUSDC)));
+        assertFalse(_mintPaused(address(borrowableCUSDC)));
     }
 
     function _mintPaused(address cToken) internal returns (bool isPaused) {
