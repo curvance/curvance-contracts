@@ -126,7 +126,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
-        RatesConfig memory c = IRM.ratesConfig();
+        DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
         baseRatePerSecond = c.baseRatePerSecond;
         vertexStart = c.vertexStart;
         
@@ -197,7 +197,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
-        RatesConfig memory c = IRM.ratesConfig();
+        DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
         baseRatePerSecond = c.baseRatePerSecond;
         vertexRatePerSecond = c.vertexRatePerSecond;
         vertexStart = c.vertexStart;
@@ -252,7 +252,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
 
         // Initial state checks
         uint256 initialMultiplier = IRM.vertexMultiplier();
-        RatesConfig memory c = IRM.ratesConfig();
+        DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
         increaseThreshold = c.increaseThreshold;
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
@@ -299,7 +299,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         _prepareDAI(user, repayAmount);
         dai.approve(address(borrowableCDAI), repayAmount);
         borrowableCDAI.repay(repayAmount);
-        RatesConfig memory c = IRM.ratesConfig();
+        DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
         decreaseThreshold = c.decreaseThreshold;
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
@@ -339,7 +339,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         _prepareUSDC(user, 2000000e6);
         usdc.approve(address(simpleCUSDC), 2000000e6);
         simpleCUSDC.depositAsCollateral(2000000e6, user);
-        RatesConfig memory c = IRM.ratesConfig();
+        DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
         vertexMultiplierMax = c.vertexMultiplierMax;
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
@@ -374,7 +374,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         _prepareUSDC(user, 3000000e6);
         usdc.approve(address(simpleCUSDC), 3000000e6);
         simpleCUSDC.depositAsCollateral(3000000e6, user);
-        RatesConfig memory c = IRM.ratesConfig();
+        DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
         vertexMultiplierMax = c.vertexMultiplierMax;
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
@@ -444,7 +444,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         _prepareUSDC(user, 2000000e6);
         usdc.approve(address(simpleCUSDC), 2000000e6);
         simpleCUSDC.depositAsCollateral(2000000e6, user);
-        RatesConfig memory c = IRM.ratesConfig();
+        DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
         vertexMultiplierMax = c.vertexMultiplierMax;
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 

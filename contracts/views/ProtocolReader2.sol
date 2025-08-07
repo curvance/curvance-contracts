@@ -340,17 +340,17 @@ contract ProtocolReader2 {
 
         // So here we are.
         config.isListed = isListed;
-        config.collRatio = collRatio;
-        config.collReqSoft = collReqSoft;
-        config.collReqHard = collReqHard;
-        config.liqIncBase = liqIncBase;
-        config.liqIncCurve = liqIncCurve;
-        config.liqIncMin = liqIncMin;
-        config.liqIncMax = liqIncMax;
-        config.closeFactorBase = closeFactorBase;
-        config.closeFactorCurve = closeFactorCurve;
-        config.closeFactorMin = closeFactorMin;
-        config.closeFactorMax = closeFactorMax;
+        config.collRatio = uint80(collRatio);
+        config.collReqSoft = uint80(collReqSoft);
+        config.collReqHard = uint80(collReqHard);
+        config.liqIncBase = uint64(liqIncBase);
+        config.liqIncCurve = uint64(liqIncCurve);
+        config.liqIncMin = uint64(liqIncMin);
+        config.liqIncMax = uint64(liqIncMax);
+        config.closeFactorBase = uint64(closeFactorBase);
+        config.closeFactorCurve = uint64(closeFactorCurve);
+        config.closeFactorMin = uint64(closeFactorMin);
+        config.closeFactorMax = uint64(closeFactorMax);
     }
 
     /// @notice Adds an newAdapter to the existingAdapters if it doesn't already exist
