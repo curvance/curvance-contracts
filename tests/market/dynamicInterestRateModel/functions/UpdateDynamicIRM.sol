@@ -3,9 +3,7 @@ pragma solidity ^0.8.19;
 import { TestBaseDynamicIRM } from "../TestBaseDynamicIRM.sol";
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 
-contract UpdateDynamicIRMTest is
-    TestBaseDynamicIRM
-{
+contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
     function test_updateDynamicIRM_fail_whenCallerIsNotAuthorized()
         public
     {
@@ -20,7 +18,6 @@ contract UpdateDynamicIRMTest is
             1500,
             1500,
             5500,
-            4 hours,
             5500,
             150000000,
             150,
@@ -42,7 +39,6 @@ contract UpdateDynamicIRMTest is
             1000,
             1000,
             5000,
-            12 hours,
             (maxVertexAdjustmentVelocity) / 1e14 + 1,
             100000000,
             100,
@@ -65,52 +61,7 @@ contract UpdateDynamicIRMTest is
             1000,
             1000,
             5000,
-            12 hours,
             (minVertexAdjustmentVelocity / 1e14) - 1,
-            100000000,
-            100,
-            true
-        );
-    }
-
-    function test_updateDynamicIRM_fail_whenAdjustmentRateExceedsMaximum()
-        public
-    {
-        uint256 maxVertexAdjustmentRate = 4 hours;
-
-        vm.expectRevert(
-            DynamicIRM
-                .DynamicIRM__InvalidAdjustmentRate
-                .selector
-        );
-        IRM.updateDynamicIRM(
-            1000,
-            1000,
-            5000,
-            maxVertexAdjustmentRate + 1,
-            5000,
-            100000000,
-            100,
-            true
-        );
-    }
-
-    function test_updateDynamicIRM_fail_whenAdjustmentRateIsBelowMinimum()
-        public
-    {
-        uint256 minVertexAdjustmentRate = 20 minutes;
-
-        vm.expectRevert(
-            DynamicIRM
-                .DynamicIRM__InvalidAdjustmentRate
-                .selector
-        );
-        IRM.updateDynamicIRM(
-            1000,
-            1000,
-            5000,
-            minVertexAdjustmentRate - 1,
-            5000,
             100000000,
             100,
             true
@@ -131,7 +82,6 @@ contract UpdateDynamicIRMTest is
             1000,
             1000,
             5000,
-            4 hours,
             5000,
             100000000,
             (maxVertexDecayRate / 1e14) + 1,
@@ -151,7 +101,6 @@ contract UpdateDynamicIRMTest is
             1000,
             1000,
             5000,
-            4 hours,
             5000,
             type(uint192).max / (1000 * 1e14) / 1e14 + 1,
             100,
@@ -164,7 +113,6 @@ contract UpdateDynamicIRMTest is
             1500,
             1500,
             5500,
-            4 hours,
             5500,
             150000000,
             150,

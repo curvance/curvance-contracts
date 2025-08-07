@@ -126,10 +126,18 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
-        DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
-        uint256 baseRatePerSecond = c.baseRatePerSecond;
-        uint256 vertexStart = c.vertexStart;
-        
+        (
+            uint256 baseRatePerSecond,
+            ,
+            uint256 vertexStart,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+        ) = IRM.ratesConfig();
+
         // Verify utilization is below vertex point
         assertLt(
             newUtilization,
@@ -197,10 +205,17 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
-        DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
-        uint256 baseRatePerSecond = c.baseRatePerSecond;
-        uint256 vertexRatePerSecond = c.vertexRatePerSecond;
-        uint256 vertexStart = c.vertexStart;
+        (
+            uint256 baseRatePerSecond,
+            uint256 vertexRatePerSecond,
+            uint256 vertexStart,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+        ) = IRM.ratesConfig();
 
         // Verify utilization is above vertex point
         assertGt(
@@ -252,8 +267,17 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
 
         // Initial state checks
         uint256 initialMultiplier = IRM.vertexMultiplier();
-        DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
-        uint256 increaseThreshold = c.increaseThreshold;
+        (
+            ,
+            ,
+            ,
+            ,
+            ,
+            uint256 increaseThreshold,
+            ,
+            ,
+            ,
+        ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Borrow enough to push utilization above increaseThreshold
@@ -299,8 +323,17 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         _prepareDAI(user, repayAmount);
         dai.approve(address(borrowableCDAI), repayAmount);
         borrowableCDAI.repay(repayAmount);
-        DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
-        uint256 decreaseThreshold = c.decreaseThreshold;
+        (
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            uint256 decreaseThreshold,
+            ,
+        ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Move time forward to trigger multiplier update
@@ -339,8 +372,17 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         _prepareUSDC(user, 2000000e6);
         usdc.approve(address(simpleCUSDC), 2000000e6);
         simpleCUSDC.depositAsCollateral(2000000e6, user);
-        DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
-        uint256 vertexMultiplierMax = c.vertexMultiplierMax;
+        (
+            ,
+            ,
+            ,
+            ,
+            uint256 vertexMultiplierMax,
+            ,
+            ,
+            ,
+            ,
+        ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Borrow to push utilization very high
@@ -374,8 +416,17 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         _prepareUSDC(user, 3000000e6);
         usdc.approve(address(simpleCUSDC), 3000000e6);
         simpleCUSDC.depositAsCollateral(3000000e6, user);
-        DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
-        uint256 vertexMultiplierMax = c.vertexMultiplierMax;
+        (
+            ,
+            ,
+            ,
+            ,
+            uint256 vertexMultiplierMax,
+            ,
+            ,
+            ,
+            ,
+        ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Borrow to push utilization extremely high.
@@ -444,8 +495,17 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         _prepareUSDC(user, 2000000e6);
         usdc.approve(address(simpleCUSDC), 2000000e6);
         simpleCUSDC.depositAsCollateral(2000000e6, user);
-        DynamicIRM.RatesConfig memory c = IRM.ratesConfig();
-        uint256 vertexMultiplierMax = c.vertexMultiplierMax;
+        (
+            ,
+            ,
+            ,
+            ,
+            uint256 vertexMultiplierMax,
+            ,
+            ,
+            ,
+            ,
+        ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Borrow to push utilization very high.

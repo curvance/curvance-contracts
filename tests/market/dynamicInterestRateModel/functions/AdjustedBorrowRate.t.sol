@@ -34,9 +34,18 @@ contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
         vm.assume(timestamp < 2000000000);
 
         vm.warp(timestamp);
-        DynamicIRM.RatesConfig memory c;
         for (uint256 i = 0; i < 3; i++) {
-            c = IRM.ratesConfig();
+            (
+                baseRatePerSecond,
+                vertexRatePerSecond,
+                vertexStart,
+                ,
+                ,
+                ,
+                increaseThreshold,
+                ,
+                ,
+            ) = IRM.ratesConfig();
             baseRatePerSecond = c.baseRatePerSecond;
             vertexRatePerSecond = c.vertexRatePerSecond;
             vertexStart = c.vertexStart;
