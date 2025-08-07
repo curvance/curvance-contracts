@@ -83,8 +83,7 @@ contract SetDivergenceFlagsTest is TestBaseOracleManager {
         assertEq(cautionFlag, 10050);
 
         oracleManager.setDivergenceFlags(10100, 10200);
-        (uint256 cautionFlag, uint256 badSourceFlag) =
-            oracleManager.getDivergenceFlags();
+        (cautionFlag, badSourceFlag) = oracleManager.getDivergenceFlags();
 
         assertEq(cautionFlag, 10100);
         assertEq(badSourceFlag, 10200);
@@ -96,8 +95,7 @@ contract SetDivergenceFlagsTest is TestBaseOracleManager {
         assertEq(badSourceFlag, 10100);
 
         oracleManager.setDivergenceFlags(10100, 10150);
-        (uint256 cautionFlag, uint256 badSourceFlag) =
-            oracleManager.getDivergenceFlags();
+        (cautionFlag, badSourceFlag) =oracleManager.getDivergenceFlags();
 
         assertEq(cautionFlag, 10100);
         assertEq(badSourceFlag, 10150);
