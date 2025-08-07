@@ -1147,7 +1147,7 @@ contract TestBaseMarketIsolated is TestBase {
         }
 
         // Get collateral requirement
-        (,,,, uint256 collReqSoft,,,,,,,) = marketManager_.tokenData(params.collateralToken);
+        (, uint256 collReqSoft, ) = marketManager_.collConfig(params.collateralToken);
 
         // Calculate lFactor: (debt * collReqSoft) / adjustedCollateralSoft
         return (debt * collReqSoft) / adjustedCollateralSoft;
