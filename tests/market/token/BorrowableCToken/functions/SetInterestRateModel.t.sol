@@ -54,4 +54,33 @@ contract SetInterestRateModelTest is TestBaseBorrowableCToken {
             address(newDynamicInterestRateModel)
         );
     }
+
+    function test_setInterestRateModel_success_withOutstandingDebt() public {
+        borrowableCUSDC.deposit(200e6, address(this));
+        strategyCBALRETH.postCollateral(1e18 - 1);
+        borrowableCUSDC.borrow(100e6, address(this));
+        
+        _harvestAuraStrategyRewards(1 weeks);
+
+        uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+
+        assertEq(address(borrowableCUSDC.interestRateModel()), address(interestRateModels[block.chainid][_USDC_ADDRESS])
+        );
+
+        borrowableCUSDC.setInterestRateModel(address(newDynamicInterestRateModel));
+
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
+
+        assertEq(address(borrowableCUSDC.interestRateModel()),address(newDynamicInterestRateModel)
+        );
+
+        assertGt(debtAfterAccrual, 100e6);
+        assertGt(debtAfterAccrual, debtBeforeAccrual);
+
+        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
+        assertEq(debtIncrease, assetsIncrease);
+    }
 }
