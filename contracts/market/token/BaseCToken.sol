@@ -485,10 +485,8 @@ abstract contract BaseCToken is
     function maxDeposit(
         address receiver
     ) public view override returns (uint256 maxAssets) {
-        if (
-            !marketManager.isListed(address(this)) ||
-            marketManager.mintPaused(address(this)) == 2
-        ) {
+        (bool mintPaused, , ) = marketManager.actionsPaused(address(this));
+        if (!marketManager.isListed(address(this)) || mintPaused) {
             // We do not need to set maxAssets here since its initialized
             // as 0 so we can just return.
             return maxAssets;
@@ -504,10 +502,8 @@ abstract contract BaseCToken is
     function maxMint(
         address receiver
     ) public view override returns (uint256 maxShares) {
-        if (
-            !marketManager.isListed(address(this)) ||
-            marketManager.mintPaused(address(this)) == 2
-        ) {
+        (bool mintPaused, , ) = marketManager.actionsPaused(address(this));
+        if (!marketManager.isListed(address(this)) || mintPaused) {
             // We do not need to set maxShares here since its initialized
             // as 0 so we can just return.
             return maxShares;

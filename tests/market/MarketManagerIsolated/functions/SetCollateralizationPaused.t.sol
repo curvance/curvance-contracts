@@ -29,14 +29,14 @@ contract SetCollateralizationPausedTest is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        assertEq(marketManagerIsolated.collateralizationPaused(address(borrowableCUSDC)), 0);
+        assert(_collateralizationPaused(address(borrowableCUSDC)));
 
         vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit TokenActionPaused(address(borrowableCUSDC), "Collateralization Paused", true);
 
         marketManagerIsolated.setCollateralizationPaused(address(borrowableCUSDC), true);
 
-        assertEq(marketManagerIsolated.collateralizationPaused(address(borrowableCUSDC)), 2);
+        assert(!_collateralizationPaused(address(borrowableCUSDC)));
 
         vm.startPrank(address(borrowableCUSDC));
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
@@ -48,6 +48,10 @@ contract SetCollateralizationPausedTest is TestBaseMarketIsolated {
 
         marketManagerIsolated.setCollateralizationPaused(address(borrowableCUSDC), false);
 
-        assertEq(marketManagerIsolated.collateralizationPaused(address(borrowableCUSDC)), 1);
+        assert(!_collateralizationPaused(address(borrowableCUSDC)));
+    }
+
+    function _collateralizationPaused(address cToken) internal returns (bool isPaused) {
+        (, isPaused, ) = marketManagerIsolated.actionDisabled(cToken);
     }
 }

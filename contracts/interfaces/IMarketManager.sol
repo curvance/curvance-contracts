@@ -47,15 +47,56 @@ interface IMarketManager {
         uint256 badDebtRealized;
     }
 
-    /// @notice Whether cToken minting is paused.
-    /// @dev Token => 0 or 1 = unpaused; 2 = paused.
-    function mintPaused(address cToken) external view returns (uint256);
-
-    /// @notice Whether cToken collateralization is paused.
-    /// @dev Token => 0 or 1 = unpaused; 2 = paused.
-    function collateralizationPaused(
+    /// @notice Returns whether minting, collateralization, borrowing of
+    ///         `cToken` is paused.
+    /// @param cToken The address of the Curvance token to return
+    ///               action statuses of.
+    /// @return bool Whether minting `cToken` is paused or not.
+    /// @return bool Whether collateralization `cToken` is paused or not.
+    /// @return bool Whether borrowing `cToken` is paused or not.
+    function actionsPaused(
         address cToken
-    ) external view returns (uint256);
+    ) external view returns (bool, bool, bool);
+
+    /// @notice Returns the current collateralization configuration
+    ///         of `cToken`.
+    /// @param cToken The address of the Curvance token to return
+    ///               collateralization configuration of.
+    /// @return The ratio at which this token can be borrowed against
+    ///         when collateralized.
+    /// @return The collateral requirement where dipping below this
+    ///         will cause a soft liquidation.
+    /// @return The collateral requirement where dipping below
+    ///         this will cause a hard liquidation.
+    function collConfig(address cToken) external view returns (
+         uint256, uint256, uint256
+    );
+
+    /// @notice Returns the current liquidation configuration
+    ///         of `cToken`.
+    /// @param cToken The address of the Curvance token to return
+    ///               liquidation configuration of.
+    /// @return The base ratio at which this token will be
+    ///         compensated on soft liquidation.
+    /// @return The liquidation incentive curve length between soft
+    ///         liquidation to hard liquidation, in `WAD`. e.g. 5% base
+    ///         incentive with 8% curve length results in 13% liquidation
+    ///         incentive on hard liquidation.
+    /// @return The minimum possible liquidation incentive for during an
+    ///         auction, in `WAD`.
+    /// @return The maximum possible liquidation incentive for during an
+    ///         auction, in `WAD`.
+    /// @return Maximum % that a liquidator can repay when soft
+    ///         liquidating an account, in `WAD`.
+    /// @return Curve length between soft liquidation and hard liquidation,
+    ///         should be equal to 100% - `closeFactorBase`, in `WAD`.
+    /// @return The minimum possible close factor for during an auction,
+    ///         in `WAD`.
+    /// @return The maximum possible close factor for during an auction,
+    ///         in `WAD`.
+    function liquidationConfig(address cToken) external view returns (
+        uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256
+    );
 
     /// @notice Checks if the account should be allowed to mint tokens
     ///         in the given market.
@@ -235,12 +276,6 @@ interface IMarketManager {
     /// @notice Returns whether `cToken` is listed in the lending market.
     /// @param cToken market token address.
     function isListed(address cToken) external view returns (bool);
-
-    /// @notice Returns the ratio at which `cToken` can be collateralized.
-    /// @return Ratio returned in `WAD`, e.g. 0.8e18 = 80% collateral value.
-    function collateralizationRatio(
-        address cToken
-    ) external view returns (uint256);
 
     /// @notice The total amount of `cToken` that can be posted as collateral,
     ///         in shares.

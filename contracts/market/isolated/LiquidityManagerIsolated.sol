@@ -34,6 +34,12 @@ abstract contract LiquidityManagerIsolated {
     ///         in the liquidity manager.
     /// @param isListed Whether or not this Curvance token is listed.
     /// @dev false = unlisted; true = listed.
+    /// @param mintPaused Whether token minting is paused.
+    /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
+    /// @param collateralizationPaused Whether token collateralization is paused.
+    /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
+    /// @param borrowPaused Whether token borrowing is paused.
+    /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
     /// @param collRatio The ratio at which this token can be borrowed against
     ///                  when collateralized.
     /// @dev In `WAD`, e.g. 0.8e18 = 80% collateral value borrowable.
@@ -52,10 +58,10 @@ abstract contract LiquidityManagerIsolated {
     ///                    in 13% liquidation incentive on hard liquidation.
     /// @dev In `WAD`, e.g. 0.05e18 = 5% maximum additional incentive.
     /// @param liqIncMin The minimum possible liquidation incentive for
-    ///                  during an auction, in basis points.
+    ///                  during an auction.
     /// @dev In `WAD`, stored as Incentive + WAD e.g. 1.03e18 = 3% incentive.
     /// @param liqIncMax The maximum possible liquidation incentive for
-    ///                  during an auction, in basis points.
+    ///                  during an auction.
     /// @dev In `WAD`, stored as Incentive + WAD e.g. 1.07e18 = 7% incentive.
     /// @param closeFactorBase Maximum % that a liquidator can repay when soft
     ///                        liquidating an account.
@@ -66,16 +72,19 @@ abstract contract LiquidityManagerIsolated {
     /// @dev In `WAD` format, e.g. 0.9e18 = 90% distance between
     ///      `closeFactorBase`, and 100%.
     /// @param closeFactorMin The minimum possible close factor for during an
-    ///                       auction, in basis points.
+    ///                       auction.
     /// @dev In `WAD` format, e.g. 0.2e18 = 20% minimum close factor.
     /// @param closeFactorMax The maximum possible close factor for during an 
-    ///                       auction, in basis points.
+    ///                       auction.
     /// @dev In `WAD` format, e.g. 0.4e18 = 40% maximum close factor.
     struct CurvanceToken {
         bool isListed;
-        uint80 collRatio;
-        uint80 collReqSoft;
-        uint80 collReqHard;
+        uint8 mintPaused;
+        uint8 collateralizationPaused;
+        uint8 borrowPaused;
+        uint72 collRatio;
+        uint72 collReqSoft;
+        uint72 collReqHard;
         uint64 liqIncBase;
         uint64 liqIncCurve;
         uint64 liqIncMin;
@@ -213,9 +222,10 @@ abstract contract LiquidityManagerIsolated {
     /// STORAGE ///
 
     /// @notice Curvance token data including listing status,
-    ///         token characterists, account position data.
+    ///         action enablement, collateralization configuration,
+    ///         and liquidation configuration.
     /// @dev Curvance Token Address => CurvanceToken struct.
-    mapping(address => CurvanceToken) public tokenData;
+    mapping(address => CurvanceToken) internal _tokenConfig;
 
     // ACCOUNT LIQUIDITY DATA //
 
@@ -271,7 +281,7 @@ abstract contract LiquidityManagerIsolated {
                 collateral += collateralValue;
                 maxDebt += _mulDiv(
                     collateralValue,
-                    tokenData[snap.asset].collRatio,
+                    _tokenConfig[snap.asset].collRatio,
                     WAD
                 );
             } else {
@@ -353,7 +363,7 @@ abstract contract LiquidityManagerIsolated {
                         snap.exchangeRate,
                         underlyingPrices[i],
                         10 ** snap.decimals,
-                        tokenData[snap.asset].collRatio,
+                        _tokenConfig[snap.asset].collRatio,
                         true
                     );
                 }
@@ -403,7 +413,7 @@ abstract contract LiquidityManagerIsolated {
                         snap.exchangeRate,
                         underlyingPrices[i],
                         10 ** snap.decimals,
-                        tokenData[snap.asset].collRatio,
+                        _tokenConfig[snap.asset].collRatio,
                         false
                     );
                 } else {
@@ -742,8 +752,8 @@ abstract contract LiquidityManagerIsolated {
         return _addLiquidationValuesCached(
             snap.exchangeRate,
             10 ** snap.decimals,
-            tokenData[asset].collReqSoft,
-            tokenData[asset].collReqHard,
+            _tokenConfig[asset].collReqSoft,
+            _tokenConfig[asset].collReqHard,
             price,
             ICToken(asset).collateralPosted(account),
             softSumPrior,
