@@ -78,28 +78,28 @@ contract SetDivergenceFlagsTest is TestBaseOracleManager {
     }
 
     function test_setCautionDivergenceFlag_success() public {
-        (uint256 caution, uint256 badSource) =
+        (uint256 cautionFlag, uint256 badSourceFlag) =
             oracleManager.getDivergenceFlags();
-        assertEq(caution, 10050);
+        assertEq(cautionFlag, 10050);
 
         oracleManager.setDivergenceFlags(10100, 10200);
-        (uint256 caution, uint256 badSource) =
+        (uint256 cautionFlag, uint256 badSourceFlag) =
             oracleManager.getDivergenceFlags();
 
-        assertEq(caution, 10100);
-        assertEq(badSource, 10200);
+        assertEq(cautionFlag, 10100);
+        assertEq(badSourceFlag, 10200);
     }
 
     function test_setBadSourceDivergenceFlag_success() public {
-        (uint256 caution, uint256 badSource) =
+        (uint256 cautionFlag, uint256 badSourceFlag) =
             oracleManager.getDivergenceFlags();
-        assertEq(badSource, 10100);
+        assertEq(badSourceFlag, 10100);
 
         oracleManager.setDivergenceFlags(10100, 10150);
-        (uint256 caution, uint256 badSource) =
+        (uint256 cautionFlag, uint256 badSourceFlag) =
             oracleManager.getDivergenceFlags();
 
-        assertEq(caution, 10100);
-        assertEq(badSource, 10150);
+        assertEq(cautionFlag, 10100);
+        assertEq(badSourceFlag, 10150);
     }
 }
