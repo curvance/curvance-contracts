@@ -21,7 +21,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             1000,
             5000,
-            5000,
+            1000,
             100000000,
             100
         );
@@ -30,7 +30,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
     function test_dynamicIRMDeployment_fail_whenAdjustmentVelocityExceedsMaximum()
         public
     {
-        uint256 maxVertexAdjustmentVelocity = 1e18; // Value from the contract
+        uint256 maxVertexAdjustmentVelocity = 0.2e18; // Value from the contract
 
         vm.expectRevert(
             DynamicIRM
@@ -61,7 +61,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             15001,
             1000,
             5000,
-            5000,
+            1000,
             100000000,
             100
         );
@@ -80,7 +80,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             20001,
             5000,
-            5000,
+            1000,
             100000000,
             100
         );
@@ -89,7 +89,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
     function test_dynamicIRMDeployment_fail_whenAdjustmentVelocityIsBelowMinimum()
         public
     {
-        uint256 minVertexAdjustmentVelocity = 0.1e18;
+        uint256 minVertexAdjustmentVelocity = 0.01e18;
 
         vm.expectRevert(
             DynamicIRM
@@ -122,7 +122,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             1000,
             5000,
-            5000,
+            1000,
             100000000,
             (maxVertexDecayRate / 1e14) + 1
         );
@@ -141,7 +141,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             1000,
             5000,
-            5000,
+            1000,
             type(uint192).max / (1000 * 1e14) / 1e14 + 1,
             100
         );
@@ -153,7 +153,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1500,
             1500,
             5500,
-            5500,
+            1000,
             150000000,
             150
         );
