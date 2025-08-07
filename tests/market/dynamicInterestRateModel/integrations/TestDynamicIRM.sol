@@ -271,7 +271,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             ,
-        uint256 increaseThresholdStart,
+            uint256 increaseThresholdStart,
             ,
             ,
         ) = IRM.ratesConfig();

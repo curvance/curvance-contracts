@@ -8,7 +8,7 @@ contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
     uint256 public baseRatePerSecond;
     uint256 public vertexRatePerSecond;
     uint256 public vertexStart;
-    uint256 public increaseThreshold;
+    uint256 public increaseThresholdStart;
     uint256 public util;
     uint256 public vertexMultiplier;
 
@@ -40,8 +40,8 @@ contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
                 vertexRatePerSecond,
                 vertexStart,
                 ,
-                increaseThreshold,
                 ,
+                increaseThresholdStart,
                 ,
                 ,
             ) = IRM.ratesConfig();
@@ -84,7 +84,7 @@ contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
                         WAD
                 );
 
-                if (vertexMultiplier == WAD && util < increaseThreshold) {
+                if (vertexMultiplier == WAD && util < increaseThresholdStart) {
                     assertEq(predictedBorrowRate, borrowRate);
                 }
             }

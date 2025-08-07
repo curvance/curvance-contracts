@@ -53,4 +53,32 @@ contract SetIRMTest is TestBaseBorrowableCToken {
             address(newDynamicIRM)
         );
     }
+
+    function test_setIRM_success_withOutstandingDebt() public {
+        borrowableCUSDC.deposit(200e6, address(this));
+        strategyCBALRETH.postCollateral(1e18 - 1);
+        borrowableCUSDC.borrow(100e6, address(this));
+
+        _harvestAuraStrategyRewards(1 weeks);
+
+        uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+
+        assertEq(address(borrowableCUSDC.IRM()), address(IRMs[block.chainid][_USDC_ADDRESS])
+        );
+
+        borrowableCUSDC.setIRM(address(newDynamicIRM));
+
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
+
+        assertEq(address(borrowableCUSDC.IRM()), address(newDynamicIRM));
+
+        assertGt(debtAfterAccrual, 100e6);
+        assertGt(debtAfterAccrual, debtBeforeAccrual);
+
+        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
+        assertEq(debtIncrease, assetsIncrease);
+    }
 }
