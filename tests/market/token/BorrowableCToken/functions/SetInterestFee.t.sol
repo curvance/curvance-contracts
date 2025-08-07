@@ -33,4 +33,35 @@ contract SetInterestFeeTest is TestBaseBorrowableCToken {
 
         assertEq(borrowableCUSDC.interestFee(), 0.5e18);
     }
+
+    function test_setInterestFee_success_withOutstandingDebt() public {
+        borrowableCUSDC.deposit(200e6, address(this));
+        strategyCBALRETH.postCollateral(1e18 - 1);
+        borrowableCUSDC.borrow(100e6, address(this));
+
+        _harvestAuraStrategyRewards(1 weeks);
+
+        uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+
+        assertEq(borrowableCUSDC.interestFee(), 0.1e18);
+
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit NewInterestFee(0.1e18, 0.2e18);
+
+        borrowableCUSDC.setInterestFee(2000);
+        borrowableCUSDC.accrueIfNeeded();
+
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
+
+        assertEq(borrowableCUSDC.interestFee(), 0.2e18);
+
+        assertGt(debtAfterAccrual, 100e6);
+        assertGt(debtAfterAccrual, debtBeforeAccrual);
+
+        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
+        assertEq(debtIncrease, assetsIncrease);
+    }
 }

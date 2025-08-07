@@ -48,8 +48,8 @@ contract TestBaseBorrowableCToken is TestBaseMarketIsolated {
         borrowableCUSDC.borrow(1000e6, user1);
         vm.stopPrank();
 
-        // skip min hold period
-        skip(20 minutes);
+        // skip 20 min hold period in harvestAuraStrategyRewards
+        _harvestAuraStrategyRewards(1 weeks);
 
         mockUsdcFeed.setMockAnswer(2e8);
 

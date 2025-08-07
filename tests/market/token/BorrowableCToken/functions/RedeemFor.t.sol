@@ -176,6 +176,21 @@ contract RedeemForTest is TestBaseMarketIsolated {
 
         skip(20 minutes);
 
+        uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(user1);
+        uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+        
+        borrowableCUSDC.accrueIfNeeded();
+        
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(user1);
+        uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
+        
+        assertGt(debtAfterAccrual, 100e6);
+        assertGt(debtAfterAccrual, debtBeforeAccrual);
+        
+        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
+        assertEq(debtIncrease, assetsIncrease);
+
         uint256 underlyingBalance = dai.balanceOf(user1);
         uint256 balance = borrowableCDAI.balanceOf(user1);
         uint256 totalSupply = borrowableCDAI.totalSupply();
@@ -212,6 +227,21 @@ contract RedeemForTest is TestBaseMarketIsolated {
         vm.stopPrank();
 
         skip(20 minutes);
+
+        uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(user1);
+        uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+        
+        borrowableCUSDC.accrueIfNeeded();
+        
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(user1);
+        uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
+        
+        assertGt(debtAfterAccrual, 100e6);
+        assertGt(debtAfterAccrual, debtBeforeAccrual);
+        
+        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
+        assertEq(debtIncrease, assetsIncrease);
 
         uint256 underlyingBalance = dai.balanceOf(user1);
         uint256 balance = borrowableCDAI.balanceOf(user1);
