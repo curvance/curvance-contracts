@@ -82,7 +82,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             1500,
             1500,
             5500,
-            5500,
+            1000,
             150000000,
             150,
             true
@@ -312,6 +312,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
     function testVertexMultiplierDecreaseBelowThreshold() public {
         // First increase the multiplier
         testVertexMultiplierIncreaseAboveThreshold();
+        skip(20 minutes);
 
         vm.startPrank(user);
         uint256 highMultiplier = IRM.vertexMultiplier();
@@ -462,6 +463,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
     function testVertexMultiplierMinimumFloorHit() public {
         // First increase the multiplier.
         testVertexMultiplierIncreaseAboveThreshold();
+        skip(20 minutes);
 
         vm.startPrank(user);
         // Repay almost all debt

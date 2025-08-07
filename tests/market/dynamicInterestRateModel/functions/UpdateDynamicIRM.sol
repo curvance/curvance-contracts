@@ -49,12 +49,9 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
     function test_updateDynamicIRM_fail_whenAdjustmentVelocityIsBelowMinimum()
         public
     {
-        uint256 minVertexAdjustmentVelocity = 0.1e18;
+        uint256 minVertexAdjustmentVelocity = 0.01e18;
 
-        vm.expectRevert(
-            DynamicIRM
-                .DynamicIRM__InvalidAdjustmentVelocity
-                .selector
+        vm.expectRevert(DynamicIRM.DynamicIRM__InvalidAdjustmentVelocity.selector
         );
 
         IRM.updateDynamicIRM(
@@ -113,7 +110,7 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
             1500,
             1500,
             5500,
-            5500,
+            1000,
             150000000,
             150,
             true
