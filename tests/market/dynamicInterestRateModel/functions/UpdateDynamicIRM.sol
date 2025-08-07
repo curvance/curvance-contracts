@@ -9,16 +9,12 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
     {
         vm.prank(address(1));
 
-        vm.expectRevert(
-            DynamicIRM
-                .DynamicIRM__Unauthorized
-                .selector
-        );
+        vm.expectRevert(DynamicIRM.DynamicIRM__Unauthorized.selector);
         IRM.updateDynamicIRM(
             1500,
             1500,
             5500,
-            5500,
+            1000,
             150000000,
             150,
             true
@@ -31,9 +27,7 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
         uint256 maxVertexAdjustmentVelocity = 1e18;
 
         vm.expectRevert(
-            DynamicIRM
-                .DynamicIRM__InvalidAdjustmentVelocity
-                .selector
+            DynamicIRM.DynamicIRM__InvalidAdjustmentVelocity.selector
         );
         IRM.updateDynamicIRM(
             1000,
@@ -51,7 +45,8 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
     {
         uint256 minVertexAdjustmentVelocity = 0.01e18;
 
-        vm.expectRevert(DynamicIRM.DynamicIRM__InvalidAdjustmentVelocity.selector
+        vm.expectRevert(
+            DynamicIRM.DynamicIRM__InvalidAdjustmentVelocity.selector
         );
 
         IRM.updateDynamicIRM(
@@ -70,16 +65,12 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
     {
         uint256 maxVertexDecayRate = 0.05e18;
 
-        vm.expectRevert(
-            DynamicIRM
-                .DynamicIRM__InvalidDecayRate
-                .selector
-        );
+        vm.expectRevert(DynamicIRM.DynamicIRM__InvalidDecayRate.selector);
         IRM.updateDynamicIRM(
             1000,
             1000,
             5000,
-            5000,
+            1000,
             100000000,
             (maxVertexDecayRate / 1e14) + 1,
             true
@@ -89,16 +80,12 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
     function test_updateDynamicIRM_fail_whenTheoreticalMultiplierOverflows()
         public
     {
-        vm.expectRevert(
-            DynamicIRM
-                .DynamicIRM__InvalidMultiplierMax
-                .selector
-        );
+        vm.expectRevert(DynamicIRM.DynamicIRM__InvalidMultiplierMax.selector);
         IRM.updateDynamicIRM(
             1000,
             1000,
             5000,
-            5000,
+            1000,
             type(uint192).max / (1000 * 1e14) / 1e14 + 1,
             100,
             true
