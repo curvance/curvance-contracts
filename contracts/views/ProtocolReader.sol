@@ -723,7 +723,7 @@ contract ProtocolReader {
             cTokenData.tokenPrice = getPriceOnly(address(token), true, true);
             cTokenData.config = _getTokenConfig(
                 collateralTokens[i],
-                ILiquidityManager(address(mm))
+                mm
             );
             (uint256 oracleA, uint256 oracleB) = this.getAdaptorTypes(
                 collateralTokens[i]
@@ -783,7 +783,7 @@ contract ProtocolReader {
             eTokenData.tokenPrice = getPriceOnly(address(token), true, false);
             eTokenData.config = _getTokenConfig(
                 borrowableCTokens[i],
-                ILiquidityManager(address(mm))
+                mm
             );
 
             if (eTokenData.tvl > eTokenData.borrows) {
@@ -1075,35 +1075,21 @@ contract ProtocolReader {
 
     function _getTokenConfig(
         address token,
-        ILiquidityManager mm
-    ) internal view returns (MarketAssetConfig memory) {
-        MarketAssetConfig memory config;
-
+        IMarketManager mm
+    ) internal view returns (MarketAssetConfig memory c) {
+        c.isListed = mm.isListed(token);
+        (c.collRatio, c.collReqSoft, c.collReqHard) = mm.collConfig(token);
         (
-            bool isListed,
-            uint256 collRatio,
-            uint256 collReqSoft,
-            uint256 collReqHard,
-            uint256 liqIncBase,
-            uint256 liqIncCurve,
+            c.liqIncBase,
+            c.liqIncCurve,
             ,
             ,
+            c.closeFactorBase,
+            c.closeFactorCurve,
             ,
-            ,
-            uint256 closeFactorBase,
-            uint256 closeFactorCurve
-        ) = mm.tokenData(token);
+        ) = mm.liquidationConfig(token);
 
-        config.isListed = isListed;
-        config.collRatio = collRatio;
-        config.collReqSoft = collReqSoft;
-        config.collReqHard = collReqHard;
-        config.liqIncBase = liqIncBase;
-        config.liqIncCurve = liqIncCurve;
-        config.closeFactorBase = closeFactorBase;
-        config.closeFactorCurve = closeFactorCurve;
-
-        return config;
+        return c;
     }
 
     function _getRewardManager() internal view returns (IRewardManager) {

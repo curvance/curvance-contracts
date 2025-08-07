@@ -562,9 +562,9 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
     function _getDebtToCollateralAndCloseFactor(uint256 lFactor, uint256 debtTokenPrice, uint256 collateralTokenPrice) internal view returns (uint256, uint256) {
         uint256 cTokenExchangeRate = pendleCTokenPTSTETH.exchangeRate();
 
-        (,,,, uint256 liqIncBase, uint256 liqIncCurve,,, uint256 closeFactorBase, uint256 closeFactorCurve,,)
-            =  marketManagerIsolated.tokenData(address(pendleCTokenPTSTETH));
-            
+        (uint256 liqIncBase, uint256 liqIncCurve,,, uint256 closeFactorBase, uint256 closeFactorCurve,,)
+            =  marketManagerIsolated.liquidationConfig(address(pendleCTokenPTSTETH));
+
         // Follow the contract's exact calculations but with higher precision
         uint256 closeFactor = closeFactorBase + ((closeFactorCurve * lFactor) / WAD);
         uint256 liqInc = liqIncBase + ((liqIncCurve * lFactor) / WAD);
