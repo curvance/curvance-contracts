@@ -47,6 +47,6 @@ contract SetBorrowPausedTest is TestBaseMarketIsolated {
     }
 
     function _borrowPaused(address cToken) internal returns (bool isPaused) {
-        (, , isPaused) = marketManagerIsolated.actionDisabled(cToken);
+        (, , isPaused) = marketManagerIsolated.actionsPaused(cToken);
     }
 }

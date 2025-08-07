@@ -52,6 +52,6 @@ contract SetMintPausedTest is TestBaseMarketIsolated {
     }
 
     function _mintPaused(address cToken) internal returns (bool isPaused) {
-        (isPaused, , ) = marketManagerIsolated.actionDisabled(cToken);
+        (isPaused, , ) = marketManagerIsolated.actionsPaused(cToken);
     }
 }

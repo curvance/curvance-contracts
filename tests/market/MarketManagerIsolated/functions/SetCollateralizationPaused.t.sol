@@ -52,6 +52,6 @@ contract SetCollateralizationPausedTest is TestBaseMarketIsolated {
     }
 
     function _collateralizationPaused(address cToken) internal returns (bool isPaused) {
-        (, isPaused, ) = marketManagerIsolated.actionDisabled(cToken);
+        (, isPaused, ) = marketManagerIsolated.actionsPaused(cToken);
     }
 }

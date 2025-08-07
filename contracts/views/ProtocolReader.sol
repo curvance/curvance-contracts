@@ -568,7 +568,7 @@ contract ProtocolReader {
                 10 ** ICToken(cToken).decimals()
             );
 
-            uint256 collRatio = mm.collateralizationRatio(cToken);
+            (uint256 collRatio, ,) = mm.collConfig(address(cToken));
             // If the collateral token cannot be borrowed against the hypothetical
             // leverage check will result in 0 meaning nothing new to leverage
             // against.
