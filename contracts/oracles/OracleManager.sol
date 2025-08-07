@@ -70,18 +70,6 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 ///      each other. "Don't trust, verify."
 ///
 contract OracleManager is IOracleManager {
-    /// TYPES ///
-
-    /// @notice The maximum allowed price divergence values before a
-    ///         particular error code is returned, in `BASIS_POINTS`.
-    /// @param caution The maximum allowed divergence between prices
-    ///                before CAUTION is flipped, in `BASIS_POINTS`.
-    /// @notice badSource The maximum allowed divergence between prices
-    ///                   before BAD_SOURCE is flipped, in `BASIS_POINTS`.
-    struct Flags {
-        uint128 caution;
-        uint128 badSource;
-    }
     /// CONSTANTS ///
 
     /// @notice Address identifying a chain's native token.
@@ -104,10 +92,14 @@ contract OracleManager is IOracleManager {
 
     /// STORAGE ///
 
-    /// @notice The maximum allowed price divergence values before a
-    ///         particular error code is returned, in `BASIS_POINTS`.
-    ///         10050 = 0.5% = 50 basis point deviation.
-    Flags public divergenceFlags;
+    /// @notice The maximum allowed price feed divergence between prices
+    ///         before `CAUTION` error code is returned, in `BASIS_POINTS`.
+    /// @dev 10050 = 0.5% = 50 basis point price feed deviation allowed.
+    uint128 public cautionPriceDivergence = 10050;
+    /// @notice The maximum allowed price feed divergence between prices
+    ///         before `BAD_SOURCE` error code is returned, in `BASIS_POINTS`.
+    /// @dev 10100 = 1% = 100 basis point price feed deviation allowed.
+    uint128 public badSourcePriceDivergence = 10100;
 
     // Address => Adaptor approval status.
     mapping(address => bool) public isApprovedAdaptor;
@@ -129,9 +121,6 @@ contract OracleManager is IOracleManager {
     constructor(ICentralRegistry cr) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
-
-        divergenceFlags.caution = 10050;
-        divergenceFlags.badSource = 10100;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -273,16 +262,6 @@ contract OracleManager is IOracleManager {
         delete isApprovedAdaptor[adaptorToRemove];
     }
 
-    /// @notice Returns the maximum divergence values for price feeds
-    ///         before CAUTION or BAD_SOURCE error codes are activated.
-    /// @return The maximum price divergence before a `CAUTION` error code
-    ///         is returned.
-    /// @return The maximum price divergence before a `BAD_SOURCE` error code
-    ///         is returned.
-    function getDivergenceFlags() external view returns (uint256, uint256) {
-        return (divergenceFlags.caution, divergenceFlags.badSource);
-    }
-
     /// @notice Sets a new maximum divergence for price feeds
     ///         before CAUTION or BAD_SOURCE error codes are activated.
     /// @param newCaution The new maximum price divergence before a
@@ -312,8 +291,8 @@ contract OracleManager is IOracleManager {
             revert OracleManager__InvalidParameter();
         }
 
-        divergenceFlags.caution = uint128(newCaution);
-        divergenceFlags.badSource = uint128(newBadSource);
+        cautionPriceDivergence = uint128(newCaution);
+        badSourcePriceDivergence = uint128(newBadSource);
     }
 
     /// @notice Returns the token data of `cToken`.
@@ -764,14 +743,13 @@ contract OracleManager is IOracleManager {
         uint256 a,
         uint256 b
     ) internal view returns (uint256) {
-        Flags memory f = divergenceFlags;
         if (a <= b) {
             // Check if both feeds are within `f.caution` of each other.
-            if (((a * f.caution) / BASIS_POINTS) < b) {
+            if (((a * cautionPriceDivergence) / BASIS_POINTS) < b) {
                 // Notify that the price is dangerous and to treat data as a
                 // bad source because we are outside the accepted range of
                 // divergence.
-                if (((a * f.badSource) / BASIS_POINTS) < b) {
+                if (((a * badSourcePriceDivergence) / BASIS_POINTS) < b) {
                     return BAD_SOURCE;
                 }
 
@@ -784,11 +762,11 @@ contract OracleManager is IOracleManager {
         }
 
         // Check if both feeds are within `f.caution` of each other.
-        if (((b * f.caution) / BASIS_POINTS) < a) {
+        if (((b * cautionPriceDivergence) / BASIS_POINTS) < a) {
             // Notify that the price is dangerous and to treat data as a
             // bad source because we are outside the accepted range of
             // divergence.
-            if (((b * f.badSource) / BASIS_POINTS) < a) {
+            if (((b * badSourcePriceDivergence) / BASIS_POINTS) < a) {
                 return BAD_SOURCE;
             }
 

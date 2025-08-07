@@ -1308,12 +1308,10 @@
 //         if (lowerPrice < 0 || higherPrice < 0) {
 //             priceError = true;
 //         }
-//         (uint256 caution, uint256 badSource) =
-//            OracleManager(oracleManager).getDivergenceFlags();
 
 //         if (
 //             higherPrice - lowerPrice >
-//             badSource
+//             OracleManager(oracleManager).badSourcePriceDivergence()
 //         ) {
 //             divergenceTooLarge = true;
 //         }
