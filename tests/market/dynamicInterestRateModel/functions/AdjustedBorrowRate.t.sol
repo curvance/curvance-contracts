@@ -46,10 +46,6 @@ contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
                 ,
                 ,
             ) = IRM.ratesConfig();
-            baseRatePerSecond = c.baseRatePerSecond;
-            vertexRatePerSecond = c.vertexRatePerSecond;
-            vertexStart = c.vertexStart;
-            increaseThreshold = c.increaseThreshold;
 
             util = IRM.utilizationRate(assetsHeld, borrows);
             vertexMultiplier = IRM.vertexMultiplier();
