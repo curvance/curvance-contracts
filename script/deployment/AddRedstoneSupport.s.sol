@@ -20,9 +20,10 @@ contract AddRedstoneSupport is Script {
     }
 
     struct PushFeed {
-        address aggregator;
-        uint256 heartbeat;
         bool inUSD;
+        address feed;
+        uint256 heartbeat;
+        string id;
     }
 
     function run(
@@ -39,7 +40,7 @@ contract AddRedstoneSupport is Script {
         OracleManager manager = OracleManager(oracleManager);
         IERC20 token = IERC20(asset);
 
-        adaptor.addAsset(asset, feed.inUSD, feed.aggregator, feed.heartbeat);
+        adaptor.addAsset(asset, feed.inUSD, feed.feed, feed.heartbeat, feed.id);
         manager.addAssetPriceFeed(asset, address(adaptor));
 
         vm.stopBroadcast();
