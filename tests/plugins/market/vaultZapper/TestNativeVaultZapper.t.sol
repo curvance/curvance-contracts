@@ -31,7 +31,6 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     function setUp() public override {
-        
         _fork("ETH_NODE_URI_MONAD");
         
         _deployCentralRegistry();
@@ -62,11 +61,21 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkAdaptor.addAsset(SHMON_ADDRESS, _CHAINLINK_ETH_USD_MONAD, 0, true);
+        chainlinkAdaptor.addAsset(
+            SHMON_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD_MONAD,
+            0
+        );
         oracleManager.addAssetPriceFeed(SHMON_ADDRESS, address(chainlinkAdaptor));
         oracleManager.addCTokenSupport(address(simpleCSHMON));
 
-        chainlinkAdaptor.addAsset(_USDC_ADDRESS, _CHAINLINK_USDC_USD_MONAD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            _CHAINLINK_USDC_USD_MONAD,
+            0
+        );
         oracleManager.addAssetPriceFeed(_USDC_ADDRESS, address(chainlinkAdaptor));
         oracleManager.addCTokenSupport(address(borrowableCUSDC));
 

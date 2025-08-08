@@ -40,7 +40,12 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         _fork(20287400);
         _init();
 
-        chainlinkAdaptor.addAsset(_STETH, _CHAINLINK_STETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _STETH,
+            true,
+            _CHAINLINK_STETH_USD,
+            0
+        );
         // oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 
         adaptor = new PendleLPTokenAdaptor(

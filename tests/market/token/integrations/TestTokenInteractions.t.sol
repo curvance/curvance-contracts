@@ -599,7 +599,12 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // use mock pricing for testing
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            true,
+            address(mockDaiFeed),
+            0
+        );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
@@ -672,7 +677,12 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // use mock pricing for testing
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            true,
+            address(mockDaiFeed),
+            0
+        );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,

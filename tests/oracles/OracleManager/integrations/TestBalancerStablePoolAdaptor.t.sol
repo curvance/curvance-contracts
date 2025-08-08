@@ -48,13 +48,23 @@ contract TestBalancerStablePoolAdaptor is TestBaseOracleManager {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
-        chainlinkAdaptor.addAsset(_WETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _WETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            false,
             _CHAINLINK_RETH_ETH,
-            0,
-            false
+            0
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
