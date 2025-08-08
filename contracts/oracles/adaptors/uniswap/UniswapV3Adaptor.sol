@@ -257,7 +257,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     ///      with a supported asset.
     /// @return The adaptor's type.
     function adaptorType() external pure override returns (uint256) {
-        return 7;
+        return 9;
     }
 
     /// INTERNAL FUNCTIONS TO OVERRIDE ///

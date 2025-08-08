@@ -124,9 +124,9 @@ contract PriceGuardTest is TestBaseMarketIsolated {
 
         IOracleAdaptor.PriceGuard memory pg;
         pg.guardType = 1;
-        pg.timestampStart = timestampStart1;
+        pg.timestampStart = uint40(timestampStart1);
         pg.increasePerSecond = 0;
-        pg.minPrice = 3400e18;
+        pg.minPrice = uint144(3400e18);
         pg.basePrice = 3600e18;
 
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
@@ -160,9 +160,9 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         uint256 timestampStart = block.timestamp - 8 days;
         IOracleAdaptor.PriceGuard memory pg;
         pg.guardType = 1;
-        pg.timestampStart = timestampStart;
+        pg.timestampStart = uint40(timestampStart);
         pg.increasePerSecond = 0;
-        pg.minPrice = 3400e18;
+        pg.minPrice = uint144(3400e18);
         pg.basePrice = 3600e18;
 
         // Static constraints [3400, 3600]
@@ -210,9 +210,9 @@ contract PriceGuardTest is TestBaseMarketIsolated {
 
         IOracleAdaptor.PriceGuard memory pg;
         pg.guardType = 2;
-        pg.timestampStart = timestampStart;
-        pg.increasePerSecond = incPerSecond;
-        pg.minPrice = minPrice;
+        pg.timestampStart = uint40(timestampStart);
+        pg.increasePerSecond = uint64(incPerSecond);
+        pg.minPrice = uint144(minPrice);
         pg.basePrice = basePrice;
 
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
@@ -288,9 +288,9 @@ contract PriceGuardTest is TestBaseMarketIsolated {
 
         IOracleAdaptor.PriceGuard memory pg;
         pg.guardType = 2;
-        pg.timestampStart = timestampStart;
-        pg.increasePerSecond = (increasePerYearBps * 1e14) / SECONDS_PER_YEAR;
-        pg.minPrice = minPrice;
+        pg.timestampStart = uint40(timestampStart);
+        pg.increasePerSecond = uint64((increasePerYearBps * 1e14) / SECONDS_PER_YEAR);
+        pg.minPrice = uint144(minPrice);
         pg.basePrice = basePrice;
 
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));

@@ -63,16 +63,16 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
+    /// @param inUSD Whether the price feed is in USD (inUSD = true)
+    ///              or native token (inUSD = false).
     /// @param aggregator Chainlink aggregator to use for pricing `asset`.
     /// @param heartbeat Chainlink heartbeat to use when validating prices
     ///                  for `asset`. 0 = `DEFAULT_HEART_BEAT`.
-    /// @param inUSD Whether the price feed is in USD (inUSD = true)
-    ///              or native token (inUSD = false).
     function addAsset(
         address asset,
+        bool inUSD,
         address aggregator,
-        uint256 heartbeat,
-        bool inUSD
+        uint256 heartbeat
     ) external {
         _checkElevatedPermissions();
 
@@ -127,7 +127,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     ///      with a supported asset.
     /// @return The adaptor's type.
     function adaptorType() external pure override returns (uint256) {
-        return 3;
+        return 1;
     }
 
     /// INTERNAL FUNCTIONS ///

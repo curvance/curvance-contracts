@@ -180,7 +180,7 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
     ///      with a supported asset.
     /// @return The adaptor's type.
     function adaptorType() external pure override returns (uint256) {
-        return 11;
+        return 7;
     }
 
     /// @notice Helper function to check whether the underlying PT TWAP

@@ -70,6 +70,8 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
+    /// @param inUSD Whether the price feed is in USD (inUSD = true)
+    ///              or native token (inUSD = false).
     /// @param sender The sender address corresponding to `asset`'s feed
     ///               inside Management Oracle.
     /// @param decimals Returns the number of decimals the Feed Key
@@ -77,15 +79,13 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     /// @param heartbeat Chainsight heartbeat to use when validating prices
     ///                  for `asset`. 0 = `DEFAULT_HEART_BEAT`.
     /// @param feedKey The ICP VRF randomized key for the asset feed.
-    /// @param inUSD Whether the price feed is in USD (inUSD = true)
-    ///              or native token (inUSD = false).
     function addAsset(
         address asset,
+        bool inUSD,
         address sender,
         uint8 decimals,
         uint256 heartbeat,
-        bytes32 feedKey,
-        bool inUSD
+        bytes32 feedKey
     ) external {
         _checkElevatedPermissions();
 
@@ -144,7 +144,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     ///      with a supported asset.
     /// @return The adaptor's type.
     function adaptorType() external pure override returns (uint256) {
-        return 16;
+        return 7;
     }
 
     /// INTERNAL FUNCTIONS ///

@@ -59,13 +59,13 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
-    /// @param adaptor The adaptor configuration
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
+    /// @param adaptor The adaptor configuration
     function addAsset(
         address asset,
-        AssetConfig memory adaptor,
-        bool inUSD
+        bool inUSD,
+        AssetConfig memory adaptor
     ) external {
         _checkElevatedPermissions();
 

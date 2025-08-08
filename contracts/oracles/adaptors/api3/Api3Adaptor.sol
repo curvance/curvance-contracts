@@ -56,18 +56,18 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
-    /// @param ticker The ticker of the token to add pricing for.
+    /// @param inUSD Whether the price feed is in USD (inUSD = true)
+    ///              or native token (inUSD = false).
     /// @param proxyFeed Api3 proxy feed to use for pricing `asset`.
     /// @param heartbeat Api3 heartbeat to use when validating prices
     ///                  for `asset`. 0 = `DEFAULT_HEART_BEAT`.
-    /// @param inUSD Whether the price feed is in USD (inUSD = true)
-    ///              or native token (inUSD = false).
+    /// @param ticker The ticker of the token to add pricing for.
     function addAsset(
         address asset,
-        string memory ticker,
+        bool inUSD,
         address proxyFeed,
         uint256 heartbeat,
-        bool inUSD
+        string memory ticker
     ) external {
         _checkElevatedPermissions();
 
@@ -108,7 +108,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
     function adaptorType() external pure override returns (uint256) {
-        return 4;
+        return 5;
     }
 
     /// INTERNAL FUNCTIONS ///

@@ -353,7 +353,7 @@ contract RedstoneCoreAdaptor is
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
     function adaptorType() external pure override returns (uint256) {
-        return 1;
+        return 2;
     }
 
     /// PUBLIC FUNCTIONS ///

@@ -41,9 +41,9 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         // Add usd feed
         chainlinkAdaptor.addAsset(
             SNX_ADDRESS,
+            true,
             address(snxUsdPriceFeed),
-            0,
-            true
+            0
         );
 
         // Assert asset is now supported
@@ -76,9 +76,9 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         // Add native feed
         chainlinkAdaptor.addAsset(
             SNX_ADDRESS,
+            false,
             address(snxEthPriceFeed),
-            0,
-            false
+            0
         );
 
         // Test native configuration
@@ -133,9 +133,9 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
 
         chainlinkAdaptor.addAsset(
             SNX_ADDRESS,
+            true,
             address(snxUsdPriceFeed),
-            0,
-            true
+            0
         );
 
         vm.stopPrank();
@@ -187,9 +187,9 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
 
         chainlinkAdaptor.addAsset(
             SNX_ADDRESS,
+            true,
             address(snxUsdPriceFeed),
-            3600, // custom heartbeat
-            true
+            3600 // custom heartbeat
         );
         
         (
@@ -216,9 +216,9 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         
         chainlinkAdaptor.addAsset(
             SNX_ADDRESS,
+            true,
             address(snxUsdPriceFeed),
-            7200,
-            true
+            7200
         );
 
         // Verify updated heartbeat
@@ -236,9 +236,9 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         vm.expectRevert(ChainlinkAdaptor.ChainlinkAdaptor__InvalidHeartbeat.selector);
         chainlinkAdaptor.addAsset(
             SNX_ADDRESS,
+            true,
             address(snxUsdPriceFeed),
-            invalidHeartbeat,
-            true
+            invalidHeartbeat
         );
     }
 
@@ -260,9 +260,9 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         vm.expectRevert(ChainlinkAdaptor.ChainlinkAdaptor__InvalidMinMaxConfig.selector);
         chainlinkAdaptor.addAsset(
             SNX_ADDRESS,
+            true,
             address(invalidFeed),
-            0,
-            true
+            0
         );
     }
 
@@ -277,7 +277,12 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         snxUsdPriceFeed.updateAnswer(150e8);
         snxUsdPriceFeed.updateRoundData(1, 150e8, block.timestamp, block.timestamp);
         
-        chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxUsdPriceFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            true,
+            address(snxUsdPriceFeed),
+            0
+        );
         
         // Get USD price
         IOracleAdaptor.PricingResult memory result =
@@ -294,7 +299,12 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         snxEthPriceFeed.updateAnswer(0.1e8); // 0.1 ETH
         snxEthPriceFeed.updateRoundData(1, 0.1e8, block.timestamp, block.timestamp);
         
-        chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxEthPriceFeed), 0, false);
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            false,
+            address(snxEthPriceFeed),
+            0
+        );
         
         IOracleAdaptor.PricingResult memory result =
             chainlinkAdaptor.getPrice(SNX_ADDRESS, false, false);
@@ -309,7 +319,12 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         // Only add native
         snxEthPriceFeed.updateAnswer(0.1e8); // 0.1 ETH
         snxEthPriceFeed.updateRoundData(1, 0.1e8, block.timestamp, block.timestamp);
-        chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxEthPriceFeed), 0, false);
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            false,
+            address(snxEthPriceFeed),
+            0
+        );
         
         // fallback to native
         IOracleAdaptor.PricingResult memory result =
@@ -325,7 +340,12 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         // Only add USD feed
         snxUsdPriceFeed.updateAnswer(150e8);
         snxUsdPriceFeed.updateRoundData(1, 150e8, block.timestamp, block.timestamp);
-        chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxUsdPriceFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            true,
+            address(snxUsdPriceFeed),
+            0
+        );
         
         // should fallback to USD
         IOracleAdaptor.PricingResult memory result =
@@ -344,8 +364,18 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         snxEthPriceFeed.updateAnswer(0.1e8);
         snxEthPriceFeed.updateRoundData(1, 0.1e8, block.timestamp, block.timestamp);
         
-        chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxUsdPriceFeed), 0, true);
-        chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxEthPriceFeed), 0, false);
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            true,
+            address(snxUsdPriceFeed),
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            false,
+            address(snxEthPriceFeed),
+            0
+        );
         
         // Will use USD feed
         IOracleAdaptor.PricingResult memory usdPriceData =
@@ -366,7 +396,12 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
 
     function test_fail_NegativePrice() public {
 
-        chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxUsdPriceFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            true,
+            address(snxUsdPriceFeed),
+            0
+        );
 
         // Test negative price
         snxUsdPriceFeed.updateAnswer(-100e8);
@@ -379,7 +414,12 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
 
     function test_fail_StalePrice() public {
 
-        chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxUsdPriceFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            true,
+            address(snxUsdPriceFeed),
+            0
+        );
 
         // Test stale price
         snxUsdPriceFeed.updateAnswer(150e8);
@@ -397,7 +437,12 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
 
     function test_fail_ZeroPrice() public {
 
-        chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxUsdPriceFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            true,
+            address(snxUsdPriceFeed),
+            0
+        );
 
         // Test zero price
         snxUsdPriceFeed.updateAnswer(0);
@@ -410,7 +455,12 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
 
     function test_fail_AboveBufferedMax() public {
 
-        chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxUsdPriceFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            true,
+            address(snxUsdPriceFeed),
+            0
+        );
 
         // Test above buffered max
         snxUsdPriceFeed.updateAnswer(1e11);
@@ -423,7 +473,12 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
 
     function test_fail_BelowBufferedMin() public {
 
-        chainlinkAdaptor.addAsset(SNX_ADDRESS, address(snxUsdPriceFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            SNX_ADDRESS,
+            true,
+            address(snxUsdPriceFeed),
+            0
+        );
 
         // Test below buffered min
         snxUsdPriceFeed.updateAnswer(1e6);
