@@ -45,9 +45,9 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         chainlinkPendleUsd = new MockV3Aggregator(18, 3.6e18, 3.6e24, 3.6e13);
         chainlinkAdaptor.addAsset(
             _PENDLE,
+            true,
             address(chainlinkPendleUsd),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(_PENDLE, address(chainlinkAdaptor));
 

@@ -58,9 +58,9 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         chainlinkDaiUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
+            true,
             address(chainlinkDaiUsd),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _DAI_ADDRESS,
@@ -69,9 +69,9 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(chainlinkUsdcUsd),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,
@@ -81,15 +81,15 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         chainlinkEthUsd = new MockV3Aggregator(8, 2700e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
+            true,
             address(chainlinkEthUsd),
-            0,
-            true
+            0
         );
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(chainlinkEthUsd),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _ETH_ADDRESS,

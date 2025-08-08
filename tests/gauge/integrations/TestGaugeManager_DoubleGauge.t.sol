@@ -81,7 +81,12 @@ contract TestGaugeManager_DoubleGauge is TestBaseGaugeManager {
         }
 
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            true,
+            address(mockDaiFeed),
+            0
+        );
     }
 
     function testClaim() public {

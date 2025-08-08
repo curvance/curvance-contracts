@@ -52,7 +52,7 @@ contract AddMockVaultFeedSupport is Script {
             string.concat(asset.symbol(), "-", "ChainlinkAdaptor")
         );
         oracleManager.addApprovedAdaptor(address(adaptor));
-        adaptor.addAsset(assetToken, fakeAgg, 0, true);
+        adaptor.addAsset(assetToken, true, fakeAgg, 0);
         oracleManager.addAssetPriceFeed(assetToken, address(adaptor));
 
         for (uint256 i = 0; i < vaultTokens.length; i++) {
@@ -76,7 +76,7 @@ contract AddMockVaultFeedSupport is Script {
                 )
             );
 
-            adaptor.addAsset(vaultToken, vaultAgg, 0, true);
+            adaptor.addAsset(vaultToken, true, vaultAgg, 0);
             oracleManager.addAssetPriceFeed(vaultToken, address(adaptor));
         }
 

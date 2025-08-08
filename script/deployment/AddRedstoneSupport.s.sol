@@ -39,7 +39,7 @@ contract AddRedstoneSupport is Script {
         OracleManager manager = OracleManager(oracleManager);
         IERC20 token = IERC20(asset);
 
-        adaptor.addAsset(asset, feed.aggregator, feed.heartbeat, feed.inUSD);
+        adaptor.addAsset(asset, feed.inUSD, feed.aggregator, feed.heartbeat);
         manager.addAssetPriceFeed(asset, address(adaptor));
 
         vm.stopBroadcast();
