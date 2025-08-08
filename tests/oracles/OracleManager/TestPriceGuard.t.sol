@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
+import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/ConstantsLib.sol";
+
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
+
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract PriceGuardTest is TestBaseMarketIsolated {
-    uint256 constant WAD = 1e18;
-    uint256 constant SECONDS_PER_YEAR = 31_536_000;
 
     function setUp() public virtual override {
         super.setUp();
@@ -121,10 +124,9 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         // Initial valid config
         uint256 timestampStart1 = block.timestamp - 8 days;
 
-        vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
-        emit BaseOracleAdaptor.PriceGuardUpdated(
-            _WETH_ADDRESS, true, timestampStart1, 0, 3600e18, 3400e18
-        );
+        vm.expectEmit(true, true, true, false, address(chainlinkAdaptor));
+        emit BaseOracleAdaptor.PriceGuardUpdated();
+
         chainlinkAdaptor.setGuardedPriceConfig(
             _WETH_ADDRESS,
             true,
@@ -155,10 +157,8 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         uint256 timestampStart = block.timestamp - 8 days;
 
         // Static constraints [3400, 3600]
-        vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
-        emit BaseOracleAdaptor.PriceGuardUpdated(
-            _ETH_ADDRESS, true, timestampStart, 0, 3600e18, 3400e18
-        );
+        vm.expectEmit(true, true, true, false, address(chainlinkAdaptor));
+        emit BaseOracleAdaptor.PriceGuardUpdated();
         chainlinkAdaptor.setGuardedPriceConfig(
             _ETH_ADDRESS,
             true,
@@ -199,10 +199,8 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         // Set dynamic guard (guardType = 2)
         uint256 expectedIncreaseWad = increasePerYearBps * 1e14;
 
-        vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
-        emit BaseOracleAdaptor.PriceGuardUpdated(
-            _ETH_ADDRESS, true, timestampStart, expectedIncreaseWad, basePrice, minPrice
-        );
+        vm.expectEmit(true, true, true, false, address(chainlinkAdaptor));
+        emit BaseOracleAdaptor.PriceGuardUpdated();
 
         chainlinkAdaptor.setGuardedPriceConfig(
             _ETH_ADDRESS, 
@@ -274,10 +272,8 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         uint256 basePrice = 3600e18;
         uint256 minPrice = 3400e18;
 
-        vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
-        emit BaseOracleAdaptor.PriceGuardUpdated(
-            _ETH_ADDRESS, true, timestampStart, 0, basePrice, minPrice
-        );
+        vm.expectEmit(true, true, true, false, address(chainlinkAdaptor));
+        emit BaseOracleAdaptor.PriceGuardUpdated();
 
         chainlinkAdaptor.setGuardedPriceConfig(
             _ETH_ADDRESS,
