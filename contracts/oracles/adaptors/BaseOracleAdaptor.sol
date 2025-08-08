@@ -136,32 +136,38 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         if (
             timestampStart > block.timestamp ||
             block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
-            ) {
+        ) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        if (minPrice > basePrice) {
+        if (minPrice > basePrice || minPrice > type(uint144).max) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
         // Convert `increasePerYear` from basis points to WAD.
         increasePerYear = increasePerYear * 1e14;
+        // Technically _getBoundedPrice is meant for only seconds but by
+        // converting time and increase rate to years it works the same.
+        uint256 priceForOverflowCheck = _getBoundedPrice(
+            _MINIMUM_YEARS_BEFORE_OVERFLOW,
+            increasePerYear,
+            basePrice
+        );
 
-        if (
-            (_MINIMUM_YEARS_BEFORE_OVERFLOW * increasePerYear) + basePrice >
-            type(uint240).max
-            ) {
-                revert BaseOracleAdaptor__InvalidConfig();
-        }
-
-        uint256 increasePerSecond = increasePerYear / SECONDS_PER_YEAR;
-
-        if (increasePerSecond > _MAXIMUM_INCREASE_PER_SECOND) {
+        if (priceForOverflowCheck > type(uint240).max) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        uint256 boundedPrice =
-            ((block.timestamp - timestampStart) * increasePerSecond) + basePrice;
+        if (increasePerYear / SECONDS_PER_YEAR > type(uint64).max) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+
+        uint256 boundedPrice = _getBoundedPrice(
+            block.timestamp - timestampStart,
+            increasePerYear / SECONDS_PER_YEAR,
+            basePrice
+        );
+
         uint256 boundedPriceHigh = FixedPointMathLib.mulDiv(
             boundedPrice,
             BASIS_POINTS + _MAXIMUM_PRICE_DIFFERENCE,
@@ -173,11 +179,13 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             BASIS_POINTS
         );
 
-        PricingResult memory result = this.getPrice(asset, inUSD, true);
-        uint256 oraclePrice = result.price;
+        {
+            PricingResult memory result = this.getPrice(asset, inUSD, true);
+            uint256 oraclePrice = result.price;
 
-        if (boundedPriceHigh < oraclePrice || boundedPriceLow > oraclePrice) {
-            revert BaseOracleAdaptor__InvalidConfig();
+            if (boundedPriceHigh < oraclePrice || boundedPriceLow > oraclePrice) {
+                revert BaseOracleAdaptor__InvalidConfig();
+            }
         }
 
         PriceGuard storage pg = priceGuards[asset][inUSD];
@@ -189,7 +197,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
         pg.guardType = uint8(guardType);
         pg.timestampStart = uint40(timestampStart);
-        pg.increasePerSecond = uint64(increasePerSecond);
+        pg.increasePerSecond = uint64(increasePerYear / SECONDS_PER_YEAR);
         pg.minPrice = uint144(minPrice);
         pg.basePrice = basePrice;
 
@@ -301,16 +309,35 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
         // Calculate how much to shift up minimum and maximum values from
         // scaling guarded prices.
-        uint256 dynamicAdjustment = ((block.timestamp - pg.timestampStart) *
-            pg.increasePerSecond);
-        uint256 boundedMin = pg.minPrice + dynamicAdjustment;
+        uint256 timePassed = block.timestamp - pg.timestampStart;
+        uint256 boundedMin = _getBoundedPrice(
+            timePassed,
+            pg.increasePerSecond,
+            pg.minPrice
+        );
 
         if (price < boundedMin) {
             return boundedMin;
         }
         
-        uint256 boundedMax = pg.basePrice + dynamicAdjustment;
+        uint256 boundedMax = _getBoundedPrice(
+            timePassed,
+            pg.increasePerSecond,
+            pg.basePrice
+        );
         return price > boundedMax ? boundedMax : price;
+    }
+
+    function _getBoundedPrice(
+        uint256 timeSinceStart,
+        uint256 increasePerSecond,
+        uint256 price
+    ) internal pure returns (uint256 result) {
+        result = FixedPointMathLib.mulDiv(
+            price,
+            ((timeSinceStart * increasePerSecond) + WAD),
+            WAD
+        );
     }
 
     /// @notice Helper function to check whether `price` would overflow
