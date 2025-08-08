@@ -138,7 +138,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         if (
             timestampStart > block.timestamp ||
             block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
-            ) {
+        ) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
@@ -150,9 +150,9 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         increasePerYear = increasePerYear * 1e14;
 
         if (
-            (_MINIMUM_YEARS_BEFORE_OVERFLOW * increasePerYear) + basePrice >
-            type(uint240).max
-            ) {
+            ((_MINIMUM_YEARS_BEFORE_OVERFLOW * increasePerYear) + WAD) *
+            basePrice > type(uint240).max
+        ) {
                 revert BaseOracleAdaptor__InvalidConfig();
         }
 
@@ -307,14 +307,14 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         // Calculate how much to shift up minimum and maximum values from
         // scaling guarded prices.
         uint256 dynamicAdjustment = ((block.timestamp - pg.timestampStart) *
-            pg.increasePerSecond);
-        uint256 boundedMin = pg.minPrice + dynamicAdjustment;
+            pg.increasePerSecond) + WAD;
+        uint256 boundedMin = pg.minPrice * dynamicAdjustment;
 
         if (price < boundedMin) {
             return boundedMin;
         }
         
-        uint256 boundedMax = pg.basePrice + dynamicAdjustment;
+        uint256 boundedMax = pg.basePrice * dynamicAdjustment;
         return price > boundedMax ? boundedMax : price;
     }
 
