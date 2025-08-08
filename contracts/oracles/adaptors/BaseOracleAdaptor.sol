@@ -160,11 +160,9 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        uint256 increasePerSecond = increasePerYear / SECONDS_PER_YEAR;
-
         uint256 boundedPrice = _getBoundedPrice(
             block.timestamp - timestampStart,
-            increasePerSecond,
+            increasePerYear / SECONDS_PER_YEAR,
             basePrice
         );
         uint256 boundedPriceHigh = FixedPointMathLib.mulDiv(
@@ -178,11 +176,13 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             BASIS_POINTS
         );
 
-        PricingResult memory result = this.getPrice(asset, inUSD, true);
-        uint256 oraclePrice = result.price;
+        {
+            PricingResult memory result = this.getPrice(asset, inUSD, true);
+            uint256 oraclePrice = result.price;
 
-        if (boundedPriceHigh < oraclePrice || boundedPriceLow > oraclePrice) {
-            revert BaseOracleAdaptor__InvalidConfig();
+            if (boundedPriceHigh < oraclePrice || boundedPriceLow > oraclePrice) {
+                revert BaseOracleAdaptor__InvalidConfig();
+            }
         }
 
         PriceGuard storage model = priceGuards[asset][inUSD];
@@ -193,7 +193,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         }
 
         model.guardType = guardType;
-        model.increasePerSecond = increasePerSecond;
+        model.increasePerSecond = increasePerYear / SECONDS_PER_YEAR;
         model.timestampStart = timestampStart;
         model.basePrice = basePrice;
         model.minPrice = minPrice;
