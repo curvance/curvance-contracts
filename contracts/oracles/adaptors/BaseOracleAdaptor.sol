@@ -201,10 +201,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         emit PriceGuardUpdated(
             asset,
             inUSD,
-            guardType,
+            timestampStart,
             increasePerYear,
             basePrice,
-            timestampStart
+            minPrice
         );
     }
 
