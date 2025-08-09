@@ -77,7 +77,7 @@ contract ProtocolReader2 {
         uint256 borrowRate;
         uint256 utilizationRate;
         uint256 supplyRate;
-        uint256 predicted_supplyRate;
+        uint256 predictedSupplyRate;
         uint256 liquidity;
     }
 
@@ -137,7 +137,7 @@ contract ProtocolReader2 {
     /// PUBLIC FUNCTIONS ///
 
     function setCalcMaxLeverage(uint256 newCalcMaxLeverage) external {
-        calcMaxLeverage = newCalcMaxLeverage;
+		calcMaxLeverage = newCalcMaxLeverage;
     }
 
     function getAllDynamicState(
