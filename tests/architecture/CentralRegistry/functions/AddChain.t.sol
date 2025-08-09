@@ -8,7 +8,7 @@ import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 contract AddChainTest is TestBaseMarketIsolated {
-    event NewChainAdded(uint256 chainId, address operatorAddress);
+    event NewChain(uint256 chainId, ChainConfig config);
 
     address public relayer = makeAddr("Wormhole Relayer");
 
