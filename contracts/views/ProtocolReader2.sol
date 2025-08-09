@@ -1,9 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { MarketManagerIsolated, ICentralRegistry, WAD, WAD_SQUARED, LiquidityManagerIsolated, ICToken, IOracleManager, IMarketManager, FixedPointMathLib, IERC20, ERC165Checker } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+
+import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 // NOTE: This is a work in progress, don't implement yet.
 // TODO: Figure out what to do with tokenDataOf since we have tests attached
@@ -12,6 +22,7 @@ contract ProtocolReader2 {
     struct StaticMarketData {
         address _address;
         uint256[] adapters;
+        uint256 cooldownLength;
         StaticMarketToken[] tokens;
     }
 
@@ -24,6 +35,7 @@ contract ProtocolReader2 {
         bool mintPaused;
         bool collateralizationPaused;
         bool borrowPaused;
+        bool isBorrowable;
         uint256 collRatio;
         uint256 collReqSoft;
         uint256 collReqHard;
@@ -144,7 +156,7 @@ contract ProtocolReader2 {
 
         data = new StaticMarketData[](markets.length);
         for (uint256 i; i < markets.length; i++) {
-            MarketManagerIsolated mm = MarketManagerIsolated(markets[i]);
+            IMarketManager mm = IMarketManager(markets[i]);
 
             address[] memory tokenAddresses = mm.queryTokensListed();
             StaticMarketToken[] memory tokens = new StaticMarketToken[](
@@ -170,6 +182,7 @@ contract ProtocolReader2 {
             data[i] = StaticMarketData({
                 _address: address(mm),
                 adapters: uniqueAdapters,
+                cooldownLength: 20 minutes, // @dev: See MarketManagerIsolated constant: MIN_HOLD_PERIOD
                 tokens: tokens
             });
         }
@@ -298,6 +311,24 @@ contract ProtocolReader2 {
             maxDebtBorrowable = liquidityAvailable;
             isOffset = true;
         }
+    }
+
+    /// @notice Returns the cooldown periods for multiple markets for a user
+    /// @param markets The list of market addresses
+    /// @param user The user address
+    /// @return cooldowns The list of cooldown periods for each market
+    function marketMultiCooldown(
+        address[] calldata markets,
+        address user
+    ) public view returns (uint256[] memory) {
+        uint256[] memory cooldowns = new uint256[](markets.length);
+        for (uint256 i; i < markets.length; ++i) {
+            IMarketManager mm = IMarketManager(markets[i]);
+            uint256 cooldownTimestamp = mm.cooldown(user);
+
+            cooldowns[i] = cooldownTimestamp + mm.MIN_HOLD_PERIOD();
+        }
+        return cooldowns;
     }
 
     /// INTERNAL FUNCTIONS ///
