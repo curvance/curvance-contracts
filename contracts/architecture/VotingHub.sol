@@ -5,7 +5,7 @@ import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 
-import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICentralRegistry, ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMessagingHub, EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
@@ -175,7 +175,7 @@ contract VotingHub is QueryResponse {
 
             // Validate our responses came from the
             // expected contract (Voting Hub), and expected function.
-            validAddresses[0] = _getChainData(chainIds[i]).votingHub;
+            validAddresses[0] = _chainConfig(chainIds[i]).votingHub;
             validFunctionSignatures[0] = _QUERY_EMISSIONS_ALLOCATED_SELECTOR;
             validateMultipleEthCallData(
                 eqr.result,
@@ -281,15 +281,15 @@ contract VotingHub is QueryResponse {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @dev Returns ChainData struct for `chainId`.
-    /// @param chainId The chain ID to get ChainData for.
-    /// @return chainData The ChainData struct for the given chain ID.
-    function _getChainData(
+    /// @dev Returns ChainConfig struct for `chainId`.
+    /// @param chainId The chain ID to get chain configuration of.
+    /// @return config The ChainConfig struct for the given chain ID.
+    function _chainConfig(
         uint256 chainId
-    ) internal view returns (ChainData memory chainData) {
-        chainData = centralRegistry.supportedChainData(chainId);
-        // Validate that we are aiming for a supported chain.
-        if (chainData.isSupported < 2) {
+    ) internal view returns (ChainConfig memory config) {
+        config = centralRegistry.chainConfig(chainId);
+        // Validate that `chainId` is actually a supported chain.
+        if (config.isSupported < 2) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
     }
