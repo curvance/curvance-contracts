@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMessagingHub, EmissionData } from "contracts/interfaces/IMessagingHub.sol";
-import { ICVE } from "contracts/interfaces/ICVE.sol";
+
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
+import { ICVE } from "contracts/interfaces/ICVE.sol";
+
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
+
 /// @title Curvance Protocol Cross-Chain Voting and Emissions Hub
 /// @notice Coordinates protocol-wide token emission allocation based on governance decisions
 /// @dev VotingHub serves as the central coordinator for the Curvance tokenomics system by:
@@ -70,10 +75,9 @@ contract VotingHub is QueryResponse {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_
-    ) QueryResponse(address(centralRegistry_.wormholeCore())) {
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) QueryResponse(address(cr.crosschainCore())) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
         // Query epoch and token configuration directly to minimize potential
         // human error.
@@ -121,7 +125,7 @@ contract VotingHub is QueryResponse {
         EmissionData[] memory remoteEmissionData
     ) external {
         if (
-            !centralRegistry.isHarvester(msg.sender) &&
+            !centralRegistry.hasHarvestPermissions(msg.sender) &&
             !centralRegistry.hasDaoPermissions(msg.sender)
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -140,7 +144,7 @@ contract VotingHub is QueryResponse {
             signatures
         );
         uint256 numResponses = r.responses.length;
-        uint256[] memory chainIds = centralRegistry.getForeignChainIds();
+        uint256[] memory chainIds = centralRegistry.foreignChainIds();
         if (numResponses != chainIds.length) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }

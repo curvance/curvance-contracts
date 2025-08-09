@@ -21,7 +21,7 @@ library CurveLib {
     error CurveLib__InvalidPoolInvariantError();
     error CurveLib__InvalidPoolType();
 
-    /// FUNCTIONS ///
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Enter a Curve lp token position.
     /// @param lpMinter The minter address of the Curve lp token.
@@ -48,10 +48,10 @@ library CurveLib {
 
         // Approve tokens to deposit into Curve lp.
         for (uint256 i; i < numTokens; ++i) {
-            balances[i] = CommonLib._getTokenBalance(tokens[i]);
-            SwapperLib._approveTokenIfNeeded(tokens[i], lpMinter, balances[i]);
+            balances[i] = CommonLib._balanceOf(tokens[i]);
+            SwapperLib._approveIfNeeded(tokens[i], lpMinter, balances[i]);
 
-            if (CommonLib._isETH(tokens[i])) {
+            if (CommonLib._isNative(tokens[i])) {
                 // If eth is somehow contained in a pool twice,
                 // something is wrong and we need to halt execution.
                 if (containsEth) {
@@ -128,7 +128,7 @@ library CurveLib {
         uint256 singleAssetIndex
     ) internal {
         // Approve Curve lp token.
-        SwapperLib._approveTokenIfNeeded(lpToken, lpMinter, lpAmount);
+        SwapperLib._approveIfNeeded(lpToken, lpMinter, lpAmount);
 
         uint256 numTokens = tokens.length;
         if (singleAssetWithdraw == 0) {

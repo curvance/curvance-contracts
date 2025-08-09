@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 // Dynamically tests multiple functions in CentralRegistry that
 // add a contract to a mapping
-contract BasicAddContractsTest is TestBaseMarket {
-    event NewCurvanceContract(string indexed contractType, address newAddress);
+contract BasicAddContractsTest is TestBaseMarketIsolated {
+    event PermissionsUpdated(
+        string indexed permissionsType,
+        address addressUpdated,
+        bool isAdded
+    );
 
     string[] public addFuncs;
     string[] public maps;
@@ -16,9 +20,24 @@ contract BasicAddContractsTest is TestBaseMarket {
     function setUp() public virtual override {
         super.setUp();
 
-        addFuncs = ["addLockingPermissions(address)", "addHarvester(address)"];
-        maps = ["hasLockingPermissions(address)", "isHarvester(address)"];
-        expectedLogs = ["Locking Permissions", "Harvestor"];
+        addFuncs = [
+            "addLockingPermissions(address)",
+            "addAuctionPermissions(address)",
+            "addMarketPermissions(address)",
+            "addHarvestPermissions(address)"
+        ];
+        maps = [
+            "hasLockingPermissions(address)",
+            "hasAuctionPermissions(address)",
+            "hasMarketPermissions(address)",
+            "hasHarvestPermissions(address)"
+        ];
+        expectedLogs = [
+            "Locking",
+            "Auction",
+            "Market",
+            "Harvest"
+        ];
     }
 
     function test_addFunc_fail_whenCallerIsNotAuthorized() public {
@@ -41,6 +60,7 @@ contract BasicAddContractsTest is TestBaseMarket {
 
     function test_addFunc_fail_whenParametersMisconfigured() public {
         uint8 length = uint8(addFuncs.length);
+        
         for (uint256 i; i < length; i++) {
             bytes memory sig = abi.encodeWithSignature(addFuncs[i], user1);
             (bool success, bytes memory data) = address(centralRegistry).call(
@@ -66,7 +86,7 @@ contract BasicAddContractsTest is TestBaseMarket {
         uint8 length = uint8(addFuncs.length);
         for (uint256 i; i < length; i++) {
             vm.expectEmit(true, true, true, true);
-            emit NewCurvanceContract(expectedLogs[i], user1);
+            emit PermissionsUpdated(expectedLogs[i], user1, true);
             bytes memory sig = abi.encodeWithSignature(addFuncs[i], user1);
             (bool success, bytes memory data) = address(centralRegistry).call(
                 sig

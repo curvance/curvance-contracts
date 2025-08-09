@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract ManageRewardsForTest is TestBaseRewardManager {
     event RewardPaid(address user, address rewardToken, uint256 amount);
@@ -18,7 +19,7 @@ contract ManageRewardsForTest is TestBaseRewardManager {
 
     function test_manageRewardsFor_fail_whenNotDelegated() public {
         // reverts with PluginDelegable__Unauthorized.selector
-        vm.expectRevert(0xcfdc5602);
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
         rewardManager.manageRewardsFor(user1);
     }
 

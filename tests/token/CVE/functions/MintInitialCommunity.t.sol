@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CVE } from "contracts/token/CVE.sol";
 import { CVEBase } from "contracts/token/CVEBase.sol";
 
-contract MintCommunityAllocationTest is TestBaseMarket {
+contract MintCommunityAllocationTest is TestBaseMarketIsolated {
     function test_mintCommunityAllocation_fail_whenCallerIsNotAuthorized()
         public
     {

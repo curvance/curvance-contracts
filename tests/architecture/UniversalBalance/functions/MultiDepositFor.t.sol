@@ -3,8 +3,10 @@ pragma solidity 0.8.26;
 
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
     event Deposit(
@@ -80,7 +82,7 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
 
         recipients[0] = address(1);
         // reverts with PluginDelegable__Unauthorized.selector
-        vm.expectRevert(0xcfdc5602);
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
 
         universalBalance.multiDepositFor(
             depositSum,
@@ -140,11 +142,11 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
     ) public setupVariables(amounts_, willLend_) {
         _prepareUSDC(user1, depositSum);
 
-        eUSDC = _deployEUSDC();
+        borrowableCUSDC = _deployBorrowableCUSDC();
 
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eUSDC)
+            address(borrowableCUSDC)
         );
 
         for (uint256 i; i < 3; i++) {
@@ -158,7 +160,7 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
 
         willLend[0] = true;
 
-        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         universalBalance.multiDepositFor(
             depositSum,
             amounts,
@@ -181,7 +183,7 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
         vm.prank(user1);
 
         // `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
-        vm.expectRevert(0xc75f2a32);
+        vm.expectRevert(UniversalBalance.UniversalBalance__InvalidParameter.selector);
         universalBalance.multiDepositFor(
             depositSum,
             amounts,
@@ -219,11 +221,11 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
         uint256[] memory receiveAmounts = new uint256[](3);
 
         for (uint256 i; i < 3; i++) {
-            receiveAmounts[i] = eUSDC.convertToShares(amounts[i]);
+            receiveAmounts[i] = borrowableCUSDC.convertToShares(amounts[i]);
         }
 
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user1);
 
         vm.startPrank(user1);
@@ -270,8 +272,8 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
             usdcBalance + sittingAmount
         );
         assertEq(
-            eUSDC.balanceOf(address(universalBalance)),
-            eUSDCBalance + lentAmount
+            borrowableCUSDC.balanceOf(address(universalBalance)),
+            borrowableCUSDCBalance + lentAmount
         );
         assertEq(usdc.balanceOf(user1), userUSDCBalance - depositSum);
     }

@@ -7,10 +7,11 @@ import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/Redston
 contract MockRedstoneCoreAdaptor is RedstoneCoreAdaptor {
 
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address[] memory signers,
-        uint256 _uniqueSignersThreshold
-    ) RedstoneCoreAdaptor(centralRegistry_, signers, _uniqueSignersThreshold) {}
+        uint256 signersThreshold,
+        string memory nativeTokenSymbol
+    ) RedstoneCoreAdaptor(cr, signers, signersThreshold, nativeTokenSymbol) {}
 
     function validateTimestamp(
         uint256 receivedTimestampMilliseconds

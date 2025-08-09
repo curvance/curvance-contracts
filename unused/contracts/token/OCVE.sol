@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";

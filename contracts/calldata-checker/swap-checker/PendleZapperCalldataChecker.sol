@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { BaseSwapChecker } from "./BaseSwapChecker.sol";
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -16,19 +16,20 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
 
     /// @notice Inspects calldata for compliance with other swap instruction
     ///         parameters.
-    /// @dev Used on Zap/swap to inspect and validate calldata safety.
-    /// @param swapData Zap/swap instruction data including both direct
-    ///                 parameters and decodeable calldata.
-    /// @param expectedRecipient User who will receive results of Zap/swap.
+    /// @dev Used on swap to inspect and validate calldata safety.
+    /// @param swapAction Swap action instructions including both direct
+    ///                   parameters and decodeable calldata.
+    /// @param expectedRecipient Address who will receive proceeds of
+    ///                          `swapAction`.
     function checkCalldata(
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         address expectedRecipient
     ) external view override {
-        if (swapData.target != target) {
+        if (swapAction.target != target) {
             revert CalldataChecker__TargetError();
         }
 
-        bytes4 funcSigHash = _getFuncSigHash(swapData.call);
+        bytes4 funcSigHash = _getFuncSigHash(swapAction.call);
         address recipient;
         address inputToken;
         uint256 inputAmount;
@@ -36,83 +37,83 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
 
         if (funcSigHash == PendleZapper.enterPendle.selector) {
             (
-                address pToken,
-                PendleZapper.ZapperData memory desc,
+                address cToken,
                 ,
                 ,
                 ,
+                PendleZapper.ZapAction memory desc,
                 ,
                 ,
                 ,
-                address _recipient
+                address receiver
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         address,
-                        PendleZapper.ZapperData,
-                        SwapperLib.Swap[],
                         address,
                         bool,
-                        PendleLib.PendleData,
+                        PendleLib.PendleAction,
+                        PendleZapper.ZapAction,
+                        SwapperLib.Swap[],
                         uint256,
                         bool,
                         address
                     )
                 );
-            recipient = _recipient;
+            recipient = receiver;
             inputToken = desc.inputToken;
             inputAmount = desc.inputAmount;
-            outputToken = pToken == address(0) ? desc.outputToken : pToken;
+            outputToken = cToken == address(0) ? desc.outputToken : cToken;
         } else if (funcSigHash == PendleZapper.exitPendle.selector) {
             (
                 ,
                 ,
                 ,
                 ,
-                PendleZapper.ZapperData memory desc,
+                PendleZapper.ZapAction memory desc,
                 ,
-                address _recipient
+                address receiver
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         address,
-                        bool,
                         address,
-                        PendleLib.PendleData,
-                        PendleZapper.ZapperData,
+                        bool,
+                        PendleLib.PendleAction,
+                        PendleZapper.ZapAction,
                         SwapperLib.Swap[],
                         address
                     )
                 );
-            recipient = _recipient;
+            recipient = receiver;
             inputToken = desc.inputToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else if (funcSigHash == PendleZapper.redeemAndExitPendle.selector) {
             (
-                ZapperBase.RedemptionData memory redemptionData,
                 ,
                 ,
                 ,
                 ,
-                PendleZapper.ZapperData memory desc,
+                BaseZapper.RedeemAction memory redeemAction,
+                PendleZapper.ZapAction memory desc,
                 ,
-                address _recipient
+                address receiver
             ) = abi.decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
-                        ZapperBase.RedemptionData,
+                        address,
                         address,
                         bool,
-                        address,
-                        PendleLib.PendleData,
-                        PendleZapper.ZapperData,
+                        PendleLib.PendleAction,
+                        BaseZapper.RedeemAction,
+                        PendleZapper.ZapAction,
                         SwapperLib.Swap[],
                         address
                     )
                 );
-            recipient = _recipient;
-            inputToken = redemptionData.mToken;
+            recipient = receiver;
+            inputToken = redeemAction.cToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else {
@@ -123,15 +124,15 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
             revert CalldataChecker__RecipientError();
         }
 
-        if (inputToken != swapData.inputToken) {
+        if (inputToken != swapAction.inputToken) {
             revert CalldataChecker__InputTokenError();
         }
 
-        if (inputAmount != swapData.inputAmount) {
+        if (inputAmount != swapAction.inputAmount) {
             revert CalldataChecker__InputAmountError();
         }
 
-        if (outputToken != swapData.outputToken) {
+        if (outputToken != swapAction.outputToken) {
             revert CalldataChecker__OutputTokenError();
         }
     }

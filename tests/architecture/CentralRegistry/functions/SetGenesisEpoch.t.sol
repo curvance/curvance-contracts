@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetGenesisEpochTest is TestBaseMarket {
-    event GenesisEpochSet(uint256 newGenesisEpoch);
+contract SetGenesisEpochTest is TestBaseMarketIsolated {
+    event GenesisEpochUpdated(uint256 newGenesisEpoch);
 
     function setUp() public override {
         super.setUp();
@@ -50,7 +50,7 @@ contract SetGenesisEpochTest is TestBaseMarket {
         uint256 newGenesisEpoch = centralRegistry.genesisEpoch() + 1;
 
         vm.expectEmit(true, true, true, true);
-        emit GenesisEpochSet(newGenesisEpoch);
+        emit GenesisEpochUpdated(newGenesisEpoch);
 
         centralRegistry.setGenesisEpoch(newGenesisEpoch);
 

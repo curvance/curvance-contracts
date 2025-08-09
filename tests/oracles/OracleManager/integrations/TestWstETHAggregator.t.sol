@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBase } from "tests/utils/TestBase.sol";
-
 import { WstETHAggregator } from "contracts/oracles/adaptors/wrappedAggregators/WstETHAggregator.sol";
+
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
-import { IWstETH } from "contracts/interfaces/external/wsteth/IWstETH.sol";
+import { IWstETH } from "contracts/interfaces/external/lido/IWstETH.sol";
+
+import { TestBase } from "tests/utils/TestBase.sol";
 
 contract TestWstETHAggregator is TestBase {
     address internal _WSTETH_ADDRESS =
         0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
-    address internal _STETH_ADDRESS =
-        0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+
     address internal _CHAINLINK_STETH_USD =
         0xCfE54B5cD566aB89272946F602D76Ea879CAb4a8;
 

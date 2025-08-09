@@ -94,7 +94,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
 
         centralRegistry = centralRegistry_;
 
-        address[] memory marketManagers = centralRegistry_.getMarketManagers();
+        address[] memory marketManagers = centralRegistry_.marketManagers();
         uint256 numMarkets = marketManagers.length;
 
         // Register any previously configured markets here, if any.
@@ -202,7 +202,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
 
         if (WETHYield > 0) {
             // Approve WETH to the Gauge Pool, if necessary.
-            SwapperLib._approveTokenIfNeeded(
+            SwapperLib._approveIfNeeded(
                 address(WETH_YIELD_MANAGER),
                 address(gaugeManager),
                 WETHYield
@@ -250,7 +250,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
 
         if (USDBYield > 0) {
             // Approve USDB to the Gauge Pool, if necessary.
-            SwapperLib._approveTokenIfNeeded(
+            SwapperLib._approveIfNeeded(
                 address(USDB_YIELD_MANAGER),
                 address(gaugeManager),
                 USDBYield
@@ -379,10 +379,6 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             IMToken(pToken).marketManager() != IMToken(eToken).marketManager()
         ) {
             revert BlastNativeYieldManager__MarketManagerMismatch();
-        }
-
-        if (!IMToken(pToken).isPToken() || IMToken(eToken).isPToken()) {
-            revert BlastNativeYieldManager__InvalidTokenTypes();
         }
 
         pTokenToETokenYieldRouted[pToken] = eToken;

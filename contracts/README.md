@@ -37,13 +37,13 @@ contracts/
 
 **Contents**:
 - 📄 `CentralRegistry.sol`: Manages permissions and protocol contract registration within the Curvance Protocol.
-- 📄 `CurvanceDAOTimelock.sol`: A timelock controller for the Curvance DAO that enforces a delay period before administrative operations can be executed.
+- 📄 `DAOTimelock.sol`: A timelock controller for the Curvance DAO that enforces a delay period before administrative operations can be executed.
 - 📄 `FeeManager.sol`: A system for managing fee collected through Curvance DAO operations within Curvance Protocol.
 - 📄 `GaugeManager.sol`: A market specific system for distributing rewards to Curvance market users inside the Curvance Protocol.
 - 📄 `MessagingHub.sol`: A comprehensive system for cross-chain communication within the Curvance Protocol ecosystem
 - 📄 `RewardManager.sol`: A system for managing rewards within the Curvance Protocol.
 - 📄 `UniversalBalance.sol`: A user-facing system for flexible token management within the Curvance Protocol.
-- 📄 `UniversalBalanceNative.sol`: A specialized system for managing native gas tokens within the Curvance Protocol.
+- 📄 `NativeUniversalBalance.sol`: A specialized system for managing native gas tokens within the Curvance Protocol.
 - 📄 `VotingHub.sol`: Coordinates protocol-wide token emission allocation based on governance decisions
 
 <br/>
@@ -56,7 +56,7 @@ contracts/
 **Contents**:
 - 📁 `multicall-checker/`: Contracts for validating multicall operations related to oracle price updates
 - 📁 `swap-checker/`: Contracts for validating external swap operations and DEX interactions.
-- 📄 `BaseCallDataChecker.sol`: A base contract that provides utility functions for parsing and examining calldata.
+- 📄 `BaseCalldataChecker.sol`: A base contract that provides utility functions for parsing and examining calldata.
 
 <br/>
 
@@ -93,7 +93,7 @@ Core lending infrastructure that implements Curvance's unique Dynamic Liquidatio
 - 📁 `isolated/`: Contracts for isolated markets.
 - 📁 `position-management/`: Contracts that contain the logic for managing leveraged positions.
 - 📁 `token/`: Contracts for several different token types, including simple ERC20's and exotic assets. Also includes logic for eTokens (Debt Tokens) and pTokens. (Position/Collateral Tokens).
-- 📄 `DynamicInterestRateModel.sol`: Manages borrow and supply interest rates for Curvance debt tokens.
+- 📄 `DynamicIRM.sol`: Manages borrow and supply interest rates for Curvance debt tokens.
 - 📄 `LiquidationManager.sol`: Manages Curvance's liquidation queue system, enabling efficient capture of Optimal Extractable Value (OEV) while ensuring liquidations always proceed in a timely manner.
 - 📄 `MarketManager.sol`: The MarketManager is the central risk management component in Curvance that governs interactions between collateral (pTokens) and debt (eTokens), implementing the dynamic liquidation engine with tiered thresholds to maintain system stability while supporting diverse asset types with isolated risk profiles.
 
@@ -119,7 +119,7 @@ Core lending infrastructure that implements Curvance's unique Dynamic Liquidatio
 **Contents**:
 - 📁 `market/`: Contains specialized zapper contracts that facilitate seamless interactions between users and various DeFi protocols (like Pendle and Velodrome), enabling complex multi-step operations to be executed in single transactions within the Curvance ecosystem.
 - 📁 `rewards/`: Contracts that streamline the process of claiming rewards and reinvesting them into the protocol in a single transactions.
-- 📄 `ZapperBase.sol`: An abstract contract that provides the foundational infrastructure for various zapper implementations in the Curvance protocol, handling common functionality such as token routing, protocol interactions, and slippage controls.
+- 📄 `BaseZapper.sol`: An abstract contract that provides the foundational infrastructure for various zapper implementations in the Curvance protocol, handling common functionality such as token routing, protocol interactions, and slippage controls.
 ---
 ### 📁 testnet
 

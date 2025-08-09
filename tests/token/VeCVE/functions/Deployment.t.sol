@@ -1,13 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 
 contract VeCVEDeploymentTest is TestBaseVeCVE {
     function test_veCVEDeployment_fail_whenCentralRegistryIsInvalid() public {
-        vm.expectRevert(VeCVE.VeCVE__ParametersAreInvalid.selector);
+        vm.expectRevert(
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
+                .selector
+        );
         new VeCVE(ICentralRegistry(address(1)));
     }
 

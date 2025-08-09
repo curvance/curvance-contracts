@@ -5,8 +5,12 @@ import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { BaseVolatileLPAdaptor } from "contracts/oracles/adaptors/stableswapBase/BaseVolatileLPAdaptor.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
@@ -18,7 +22,7 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
 
     function setUp() public override {
         _fork("ETH_NODE_URI_OPTIMISM", 110333246);
-
+        
         _deployCentralRegistry();
         _deployOracleManager();
 
@@ -31,9 +35,24 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
         );
         adaptor.addAsset(_VELODROME_WETH_USDC);
 
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
-        chainlinkAdaptor.addAsset(_WETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
-        chainlinkAdaptor.addAsset(_USDC_ADDRESS, _CHAINLINK_USDC_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _WETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            _CHAINLINK_USDC_USD,
+            0
+        );
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
@@ -83,8 +102,7 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
 
     function testRevertAddAsset__AssetIsNotVolatileLP() public {
         vm.expectRevert(
-            VelodromeVolatileLPAdaptor
-                .VelodromeVolatileLPAdaptor__AssetIsNotVolatileLP
+            BaseVolatileLPAdaptor.BaseVolatileLPAdaptor__InvalidAssetType
                 .selector
         );
         adaptor.addAsset(0x19715771E30c93915A5bbDa134d782b81A820076);
@@ -169,18 +187,14 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
 
     function testRevertGetPrice__AssetIsNotSupported() public {
         vm.expectRevert(
-            BaseVolatileLPAdaptor
-                .BaseVolatileLPAdaptor__AssetIsNotSupported
-                .selector
+            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.getPrice(address(0), true, false);
     }
 
     function testRevertRemoveAsset__AssetIsNotSupported() public {
         vm.expectRevert(
-            BaseVolatileLPAdaptor
-                .BaseVolatileLPAdaptor__AssetIsNotSupported
-                .selector
+            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.removeAsset(address(0));
     }

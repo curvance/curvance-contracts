@@ -1,19 +1,26 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
+import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
+import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
+import { VelodromeVolatileCToken } from "contracts/market/token/VelodromeVolatileCToken.sol";
+import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
+import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
+import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.sol";
+
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
-import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
-import { VelodromeVolatilePToken, IVeloGauge, IVeloRouter, IVeloPairFactory } from "contracts/market/token/VelodromeVolatilePToken.sol";
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
-contract TestVelodromeZapper is TestBaseMarket {
+import { console2 } from "forge-std/console2.sol";
+
+contract TestVelodromeZapper is TestBaseMarketIsolated {
     address internal _VELODROME_FACTORY =
         0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a;
     address internal _VELODROME_ROUTER =
@@ -26,7 +33,7 @@ contract TestVelodromeZapper is TestBaseMarket {
     address internal _USDC = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
     bool internal _IS_STABLE = false;
 
-    VelodromeVolatilePToken public pToken;
+    VelodromeVolatileCToken public veloCTokenWETHUSDC;
     VelodromeVolatileLPAdaptor public adaptor;
 
     receive() external payable {}
@@ -43,11 +50,11 @@ contract TestVelodromeZapper is TestBaseMarket {
         _deployGaugeManager();
         _deployMarketManager();
         _deployOracleManager();
+        _deployBorrowableCUSDC();
 
-        velodromeZapper = new VelodromeZapper(
-            ICentralRegistry(address(centralRegistry)),
-            _WETH
-        );
+        _deployVelodromeZapper();
+
+        console2.log("velodromeZapper address:", address(velodromeZapper));
 
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
@@ -57,9 +64,9 @@ contract TestVelodromeZapper is TestBaseMarket {
         chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(chainlinkUsdcUsd),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,
@@ -68,15 +75,15 @@ contract TestVelodromeZapper is TestBaseMarket {
         chainlinkEthUsd = new MockV3Aggregator(8, 2700e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
+            true,
             address(chainlinkEthUsd),
-            0,
-            true
+            0
         );
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(chainlinkEthUsd),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _ETH_ADDRESS,
@@ -97,46 +104,40 @@ contract TestVelodromeZapper is TestBaseMarket {
             address(adaptor)
         );
 
-        pToken = new VelodromeVolatilePToken(
+        veloCTokenWETHUSDC = new VelodromeVolatileCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_VELODROME_WETH_USDC),
-            address(marketManager),
+            address(marketManagerIsolated),
             IVeloGauge(_VELODROME_GAUGE),
             IVeloPairFactory(_VELODROME_FACTORY),
-            IVeloRouter(_VELODROME_ROUTER)
+            IVeloRouter(_VELODROME_ROUTER),
+            1 days
         );
-        oracleManager.addMTokenSupport(address(pToken));
+        oracleManager.addCTokenSupport(address(veloCTokenWETHUSDC));
+        oracleManager.addCTokenSupport(address(borrowableCUSDC));
+
+        _prepareUSDC(address(this), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
 
         deal(_VELODROME_WETH_USDC, address(this), 1 ether);
-        IERC20(_VELODROME_WETH_USDC).approve(address(pToken), 1 ether);
-        marketManager.listToken(address(pToken));
+        IERC20(_VELODROME_WETH_USDC).approve(address(veloCTokenWETHUSDC), 1 ether);
 
-        marketManager.updatePositionToken(
-            address(pToken),
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            1000
-        );
+        marketManagerIsolated.listTokens(address(veloCTokenWETHUSDC), address(borrowableCUSDC));
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pToken);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        _setCTokenConfigBasic(address(veloCTokenWETHUSDC), 100_000e18, 0);
+        _setCTokenConfigHighValues(address(borrowableCUSDC), 100_000e18, 100_000e18);
     }
 
     function testEnterVelodrome() public {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
-        vm.prank(user1);
+        console2.log("velodromeZapper address:", address(velodromeZapper));
+
+        vm.startPrank(user1);
         velodromeZapper.enterVelodrome{ value: ethAmount }(
-            address(0),
-            VelodromeZapper.ZapperData(
+            address(veloCTokenWETHUSDC),
+            VelodromeZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _VELODROME_WETH_USDC,
@@ -151,14 +152,19 @@ contract TestVelodromeZapper is TestBaseMarket {
             user1
         );
 
-        assertEq(user1.balance, 0);
-        assertGt(IERC20(_VELODROME_WETH_USDC).balanceOf(user1), 0);
+        vm.stopPrank();
+
+        assertEq(user1.balance, 0, "user1 eth balance is not 0");
+        assertGt(IERC20(address(veloCTokenWETHUSDC)).balanceOf(user1), 0, "user1 veloCTokenWETHUSDC balance is not greater than 0");
     }
 
     function testExitVelodrome() public {
-        testEnterVelodrome();
+
+        deal(_VELODROME_WETH_USDC, user1, 0.05 ether);
+        IERC20(_VELODROME_WETH_USDC).approve(address(velodromeZapper), 1 ether);
 
         uint256 withdrawAmount = IERC20(_VELODROME_WETH_USDC).balanceOf(user1);
+        console2.log("withdrawAmount", withdrawAmount);
 
         vm.startPrank(user1);
         IERC20(_VELODROME_WETH_USDC).approve(
@@ -167,7 +173,7 @@ contract TestVelodromeZapper is TestBaseMarket {
         );
         velodromeZapper.exitVelodrome(
             _VELODROME_ROUTER,
-            VelodromeZapper.ZapperData(
+            VelodromeZapper.ZapAction(
                 _VELODROME_WETH_USDC,
                 withdrawAmount,
                 _WETH,
@@ -184,14 +190,14 @@ contract TestVelodromeZapper is TestBaseMarket {
         assertEq(IERC20(_VELODROME_WETH_USDC).balanceOf(user1), 0);
     }
 
-    function testEnterVelodromeWithPToken() public {
+    function testEnterVelodromeWithCToken() public {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
-        vm.prank(user1);
+        vm.startPrank(user1);
         velodromeZapper.enterVelodrome{ value: ethAmount }(
-            address(pToken),
-            VelodromeZapper.ZapperData(
+            address(veloCTokenWETHUSDC),
+            VelodromeZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _VELODROME_WETH_USDC,
@@ -206,23 +212,28 @@ contract TestVelodromeZapper is TestBaseMarket {
             user1
         );
 
+        vm.stopPrank();
+
+        AccountSnapshot memory veloCTokenWETHUSDCSnapshot = veloCTokenWETHUSDC.getSnapshot(
+            user1
+        );
+
+        assertApproxEqRel(veloCTokenWETHUSDC.balanceOf(user1), 0.00006 ether, 0.01 ether);
+        assertEq(veloCTokenWETHUSDCSnapshot.debtBalance, 0);
         assertEq(user1.balance, 0);
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 0.00006 ether, 0.01 ether);
-        assertEq(borrowed, 0);
     }
 
-    function testEnterVelodromeWithPTokenWithCollateralize() public {
+    function testEnterVelodromeWithCTokenWithCollateralize() public {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
         vm.startPrank(user1);
 
-        pToken.setDelegateApproval(address(velodromeZapper), true);
+        veloCTokenWETHUSDC.setDelegateApproval(address(velodromeZapper), true);
 
         velodromeZapper.enterVelodrome{ value: ethAmount }(
-            address(pToken),
-            VelodromeZapper.ZapperData(
+            address(veloCTokenWETHUSDC),
+            VelodromeZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _VELODROME_WETH_USDC,
@@ -239,25 +250,29 @@ contract TestVelodromeZapper is TestBaseMarket {
 
         vm.stopPrank();
 
+        
+        AccountSnapshot memory veloCTokenWETHUSDCSnapshot = veloCTokenWETHUSDC.getSnapshot(
+            user1
+        );
+
+        assertApproxEqRel(veloCTokenWETHUSDC.balanceOf(user1), 0.00006 ether, 0.01 ether);
+        assertEq(veloCTokenWETHUSDCSnapshot.debtBalance, 0);
         assertEq(user1.balance, 0);
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 0.00006 ether, 0.01 ether);
-        assertEq(borrowed, 0);
     }
 
     function testEnterVelodromeWithDelegation() public {
         uint256 ethAmount = 3 ether;
         vm.deal(user2, ethAmount);
 
-        vm.prank(user1);
-        pToken.setDelegateApproval(user2, true);
-        vm.prank(user1);
-        pToken.setDelegateApproval(address(velodromeZapper), true);
+        vm.startPrank(user1);
+        veloCTokenWETHUSDC.setDelegateApproval(user2, true);
+        veloCTokenWETHUSDC.setDelegateApproval(address(velodromeZapper), true);
+        vm.stopPrank();
 
-        vm.prank(user2);
+        vm.startPrank(user2);
         velodromeZapper.enterVelodrome{ value: ethAmount }(
-            address(pToken),
-            VelodromeZapper.ZapperData(
+            address(veloCTokenWETHUSDC),
+            VelodromeZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _VELODROME_WETH_USDC,
@@ -272,32 +287,36 @@ contract TestVelodromeZapper is TestBaseMarket {
             user1
         );
 
+        vm.stopPrank();
+
+        AccountSnapshot memory veloCTokenWETHUSDCSnapshot = veloCTokenWETHUSDC.getSnapshot(
+            user1
+        );
+
+        assertApproxEqRel(veloCTokenWETHUSDC.balanceOf(user1), 0.00006 ether, 0.01 ether);
+        assertEq(veloCTokenWETHUSDCSnapshot.debtBalance, 0);
         assertEq(user1.balance, 0);
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 0.00006 ether, 0.01 ether);
-        assertEq(borrowed, 0);
     }
 
     function testRedeemAndExitVelodrome() public {
-        testEnterVelodromeWithPToken();
+        testEnterVelodromeWithCToken();
 
-        vm.prank(user1);
-        pToken.setDelegateApproval(address(velodromeZapper), true);
-
-        ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.mToken = address(pToken);
-        redemptionData.shares = 0.00006 ether;
-        redemptionData.forceRedeemCollateral = false;
+        BaseZapper.RedeemAction memory redeemAction;
+        redeemAction.cToken = address(veloCTokenWETHUSDC);
+        redeemAction.shares = 0.00006 ether;
+        redeemAction.forceRedeemCollateral = false;
 
         vm.startPrank(user1);
+
+        veloCTokenWETHUSDC.setDelegateApproval(address(velodromeZapper), true);
         IERC20(_VELODROME_WETH_USDC).approve(
             address(velodromeZapper),
             3 ether
         );
         velodromeZapper.redeemAndExitVelodrome(
-            redemptionData,
+            redeemAction,
             _VELODROME_ROUTER,
-            VelodromeZapper.ZapperData(
+            VelodromeZapper.ZapAction(
                 _VELODROME_WETH_USDC,
                 0.00006 ether,
                 _WETH,
@@ -307,6 +326,7 @@ contract TestVelodromeZapper is TestBaseMarket {
             new SwapperLib.Swap[](0),
             user1
         );
+
         vm.stopPrank();
 
         assertGt(IERC20(_WETH).balanceOf(user1), 0);

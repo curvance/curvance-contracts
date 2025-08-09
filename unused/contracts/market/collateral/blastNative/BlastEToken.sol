@@ -11,13 +11,13 @@ abstract contract BlastEToken is EToken, BlastYieldDelegable {
         ICentralRegistry centralRegistry_,
         address underlying_,
         address marketManager_,
-        address interestRateModel_
+        address IRM_
     )
         EToken(
             centralRegistry_,
             underlying_,
             marketManager_,
-            interestRateModel_
+            IRM_
         )
         BlastYieldDelegable(centralRegistry_)
     {}

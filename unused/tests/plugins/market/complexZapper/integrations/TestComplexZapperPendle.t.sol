@@ -7,14 +7,13 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
 import { PendleLPPToken } from "contracts/market/token/PendleLPPToken.sol";
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestComplexZapperPendle is TestBaseMarket {
+contract TestComplexZapperPendle is TestBaseMarketIsolated {
     address internal _PENDLE_ROUTER =
         0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal _PENDLE_LP_STETH =
@@ -43,15 +42,14 @@ contract TestComplexZapperPendle is TestBaseMarket {
         oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 
         adaptor = new PendleLPTokenAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            IPendlePTOracle(_PT_ORACLE)
+            ICentralRegistry(address(centralRegistry))
         );
-        PendleLPTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.twapDuration = 12;
-        adapterData.quoteAsset = _STETH;
-        adapterData.pt = _PT_STETH;
-        adapterData.quoteAssetDecimals = 18;
-        adaptor.addAsset(_LP_STETH, adapterData);
+        PendleLPTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.pt = _PT_STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        adaptor.addAsset(_LP_STETH, assetConfig);
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPriceFeed(_LP_STETH, address(adaptor));
 
@@ -61,7 +59,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
             address(marketManager),
             IPendleRouter(_PENDLE_ROUTER)
         );
-        oracleManager.addMTokenSupport(address(pSTETH));
+        oracleManager.addCTokenSupport(address(pSTETH));
 
         deal(_LP_STETH, address(this), 1 ether);
         IERC20(_LP_STETH).approve(address(pSTETH), 1 ether);
@@ -80,25 +78,25 @@ contract TestComplexZapperPendle is TestBaseMarket {
         tokens[0] = address(pSTETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        marketManager.setCollateralCaps(tokens, caps);
     }
 
     function testEnterPendle() public {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
-        PendleLib.PendleData memory data;
+        PendleLib.PendleAction memory action;
 
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
         vm.prank(user1);
         complexZapper.enterPendle{ value: ethAmount }(
             address(0),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _PENDLE_LP_STETH,
@@ -108,7 +106,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _PENDLE_ROUTER,
             _IS_PT,
-            data,
+            action,
             1.2 ether,
             false,
             user1
@@ -123,13 +121,13 @@ contract TestComplexZapperPendle is TestBaseMarket {
 
         uint256 withdrawAmount = IERC20(_PENDLE_LP_STETH).balanceOf(user1);
 
-        PendleLib.PendleData memory data;
+        PendleLib.PendleAction memory action;
 
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
         vm.startPrank(user1);
         IERC20(_PENDLE_LP_STETH).approve(
@@ -140,8 +138,8 @@ contract TestComplexZapperPendle is TestBaseMarket {
             _PENDLE_ROUTER,
             _IS_PT,
             _STETH,
-            data,
-            ComplexZapper.ZapperData(
+            action,
+            ComplexZapper.ZapAction(
                 _PENDLE_LP_STETH,
                 withdrawAmount,
                 _STETH,
@@ -162,18 +160,18 @@ contract TestComplexZapperPendle is TestBaseMarket {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
-        PendleLib.PendleData memory data;
+        PendleLib.PendleAction memory action;
 
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
         vm.prank(user1);
         complexZapper.enterPendle{ value: ethAmount }(
             address(pSTETH),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _PENDLE_LP_STETH,
@@ -183,7 +181,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _PENDLE_ROUTER,
             _IS_PT,
-            data,
+            action,
             1.2 ether,
             false,
             user1
@@ -200,18 +198,18 @@ contract TestComplexZapperPendle is TestBaseMarket {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
-        PendleLib.PendleData memory data;
+        PendleLib.PendleAction memory action;
 
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
         vm.prank(user1);
         complexZapper.enterPendle{ value: ethAmount }(
             address(pSTETH),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _PENDLE_LP_STETH,
@@ -221,7 +219,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _PENDLE_ROUTER,
             _IS_PT,
-            data,
+            action,
             1.2 ether,
             true,
             user1
@@ -243,18 +241,18 @@ contract TestComplexZapperPendle is TestBaseMarket {
         vm.prank(user1);
         pSTETH.setDelegateApproval(address(complexZapper), true);
 
-        PendleLib.PendleData memory data;
+        PendleLib.PendleAction memory action;
 
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
         vm.prank(user2);
         complexZapper.enterPendle{ value: ethAmount }(
             address(pSTETH),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _PENDLE_LP_STETH,
@@ -264,7 +262,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _PENDLE_ROUTER,
             _IS_PT,
-            data,
+            action,
             1.2 ether,
             true,
             user1
@@ -283,28 +281,28 @@ contract TestComplexZapperPendle is TestBaseMarket {
         vm.prank(user1);
         pSTETH.setDelegateApproval(address(complexZapper), true);
 
-        ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.mToken = address(pSTETH);
-        redemptionData.shares = 1.24 ether;
-        redemptionData.forceRedeemCollateral = false;
+        BaseZapper.RedeemAction memory redeemAction;
+        redeemAction.mToken = address(pSTETH);
+        redeemAction.shares = 1.24 ether;
+        redeemAction.forceRedeemCollateral = false;
 
-        PendleLib.PendleData memory data;
+        PendleLib.PendleAction memory action;
 
-        data.approx.guessMin = 1e10;
-        data.approx.guessMax = 1e18;
-        data.approx.guessOffchain = 0;
-        data.approx.maxIteration = 200;
-        data.approx.eps = 1e18;
+        action.approx.guessMin = 1e10;
+        action.approx.guessMax = 1e18;
+        action.approx.guessOffchain = 0;
+        action.approx.maxIteration = 200;
+        action.approx.eps = 1e18;
 
         vm.startPrank(user1);
         IERC20(_PENDLE_LP_STETH).approve(address(complexZapper), 3 ether);
         complexZapper.redeemAndExitPendle(
-            redemptionData,
+            redeemAction,
             _PENDLE_ROUTER,
             _IS_PT,
             _STETH,
-            data,
-            ComplexZapper.ZapperData(
+            action,
+            ComplexZapper.ZapAction(
                 _PENDLE_LP_STETH,
                 1.24 ether,
                 _STETH,

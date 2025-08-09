@@ -30,3 +30,17 @@ optimizer_runs = 200
 
 # TODO: Remove this once tests are fixed
 allow_internal_expect_revert = true
+
+# Suppress common linting notes
+[profile.lint]
+# Disable specific lint rules to reduce noise
+exclude_lints = [
+    "screaming-snake-case-const",
+    "screaming-snake-case-immutable", 
+    "mixed-case-variable",
+    "mixed-case-function",
+    "pascal-case-struct",
+    "asm-keccak256",
+    "divide-before-multiply",
+    "incorrect-shift"
+]

@@ -4,14 +4,13 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
-import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestComplexZapperCurveETH is TestBaseMarket {
+contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
     address internal _CURVE_STETH_LP =
         0x21E27a5E5513D6e65C4f830167390997aA84843a;
     address internal _CURVE_STETH_MINTER =
@@ -21,7 +20,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
     address internal _CHAINLINK_STETH_USD =
         0xCfE54B5cD566aB89272946F602D76Ea879CAb4a8;
 
-    SimplePToken public pToken;
+    SimpleCToken public pToken;
     Curve2PoolLPAdaptor public adaptor;
 
     receive() external payable {}
@@ -31,7 +30,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
     function setUp() public override {
         super.setUp();
 
-        pToken = new SimplePToken(
+        pToken = new SimpleCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_CURVE_STETH_LP),
             address(marketManager)
@@ -53,7 +52,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         );
         adaptor.setReentrancyConfig(2, 10000);
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = _CURVE_STETH_LP;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -66,7 +65,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
 
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPriceFeed(_CURVE_STETH_LP, address(adaptor));
-        oracleManager.addMTokenSupport(address(pToken));
+        oracleManager.addCTokenSupport(address(pToken));
 
         deal(_CURVE_STETH_LP, address(this), 1 ether);
         IERC20(_CURVE_STETH_LP).approve(address(pToken), 1 ether);
@@ -84,7 +83,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         mTokens[0] = address(pToken);
         uint256[] memory newCollateralCaps = new uint256[](1);
         newCollateralCaps[0] = 1000000 * 10 ** 18;
-        marketManager.setPTokenCollateralCaps(mTokens, newCollateralCaps);
+        marketManager.setCollateralCaps(mTokens, newCollateralCaps);
     }
 
     function testEnterCurveWithETH() public {
@@ -98,7 +97,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         vm.prank(user1);
         complexZapper.enterCurve{ value: ethAmount }(
             address(0),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _ETH_ADDRESS,
                 ethAmount,
                 _CURVE_STETH_LP,
@@ -132,7 +131,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         );
         complexZapper.exitCurve(
             _CURVE_STETH_MINTER,
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _CURVE_STETH_LP,
                 withdrawAmount,
                 _ETH_ADDRESS,
@@ -162,7 +161,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         vm.prank(user1);
         complexZapper.enterCurve{ value: ethAmount }(
             address(pToken),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _ETH_ADDRESS,
                 ethAmount,
                 _CURVE_STETH_LP,
@@ -179,9 +178,9 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
 
         assertEq(user1.balance, 0);
 
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 3 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
+        assertApproxEqRel(pToken.balanceOf(user1), 3 ether, 0.01 ether);
+        assertEq(pTokenBorrowed, 0);
     }
 
     function testEnterCurveWithPTokenWithCollateralize() public {
@@ -195,7 +194,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         vm.prank(user1);
         complexZapper.enterCurve{ value: ethAmount }(
             address(pToken),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _ETH_ADDRESS,
                 ethAmount,
                 _CURVE_STETH_LP,
@@ -212,9 +211,9 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
 
         assertEq(user1.balance, 0);
 
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 3 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
+        assertApproxEqRel(pToken.balanceOf(user1), 3 ether, 0.01 ether);
+        assertEq(pTokenBorrowed, 0);
     }
 
     function testEnterCurveWithDelegation() public {
@@ -234,7 +233,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         vm.prank(user2);
         complexZapper.enterCurve{ value: ethAmount }(
             address(pToken),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _ETH_ADDRESS,
                 ethAmount,
                 _CURVE_STETH_LP,
@@ -251,9 +250,9 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
 
         assertEq(user2.balance, 0);
 
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 3 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
+        assertApproxEqRel(pToken.balanceOf(user1), 3 ether, 0.01 ether);
+        assertEq(pTokenBorrowed, 0);
     }
 
     function testRedeemAndExitCurve() public {
@@ -262,10 +261,10 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         vm.prank(user1);
         pToken.setDelegateApproval(address(complexZapper), true);
 
-        ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.mToken = address(pToken);
-        redemptionData.shares = 2.9 ether;
-        redemptionData.forceRedeemCollateral = false;
+        BaseZapper.RedeemAction memory redeemAction;
+        redeemAction.mToken = address(pToken);
+        redeemAction.shares = 2.9 ether;
+        redeemAction.forceRedeemCollateral = false;
 
         vm.startPrank(user1);
         address[] memory tokens = new address[](2);
@@ -273,9 +272,9 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         tokens[1] = _STETH_ADDRESS;
         IERC20(_CURVE_STETH_LP).approve(address(complexZapper), 3 ether);
         complexZapper.redeemAndExitCurve(
-            redemptionData,
+            redeemAction,
             _CURVE_STETH_MINTER,
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _CURVE_STETH_LP,
                 2.9 ether,
                 _ETH_ADDRESS,

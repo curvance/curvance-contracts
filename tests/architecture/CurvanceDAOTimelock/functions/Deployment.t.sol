@@ -1,25 +1,27 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseTimelock } from "../TestBaseTimelock.sol";
-import { Timelock } from "contracts/architecture/CurvanceDAOTimelock.sol";
+import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { TestBaseTimelock } from "../TestBaseTimelock.sol";
 
 contract TimelockDeploymentTest is TestBaseTimelock {
     function test_timelockDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
         vm.expectRevert(
-            abi.encodeWithSelector(
-                Timelock.Timelock__InvalidCentralRegistry.selector,
-                address(0)
-            )
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
+                .selector
         );
-        new Timelock(ICentralRegistry(address(0)));
+        new DAOTimelock(ICentralRegistry(address(0)));
     }
 
     function test_timelockDeployment_success() public {
-        Timelock timelock = new Timelock(
+        DAOTimelock timelock = new DAOTimelock(
             ICentralRegistry(address(centralRegistry))
         );
 

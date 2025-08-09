@@ -14,7 +14,6 @@ contract MockCentralRegistry is CentralRegistry {
     )
         CentralRegistry(
             daoAddress_,
-            timelock_,
             emergencyCouncil_,
             genesisEpoch_,
             sequencer_,

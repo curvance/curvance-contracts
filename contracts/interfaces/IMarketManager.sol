@@ -1,204 +1,304 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { IMToken } from "contracts/interfaces/IMToken.sol";
-
 interface IMarketManager {
     /// TYPES ///
 
-    struct LiqInstructions {
-        address eToken;
-        address pToken;
+    /// @notice Data structure passed communicating the intended liquidation
+    ///         scenario to review based on current liquidity levels.
+    /// @param collateralToken The token which was used as collateral
+    ///                        by `account` and may be seized.
+    /// @param debtToken The token to potentially repay which has
+    ///                  outstanding debt by `account`.
+    /// @param numAccounts The number of accounts to be, potentially,
+    ///                    liquidated.
+    /// @param liquidateExact Whether the liquidator desires a specific
+    ///                       liquidation amount.
+    /// @param liquidatedShares Empty variable slot to store how much
+    ///                         `collateralToken` will be seized as
+    ///                         part of a particular liquidation.
+    /// @param debtRepaid Empty variable slot to store how much
+    ///                   `debtToken` will be repaid as part of a
+    ///                   particular liquidation.
+    /// @param badDebt Empty variable slot to store how much bad debt will
+    ///                be realized by lenders as part of a particular
+    ///                liquidation.
+    struct LiqAction {
+        address collateralToken;
+        address debtToken;
         uint256 numAccounts;
         bool liquidateExact;
-        uint256 eTokenRepaid;
-        uint256 pTokenLiquidated;
+        uint256 liquidatedShares;
+        uint256 debtRepaid;
         uint256 badDebt;
     }
 
-    struct LiqResults {
-        uint256[] liquidatedAmounts;
+    /// @notice Data structure returned communicating outcome of a liquidity
+    ///         scenario review based on current liquidity levels.
+    /// @param liquidatedShares An array containing the collateral amounts to
+    ///                         liquidate from accounts, in shares.
+    /// @param debtRepaid The total amount of debt to repay from accounts,
+    ///                   in assets.
+    /// @param badDebtRealized The total amount of debt to realize as losses
+    ///                        for lenders, in assets.
+    struct LiqResult {
+        uint256[] liquidatedShares;
         uint256 debtRepaid;
         uint256 badDebtRealized;
     }
 
-    /// @notice Whether mToken minting is paused.
-    /// @dev Token => 0 or 1 = unpaused; 2 = paused.
-    function mintPaused(address mToken) external view returns (uint256);
+    /// @notice Returns whether minting, collateralization, borrowing of
+    ///         `cToken` is paused.
+    /// @param cToken The address of the Curvance token to return
+    ///               action statuses of.
+    /// @return bool Whether minting `cToken` is paused or not.
+    /// @return bool Whether collateralization `cToken` is paused or not.
+    /// @return bool Whether borrowing `cToken` is paused or not.
+    function actionsPaused(
+        address cToken
+    ) external view returns (bool, bool, bool);
 
-    /// @notice Post collateral for `mToken` inside this market.
-    /// @param account The account posting collateral.
-    /// @param mToken The address of the mToken to post collateral for.
-    /// @param tokens The amount of `mToken` to post as collateral, in shares.
-    function postCollateral(
-        address account,
-        address mToken,
-        uint256 tokens
-    ) external;
+    /// @notice Returns the current collateralization configuration
+    ///         of `cToken`.
+    /// @param cToken The address of the Curvance token to return
+    ///               collateralization configuration of.
+    /// @return The ratio at which this token can be borrowed against
+    ///         when collateralized.
+    /// @return The collateral requirement where dipping below this
+    ///         will cause a soft liquidation.
+    /// @return The collateral requirement where dipping below
+    ///         this will cause a hard liquidation.
+    function collConfig(address cToken) external view returns (
+         uint256, uint256, uint256
+    );
+
+    /// @notice Returns the current liquidation configuration
+    ///         of `cToken`.
+    /// @param cToken The address of the Curvance token to return
+    ///               liquidation configuration of.
+    /// @return The base ratio at which this token will be
+    ///         compensated on soft liquidation.
+    /// @return The liquidation incentive curve length between soft
+    ///         liquidation to hard liquidation, in `WAD`. e.g. 5% base
+    ///         incentive with 8% curve length results in 13% liquidation
+    ///         incentive on hard liquidation.
+    /// @return The minimum possible liquidation incentive for during an
+    ///         auction, in `WAD`.
+    /// @return The maximum possible liquidation incentive for during an
+    ///         auction, in `WAD`.
+    /// @return Maximum % that a liquidator can repay when soft
+    ///         liquidating an account, in `WAD`.
+    /// @return Curve length between soft liquidation and hard liquidation,
+    ///         should be equal to 100% - `closeFactorBase`, in `WAD`.
+    /// @return The minimum possible close factor for during an auction,
+    ///         in `WAD`.
+    /// @return The maximum possible close factor for during an auction,
+    ///         in `WAD`.
+    function liquidationConfig(address cToken) external view returns (
+        uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256
+    );
 
     /// @notice Checks if the account should be allowed to mint tokens
     ///         in the given market.
-    /// @param mToken The token to verify mints against.
-    function canMint(address mToken) external;
+    /// @param cToken The token to verify mints against.
+    function canMint(address cToken) external;
+
+    /// @notice Checks if the account should be allowed to collateralize
+    ///         their shares of the given market.
+    ///         Prunes unused positions in `account` data.
+    /// @dev May emit a {PositionUpdated} event.
+    /// @param cToken The token to verify collateralization of.
+    /// @param account The account which would collateralize the asset.
+    /// @param newNetCollateral The amount of shares that would be
+    ///                         collateralized in total if allowed.
+    function canCollateralize(
+        address cToken,
+        address account,
+        uint256 newNetCollateral
+    ) external;
 
     /// @notice Checks if the account should be allowed to redeem tokens
     ///         in the given market.
-    /// @param mToken The market to verify the redeem against.
-    /// @param account The account which would redeem the tokens.
-    /// @param amount The number of mTokens to exchange
+    /// @param cToken The market to verify the redeem against.
+    /// @param shares The number of cTokens to exchange
     ///               for the underlying asset in the market.
+    /// @param account The account which would redeem `shares`.
     function canRedeem(
-        address mToken,
-        address account,
-        uint256 amount
+        address cToken,
+        uint256 shares,
+        address account
     ) external;
 
     /// @notice Checks if the account should be allowed to redeem tokens
     ///         in the given market, and then redeems.
-    /// @dev This can only be called by the mToken itself
-    ///      (specifically pTokens, because eTokens are never collateral).
-    /// @param mToken The market to verify the redeem against.
-    /// @param account The account which would redeem the tokens.
-    /// @param balance The current mTokens balance of `account`.
-    /// @param amount The number of mTokens to exchange
-    ///               for the underlying asset in the market.
+    /// @dev This can only be called by the cToken itself.
+    /// @param cToken The token to verify the redemption against.
+    /// @param shares The number of cToken shares to redeem for the
+    ///               underlying asset in the market.
+    /// @param account The account which would redeem `shares`.
+    /// @param balanceOf The current cToken share balance of `account`.
+    /// @param collateralPosted The current cToken shares posted as
+    ///                         collateral by `account`.
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced.
     function canRedeemWithCollateralRemoval(
-        address mToken,
+        address cToken,
+        uint256 shares,
         address account,
-        uint256 balance,
-        uint256 amount,
+        uint256 balanceOf,
+        uint256 collateralPosted,
         bool forceRedeemCollateral
-    ) external;
+    ) external returns (uint256);
 
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
-    /// @dev May emit a {TokenPositionCreated} event.
-    /// @param eToken The debt token to verify the borrow of.
+    ///         Prunes unused positions in `account` data.
+    /// @dev May emit a {PositionUpdated} event.
+    /// @param cToken The token to verify borrowability of.
+    /// @param assets The amount of underlying assets `account` would borrow.
     /// @param account The account which would borrow the asset.
-    /// @param amount The amount of underlying the account would borrow.
-    function canBorrowWithPrune(
-        address eToken,
+    /// @param newNetDebt The amount of assets that would be
+    ///                   outstanding debt in total if allowed.
+    function canBorrow(
+        address cToken,
+        uint256 assets,
         address account,
-        uint256 amount
+        uint256 newNetDebt
     ) external;
 
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market,
     ///         and notifies the market of the borrow.
     /// @dev This can only be called by the market itself.
-    /// @param mToken The market to verify the borrow against.
+    /// @param cToken The market to verify the borrow against.
+    /// @param assets The amount of underlying assets `account` would borrow.
     /// @param account The account which would borrow the asset.
-    /// @param amount The amount of underlying the account would borrow.
+    /// @param newNetDebt The amount of assets that would be
+    ///                   outstanding debt in total if allowed.
     function canBorrowWithNotify(
-        address mToken,
+        address cToken,
+        uint256 assets,
         address account,
-        uint256 amount
+        uint256 newNetDebt
     ) external;
 
     /// @notice Checks if the account should be allowed to repay a borrow
     ///         in the given market.
-    /// @param mToken The market to verify the repay against.
+    /// @param cToken The market to verify the repay against.
     /// @param account The account who will have their loan repaid.
-    function canRepay(address mToken, address account) external;
+    function canRepay(address cToken, address account) external;
 
-    /// @notice Checks if the liquidation should be allowed to occur
-    function canLiquidateWithExecution(
+    /// @notice Checks if the liquidation should be allowed to occur,
+    ///         and returns how many collateralized shares should be seized
+    ///         on liquidation.
+    /// @param debtAmounts The amounts of outstanding debt the liquidator
+    ///                    wishes to repay, in underlying assets, empty if
+    ///                    intention is to liquidate maximum amount possible
+    ///                    for each account.
+    /// @param liquidator The address of the account trying to liquidate
+    ///                   `accounts`.
+    /// @param accounts The addresses of the accounts to be liquidated.
+    /// @param action A LiqAction struct containing:
+    ///               collateralToken The token which is used as collateral
+    ///                               by `account` and may be seized.
+    ///               debtToken The token to potentially repay which has
+    ///                         outstanding debt by `account`.
+    ///               numAccounts The number of accounts to be, potentially,
+    ///                           liquidated.
+    ///               liquidateExact Whether the liquidator desires a
+    ///                              specific liquidation amount.
+    ///               collateralLiquidated Empty variable slot to store how
+    ///                                    much `collateralToken` will be
+    ///                                    seized as part of a particular
+    ///                                    liquidation.
+    ///               debtRepaid Empty variable slot to store how much
+    ///                          `debtToken` will be repaid as part of a
+    ///                          particular liquidation.
+    ///               badDebt Empty variable slot to store how much bad debt
+    ///                       will be realized as part of a particular
+    ///                       liquidation.
+    /// @return result A LiqResult struct containing:
+    ///                liquidatedShares An array containing the collateral
+    ///                                 amounts to liquidate from
+    ///                                 `accounts`.
+    ///                debtRepaid The total amount of debt to repay from
+    ///                           `accounts`.
+    ///                badDebtRealized The total amount of debt to realize as
+    ///                                losses for lenders inside this market.
+    /// @return An array containing the debt amounts to repay from
+    ///        `accounts`, in assets.
+    function canLiquidate(
+        uint256[] memory debtAmounts,
         address liquidator,
         address[] calldata accounts,
-        uint256[] memory debtAmounts,
-        IMarketManager.LiqInstructions memory liqInstructions
-    ) external returns (LiqResults memory, uint256[] memory);
+        IMarketManager.LiqAction memory action
+    ) external view returns (LiqResult memory, uint256[] memory);
 
-    /// @notice Checks if the seizing of assets should be allowed to occur.
-    /// @param pToken Asset which was used as collateral and will be seized.
-    /// @param earnToken Asset which was borrowed by the account.
-    function canSeize(address pToken, address earnToken) external;
-
-    /// @notice Checks if the account should be allowed to transfer debt
-    ///         tokens in the given market.
-    /// @param mToken The market to verify the transfer against.
-    /// @param from The account which sources the tokens.
-    /// @param amount The number of mTokens to transfer.
-    function canTransferEToken(
-        address mToken,
-        address from,
-        uint256 amount
-    ) external;
+    /// @notice Checks if the seizing of `collateralToken` by repayment of
+    ///         `debtToken` should be allowed.
+    /// @param collateralToken The Curvance token which was used as collateral
+    ///                        and will be seized.
+    /// @param debtToken The Curvance token which has outstanding debt to and
+    ///                  would be repaid during `collateralToken` seizure.
+    function canSeize(address collateralToken, address debtToken) external;
 
     /// @notice Checks if the account should be allowed to transfer collateral
     ///         tokens in the given market.
-    /// @param mToken The market token to verify the transfer of.
-    /// @param from The account which sources the tokens.
-    /// @param amount The number of mTokens to transfer.
-    function canTransferPToken(
-        address mToken,
-        address from,
-        uint256 amount
-    ) external;
+    /// @param cToken The Curvance token to verify the transfer of.
+    /// @param shares The amount of `cToken` to transfer.
+    /// @param account The account which will transfer `shares`.
+    /// @param balanceOf The current balance that `account` has of `cToken`
+    ///                  shares.
+    /// @param collateralPosted The amount of `cToken` shares posted as
+    ///                         collateral by `account`.
+    /// @param isCollateral Boolean indicating whether the token is currently
+    ///                     being used as collateral.
+    function canTransfer(
+        address cToken,
+        uint256 shares,
+        address account,
+        uint256 balanceOf,
+        uint256 collateralPosted,
+        bool isCollateral
+    ) external returns (uint256);
 
-    /// @notice Updates `account` cooldownTimestamp to the current block timestamp.
-    /// @dev The caller must be a listed MToken in the `markets` mapping.
-    /// @param mToken The address of the eToken that the account is borrowing.
+    /// @notice Updates `account` cooldownTimestamp to the current block
+    ///         timestamp.
+    /// @dev The caller must be a listed cToken in the `markets` mapping.
+    /// @param cToken The address of the token that the account is borrowing.
     /// @param account The address of the account that has just borrowed.
-    function notifyBorrow(address mToken, address account) external;
+    function notifyBorrow(address cToken, address account) external;
 
     /// @notice A list of all tokens inside this market for
     ///         offchain querying.
     function queryTokensListed() external view returns (address[] memory);
 
-    /// @notice Returns whether `mToken` is listed in the lending market.
-    /// @param mToken market token address.
-    function isListed(address mToken) external view returns (bool);
+    /// @notice Returns whether `cToken` is listed in the lending market.
+    /// @param cToken market token address.
+    function isListed(address cToken) external view returns (bool);
 
-    /// @notice Market token data including listing status,
-    ///         token characterists, account position data.
-    /// @dev Market Token Address => MarketToken struct.
-    function tokenData(address mToken) external view returns (
-        bool isListed,
-        uint256 collRatio,
-        uint256 collReqSoft,
-        uint256 collReqHard,
-        uint256 liqBaseIncentive,
-        uint256 liqCurve,
-        uint256 liqMinIncentive,
-        uint256 liqMaxIncentive,
-        uint256 minEffectiveCloseFactor,
-        uint256 maxEffectiveCloseFactor,
-        uint256 baseCFactor,
-        uint256 cFactorCurve
-    );
-
-    /// @notice Amount of pToken that has been posted as collateral,
+    /// @notice The total amount of `cToken` that can be posted as collateral,
     ///         in shares.
-    function collateralPosted(address pToken) external view returns (uint256);
+    function collateralCaps(address cToken) external view returns (uint256);
 
-    /// @notice Amount of pToken that can be posted of collateral,
-    ///         in shares.
-    function collateralCaps(address pToken) external view returns (uint256);
+    /// @notice The total amount of `cToken` underlying that can be borrowed,
+    ///         in assets.
+    function debtCaps(address cToken) external view returns (uint256);
 
     /// @notice Returns the assets an account has entered.
     /// @param account The address of the account to pull assets for.
-    /// @return A dynamic list with the assets the account has entered.
+    /// @return A dynamic list with the assets `account` has entered.
     function assetsOf(
         address account
-    ) external view returns (IMToken[] memory);
-
-    /// @notice Returns if an account has an active position in `mToken`.
-    /// @param account The address of the account to check a position of.
-    /// @param mToken The address of the market token.
-    function tokenDataOf(
-        address account,
-        address mToken
-    ) external view returns (bool, uint256, uint256);
+    ) external view returns (address[] memory);
 
     /// @notice Determine `account`'s current status between collateral,
     ///         debt, and additional liquidity.
     /// @param account The account to determine liquidity for.
-    /// @return accountCollateral total collateral amount of account.
-    /// @return maxDebt max borrow amount of account.
-    /// @return accountDebt total borrow amount of account.
+    /// @return The current total collateral amount of `account`.
+    /// @return The maximum debt amount of `account` can take out with
+    ///         their current collateral.
+    /// @return The current total borrow amount of `account`.
     function statusOf(
         address account
     ) external view returns (uint256, uint256, uint256);
@@ -207,33 +307,38 @@ interface IMarketManager {
     ///         by calculating their lFactor, based on their
     ///         collateral versus outstanding debt.
     /// @param account The account to check liquidation status for.
-    /// @param eToken The eToken to be repaid during potential liquidation.
-    /// @param pToken The pToken to be seized during potential
-    ///                        liquidation.
+    /// @param collateralToken The address of the Curvance token to be seized
+    ///                        during in the liquidation.
+    /// @param debtToken The address of the Curvance token to be repaid during
+    ///                  the liquidation.
     /// @return lfactor `account`'s current lFactor, an lFactor at or above 1
     ///                 indicates a soft liquidation, with a value of
     ///                 1e18 (WAD) indicating a hard liquidation.
-    /// @return earnTokenPrice Current price for `earnToken`.
-    /// @return positionTokenPrice Current price for `positionToken`.
+    /// @return collateralPrice Current price for `collateralToken`.
+    /// @return debtPrice Current price for `debtToken`.
     function liquidationStatusOf(
         address account,
-        address eToken,
-        address pToken
+        address collateralToken,
+        address debtToken
     ) external view returns (uint256, uint256, uint256);
 
-    /// @notice Returns whether `positionContract` is an approved position
-    ///         management operator or not.
-    /// @param positionContract Address to check for position management
-    ///                         authority.
-    function positionManagement(
-        address positionContract
+    /// @notice Returns whether `addressToCheck` is an approved position
+    ///         manager or not.
+    /// @param addressToCheck Address to check for position management
+    ///                       authority.
+    function isPositionManager(
+        address addressToCheck
     ) external view returns (bool);
 
-    /// @notice Locks Atlas OEV liquidations
-    /// @dev This function must be called by an authorized Atlas DApp Control
-    function lockAtlasOev() external;
-
-    /// @notice Unlocks Atlas OEV liquidations
-    /// @dev This function must be called by an authorized Atlas DApp Control
-    function unlockAtlasOev() external;
+    /// @notice Determine `account`'s current collateral and debt values
+    ///         in the market.
+    /// @param account The account to calculate liquidation values for.
+    /// @return The total market value of `account`'s collateral offset
+    /// by soft liquidation requirements.
+    /// @return The total market value of `account`'s collateral offset
+    /// by hard liquidation requirements.
+    /// @return The total outstanding debt value of `account`.
+    function liquidationValuesOf(
+        address account
+    ) external view returns (uint256, uint256, uint256);
 }

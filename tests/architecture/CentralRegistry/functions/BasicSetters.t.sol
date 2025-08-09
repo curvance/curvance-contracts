@@ -1,21 +1,22 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract BasicSettersTest is TestBaseMarket {
-    event CoreContractSet(string indexed contractType, address newAddress);
+contract BasicSettersTest is TestBaseMarketIsolated {
+    event CoreContractUpdated(string indexed contractType, address newAddress);
 
     string[] public setters;
     string[] public getters;
     string[] public expectedLogs;
 
+    event debugUint(uint256);
+
     function setUp() public virtual override {
         super.setUp();
 
         centralRegistry = new CentralRegistry(
-            _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             block.timestamp + 1,
@@ -27,25 +28,43 @@ contract BasicSettersTest is TestBaseMarket {
             "setCVE(address)",
             "setVeCVE(address)",
             "setRewardManager(address)",
+            "setGaugeManager(address)",
+            "setVotingHub(address)",
             "setMessagingHub(address)",
             "setOracleManager(address)",
-            "setFeeManager(address)"
+            "setFeeManager(address)",
+            "setCrosschainCore(address)",
+            "setCrosschainRelayer(address)",
+            "setTokenMessager(address)",
+            "setMessageTransmitter(address)"
         ];
         getters = [
             "cve()",
             "veCVE()",
             "rewardManager()",
+            "gaugeManager()",
+            "votingHub()",
             "messagingHub()",
             "oracleManager()",
-            "feeManager()"
+            "feeManager()",
+            "crosschainCore()",
+            "crosschainRelayer()",
+            "tokenMessager()",
+            "messageTransmitter()"
         ];
         expectedLogs = [
             "CVE",
             "VeCVE",
             "Reward Manager",
+            "Gauge Manager",
+            "Voting Hub",
             "Messaging Hub",
             "Oracle Manager",
-            "Fee Manager"
+            "Fee Manager",
+            "Crosschain Core",
+            "Crosschain Relayer",
+            "Token Messager",
+            "Message Transmitter"
         ];
     }
 
@@ -72,8 +91,10 @@ contract BasicSettersTest is TestBaseMarket {
         for (uint256 i; i < length; i++) {
             address newAddr = user1;
 
+            emit debugUint(i);
+
             vm.expectEmit(true, true, true, true);
-            emit CoreContractSet(expectedLogs[i], newAddr);
+            emit CoreContractUpdated(expectedLogs[i], newAddr);
 
             bytes memory setterSig = abi.encodeWithSignature(
                 setters[i],

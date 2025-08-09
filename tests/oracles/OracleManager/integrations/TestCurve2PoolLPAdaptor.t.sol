@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
+import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
     address internal _CHAINLINK_STETH_USD =
         0xCfE54B5cD566aB89272946F602D76Ea879CAb4a8;
     address internal _CURVE_ETH_STETH =
         0x21E27a5E5513D6e65C4f830167390997aA84843a;
-    address internal _STETH_ADDRESS =
-        0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
     Curve2PoolLPAdaptor public adaptor;
 
@@ -31,7 +31,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
     }
 
     function testRevertWhenUnderlyingAssetPriceNotSet() public {
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -52,14 +52,19 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
             _ETH_ADDRESS,
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -80,12 +85,17 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
         chainlinkAdaptor.addAsset(
             _STETH_ADDRESS,
+            true,
             _CHAINLINK_STETH_USD,
-            0,
-            true
+            0
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
@@ -97,7 +107,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -136,7 +146,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
     // function testRevertAddAsset__UnsupportedPool() public {
     //     adaptor.setReentrancyConfig(2, 6000);
 
-    //     Curve2PoolLPAdaptor.AdaptorData memory data;
+    //     Curve2PoolLPAdaptor.AssetConfig memory data;
     //     data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
     //     data.underlying0 = _ETH_ADDRESS;
     //     data.underlying1 = _STETH_ADDRESS;
@@ -153,7 +163,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
     // }
 
     function testRevertAddAsset__QuoteAssetIsNotSupported() public {
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -175,12 +185,17 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
         chainlinkAdaptor.addAsset(
             _STETH_ADDRESS,
+            true,
             _CHAINLINK_STETH_USD,
-            0,
-            true
+            0
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
@@ -192,7 +207,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -212,13 +227,23 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        chainlinkAdaptor.addAsset(address(0), _CHAINLINK_ETH_USD, 0, true);
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            address(0),
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
         chainlinkAdaptor.addAsset(
             _STETH_ADDRESS,
+            true,
             _CHAINLINK_STETH_USD,
-            0,
-            true
+            0
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(address(0), address(chainlinkAdaptor));
@@ -231,7 +256,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = address(0);
         data.underlying1 = _STETH_ADDRESS;
@@ -251,12 +276,17 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
         chainlinkAdaptor.addAsset(
             _STETH_ADDRESS,
+            true,
             _CHAINLINK_STETH_USD,
-            0,
-            true
+            0
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
@@ -268,7 +298,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -283,8 +313,8 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
 
     function testRevertRemoveAsset__AssetIsNotSupported() public {
         vm.expectRevert(
-            Curve2PoolLPAdaptor
-                .Curve2PoolLPAdaptor__AssetIsNotSupported
+            BaseOracleAdaptor
+                .BaseOracleAdaptor__AssetIsNotSupported
                 .selector
         );
         adaptor.removeAsset(_CURVE_ETH_STETH);
@@ -294,12 +324,17 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
         chainlinkAdaptor.addAsset(
             _STETH_ADDRESS,
+            true,
             _CHAINLINK_STETH_USD,
-            0,
-            true
+            0
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
@@ -311,7 +346,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -331,12 +366,17 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
         chainlinkAdaptor.addAsset(
             _STETH_ADDRESS,
+            true,
             _CHAINLINK_STETH_USD,
-            0,
-            true
+            0
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
@@ -348,7 +388,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;
@@ -368,12 +408,17 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
         chainlinkAdaptor.addAsset(
             _STETH_ADDRESS,
+            true,
             _CHAINLINK_STETH_USD,
-            0,
-            true
+            0
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
@@ -385,7 +430,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
+        Curve2PoolLPAdaptor.AssetConfig memory data;
         data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
         data.underlying0 = _ETH_ADDRESS;
         data.underlying1 = _STETH_ADDRESS;

@@ -4,16 +4,15 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
 import { VelodromeVolatilePToken, IVeloGauge, IVeloRouter, IVeloPairFactory } from "contracts/market/token/VelodromeVolatilePToken.sol";
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestComplexZapperVelodrome is TestBaseMarket {
+contract TestComplexZapperVelodrome is TestBaseMarketIsolated {
     address internal _VELODROME_FACTORY =
         0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a;
     address internal _VELODROME_ROUTER =
@@ -105,7 +104,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             IVeloPairFactory(_VELODROME_FACTORY),
             IVeloRouter(_VELODROME_ROUTER)
         );
-        oracleManager.addMTokenSupport(address(pToken));
+        oracleManager.addCTokenSupport(address(pToken));
 
         deal(_VELODROME_WETH_USDC, address(this), 1 ether);
         IERC20(_VELODROME_WETH_USDC).approve(address(pToken), 1 ether);
@@ -126,7 +125,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
 
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        marketManager.setCollateralCaps(tokens, caps);
     }
 
     function testEnterVelodrome() public {
@@ -136,7 +135,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         vm.prank(user1);
         complexZapper.enterVelodrome{ value: ethAmount }(
             address(0),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _VELODROME_WETH_USDC,
@@ -167,7 +166,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         );
         complexZapper.exitVelodrome(
             _VELODROME_ROUTER,
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _VELODROME_WETH_USDC,
                 withdrawAmount,
                 _WETH,
@@ -191,7 +190,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         vm.prank(user1);
         complexZapper.enterVelodrome{ value: ethAmount }(
             address(pToken),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _VELODROME_WETH_USDC,
@@ -207,9 +206,9 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         );
 
         assertEq(user1.balance, 0);
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 0.00006 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
+        assertApproxEqRel(pToken.balanceOf(user1), 0.00006 ether, 0.01 ether);
+        assertEq(pTokenBorrowed, 0);
     }
 
     function testEnterVelodromeWithPTokenWithCollateralize() public {
@@ -219,7 +218,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         vm.prank(user1);
         complexZapper.enterVelodrome{ value: ethAmount }(
             address(pToken),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _VELODROME_WETH_USDC,
@@ -235,9 +234,9 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         );
 
         assertEq(user1.balance, 0);
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 0.00006 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
+        assertApproxEqRel(pToken.balanceOf(user1), 0.00006 ether, 0.01 ether);
+        assertEq(pTokenBorrowed, 0);
     }
 
     function testEnterVelodromeWithDelegation() public {
@@ -252,7 +251,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         vm.prank(user2);
         complexZapper.enterVelodrome{ value: ethAmount }(
             address(pToken),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _VELODROME_WETH_USDC,
@@ -268,9 +267,9 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         );
 
         assertEq(user1.balance, 0);
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 0.00006 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
+        assertApproxEqRel(pToken.balanceOf(user1), 0.00006 ether, 0.01 ether);
+        assertEq(pTokenBorrowed, 0);
     }
 
     function testRedeemAndExitVelodrome() public {
@@ -279,17 +278,17 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         vm.prank(user1);
         pToken.setDelegateApproval(address(complexZapper), true);
 
-        ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.mToken = address(pToken);
-        redemptionData.shares = 0.00006 ether;
-        redemptionData.forceRedeemCollateral = false;
+        BaseZapper.RedeemAction memory redeemAction;
+        redeemAction.mToken = address(pToken);
+        redeemAction.shares = 0.00006 ether;
+        redeemAction.forceRedeemCollateral = false;
 
         vm.startPrank(user1);
         IERC20(_VELODROME_WETH_USDC).approve(address(complexZapper), 3 ether);
         complexZapper.redeemAndExitVelodrome(
-            redemptionData,
+            redeemAction,
             _VELODROME_ROUTER,
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _VELODROME_WETH_USDC,
                 0.00006 ether,
                 _WETH,

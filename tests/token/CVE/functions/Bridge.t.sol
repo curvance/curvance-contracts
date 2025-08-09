@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 
-contract BridgeTest is TestBaseMarket {
+contract BridgeTest is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 

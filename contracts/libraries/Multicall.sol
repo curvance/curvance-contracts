@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BaseCallDataChecker } from "contracts/calldata-checker/BaseCallDataChecker.sol";
 import { LowLevelCallsHelper } from "contracts/libraries/LowLevelCallsHelper.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -10,16 +9,15 @@ import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
 /// @title Curvance Multicall helper.
 /// @notice Multicall implementation to support pull based oracles and
 ///         other chained actions within Curvance.
-abstract contract Multicall is BaseCallDataChecker {
+abstract contract Multicall {
     /// TYPES ///
 
-    /// @title Multicall Data
     /// @notice Struct containing information on the desired
     ///         multicall action to execute. 
     /// @param target The address of the target contract to execute the call at.
     /// @param isPriceUpdate Boolean indicating if the call is a price update.
     /// @param data The data to attach to the call.
-    struct MulticallData {
+    struct MulticallAction {
         address target;
         bool isPriceUpdate;
         bytes data;
@@ -36,50 +34,47 @@ abstract contract Multicall is BaseCallDataChecker {
     ///         This can be used to update oracle prices before
     ///         a liquidity dependent action.
     function multicall(
-        MulticallData[] calldata calls
+        MulticallAction[] calldata calls
     ) external returns (bytes[] memory results) {
-        ICentralRegistry centralRegistry = _getCentralRegistry();
+        ICentralRegistry cr = _getCentralRegistry();
         uint256 numCalls = calls.length;
         results = new bytes[](numCalls);
+        MulticallAction memory cachedCall;
 
         for (uint256 i; i < numCalls; ++i) {
-            if (calls[i].isPriceUpdate) {
+            cachedCall = calls[i];
+            
+            if (cachedCall.isPriceUpdate) {
                 // CASE: We need to update a pull based price oracle and we
                 //       need a direct call to the target address.
-                address callDataChecker = centralRegistry.multicallChecker(
-                    calls[i].target
-                );
+                address checker = cr.multicallChecker(cachedCall.target);
 
                 // Validate we know how to verify this calldata.
-                if (callDataChecker == address(0)) {
+                if (checker == address(0)) {
                     revert Multicall__UnknownCalldata();
                 }
 
-                IMulticallChecker(callDataChecker).checkCalldata(
+                IMulticallChecker(checker).checkCalldata(
                     msg.sender,
-                    calls[i].target,
-                    calls[i].data
+                    cachedCall.target,
+                    cachedCall.data
                 );
 
-                results[i] = LowLevelCallsHelper._call(
-                    calls[i].target,
-                    calls[i].data
-                );
-
+                results[i] = LowLevelCallsHelper.
+                    _call(cachedCall.target, cachedCall.data);
+                
                 continue;
             }
 
             // CASE: Not a price update and we need delegate the call to the
             //       current address.
 
-            if (address(this) != calls[i].target) {
+            if (address(this) != cachedCall.target) {
                 revert Multicall__InvalidTarget();
             }
 
-            results[i] = LowLevelCallsHelper._delegateCall(
-                address(this),
-                calls[i].data
-            );
+            results[i] = LowLevelCallsHelper.
+                _delegateCall(address(this), cachedCall.data);
         }
     }
 

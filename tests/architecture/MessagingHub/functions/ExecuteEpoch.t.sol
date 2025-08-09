@@ -14,7 +14,7 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
 
         srcMessagingHub = makeAddr("SrcMessagingHub");
         srcVotingHub = makeAddr("SrcVotingHub");
-        _WORMHOLE_CORES[block.chainid] = address(new WormholeMock());
+        _CROSSCHAIN_CORES[block.chainid] = address(new WormholeMock());
 
         _init();
 

@@ -286,9 +286,9 @@
 //             .statusOf(address(this));
 //         require(accountDebt != 0);
 //         amount = clampBetween(amount, 1, accountCollateral);
-//         bool pToken = IMToken(mtoken).isPToken();
+//         bool cToken = IMToken(mtoken).isPToken();
 
-//         if (pToken) {
+//         if (cToken) {
 //             try
 //                 marketManager.canTransferPToken(mtoken, address(this), amount)
 //             {} catch {
@@ -321,9 +321,9 @@
 //         require(marketManager.redeemPaused() != 2);
 //         require(marketManager.isListed(mtoken));
 
-//         bool pToken = IMToken(mtoken).isPToken();
+//         bool cToken = IMToken(mtoken).isPToken();
 
-//         if (pToken) {
+//         if (cToken) {
 //             try
 //                 marketManager.canTransferPToken(mtoken, address(this), amount)
 //             {} catch (bytes memory revertData) {
@@ -362,9 +362,9 @@
 //         require(marketManager.redeemPaused() != 2);
 //         require(!marketManager.isListed(mtoken));
 
-//         bool pToken = IMToken(mtoken).isPToken();
+//         bool cToken = IMToken(mtoken).isPToken();
 
-//         if (pToken) {
+//         if (cToken) {
 //             try
 //                 marketManager.canTransferPToken(mtoken, address(this), amount)
 //             {} catch (bytes memory revertData) {
@@ -403,9 +403,9 @@
 //         require(marketManager.redeemPaused() == 2);
 //         require(marketManager.isListed(mtoken));
 
-//         bool pToken = IMToken(mtoken).isPToken();
+//         bool cToken = IMToken(mtoken).isPToken();
 
-//         if (pToken) {
+//         if (cToken) {
 //             try
 //                 marketManager.canTransferPToken(mtoken, address(this), amount)
 //             {} catch (bytes memory revertData) {
@@ -432,12 +432,12 @@
 //         }
 //     }
 
-//     /// @custom:property sc-market-14 canBorrowWithPrune should succeed when borrow is not paused and mtoken is listed
+//     /// @custom:property sc-market-14 canBorrow should succeed when borrow is not paused and mtoken is listed
 //     /// @custom:precondition borrowPaused != 2
 //     /// @custom:precondition mtoken is listed in MarketManager
 //     /// @custom:precondition liquidityDeficit == 0
 //     /// @custom:precondition require that the mtoken has a position in the market
-//     function canBorrowWithPrune_should_succeed(
+//     function canBorrow_should_succeed(
 //         address mtoken,
 //         uint256 amount
 //     ) public {
@@ -453,20 +453,20 @@
 //         );
 //         require(liquidityDeficit == 0);
 //         try
-//             marketManager.canBorrowWithPrune(mtoken, address(this), amount)
+//             marketManager.canBorrow(mtoken, address(this), amount)
 //         {} catch {
 //             assertWithMsg(
 //                 false,
-//                 "SC-MARKET-14 canBorrowWithPrune() should succeed"
+//                 "SC-MARKET-14 canBorrow() should succeed"
 //             );
 //         }
 //     }
 
-//     /// @custom:property sc-market-15 canBorrowWithPrune should fail with PAUSED when borrow is paused
+//     /// @custom:property sc-market-15 canBorrow should fail with PAUSED when borrow is paused
 //     /// @custom:precondition borrowPaused = 2
 //     /// @custom:precondition mtoken is listed in MarketManager
 //     /// @custom:precondition liquidityDeficit == 0
-//     function canBorrowWithPrune_should_fail_when_borrow_is_paused(
+//     function canBorrow_should_fail_when_borrow_is_paused(
 //         address mtoken,
 //         uint256 amount
 //     ) public {
@@ -480,45 +480,45 @@
 //         );
 //         require(liquidityDeficit == 0);
 //         try
-//             marketManager.canBorrowWithPrune(mtoken, address(this), amount)
+//             marketManager.canBorrow(mtoken, address(this), amount)
 //         {} catch (bytes memory revertData) {
 //             uint256 errorSelector = extractErrorSelector(revertData);
 
 //             assertWithMsg(
 //                 errorSelector == marketManager_pausedSelectorHash,
-//                 "SC-MARKET-15 canBorrowWithPrune() expected PAUSED selector hash on failure"
+//                 "SC-MARKET-15 canBorrow() expected PAUSED selector hash on failure"
 //             );
 //         }
 //     }
 
-//     /// @custom:property sc-market-16 canBorrowWithPrune should fail with token is not listed
+//     /// @custom:property sc-market-16 canBorrow should fail with token is not listed
 //     /// @custom:precondition borrowPaused != 2
 //     /// @custom:precondition mtoken is not listed in MarketManager
 //     /// @custom:precondition liquidityDeficit == 0
-//     function canBorrowWithPrune_should_fail_when_token_is_unlisted(
+//     function canBorrow_should_fail_when_token_is_unlisted(
 //         address mtoken,
 //         uint256 amount
 //     ) public {
 //         require(marketManager.borrowPaused(mtoken) != 2);
 //         require(!marketManager.isListed(mtoken));
 //         try
-//             marketManager.canBorrowWithPrune(mtoken, address(this), amount)
+//             marketManager.canBorrow(mtoken, address(this), amount)
 //         {} catch (bytes memory revertData) {
 //             uint256 errorSelector = extractErrorSelector(revertData);
 
 //             assertWithMsg(
 //                 errorSelector == marketManager_tokenNotListedSelectorHash,
-//                 "SC-MARKET-16 canBorrowWithPrune() expected TOKEN NOT LISTED selector hash on failure"
+//                 "SC-MARKET-16 canBorrow() expected TOKEN NOT LISTED selector hash on failure"
 //             );
 //         }
 //     }
 
-//     /// @custom:property sc-market-17 canBorrowWithPrune should fail with liquidityDeficity >0
+//     /// @custom:property sc-market-17 canBorrow should fail with liquidityDeficity >0
 //     /// @custom:precondition borrowPaused != 2
 //     /// @custom:precondition mtoken is listed in MarketManager
 //     /// @custom:precondition liquidityDeficit > 0
 //     /// @custom:precondition account has active position
-//     function canBorrowWithPrune_should_fail_liquidity_deficit_exists(
+//     function canBorrow_should_fail_liquidity_deficit_exists(
 //         address mtoken,
 //         uint256 amount
 //     ) public {
@@ -533,14 +533,14 @@
 //         );
 //         require(liquidityDeficit == 0);
 //         try
-//             marketManager.canBorrowWithPrune(mtoken, address(this), amount)
+//             marketManager.canBorrow(mtoken, address(this), amount)
 //         {} catch (bytes memory revertData) {
 //             uint256 errorSelector = extractErrorSelector(revertData);
 
 //             assertWithMsg(
 //                 errorSelector ==
 //                     marketManager_insufficientCollateralSelectorHash,
-//                 "SC-MARKET-17 canBorrowWithPrune() expected INSUFFICIENT COLLATERAL selector hash on failure"
+//                 "SC-MARKET-17 canBorrow() expected INSUFFICIENT COLLATERAL selector hash on failure"
 //             );
 //         }
 //     }
@@ -639,17 +639,17 @@
 //     /// @custom:precondition collateral and debt token are listed
 //     /// @custom:precondition marketManager for collateral and debt token are identical
 //     function canSeize_should_succeed(
-//         address positionToken,
-//         address earnToken
+//         address collateralToken,
+//         address debtToken
 //     ) public {
 //         require(marketManager.seizePaused() != 2);
-//         require(marketManager.isListed(positionToken));
-//         require(marketManager.isListed(earnToken));
+//         require(marketManager.isListed(collateralToken));
+//         require(marketManager.isListed(debtToken));
 //         require(
-//             IMToken(positionToken).marketManager() ==
-//                 IMToken(earnToken).marketManager()
+//             IMToken(collateralToken).marketManager() ==
+//                 IMToken(debtToken).marketManager()
 //         );
-//         try marketManager.canSeize(positionToken, earnToken) {} catch {
+//         try marketManager.canSeize(collateralToken, debtToken) {} catch {
 //             assertWithMsg(
 //                 false,
 //                 "SC-MARKET-22 canSeize() should be successful with correct @precondition"
@@ -664,17 +664,17 @@
 //     /// @custom:precondition collateral and debt token are listed
 //     /// @custom:precondition marketManager for collateral and debt token are identical
 //     function canSeize_should_revert_when_seize_paused(
-//         address positionToken,
-//         address earnToken
+//         address collateralToken,
+//         address debtToken
 //     ) public {
 //         require(marketManager.seizePaused() == 2);
-//         require(marketManager.isListed(positionToken));
-//         require(marketManager.isListed(earnToken));
+//         require(marketManager.isListed(collateralToken));
+//         require(marketManager.isListed(debtToken));
 //         require(
-//             IMToken(positionToken).marketManager() ==
-//                 IMToken(earnToken).marketManager()
+//             IMToken(collateralToken).marketManager() ==
+//                 IMToken(debtToken).marketManager()
 //         );
-//         try marketManager.canSeize(positionToken, earnToken) {
+//         try marketManager.canSeize(collateralToken, debtToken) {
 //             assertWithMsg(
 //                 false,
 //                 "SC-MARKET-23 canSeize() should have reverted with seizePaused = 2"
@@ -696,19 +696,19 @@
 //     /// @custom:precondition collateral or debt token are not listed
 //     /// @custom:precondition marketManager for collateral and debt token are identical
 //     function canSeize_should_revert_when_token_is_unlisted(
-//         address positionToken,
-//         address earnToken
+//         address collateralToken,
+//         address debtToken
 //     ) public {
 //         require(marketManager.seizePaused() != 2);
 //         require(
-//             !marketManager.isListed(positionToken) ||
-//                 !marketManager.isListed(earnToken)
+//             !marketManager.isListed(collateralToken) ||
+//                 !marketManager.isListed(debtToken)
 //         );
 //         require(
-//             IMToken(positionToken).marketManager() ==
-//                 IMToken(earnToken).marketManager()
+//             IMToken(collateralToken).marketManager() ==
+//                 IMToken(debtToken).marketManager()
 //         );
-//         try marketManager.canSeize(positionToken, earnToken) {
+//         try marketManager.canSeize(collateralToken, debtToken) {
 //             assertWithMsg(
 //                 false,
 //                 "SC-MARKET-24 seizePaused() should have reverted when token is unlisted"
@@ -730,17 +730,17 @@
 //     /// @custom:precondition collateral and debt token are listed
 //     /// @custom:precondition marketManager for collateral and debt token are not identical
 //     function canSeize_should_revert_when_marketManager_not_equal(
-//         address positionToken,
-//         address earnToken
+//         address collateralToken,
+//         address debtToken
 //     ) public {
 //         require(marketManager.seizePaused() != 2);
-//         require(marketManager.isListed(positionToken));
-//         require(marketManager.isListed(earnToken));
+//         require(marketManager.isListed(collateralToken));
+//         require(marketManager.isListed(debtToken));
 //         require(
-//             IMToken(positionToken).marketManager() !=
-//                 IMToken(earnToken).marketManager()
+//             IMToken(collateralToken).marketManager() !=
+//                 IMToken(debtToken).marketManager()
 //         );
-//         try marketManager.canSeize(positionToken, earnToken) {
+//         try marketManager.canSeize(collateralToken, debtToken) {
 //             assertWithMsg(
 //                 false,
 //                 "SC-MARKET-25 seizePaused() should have reverted when marketManager is not equal"

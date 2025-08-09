@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
-contract RemoveChainSupportTest is TestBaseMarket {
+contract RemoveChainSupportTest is TestBaseMarketIsolated {
     using stdStorage for StdStorage;
 
     event RemovedChain(
@@ -97,8 +97,8 @@ contract RemoveChainSupportTest is TestBaseMarket {
             address cveAddress,
             address feeTokenAddress,
             uint16 messagingChainId,
-            address wormholeRelayer,
-            uint32 cctpDomain
+            address crosschainRelayer,
+            uint32 domain
         ) = centralRegistry.supportedChainData(42161);
 
         assertEq(isSupported, 2);
@@ -107,8 +107,8 @@ contract RemoveChainSupportTest is TestBaseMarket {
         assertEq(cveAddress, address(1));
         assertEq(feeTokenAddress, _USDC_ADDRESSES[42161]);
         assertEq(messagingChainId, 23);
-        assertEq(wormholeRelayer, relayer);
-        assertEq(cctpDomain, 3);
+        assertEq(crosschainRelayer, relayer);
+        assertEq(domain, 3);
 
         assertEq(centralRegistry.messagingToGETHChainId(23), 42161);
         assertEq(centralRegistry.GETHToMessagingChainId(42161), 23);

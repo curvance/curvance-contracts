@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract UniversalBalanceMultiWithdrawForTest is TestBaseUniversalBalance {
     event Withdraw(
@@ -81,7 +82,7 @@ contract UniversalBalanceMultiWithdrawForTest is TestBaseUniversalBalance {
 
         vm.prank(user1);
         // reverts with PluginDelegable__Unauthorized.selector
-        vm.expectRevert(0xcfdc5602);
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
         
         universalBalance.multiWithdrawFor(
             withdrawAmounts,
@@ -222,7 +223,7 @@ contract UniversalBalanceMultiWithdrawForTest is TestBaseUniversalBalance {
     {
         uint256 ethBalance = address(universalBalance).balance;
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user1);
 
         for (uint256 i; i < 3; i++) {
@@ -277,8 +278,8 @@ contract UniversalBalanceMultiWithdrawForTest is TestBaseUniversalBalance {
             usdcBalance - sittingAmountUsed
         );
         assertEq(
-            eUSDC.balanceOf(address(universalBalance)),
-            eUSDCBalance - lentAmountUsed
+            borrowableCUSDC.balanceOf(address(universalBalance)),
+            borrowableCUSDCBalance - lentAmountUsed
         );
         assertEq(usdc.balanceOf(user1), userUSDCBalance + withdrawSum);
     }

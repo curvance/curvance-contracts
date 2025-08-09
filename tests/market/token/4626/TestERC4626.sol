@@ -236,7 +236,7 @@ abstract contract TestERC4626 is ERC4626Prop {
         vm.assume(assets > 0);
         _approve(_vault_, owner, caller, 0);
         vm.prank(caller);
-        // TODO: Function needs to be updated to handle both InsufficientAllowance OR SimplePToken__WithdrawMoreThanMax depending on fuzz state
+        // TODO: Function needs to be updated to handle both InsufficientAllowance OR SimpleCToken__WithdrawMoreThanMax depending on fuzz state
         vm.expectRevert();
         IERC4626(_vault_).withdraw(assets, receiver, owner);
     }
@@ -285,7 +285,7 @@ abstract contract TestERC4626 is ERC4626Prop {
         address caller = init.user[0];
         address receiver = init.user[1];
         address owner = init.user[2];
-        shares = bound(shares, 0, _max_redeem(owner));
+        shares = bound(shares, 0, IERC20(_vault_).balanceOf(owner));
         vm.assume(caller != owner);
         vm.assume(shares > 0);
         _approve(_vault_, owner, caller, 0);

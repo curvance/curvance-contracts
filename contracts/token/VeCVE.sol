@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { WAD, DENOMINATOR } from "contracts/libraries/Constants.sol";
-import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
-import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+import { WAD, BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
+
+import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
 import { ICVE } from "contracts/interfaces/ICVE.sol";
@@ -193,22 +194,14 @@ contract VeCVE is ERC20, ReentrancyGuard {
     error VeCVE__PostEpochRestriction();
     error VeCVE__EpochNotDelivered();
     error VeCVE__VeCVEShutdown();
-    error VeCVE__ParametersAreInvalid();
     error VeCVE__InvariantError();
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert VeCVE__ParametersAreInvalid();
-        }
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
-        centralRegistry = centralRegistry_;
         // Query epoch duration directly to minimize potential human error.
         epochDuration = centralRegistry.EPOCH_DURATION();
         lockDuration = epochDuration * LOCK_DURATION_EPOCHS;
@@ -1004,7 +997,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         uint256 voteBoost = centralRegistry.voteBoostMultiplier();
-        voteBoost = voteBoost == 0 ? DENOMINATOR : voteBoost;
+        voteBoost = voteBoost == 0 ? BASIS_POINTS : voteBoost;
         uint256 votes;
 
         for (uint256 i; i < numLocks; ) {
@@ -1153,7 +1146,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
         if (lock.unlockTime == CONTINUOUS_LOCK_VALUE) {
             unchecked {
-                return ((lock.amount * voteBoost) / DENOMINATOR);
+                return ((lock.amount * voteBoost) / BASIS_POINTS);
             }
         }
 
@@ -1470,13 +1463,13 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // down to 0.
         // If the lock mode is continuous, we know its a full penalty unlock.
         if (unlockTime == CONTINUOUS_LOCK_VALUE) {
-            return (amount * penalty) / DENOMINATOR;
+            return (amount * penalty) / BASIS_POINTS;
         }
 
         return
             (amount *
                 ((penalty * (unlockTime - block.timestamp)) / lockDuration)) /
-            DENOMINATOR;
+            BASIS_POINTS;
     }
 
     /// @notice Returns the genesis epoch timestamp.
@@ -1534,10 +1527,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///      is allowed.
     ///      Requires a minimum lock size of 1 CVE, in `WAD`.
     function _canLock(uint256 amount) internal view {
+        /// @solidity memory-safe-assembly
         assembly {
             if lt(amount, WAD) {
                 mstore(0x0, _INVALID_LOCK_SELECTOR)
-                // return bytes 29-32 for the selector
+                // Return bytes 29-32 for the selector.
                 revert(0x1c, 0x04)
             }
         }
@@ -1559,6 +1553,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///      any other caller opens the protocol up to reentry.
     function _validateCallbackFromRewardManager() internal view {
         address rewardManager = address(_getRewardManager());
+
+        /// @solidity memory-safe-assembly
         assembly {
             if iszero(eq(caller(), rewardManager)) {
                 mstore(0x00, _UNAUTHORIZED_SELECTOR)

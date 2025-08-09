@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
+
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
 import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 
@@ -16,8 +17,10 @@ import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegist
 import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 import { IFeeManager } from "contracts/interfaces/IFeeManager.sol";
 import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
+
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
+import { IMessageTransmitter } from "contracts/interfaces/external/wormhole/IMessageTransmitter.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
 /// @title Curvance Messaging Hub
@@ -64,8 +67,9 @@ contract MessagingHub is QueryResponse {
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
+
     /// @notice Address of the Gauge Manager.
-    IGaugeManager public immutable gaugeManager;
+    IGaugeManager internal immutable _gaugeManager;
 
     /// STORAGE ///
 
@@ -75,9 +79,10 @@ contract MessagingHub is QueryResponse {
     ///      2 = Messages cannot be created, but can be executed.
     ///      3 = Messages can be neither created nor executed.
     uint256 public messagingStatus = 1;
+    
     /// @notice Status of message hash whether it's delivered or not.
     /// @dev False = undelivered; True = delivered.
-    mapping(bytes32 => bool) public isDeliveredMessageHash;
+    mapping(bytes32 => bool) internal _isDeliveredMessageHash;
 
     /// ERRORS ///
 
@@ -90,23 +95,13 @@ contract MessagingHub is QueryResponse {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_
-    ) QueryResponse(address(centralRegistry_.wormholeCore())) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) QueryResponse(address(cr.crosschainCore())) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
         // Query gauge and token configuration directly to minimize potential
         // human error.
-        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
+        _gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -192,7 +187,7 @@ contract MessagingHub is QueryResponse {
             signatures
         );
         uint256 numResponses = r.responses.length;
-        uint256[] memory chainIds = centralRegistry.getForeignChainIds();
+        uint256[] memory chainIds = centralRegistry.foreignChainIds();
         if (numResponses != chainIds.length) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -283,12 +278,12 @@ contract MessagingHub is QueryResponse {
         _checkMessagingStatus(2);
 
         // Validate that this is not a replay attack.
-        if (isDeliveredMessageHash[deliveryHash]) {
+        if (_isDeliveredMessageHash[deliveryHash]) {
             revert MessagingHub__MessageHashIsAlreadyDelivered(deliveryHash);
         }
 
         // Document messageHash as delivered to prevent replays.
-        isDeliveredMessageHash[deliveryHash] = true;
+        _isDeliveredMessageHash[deliveryHash] = true;
 
         // Validate that the Wormhole Relayer is the caller.
         if (msg.sender != address(_getWormholeRelayer())) {
@@ -334,7 +329,7 @@ contract MessagingHub is QueryResponse {
                 (uint8, uint256, EmissionData)
             );
 
-            IGaugeManager cachedGaugeManager = gaugeManager;
+            IGaugeManager cachedGaugeManager = _gaugeManager;
 
             // Mint appropriate gauge emissions to Gauge Manager.
             cve.mintGaugeEmissions(
@@ -398,7 +393,7 @@ contract MessagingHub is QueryResponse {
                 .decode(payload, (uint8, address, uint256, bool));
 
             cve.mintLockedTokens(recipient, amount);
-            _approveTokenIfNeeded(address(cve), address(veCVE), amount);
+            _approveIfNeeded(address(cve), address(veCVE), amount);
 
             RewardsData memory rewardData;
 
@@ -443,7 +438,7 @@ contract MessagingHub is QueryResponse {
         amount = _pullFees(amount);
         _sendFeeToken(
             dstChainId,
-            chainData.cctpDomain,
+            chainData.domain,
             amount,
             abi.encode(1),
             gasLimit
@@ -594,13 +589,13 @@ contract MessagingHub is QueryResponse {
 
     /// @notice Sends fee tokens to the receiver on `dstChainId`.
     /// @param dstChainId GETH destination chain ID.
-    /// @param cctpDomain CCTP domain for `dstChainId`.
+    /// @param domain Domain value for `dstChainId`.
     /// @param amount The amount of token to transfer.
     /// @param payload The payload data that is sent along with the message.
     /// @param gasLimit Gas limit with which to call on destination chain.
     function _sendFeeToken(
         uint256 dstChainId,
-        uint32 cctpDomain,
+        uint32 domain,
         uint256 amount,
         bytes memory payload,
         uint256 gasLimit
@@ -612,16 +607,17 @@ contract MessagingHub is QueryResponse {
             revert MessagingHub__InsufficientGasToken();
         }
 
-        ITokenMessenger circleTokenMessenger = centralRegistry
-            .circleTokenMessenger();
+        ITokenMessenger tokenMessager = ITokenMessenger(
+            centralRegistry.tokenMessager()
+        );
 
         if (
-            address(circleTokenMessenger) != address(0) &&
-            circleTokenMessenger.remoteTokenMessengers(cctpDomain) !=
+            address(tokenMessager) != address(0) &&
+            tokenMessager.remoteTokenMessengers(domain) !=
             bytes32(0)
         ) {
             _transferFeeTokenViaCCTP(
-                circleTokenMessenger,
+                tokenMessager,
                 dstChainId,
                 amount,
                 payload,
@@ -638,8 +634,8 @@ contract MessagingHub is QueryResponse {
     ///               on a chain, meaning if finality takes longer than
     ///               CCTP's attestation, message and value delivery can
     ///               be longer than expected.
-    /// @param circleTokenMessenger Token Messenger contract to submit
-    ///                             transfer message to.
+    /// @param tokenMessager Token Messenger contract to submit transfer
+    ///                      message to.
     /// @param dstChainId GETH destination chain ID.
     /// @param amount The amount of token to transfer.
     /// @param payload The payload data that is sent along with the message.
@@ -647,22 +643,22 @@ contract MessagingHub is QueryResponse {
     ///                    to `dstChainId`.
     /// @param gasLimit Gas limit with which to call on destination chain.
     function _transferFeeTokenViaCCTP(
-        ITokenMessenger circleTokenMessenger,
+        ITokenMessenger tokenMessager,
         uint256 dstChainId,
         uint256 amount,
         bytes memory payload,
         uint256 wormholeFee,
         uint256 gasLimit
     ) internal {
-        IWormholeRelayer wormholeRelayer = _getWormholeRelayer();
+        IWormholeRelayer crosschainRelayer = _getWormholeRelayer();
         ChainData memory chainData = _getChainData(dstChainId);
 
         address feeToken = _getFeeToken();
-        _approveTokenIfNeeded(feeToken, address(circleTokenMessenger), amount);
+        _approveIfNeeded(feeToken, address(tokenMessager), amount);
 
-        uint64 nonce = circleTokenMessenger.depositForBurnWithCaller(
+        uint64 nonce = tokenMessager.depositForBurnWithCaller(
             amount,
-            chainData.cctpDomain,
+            chainData.domain,
             _addressToBytes32(chainData.messagingHub),
             feeToken,
             _addressToBytes32(chainData.messagingHub)
@@ -672,10 +668,10 @@ contract MessagingHub is QueryResponse {
             memory messageKeys = new IWormholeRelayer.MessageKey[](1);
         messageKeys[0] = IWormholeRelayer.MessageKey(
             2, // CCTP_KEY_TYPE
-            abi.encodePacked(centralRegistry.cctpDomain(), nonce)
+            abi.encodePacked(centralRegistry.domain(), nonce)
         );
 
-        wormholeRelayer.sendToEvm{ value: wormholeFee }(
+        crosschainRelayer.sendToEvm{ value: wormholeFee }(
             chainData.messagingChainId,
             chainData.messagingHub,
             payload,
@@ -684,7 +680,7 @@ contract MessagingHub is QueryResponse {
             _getGasLimit(gasLimit),
             chainData.messagingChainId,
             chainData.messagingHub,
-            wormholeRelayer.getDefaultDeliveryProvider(),
+            crosschainRelayer.getDefaultDeliveryProvider(),
             messageKeys,
             15
         );
@@ -789,7 +785,7 @@ contract MessagingHub is QueryResponse {
                 // Send fees and epoch information.
                 _sendFeeToken(
                     currentChainId,
-                    chainData.cctpDomain,
+                    chainData.domain,
                     feeTokensForChain,
                     abi.encode(3, epochToDeliver, epochRewardsPerPoint),
                     gasLimit
@@ -858,7 +854,7 @@ contract MessagingHub is QueryResponse {
             (bytes, bytes)
         );
         uint256 beforeBalance = _getFeeTokenHeld();
-        centralRegistry.circleMessageTransmitter().receiveMessage(
+        IMessageTransmitter(centralRegistry.messageTransmitter()).receiveMessage(
             message,
             signature
         );
@@ -882,12 +878,12 @@ contract MessagingHub is QueryResponse {
     }
 
     /// @dev Approves `token` `amount` to be spent by `spender`, if necessary.
-    function _approveTokenIfNeeded(
+    function _approveIfNeeded(
         address token,
         address spender,
         uint256 amount
     ) internal {
-        SwapperLib._approveTokenIfNeeded(token, spender, amount);
+        SwapperLib._approveIfNeeded(token, spender, amount);
     }
 
     /// @notice Converts an address to a bytes32 value.
@@ -924,13 +920,13 @@ contract MessagingHub is QueryResponse {
     /// @dev Returns the current Wormhole Relayer address to call.
     /// @return The current Wormhole Relayer contract.
     function _getWormholeRelayer() internal view returns (IWormholeRelayer) {
-        return centralRegistry.wormholeRelayer();
+        return IWormholeRelayer(centralRegistry.crosschainRelayer());
     }
 
     /// @dev Returns the current Wormhole Core address to call.
     /// @return The current Wormhole Core contract.
     function _getWormholeCore() internal view returns (IWormhole) {
-        return centralRegistry.wormholeCore();
+        return IWormhole(centralRegistry.crosschainCore());
     }
 
     /// @dev Returns ChainData struct for `chainId`.
@@ -1003,7 +999,7 @@ contract MessagingHub is QueryResponse {
     /// @notice Checks if the caller can submit votes to the protocol.
     function _checkCrosschainPermissions() internal view {
         if (
-            !centralRegistry.isHarvester(msg.sender) &&
+            !centralRegistry.hasHarvestPermissions(msg.sender) &&
             !centralRegistry.hasDaoPermissions(msg.sender)
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { DENOMINATOR } from "contracts/libraries/Constants.sol";
+import { BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
 
-contract SetLockBoostMultiplierTest is TestBaseMarket {
+contract SetLockBoostMultiplierTest is TestBaseMarketIsolated {
     function test_setLockBoostMultiplier_fail_whenCallerIsNotAuthorized()
         public
     {
@@ -23,10 +23,10 @@ contract SetLockBoostMultiplierTest is TestBaseMarket {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
-        centralRegistry.setLockBoostMultiplier(DENOMINATOR);
+        centralRegistry.setLockBoostMultiplier(BASIS_POINTS);
 
         centralRegistry.setLockBoostMultiplier(0);
-        centralRegistry.setLockBoostMultiplier(DENOMINATOR + 1);
+        centralRegistry.setLockBoostMultiplier(BASIS_POINTS + 1);
     }
 
     function test_setLockBoostMultiplier_success() public {

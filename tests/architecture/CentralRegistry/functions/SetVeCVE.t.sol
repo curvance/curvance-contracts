@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetVeCVETest is TestBaseMarket {
-    event CoreContractSet(string indexed contractType, address newAddress);
+contract SetVeCVETest is TestBaseMarketIsolated {
+    event CoreContractUpdated(string indexed contractType, address newAddress);
 
     address public newVeCVE = makeAddr("VeCVE");
 
@@ -13,7 +13,6 @@ contract SetVeCVETest is TestBaseMarket {
         super.setUp();
 
         centralRegistry = new CentralRegistry(
-            _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             block.timestamp + 1,
@@ -46,7 +45,7 @@ contract SetVeCVETest is TestBaseMarket {
         assertEq(centralRegistry.veCVE(), _ZERO_ADDRESS);
 
         vm.expectEmit(true, true, true, true);
-        emit CoreContractSet("VeCVE", newVeCVE);
+        emit CoreContractUpdated("VeCVE", newVeCVE);
 
         centralRegistry.setVeCVE(newVeCVE);
 
@@ -57,7 +56,7 @@ contract SetVeCVETest is TestBaseMarket {
         address newVeCVE1 = makeAddr("VeCVE1");
 
         vm.expectEmit(true, true, true, true);
-        emit CoreContractSet("VeCVE", newVeCVE1);
+        emit CoreContractUpdated("VeCVE", newVeCVE1);
 
         centralRegistry.setVeCVE(newVeCVE1);
 

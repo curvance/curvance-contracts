@@ -3,21 +3,21 @@
 // import { FuzzMarketManager } from "tests/fuzzing/FuzzMarketManager.sol";
 // import { EToken } from "contracts/market/token/EToken.sol";
 // import { IERC20 } from "contracts/interfaces/IERC20.sol";
-// import { WAD } from "contracts/libraries/Constants.sol";
-// import { IPToken } from "contracts/interfaces/IPToken.sol";
+// import { WAD } from "contracts/libraries/ConstantsLib.sol";
+// import { ICToken } from "contracts/interfaces/ICToken.sol";
 
 // contract FuzzEToken is FuzzMarketManager {
 //     constructor() {
 //         require(_mintAndApprove(address(usdc), address(pUSDC), 1000 ether));
 //         require(_mintAndApprove(address(dai), address(pDAI), 1000 ether));
-//         require(_mintAndApprove(address(usdc), address(eUSDC), 1000 ether));
-//         require(_mintAndApprove(address(dai), address(eDAI), 1000 ether));
+//         require(_mintAndApprove(address(usdc), address(borrowableCUSDC), 1000 ether));
+//         require(_mintAndApprove(address(dai), address(borrowableCDAI), 1000 ether));
 //     }
 
 //     /// @custom:property dtok-1 calling EToken.mint should succeed with correct preconditions
 //     /// @custom:property dtok-2 underlying balance for sender EToken should decrease by amount
-//     /// @custom:property dtok-3  balance should increase by `amount * WAD/exchangeRateCached()`
-//     /// @custom:property dtok-4 EToken totalSupply should increase by `amount * WAD/exchangeRateCached()`
+//     /// @custom:property dtok-3  balance should increase by `amount * WAD/exchangeRate()`
+//     /// @custom:property dtok-4 EToken totalSupply should increase by `amount * WAD/exchangeRate()`
 //     /// @custom:proeprty dtok-18 If amount * WAD / exchange_rate = 0 , the mint function should revert when trying to deposit to GaugePool.
 //     /// @custom:precondition amount bound between [1, uint256.max]
 //     function mint_should_actually_succeed(
@@ -39,13 +39,13 @@
 //             .balanceOf(address(this));
 //         uint256 preETokenBalance = EToken(eToken).balanceOf(address(this));
 //         uint256 preETokenTotalSupply = EToken(eToken).totalSupply();
-//         // uint256 er = EToken(eToken).exchangeRateCached();
+//         // uint256 er = EToken(eToken).exchangeRate();
 
 //         try EToken(eToken).mint(amount) {
 //             uint256 postETokenBalance = EToken(eToken).balanceOf(
 //                 address(this)
 //             );
-//             uint256 new_er = EToken(eToken).exchangeRateCached();
+//             uint256 new_er = EToken(eToken).exchangeRate();
 
 //             // The new_er needs to be used here because the _mint function first accrues interest, therefore we need the updated exchange rate
 //             uint256 adjustedNumberOfTokens = (amount * WAD) / new_er;
@@ -77,7 +77,7 @@
 //             // We need to accrue interest to get the most recent exchange rates that was used in this calculation
 //             EToken(eToken).accrueInterest();
 
-//             uint256 new_er = EToken(eToken).exchangeRateCached();
+//             uint256 new_er = EToken(eToken).exchangeRate();
 //             uint256 adjustedNumberOfTokens = (amount * WAD) / new_er;
 //             emit LogUint256(
 //                 "adjusted number of tokens",
@@ -146,12 +146,12 @@
 //         require(marketManager.borrowPaused(eToken) != 2);
 //         uint256 upperBound = EToken(eToken).marketUnderlyingHeld() -
 //             EToken(eToken).totalReserves() -
-//             42069; // TODO: constant
+//             77777; // TODO: constant
 //         amount = clampBetween(amount, 1, upperBound - 1);
 //         require(_mintAndApprove(EToken(eToken).underlying(), eToken, amount));
 //         (bool borrowPossible, ) = address(marketManager).call(
 //             abi.encodeWithSignature(
-//                 "canBorrowWithPrune(address,address,uint256)",
+//                 "canBorrow(address,address,uint256)",
 //                 eToken,
 //                 address(this),
 //                 amount
@@ -211,13 +211,13 @@
 //         require(marketManager.borrowPaused(eToken) != 2);
 //         uint256 upperBound = EToken(eToken).marketUnderlyingHeld() -
 //             EToken(eToken).totalReserves() -
-//             42069;
+//             77777;
 //         amount = clampBetween(amount, 1, upperBound - 1);
 //         require(_mintAndApprove(EToken(eToken).underlying(), eToken, amount));
 //         require(marketManager.isListed(eToken));
 //         (bool borrowPossible, ) = address(marketManager).call(
 //             abi.encodeWithSignature(
-//                 "canBorrowWithPrune(address,address,uint256)",
+//                 "canBorrow(address,address,uint256)",
 //                 eToken,
 //                 address(this),
 //                 amount
@@ -233,7 +233,7 @@
 //             address(this)
 //         );
 //         // Old exchange rate may be useful when determining the amount of interest that was accrued
-//         // uint256 er = EToken(eToken).exchangeRateCached();
+//         // uint256 er = EToken(eToken).exchangeRate();
 
 //         try EToken(eToken).borrow(amount) {
 //             // Interest is accrued
@@ -273,7 +273,7 @@
 //             if (
 //                 EToken(eToken).marketUnderlyingHeld() -
 //                     EToken(eToken).totalReserves() <
-//                 amount + 42069
+//                 amount + 77777
 //             ) {
 //                 assertWithMsg(
 //                     errorSelector ==
@@ -295,7 +295,7 @@
 //         uint256 amount
 //     ) public {
 //         _isSupportedEToken(eToken);
-//         uint256 accountDebt = EToken(eToken).debtBalanceCached(address(this));
+//         uint256 accountDebt = EToken(eToken).debtBalance(address(this));
 //         emit LogUint256("account debt", accountDebt);
 //         address underlying = EToken(eToken).underlying();
 //         require(_mintAndApprove(underlying, eToken, amount));
@@ -303,7 +303,7 @@
 
 //         amount = clampBetween(amount, accountDebt + 1, type(uint256).max);
 //         dai.mint(amount);
-//         dai.approve(address(eDAI), amount);
+//         dai.approve(address(borrowableCDAI), amount);
 //         try marketManager.canRepay(address(eToken), address(this)) {} catch {
 //             return;
 //         }
@@ -355,7 +355,7 @@
 //     ) public {
 //         _isSupportedEToken(eToken);
 //         address underlying = EToken(eToken).underlying();
-//         uint256 accountDebt = EToken(eToken).debtBalanceCached(address(this));
+//         uint256 accountDebt = EToken(eToken).debtBalance(address(this));
 //         emit LogUint256("acct debt", accountDebt);
 //         amount = clampBetween(amount, 0, accountDebt);
 //         require(_mintAndApprove(underlying, eToken, accountDebt));
@@ -372,8 +372,8 @@
 //         (uint40 lastTimestampUpdated, , uint256 compoundRate) = EToken(eToken)
 //             .marketData();
 //         // uint256 borrow_rate = EToken(eToken)
-//         //     .interestRateModel()
-//         //     .getBorrowRateWithUpdate(
+//         //     .IRM()
+//         //     .adjustedBorrowRate(
 //         //         EToken(eToken).marketUnderlyingHeld(),
 //         //         EToken(eToken).totalBorrows(),
 //         //         EToken(eToken).totalReserves()
@@ -440,25 +440,25 @@
 //     // SOFT liquidation
 
 //     // by default, this should just liquidate the maximum amount, assuming nonexist liquidation
-//     /// @custom:property dtok-20 liquidating a non-exact amount should remove the user's position in the position token
-//     /// @custom:property dtok-21  liquidating a non-exact amount should zero out the collateral posted for a user in the position token
+//     /// @custom:property dtok-20 liquidating a non-exact amount should remove the user's position in the cToken
+//     /// @custom:property dtok-21  liquidating a non-exact amount should zero out the collateral posted for a user in the cToken
 //     /// @custom:property dtok-22 liquidating a non-exact amount should zero out the debt balance of the respective debt token
 //     /// @custom:property dtok-23 liquidating a non-exact amount should decrease collateral balance for an account
 //     /// @custom:property dtok-24 liquidating a non-exact amount should decrease the liquidator's underlying eTokenBalance by `debtToLiquidate`
-//     /// @custom:property dtok-25 liquidating a non-exact amount should increase the position token balance by (amount seized by liquidation - amount seized by protocol)
+//     /// @custom:property dtok-25 liquidating a non-exact amount should increase the cToken balance by (amount seized by liquidation - amount seized by protocol)
 //     /// @custom:precondition liquidating an account's maximum
 //     /// @custom:precondition eToken is supported
-//     /// @custom:precondition pToken is supported
-//     /// @custom:precondition market manager for eToken and pToken match
+//     /// @custom:precondition cToken is supported
+//     /// @custom:precondition market manager for eToken and cToken match
 //     /// @custom:precondition account has collateral posted for respective token
 //     /// @custom:precondition account is in "danger" of liquidation
 //     /// @custom:limitation insufficient assertions on the invalid_amount error check, as the calculation on # of shares is needed to determine if it will actually revert
 //     /// @custom:limitation currently this contract is accruing interest to make sure exchange rates catch up before calculating. This property should be loosened to allow for more dynamic range testing, however this will require a hypothetical interest function to exist
-//     /// @custom:limitation this property is also currently ONLY testing the eToken = DAI, pToken = pUSDC and should be expanded as other liquidation functions should be
+//     /// @custom:limitation this property is also currently ONLY testing the eToken = DAI, cToken = pUSDC and should be expanded as other liquidation functions should be
 //     /// @custom:limitation missing collateralPostedFor assertion difference checks
 //     function liquidate_should_succeed_with_non_exact(uint256 amount) public {
-//         address eToken = address(eDAI);
-//         address positionToken = address(pUSDC);
+//         address eToken = address(borrowableCDAI);
+//         address collateralToken = address(pUSDC);
 //         require(marketManager.seizePaused() != 2);
 //         address account = address(this);
 //         _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
@@ -466,10 +466,10 @@
 //         EToken(eToken).accrueInterest();
 //         (
 //             uint256 debtToLiquidate, // debt tokens to be repaid on liquidation
-//             uint256 seizedForLiquidation // number of position tokens to be seized for the liquidator
+//             uint256 seizedForLiquidation // number of cTokens to be seized for the liquidator
 //         ) = marketManager.canLiquidate(
 //                 eToken,
-//                 positionToken,
+//                 collateralToken,
 //                 account,
 //                 0, // unused as a non-exact liquidation will liquidate the maximum soft liquidation amount possible
 //                 false // false represents a non-exact liquidation
@@ -480,27 +480,27 @@
 //         {
 //             uint256 senderBalanceUnderlying = IERC20(underlyingEToken)
 //                 .balanceOf(msg.sender);
-//             uint256 collateralBalanceBefore = IPToken(positionToken).balanceOf(
+//             uint256 collateralBalanceBefore = ICToken(collateralToken).balanceOf(
 //                 address(this)
 //             );
-//             uint256 priorDebt = EToken(eToken).debtBalanceCached(
+//             uint256 priorDebt = EToken(eToken).debtBalance(
 //                 address(this)
 //             );
-//             uint256 preSenderCollateral = IERC20(positionToken).balanceOf(
+//             uint256 preSenderCollateral = IERC20(collateralToken).balanceOf(
 //                 msg.sender
 //             );
 
 //             hevm.prank(msg.sender);
-//             try EToken(eToken).liquidate(account, positionToken) {
-//                 // After a non-exact (maximum) liquidation, the user should no longer have a position in the position token.
+//             try EToken(eToken).liquidate(account, collateralToken) {
+//                 // After a non-exact (maximum) liquidation, the user should no longer have a position in the cToken.
 //                 assertWithMsg(
-//                     !_hasPosition(positionToken),
+//                     !_hasPosition(collateralToken),
 //                     "DTOK-20 soft liquidate entire account should clear position for collateral"
 //                 );
 
 //                 // The amount of collateral posted for a user must be zero.
 //                 assertEq(
-//                     _collateralPostedFor(positionToken),
+//                     _collateralPostedFor(collateralToken),
 //                     0,
 //                     "DTOK-21 soft liquidate entire account should zero out collateral posted for the user"
 //                 );
@@ -508,23 +508,23 @@
 //                 // The debt of the account should decrease by debtToLiquidate
 //                 assertEq(
 //                     priorDebt -
-//                         EToken(eToken).debtBalanceCached(address(this)),
+//                         EToken(eToken).debtBalance(address(this)),
 //                     debtToLiquidate,
 //                     "DTOK-22 soft liquidate entire account should zero out debt balance for user"
 //                 );
 
-//                 // The position token balance for the liquidated account should decrease by `seizedForLiquidation`
+//                 // The cToken balance for the liquidated account should decrease by `seizedForLiquidation`
 //                 emit LogUint256(
 //                     "collateralBalanceBefore",
 //                     collateralBalanceBefore
 //                 );
 //                 emit LogUint256(
 //                     "current bal",
-//                     IPToken(positionToken).balanceOf(address(this))
+//                     ICToken(collateralToken).balanceOf(address(this))
 //                 );
 //                 assertEq(
 //                     collateralBalanceBefore -
-//                         IPToken(positionToken).balanceOf(address(this)),
+//                         ICToken(collateralToken).balanceOf(address(this)),
 //                     seizedForLiquidation,
 //                     "DTOK-23 soft liquidate should decrease collateral balance for account"
 //                 );
@@ -537,16 +537,16 @@
 //                 );
 
 //                 // When liquidating, the liquidator should receive the user's COLLATERAL token in exchange
-//                 // Therefore, the liquidator's position token balance must be equivalent to their previous balance + their allocation of tokens
+//                 // Therefore, the liquidator's cToken balance must be equivalent to their previous balance + their allocation of tokens
 //                 {
 //                     // The # of tokens allocated to the liquidator is equivalent to the total number of tokens seized for liquidation
-//                     uint256 positionTokensForLiquidator = seizedForLiquidation;
+//                     uint256 collateralTokensForLiquidator = seizedForLiquidation;
 //                     emit LogAddress("msg.sender", msg.sender);
 
 //                     assertEq(
-//                         IERC20(positionToken).balanceOf(msg.sender),
-//                         preSenderCollateral + positionTokensForLiquidator,
-//                         "DTOK-25 soft liquidate: position token balance of sender must increase by (amount seized by liquidation - amount seized for protocol)"
+//                         IERC20(collateralToken).balanceOf(msg.sender),
+//                         preSenderCollateral + collateralTokensForLiquidator,
+//                         "DTOK-25 soft liquidate: cToken balance of sender must increase by (amount seized by liquidation - amount seized for protocol)"
 //                     );
 //                 }
 //             } catch (bytes memory revertData) {
@@ -568,16 +568,16 @@
 
 //     /// @custom:property dtok-19 Applying a soft liquidation of exactly 0 tokens should fail with InvalidParameter or InvalidParameter errors.
 //     /// @custom:precondition marketmanager must not have seizePaused
-//     /// @custom:precondition pToken must be listed in the marketmanager
+//     /// @custom:precondition cToken must be listed in the marketmanager
 //     /// @custom:precondition eToken must be listed in the marketmanager
 //     function liquidate_should_fail_with_exact_with_zero(
 //         address eToken,
-//         address positionToken
+//         address collateralToken
 //     ) public {
 //         require(marketManager.seizePaused() != 2);
 
 //         address account = address(this);
-//         _isSupportedPToken(positionToken);
+//         _isSupportedPToken(collateralToken);
 //         _isSupportedEToken(eToken);
 //         uint256 amount = 0;
 
@@ -586,7 +586,7 @@
 
 //         hevm.prank(msg.sender);
 //         try
-//             EToken(eToken).liquidateExact(account, amount, positionToken)
+//             EToken(eToken).liquidateExact(account, amount, collateralToken)
 //         {} catch (bytes memory revertData) {
 //             uint256 errorSelector = extractErrorSelector(revertData);
 //             // liquidating 0 tokens SHOULD fail with one of these two error messages
@@ -602,26 +602,26 @@
 //     /// @custom:property dtok-26 liquidating an exact amount should result in the priorCollateral - currentCollateral being equal to the amount seized for liquidation.
 //     /// @custom:property dtok-27 Liquidating an exact amount should result in account debt decreasing by debtToLiquidate.
 //     /// @custom:property dtok-28 Liquidating an exact amount should result in the underlying token balance of msg.sender after liquidation being equal to the previous underlying balance + debt to liquidate.
-//     /// @custom:property dtok-29 Liquidating an exact amount should result in position token balance of the sender increasing by (amount seized by liquidation - amount seized by the protocol)
+//     /// @custom:property dtok-29 Liquidating an exact amount should result in cToken balance of the sender increasing by (amount seized by liquidation - amount seized by the protocol)
 //     /// @custom:precondition eToken being liquidated is eDAI
-//     /// @custom:precondition pToken being liquidated is pUSDC
+//     /// @custom:precondition cToken being liquidated is pUSDC
 //     /// @custom:precondition account being liquidated is address(this)
 //     /// @custom:limitation once posting of collateral etc can be done by any address, open up to any account can be liquidated
 //     /// @custom:limitation current uses a constant for dai and usdc price to push the position into an liquidatable state, see liquidateAccount in marketManager for dynamic generation
-//     /// @custom:limitation missing check for position token balance of account
+//     /// @custom:limitation missing check for cToken balance of account
 //     function liquidate_should_succeed_with_exact(uint256 amount) public {
-//         address eToken = address(eDAI);
-//         address positionToken = address(pUSDC);
+//         address eToken = address(borrowableCDAI);
+//         address collateralToken = address(pUSDC);
 //         address account = address(this);
-//         uint256 priorCollateral = _collateralPostedFor(address(positionToken));
+//         uint256 priorCollateral = _collateralPostedFor(address(collateralToken));
 //         EToken(eToken).accrueInterest();
-//         uint256 priorDebt = EToken(eToken).debtBalanceCached(address(this));
+//         uint256 priorDebt = EToken(eToken).debtBalance(address(this));
 //         amount = _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
 
 //         (uint256 debtToLiquidate, uint256 seizedForLiquidation) = marketManager
 //             .canLiquidate(
 //                 eToken,
-//                 positionToken,
+//                 collateralToken,
 //                 account,
 //                 amount, // specifying this particular amount
 //                 true // liquidate an exact amount
@@ -633,16 +633,16 @@
 //             {
 //                 uint256 senderBalanceUnderlying = IERC20(underlyingEToken)
 //                     .balanceOf(msg.sender);
-//                 uint256 preSenderCollateral = IERC20(positionToken).balanceOf(
+//                 uint256 preSenderCollateral = IERC20(collateralToken).balanceOf(
 //                     msg.sender
 //                 );
 
 //                 hevm.prank(msg.sender);
-//                 EToken(eToken).liquidateExact(account, amount, positionToken);
+//                 EToken(eToken).liquidateExact(account, amount, collateralToken);
 
 //                 // The user's previous collateral balance - post collateral balance must equal the total amount that was seized for liquidation
 //                 assertEq(
-//                     priorCollateral - _collateralPostedFor(positionToken),
+//                     priorCollateral - _collateralPostedFor(collateralToken),
 //                     seizedForLiquidation,
 //                     "DTOK-26 soft liquidation exact should result in priorCollateral - current collateral = seized for liquidation"
 //                 );
@@ -650,7 +650,7 @@
 //                 // The user's previous debt balance - current debt balance must equal the total amount of debt that was liquidated
 //                 assertEq(
 //                     priorDebt -
-//                         EToken(eToken).debtBalanceCached(address(this)),
+//                         EToken(eToken).debtBalance(address(this)),
 //                     debtToLiquidate,
 //                     "DTOK-27 soft liquidate exact acct debt should decrease by debtToLiquidate"
 //                 );
@@ -664,14 +664,14 @@
 //                 );
 
 //                 // When liquidating, the liquidator should receive the user's COLLATERAL token in exchange
-//                 // Therefore, the liquidator's position token balance must be equivalent to their previous balance + their allocation of tokens
+//                 // Therefore, the liquidator's cToken balance must be equivalent to their previous balance + their allocation of tokens
 //                 {
 //                     // The # of tokens allocated to the liquidator is equivalent to the total number of tokens seized for liquidation
-//                     uint256 positionTokensForLiquidator = seizedForLiquidation;
+//                     uint256 collateralTokensForLiquidator = seizedForLiquidation;
 //                     assertEq(
-//                         IERC20(positionToken).balanceOf(msg.sender),
-//                         preSenderCollateral + positionTokensForLiquidator,
-//                         "DTOK-29 soft liquidate: position token balance of sender must increase by (amount sized by liquidation - amount seized for protocol)"
+//                         IERC20(collateralToken).balanceOf(msg.sender),
+//                         preSenderCollateral + collateralTokensForLiquidator,
+//                         "DTOK-29 soft liquidate: cToken balance of sender must increase by (amount sized by liquidation - amount seized for protocol)"
 //                     );
 //                 }
 //             }
@@ -698,7 +698,7 @@
 //         uint256 old_er,
 //         address eToken
 //     ) private view returns (uint256) {
-//         uint256 new_er = EToken(eToken).exchangeRateCached();
+//         uint256 new_er = EToken(eToken).exchangeRate();
 //         return new_er > old_er ? new_er - old_er : old_er - new_er;
 //     }
 // }

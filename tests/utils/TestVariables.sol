@@ -13,22 +13,23 @@ import { FeeManager } from "contracts/architecture/FeeManager.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
-import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
+import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
-import { MockAuraPTokenWithExitFee } from "contracts/mocks/MockAuraPTokenWithExitFee.sol";
+import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
+import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
-import { CurvanceAuxiliaryData } from "contracts/indexing/CurvanceAuxiliaryData.sol";
+import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
 contract TestVariables {
     uint256 internal constant _ONE = 1e18;
@@ -45,6 +46,7 @@ contract TestVariables {
     address internal _WBTC_ADDRESS;
     address internal _RETH_ADDRESS;
     address internal _FRAX_ADDRESS;
+    address internal _STETH_ADDRESS;
     address internal _BAL_WETH_RETH_ADDRESS;
     address internal _CHAINLINK_ETH_USD;
     address internal _CHAINLINK_USDC_USD;
@@ -58,8 +60,8 @@ contract TestVariables {
     bytes32 internal _BAL_WETH_RETH_POOLID;
     address internal _AURA_BOOSTER;
     address internal _REWARDER;
-    address internal _WORMHOLE_CORE;
-    address internal _WORMHOLE_RELAYER;
+    address internal _CROSSCHAIN_CORE;
+    address internal _CROSSCHAIN_RELAYER;
     address internal _CIRCLE_TOKEN_MESSENGER;
     address internal _CIRCLE_MESSAGE_TRANSMITTER;
     address internal _TOKEN_BRIDGE;
@@ -72,6 +74,7 @@ contract TestVariables {
     mapping(uint256 => address) internal _WBTC_ADDRESSES;
     mapping(uint256 => address) internal _RETH_ADDRESSES;
     mapping(uint256 => address) internal _FRAX_ADDRESSES;
+    mapping(uint256 => address) internal _STETH_ADDRESSES;
     mapping(uint256 => address) internal _BAL_WETH_RETH_ADDRESSES;
     mapping(uint256 => address) internal _CHAINLINK_ETH_USD_FEEDS;
     mapping(uint256 => address) internal _CHAINLINK_USDC_USD_FEEDS;
@@ -85,8 +88,8 @@ contract TestVariables {
     mapping(uint256 => bytes32) internal _BAL_WETH_RETH_POOLIDS;
     mapping(uint256 => address) internal _AURA_BOOSTERS;
     mapping(uint256 => address) internal _REWARDERS;
-    mapping(uint256 => address) internal _WORMHOLE_CORES;
-    mapping(uint256 => address) internal _WORMHOLE_RELAYERS;
+    mapping(uint256 => address) internal _CROSSCHAIN_CORES;
+    mapping(uint256 => address) internal _CROSSCHAIN_RELAYERS;
     mapping(uint256 => address) internal _CIRCLE_TOKEN_MESSENGERS;
     mapping(uint256 => address) internal _CIRCLE_MESSAGE_TRANSMITTERS;
     mapping(uint256 => address) internal _TOKEN_BRIDGES;
@@ -102,19 +105,17 @@ contract TestVariables {
     BalancerStablePoolAdaptor public balRETHAdapter;
     ChainlinkAdaptor public chainlinkAdaptor;
     ChainlinkAdaptor public dualChainlinkAdaptor;
-    MarketManager public marketManager;
     MarketManagerIsolated public marketManagerIsolated;
     OracleManager public oracleManager;
-    CurvanceAuxiliaryData public curvanceAuxiliaryData;
-    EToken public eUSDC;
-    EToken public eDAI;
-    EToken public eUSDCIsolated;
+    ProtocolReader public protocolReader;
+    DAOTimelock public daoTimelock;
+    BorrowableCToken public borrowableCUSDC;
+    BorrowableCToken public borrowableCDAI;
 
-    SimplePToken public pUSDC;
-    MockAuraPTokenWithExitFee public pBALRETHWithExitFee;
-    AuraPToken public pBALRETH;
-    AuraPToken public pBALRETHIsolated;
-
+    SimpleCToken public simpleCUSDC;
+    AuraCToken public strategyCBALRETH;
+    MockAuraCTokenWithExitFee public strategyCBALRETHWithExitFee;
+ 
     IERC20 public usdc;
     IERC20 public dai;
     IERC20 public weth;
@@ -148,16 +149,16 @@ contract TestVariables {
     mapping(uint256 => BalancerStablePoolAdaptor) public balRETHAdapters;
     mapping(uint256 => ChainlinkAdaptor) public chainlinkAdaptors;
     mapping(uint256 => ChainlinkAdaptor) public dualChainlinkAdaptors;
-    mapping(uint256 => MarketManager) public marketManagers;
     mapping(uint256 => MarketManagerIsolated) public marketManagersIsolated;
-    mapping(uint256 => CurvanceAuxiliaryData) public curvanceAuxiliaryDatas;
+    mapping(uint256 => ProtocolReader) public protocolReaders;
+    mapping(uint256 => DAOTimelock) public daoTimelocks;
     mapping(uint256 => OracleManager) public oracleManagers;
-    mapping(uint256 => EToken) public eUSDCs;
-    mapping(uint256 => EToken) public eDAIs;
-    mapping(uint256 => EToken) public eUSDCIsolateds;
-    mapping(uint256 => AuraPToken) public pBALRETHs;
-    mapping(uint256 => MockAuraPTokenWithExitFee) public pBALRETHWithExitFees;
-    mapping(uint256 => AuraPToken) public pBALRETHsIsolated;
+    mapping(uint256 => BorrowableCToken) public borrowableCUSDCs;
+    mapping(uint256 => BorrowableCToken) public borrowableCDAIs;
+
+    mapping(uint256 => AuraCToken) public strategyCBALRETHs;
+    mapping(uint256 => MockAuraCTokenWithExitFee) public strategyCBALRETHWithExitFees;
+
 
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcEths;
@@ -166,28 +167,41 @@ contract TestVariables {
     mapping(uint256 => MockV3Aggregator) public chainlinkDaiUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkDaiEths;
 
-    mapping(uint256 => mapping(address => DynamicInterestRateModel))
-        public interestRateModels;
-
-    mapping(uint256 => mapping(address => DynamicInterestRateModel)) public isolatedInterestRateModels;
+    mapping(uint256 => mapping(address => DynamicIRM)) public IRMs;
 
     mapping(uint256 => MockToken) public rewardTokens;
     mapping(uint256 => GaugeManager) public gaugeManagers;
     mapping(uint256 => PendleZapper) public pendleZappers;
     mapping(uint256 => VelodromeZapper) public velodromeZappers;
 
-    address public harvester;
     address public user1 = address(1000001);
     address public user2 = address(1000002);
     address public user3 = address(1000003);
     address public user4 = address(1000004);
     address public liquidator = address(1000005);
-    uint256 public voteBoostMultiplier = 12000; // 120%
-    uint256 public lockBoostMultiplier = 13000; // 130%
-    uint256 public marketInterestFactor = 1000; // 10%
+    address public dappControlUser = address(1000006);
+    address public harvester = address(1000007);
+    uint256 public voteBoostMultiplier = 12000; // 12000 = 120%.
+    uint256 public lockBoostMultiplier = 13000; // 13000 = 130%.
+    uint256 public marketInterestFee = 1000; // 1000 = 10%.
 
     bytes public response;
     IWormhole.Signature[] public signatures;
+
+    MockDataFeed public mockUsdcFeed;
+    MockDataFeed public mockWethFeed;
+    MockDataFeed public mockRethFeed;
+    MockDataFeed public mockBALFeed;
+    MockDataFeed public mockAURAFeed;
+    MockDataFeed public mockDaiFeed;
+    MockDataFeed public mockStethFeed;
+    MockV3Aggregator public mockWbtcFeed;
+    
+    address public _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;
+    address public _AURA_ADDRESS =
+        0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
+
+    address internal _STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
     modifier initMainVariables() {
         _initMainVariables();
@@ -199,6 +213,7 @@ contract TestVariables {
         _initArbitrumVariables();
         _initOptimismVariables();
         _initBaseVariables();
+        _initMonadVariables();
     }
 
     function _initMainnetVariables() internal {
@@ -211,6 +226,8 @@ contract TestVariables {
         _WBTC_ADDRESSES[chainId] = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
         _RETH_ADDRESSES[chainId] = 0xae78736Cd615f374D3085123A210448E74Fc6393;
         _FRAX_ADDRESSES[chainId] = 0x853d955aCEf822Db058eb8505911ED77F175b99e;
+        _STETH_ADDRESSES[chainId] = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+
         _BAL_WETH_RETH_ADDRESSES[
             chainId
         ] = 0x1E19CF2D73a72Ef1332C882F20534B6519Be0276;
@@ -246,8 +263,8 @@ contract TestVariables {
         ] = 0x1e19cf2d73a72ef1332c882f20534b6519be0276000200000000000000000112;
         _AURA_BOOSTERS[chainId] = 0xA57b8d98dAE62B26Ec3bcC4a365338157060B234;
         _REWARDERS[chainId] = 0xDd1fE5AD401D4777cE89959b7fa587e569Bf125D;
-        _WORMHOLE_CORES[chainId] = 0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B;
-        _WORMHOLE_RELAYERS[
+        _CROSSCHAIN_CORES[chainId] = 0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B;
+        _CROSSCHAIN_RELAYERS[
             chainId
         ] = 0x27428DD2d3DD32A4D7f7C497eAaa23130d894911;
         _CIRCLE_TOKEN_MESSENGERS[
@@ -278,8 +295,8 @@ contract TestVariables {
         _UNISWAP_V2_ROUTERS[
             chainId
         ] = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
-        _WORMHOLE_CORES[chainId] = 0xa5f208e072434bC67592E4C49C1B991BA79BCA46;
-        _WORMHOLE_RELAYERS[
+        _CROSSCHAIN_CORES[chainId] = 0xa5f208e072434bC67592E4C49C1B991BA79BCA46;
+        _CROSSCHAIN_RELAYERS[
             chainId
         ] = 0x27428DD2d3DD32A4D7f7C497eAaa23130d894911;
         _CIRCLE_TOKEN_MESSENGERS[
@@ -309,8 +326,8 @@ contract TestVariables {
         _UNISWAP_V2_ROUTERS[
             chainId
         ] = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-        _WORMHOLE_CORES[chainId] = 0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722;
-        _WORMHOLE_RELAYERS[
+        _CROSSCHAIN_CORES[chainId] = 0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722;
+        _CROSSCHAIN_RELAYERS[
             chainId
         ] = 0x27428DD2d3DD32A4D7f7C497eAaa23130d894911;
         _CIRCLE_TOKEN_MESSENGERS[
@@ -334,6 +351,12 @@ contract TestVariables {
         ] = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
     }
 
+    function _initMonadVariables() internal {
+        uint256 chainId = 10143;
+
+        _USDC_ADDRESSES[chainId] = 0xf817257fed379853cDe0fa4F97AB987181B1E5Ea;
+    }
+
     function _initMainConstantVariables() internal {
         uint256 chainId = block.chainid;
 
@@ -344,6 +367,7 @@ contract TestVariables {
         _WBTC_ADDRESS = _WBTC_ADDRESSES[chainId];
         _RETH_ADDRESS = _RETH_ADDRESSES[chainId];
         _FRAX_ADDRESS = _FRAX_ADDRESSES[chainId];
+        _STETH_ADDRESS = _STETH_ADDRESSES[chainId];
         _BAL_WETH_RETH_ADDRESS = _BAL_WETH_RETH_ADDRESSES[chainId];
         _CHAINLINK_ETH_USD = _CHAINLINK_ETH_USD_FEEDS[chainId];
         _CHAINLINK_USDC_USD = _CHAINLINK_USDC_USD_FEEDS[chainId];
@@ -357,8 +381,8 @@ contract TestVariables {
         _BAL_WETH_RETH_POOLID = _BAL_WETH_RETH_POOLIDS[chainId];
         _AURA_BOOSTER = _AURA_BOOSTERS[chainId];
         _REWARDER = _REWARDERS[chainId];
-        _WORMHOLE_CORE = _WORMHOLE_CORES[chainId];
-        _WORMHOLE_RELAYER = _WORMHOLE_RELAYERS[chainId];
+        _CROSSCHAIN_CORE = _CROSSCHAIN_CORES[chainId];
+        _CROSSCHAIN_RELAYER = _CROSSCHAIN_RELAYERS[chainId];
         _CIRCLE_TOKEN_MESSENGER = _CIRCLE_TOKEN_MESSENGERS[chainId];
         _CIRCLE_MESSAGE_TRANSMITTER = _CIRCLE_MESSAGE_TRANSMITTERS[chainId];
         _TOKEN_BRIDGE = _TOKEN_BRIDGES[chainId];
@@ -384,16 +408,15 @@ contract TestVariables {
         balRETHAdapter = balRETHAdapters[chainId];
         chainlinkAdaptor = chainlinkAdaptors[chainId];
         dualChainlinkAdaptor = dualChainlinkAdaptors[chainId];
-        marketManager = marketManagers[chainId];
-        marketManagerIsolated = marketManagersIsolated[chainId];   
+        marketManagerIsolated = marketManagersIsolated[chainId];
         oracleManager = oracleManagers[chainId];
-        curvanceAuxiliaryData = curvanceAuxiliaryDatas[chainId];
-        eUSDC = eUSDCs[chainId];
-        eDAI = eDAIs[chainId];
-        eUSDCIsolated = eUSDCIsolateds[chainId];
-        pBALRETH = pBALRETHs[chainId];
-        pBALRETHWithExitFee = pBALRETHWithExitFees[chainId];
-        pBALRETHIsolated = pBALRETHsIsolated[chainId];
+        protocolReader = protocolReaders[chainId];
+        borrowableCUSDC = borrowableCUSDCs[chainId];
+        borrowableCDAI = borrowableCDAIs[chainId];
+
+        strategyCBALRETH = strategyCBALRETHs[chainId];
+        strategyCBALRETHWithExitFee = strategyCBALRETHWithExitFees[chainId];
+
 
         chainlinkUsdcUsd = chainlinkUsdcUsds[chainId];
         chainlinkUsdcEth = chainlinkUsdcEths[chainId];

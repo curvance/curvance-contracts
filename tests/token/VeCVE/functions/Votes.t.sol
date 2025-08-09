@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
+import { BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
 
 contract VotesTest is TestBaseVeCVE {
     function setUp() public override {
@@ -31,9 +32,8 @@ contract VotesTest is TestBaseVeCVE {
         uint256 amount,
         uint16 boost
     ) public {
-        uint256 denominator = 1e4;
         amount = bound(amount, _MIN_FUZZ_AMOUNT, _MAX_FUZZ_AMOUNT);
-        boost = uint16(bound(boost, denominator + 1, type(uint16).max));
+        boost = uint16(bound(boost, BASIS_POINTS + 1, type(uint16).max));
         centralRegistry.setVoteBoostMultiplier(boost);
         _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
@@ -44,7 +44,7 @@ contract VotesTest is TestBaseVeCVE {
         // current boost is x2
         assertEq(
             veCVE.getVotes(address(this)),
-            (amount * boost) / denominator
+            (amount * boost) / BASIS_POINTS
         );
     }
 

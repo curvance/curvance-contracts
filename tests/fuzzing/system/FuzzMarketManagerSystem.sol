@@ -12,18 +12,18 @@
 //     // system invariant:
 //     // should not have an active position in a eToken if one does not have debt
 
-//     /// @custom:property s-market-1 A user’s pToken balance must always be greater than the total collateral posted for a pToken.
-//     function pToken_balance_gte_collateral_posted(address pToken) public {
-//         uint256 pTokenBalance = MockToken(pToken).balanceOf(address(this));
+//     /// @custom:property s-market-1 A user’s cToken balance must always be greater than the total collateral posted for a cToken.
+//     function cToken_balance_gte_collateral_posted(address cToken) public {
+//         uint256 cTokenBalance = MockToken(cToken).balanceOf(address(this));
 
 //         uint256 collateralPostedForAddress = marketManager.collateralPosted(
 //             address(this)
 //         );
 
 //         assertGte(
-//             pTokenBalance,
+//             cTokenBalance,
 //             collateralPostedForAddress,
-//             "S-MARKET-1 - pTokenBalance must exceed collateral posted"
+//             "S-MARKET-1 - cTokenBalance must exceed collateral posted"
 //         );
 //     }
 

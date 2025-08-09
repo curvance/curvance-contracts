@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
+
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
@@ -9,6 +10,7 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 abstract contract BaseWrappedAggregator is IChainlink {
     /// ERRORS ///
 
+    error BaseWrappedAggregator__InvalidConfig();
     error BaseWrappedAggregator__UintToIntError();
 
     /// EXTERNAL FUNCTIONS ///
@@ -20,56 +22,37 @@ abstract contract BaseWrappedAggregator is IChainlink {
     }
 
     /// @notice Returns the maximum value that the aggregator can return.
-    /// @return The maximum value that the aggregator can return.
-    function maxAnswer() external view returns (int192) {
+    /// @return result The maximum value that the aggregator can return.
+    function maxAnswer() external view returns (int192 result) {
         uint256 max = uint256(
             uint192(
                 IChainlink(
-                    IChainlink(underlyingAssetAggregator()).aggregator()
+                    IChainlink(underlyingAggregator()).aggregator()
                 ).maxAnswer()
             )
         );
 
-        max = FixedPointMathLib.fullMulDiv(max, getWrappedAssetWeight(), WAD);
-        int256 intMax = _toInt256(max);
-        if (intMax > type(int192).max) {
-            return type(int192).max;
-        }
-        if (intMax < type(int192).min) {
-            return type(int192).min;
-        }
-
-        return _toInt192(intMax);
+        result = _boundAnswer(max);
     }
 
     /// @notice Returns the minimum value that the aggregator can returned.
-    /// @return The minimum value that the aggregator can returned.
-    function minAnswer() external view returns (int192) {
+    /// @return result The minimum value that the aggregator can returned.
+    function minAnswer() external view returns (int192 result) {
         uint256 min = uint256(
             uint192(
                 IChainlink(
-                    IChainlink(underlyingAssetAggregator()).aggregator()
+                    IChainlink(underlyingAggregator()).aggregator()
                 ).minAnswer()
             )
         );
 
-        min = FixedPointMathLib.fullMulDiv(min, getWrappedAssetWeight(), WAD);
-        int256 intMin = _toInt256(min);
-
-        if (intMin > type(int192).max) {
-            return type(int192).max;
-        }
-        if (intMin < type(int192).min) {
-            return type(int192).min;
-        }
-
-        return _toInt192(intMin);
+        result = _boundAnswer(min);
     }
 
     /// @notice Returns the number of decimals the aggregator responds with.
     /// @return The number of decimals the aggregator responds with.
     function decimals() external view returns (uint8) {
-        return IChainlink(underlyingAssetAggregator()).decimals();
+        return IChainlink(underlyingAggregator()).decimals();
     }
 
     /// @notice Returns the latest oracle data from the aggregator,
@@ -94,12 +77,10 @@ abstract contract BaseWrappedAggregator is IChainlink {
         )
     {
         (roundId, answer, startedAt, updatedAt, answeredInRound) = IChainlink(
-            underlyingAssetAggregator()
+            underlyingAggregator()
         ).latestRoundData();
 
-        answer =
-            (answer * _toInt256(getWrappedAssetWeight())) /
-            _toInt256(WAD);
+        answer = (answer * _toInt256(getExchangeRate())) / _toInt256(WAD);
     }
 
     /// @notice Returns the adaptor's type.
@@ -115,21 +96,33 @@ abstract contract BaseWrappedAggregator is IChainlink {
     /// @notice Returns the underlying aggregator address.
     /// @dev Overridden in implemented wrapped oracle aggregators.
     /// @return The underlying aggregator address.
-    function underlyingAssetAggregator()
-        public
-        view
-        virtual
-        returns (address)
-    {}
+    function underlyingAggregator() public view virtual returns (address) {}
 
     /// @notice Returns the current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.
     /// @dev Overridden in implemented wrapped oracle aggregators.
     /// @return The current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.
-    function getWrappedAssetWeight() public view virtual returns (uint256) {}
+    function getExchangeRate() public view virtual returns (uint256) {}
 
-    /// INTERNAl FUNCTIONS ///
+    /// INTERNAL FUNCTIONS ///
+
+    /// @notice Bounds `answer` between int192 maximum and minimum values.
+    /// @param answer The value to bound.
+    /// @return The bounded answer.
+    function _boundAnswer(uint256 answer) internal view returns (int192){
+        answer = FixedPointMathLib.fullMulDiv(answer, getExchangeRate(), WAD);
+        int256 intAnswer = _toInt256(answer);
+
+        if (intAnswer > type(int192).max) {
+            return type(int192).max;
+        }
+        if (intAnswer < type(int192).min) {
+            return type(int192).min;
+        }
+
+        return _toInt192(intAnswer);
+    }
 
     /// @notice Returns the downcasted int192 from int256, reverting on
     ///         overflow (when the input is less than smallest int192 or

@@ -1,9 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 
 interface IOracleManager {
+    /// TYPES ///
+
+    /// @notice Stored data to facilitate pricing Curvance tokens (cTokens).
+    /// @param isCToken Used to indicate if the provided address is a
+    ///                 Curvance token or not.
+    /// @param underlying Address of the underlying asset for the Curvance
+    ///                   token.
+    struct CToken {
+        bool isCToken;
+        address underlying;
+    }
+
     /// @notice Retrieves the price of a specified asset from either single
     ///         or dual oracles.
     /// @dev If the asset has one oracle, it fetches the price from a single feed.
@@ -25,37 +37,21 @@ interface IOracleManager {
         bool getLower
     ) external view returns (uint256 price, uint256 errorCode);
 
-    /// @notice Retrieves the prices of multiple assets.
-    /// @param assets An array of asset addresses to retrieve the prices for.
-    /// @param inUSD An array of bools indicating whether the price should be
-    ///              returned in USD or ETH.
-    /// @param getLower An array of bools indiciating whether the lower
-    ///                 or higher price should be returned if two feeds
-    ///                 are available.
-    /// @return Two arrays. The first one contains prices for each asset,
-    ///         and the second one contains corresponding error
-    ///         flags (if any).
-    function getPrices(
-        address[] calldata assets,
-        bool[] calldata inUSD,
-        bool[] calldata getLower
-    ) external view returns (uint256[] memory, uint256[] memory);
-
-    /// @notice Retrieves the prices of a eToken underlying and pToken.
-    /// @param eToken The earning token to price the underlying of.
-    /// @param pToken The position token to price.
+    /// @notice Retrieves the prices of a collateral token and debt token
+    ///         underlyings.
+    /// @param collateralToken The cToken currently collateralized to price.
+    /// @param debtToken The cToken borrowed from to price.
     /// @param errorCodeBreakpoint The error code that will cause liquidity
     ///                            operations to revert.
-    /// @return eTokenUnderlyingPrice Contains the price of `eToken` underlying.
-    /// @return pTokenPrice Contains the price of `pToken`.
+    /// @return collateralUnderlyingPrice The current price of
+    ///                                   `collateralToken` underlying.
+    /// @return debtUnderlyingPrice The current price of `debtToken`
+    ///                             underlying.
     function getPriceIsolatedPair(
-        address eToken,
-        address pToken,
+        address collateralToken,
+        address debtToken,
         uint256 errorCodeBreakpoint
-    )
-        external
-        view
-        returns (uint256 eTokenUnderlyingPrice, uint256 pTokenPrice);
+    ) external view returns (uint256, uint256);
 
     /// @notice Retrieves the prices and account data of multiple assets
     ///         inside a Curvance Market.
@@ -68,7 +64,7 @@ interface IOracleManager {
     /// @return uint256 The number of assets `account` is in.
     function getPricesForMarket(
         address account,
-        IMToken[] calldata assets,
+        address[] calldata assets,
         uint256 errorCodeBreakpoint
     )
         external
@@ -80,6 +76,16 @@ interface IOracleManager {
     /// @dev Requires that the feed exists for the asset.
     /// @param asset The address of the asset.
     function notifyFeedRemoval(address asset) external;
+
+    /// @notice Returns the price feeds for `asset`.
+    /// @param asset The address of the asset to get price feeds of.
+    function getPriceFeeds(
+        address asset
+    ) external view returns(address[] memory);
+
+    /// @notice Returns the token data of `cToken`.
+    /// @param cToken The address of the cToken to get data of.
+    function getCToken(address cToken) external view returns(CToken memory);
 
     /// @notice Address => Adaptor approval status.
     /// @param adaptor The address of the adaptor to check.

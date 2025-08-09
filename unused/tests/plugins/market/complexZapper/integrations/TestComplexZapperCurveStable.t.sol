@@ -4,9 +4,9 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestComplexZapperCurveStable is TestBaseMarket {
+contract TestComplexZapperCurveStable is TestBaseMarketIsolated {
     address internal _CURVE_TRICRYPTO_LP =
         0xc4AD29ba4B3c580e6D59105FFf484999997675Ff;
     address internal _CURVE_TRICRYPTO_MINTER =
@@ -27,7 +27,7 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
         tokens[2] = _WETH_ADDRESS;
         complexZapper.enterCurve{ value: ethAmount }(
             address(0),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 address(0),
                 ethAmount,
                 _CURVE_TRICRYPTO_LP,
@@ -59,7 +59,7 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
         tokens[2] = _WETH_ADDRESS;
         complexZapper.enterCurve(
             address(0),
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _WETH_ADDRESS,
                 wethAmount,
                 _CURVE_TRICRYPTO_LP,
@@ -95,7 +95,7 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
         );
         complexZapper.exitCurve(
             _CURVE_TRICRYPTO_MINTER,
-            ComplexZapper.ZapperData(
+            ComplexZapper.ZapAction(
                 _CURVE_TRICRYPTO_LP,
                 withdrawAmount,
                 _WETH_ADDRESS,

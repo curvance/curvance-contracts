@@ -17,11 +17,11 @@ library RescueLib {
     /// @param token token to rescue.
     /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
     function _rescueToken(
-        ICentralRegistry centralRegistry,
+        ICentralRegistry cr,
         address token,
         uint256 amount
     ) internal {
-        address daoOperator = centralRegistry.daoAddress();
+        address daoOperator = cr.daoAddress();
 
         if (token == address(0)) {
             if (amount == 0) {

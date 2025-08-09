@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetRewardManagerTest is TestBaseMarket {
-    event CoreContractSet(string indexed contractType, address newAddress);
+contract SetRewardManagerTest is TestBaseMarketIsolated {
+    event CoreContractUpdated(string indexed contractType, address newAddress);
 
     address public newRewardManager = makeAddr("Reward Manager");
 
@@ -13,7 +13,6 @@ contract SetRewardManagerTest is TestBaseMarket {
         super.setUp();
 
         centralRegistry = new CentralRegistry(
-            _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             block.timestamp + 1,
@@ -46,7 +45,7 @@ contract SetRewardManagerTest is TestBaseMarket {
         assertEq(centralRegistry.rewardManager(), _ZERO_ADDRESS);
 
         vm.expectEmit(true, true, true, true);
-        emit CoreContractSet("Reward Manager", newRewardManager);
+        emit CoreContractUpdated("Reward Manager", newRewardManager);
 
         centralRegistry.setRewardManager(newRewardManager);
 
@@ -57,7 +56,7 @@ contract SetRewardManagerTest is TestBaseMarket {
         address newRewardManager1 = makeAddr("Reward Manager 1");
 
         vm.expectEmit(true, true, true, true);
-        emit CoreContractSet("Reward Manager", newRewardManager1);
+        emit CoreContractUpdated("Reward Manager", newRewardManager1);
 
         centralRegistry.setRewardManager(newRewardManager1);
     }
