@@ -47,6 +47,13 @@ interface IMarketManager {
         uint256 badDebtRealized;
     }
 
+    /// @notice Returns the cooldown period for a specific account.
+    /// @param account The address of the account to query.
+    /// @return The cooldown period for the specified account, which is 0 if not set
+    function cooldown(
+        address account
+    ) external view returns (uint256);
+
     /// @notice Returns whether minting, collateralization, borrowing of
     ///         `cToken` is paused.
     /// @param cToken The address of the Curvance token to return

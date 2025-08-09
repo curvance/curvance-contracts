@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -18,6 +19,9 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 // NOTE: This is a work in progress, don't implement yet.
 // TODO: Figure out what to do with tokenDataOf since we have tests attached
 contract ProtocolReader2 {
+    // @dev: See MarketManagerIsolated constant: MIN_HOLD_PERIOD
+    uint256 public constant MARKET_COOLDOWN_LENGTH = 20 minutes;
+
     /// TYPES ///
     struct StaticMarketData {
         address _address;
@@ -182,7 +186,7 @@ contract ProtocolReader2 {
             data[i] = StaticMarketData({
                 _address: address(mm),
                 adapters: uniqueAdapters,
-                cooldownLength: 20 minutes, // @dev: See MarketManagerIsolated constant: MIN_HOLD_PERIOD
+                cooldownLength: MARKET_COOLDOWN_LENGTH,
                 tokens: tokens
             });
         }
@@ -326,7 +330,7 @@ contract ProtocolReader2 {
             IMarketManager mm = IMarketManager(markets[i]);
             uint256 cooldownTimestamp = mm.cooldown(user);
 
-            cooldowns[i] = cooldownTimestamp + mm.MIN_HOLD_PERIOD();
+            cooldowns[i] = cooldownTimestamp + MARKET_COOLDOWN_LENGTH;
         }
         return cooldowns;
     }
@@ -340,7 +344,7 @@ contract ProtocolReader2 {
     /// @return t A StaticMarketToken struct containing static token
     ///           configuration information.
     function _getStaticTokenConfig(
-        MarketManagerIsolated mm,
+        IMarketManager mm,
         IERC20 cToken
     ) internal view returns (StaticMarketToken memory t) {
         t._address = address(cToken);
