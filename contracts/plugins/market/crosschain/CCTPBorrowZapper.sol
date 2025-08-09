@@ -241,7 +241,7 @@ contract CCTPBorrowZapper is ReentrancyGuard {
     ) internal view returns (ChainConfig memory config) {
         config = centralRegistry.chainConfig(chainId);
         // Validate that `chainId` is actually a supported chain.
-        if (config.isSupported < 2) {
+        if (!config.isSupported) {
             revert CCTPBorrowZapper__CCTPIsNotConfigured();
         }
     }

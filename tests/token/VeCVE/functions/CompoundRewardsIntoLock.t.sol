@@ -96,7 +96,7 @@ contract CompoundRewardsIntoLockTest is TestBaseVeCVE {
 
         for (
             uint256 i = 0;
-            i <= (unlockTime - block.timestamp) / veCVE.epochDuration();
+            i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
             i++
         ) {
             vm.prank(address(messagingHub));
@@ -132,8 +132,8 @@ contract CompoundRewardsIntoLockTest is TestBaseVeCVE {
                 unlockTime,
                 centralRegistry.genesisEpoch() +
                     (veCVE.currentEpoch(block.timestamp) *
-                        veCVE.epochDuration()) +
-                    veCVE.lockDuration()
+                        veCVE.EPOCH_DURATION()) +
+                    veCVE.LOCK_DURATION()
             );
         } else {
             assertEq(unlockTime, veCVE.CONTINUOUS_LOCK_VALUE());

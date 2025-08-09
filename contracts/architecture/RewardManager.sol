@@ -45,7 +45,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// CONSTANTS ///
 
     /// @notice The length of one protocol epoch, in seconds.
-    uint256 public immutable epochDuration;
+    uint256 public immutable EPOCH_DURATION;
 
     /// @dev `bytes4(keccak256(bytes("RewardManager__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xd55eef72;
@@ -101,7 +101,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     constructor(ICentralRegistry cr) PluginDelegable(cr) {
         // Query epoch and token configuration directly to minimize potential
         // human error.
-        epochDuration = centralRegistry.EPOCH_DURATION();
+        EPOCH_DURATION = centralRegistry.EPOCH_DURATION();
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -120,7 +120,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
         uint256 nextEpochToDeliverStartTime = epoch == 0
             ? centralRegistry.genesisEpoch()
-            : centralRegistry.genesisEpoch() + (epoch * epochDuration);
+            : centralRegistry.genesisEpoch() + (epoch * EPOCH_DURATION);
 
         // Add the time buffer required for overriding an epoch's reward
         // value.
@@ -224,7 +224,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             return 0;
         }
 
-        return ((time - genesisEpoch) / epochDuration);
+        return ((time - genesisEpoch) / EPOCH_DURATION);
     }
 
     /// @notice Checks if a user has any rewards to claim.

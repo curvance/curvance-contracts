@@ -917,7 +917,7 @@ contract MessagingHub is QueryResponse {
     ) internal view returns (ChainConfig memory config) {
         config = centralRegistry.chainConfig(chainId);
         // Validate that `chainId` is actually a supported chain.
-        if (config.isSupported < 2) {
+        if (!config.isSupported) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
     }

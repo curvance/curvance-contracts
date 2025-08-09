@@ -1146,12 +1146,12 @@ contract CentralRegistry is ERC165, ActionRegistry {
         _checkElevatedPermissions();
 
         // Validate this "new" chain is not currently supported.
-        if (chainConfig[chainId].isSupported == 2) {
+        if (chainConfig[chainId].isSupported) {
             revert CentralRegistry__InvalidParameter();
         }
 
         // Validate `config` is configured properly to support `chainId`.
-        if (config.isSupported != 2) {
+        if (!config.isSupported) {
             revert CentralRegistry__InvalidParameter();
         }
 
@@ -1186,9 +1186,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate that `chainId` is currently supported and parameters
         // are correct.
-        if (
-            c.isSupported < 2 ||
-            c.messagingHub != expectedMessagingHub ||
+        if (!c.isSupported || c.messagingHub != expectedMessagingHub ||
             c.votingHub != expectedVotingHub
         ) {
             revert CentralRegistry__InvalidParameter();

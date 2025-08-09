@@ -23,7 +23,7 @@ contract RemoveChainTest is TestBaseMarketIsolated {
         super.setUp();
 
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 24;
         config.domain = 2;
         config.messagingHub = address(this);
@@ -112,7 +112,7 @@ contract RemoveChainTest is TestBaseMarketIsolated {
 
         (isSupported, , , , , , , ) = centralRegistry.chainConfig(42161);
 
-        assertEq(isSupported, 1);
+        assertEq(isSupported, 0);
         assertEq(centralRegistry.messagingToGETHChainId(42161), 0);
         assertEq(centralRegistry.GETHToMessagingChainId(23), 0);
 

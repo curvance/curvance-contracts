@@ -16,7 +16,7 @@ pragma solidity ^0.8.26;
 /// @param feeTokenAddress Fee token address on the chain.
 /// @param crosschainRelayer Crosschain relayer address on the chain.
 struct ChainConfig {
-    uint8 isSupported;
+    bool isSupported;
     uint16 messagingChainId;
     uint32 domain;
     address messagingHub;

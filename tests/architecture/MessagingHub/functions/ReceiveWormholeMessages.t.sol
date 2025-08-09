@@ -25,7 +25,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
         additionalMessages.push(abi.encode("1", "1"));
 
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 23;
         config.domain = 3;
         config.messagingHub = srcMessagingHub;

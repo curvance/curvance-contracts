@@ -58,7 +58,7 @@ contract VotingHub is QueryResponse {
     ///         Protocol based on decentralized governance outcomes.
     IGaugeManager public immutable gaugeManager;
     /// @notice The length of one protocol epoch, in seconds.
-    uint256 public immutable epochDuration;
+    uint256 public immutable EPOCH_DURATION;
 
     /// @dev `bytes4(keccak256(bytes("VotingHub__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xef474362;
@@ -82,7 +82,7 @@ contract VotingHub is QueryResponse {
         // Query epoch and token configuration directly to minimize potential
         // human error.
         gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
-        epochDuration = centralRegistry.EPOCH_DURATION();
+        EPOCH_DURATION = centralRegistry.EPOCH_DURATION();
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -276,7 +276,7 @@ contract VotingHub is QueryResponse {
         return
             timestamp < cachedGenesisEpoch
                 ? 0
-                : (timestamp - cachedGenesisEpoch) / epochDuration;
+                : (timestamp - cachedGenesisEpoch) / EPOCH_DURATION;
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -453,7 +453,7 @@ contract VotingHub is QueryResponse {
     ) internal view returns (ChainConfig memory config) {
         config = centralRegistry.chainConfig(chainId);
         // Validate that `chainId` is actually a supported chain.
-        if (config.isSupported < 2) {
+        if (!config.isSupported) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
     }

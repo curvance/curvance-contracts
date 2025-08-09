@@ -12,7 +12,7 @@ contract BridgeTokenTest is TestBaseMessagingHub {
         super.setUp();
 
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 23;
         config.domain = 3;
         config.messagingHub = address(messagingHub);

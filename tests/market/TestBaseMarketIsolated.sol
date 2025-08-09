@@ -782,7 +782,7 @@ contract TestBaseMarketIsolated is TestBase {
     }
 
     function _skipEpochDuration(uint256 numEpochs) internal {
-        skip(rewardManager.epochDuration() * numEpochs);
+        skip(rewardManager.EPOCH_DURATION() * numEpochs);
     }
 
     function _recordEpochRewards(

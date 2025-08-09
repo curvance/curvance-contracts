@@ -96,7 +96,7 @@ contract GaugeManager is
     /// CONSTANTS ///
 
     /// @notice The length of one protocol epoch, in seconds.
-    uint256 public immutable epochDuration;
+    uint256 public immutable EPOCH_DURATION;
 
     /// @dev `bytes4(keccak256(bytes("GaugeManager__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x38b10c24;
@@ -163,7 +163,7 @@ contract GaugeManager is
     constructor(ICentralRegistry cr) PluginDelegable(cr) {
         // Query epoch and token configuration directly to minimize potential
         // human error.
-        epochDuration = centralRegistry.EPOCH_DURATION();
+        EPOCH_DURATION = centralRegistry.EPOCH_DURATION();
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -488,14 +488,14 @@ contract GaugeManager is
         }
 
         // If its currently during the genesis epoch, epochOfTimestamp will
-        // round down by dividing then multiplying by `epochDuration`, setting
+        // round down by dividing then multiplying by `EPOCH_DURATION`, setting
         // startTime equal to `genesisEpoch` otherwise,
         // it will append on additional epochs if this is a fresh chain
         // deployment starting after the genesis epoch.
         _startTime =
             genesisEpoch +
-            (((block.timestamp - genesisEpoch) / epochDuration) *
-                epochDuration);
+            (((block.timestamp - genesisEpoch) / EPOCH_DURATION) *
+                EPOCH_DURATION);
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -519,7 +519,7 @@ contract GaugeManager is
         return
             timestamp < cachedGenesisEpoch
                 ? 0
-                : (timestamp - cachedGenesisEpoch) / epochDuration;
+                : (timestamp - cachedGenesisEpoch) / EPOCH_DURATION;
     }
 
     /// @notice Returns the timestamp of when the gauge system begins.
@@ -538,14 +538,14 @@ contract GaugeManager is
         }
 
         // If its currently during the genesis epoch, epochOfTimestamp will
-        // round down by dividing then multiplying by `epochDuration`, setting
+        // round down by dividing then multiplying by `EPOCH_DURATION`, setting
         // startTime equal to `genesisEpoch` otherwise,
         // it will append on additional epochs if this is a fresh chain
         // deployment starting after the genesis epoch.
         return
             genesisEpoch +
-            (((block.timestamp - genesisEpoch) / epochDuration) *
-                epochDuration);
+            (((block.timestamp - genesisEpoch) / EPOCH_DURATION) *
+                EPOCH_DURATION);
     }
 
     /// @notice Returns start time of `epoch`.
@@ -553,7 +553,7 @@ contract GaugeManager is
     /// @return The start time of the epoch.
     function epochStartTime(uint256 epoch) public view returns (uint256) {
         _checkGaugeHasStarted();
-        return _genesisEpoch() + (epoch * epochDuration);
+        return _genesisEpoch() + (epoch * EPOCH_DURATION);
     }
 
     /// @notice Returns end time of `epoch`.
@@ -561,7 +561,7 @@ contract GaugeManager is
     /// @return The end time of the epoch.
     function epochEndTime(uint256 epoch) public view returns (uint256) {
         _checkGaugeHasStarted();
-        return _genesisEpoch() + ((epoch + 1) * epochDuration);
+        return _genesisEpoch() + ((epoch + 1) * EPOCH_DURATION);
     }
 
     /// @notice Returns if given gauge token is enabled in `epoch`.
@@ -701,7 +701,7 @@ contract GaugeManager is
                 (RAY *
                     (endTimestamp - lastRewardTimestamp) *
                     rewardAllocation(token, lastEpoch)) /
-                epochDuration;
+                EPOCH_DURATION;
             accRewardPerShare = accRewardPerShare + (reward / totalDeposited);
 
             ++lastEpoch;
@@ -713,7 +713,7 @@ contract GaugeManager is
             (RAY *
                 (block.timestamp - lastRewardTimestamp) *
                 rewardAllocation(token, lastEpoch)) /
-            epochDuration;
+            EPOCH_DURATION;
 
         return accRewardPerShare + reward / totalDeposited;
     }

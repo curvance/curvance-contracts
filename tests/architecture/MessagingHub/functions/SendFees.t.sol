@@ -6,16 +6,14 @@ import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
-import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
 contract SendFeesTest is TestBaseMessagingHub {
-    using stdStorage for StdStorage;
 
     function setUp() public override {
         super.setUp();
 
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 23;
         config.domain = 3;
         config.messagingHub = address(this);
@@ -45,12 +43,7 @@ contract SendFeesTest is TestBaseMessagingHub {
     }
 
     function test_sendFees_fail_whenChainIdIsNotSupported() public {
-        stdstore
-            .target(address(centralRegistry))
-            .sig("chainConfig(uint256)")
-            .with_key(42161)
-            .depth(0)
-            .checked_write(1);
+        centralRegistry.removeChain(42161, address(this), address(this));
 
         vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
         messagingHub.sendFees(42161, 10e6, 0);
