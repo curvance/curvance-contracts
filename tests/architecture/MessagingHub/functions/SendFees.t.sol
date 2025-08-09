@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
+
+import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
 contract SendFeesTest is TestBaseMessagingHub {
@@ -11,16 +14,18 @@ contract SendFeesTest is TestBaseMessagingHub {
     function setUp() public override {
         super.setUp();
 
-        centralRegistry.addChainSupport(
-            address(this),
-            address(this),
-            address(cve),
-            _USDC_ADDRESS,
-            42161,
-            23,
-            makeAddr("Wormhole Relayer"),
-            3
-        );
+        ChainConfig memory config;
+        config.isSupported = 2;
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = address(this);
+        config.votingHub = address(this);
+        config.cveAddress = address(cve);
+        config.feeTokenAddress = _USDC_ADDRESS;
+        config.crosschainRelayer = makeAddr("Wormhole Relayer");
+
+        // Support chainId 42161.
+        centralRegistry.addChain(42161, config);
     }
 
     function test_sendFees_fail_whenMessagingHubIsPaused() public {
@@ -42,7 +47,7 @@ contract SendFeesTest is TestBaseMessagingHub {
     function test_sendFees_fail_whenChainIdIsNotSupported() public {
         stdstore
             .target(address(centralRegistry))
-            .sig("supportedChainData(uint256)")
+            .sig("chainConfig(uint256)")
             .with_key(42161)
             .depth(0)
             .checked_write(1);

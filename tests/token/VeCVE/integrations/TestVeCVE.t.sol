@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
+
+import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+
+import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 
 contract TestVeCVE is TestBaseVeCVE {
     event Locked(address indexed user, uint256 amount);
@@ -16,16 +19,18 @@ contract TestVeCVE is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        centralRegistry.addChainSupport(
-            address(messagingHub),
-            address(votingHub),
-            address(cve),
-            _USDC_ADDRESS,
-            42161,
-            23,
-            makeAddr("Wormhole Relayer"),
-            3
-        );
+        ChainConfig memory config;
+        config.isSupported = 2;
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = address(messagingHub);
+        config.votingHub = address(votingHub);
+        config.cveAddress = address(cve);
+        config.feeTokenAddress = _USDC_ADDRESS;
+        config.crosschainRelayer = makeAddr("Wormhole Relayer");
+
+        // Support chainId 42161.
+        centralRegistry.addChain(42161, config);
 
         _prepareUSDC(address(rewardManager), 1000e6);
         _prepareCVE(address(this), 100e18);

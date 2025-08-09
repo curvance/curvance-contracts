@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseVotingHub } from "../TestBaseVotingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
+
 import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
-import { WormholeMock } from "tests/utils/WormholeMock.sol";
+import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
+
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
+
+import { TestBaseVotingHub } from "../TestBaseVotingHub.sol";
+import { WormholeMock } from "tests/utils/WormholeMock.sol";
 
 // Explicit public function testing
 contract VotingHubPublicFunctionsTest is TestBaseVotingHub {
@@ -25,16 +29,18 @@ contract VotingHubPublicFunctionsTest is TestBaseVotingHub {
 
         _init();
 
-        centralRegistry.addChainSupport(
-            srcMessagingHub,
-            srcVotingHub,
-            address(cve),
-            _USDC_ADDRESSES[42161],
-            42161,
-            23,
-            makeAddr("Wormhole Relayer"),
-            3
-        );
+        ChainConfig memory config;
+        config.isSupported = 2;
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = srcMessagingHub;
+        config.votingHub = srcVotingHub;
+        config.cveAddress = address(cve);
+        config.feeTokenAddress = _USDC_ADDRESSES[42161];
+        config.crosschainRelayer = makeAddr("Wormhole Relayer");
+
+        // Support chainId 42161.
+        centralRegistry.addChain(42161, config);
 
         deal(address(messagingHub), _ONE);
 

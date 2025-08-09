@@ -35,16 +35,18 @@ contract BridgeTest is TestBaseMarketIsolated {
     }
 
     function test_bridge_success() public {
-        centralRegistry.addChainSupport(
-            address(messagingHub),
-            address(votingHub),
-            address(cve),
-            _USDC_ADDRESS,
-            42161,
-            23,
-            makeAddr("Wormhole Relayer"),
-            3
-        );
+        ChainConfig memory config;
+        config.isSupported = 2;
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = address(messagingHub);
+        config.votingHub = address(votingHub);
+        config.cveAddress = address(cve);
+        config.feeTokenAddress = _USDC_ADDRESS;
+        config.crosschainRelayer = makeAddr("Wormhole Relayer");
+
+        // Support chainId 42161.
+        centralRegistry.addChain(42161, config);
 
         uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 

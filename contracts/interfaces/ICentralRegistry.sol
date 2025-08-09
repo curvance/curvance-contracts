@@ -8,22 +8,22 @@ pragma solidity ^0.8.26;
 /// @param isSupported Whether the chain is supported or not.
 ///                    2 = yes
 ///                    0 or 1 = no
+/// @param messagingChainId Messaging Chain ID where this address authorized.
+/// @param domain Domain for the chain.
 /// @param messagingHub Messaging Hub address on the chain.
 /// @param votingHub Voting Hub address on the chain.
 /// @param cveAddress CVE address on the chain.
 /// @param feeTokenAddress Fee token address on the chain.
-/// @param messagingChainId Messaging Chain ID where this address authorized.
 /// @param crosschainRelayer Crosschain relayer address on the chain.
-/// @param domain Domain for the chain.
-struct ChainData {
-    uint256 isSupported;
+struct ChainConfig {
+    uint8 isSupported;
+    uint16 messagingChainId;
+    uint32 domain;
     address messagingHub;
     address votingHub;
     address cveAddress;
     address feeTokenAddress;
-    uint16 messagingChainId;
     address crosschainRelayer;
-    uint32 domain;
 }
 
 interface ICentralRegistry {
@@ -170,9 +170,9 @@ interface ICentralRegistry {
 
     /// @notice Returns whether a particular GETH chainId is supported.
     /// ChainId => messagingHub address, 2 = supported; 1 = unsupported.
-    function supportedChainData(
+    function chainConfig(
         uint256 chainId
-    ) external view returns (ChainData memory);
+    ) external view returns (ChainConfig memory);
 
     // Messaging specific ChainId => GETH comparable ChainId.
     function messagingToGETHChainId(

@@ -8,7 +8,7 @@ import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICentralRegistry, ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -175,7 +175,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     uint256[] internal _foreignChainIds;
     
     /// @notice ChainId => 2 = supported; 1 = unsupported.
-    mapping(uint256 => ChainData) public supportedChainData;
+    mapping(uint256 => ChainConfig) public chainConfig;
     /// @notice Messaging ChainId => GETH ChainId.
     mapping(uint16 => uint256) public messagingToGETHChainId;
     /// @notice GETH ChainId => Messaging ChainId.
@@ -260,7 +260,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         bool isAdded
     );
     event DomainSet(uint32 newDomain);
-    event NewChainAdded(uint256 chainId, address relayer);
+    event NewChain(uint256 chainId, ChainConfig config);
     event RemovedChain(uint256 chainId, address messagingHub, address votingHub);
     event CalldataCheckerSet(
         string indexed calldataType,
@@ -1128,96 +1128,97 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Adds support for a new chain.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Emits a {NewChainAdded} event.
-    /// @param remoteMessagingHub Address for new chain's Messaging Hub.
-    /// @param remoteVotingHub Address for new chain's Voting Hub.
-    /// @param feeTokenAddress Fee token address on the chain.
-    /// @param cveAddress CVE address on the chain.
-    /// @param chainId GETH Chain ID where this address authorized.
-    /// @param messagingChainId Messaging Chain ID where this address
+    /// @param chainId GETH Chain ID of the chain to support.
+    /// @param config ChainConfig struct for new chain to support.
+    ///               Containing:
+    ///               messagingChainId Messaging Chain ID where this address
     ///                         authorized.
-    /// @param relayer Crosschain relayer address on the chain.
-    /// @param chainDomain Domain for the chain.
-    function addChainSupport(
-        address remoteMessagingHub,
-        address remoteVotingHub,
-        address cveAddress,
-        address feeTokenAddress,
+    ///               domain Domain for the chain.
+    ///               messagingHub Address for new chain's Messaging Hub.
+    ///               votingHub Address for new chain's Voting Hub.
+    ///               cveAddress CVE address on the chain.
+    ///               feeTokenAddress Fee token address on the chain.
+    ///               crosschainRelayer Crosschain relayer address on the chain.
+    function addChain(
         uint256 chainId,
-        uint16 messagingChainId,
-        address relayer,
-        uint32 chainDomain
+        ChainConfig memory config
     ) external {
         _checkElevatedPermissions();
 
         // Validate this "new" chain is not currently supported.
-        if (supportedChainData[chainId].isSupported == 2) {
+        if (chainConfig[chainId].isSupported == 2) {
             revert CentralRegistry__InvalidParameter();
         }
 
-        supportedChainData[chainId] = ChainData({
-            isSupported: 2,
-            messagingHub: remoteMessagingHub,
-            votingHub: remoteVotingHub,
-            cveAddress: cveAddress,
-            feeTokenAddress: feeTokenAddress,
-            messagingChainId: messagingChainId,
-            crosschainRelayer: relayer,
-            domain: chainDomain
-        });
+        // Validate `config` is configured properly to support `chainId`.
+        if (config.isSupported != 2) {
+            revert CentralRegistry__InvalidParameter();
+        }
 
-        messagingToGETHChainId[messagingChainId] = chainId;
-        GETHToMessagingChainId[chainId] = messagingChainId;
+        chainConfig[chainId] = config;
+        
+        messagingToGETHChainId[config.messagingChainId] = chainId;
+        GETHToMessagingChainId[chainId] = config.messagingChainId;
         ++supportedChains;
         _foreignChainIds.push(chainId);
 
-        emit NewChainAdded(chainId, relayer);
+        emit NewChain(chainId, config);
     }
 
     /// @notice Removes support for a chain.
     /// @dev Callable by an address with DAO Authority or higher.
     ///      Emits a {RemovedChain} event.
+    /// @param chainId GETH Chain ID where `currentMessagingHub` is
+    ///                authorized.
     /// @param expectedMessagingHub Expected Address for `chainId` Messaging
     ///                             Hub.
     /// @param expectedVotingHub Expected Address for `chainId` Voting Hub.
-    /// @param chainId GETH Chain ID where `currentMessagingHub` is
-    ///                authorized.
-    function removeChainSupport(
+    function removeChain(
+        uint256 chainId,
         address expectedMessagingHub,
-        address expectedVotingHub,
-        uint256 chainId
+        address expectedVotingHub
     ) external {
         // Lower permissioning on removing chains as it will reduce risk to
         // the system.
         _checkDaoPermissions();
 
-        ChainData memory chainDataToRemove = supportedChainData[chainId];
+        ChainConfig memory c = chainConfig[chainId];
 
-        // Validate that `expectedMessagingHub` is currently supported.
-        if (chainDataToRemove.messagingHub != expectedMessagingHub) {
-            revert CentralRegistry__InvalidParameter();
-        }
-
-        // Validate that `expectedVotingHub` is currently supported.
-        if (chainDataToRemove.votingHub != expectedVotingHub) {
-            revert CentralRegistry__InvalidParameter();
-        }
-
-        // Validate that `chainId` is currently supported.
-        if (chainDataToRemove.isSupported < 2) {
+        // Validate that `chainId` is currently supported and parameters
+        // are correct.
+        if (
+            c.isSupported < 2 ||
+            c.messagingHub != expectedMessagingHub ||
+            c.votingHub != expectedVotingHub
+        ) {
             revert CentralRegistry__InvalidParameter();
         }
 
         // Remove chain support from protocol.
-        supportedChainData[chainId].isSupported = 1;
+        delete chainConfig[chainId];
         // Decrease supportedChains.
         --supportedChains;
         // Remove messagingChainId <> GETH chainId mapping table references.
         delete GETHToMessagingChainId[
-            messagingToGETHChainId[chainDataToRemove.messagingChainId]
+            messagingToGETHChainId[c.messagingChainId]
         ];
-        delete messagingToGETHChainId[chainDataToRemove.messagingChainId];
+        delete messagingToGETHChainId[c.messagingChainId];
 
-        _removeForeignChainId(chainId);
+        uint256 numForeignChainIds = _foreignChainIds.length;
+        uint256 i;
+        for (; i < numForeignChainIds; ++i) {
+            if (_foreignChainIds[i] == chainId) {
+                break;
+            }
+        }
+
+        numForeignChainIds--;
+
+        for (; i < numForeignChainIds; ++i) {
+            _foreignChainIds[i] = _foreignChainIds[i + 1];
+        }
+
+        _foreignChainIds.pop();
         emit RemovedChain(chainId, expectedMessagingHub, expectedVotingHub);
     }
 
@@ -1352,27 +1353,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
     }
 
     /// INTERNAL FUNCTIONS ///
-
-    /// @notice Remove Chain ID from foreign chain id array.
-    /// @param chainId Chain ID to remove.
-    function _removeForeignChainId(uint256 chainId) internal {
-        uint256 i;
-        uint256 numForeignChainIds = _foreignChainIds.length;
-
-        for (; i < numForeignChainIds; ++i) {
-            if (_foreignChainIds[i] == chainId) {
-                break;
-            }
-        }
-
-        numForeignChainIds--;
-
-        for (; i < numForeignChainIds; ++i) {
-            _foreignChainIds[i] = _foreignChainIds[i + 1];
-        }
-
-        _foreignChainIds.pop();
-    }
 
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
     ///         to WAD.
