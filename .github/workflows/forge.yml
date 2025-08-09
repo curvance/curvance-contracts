@@ -11,6 +11,7 @@ jobs:
       ETH_NODE_URI_OPTIMISM: ${{ secrets.ETH_NODE_URI_OPTIMISM }}
       ETH_NODE_URI_POLYGON: ${{ secrets.ETH_NODE_URI_POLYGON }}
       ETH_NODE_URI_BASE: ${{ secrets.ETH_NODE_URI_BASE }}
+      ETH_NODE_URI_MONAD: ${{ secrets.ETH_NODE_URI_MONAD }}
     steps:
       - uses: actions/checkout@v3
         with:

@@ -5,6 +5,8 @@ import { Api3Adaptor } from "contracts/oracles/adaptors/api3/Api3Adaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract TestApi3Adaptor is TestBaseOracleManager {
@@ -17,6 +19,7 @@ contract TestApi3Adaptor is TestBaseOracleManager {
     function setUp() public override {
         _fork("ETH_NODE_URI_ARBITRUM", 174096479);
 
+        
         _deployCentralRegistry();
         _deployOracleManager();
 
@@ -24,13 +27,15 @@ contract TestApi3Adaptor is TestBaseOracleManager {
             ICentralRegistry(address(centralRegistry))
         );
 
-        adaptor = new Api3Adaptor(ICentralRegistry(address(centralRegistry)));
+        adaptor = new Api3Adaptor(ICentralRegistry(
+            address(centralRegistry))
+        );
         adaptor.addAsset(
             _ARB_ADDRESS,
-            _ARB_TICKER,
+            true,
             _DAPI_PROXY_ARB_USD,
             0,
-            true
+            _ARB_TICKER
         );
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
@@ -50,7 +55,7 @@ contract TestApi3Adaptor is TestBaseOracleManager {
     }
 
     function testRevertGetPrice__AssetIsNotSupported() public {
-        vm.expectRevert(Api3Adaptor.Api3Adaptor__AssetIsNotSupported.selector);
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector);
         adaptor.getPrice(_USDC_ADDRESS, true, false);
     }
 
@@ -66,10 +71,10 @@ contract TestApi3Adaptor is TestBaseOracleManager {
         vm.expectRevert(Api3Adaptor.Api3Adaptor__InvalidHeartbeat.selector);
         adaptor.addAsset(
             _ARB_ADDRESS,
-            _ARB_TICKER,
+            true,
             _DAPI_PROXY_ARB_USD,
             1 days + 1,
-            true
+            _ARB_TICKER
         );
     }
 
@@ -77,25 +82,25 @@ contract TestApi3Adaptor is TestBaseOracleManager {
         vm.expectRevert(Api3Adaptor.Api3Adaptor__DAPINameHashError.selector);
         adaptor.addAsset(
             _ARB_ADDRESS,
-            "ARB/USDC",
+            true,
             _DAPI_PROXY_ARB_USD,
             0,
-            true
+            "ARB/USDC"
         );
     }
 
     function testCanAddSameAsset() public {
         adaptor.addAsset(
             _ARB_ADDRESS,
-            _ARB_TICKER,
+            false,
             _DAPI_PROXY_ARB_USD,
             0,
-            false
+            _ARB_TICKER
         );
     }
 
     function testRevertRemoveAsset__AssetIsNotSupported() public {
-        vm.expectRevert(Api3Adaptor.Api3Adaptor__AssetIsNotSupported.selector);
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector);
         adaptor.removeAsset(address(0));
     }
 

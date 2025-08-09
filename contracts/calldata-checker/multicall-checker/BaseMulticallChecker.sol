@@ -1,25 +1,62 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
+
+import { BaseCalldataChecker } from "contracts/calldata-checker/BaseCalldataChecker.sol";
+
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
-import { BaseCallDataChecker } from "contracts/calldata-checker/BaseCallDataChecker.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 
+/// @title BaseMulticallChecker
+/// @notice A base contract for validating multicall operations related to oracle price updates
+/// @dev This abstract contract serves as the foundation for protocol-specific oracle 
+///      validation. It inherits from IMulticallChecker and BaseCalldataChecker to provide:
+///      
+///      1. A standardized interface for all multicall checkers
+///      2. Access to core calldata examination utilities
+///      3. A reference to the central registry for protocol-wide verification
+///      
+///      The primary purpose of multicall checkers is to secure oracle price updates by:
+///      - Verifying the target contract is an approved oracle adaptor
+///      - Validating the function signature being called is appropriate
+///      - Ensuring all parameters match expected values
+///      
+///      This security layer prevents:
+///      - Malicious price manipulations through unauthorized oracle adaptors
+///      - Calls to unintended functions within oracle adaptors
+///      - Improperly formatted calldata
+///      
+///      Specific implementations like RedstoneAdaptorMulticallChecker and 
+///      PythAdaptorMulticallChecker extend this base contract to provide 
+///      oracle-specific validation logic.
+///      
+///      The Multicall library uses these checkers when processing price updates
+///      before liquidity-dependent actions.
+///
 abstract contract BaseMulticallChecker is
     IMulticallChecker,
-    BaseCallDataChecker
-{
+    BaseCalldataChecker
+{  
     /// ERRORS ///
+
     error MulticallChecker__TargetError();
     error MulticallChecker__InvalidFuncSig();
     error MulticallChecker__InvalidCalldata();
 
     /// STORAGE ///
-    address public centralRegistry;
+
+    /// @notice Curvance DAO hub.
+    ICentralRegistry public immutable centralRegistry;
 
     /// CONSTRUCTOR ///
 
-    constructor(address _centralRegistry) {
-        centralRegistry = _centralRegistry;
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -34,4 +71,23 @@ abstract contract BaseMulticallChecker is
         address target,
         bytes memory data
     ) external virtual override;
+
+    /// INTERNAL FUNCTIONS ///
+
+    function _checkIsApprovedAdaptor(
+        address adaptor,
+        uint256 adaptorType
+    ) internal view {
+        // Validate that `adaptor` is approved inside the Oracle Manager.
+        if (!CommonLib._oracleManager(centralRegistry)
+                .isApprovedAdaptor(adaptor)
+        ) {
+            revert MulticallChecker__TargetError();
+        }
+
+        // Validate that `adaptor` is the expected adaptor type.
+        if (IOracleAdaptor(adaptor).adaptorType() != adaptorType) {
+            revert MulticallChecker__TargetError();
+        }
+    }
 }

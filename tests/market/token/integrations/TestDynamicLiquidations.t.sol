@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import "tests/market/TestBaseMarket.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
-contract TestDynamicLiquidations is TestBaseMarket {
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { console2 } from "forge-std/console2.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+contract TestDynamicLiquidations is TestBaseMarketIsolated {
     address public owner;
 
-    MockDataFeed public mockDaiFeed;
-    MockDataFeed public mockWethFeed;
-    MockDataFeed public mockRethFeed;
+    uint256 lFactorsPreLiquidation;
 
     receive() external payable {}
 
@@ -22,38 +24,43 @@ contract TestDynamicLiquidations is TestBaseMarket {
 
         // use mock pricing for testing
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            true,
+            address(mockDaiFeed),
+            0
+        );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
+            true,
             address(mockDaiFeed),
-            0,
-            true
+            0
         );
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            false,
             address(mockRethFeed),
-            0,
-            false
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            false,
             address(mockRethFeed),
-            0,
-            false
+            0
         );
 
         // start epoch
@@ -67,37 +74,24 @@ contract TestDynamicLiquidations is TestBaseMarket {
         (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
 
-        // deploy eDAI
+        // Setup borrowable CDAI.
         {
             _prepareDAI(owner, 200000e18);
-            dai.approve(address(eDAI), 200000e18);
-            marketManager.listToken(address(eDAI));
-            // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(eDAI));
+            dai.approve(address(borrowableCDAI), 200000e18);
+            
         }
 
-        // deploy PBALRETH
+        // Setup strategyCBALRETH.
         {
-            // support market
             _prepareBALRETH(owner, 1 ether);
-            balRETH.approve(address(pBALRETH), 1 ether);
-            marketManager.listToken(address(pBALRETH));
-            // set collateral factor
-            marketManager.updatePositionToken(
-                address(pBALRETH),
-                7000,
-                4000,
-                3000,
-                200,
-                400,
-                1000
-            );
-            address[] memory tokens = new address[](1);
-            tokens[0] = address(pBALRETH);
-            uint256[] memory caps = new uint256[](1);
-            caps[0] = 100_000e18;
-            marketManager.setPTokenCollateralCaps(tokens, caps);
+            balRETH.approve(address(strategyCBALRETH), 1 ether);
+
         }
+
+        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
+
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100e18, 0);
+        _setCTokenConfigBasic(address(borrowableCDAI), 100e18, 100_000e18);
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();
@@ -107,30 +101,30 @@ contract TestDynamicLiquidations is TestBaseMarket {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 200000e18);
         _prepareBALRETH(liquidityProvider, 10 ether);
-        // mint eDAI
+        // Mint borrowable cDAI.
         vm.startPrank(liquidityProvider);
-        dai.approve(address(eDAI), 200000 ether);
-        eDAI.mint(200000 ether);
-        // mint cBALETH
-        balRETH.approve(address(pBALRETH), 10 ether);
-        pBALRETH.deposit(10 ether, liquidityProvider);
+        dai.approve(address(borrowableCDAI), 200000 ether);
+        borrowableCDAI.mint(200000 ether, liquidityProvider);
+        // Mint cBALETH.
+        balRETH.approve(address(strategyCBALRETH), 10 ether);
+        strategyCBALRETH.deposit(10 ether, liquidityProvider);
         vm.stopPrank();
     }
 
-    function testLiquidateRevertWhenBelowColReqA() public {
+    function testLiquidateRevertWhenBelowColReq() public {
         _prepareBALRETH(user1, 1 ether);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(pBALRETH), 1 ether);
-        pBALRETH.deposit(1 ether, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 1 ether - 1);
+        balRETH.approve(address(strategyCBALRETH), 1 ether);
+        strategyCBALRETH.deposit(1 ether, user1);
+        strategyCBALRETH.postCollateral(1 ether - 1);
 
         // try borrow()
-        eDAI.borrow(1000 ether);
+        borrowableCDAI.borrow(1000 ether, user1);
         vm.stopPrank();
 
-        // skip min hold period
+        // skip sec hold period
         skip(900);
 
         (uint256 balRETHPrice, ) = oracleManager.getPrice(
@@ -140,7 +134,7 @@ contract TestDynamicLiquidations is TestBaseMarket {
         );
 
         // adjust dai price, a bit lower than colReqA
-        // 1000 dai > 1 pBALRETH / colReqA
+        // 1000 dai > 1 strategyCBALRETH / colReqA
         mockDaiFeed.setMockAnswer(
             int256(
                 (balRETHPrice * 1 ether * 1e8) / 1000 ether / 1.4 ether - 100
@@ -148,51 +142,85 @@ contract TestDynamicLiquidations is TestBaseMarket {
         );
 
         vm.expectRevert(
-            MarketManager.MarketManager__NoLiquidationAvailable.selector
+            MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
         );
-        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = user1;
+        uint256[] memory debtAmounts = new uint256[](1);
+        debtAmounts[0] = 250 ether;
+
+        borrowableCDAI.liquidateExact(
+            debtAmounts, 
+            accounts,
+            address(strategyCBALRETH));
     }
 
-    function testLiquidateWorksWhenAboveColReqA() public {
+    function testLiquidateWorksWhenAboveColReq() public {
         _prepareBALRETH(user1, 1 ether);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(pBALRETH), 1 ether);
-        pBALRETH.deposit(1 ether, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 1 ether - 1);
+        balRETH.approve(address(strategyCBALRETH), 1 ether);
+        strategyCBALRETH.deposit(1 ether, user1);
+        strategyCBALRETH.postCollateral(1 ether - 1);
 
         // try borrow()
-        eDAI.borrow(1000 ether);
+        borrowableCDAI.borrow(1000 ether, user1);
         vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
 
-        (uint256 balRETHPrice, ) = oracleManager.getPrice(
-            address(balRETH),
-            true,
-            true
-        );
-
         mockDaiFeed.setMockAnswer(200000000);
+
+        ExpectedLiquidationValues memory expectedLiqValues = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: user1,
+                collateralToken: address(strategyCBALRETH),
+                borrowedToken: address(borrowableCDAI),
+                isLiquidateExact: true,
+                liquidateExactAmount: 250 ether,
+                isAuction: false,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            })
+        );
 
         // try liquidate half
         _prepareDAI(user2, 250 ether);
         vm.startPrank(user2);
-        dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
+        dai.approve(address(borrowableCDAI), 250 ether);
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = user1;
+        uint256[] memory debtAmounts = new uint256[](1);
+        debtAmounts[0] = 250 ether;
+        
+        borrowableCDAI.liquidateExact(
+            debtAmounts, 
+            accounts,
+            address(strategyCBALRETH)
+        );
         vm.stopPrank();
 
-        assertApproxEqRel(
-            pBALRETH.balanceOf(user1),
-            1 ether - (500 ether * 1 ether) / balRETHPrice,
-            0.02e18
-        );
-        assertEq(pBALRETH.exchangeRateCached(), 1 ether);
+        uint256 borrowerCollateralAfter = strategyCBALRETH.balanceOf(user1);
+        uint256 expectedBorrowerCollateralAfter = (1 ether) - expectedLiqValues.collateralLiquidated;
 
-        assertEq(eDAI.balanceOf(user1), 0);
-        assertApproxEqRel(eDAI.debtBalanceCached(user1), 750 ether, 0.01e18);
-        assertApproxEqRel(eDAI.exchangeRateCached(), 1 ether, 0.01e18);
+        console2.log("borrowerCollateralAfter", borrowerCollateralAfter);
+        console2.log("expectedBorrowerCollateralAfter", expectedBorrowerCollateralAfter);
+        
+        assertApproxEqAbs(
+            borrowerCollateralAfter,
+            expectedBorrowerCollateralAfter,
+            1000,
+            "Borrower collateral should be reduced by liquidatedPTokens"
+        );
+
+        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
+
+        assertEq(borrowableCDAI.balanceOf(user1), 0);
+        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 1000 ether - (expectedLiqValues.badDebt + 250 ether), 0.01e18, "something funky");
+        assertApproxEqRel(borrowableCDAI.exchangeRateUpdated(), 1 ether, 0.01e18);
     }
 }

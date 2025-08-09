@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.26;
 
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";

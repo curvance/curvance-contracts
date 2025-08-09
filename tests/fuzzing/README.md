@@ -202,7 +202,7 @@
 
 | ID         | Property                                                                                                                        | Result |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| S-MARKET-1 | A user’s pToken balance must always be greater than the total collateral posted for a pToken.                                   | Passed |
+| S-MARKET-1 | A user’s cToken balance must always be greater than the total collateral posted for a pToken.                                   | Passed |
 | S-MARKET-2 | Market collateral posted of 0 for a token should have collateral posted for a token to be equivalent to the max collateral cap. | Passed |
 | S-MARKET-3 | Market collateral posted should always be less than max collateralCap for a non-zero collateral cap.                            | Passed |
 | S-MARKET-4 | The total supply of a token should never go down to zero once it has been listed.                                               | Passed |
@@ -213,9 +213,9 @@
 
 | ID     | Property                                                                                                          | Result |
 | ------ | ----------------------------------------------------------------------------------------------------------------- | ------ |
-| LIQ-1  | The baseCFactor must be bound between MIN_BASE_CFACTOR and MAX_BASE_CFACTOR                                       | Passed |
+| LIQ-1  | The closeFactorBase must be bound between MIN_BASE_CFACTOR and MAX_BASE_CFACTOR                                       | Passed |
 | LIQ-2  | The lFactor must be bound between 1 and WAD.                                                                      | Passed |
-| LIQ-3  | The resulting cFactor be bound between baseCFactor and WAD                                                        | Passed |
+| LIQ-3  | The resulting cFactor be bound between closeFactorBase and WAD                                                        | Passed |
 | LIQ-4  | The liqBaseIncentive must be bound between MIN_LIQUIDATION_INCENTIVE and MAX_LIQUIDATION_INCENTIVE                | Passed |
 | LIQ-5  | The resulting incentive must be bound between MIN_LIQUIDATION_INCENTIVE and MAX_LIQUIDATION_INCENTIVE             | Passed |
 | LIQ-6  | If cfactor is equivalent to 0, maxAmount should be equal to the 0.                                                | Passed |
@@ -223,7 +223,7 @@
 | LIQ-8  | If cfactor is bound between 0 and WAD, non-inclusive, the maxAmount is bound between 0, debtBalanceCached.        | Passed |
 | LIQ-9  | If the position token has less decimals than the debt token, amountAdjusted should be less than the debt balance. | Passed |
 | LIQ-10 | If the position token has more decimals than the debt token, amountAdjusted > debtBalanceCached.                  | Passed |
-| LIQ-11 | If position token decimals has less decimals than the earnTokenDecimals, amountAdjusted < debtBalanceCached.      | Passed |
+| LIQ-11 | If position token decimals has less decimals than the debtTokenDecimals, amountAdjusted < debtBalanceCached.      | Passed |
 | LIQ-12 | If amountAdjusted==0, tokens to be liquidated should be equal to 0.                                               | Passed |
 | LIQ-13 | If debtToCollateralRatio==0, tokens to be liquidated should be equal to 0.                                        | Passed |
 
@@ -233,8 +233,8 @@
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
 | DTOK-1  | Calling EToken.mint should succeed with correct preconditions.                                                                                                                       | Passed |
 | DTOK-2  | Underlying balance for sender EToken should decrease by amount after minting EToken.                                                                                                 | Passed |
-| DTOK-3  | Balance of the recipient after minting EToken should increase by amount \* WAD/exchangeRateCached()                                                                                  | Passed |
-| DTOK-4  | EToken totalSupply should increase by amount \* WAD/exchangeRateCached() after calling EToken mint.                                                                                  | Passed |
+| DTOK-3  | Balance of the recipient after minting EToken should increase by amount \* WAD/exchangeRate()                                                                                  | Passed |
+| DTOK-4  | EToken totalSupply should increase by amount \* WAD/exchangeRate() after calling EToken mint.                                                                                  | Passed |
 | DTOK-5  | The borrow function should succeed with proper preconditions, when not accruing interest.                                                                                            | Passed |
 | DTOK-6  | If interest has not accrued, totalBorrows should increase after calling borrow.                                                                                                      | Passed |
 | DTOK-7  | If interest has not accrued, the underlying balance of the caller should increase by amount                                                                                          | Passed |
@@ -307,33 +307,33 @@ Tips and tricks:
     function _check_liquidate_preconditions(
         address account,
         address eToken,
-        address positionToken
+        address collateralToken
     ) internal view {
         _isSupportedEToken(eToken);
         require(account != msg.sender);
         require(marketManager.isListed(eToken));
         require(
             EToken(eToken).marketManager() ==
-                EToken(positionToken).marketManager()
+                EToken(collateralToken).marketManager()
         );
-        require(IMToken(positionToken).isPToken());
-        require(marketManager.collateralPosted(positionToken) > 0);
+        require(IMToken(collateralToken).isPToken());
+        require(marketManager.collateralPosted(collateralToken) > 0);
         require(marketManager.seizePaused() != 2);
         (
             uint256 lfactor,
-            uint256 earnTokenPrice,
-            uint256 positionTokenPrice
+            uint256 debtTokenPrice,
+            uint256 collateralTokenPrice
         ) = marketManager.liquidationStatusOf(
                 account,
                 eToken,
-                positionToken
+                collateralToken
             );
         require(lfactor > 0);
     }
 
     function _bound_liquidate_values(
         uint256 amount,
-        address positionToken
+        address collateralToken
     ) internal returns (uint256 clampedAmount) {
         (
             ,
@@ -345,7 +345,7 @@ Tips and tricks:
             ,
             ,
 
-        ) = marketManager.tokenData(address(positionToken));
+        ) = marketManager.tokenData(address(collateralToken));
         require(collRatio > 0);
         uint256 maxValue = amount * collReqSoft;
         uint256 minValue = amount * collReqHard;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
@@ -24,7 +24,7 @@ contract UniversalBalanceTransferTest is TestBaseUniversalBalance {
     {
         vm.startPrank(user1);
 
-        centralRegistry.setTransferLockStatus(true);
+        centralRegistry.setTransferableStatus(true);
 
         vm.expectRevert(
             UniversalBalance.UniversalBalance__Unauthorized.selector
@@ -113,13 +113,13 @@ contract UniversalBalanceTransferTest is TestBaseUniversalBalance {
 
         vm.stopPrank();
 
-        uint256 redeemAmount = eUSDC.convertToShares(transferAmount);
+        uint256 redeemAmount = borrowableCUSDC.convertToShares(transferAmount);
         uint256 ethBalance = address(universalBalance).balance;
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user2);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, false, true, address(universalBalance));
         emit Withdraw(
             user1,
             user1,
@@ -127,7 +127,7 @@ contract UniversalBalanceTransferTest is TestBaseUniversalBalance {
             transferAmount,
             forceLentRedemption
         );
-        vm.expectEmit();
+        vm.expectEmit(true, true, false, true, address(universalBalance));
         emit Deposit(user1, user2, transferAmount, willLend);
 
         vm.prank(user1);
@@ -162,14 +162,14 @@ contract UniversalBalanceTransferTest is TestBaseUniversalBalance {
 
         if (forceLentRedemption && !willLend) {
             usdcBalance += transferAmount;
-            eUSDCBalance -= redeemAmount;
+            borrowableCUSDCBalance -= redeemAmount;
         } else if (!forceLentRedemption && willLend) {
             usdcBalance -= transferAmount;
-            eUSDCBalance += redeemAmount;
+            borrowableCUSDCBalance += redeemAmount;
         }
 
         assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
-        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(borrowableCUSDC.balanceOf(address(universalBalance)), borrowableCUSDCBalance);
     }
 
     function test_universalBalanceTransfer_fail_whenToAddressIsSelf() public {

@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 // Dynamically tests multiple functions in CentralRegistry that
 // remove a contract from a mapping
-contract BasicRemoveContractsTest is TestBaseMarket {
-    event RemovedCurvanceContract(
-        string indexed contractType,
-        address removedAddress
+contract BasicRemoveContractsTest is TestBaseMarketIsolated {
+    event PermissionsUpdated(
+        string indexed permissionsType,
+        address addressUpdated,
+        bool isAdded
     );
 
     string[] public removeFuncs;
@@ -22,11 +23,28 @@ contract BasicRemoveContractsTest is TestBaseMarket {
 
         removeFuncs = [
             "removeLockingPermissions(address)",
-            "removeHarvester(address)"
+            "removeAuctionPermissions(address)",
+            "removeMarketPermissions(address)",
+            "removeHarvestPermissions(address)"
         ];
-        maps = ["hasLockingPermissions(address)", "isHarvester(address)"];
-        expectedLogs = ["Locking Permissions", "Harvestor"];
-        addFuncs = ["addLockingPermissions(address)", "addHarvester(address)"];
+        maps = [
+            "hasLockingPermissions(address)",
+            "hasAuctionPermissions(address)",
+            "hasMarketPermissions(address)",
+            "hasHarvestPermissions(address)"
+        ];
+        expectedLogs = [
+            "Locking",
+            "Auction",
+            "Market",
+            "Harvest"
+        ];
+        addFuncs = [
+            "addLockingPermissions(address)",
+            "addAuctionPermissions(address)",
+            "addMarketPermissions(address)",
+            "addHarvestPermissions(address)"
+        ];
     }
 
     function test_removeFunc_fail_whenCallerIsNotAuthorized() public {
@@ -77,7 +95,7 @@ contract BasicRemoveContractsTest is TestBaseMarket {
             assertTrue(success);
 
             vm.expectEmit(true, true, true, true);
-            emit RemovedCurvanceContract(expectedLogs[i], user1);
+            emit PermissionsUpdated(expectedLogs[i], user1, false);
             sig = abi.encodeWithSignature(removeFuncs[i], user1);
             (success, ) = address(centralRegistry).call(sig);
             assertTrue(success);

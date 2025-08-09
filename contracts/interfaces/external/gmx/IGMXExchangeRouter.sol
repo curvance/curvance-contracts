@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 interface IGMXExchangeRouter {
     /// TYPES ///
@@ -29,7 +29,7 @@ interface IGMXExchangeRouter {
         uint256 callbackGasLimit;
     }
 
-    /// FUNCTIONS ///
+    /// EXTERNAL FUNCTIONS ///
 
     /// @dev Wraps the specified amount of native tokens into WNT
     ///      then sends the WNT to the specified address.

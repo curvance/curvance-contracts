@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 interface ICurveRemoveLiquidity {
     /// As with balancer re-entry check, we add a maximum

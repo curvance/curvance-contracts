@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
+
+import { RewardManager } from "contracts/architecture/RewardManager.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
-import { RewardManager } from "contracts/architecture/RewardManager.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract RewardManagerDeploymentTest is TestBaseRewardManager {
     function test_rewardManagerDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
         vm.expectRevert(
-            PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
+                .selector
         );
         new RewardManager(ICentralRegistry(address(0)));
     }

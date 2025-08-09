@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache 2
 
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.26;
 
 import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";

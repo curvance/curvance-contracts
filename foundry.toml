@@ -21,8 +21,8 @@ ignored_warnings_from = ["tests", "script", "lib", "node_modules"]
 
 # Sets the concrete solc version to use
 # This overrides the `auto_detect_solc` value
-solc_version = '0.8.19'
-evm_version = 'shanghai'
+solc_version = '0.8.26'
+evm_version = 'cancun'
 auto_detect_solc = false
 
 optimizer = true
@@ -30,3 +30,17 @@ optimizer_runs = 200
 
 # TODO: Remove this once tests are fixed
 allow_internal_expect_revert = true
+
+# Suppress common linting notes
+[profile.lint]
+# Disable specific lint rules to reduce noise
+exclude_lints = [
+    "screaming-snake-case-const",
+    "screaming-snake-case-immutable", 
+    "mixed-case-variable",
+    "mixed-case-function",
+    "pascal-case-struct",
+    "asm-keccak256",
+    "divide-before-multiply",
+    "incorrect-shift"
+]

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
 import { TestBaseFeeManager } from "../TestBaseFeeManager.sol";
 import { FeeManager } from "contracts/architecture/FeeManager.sol";

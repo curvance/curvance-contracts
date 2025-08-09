@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 interface IReader {
     /// TYPES ///
@@ -48,7 +48,7 @@ interface IReader {
         uint256 impactPoolAmount;
     }
 
-    /// FUNCTIONS ///
+    /// EXTERNAL FUNCTIONS ///
 
     function getMarket(
         address dataStore,

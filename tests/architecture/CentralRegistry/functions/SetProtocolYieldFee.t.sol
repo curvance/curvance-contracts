@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetProtocolYieldFeeTest is TestBaseMarket {
+contract SetProtocolYieldFeeTest is TestBaseMarketIsolated {
     function test_setProtocolYieldFee_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 

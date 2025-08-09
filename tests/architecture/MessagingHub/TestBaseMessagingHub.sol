@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestBaseMessagingHub is TestBaseMarket {
+contract TestBaseMessagingHub is TestBaseMarketIsolated {
     function setUp() public virtual override {
         _fork(19140000);
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
@@ -28,7 +28,7 @@ contract UniversalBalanceShiftBalanceTest is TestBaseUniversalBalance {
 
         universalBalance.deposit(1e6, false);
 
-        centralRegistry.setTransferLockStatus(true);
+        centralRegistry.setTransferableStatus(true);
 
         vm.expectRevert(
             UniversalBalance.UniversalBalance__Unauthorized.selector
@@ -122,15 +122,15 @@ contract UniversalBalanceShiftBalanceTest is TestBaseUniversalBalance {
 
         vm.stopPrank();
 
-        uint256 redeemAmount = eUSDC.convertToShares(shiftAmount);
+        uint256 redeemAmount = borrowableCUSDC.convertToShares(shiftAmount);
         uint256 ethBalance = address(universalBalance).balance;
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user1);
 
-        vm.expectEmit();
+        vm.expectEmit(true, true, false, true, address(universalBalance));
         emit Withdraw(user1, user1, user1, shiftAmount, fromLent);
-        vm.expectEmit();
+        vm.expectEmit(true, true, false, true, address(universalBalance));
         emit Deposit(user1, user1, shiftAmount, !fromLent);
 
         vm.prank(user1);
@@ -158,13 +158,13 @@ contract UniversalBalanceShiftBalanceTest is TestBaseUniversalBalance {
 
         if (fromLent) {
             usdcBalance += shiftAmount;
-            eUSDCBalance -= redeemAmount;
+            borrowableCUSDCBalance -= redeemAmount;
         } else {
             usdcBalance -= shiftAmount;
-            eUSDCBalance += redeemAmount;
+            borrowableCUSDCBalance += redeemAmount;
         }
 
         assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
-        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(borrowableCUSDC.balanceOf(address(universalBalance)), borrowableCUSDCBalance);
     }
 }

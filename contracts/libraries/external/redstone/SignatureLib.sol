@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.26;
 
 library SignatureLib {
     uint256 constant ECDSA_SIG_R_BS = 32;

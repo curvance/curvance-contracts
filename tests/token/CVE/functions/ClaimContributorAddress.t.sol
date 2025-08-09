@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CVEBase } from "contracts/token/CVEBase.sol";
 
-contract ClaimContributorAddressTest is TestBaseMarket {
+contract ClaimContributorAddressTest is TestBaseMarketIsolated {
     function test_claimContributorAddress_fail_whenCallerIsNotAuthorized()
         public
     {

@@ -1,14 +1,30 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMessagingHub } from "contracts/interfaces/IMessagingHub.sol";
 
 /// @title CVEBase
-/// @notice Base contract to be inherited by Child CVE, and CVE contracts.
+/// @notice Base contract to be inherited by Curvance Collective Token (CVE) implementations.
+/// @dev This abstract contract provides core functionality for the Curvance ecosystem token:
+///      1. Cross-chain bridging capabilities via the MessagingHub
+///      2. Gauge emission minting for protocol incentives
+///      3. Lock boost token minting for veCVE staking rewards
+///      4. Security controls for authorized operations
+///
+///      The contract is meant to be extended by:
+///      - CVE.sol: The canonical implementation with vesting and allocation logic
+///      - RemoteCVE.sol: Simplified implementation for non-canonical chains
+///
+///      All CVE implementations interact with the following key components:
+///      - CentralRegistry: Central authority for permissions and protocol configuration
+///      - MessagingHub: Handles cross-chain messaging for bridging operations
+///      - VeCVE: Vote-escrow contract for locking CVE tokens
+///
 abstract contract CVEBase is ERC20 {
     /// CONSTANTS ///
 
@@ -42,17 +58,9 @@ abstract contract CVEBase is ERC20 {
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert CVE__ParametersAreInvalid();
-        }
-
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -181,11 +189,13 @@ abstract contract CVEBase is ERC20 {
     /// PUBLIC FUNCTIONS ///
 
     /// @dev Returns the name of the token.
+    /// @return The name of the token.
     function name() public pure override returns (string memory) {
         return "Curvance Collective";
     }
 
     /// @dev Returns the symbol of the token.
+    /// @return The symbol of the token.
     function symbol() public pure override returns (string memory) {
         return "CVE";
     }
@@ -193,16 +203,19 @@ abstract contract CVEBase is ERC20 {
     /// INTERNAL FUNCTIONS ///
 
     /// @dev Returns the current Messaging Hub address.
+    /// @return The current Messaging Hub address.
     function _getMessagingHub() internal view returns (address) {
         return centralRegistry.messagingHub();
     }
 
     /// @dev Returns the current Voting Hub address.
+    /// @return The current Voting Hub address.
     function _getVotingHub() internal view returns (address) {
         return centralRegistry.votingHub();
     }
 
     /// @dev Internal helper for reverting efficiently.
+    /// @param s The selector to revert with.
     function _revert(uint256 s) internal pure {
         /// @solidity memory-safe-assembly
         assembly {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
@@ -25,11 +25,9 @@ abstract contract BalancerBaseAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        IVault balancerVault_
-    ) BaseOracleAdaptor(centralRegistry_) {
-        balancerVault = balancerVault_;
+    /// @param cr The address of central registry.
+    constructor(ICentralRegistry cr, IVault vault) BaseOracleAdaptor(cr) {
+        balancerVault = vault;
     }
 
     /// INTERNAL FUNCTIONS ///

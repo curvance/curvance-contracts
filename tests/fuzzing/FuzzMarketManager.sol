@@ -1,1323 +1,1319 @@
-import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
-import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
-import { OracleManager } from "contracts/oracles/OracleManager.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
-import { FuzzLiquidations } from "tests/fuzzing/stateless/FuzzLiquidations.sol";
-
-contract FuzzMarketManager is FuzzLiquidations {
-    mapping(address => bool) setCollateralValues;
-    // were the collateral caps for a specific mtoken updated
-    mapping(address => bool) collateralCapsUpdated;
-    // has collateral been posted for a specific mtoken
-    mapping(address => bool) postedCollateral;
-    // has the collateral ratio for a specific token been set to zero
-    mapping(address => bool) isCollateralRatioZero;
-
-    constructor() {
-        SafeTransferLib.safeApprove(
-            _USDC_ADDRESS,
-            address(eUSDC),
-            type(uint256).max
-        );
-        SafeTransferLib.safeApprove(
-            _DAI_ADDRESS,
-            address(eDAI),
-            type(uint256).max
-        );
-        SafeTransferLib.safeApprove(
-            _USDC_ADDRESS,
-            address(pUSDC),
-            type(uint256).max
-        );
-        SafeTransferLib.safeApprove(
-            _DAI_ADDRESS,
-            address(pDAI),
-            type(uint256).max
-        );
-        list_token_should_succeed(address(pUSDC));
-    }
-
-    function setup() public {
-        setUpFeeds();
-        marketManager.updatePositionToken(
-            address(pUSDC),
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            1000
-        );
-        setPToken_should_succeed(address(pUSDC), 100_000e18);
-        c_token_deposit(address(pUSDC), 2 * WAD, true);
-        post_collateral_should_succeed(address(pUSDC), WAD * 2 - 1, false);
-    }
-
-    /// @custom:property market-1 Once a new token is listed, marketManager.isListed(mtoken) should return true.
-    /// @custom:precondition mtoken must not already be listed
-    /// @custom:precondition mtoken must be one of: pDAI, pUSDC
-    function list_token_should_succeed(address mtoken) public {
-        uint256 amount = 42069;
-        // require the token is not already listed into the marketManager
-        require(!marketManager.isListed(mtoken));
-
-        require(
-            mtoken == address(pDAI) ||
-                mtoken == address(pUSDC) ||
-                mtoken == address(eDAI) ||
-                mtoken == address(eDAI)
-        );
-        require(_mintAndApprove(IMToken(mtoken).underlying(), mtoken, amount));
-
-        try marketManager.listToken(mtoken) {
-            assertWithMsg(
-                marketManager.isListed(mtoken),
-                "MARKET-1 marketManager.listToken() should succeed"
-            );
-        } catch {
-            assertWithMsg(false, "MARKET-1 failed to list token");
-        }
-    }
-
-    /// @custom:property market-2 A token already added to the marketManager cannot be added again
-    /// @custom:precondition mtoken must already be listed
-    /// @custom:precondition mtoken must be one of: pDAI, pUSDC
-    function list_token_should_fail_if_already_listed(address mtoken) public {
-        // require the token is not already listed into the marketManager
-        require(marketManager.isListed(mtoken));
-
-        require(mtoken == address(pDAI) || mtoken == address(pUSDC));
-
-        try marketManager.listToken(mtoken) {
-            assertWithMsg(
-                false,
-                "MARKET-2 listToken for duplicate token should not be possible"
-            );
-        } catch (bytes memory revertData) {
-            uint256 errorSelector = extractErrorSelector(revertData);
-
-            assertWithMsg(
-                errorSelector == marketManager_invalidParameterSelectorHash,
-                "MARKET-2 listToken() expected TokenAlreadyListed selector hash on failure"
-            );
-        }
-    }
-
-    /// @custom:property market-3 – A user can deposit into an mtoken provided that they have the underlying asset, and they have approved the mtoken contract.
-    /// @custom:property market-4 – When depositing assets into the mtoken, the wrapped token balance for the user should increase.
-    /// @custom:property market-29 If convertToShares overflows, deposit should revert
-    /// @custom:property market-30 If totalAssets+amount overflows, deposit should revert
-    /// @custom:property market-31 If oracle returns price <0, deposit should revert
-    /// @custom:precondition GaugePool must have been started before block.timestamp
-    /// @custom:precondition mtoken must be one of: pDAI, pUSDC
-    /// @custom:precondition mtoken must be listed in marketManager
-    /// @custom:precondition minting must not be paused
-    function c_token_deposit(
-        address mtoken,
-        uint256 amount,
-        bool lower
-    ) public {
-        require(gaugeManager.gaugeStartTime() < block.timestamp);
-        require(mtoken == address(pDAI) || mtoken == address(pUSDC));
-        if (!marketManager.isListed(mtoken)) {
-            list_token_should_succeed(mtoken);
-        }
-        require(marketManager.mintPaused(mtoken) != 2);
-
-        address underlyingAddress = MockSimplePToken(mtoken).underlying();
-        amount = clampBetweenBoundsFromOne(lower, amount);
-        require(_mintAndApprove(underlyingAddress, mtoken, amount));
-        uint256 prePTokenBalanceThis = MockSimplePToken(mtoken).balanceOf(
-            address(this)
-        );
-        uint256 preTotalAssets = MockSimplePToken(mtoken).totalAssets();
-
-        // TODO: investigate 20 min hold period for debt token ()
-        try MockSimplePToken(mtoken).deposit(amount, address(this)) {
-            uint256 postPTokenBalanceThis = MockSimplePToken(mtoken).balanceOf(
-                address(this)
-            );
-
-            assertLt(
-                prePTokenBalanceThis,
-                postPTokenBalanceThis,
-                "MARKET-4 pre and post pToken balance should increase"
-            );
-        } catch (bytes memory revertData) {
-            uint256 errorSelector = extractErrorSelector(revertData);
-            bool convertToSharesOverflow;
-
-            try MockSimplePToken(mtoken).convertToShares(amount) {} catch (
-                bytes memory convertSharesData
-            ) {
-                uint256 convertSharesError = extractErrorSelector(
-                    convertSharesData
-                );
-                emit LogUint256(
-                    "convert to shares error did overflow",
-                    convertSharesError
-                );
-                // BasePToken._convertToShares will revert when `mulDivDown` overflows with `revert(0,0)
-                if (convertSharesError == 2904890407) {
-                    convertToSharesOverflow = true;
-                }
-            }
-
-            bool assetCalc = doesOverflow(
-                preTotalAssets + amount,
-                preTotalAssets
-            ) ||
-                doesOverflow(
-                    prePTokenBalanceThis + amount,
-                    prePTokenBalanceThis
-                );
-            // market-31
-            bool isPriceNegative;
-            if (mtoken == address(pDAI)) {
-                isPriceNegative = chainlinkDaiUsd.latestAnswer() < 0;
-            } else {
-                isPriceNegative = chainlinkUsdcUsd.latestAnswer() < 0;
-            }
-            // market-29, market-30
-            if (convertToSharesOverflow || assetCalc) {
-                assertEq(
-                    errorSelector,
-                    overflow,
-                    "MARKET-29-31 expected mtoken.deposit() to revert with overflow"
-                );
-            } else {
-                // market-3
-                assertWithMsg(
-                    false,
-                    "MARKET-3 expected mtoken.deposit() to be successful"
-                );
-            }
-        }
-    }
-
-    /// @custom:property market-5 – Calling updatePositionToken with variables in correct bounds should succeed.
-    /// @custom:property market-6 - calling updatePositionToken for token prices that deviate too much results in a PriceError
-    /// @custom:property market-7 - calling updatePositionToken for token prices that are <0 results in a PriceError
-    /// @custom:property market-8 - calling updatePositionToken again with a pre-CR != 0 with new CR=0 should revert
-    /// @custom:precondition price feed must be recent
-    /// @custom:precondition price feed must be setup
-    /// @custom:precondition address(this) must have dao permissions
-    /// @custom:precondition cap is bound between [1, uint256.max], inclusive
-    /// @custom:precondition mtoken must be listed in the marketManager
-    /// @custom:precondition _getSafeUpdateCollateralBounds must be in correct bounds
-    /// TODO: Logic to not allow updatePositionToken to be re-called with a 0 CR was added after, and needs to be acounted for in these tests
-    function updatePositionToken_should_succeed(
-        address mtoken,
-        uint256 collRatio,
-        uint256 collReqSoft,
-        uint256 collReqHard,
-        uint256 liqIncSoft,
-        uint256 liqIncHard,
-        uint256 baseCFactor
-    ) public {
-        require(centralRegistry.hasDaoPermissions(address(this)));
-        require(marketManager.isListed(mtoken));
-        require(mtoken == address(pDAI) || mtoken == address(pUSDC));
-        require(feedsSetup);
-
-        (bool divergenceTooLarge, bool priceError) = _check_price_divergence(
-            mtoken
-        );
-
-        (, uint256 oldCR, , , , , , ) = marketManager.tokenData(mtoken);
-        {
-            _check_price_feed();
-            _getSafeUpdateCollateralBounds(
-                collRatio,
-                collReqSoft,
-                collReqHard,
-                liqIncSoft,
-                liqIncHard,
-                baseCFactor
-            );
-            if (safeBounds.collRatio == 0) {
-                isCollateralRatioZero[mtoken] = true;
-            }
-        }
-        try
-            marketManager.updatePositionToken(
-                address(mtoken),
-                safeBounds.collRatio,
-                safeBounds.collReqSoft,
-                safeBounds.collReqHard,
-                safeBounds.liqIncSoft,
-                safeBounds.liqIncHard,
-                safeBounds.baseCFactor
-            )
-        {
-            setCollateralValues[mtoken] = true;
-        } catch (bytes memory revertData) {
-            {
-                uint256 errorSelector = extractErrorSelector(revertData);
-
-                if (oldCR != 0 && safeBounds.collRatio == 0) {
-                    assertWithMsg(
-                        errorSelector ==
-                            marketManager_invalidParameterSelectorHash,
-                        "MARKET-8 updatePositionToken expected to fail if trying to zero a non-zero CR"
-                    );
-                } else if (divergenceTooLarge) {
-                    assertWithMsg(
-                        errorSelector == marketManager_priceErrorSelectorHash,
-                        "MARKET-6 expected updatePositionToken to fail if price diverge too much or encounters error"
-                    );
-                } else if (priceError) {
-                    assertWithMsg(
-                        errorSelector == marketManager_priceErrorSelectorHash,
-                        "MARKET-7 expected updatePositionToken to fail if price diverge too much or encounters error"
-                    );
-                } else {
-                    // market-5
-                    assertWithMsg(
-                        false,
-                        "MARKET-5 updatePositionToken should succeed"
-                    );
-                }
-            }
-        }
-    }
-
-    /// @custom:property market-9 – Calling setPTokenCollateralCaps should increase the globally set the collateral caps to the cap provided
-    /// @custom:property market-10 Setting collateral caps for a token given permissions and collateral values being set should succeed.
-    /// @custom:precondition address(this) has dao permissions
-    /// @custom:precondition mtoken is a C token
-    /// @custom:precondition collateral values for mtoken must be set
-    /// @custom:precondition cap is bound between [0, uint256.max]
-    function setPToken_should_succeed(address mtoken, uint256 cap) public {
-        require(IMToken(mtoken).isPToken());
-        require(centralRegistry.hasDaoPermissions(address(this)));
-        require(setCollateralValues[mtoken]);
-        require(!isCollateralRatioZero[mtoken]);
-        if (cap > maxCollateralCap[mtoken]) {
-            maxCollateralCap[mtoken] = cap;
-        }
-
-        _check_price_feed();
-
-        address[] memory tokens = new address[](1);
-        tokens[0] = mtoken;
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = cap;
-
-        (bool success, ) = address(marketManager).call(
-            abi.encodeWithSignature(
-                "setPTokenCollateralCaps(address[],uint256[])",
-                tokens,
-                caps
-            )
-        );
-
-        if (success) {
-            assertEq(
-                marketManager.collateralCaps(mtoken),
-                cap,
-                "MARKET-9 collateral caps for token should be >=0"
-            );
-        } else {
-            // market-7
-            assertWithMsg(
-                false,
-                "MARKET-10 expected setPTokenCollateralCaps to succeed"
-            );
-        }
-
-        collateralCapsUpdated[mtoken] = true;
-    }
-
-    /// @custom:property market-8 – updatePositionToken should revert if the price feed is out of date
-    /// @custom:precondition price feed is out of date
-    /// @custom:precondition cap is bound between [1, uint256.max], inclusive
-    /// @custom:precondition mtoken must be listed in marketManager
-    /// @custom:precondition mtoken must be one of: pDAI, pUSDC
-    function updatePositionToken_should_revert_if_price_feed_out_of_date(
-        address mtoken,
-        uint256 collRatio,
-        uint256 collReqSoft,
-        uint256 collReqHard,
-        uint256 liqIncSoft,
-        uint256 liqIncHard,
-        uint256 baseCFactor,
-        uint256 cap
-    ) public {
-        if (lastRoundUpdate > block.timestamp) {
-            lastRoundUpdate = block.timestamp;
-        }
-        require(block.timestamp - lastRoundUpdate > 24 hours);
-        if (mtoken == address(pDAI)) {
-            require(
-                block.timestamp - chainlinkDaiUsd.latestTimestamp() > 24 hours
-            );
-        } else if (mtoken == address(pUSDC)) {
-            require(
-                block.timestamp - chainlinkUsdcUsd.latestTimestamp() > 24 hours
-            );
-        } else {
-            return;
-        }
-        require(feedsSetup);
-        require(centralRegistry.hasDaoPermissions(address(this)));
-        if (!marketManager.isListed(mtoken)) {
-            list_token_should_succeed(mtoken);
-        }
-        address[] memory tokens = new address[](1);
-        tokens[0] = mtoken;
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = cap;
-
-        {
-            _getSafeUpdateCollateralBounds(
-                collRatio,
-                collReqSoft,
-                collReqHard,
-                liqIncSoft,
-                liqIncHard,
-                baseCFactor
-            );
-            if (safeBounds.collRatio == 0) {
-                isCollateralRatioZero[mtoken] = true;
-            }
-        }
-        try
-            marketManager.updatePositionToken(
-                address(mtoken),
-                safeBounds.collRatio,
-                safeBounds.collReqSoft,
-                safeBounds.collReqHard,
-                safeBounds.liqIncSoft,
-                safeBounds.liqIncHard,
-                safeBounds.baseCFactor
-            )
-        {
-            assertWithMsg(
-                false,
-                "MARKET-12 updatePositionToken should not have succeeded with out of date price feeds"
-            );
-        } catch {}
-    }
-
-    /// @custom:property market-13 After collateral is posted, the user’s collateral posted position for the respective asset should increase.
-    /// @custom:property market-14 After collateral is posted, calling hasPosition on the user’s mtoken should return true.
-    /// @custom:property market-15 After collateral is posted, the global collateral for the mtoken should increase by the amount posted.
-    /// @custom:property market-16 When price feed is up to date, address(this) has mtoken, tokens are bound correctly, and caller is correct, the  postCollateral call should succeed.
-    /// @custom:precondition price feed is up to date
-    /// @custom:precondition address(this) must have a balance of mtoken
-    /// @custom:precondition `tokens` to be posted is bound between [1, mtoken balance], inclusive
-    /// @custom:precondition msg.sender for postCollateral = address(this)
-    function post_collateral_should_succeed(
-        address mtoken,
-        uint256 tokens,
-        bool lower
-    ) public {
-        require(collateralCapsUpdated[mtoken]);
-        _check_price_feed();
-
-        if (IMToken(mtoken).balanceOf(address(this)) == 0) {
-            c_token_deposit(
-                mtoken,
-                tokens * IMToken(mtoken).decimals(),
-                lower
-            );
-        }
-        uint256 mtokenBalance = IMToken(mtoken).balanceOf(address(this));
-
-        uint256 oldCollateralForUser = _collateralPostedFor(mtoken);
-        uint256 collateralCaps = marketManager.collateralCaps(mtoken);
-
-        uint256 oldCollateralForToken = marketManager.collateralPosted(mtoken);
-        if (
-            mtokenBalance - oldCollateralForUser >
-            collateralCaps - oldCollateralForToken
-        ) {
-            // collateralPosted[mToken] + tokens <= collateralCaps[mToken])
-            // tokens <= collateralCaps[mtoken] - collateralPosted[mtoken]
-            tokens = clampBetween(
-                tokens,
-                1,
-                collateralCaps - oldCollateralForToken
-            );
-        } else {
-            // collateralPosted + tokens <= mtoken.balanceOf(address(this))
-            // tokens <= mtoken.balanceOf(address(this)) - collateralPosted
-            tokens = clampBetween(
-                tokens,
-                1,
-                mtokenBalance - oldCollateralForUser
-            );
-        }
-
-        {
-            (bool success, bytes memory revertData) = address(marketManager)
-                .call(
-                    abi.encodeWithSignature(
-                        "postCollateral(address,address,uint256)",
-                        address(this),
-                        mtoken,
-                        tokens
-                    )
-                );
-            if (!success) {
-                uint256 errorSelector = extractErrorSelector(revertData);
-                emit LogUint256("error selector: ", errorSelector);
-                assertWithMsg(
-                    false,
-                    "MARKET-16 expected postCollateral to pass with @precondition"
-                );
-            } else {
-                // ensure account collateral has increased by # of tokens
-                uint256 newCollateralForUser = _collateralPostedFor(mtoken);
-
-                uint256 mtokenExchange = MockSimplePToken(mtoken)
-                    .exchangeRateSafe();
-                assertEq(
-                    (newCollateralForUser) * mtokenExchange,
-                    (oldCollateralForUser + tokens) * mtokenExchange,
-                    "MARKET-13 new collateral must collateral+tokens"
-                );
-                assertWithMsg(
-                    _hasPosition(mtoken),
-                    "MARKET-14 addr(this) must have position after posting"
-                );
-
-                uint256 newCollateralForToken = marketManager.collateralPosted(
-                    mtoken
-                );
-                assertEq(
-                    newCollateralForToken,
-                    oldCollateralForToken + tokens,
-                    "MARKET-15 global collateral posted should increase"
-                );
-                postedCollateral[mtoken] = true;
-                postedCollateralAt[mtoken] = block.timestamp;
-            }
-        }
-    }
-
-    /// @custom:property market-17 – Trying to post too much collateral should revert.
-    /// @custom:precondition collateral caps for the token are >0
-    /// @custom:precondition price feed must be out of date
-    /// @custom:precondition user must have mtoken balance
-    /// @custom:precondition tokens is bound between [mtokenBalance - existingCollateral+1, uint256.max]
-    function post_collateral_should_fail_too_many_tokens(
-        address mtoken,
-        uint256 tokens,
-        bool lower
-    ) public {
-        require(collateralCapsUpdated[mtoken]);
-        _check_price_feed();
-
-        if (IMToken(mtoken).balanceOf(address(this)) == 0) {
-            c_token_deposit(
-                mtoken,
-                tokens * IMToken(mtoken).decimals(),
-                lower
-            );
-        }
-        uint256 mtokenBalance = IMToken(mtoken).balanceOf(address(this));
-
-        uint256 oldCollateralForUser = _collateralPostedFor(mtoken);
-
-        // collateralPosted + tokens <= mtoken.balanceOf(address(this))
-        // tokens <= mtoken.balanceOf(address(this)) - collateralPosted
-        tokens = clampBetween(
-            tokens,
-            mtokenBalance - oldCollateralForUser + 1,
-            type(uint256).max
-        );
-
-        (bool success, ) = address(marketManager).call(
-            abi.encodeWithSignature(
-                "postCollateral(address,address,uint256)",
-                address(this),
-                mtoken,
-                tokens
-            )
-        );
-
-        assertWithMsg(
-            !success,
-            "MARKET-17 postCollateral() with too many tokens should fail"
-        );
-    }
-
-    /// @custom:property market-18 Removing collateral from the system should decrease the global posted collateral by the removed amount.
-    /// @custom:property market-19 Removing collateral from the system should reduce the user posted collateral by the removed amount.
-    /// @custom:property market-20 If the user has a liquidity shortfall, the user should not be permitted to remove collateral (function should fai with insufficient collateral selector hash).
-    /// @custom:property market-21 If the user does not have a liquidity shortfall and meets expected preconditions, the removeCollateral should be successful.
-    /// @custom:property market-22 If new collateral for user after removing is = 0 and a user wants to close position, the user should no longer have a position in the asset
-    /// @custom:precondition price feed must be recent
-    /// @custom:precondition mtoken is one of: pDAI, pUSDC
-    /// @custom:precondition mtoken must be listed in the marketManager
-    /// @custom:precondition current timestamp must exceed the MIN_HOLD_PERIOD from postCollateral timestamp
-    /// @custom:precondition token is clamped between [1, collateralForUser]
-    /// @custom:precondition redeemPaused flag must not be set
-    function remove_collateral_should_succeed(
-        address mtoken,
-        uint256 tokens,
-        bool closePositionIfPossible
-    ) public {
-        require(mtoken == address(pDAI) || mtoken == address(pUSDC));
-        require(postedCollateral[mtoken]);
-        require(marketManager.isListed(mtoken));
-        _check_price_feed();
-
-        emit LogUint256(
-            "cooldown timestamp for mtoken",
-            _getCooldownTimestampFor()
-        );
-        require(
-            block.timestamp >
-                _getCooldownTimestampFor() + marketManager.MIN_HOLD_PERIOD()
-        );
-
-        require(_hasPosition(mtoken));
-        require(marketManager.redeemPaused() != 2);
-
-        uint256 oldCollateralForUser = _collateralPostedFor(mtoken);
-        tokens = clampBetween(tokens, 1, oldCollateralForUser);
-
-        uint256 oldCollateralPostedForToken = marketManager.collateralPosted(
-            mtoken
-        );
-        uint256 shortfall = _getLiquidityDeficit(
-            address(this),
-            mtoken,
-            tokens,
-            0
-        );
-        emit LogUint256("shortfall:", shortfall);
-
-        if (shortfall > 0) {
-            try marketManager.removeCollateral(mtoken, tokens) {} catch (
-                bytes memory revertData
-            ) {
-                uint256 errorSelector = extractErrorSelector(revertData);
-
-                assertWithMsg(
-                    errorSelector ==
-                        marketManager_insufficientCollateralSelectorHash,
-                    "MARKET-20 removeCollateral expected to revert with insufficientCollateral"
-                );
-            }
-        } else {
-            // the account has no shortfall
-
-            try marketManager.removeCollateral(mtoken, tokens) {
-                // Collateral posted for the mtoken should decrease
-                uint256 newCollateralPostedForToken = marketManager
-                    .collateralPosted(mtoken);
-                assertEq(
-                    newCollateralPostedForToken,
-                    oldCollateralPostedForToken - tokens,
-                    "MARKET-18 global collateral posted should decrease"
-                );
-
-                // Collateral posted for the user should decrease
-                uint256 newCollateralForUser = _collateralPostedFor(mtoken);
-                assertEq(
-                    newCollateralForUser,
-                    oldCollateralForUser - tokens,
-                    "MARKET-19 user collateral posted should decrease"
-                );
-                if (newCollateralForUser == 0 && closePositionIfPossible) {
-                    assertWithMsg(
-                        !_hasPosition(mtoken),
-                        "MARKET-22 closePositionIfPossible flag set should remove a user's position"
-                    );
-                }
-            } catch {
-                assertWithMsg(
-                    false,
-                    "MARKET-21 expected removeCollateral expected to be successful with no shortfall"
-                );
-            }
-        }
-    }
-
-    /// @custom:property market-23 Removing collateral for a nonexistent position should revert with invariant error hash.
-    /// @custom:property market-41 Removing 0 tokens in collateral should revert with invalid parameter selector
-    /// @custom:precondition mtoken is either of: pDAI or pUSDC
-    /// @custom:precondition token must be listed in marketManager
-    /// @custom:precondition price feed must be up to date
-    /// @custom:precondition user must NOT have an existing position
-    function removeCollateral_should_fail_with_non_existent_position(
-        address mtoken,
-        uint256 tokens
-    ) public {
-        require(mtoken == address(pDAI) || mtoken == address(pUSDC));
-        require(marketManager.isListed(mtoken));
-        _check_price_feed();
-        require(!_hasPosition(mtoken));
-
-        try marketManager.removeCollateral(mtoken, tokens) {
-            assertWithMsg(
-                false,
-                "MARKET-23 removeCollateral should fail with non existent position"
-            );
-        } catch (bytes memory revertData) {
-            uint256 errorSelector = extractErrorSelector(revertData);
-            if (tokens == 0) {
-                assertWithMsg(
-                    errorSelector ==
-                        marketManager_invalidParameterSelectorHash,
-                    "MARKET-41 removeCollateral should revert when trying to remove 0 tokens"
-                );
-            } else {
-                assertWithMsg(
-                    errorSelector == marketManager_invariantErrorSelectorHash,
-                    "MARKET-23 expected removeCollateral to revert with InvariantError"
-                );
-            }
-        }
-    }
-
-    /// @custom:property market-24 Removing more tokens than a user has for collateral should revert with insufficient collateral hash.
-    /// @custom:precondition mtoken is either of: pDAI or pUSDC
-    /// @custom:precondition token must be listed in marketManager
-    /// @custom:precondition price feed must be up to date
-    /// @custom:precondition user must have an existing position
-    /// @custom:precondition tokens to remove is bound between [existingCollateral+1, uint256.max]
-    function removeCollateral_should_fail_with_removing_too_many_tokens(
-        address mtoken,
-        uint256 tokens
-    ) public {
-        require(mtoken == address(pDAI) || mtoken == address(pUSDC));
-        require(marketManager.isListed(mtoken));
-        _check_price_feed();
-        emit LogBool("has position", _hasPosition(mtoken));
-        require(_hasPosition(mtoken));
-        uint256 oldCollateralForUser = _collateralPostedFor(mtoken);
-
-        tokens = clampBetween(
-            tokens,
-            oldCollateralForUser + 1,
-            type(uint256).max
-        );
-
-        try marketManager.removeCollateral(mtoken, tokens) {
-            assertWithMsg(
-                false,
-                "MARKET-24 removeCollateral should fail insufficient collateral"
-            );
-        } catch (bytes memory revertData) {
-            // expectation is that this should fail
-            uint256 errorSelector = extractErrorSelector(revertData);
-
-            assertWithMsg(
-                errorSelector ==
-                    marketManager_insufficientCollateralSelectorHash,
-                "MARKET-24 expected removeCollateral to revert with InsufficientCollateral when attempting to remove too much"
-            );
-        }
-    }
-
-    /// @custom:property market-25 Calling reduceCollateralIfNecessary should fail when not called within the context of the mtoken.
-    /// @custom:precondition msg.sender != mtoken
-    // function reduceCollateralIfNecessary_should_fail_with_wrong_caller(
-    //     address mtoken,
-    //     uint256 amount
-    // ) public {
-    //     require(msg.sender != mtoken);
-    //     try
-    //         marketManager.reduceCollateralIfNecessary(
-    //             address(this),
-    //             mtoken,
-    //             IMToken(mtoken).balanceOf(address(this)),
-    //             amount
-    //         )
-    //     {
-    //         assertWithMsg(
-    //             false,
-    //             "MARKET-25 reduceCollateralIfNecessary should not be successful if called directly"
-    //         );
-    //     } catch (bytes memory revertData) {
-    //         uint256 errorSelector = extractErrorSelector(revertData);
-
-    //         assertWithMsg(
-    //             errorSelector == marketManager_unauthorizedSelectorHash,
-    //             "MARKET-25 reduceCollateralIfNecessary expected to revert with Unauthorized"
-    //         );
-    //     }
-    // }
-
-    // the closePosition function was removed from the codebase thus these invariants are no longer needed
-    /* 
-    /// @custom:property market-26 Calling closePosition with correct preconditions should remove a position in the mtoken, where collateral posted for the user is greater than 0.
-    /// @custom:property market-27 Calling closePosition with correct preconditions should set collateralPosted for the user’s mtoken to zero, where collateral posted for the user is greater than 0.
-    /// @custom:property market-28 Calling closePosition with correct preconditions should reduce the user asset list by 1 element, where collateral posted for the user is greater than 0.
-    /// @custom:property market-29 Calling closePosition with correct preconditions should succeed,where collateral posted for the user is greater than 0.
-    /// @custom:property market-30 In a shortfall, closePosition should revert with insufficient collateral error
-    /// @custom:precondition token must be pDAI or pUSDC
-    /// @custom:precondition token must have an existing position
-    /// @custom:precondition collateralPostedForUser for respective token > 0
-    function closePosition_should_succeed(address mtoken) public {
-        require(marketManager.redeemPaused() != 2);
-        require(mtoken == address(pDAI) || mtoken == address(pUSDC));
-        require(_hasPosition(mtoken));
-        _check_price_feed();
-        uint256 collateralPostedForUser = _collateralPostedFor(mtoken);
-        require(collateralPostedForUser > 0);
-        require(
-            block.timestamp >
-                _getCooldownTimestampFor() + marketManager.MIN_HOLD_PERIOD()
-        );
-        IMToken[] memory preAssetsOf = marketManager.assetsOf(address(this));
-        uint256 shortfall = _getLiquidityDeficit(
-            address(this),
-            mtoken,
-            collateralPostedForUser,
-            0
-        );
-
-        (bool success, bytes memory revertData) = address(marketManager).call(
-            abi.encodeWithSignature("closePosition(address)", mtoken)
-        );
-        uint256 errorSelector = extractErrorSelector(revertData);
-
-        if (!success) {
-            if (shortfall > 0) {
-                assertWithMsg(
-                    errorSelector ==
-                        marketManager_insufficientCollateralSelectorHash,
-                    "MARKET-30 closePosition should revert with InsufficientCollateral if shortfall exists"
-                );
-            } else {
-                assertWithMsg(
-                    false,
-                    "MARKET-29 closePosition expected to be successful with correct preconditions"
-                );
-            }
-        } else {
-            _checkClosePositionPostConditions(
-                mtoken,
-                preAssetsOf.length,
-                "MARKET-26",
-                "MARKET-27",
-                "MARKET-28"
-            );
-        }
-    }
-
-
-    /// @custom:property market-31 Calling closePosition with correct preconditions should remove a position in the mtoken, where collateral posted for the user is equal to 0.
-    /// @custom:property market-32 Calling closePosition with correct preconditions should set collateralPosted for the user’s mtoken to zero, where collateral posted for the user is equal to 0.
-    /// @custom:property market-33 Calling closePosition with correct preconditions should reduce the user asset list by 1 element, where collateral posted for the user is equal to 0.
-    /// @custom:property market-34 Calling closePosition with correct preconditions should succeed,where collateral posted for the user is equal to 0.
-    /// @custom:precondition token must be pDAI or pUSDC
-    /// @custom:precondition token must have an existing position
-    /// @custom:precondition collateralPostedForUser for respective token = 0
-    function closePosition_should_succeed_if_collateral_is_0(
-        address mtoken
-    ) public {
-        require(marketManager.redeemPaused() != 2);
-        require(mtoken == address(pDAI) || mtoken == address(pUSDC));
-        require(_hasPosition(mtoken));
-        _check_price_feed();
-        uint256 collateralPostedForUser = _collateralPostedFor(mtoken);
-        require(collateralPostedForUser == 0);
-        require(
-            block.timestamp >
-                postedCollateralAt[mtoken] + marketManager.MIN_HOLD_PERIOD()
-        );
-        IMToken[] memory preAssetsOf = marketManager.assetsOf(address(this));
-
-        (bool success, ) = address(marketManager).call(
-            abi.encodeWithSignature("closePosition(address)", mtoken)
-        );
-        if (!success) {
-            assertWithMsg(
-                false,
-                "MARKET-34 - closePosition should succeed if collateral is 0"
-            );
-        } else {
-            _checkClosePositionPostConditions(
-                mtoken,
-                preAssetsOf.length,
-                "MARKET-31",
-                "MARKET-32",
-                "MARKET-33"
-            );
-        }
-    }
-    */
-
-    uint256 constant DAI_PRICE = 1e24;
-    uint256 constant USDC_PRICE = 1e7;
-    int256 public deltaTotalBorrowsAndDebt;
-
-    function echidna_liquidate_delta() public view returns (int256) {
-        return deltaTotalBorrowsAndDebt;
-    }
-
-    /// @custom:property market-35 Liquidating an acount with the correct preconditions should succeed (i.e: no revert, no panic)
-    /// @custom:property market-36 Liquidating an account should result in all position token balances being zeroed out.
-    /// @custom:property market-37 Liquidating an account should result in all debtBalanceCached() for all debt tokens being zeroed out.
-    /// @custom:property market-42 Liquidating an account should result in no more than a 1 wei difference btwn totalborrows and accountDebt
-    /// @custom:precondition seizePaused must !=2 (i.e: market manager does not have seizePaused)
-    /// @custom:precondition accountCollateral must be < accountDebt to be liquidatable
-    /// @custom:limitation there is a KNOWN rounding offset here by 1 wei, where the this flow can revert. This function will revert if the diff exceeds 1 wei
-    /// @custom:limitation there is also a KNOWN limitation that liquidation functions currently are using the DAI PRICE and USDC PRICE constants. This function is an attempt to introduce randomness into this flow.
-    /// @custom:limitation debt and collateral balance checks are missing here
-    function liquidateAccount_should_succeed(
-        uint256 amount,
-        uint256 usdcPrice,
-        uint256 daiPrice
-    ) public {
-        require(marketManager.seizePaused() != 2);
-        address account = address(this);
-        // returns oracle prices within the min and max of the aggregator values
-        (usdcPrice, daiPrice) = _bound_oracle_prices(usdcPrice, daiPrice);
-        // sets up liquidatable system and ensures that system can be liquidated
-        amount = _preLiquidate(amount, daiPrice, usdcPrice);
-
-        IMToken[] memory assets = marketManager.assetsOf(account);
-
-        hevm.prank(msg.sender);
-        try this.prankLiquidateAccount(account) {
-            emit LogAddress("msg.sender", msg.sender);
-            for (uint256 i = 0; i < assets.length; i++) {
-                if (assets[i].isPToken()) {
-                    assertEq(
-                        _collateralPostedFor(address(assets[i])),
-                        0,
-                        "MARKET-36 - liquidateAccount should zero out collateral"
-                    );
-                } else {
-                    assertEq(
-                        IEToken(address(assets[i])).debtBalanceCached(
-                            address(this)
-                        ),
-                        0,
-                        "MARKET-37 - liquidateAccount should zero out debt balance"
-                    );
-                }
-            }
-        } catch Panic(uint256 errorCode) {
-            if (errorCode == PANIC_UNDER_OVER_FLOW_CODE) {
-                for (uint256 i = 0; i < assets.length; i++) {
-                    if (assets[i].isPToken()) {
-                        continue;
-                    }
-                    uint256 totalBorrows = IEToken(address(assets[i]))
-                        .totalBorrows();
-                    uint256 accountDebt = IEToken(address(assets[i]))
-                        .debtBalanceCached(address(this));
-                    if (totalBorrows < accountDebt) {
-                        emit LogUint256(
-                            "difference between totalBorrows and accountDebt",
-                            accountDebt - totalBorrows
-                        );
-
-                        // The system has a *known* limitation in rounding that totalBorrows and accountDebt can be off by one wei
-                        // This check ensures that if there is a diff, it must be no more than 1 wei, otherwise Echidna will throw
-                        assertLt(
-                            accountDebt - totalBorrows,
-                            2,
-                            "MARKET-42 - difference between accountdebt and totalborrows exceeds 1"
-                        );
-                        deltaTotalBorrowsAndDebt = int256(
-                            totalBorrows - accountDebt
-                        );
-                    } else {
-                        deltaTotalBorrowsAndDebt = int256(
-                            accountDebt - totalBorrows
-                        );
-                    }
-                }
-            } else {
-                emit LogUint256("panic code:", errorCode);
-                assertWithMsg(
-                    false,
-                    "MARKET-35 liquidateAccount panicked unexpectedly"
-                );
-            }
-        } catch (bytes memory revertData) {
-            uint256 errorSelector = extractErrorSelector(revertData);
-
-            if (
-                errorSelector == insufficient_allowance ||
-                errorSelector == transfer_from_failed
-            ) {} else {
-                assertWithMsg(
-                    false,
-                    "MARKET-35 liquidateAccount with correct preconditions should succeed"
-                );
-            }
-        }
-    }
-
-    /// @custom:property market-38 Attempting to liquidate an entire account (hard liquidation) should fail if the collateral >= debt with NoLiquidationAvailable.
-    /// @custom:precondition seizePaused != 2
-    /// @custom:precondition address(this) must NOT be flagged for liquidation
-    /// @custom:precondition address(this) is being liquidated
-    function liquidateAccount_should_fail_if_account_not_flagged() public {
-        require(marketManager.seizePaused() != 2);
-        require(!marketManager.flaggedForLiquidation(address(this)));
-        address account = address(this);
-
-        hevm.prank(msg.sender);
-        try this.prankLiquidateAccount(account) {
-            assertWithMsg(
-                false,
-                "MARKET-38 liquidateAccount should fail if account is not flagged for liquidations"
-            );
-        } catch (bytes memory revertData) {
-            uint256 errorSelector = extractErrorSelector(revertData);
-
-            assertEq(
-                errorSelector,
-                marketManager_noLiquidationAvailableSelectorHash,
-                "MARKET-38 liquidateAccount should fail with NoLiquidationAvailable if not flagged"
-            );
-        }
-    }
-
-    /// @custom:property market-39 Attempting to liquidate an entire account (hard liquidation) should fail if a user is attempting to liquidate themselves with Unauthorized.
-    /// @custom:precondition account to liquidate is msg.sender
-    /// @custom:precondition seize must not be paused
-    function liquidateAccount_should_fail_if_self_account(
-        uint256 amount
-    ) public {
-        require(marketManager.seizePaused() != 2);
-        address account = msg.sender;
-        _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
-
-        hevm.prank(msg.sender);
-        try this.prankLiquidateAccount(account) {
-            assertWithMsg(
-                false,
-                "MARKET-39 liquidateAccount should fail if user attempts to liquidate themselves"
-            );
-        } catch (bytes memory revertData) {
-            uint256 errorSelector = extractErrorSelector(revertData);
-
-            assertEq(
-                errorSelector,
-                marketManager_unauthorizedSelectorHash,
-                "MARKET-39 liquidateAccount should fail with Unauthorized"
-            );
-        }
-    }
-
-    /// @custom:property market-40 Attempting to liquidate an entire account (hard liquidation) should fail if seize is paused with Paused.
-    /// @custom:precondition account = address(this)
-    /// @custom:precondition seizePaused = 2 (is paused)
-    function liquidateAccount_should_fail_if_seize_paused(
-        uint256 amount
-    ) public {
-        require(marketManager.seizePaused() == 2);
-        address account = address(this);
-        _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
-
-        hevm.prank(msg.sender);
-        try this.prankLiquidateAccount(account) {
-            assertWithMsg(
-                false,
-                "MARKET- liquidateAccount should fail if user attempts to liquidate themselves"
-            );
-        } catch (bytes memory revertData) {
-            uint256 errorSelector = extractErrorSelector(revertData);
-
-            assertEq(
-                errorSelector,
-                marketManager_pausedSelectorHash,
-                "MARKET- liquidateAccount should fail with PAUSED when seize is paused"
-            );
-        }
-    }
-
-    function prankLiquidateAccount(address account) public {
-        hevm.prank(msg.sender);
-        marketManager.liquidateAccount(account);
-    }
-
-    // Helper Functions
-
-    // This function sets up the system to set the prices to the respective assets
-    /// @custom:limitation as mentioned in liquidation functions, the fuzz suite currently uses STATIC prices. this should be opened up to a larger range.
-    function _setup_liquidatable_states(
-        uint amount,
-        uint256 daiPrice,
-        uint256 usdcPrice
-    ) private {
-        hevm.warp(block.timestamp + marketManager.MIN_HOLD_PERIOD());
-        address liquidator = msg.sender;
-
-        hevm.prank(liquidator);
-        dai.mint(amount * WAD);
-
-        hevm.prank(liquidator);
-        dai.approve(address(eDAI), amount * WAD);
-
-        emit LogUint256("setting dai price to:", uint256(int256(daiPrice)));
-        mockDaiFeed.setMockAnswer(int256(daiPrice));
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
-        chainlinkDaiUsd.updateRoundData(
-            0,
-            int256(daiPrice),
-            block.timestamp,
-            block.timestamp
-        );
-        PriceReturnData memory daiData = chainlinkAdaptor.getPrice(
-            address(eDAI),
-            true,
-            false
-        );
-        require(!daiData.hadError);
-
-        emit LogUint256("setting usdc price to:", uint256(int256(usdcPrice)));
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            int256(usdcPrice),
-            block.timestamp,
-            block.timestamp
-        );
-        mockUsdcFeed.setMockAnswer(int256(usdcPrice));
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-
-        PriceReturnData memory usdcData = chainlinkAdaptor.getPrice(
-            address(pUSDC),
-            true,
-            false
-        );
-        require(!usdcData.hadError);
-    }
-
-    /// @notice this function will set up the system such that the account's position is liquidatable
-    function _preLiquidate(
-        uint256 amount,
-        uint256 daiPrice,
-        uint256 usdcPrice
-    ) internal returns (uint256) {
-        // ensure price feeds are up to date and in sync before updating position token and listing
-        _check_price_feed();
-        {
-            (
-                bool is_pUSDC_listed,
-                uint256 pUSDC_cr,
-                ,
-                ,
-                ,
-                ,
-                ,
-
-            ) = marketManager.tokenData(address(pUSDC));
-            // if C_USDC is not listed, make sure to list it
-            if (!is_pUSDC_listed) {
-                list_token_should_succeed(address(pUSDC));
-            }
-            // If collateral ratio of PUSDC is 0, update the market manager to increase collateral ratio
-            if (pUSDC_cr == 0) {
-                updatePositionToken_should_succeed(
-                    address(pUSDC),
-                    1000e18,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0
-                );
-            }
-
-            // user to be liquidated must already have a position in pUSDC
-            bool hasUsdcPosition = _hasPosition(address(pUSDC));
-            // if they do not, post it as collateral
-            if (!hasUsdcPosition) {
-                post_collateral_should_succeed(address(pUSDC), WAD + 1, false);
-            }
-        }
-
-        {
-            // eDAI must be listed in the market manager to continue
-            (bool is_eDAI_listed, , , , , , , ) = marketManager.tokenData(
-                address(eDAI)
-            );
-            // if eDAI is not listed, list the eDAI token to the manager
-            if (!is_eDAI_listed) {
-                list_token_should_succeed(address(eDAI));
-            }
-        }
-
-        // the maximum amount of eDAI that can be borrowed is the market underlying held - totalReserves
-        uint256 upperBound = EToken(address(eDAI)).marketUnderlyingHeld() -
-            EToken(eDAI).totalReserves();
-        // clamp the amount of eDAI to borrow between 1 wei and upperBound-1
-        amount = clampBetween(amount, 1, upperBound - 1);
-
-        eDAI.borrow(amount);
-
-        // mint tokens and set the oracle prices of the system
-        _setup_liquidatable_states(amount, daiPrice, usdcPrice);
-
-        // ensure that the account can be liquidated
-        (uint256 accountCollateral, , uint256 accountDebt) = marketManager
-            .statusOf(address(this));
-        // ensure that the collateral < accountDebt to be liquidated
-        require(accountCollateral < accountDebt);
-        return amount;
-    }
-
-    struct TokenCollateralBounds {
-        uint256 collRatio;
-        uint256 collReqSoft;
-        uint256 collReqHard;
-        uint256 liqIncSoft;
-        uint256 liqIncHard;
-        uint256 baseCFactor;
-    }
-
-    TokenCollateralBounds safeBounds;
-
-    // Bounds the specific variables required to call updateCollateralBounds
-    // Variables are generated in basis points, and converted to WAD (by multiplying by 1e14)
-    // Assume ALL bounds below are inclusive, on both ends
-    // baseCFactor: [MIN_BASE_CFACTOR/1e14, MAX_BASE_CFACTOR/1e14]
-    // liqIncSoft: [MIN_LIQUIDATION_INCENTIVE() / 1e14, MAX_LIQUIDATION_INCENTIVE()/1e14-1]
-    // liqIncHard: [liqIncSoft+1, MAX_LIQUIDATION_INCENTIVE/1e14]
-    // inherently from above, liqIncSoft < liqIncHard
-    // collReqHard = [liqIncHard + MIN_EXCESS_COLLATERAL_REQUIREMENT/1e14, MAX_COLLATERAL_REQUIREMENT()/1e14-1]
-    // collReqSoft = [collReqHard+1, MAX_COLLATERAL_REQUIREMENT()/1e14]
-    // collateralRatio = [0, min(MAX_COLLATERALIZATION_RATIO/1e14, (WAD*WAD)/(WAD+collReqSoft*1e14))]
-    function _getSafeUpdateCollateralBounds(
-        uint256 collRatio,
-        uint256 collReqSoft,
-        uint256 collReqHard,
-        uint256 liqIncSoft,
-        uint256 liqIncHard,
-        uint256 baseCFactor
-    ) private {
-        safeBounds.baseCFactor = clampBetween(
-            baseCFactor,
-            marketManager.MIN_BASE_CFACTOR() / 1e14,
-            marketManager.MAX_BASE_CFACTOR() / 1e14
-        );
-
-        safeBounds.liqIncSoft = clampBetween(
-            liqIncSoft,
-            marketManager.MIN_LIQUIDATION_INCENTIVE() / 1e14,
-            marketManager.MAX_LIQUIDATION_INCENTIVE() / 1e14 - 1
-        );
-
-        safeBounds.liqIncHard = clampBetween(
-            liqIncHard,
-            safeBounds.liqIncSoft + 1,
-            marketManager.MAX_LIQUIDATION_INCENTIVE() / 1e14
-        );
-
-        // collateral requirement soft -> hard goes down
-        safeBounds.collReqHard = clampBetween(
-            collReqHard,
-            safeBounds.liqIncHard +
-                marketManager.MIN_EXCESS_COLLATERAL_REQUIREMENT() /
-                1e14,
-            marketManager.MAX_COLLATERAL_REQUIREMENT() / 1e14 - 1
-        );
-
-        safeBounds.collReqSoft = clampBetween(
-            collReqSoft,
-            safeBounds.collReqHard + 1,
-            marketManager.MAX_COLLATERAL_REQUIREMENT() / 1e14
-        );
-
-        uint256 collatPremium = uint256(
-            ((WAD * WAD) / (WAD + (safeBounds.collReqSoft * 1e14)))
-        );
-
-        if (marketManager.MAX_COLLATERALIZATION_RATIO() > collatPremium) {
-            safeBounds.collRatio = clampBetween(
-                collRatio,
-                0,
-                (collatPremium / 1e14)
-            );
-            emit LogUint256(
-                "collateral ratio clamped to collateralization premium:",
-                safeBounds.collRatio
-            );
-        } else {
-            safeBounds.collRatio = clampBetween(
-                collRatio,
-                0,
-                marketManager.MAX_COLLATERALIZATION_RATIO() / 1e14
-            );
-            emit LogUint256(
-                "collateral ratio clamped to max collateralization ratio:",
-                safeBounds.collRatio
-            );
-        }
-    }
-
-    // The Oracle Manager has a min and max price limit defined per asset,
-    // and should be reflected here
-    function _bound_oracle_prices(
-        uint256 usdcPrice,
-        uint256 daiPrice
-    ) internal returns (uint256, uint256) {
-        usdcPrice = clampBetween(
-            usdcPrice,
-            uint256(int256(MIN_ORACLE_ANSWER)),
-            uint256(int256(MAX_USDC_ANSWER))
-        );
-        daiPrice = clampBetween(
-            daiPrice,
-            uint256(int256(MIN_ORACLE_ANSWER)),
-            uint256(int256(MAX_DAI_ANSWER))
-        );
-        return (usdcPrice, daiPrice);
-    }
-
-    /* The following post-conditions were introduced as part of the closePosition function that was removed in the last rebase. 
-    function _checkClosePositionPostConditions(
-        address mtoken,
-        uint256 preAssetsOfLength,
-        string memory closePositionId,
-        string memory collateralPostedId,
-        string memory assetsLengthId
-    ) private {
-        assertWithMsg(
-            !_hasPosition(mtoken),
-            closePositionId,
-            "closePosition should remove position in mtoken if successful"
-        );
-        assertWithMsg(
-            _collateralPostedFor(mtoken) == 0,
-            collateralPostedId,
-            "closePosition should reduce collateralPosted for user to 0"
-        );
-        IMToken[] memory postAssetsOf = marketManager.assetsOf(address(this));
-        assertWithMsg(
-            preAssetsOfLength - 1 == postAssetsOf.length,
-            assetsLengthId,
-            "closePosition expected to remove asset from assetOf"
-        );
-    }
-    */
-
-    function _check_price_divergence(
-        address mtoken
-    ) private view returns (bool divergenceTooLarge, bool priceError) {
-        (uint256 lowerPrice, uint lowError) = OracleManager(oracleManager)
-            .getPrice(mtoken, true, true);
-        (uint256 higherPrice, uint highError) = OracleManager(oracleManager)
-            .getPrice(mtoken, true, false);
-
-        priceError = lowError == 2 || highError == 2;
-        if (lowerPrice < 0 || higherPrice < 0) {
-            priceError = true;
-        }
-
-        if (
-            higherPrice - lowerPrice >
-            OracleManager(oracleManager).badSourceDivergenceFlag()
-        ) {
-            divergenceTooLarge = true;
-        }
-    }
-}
+// import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
+// import { EToken } from "contracts/market/token/EToken.sol";
+// import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+// import { ICToken } from "contracts/interfaces/ICToken.sol";
+// import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
+// import { WAD } from "contracts/libraries/ConstantsLib.sol";
+// import { OracleManager } from "contracts/oracles/OracleManager.sol";
+// import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
+// import { FuzzLiquidations } from "tests/fuzzing/stateless/FuzzLiquidations.sol";
+
+// contract FuzzMarketManager is FuzzLiquidations {
+//     mapping(address => bool) setCollateralValues;
+//     // were the collateral caps for a specific cToken updated
+//     mapping(address => bool) collateralCapsUpdated;
+//     // has collateral been posted for a specific cToken
+//     mapping(address => bool) postedCollateral;
+//     // has the collateral ratio for a specific token been set to zero
+//     mapping(address => bool) isCollateralRatioZero;
+
+//     constructor() {
+//         SafeTransferLib.safeApprove(
+//             _USDC_ADDRESS,
+//             address(borrowableCUSDC),
+//             type(uint256).max
+//         );
+//         SafeTransferLib.safeApprove(
+//             _DAI_ADDRESS,
+//             address(borrowableCDAI),
+//             type(uint256).max
+//         );
+//         SafeTransferLib.safeApprove(
+//             _USDC_ADDRESS,
+//             address(pUSDC),
+//             type(uint256).max
+//         );
+//         SafeTransferLib.safeApprove(
+//             _DAI_ADDRESS,
+//             address(pDAI),
+//             type(uint256).max
+//         );
+//         list_token_should_succeed(address(pUSDC));
+//     }
+
+//     function setup() public {
+//         setUpFeeds();
+//         marketManager.updateCollateralToken(
+//             address(pUSDC),
+//             7000,
+//             4000,
+//             3000,
+//             200,
+//             400,
+//             1000
+//         );
+//         setPToken_should_succeed(address(pUSDC), 100_000e18);
+//         c_token_deposit(address(pUSDC), 2 * WAD, true);
+//         post_collateral_should_succeed(address(pUSDC), WAD * 2 - 1, false);
+//     }
+
+//     /// @custom:property market-1 Once a new token is listed, marketManager.isListed(cToken) should return true.
+//     /// @custom:precondition cToken must not already be listed
+//     /// @custom:precondition cToken must be one of: pDAI, pUSDC
+//     function list_token_should_succeed(address cToken) public {
+//         uint256 amount = 77777;
+//         // require the token is not already listed into the marketManager
+//         require(!marketManager.isListed(cToken));
+
+//         require(
+//             cToken == address(pDAI) ||
+//                 cToken == address(pUSDC) ||
+//                 cToken == address(borrowableCDAI) ||
+//                 cToken == address(borrowableCDAI)
+//         );
+//         require(_mintAndApprove(ICToken(cToken).underlying(), cToken, amount));
+
+//         try marketManager.listToken(cToken) {
+//             assertWithMsg(
+//                 marketManager.isListed(cToken),
+//                 "MARKET-1 marketManager.listToken() should succeed"
+//             );
+//         } catch {
+//             assertWithMsg(false, "MARKET-1 failed to list token");
+//         }
+//     }
+
+//     /// @custom:property market-2 A token already added to the marketManager cannot be added again
+//     /// @custom:precondition cToken must already be listed
+//     /// @custom:precondition cToken must be one of: pDAI, pUSDC
+//     function list_token_should_fail_if_already_listed(address cToken) public {
+//         // require the token is not already listed into the marketManager
+//         require(marketManager.isListed(cToken));
+
+//         require(cToken == address(pDAI) || cToken == address(pUSDC));
+
+//         try marketManager.listToken(cToken) {
+//             assertWithMsg(
+//                 false,
+//                 "MARKET-2 listToken for duplicate token should not be possible"
+//             );
+//         } catch (bytes memory revertData) {
+//             uint256 errorSelector = extractErrorSelector(revertData);
+
+//             assertWithMsg(
+//                 errorSelector == marketManager_invalidParameterSelectorHash,
+//                 "MARKET-2 listToken() expected TokenAlreadyListed selector hash on failure"
+//             );
+//         }
+//     }
+
+//     /// @custom:property market-3 – A user can deposit into an cToken provided that they have the underlying asset, and they have approved the cToken contract.
+//     /// @custom:property market-4 – When depositing assets into the cToken, the wrapped token balance for the user should increase.
+//     /// @custom:property market-29 If convertToShares overflows, deposit should revert
+//     /// @custom:property market-30 If totalAssets+amount overflows, deposit should revert
+//     /// @custom:property market-31 If oracle returns price <0, deposit should revert
+//     /// @custom:precondition GaugePool must have been started before block.timestamp
+//     /// @custom:precondition cToken must be one of: pDAI, pUSDC
+//     /// @custom:precondition cToken must be listed in marketManager
+//     /// @custom:precondition minting must not be paused
+//     function c_token_deposit(
+//         address cToken,
+//         uint256 amount,
+//         bool lower
+//     ) public {
+//         require(gaugeManager.gaugeStartTime() < block.timestamp);
+//         require(cToken == address(pDAI) || cToken == address(pUSDC));
+//         if (!marketManager.isListed(cToken)) {
+//             list_token_should_succeed(cToken);
+//         }
+//         require(marketManager.mintPaused(cToken) != 2);
+
+//         address underlyingAddress = MockSimpleCToken(cToken).underlying();
+//         amount = clampBetweenBoundsFromOne(lower, amount);
+//         require(_mintAndApprove(underlyingAddress, cToken, amount));
+//         uint256 prePTokenBalanceThis = MockSimpleCToken(cToken).balanceOf(
+//             address(this)
+//         );
+//         uint256 preTotalAssets = MockSimpleCToken(cToken).totalAssets();
+
+//         // TODO: investigate 20 min hold period for debt token ()
+//         try MockSimpleCToken(cToken).deposit(amount, address(this)) {
+//             uint256 postPTokenBalanceThis = MockSimpleCToken(cToken).balanceOf(
+//                 address(this)
+//             );
+
+//             assertLt(
+//                 prePTokenBalanceThis,
+//                 postPTokenBalanceThis,
+//                 "MARKET-4 pre and post cToken balance should increase"
+//             );
+//         } catch (bytes memory revertData) {
+//             uint256 errorSelector = extractErrorSelector(revertData);
+//             bool convertToSharesOverflow;
+
+//             try MockSimpleCToken(cToken).convertToShares(amount) {} catch (
+//                 bytes memory convertSharesData
+//             ) {
+//                 uint256 convertSharesError = extractErrorSelector(
+//                     convertSharesData
+//                 );
+//                 emit LogUint256(
+//                     "convert to shares error did overflow",
+//                     convertSharesError
+//                 );
+//                 // BaseCToken._convertToShares will revert when `mulDivDown` overflows with `revert(0,0)
+//                 if (convertSharesError == 2904890407) {
+//                     convertToSharesOverflow = true;
+//                 }
+//             }
+
+//             bool assetCalc = doesOverflow(
+//                 preTotalAssets + amount,
+//                 preTotalAssets
+//             ) ||
+//                 doesOverflow(
+//                     prePTokenBalanceThis + amount,
+//                     prePTokenBalanceThis
+//                 );
+//             // market-31
+//             bool isPriceNegative;
+//             if (cToken == address(pDAI)) {
+//                 isPriceNegative = chainlinkDaiUsd.latestAnswer() < 0;
+//             } else {
+//                 isPriceNegative = chainlinkUsdcUsd.latestAnswer() < 0;
+//             }
+//             // market-29, market-30
+//             if (convertToSharesOverflow || assetCalc) {
+//                 assertEq(
+//                     errorSelector,
+//                     overflow,
+//                     "MARKET-29-31 expected cToken.deposit() to revert with overflow"
+//                 );
+//             } else {
+//                 // market-3
+//                 assertWithMsg(
+//                     false,
+//                     "MARKET-3 expected cToken.deposit() to be successful"
+//                 );
+//             }
+//         }
+//     }
+
+//     /// @custom:property market-5 – Calling updateCollateralToken with variables in correct bounds should succeed.
+//     /// @custom:property market-6 - calling updateCollateralToken for token prices that deviate too much results in a PriceError
+//     /// @custom:property market-7 - calling updateCollateralToken for token prices that are <0 results in a PriceError
+//     /// @custom:property market-8 - calling updateCollateralToken again with a pre-CR != 0 with new CR=0 should revert
+//     /// @custom:precondition price feed must be recent
+//     /// @custom:precondition price feed must be setup
+//     /// @custom:precondition address(this) must have dao permissions
+//     /// @custom:precondition cap is bound between [1, uint256.max], inclusive
+//     /// @custom:precondition cToken must be listed in the marketManager
+//     /// @custom:precondition _getSafeUpdateCollateralBounds must be in correct bounds
+//     /// TODO: Logic to not allow updateCollateralToken to be re-called with a 0 CR was added after, and needs to be acounted for in these tests
+//     function updateCollateralToken_should_succeed(
+//         address cToken,
+//         uint256 collRatio,
+//         uint256 collReqSoft,
+//         uint256 collReqHard,
+//         uint256 liqIncSoft,
+//         uint256 liqIncHard,
+//         uint256 closeFactorBase
+//     ) public {
+//         require(centralRegistry.hasDaoPermissions(address(this)));
+//         require(marketManager.isListed(cToken));
+//         require(cToken == address(pDAI) || cToken == address(pUSDC));
+//         require(feedsSetup);
+
+//         (bool divergenceTooLarge, bool priceError) = _check_price_divergence(
+//             cToken
+//         );
+
+//         (, uint256 oldCR, , , , , , ) = marketManager.tokenData(cToken);
+//         {
+//             _check_price_feed();
+//             _getSafeUpdateCollateralBounds(
+//                 collRatio,
+//                 collReqSoft,
+//                 collReqHard,
+//                 liqIncSoft,
+//                 liqIncHard,
+//                 closeFactorBase
+//             );
+//             if (safeBounds.collRatio == 0) {
+//                 isCollateralRatioZero[cToken] = true;
+//             }
+//         }
+//         try
+//             marketManager.updateCollateralToken(
+//                 address(cToken),
+//                 safeBounds.collRatio,
+//                 safeBounds.collReqSoft,
+//                 safeBounds.collReqHard,
+//                 safeBounds.liqIncSoft,
+//                 safeBounds.liqIncHard,
+//                 safeBounds.closeFactorBase
+//             )
+//         {
+//             setCollateralValues[cToken] = true;
+//         } catch (bytes memory revertData) {
+//             {
+//                 uint256 errorSelector = extractErrorSelector(revertData);
+
+//                 if (oldCR != 0 && safeBounds.collRatio == 0) {
+//                     assertWithMsg(
+//                         errorSelector ==
+//                             marketManager_invalidParameterSelectorHash,
+//                         "MARKET-8 updateCollateralToken expected to fail if trying to zero a non-zero CR"
+//                     );
+//                 } else if (divergenceTooLarge) {
+//                     assertWithMsg(
+//                         errorSelector == marketManager_priceErrorSelectorHash,
+//                         "MARKET-6 expected updateCollateralToken to fail if price diverge too much or encounters error"
+//                     );
+//                 } else if (priceError) {
+//                     assertWithMsg(
+//                         errorSelector == marketManager_priceErrorSelectorHash,
+//                         "MARKET-7 expected updateCollateralToken to fail if price diverge too much or encounters error"
+//                     );
+//                 } else {
+//                     // market-5
+//                     assertWithMsg(
+//                         false,
+//                         "MARKET-5 updateCollateralToken should succeed"
+//                     );
+//                 }
+//             }
+//         }
+//     }
+
+//     /// @custom:property market-9 – Calling setCollateralCaps should increase the globally set the collateral caps to the cap provided
+//     /// @custom:property market-10 Setting collateral caps for a token given permissions and collateral values being set should succeed.
+//     /// @custom:precondition address(this) has dao permissions
+//     /// @custom:precondition cToken is a C token
+//     /// @custom:precondition collateral values for cToken must be set
+//     /// @custom:precondition cap is bound between [0, uint256.max]
+//     function setPToken_should_succeed(address cToken, uint256 cap) public {
+//         require(ICToken(cToken).isPToken());
+//         require(centralRegistry.hasDaoPermissions(address(this)));
+//         require(setCollateralValues[cToken]);
+//         require(!isCollateralRatioZero[cToken]);
+//         if (cap > maxCollateralCap[cToken]) {
+//             maxCollateralCap[cToken] = cap;
+//         }
+
+//         _check_price_feed();
+
+//         address[] memory tokens = new address[](1);
+//         tokens[0] = cToken;
+//         uint256[] memory caps = new uint256[](1);
+//         caps[0] = cap;
+
+//         (bool success, ) = address(marketManager).call(
+//             abi.encodeWithSignature(
+//                 "setCollateralCaps(address[],uint256[])",
+//                 tokens,
+//                 caps
+//             )
+//         );
+
+//         if (success) {
+//             assertEq(
+//                 marketManager.collateralCaps(cToken),
+//                 cap,
+//                 "MARKET-9 collateral caps for token should be >=0"
+//             );
+//         } else {
+//             // market-7
+//             assertWithMsg(
+//                 false,
+//                 "MARKET-10 expected setCollateralCaps to succeed"
+//             );
+//         }
+
+//         collateralCapsUpdated[cToken] = true;
+//     }
+
+//     /// @custom:property market-8 – updateCollateralToken should revert if the price feed is out of date
+//     /// @custom:precondition price feed is out of date
+//     /// @custom:precondition cap is bound between [1, uint256.max], inclusive
+//     /// @custom:precondition cToken must be listed in marketManager
+//     /// @custom:precondition cToken must be one of: pDAI, pUSDC
+//     function updateCollateralToken_should_revert_if_price_feed_out_of_date(
+//         address cToken,
+//         uint256 collRatio,
+//         uint256 collReqSoft,
+//         uint256 collReqHard,
+//         uint256 liqIncSoft,
+//         uint256 liqIncHard,
+//         uint256 closeFactorBase,
+//         uint256 cap
+//     ) public {
+//         if (lastRoundUpdate > block.timestamp) {
+//             lastRoundUpdate = block.timestamp;
+//         }
+//         require(block.timestamp - lastRoundUpdate > 24 hours);
+//         if (cToken == address(pDAI)) {
+//             require(
+//                 block.timestamp - chainlinkDaiUsd.latestTimestamp() > 24 hours
+//             );
+//         } else if (cToken == address(pUSDC)) {
+//             require(
+//                 block.timestamp - chainlinkUsdcUsd.latestTimestamp() > 24 hours
+//             );
+//         } else {
+//             return;
+//         }
+//         require(feedsSetup);
+//         require(centralRegistry.hasDaoPermissions(address(this)));
+//         if (!marketManager.isListed(cToken)) {
+//             list_token_should_succeed(cToken);
+//         }
+//         address[] memory tokens = new address[](1);
+//         tokens[0] = cToken;
+//         uint256[] memory caps = new uint256[](1);
+//         caps[0] = cap;
+
+//         {
+//             _getSafeUpdateCollateralBounds(
+//                 collRatio,
+//                 collReqSoft,
+//                 collReqHard,
+//                 liqIncSoft,
+//                 liqIncHard,
+//                 closeFactorBase
+//             );
+//             if (safeBounds.collRatio == 0) {
+//                 isCollateralRatioZero[cToken] = true;
+//             }
+//         }
+//         try
+//             marketManager.updateCollateralToken(
+//                 address(cToken),
+//                 safeBounds.collRatio,
+//                 safeBounds.collReqSoft,
+//                 safeBounds.collReqHard,
+//                 safeBounds.liqIncSoft,
+//                 safeBounds.liqIncHard,
+//                 safeBounds.closeFactorBase
+//             )
+//         {
+//             assertWithMsg(
+//                 false,
+//                 "MARKET-12 updateCollateralToken should not have succeeded with out of date price feeds"
+//             );
+//         } catch {}
+//     }
+
+//     /// @custom:property market-13 After collateral is posted, the user’s collateral posted position for the respective asset should increase.
+//     /// @custom:property market-14 After collateral is posted, calling hasPosition on the user’s cToken should return true.
+//     /// @custom:property market-15 After collateral is posted, the global collateral for the cToken should increase by the amount posted.
+//     /// @custom:property market-16 When price feed is up to date, address(this) has cToken, tokens are bound correctly, and caller is correct, the  postCollateral call should succeed.
+//     /// @custom:precondition price feed is up to date
+//     /// @custom:precondition address(this) must have a balance of cToken
+//     /// @custom:precondition `tokens` to be posted is bound between [1, cToken balance], inclusive
+//     /// @custom:precondition msg.sender for postCollateral = address(this)
+//     function post_collateral_should_succeed(
+//         address cToken,
+//         uint256 tokens,
+//         bool lower
+//     ) public {
+//         require(collateralCapsUpdated[cToken]);
+//         _check_price_feed();
+
+//         if (ICToken(cToken).balanceOf(address(this)) == 0) {
+//             c_token_deposit(
+//                 cToken,
+//                 tokens * ICToken(cToken).decimals(),
+//                 lower
+//             );
+//         }
+//         uint256 cTokenBalance = ICToken(cToken).balanceOf(address(this));
+
+//         uint256 oldCollateralForUser = _collateralPostedFor(cToken);
+//         uint256 collateralCaps = marketManager.collateralCaps(cToken);
+
+//         uint256 oldCollateralForToken = marketManager.collateralPosted(cToken);
+//         if (
+//             cTokenBalance - oldCollateralForUser >
+//             collateralCaps - oldCollateralForToken
+//         ) {
+//             // collateralPosted[cToken] + tokens <= collateralCaps[cToken])
+//             // tokens <= collateralCaps[cToken] - collateralPosted[cToken]
+//             tokens = clampBetween(
+//                 tokens,
+//                 1,
+//                 collateralCaps - oldCollateralForToken
+//             );
+//         } else {
+//             // collateralPosted + tokens <= cToken.balanceOf(address(this))
+//             // tokens <= cToken.balanceOf(address(this)) - collateralPosted
+//             tokens = clampBetween(
+//                 tokens,
+//                 1,
+//                 cTokenBalance - oldCollateralForUser
+//             );
+//         }
+
+//         {
+//             (bool success, bytes memory revertData) = ICToken(cToken)
+//                 .call(
+//                     abi.encodeWithSignature(
+//                         "postCollateral(uint256)",
+//                         tokens
+//                     )
+//                 );
+//             if (!success) {
+//                 uint256 errorSelector = extractErrorSelector(revertData);
+//                 emit LogUint256("error selector: ", errorSelector);
+//                 assertWithMsg(
+//                     false,
+//                     "MARKET-16 expected postCollateral to pass with @precondition"
+//                 );
+//             } else {
+//                 // ensure account collateral has increased by # of tokens
+//                 uint256 newCollateralForUser = _collateralPostedFor(cToken);
+
+//                 uint256 cTokenExchange = MockSimpleCToken(cToken)
+//                     .exchangeRateSafe();
+//                 assertEq(
+//                     (newCollateralForUser) * cTokenExchange,
+//                     (oldCollateralForUser + tokens) * cTokenExchange,
+//                     "MARKET-13 new collateral must collateral+tokens"
+//                 );
+//                 assertWithMsg(
+//                     _hasPosition(cToken),
+//                     "MARKET-14 addr(this) must have position after posting"
+//                 );
+
+//                 uint256 newCollateralForToken = marketManager.collateralPosted(
+//                     cToken
+//                 );
+//                 assertEq(
+//                     newCollateralForToken,
+//                     oldCollateralForToken + tokens,
+//                     "MARKET-15 global collateral posted should increase"
+//                 );
+//                 postedCollateral[cToken] = true;
+//                 postedCollateralAt[cToken] = block.timestamp;
+//             }
+//         }
+//     }
+
+//     /// @custom:property market-17 – Trying to post too much collateral should revert.
+//     /// @custom:precondition collateral caps for the token are >0
+//     /// @custom:precondition price feed must be out of date
+//     /// @custom:precondition user must have cToken balance
+//     /// @custom:precondition tokens is bound between [cTokenBalance - existingCollateral+1, uint256.max]
+//     function post_collateral_should_fail_too_many_tokens(
+//         address cToken,
+//         uint256 tokens,
+//         bool lower
+//     ) public {
+//         require(collateralCapsUpdated[cToken]);
+//         _check_price_feed();
+
+//         if (ICToken(cToken).balanceOf(address(this)) == 0) {
+//             c_token_deposit(
+//                 cToken,
+//                 tokens * ICToken(cToken).decimals(),
+//                 lower
+//             );
+//         }
+//         uint256 cTokenBalance = ICToken(cToken).balanceOf(address(this));
+
+//         uint256 oldCollateralForUser = _collateralPostedFor(cToken);
+
+//         // collateralPosted + tokens <= cToken.balanceOf(address(this))
+//         // tokens <= cToken.balanceOf(address(this)) - collateralPosted
+//         tokens = clampBetween(
+//             tokens,
+//             cTokenBalance - oldCollateralForUser + 1,
+//             type(uint256).max
+//         );
+
+//         (bool success, ) = ICToken(cToken).call(
+//             abi.encodeWithSignature(
+//                 "postCollateral(uint256)",
+//                 tokens
+//             )
+//         );
+
+//         assertWithMsg(
+//             !success,
+//             "MARKET-17 postCollateral() with too many tokens should fail"
+//         );
+//     }
+
+//     /// @custom:property market-18 Removing collateral from the system should decrease the global posted collateral by the removed amount.
+//     /// @custom:property market-19 Removing collateral from the system should reduce the user posted collateral by the removed amount.
+//     /// @custom:property market-20 If the user has a liquidity shortfall, the user should not be permitted to remove collateral (function should fai with insufficient collateral selector hash).
+//     /// @custom:property market-21 If the user does not have a liquidity shortfall and meets expected preconditions, the removeCollateral should be successful.
+//     /// @custom:property market-22 If new collateral for user after removing is = 0 and a user wants to close position, the user should no longer have a position in the asset
+//     /// @custom:precondition price feed must be recent
+//     /// @custom:precondition cToken is one of: pDAI, pUSDC
+//     /// @custom:precondition cToken must be listed in the marketManager
+//     /// @custom:precondition current timestamp must exceed the MIN_HOLD_PERIOD from postCollateral timestamp
+//     /// @custom:precondition token is clamped between [1, collateralForUser]
+//     /// @custom:precondition redeemPaused flag must not be set
+//     function remove_collateral_should_succeed(
+//         address cToken,
+//         uint256 tokens,
+//         bool closePositionIfPossible
+//     ) public {
+//         require(cToken == address(pDAI) || cToken == address(pUSDC));
+//         require(postedCollateral[cToken]);
+//         require(marketManager.isListed(cToken));
+//         _check_price_feed();
+
+//         emit LogUint256(
+//             "cooldown timestamp for cToken",
+//             _getCooldownTimestampFor()
+//         );
+//         require(
+//             block.timestamp >
+//                 _getCooldownTimestampFor() + marketManager.MIN_HOLD_PERIOD()
+//         );
+
+//         require(_hasPosition(cToken));
+//         require(marketManager.redeemPaused() != 2);
+
+//         uint256 oldCollateralForUser = _collateralPostedFor(cToken);
+//         tokens = clampBetween(tokens, 1, oldCollateralForUser);
+
+//         uint256 oldCollateralPostedForToken = marketManager.collateralPosted(
+//             cToken
+//         );
+//         uint256 shortfall = _getLiquidityDeficit(
+//             address(this),
+//             cToken,
+//             tokens,
+//             0
+//         );
+//         emit LogUint256("shortfall:", shortfall);
+
+//         if (shortfall > 0) {
+//             try ICToken(cToken).removeCollateral(tokens) {} catch (
+//                 bytes memory revertData
+//             ) {
+//                 uint256 errorSelector = extractErrorSelector(revertData);
+
+//                 assertWithMsg(
+//                     errorSelector ==
+//                         marketManager_insufficientCollateralSelectorHash,
+//                     "MARKET-20 removeCollateral expected to revert with insufficientCollateral"
+//                 );
+//             }
+//         } else {
+//             // the account has no shortfall
+
+//             try ICToken(cToken).removeCollateral(tokens) {
+//                 // Collateral posted for the cToken should decrease
+//                 uint256 newCollateralPostedForToken = marketManager
+//                     .collateralPosted(cToken);
+//                 assertEq(
+//                     newCollateralPostedForToken,
+//                     oldCollateralPostedForToken - tokens,
+//                     "MARKET-18 global collateral posted should decrease"
+//                 );
+
+//                 // Collateral posted for the user should decrease
+//                 uint256 newCollateralForUser = _collateralPostedFor(cToken);
+//                 assertEq(
+//                     newCollateralForUser,
+//                     oldCollateralForUser - tokens,
+//                     "MARKET-19 user collateral posted should decrease"
+//                 );
+//                 if (newCollateralForUser == 0 && closePositionIfPossible) {
+//                     assertWithMsg(
+//                         !_hasPosition(cToken),
+//                         "MARKET-22 closePositionIfPossible flag set should remove a user's position"
+//                     );
+//                 }
+//             } catch {
+//                 assertWithMsg(
+//                     false,
+//                     "MARKET-21 expected removeCollateral expected to be successful with no shortfall"
+//                 );
+//             }
+//         }
+//     }
+
+//     /// @custom:property market-23 Removing collateral for a nonexistent position should revert with invariant error hash.
+//     /// @custom:property market-41 Removing 0 tokens in collateral should revert with invalid parameter selector
+//     /// @custom:precondition cToken is either of: pDAI or pUSDC
+//     /// @custom:precondition token must be listed in marketManager
+//     /// @custom:precondition price feed must be up to date
+//     /// @custom:precondition user must NOT have an existing position
+//     function removeCollateral_should_fail_with_non_existent_position(
+//         address cToken,
+//         uint256 tokens
+//     ) public {
+//         require(cToken == address(pDAI) || cToken == address(pUSDC));
+//         require(marketManager.isListed(cToken));
+//         _check_price_feed();
+//         require(!_hasPosition(cToken));
+
+//         try ICToken(cToken).removeCollateral(tokens) {
+//             assertWithMsg(
+//                 false,
+//                 "MARKET-23 removeCollateral should fail with non existent position"
+//             );
+//         } catch (bytes memory revertData) {
+//             uint256 errorSelector = extractErrorSelector(revertData);
+//             if (tokens == 0) {
+//                 assertWithMsg(
+//                     errorSelector ==
+//                         marketManager_invalidParameterSelectorHash,
+//                     "MARKET-41 removeCollateral should revert when trying to remove 0 tokens"
+//                 );
+//             } else {
+//                 assertWithMsg(
+//                     errorSelector == marketManager_invariantErrorSelectorHash,
+//                     "MARKET-23 expected removeCollateral to revert with InvariantError"
+//                 );
+//             }
+//         }
+//     }
+
+//     /// @custom:property market-24 Removing more tokens than a user has for collateral should revert with insufficient collateral hash.
+//     /// @custom:precondition cToken is either of: pDAI or pUSDC
+//     /// @custom:precondition token must be listed in marketManager
+//     /// @custom:precondition price feed must be up to date
+//     /// @custom:precondition user must have an existing position
+//     /// @custom:precondition tokens to remove is bound between [existingCollateral+1, uint256.max]
+//     function removeCollateral_should_fail_with_removing_too_many_tokens(
+//         address cToken,
+//         uint256 tokens
+//     ) public {
+//         require(cToken == address(pDAI) || cToken == address(pUSDC));
+//         require(marketManager.isListed(cToken));
+//         _check_price_feed();
+//         emit LogBool("has position", _hasPosition(cToken));
+//         require(_hasPosition(cToken));
+//         uint256 oldCollateralForUser = _collateralPostedFor(cToken);
+
+//         tokens = clampBetween(
+//             tokens,
+//             oldCollateralForUser + 1,
+//             type(uint256).max
+//         );
+
+//         try ICToken(cToken).removeCollateral(tokens) {
+//             assertWithMsg(
+//                 false,
+//                 "MARKET-24 removeCollateral should fail insufficient collateral"
+//             );
+//         } catch (bytes memory revertData) {
+//             // expectation is that this should fail
+//             uint256 errorSelector = extractErrorSelector(revertData);
+
+//             assertWithMsg(
+//                 errorSelector ==
+//                     marketManager_insufficientCollateralSelectorHash,
+//                 "MARKET-24 expected removeCollateral to revert with InsufficientCollateral when attempting to remove too much"
+//             );
+//         }
+//     }
+
+//     /// @custom:property market-25 Calling reduceCollateralIfNecessary should fail when not called within the context of the cToken.
+//     /// @custom:precondition msg.sender != cToken
+//     // function reduceCollateralIfNecessary_should_fail_with_wrong_caller(
+//     //     address cToken,
+//     //     uint256 amount
+//     // ) public {
+//     //     require(msg.sender != cToken);
+//     //     try
+//     //         marketManager.reduceCollateralIfNecessary(
+//     //             address(this),
+//     //             cToken,
+//     //             ICToken(cToken).balanceOf(address(this)),
+//     //             amount
+//     //         )
+//     //     {
+//     //         assertWithMsg(
+//     //             false,
+//     //             "MARKET-25 reduceCollateralIfNecessary should not be successful if called directly"
+//     //         );
+//     //     } catch (bytes memory revertData) {
+//     //         uint256 errorSelector = extractErrorSelector(revertData);
+
+//     //         assertWithMsg(
+//     //             errorSelector == marketManager_unauthorizedSelectorHash,
+//     //             "MARKET-25 reduceCollateralIfNecessary expected to revert with Unauthorized"
+//     //         );
+//     //     }
+//     // }
+
+//     // the closePosition function was removed from the codebase thus these invariants are no longer needed
+//     /* 
+//     /// @custom:property market-26 Calling closePosition with correct preconditions should remove a position in the cToken, where collateral posted for the user is greater than 0.
+//     /// @custom:property market-27 Calling closePosition with correct preconditions should set collateralPosted for the user’s cToken to zero, where collateral posted for the user is greater than 0.
+//     /// @custom:property market-28 Calling closePosition with correct preconditions should reduce the user asset list by 1 element, where collateral posted for the user is greater than 0.
+//     /// @custom:property market-29 Calling closePosition with correct preconditions should succeed,where collateral posted for the user is greater than 0.
+//     /// @custom:property market-30 In a shortfall, closePosition should revert with insufficient collateral error
+//     /// @custom:precondition token must be pDAI or pUSDC
+//     /// @custom:precondition token must have an existing position
+//     /// @custom:precondition collateralPostedForUser for respective token > 0
+//     function closePosition_should_succeed(address cToken) public {
+//         require(marketManager.redeemPaused() != 2);
+//         require(cToken == address(pDAI) || cToken == address(pUSDC));
+//         require(_hasPosition(cToken));
+//         _check_price_feed();
+//         uint256 collateralPostedForUser = _collateralPostedFor(cToken);
+//         require(collateralPostedForUser > 0);
+//         require(
+//             block.timestamp >
+//                 _getCooldownTimestampFor() + marketManager.MIN_HOLD_PERIOD()
+//         );
+//         ICToken[] memory preAssetsOf = marketManager.assetsOf(address(this));
+//         uint256 shortfall = _getLiquidityDeficit(
+//             address(this),
+//             cToken,
+//             collateralPostedForUser,
+//             0
+//         );
+
+//         (bool success, bytes memory revertData) = address(marketManager).call(
+//             abi.encodeWithSignature("closePosition(address)", cToken)
+//         );
+//         uint256 errorSelector = extractErrorSelector(revertData);
+
+//         if (!success) {
+//             if (shortfall > 0) {
+//                 assertWithMsg(
+//                     errorSelector ==
+//                         marketManager_insufficientCollateralSelectorHash,
+//                     "MARKET-30 closePosition should revert with InsufficientCollateral if shortfall exists"
+//                 );
+//             } else {
+//                 assertWithMsg(
+//                     false,
+//                     "MARKET-29 closePosition expected to be successful with correct preconditions"
+//                 );
+//             }
+//         } else {
+//             _checkClosePositionPostConditions(
+//                 cToken,
+//                 preAssetsOf.length,
+//                 "MARKET-26",
+//                 "MARKET-27",
+//                 "MARKET-28"
+//             );
+//         }
+//     }
+
+
+//     /// @custom:property market-31 Calling closePosition with correct preconditions should remove a position in the cToken, where collateral posted for the user is equal to 0.
+//     /// @custom:property market-32 Calling closePosition with correct preconditions should set collateralPosted for the user’s cToken to zero, where collateral posted for the user is equal to 0.
+//     /// @custom:property market-33 Calling closePosition with correct preconditions should reduce the user asset list by 1 element, where collateral posted for the user is equal to 0.
+//     /// @custom:property market-34 Calling closePosition with correct preconditions should succeed,where collateral posted for the user is equal to 0.
+//     /// @custom:precondition token must be pDAI or pUSDC
+//     /// @custom:precondition token must have an existing position
+//     /// @custom:precondition collateralPostedForUser for respective token = 0
+//     function closePosition_should_succeed_if_collateral_is_0(
+//         address cToken
+//     ) public {
+//         require(marketManager.redeemPaused() != 2);
+//         require(cToken == address(pDAI) || cToken == address(pUSDC));
+//         require(_hasPosition(cToken));
+//         _check_price_feed();
+//         uint256 collateralPostedForUser = _collateralPostedFor(cToken);
+//         require(collateralPostedForUser == 0);
+//         require(
+//             block.timestamp >
+//                 postedCollateralAt[cToken] + marketManager.MIN_HOLD_PERIOD()
+//         );
+//         ICToken[] memory preAssetsOf = marketManager.assetsOf(address(this));
+
+//         (bool success, ) = address(marketManager).call(
+//             abi.encodeWithSignature("closePosition(address)", cToken)
+//         );
+//         if (!success) {
+//             assertWithMsg(
+//                 false,
+//                 "MARKET-34 - closePosition should succeed if collateral is 0"
+//             );
+//         } else {
+//             _checkClosePositionPostConditions(
+//                 cToken,
+//                 preAssetsOf.length,
+//                 "MARKET-31",
+//                 "MARKET-32",
+//                 "MARKET-33"
+//             );
+//         }
+//     }
+//     */
+
+//     uint256 constant DAI_PRICE = 1e24;
+//     uint256 constant USDC_PRICE = 1e7;
+//     int256 public deltaTotalBorrowsAndDebt;
+
+//     function echidna_liquidate_delta() public view returns (int256) {
+//         return deltaTotalBorrowsAndDebt;
+//     }
+
+//     /// @custom:property market-35 Liquidating an acount with the correct preconditions should succeed (i.e: no revert, no panic)
+//     /// @custom:property market-36 Liquidating an account should result in all position token balances being zeroed out.
+//     /// @custom:property market-37 Liquidating an account should result in all debtBalance() for all debt tokens being zeroed out.
+//     /// @custom:property market-42 Liquidating an account should result in no more than a 1 wei difference btwn totalborrows and accountDebt
+//     /// @custom:precondition seizePaused must !=2 (i.e: market manager does not have seizePaused)
+//     /// @custom:precondition accountCollateral must be < accountDebt to be liquidatable
+//     /// @custom:limitation there is a KNOWN rounding offset here by 1 wei, where the this flow can revert. This function will revert if the diff exceeds 1 wei
+//     /// @custom:limitation there is also a KNOWN limitation that liquidation functions currently are using the DAI PRICE and USDC PRICE constants. This function is an attempt to introduce randomness into this flow.
+//     /// @custom:limitation debt and collateral balance checks are missing here
+//     function liquidateAccount_should_succeed(
+//         uint256 amount,
+//         uint256 usdcPrice,
+//         uint256 daiPrice
+//     ) public {
+//         require(marketManager.seizePaused() != 2);
+//         address account = address(this);
+//         // returns oracle prices within the min and max of the aggregator values
+//         (usdcPrice, daiPrice) = _bound_oracle_prices(usdcPrice, daiPrice);
+//         // sets up liquidatable system and ensures that system can be liquidated
+//         amount = _preLiquidate(amount, daiPrice, usdcPrice);
+
+//         ICToken[] memory assets = marketManager.assetsOf(account);
+
+//         hevm.prank(msg.sender);
+//         try this.prankLiquidateAccount(account) {
+//             emit LogAddress("msg.sender", msg.sender);
+//             for (uint256 i = 0; i < assets.length; i++) {
+//                 if (assets[i].isPToken()) {
+//                     assertEq(
+//                         _collateralPostedFor(address(assets[i])),
+//                         0,
+//                         "MARKET-36 - liquidateAccount should zero out collateral"
+//                     );
+//                 } else {
+//                     assertEq(
+//                         IBorrowableCToken(address(assets[i])).debtBalance(
+//                             address(this)
+//                         ),
+//                         0,
+//                         "MARKET-37 - liquidateAccount should zero out debt balance"
+//                     );
+//                 }
+//             }
+//         } catch Panic(uint256 errorCode) {
+//             if (errorCode == PANIC_UNDER_OVER_FLOW_CODE) {
+//                 for (uint256 i = 0; i < assets.length; i++) {
+//                     if (assets[i].isPToken()) {
+//                         continue;
+//                     }
+//                     uint256 totalBorrows = IBorrowableCToken(address(assets[i]))
+//                         .totalBorrows();
+//                     uint256 accountDebt = IBorrowableCToken(address(assets[i]))
+//                         .debtBalance(address(this));
+//                     if (totalBorrows < accountDebt) {
+//                         emit LogUint256(
+//                             "difference between totalBorrows and accountDebt",
+//                             accountDebt - totalBorrows
+//                         );
+
+//                         // The system has a *known* limitation in rounding that totalBorrows and accountDebt can be off by one wei
+//                         // This check ensures that if there is a diff, it must be no more than 1 wei, otherwise Echidna will throw
+//                         assertLt(
+//                             accountDebt - totalBorrows,
+//                             2,
+//                             "MARKET-42 - difference between accountdebt and totalborrows exceeds 1"
+//                         );
+//                         deltaTotalBorrowsAndDebt = int256(
+//                             totalBorrows - accountDebt
+//                         );
+//                     } else {
+//                         deltaTotalBorrowsAndDebt = int256(
+//                             accountDebt - totalBorrows
+//                         );
+//                     }
+//                 }
+//             } else {
+//                 emit LogUint256("panic code:", errorCode);
+//                 assertWithMsg(
+//                     false,
+//                     "MARKET-35 liquidateAccount panicked unexpectedly"
+//                 );
+//             }
+//         } catch (bytes memory revertData) {
+//             uint256 errorSelector = extractErrorSelector(revertData);
+
+//             if (
+//                 errorSelector == insufficient_allowance ||
+//                 errorSelector == transfer_from_failed
+//             ) {} else {
+//                 assertWithMsg(
+//                     false,
+//                     "MARKET-35 liquidateAccount with correct preconditions should succeed"
+//                 );
+//             }
+//         }
+//     }
+
+//     /// @custom:property market-38 Attempting to liquidate an entire account (hard liquidation) should fail if the collateral >= debt with NoLiquidationAvailable.
+//     /// @custom:precondition seizePaused != 2
+//     /// @custom:precondition address(this) must NOT be flagged for liquidation
+//     /// @custom:precondition address(this) is being liquidated
+//     function liquidateAccount_should_fail_if_account_not_flagged() public {
+//         require(marketManager.seizePaused() != 2);
+//         require(!marketManager.flaggedForLiquidation(address(this)));
+//         address account = address(this);
+
+//         hevm.prank(msg.sender);
+//         try this.prankLiquidateAccount(account) {
+//             assertWithMsg(
+//                 false,
+//                 "MARKET-38 liquidateAccount should fail if account is not flagged for liquidations"
+//             );
+//         } catch (bytes memory revertData) {
+//             uint256 errorSelector = extractErrorSelector(revertData);
+
+//             assertEq(
+//                 errorSelector,
+//                 marketManager_noLiquidationAvailableSelectorHash,
+//                 "MARKET-38 liquidateAccount should fail with NoLiquidationAvailable if not flagged"
+//             );
+//         }
+//     }
+
+//     /// @custom:property market-39 Attempting to liquidate an entire account (hard liquidation) should fail if a user is attempting to liquidate themselves with Unauthorized.
+//     /// @custom:precondition account to liquidate is msg.sender
+//     /// @custom:precondition seize must not be paused
+//     function liquidateAccount_should_fail_if_self_account(
+//         uint256 amount
+//     ) public {
+//         require(marketManager.seizePaused() != 2);
+//         address account = msg.sender;
+//         _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
+
+//         hevm.prank(msg.sender);
+//         try this.prankLiquidateAccount(account) {
+//             assertWithMsg(
+//                 false,
+//                 "MARKET-39 liquidateAccount should fail if user attempts to liquidate themselves"
+//             );
+//         } catch (bytes memory revertData) {
+//             uint256 errorSelector = extractErrorSelector(revertData);
+
+//             assertEq(
+//                 errorSelector,
+//                 marketManager_unauthorizedSelectorHash,
+//                 "MARKET-39 liquidateAccount should fail with Unauthorized"
+//             );
+//         }
+//     }
+
+//     /// @custom:property market-40 Attempting to liquidate an entire account (hard liquidation) should fail if seize is paused with Paused.
+//     /// @custom:precondition account = address(this)
+//     /// @custom:precondition seizePaused = 2 (is paused)
+//     function liquidateAccount_should_fail_if_seize_paused(
+//         uint256 amount
+//     ) public {
+//         require(marketManager.seizePaused() == 2);
+//         address account = address(this);
+//         _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
+
+//         hevm.prank(msg.sender);
+//         try this.prankLiquidateAccount(account) {
+//             assertWithMsg(
+//                 false,
+//                 "MARKET- liquidateAccount should fail if user attempts to liquidate themselves"
+//             );
+//         } catch (bytes memory revertData) {
+//             uint256 errorSelector = extractErrorSelector(revertData);
+
+//             assertEq(
+//                 errorSelector,
+//                 marketManager_pausedSelectorHash,
+//                 "MARKET- liquidateAccount should fail with PAUSED when seize is paused"
+//             );
+//         }
+//     }
+
+//     function prankLiquidateAccount(address account) public {
+//         hevm.prank(msg.sender);
+//         marketManager.liquidateAccount(account);
+//     }
+
+//     // Helper Functions
+
+//     // This function sets up the system to set the prices to the respective assets
+//     /// @custom:limitation as mentioned in liquidation functions, the fuzz suite currently uses STATIC prices. this should be opened up to a larger range.
+//     function _setup_liquidatable_states(
+//         uint amount,
+//         uint256 daiPrice,
+//         uint256 usdcPrice
+//     ) private {
+//         hevm.warp(block.timestamp + marketManager.MIN_HOLD_PERIOD());
+//         address liquidator = msg.sender;
+
+//         hevm.prank(liquidator);
+//         dai.mint(amount * WAD);
+
+//         hevm.prank(liquidator);
+//         dai.approve(address(borrowableCDAI), amount * WAD);
+
+//         emit LogUint256("setting dai price to:", uint256(int256(daiPrice)));
+//         mockDaiFeed.setMockAnswer(int256(daiPrice));
+//         mockDaiFeed.setMockUpdatedAt(block.timestamp);
+//         chainlinkDaiUsd.updateRoundData(
+//             0,
+//             int256(daiPrice),
+//             block.timestamp,
+//             block.timestamp
+//         );
+//         IOracleAdaptor.PricingResult memory daiData = chainlinkAdaptor.getPrice(
+//             address(borrowableCDAI),
+//             true,
+//             false
+//         );
+//         require(!daiData.hadError);
+
+//         emit LogUint256("setting usdc price to:", uint256(int256(usdcPrice)));
+//         chainlinkUsdcUsd.updateRoundData(
+//             0,
+//             int256(usdcPrice),
+//             block.timestamp,
+//             block.timestamp
+//         );
+//         mockUsdcFeed.setMockAnswer(int256(usdcPrice));
+//         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+
+//         IOracleAdaptor.PricingResult memory usdcData = chainlinkAdaptor.getPrice(
+//             address(pUSDC),
+//             true,
+//             false
+//         );
+//         require(!usdcData.hadError);
+//     }
+
+//     /// @notice this function will set up the system such that the account's position is liquidatable
+//     function _preLiquidate(
+//         uint256 amount,
+//         uint256 daiPrice,
+//         uint256 usdcPrice
+//     ) internal returns (uint256) {
+//         // ensure price feeds are up to date and in sync before updating position token and listing
+//         _check_price_feed();
+//         {
+//             (
+//                 bool is_pUSDC_listed,
+//                 uint256 pUSDC_cr,
+//                 ,
+//                 ,
+//                 ,
+//                 ,
+//                 ,
+
+//             ) = marketManager.tokenData(address(pUSDC));
+//             // if C_USDC is not listed, make sure to list it
+//             if (!is_pUSDC_listed) {
+//                 list_token_should_succeed(address(pUSDC));
+//             }
+//             // If collateral ratio of PUSDC is 0, update the market manager to increase collateral ratio
+//             if (pUSDC_cr == 0) {
+//                 updateCollateralToken_should_succeed(
+//                     address(pUSDC),
+//                     1000e18,
+//                     0,
+//                     0,
+//                     0,
+//                     0,
+//                     0
+//                 );
+//             }
+
+//             // user to be liquidated must already have a position in pUSDC
+//             bool hasUsdcPosition = _hasPosition(address(pUSDC));
+//             // if they do not, post it as collateral
+//             if (!hasUsdcPosition) {
+//                 post_collateral_should_succeed(address(pUSDC), WAD + 1, false);
+//             }
+//         }
+
+//         {
+//             // eDAI must be listed in the market manager to continue
+//             (bool is_eDAI_listed, , , , , , , ) = marketManager.tokenData(
+//                 address(borrowableCDAI)
+//             );
+//             // if eDAI is not listed, list the eDAI token to the manager
+//             if (!is_eDAI_listed) {
+//                 list_token_should_succeed(address(borrowableCDAI));
+//             }
+//         }
+
+//         // the maximum amount of eDAI that can be borrowed is the market underlying held - totalReserves
+//         uint256 upperBound = EToken(address(borrowableCDAI)).marketUnderlyingHeld() -
+//             EToken(eDAI).totalReserves();
+//         // clamp the amount of eDAI to borrow between 1 wei and upperBound-1
+//         amount = clampBetween(amount, 1, upperBound - 1);
+
+//         borrowableCDAI.borrow(amount);
+
+//         // mint tokens and set the oracle prices of the system
+//         _setup_liquidatable_states(amount, daiPrice, usdcPrice);
+
+//         // ensure that the account can be liquidated
+//         (uint256 accountCollateral, , uint256 accountDebt) = marketManager
+//             .statusOf(address(this));
+//         // ensure that the collateral < accountDebt to be liquidated
+//         require(accountCollateral < accountDebt);
+//         return amount;
+//     }
+
+//     struct TokenCollateralBounds {
+//         uint256 collRatio;
+//         uint256 collReqSoft;
+//         uint256 collReqHard;
+//         uint256 liqIncSoft;
+//         uint256 liqIncHard;
+//         uint256 closeFactorBase;
+//     }
+
+//     TokenCollateralBounds safeBounds;
+
+//     // Bounds the specific variables required to call updateCollateralBounds
+//     // Variables are generated in basis points, and converted to WAD (by multiplying by 1e14)
+//     // Assume ALL bounds below are inclusive, on both ends
+//     // closeFactorBase: [MIN_BASE_CFACTOR/1e14, MAX_BASE_CFACTOR/1e14]
+//     // liqIncSoft: [MIN_LIQUIDATION_INCENTIVE() / 1e14, MAX_LIQUIDATION_INCENTIVE()/1e14-1]
+//     // liqIncHard: [liqIncSoft+1, MAX_LIQUIDATION_INCENTIVE/1e14]
+//     // inherently from above, liqIncSoft < liqIncHard
+//     // collReqHard = [liqIncHard + MIN_EXCESS_COLLATERAL_REQUIREMENT/1e14, MAX_COLLATERAL_REQUIREMENT()/1e14-1]
+//     // collReqSoft = [collReqHard+1, MAX_COLLATERAL_REQUIREMENT()/1e14]
+//     // collateralRatio = [0, min(MAX_COLLATERALIZATION_RATIO/1e14, (WAD*WAD)/(WAD+collReqSoft*1e14))]
+//     function _getSafeUpdateCollateralBounds(
+//         uint256 collRatio,
+//         uint256 collReqSoft,
+//         uint256 collReqHard,
+//         uint256 liqIncSoft,
+//         uint256 liqIncHard,
+//         uint256 closeFactorBase
+//     ) private {
+//         safeBounds.closeFactorBase = clampBetween(
+//             closeFactorBase,
+//             marketManager.MIN_BASE_CFACTOR() / 1e14,
+//             marketManager.MAX_BASE_CFACTOR() / 1e14
+//         );
+
+//         safeBounds.liqIncSoft = clampBetween(
+//             liqIncSoft,
+//             marketManager.MIN_LIQUIDATION_INCENTIVE() / 1e14,
+//             marketManager.MAX_LIQUIDATION_INCENTIVE() / 1e14 - 1
+//         );
+
+//         safeBounds.liqIncHard = clampBetween(
+//             liqIncHard,
+//             safeBounds.liqIncSoft + 1,
+//             marketManager.MAX_LIQUIDATION_INCENTIVE() / 1e14
+//         );
+
+//         // collateral requirement soft -> hard goes down
+//         safeBounds.collReqHard = clampBetween(
+//             collReqHard,
+//             safeBounds.liqIncHard +
+//                 marketManager.MIN_EXCESS_COLLATERAL_REQUIREMENT() /
+//                 1e14,
+//             marketManager.MAX_COLLATERAL_REQUIREMENT() / 1e14 - 1
+//         );
+
+//         safeBounds.collReqSoft = clampBetween(
+//             collReqSoft,
+//             safeBounds.collReqHard + 1,
+//             marketManager.MAX_COLLATERAL_REQUIREMENT() / 1e14
+//         );
+
+//         uint256 collatPremium = uint256(
+//             ((WAD * WAD) / (WAD + (safeBounds.collReqSoft * 1e14)))
+//         );
+
+//         if (marketManager.MAX_COLLATERALIZATION_RATIO() > collatPremium) {
+//             safeBounds.collRatio = clampBetween(
+//                 collRatio,
+//                 0,
+//                 (collatPremium / 1e14)
+//             );
+//             emit LogUint256(
+//                 "collateral ratio clamped to collateralization premium:",
+//                 safeBounds.collRatio
+//             );
+//         } else {
+//             safeBounds.collRatio = clampBetween(
+//                 collRatio,
+//                 0,
+//                 marketManager.MAX_COLLATERALIZATION_RATIO() / 1e14
+//             );
+//             emit LogUint256(
+//                 "collateral ratio clamped to max collateralization ratio:",
+//                 safeBounds.collRatio
+//             );
+//         }
+//     }
+
+//     // The Oracle Manager has a min and max price limit defined per asset,
+//     // and should be reflected here
+//     function _bound_oracle_prices(
+//         uint256 usdcPrice,
+//         uint256 daiPrice
+//     ) internal returns (uint256, uint256) {
+//         usdcPrice = clampBetween(
+//             usdcPrice,
+//             uint256(int256(MIN_ORACLE_ANSWER)),
+//             uint256(int256(MAX_USDC_ANSWER))
+//         );
+//         daiPrice = clampBetween(
+//             daiPrice,
+//             uint256(int256(MIN_ORACLE_ANSWER)),
+//             uint256(int256(MAX_DAI_ANSWER))
+//         );
+//         return (usdcPrice, daiPrice);
+//     }
+
+//     /* The following post-conditions were introduced as part of the closePosition function that was removed in the last rebase. 
+//     function _checkClosePositionPostConditions(
+//         address cToken,
+//         uint256 preAssetsOfLength,
+//         string memory closePositionId,
+//         string memory collateralPostedId,
+//         string memory assetsLengthId
+//     ) private {
+//         assertWithMsg(
+//             !_hasPosition(cToken),
+//             closePositionId,
+//             "closePosition should remove position in cToken if successful"
+//         );
+//         assertWithMsg(
+//             _collateralPostedFor(cToken) == 0,
+//             collateralPostedId,
+//             "closePosition should reduce collateralPosted for user to 0"
+//         );
+//         ICToken[] memory postAssetsOf = marketManager.assetsOf(address(this));
+//         assertWithMsg(
+//             preAssetsOfLength - 1 == postAssetsOf.length,
+//             assetsLengthId,
+//             "closePosition expected to remove asset from assetOf"
+//         );
+//     }
+//     */
+
+//     function _check_price_divergence(
+//         address cToken
+//     ) private view returns (bool divergenceTooLarge, bool priceError) {
+//         (uint256 lowerPrice, uint lowError) = OracleManager(oracleManager)
+//             .getPrice(cToken, true, true);
+//         (uint256 higherPrice, uint highError) = OracleManager(oracleManager)
+//             .getPrice(cToken, true, false);
+
+//         priceError = lowError == 2 || highError == 2;
+//         if (lowerPrice < 0 || higherPrice < 0) {
+//             priceError = true;
+//         }
+
+//         if (
+//             higherPrice - lowerPrice >
+//             OracleManager(oracleManager).badSourcePriceDivergence()
+//         ) {
+//             divergenceTooLarge = true;
+//         }
+//     }
+// }

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
+
+import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 
 /// @title Curvance Action Registry.
 /// @notice Facilitates locking a users token transferability or plugin
@@ -23,9 +25,24 @@ pragma solidity ^0.8.19;
 ///      Integrators of the transfer lock call can expect roughly a
 ///      3% increase to transfer calls for optimized ERC20 implementations.
 ///
-abstract contract ActionRegistry {
+abstract contract ActionRegistry is IActionRegistry {
     /// TYPES ///
 
+    /// @title User Configuration
+    /// @notice Struct containing information on a user's configuration values
+    ///         for transfers and delegation inside Curvance.
+    /// @param lockCooldown The cooldown period for the user's transfers and
+    ///                     delegations.
+    /// @param transferEnabledTimestamp The timestamp that the user's
+    ///                                 transfers have been enabled.
+    /// @param transferDisabled Whether the user intends on enabling or
+    ///                         disabling transferability
+    /// @param approvalIndex The approval index for the user's delegates. Revokes
+    ///                     all delegates at once if incremented.
+    /// @param delegationEnabledTimestamp The timestamp that the user's
+    ///                                  delegations have been enabled.
+    /// @param delegationDisabled Whether the user intends on enabling or
+    ///                          disabling delegation.
     struct UserConfig {
         uint208 lockCooldown;
         uint40 transferEnabledTimestamp;
@@ -42,6 +59,11 @@ abstract contract ActionRegistry {
     ///         universe.
     uint256 public constant COOLDOWN_MAXIMUM = 52 weeks;
 
+    /// @dev `bytes4(keccak256(bytes("ActionRegistry__InvalidParams()")))`.
+    uint256 internal constant _INVALID_PARAMS_SELECTOR = 0x51b33a31;
+    /// @dev `bytes4(keccak256(bytes("ActionRegistry__CooldownActive()")))`.
+    uint256 internal constant _COOLDOWN_ACTIVE_SELECTOR = 0x8471b001;
+
     /// STORAGE ///
 
     /// @notice Contains a user's configuration values for transfers and
@@ -57,20 +79,21 @@ abstract contract ActionRegistry {
 
     event CooldownSet(address indexed user, uint256 userLockCooldown);
     event ApprovalIndexIncremented(address indexed user, uint256 newIndex);
+    event TransferableStatusChanged(
+        address indexed user,
+        bool isLocked,
+        uint256 transferEnabledTimestamp
+    );
     event DelegableStatusChanged(
         address indexed user,
         bool delegable,
         uint256 delegationEnabledTimestamp
     );
-    event LockStatusChanged(
-        address indexed user,
-        bool isLocked,
-        uint256 transferEnabledTimestamp
-    );
 
     /// ERRORS ///
 
     error ActionRegistry__InvalidParams();
+    error ActionRegistry__CooldownActive();
     error ActionRegistry__UnsafeCooldown();
 
     /// CONSTRUCTOR ///
@@ -94,16 +117,21 @@ abstract contract ActionRegistry {
         }
 
         UserConfig storage userConfig = _userConfig[msg.sender];
-
         // If a user is decreasing their cooldown, lock cooldown
         // will automatically apply, delaying when transferability and plugin
         // approval can be re-enabled, preventing a malicious party from
         // tracking a user to decrease their cooldown to 0 and then enabling
         // transferability.
-        if (userConfig.lockCooldown > cooldown) {
-            uint40 newCooldown = uint40(
-                userConfig.lockCooldown + block.timestamp
-            );
+        uint256 userCooldown = userConfig.lockCooldown;
+        if (userCooldown > cooldown) {
+            // Validate the user does not currently have a cooldown active.
+            if (
+                block.timestamp < userConfig.transferEnabledTimestamp ||
+                block.timestamp < userConfig.delegationEnabledTimestamp
+            ) {
+                _revert(_COOLDOWN_ACTIVE_SELECTOR);
+            }
+            uint40 newCooldown = uint40(userCooldown + block.timestamp);
             userConfig.transferEnabledTimestamp = newCooldown;
             userConfig.delegationEnabledTimestamp = newCooldown;
         }
@@ -116,33 +144,35 @@ abstract contract ActionRegistry {
 
     /// @notice Checks whether `user` has transferability enabled or disabled
     ///         for their tokens.
-    /// @return Returns true if the user has transferability disabled.
+    /// @param user The address to check whether transferability is enabled or
+    ///             disabled for.
+    /// @return result Indicates whether `user` has transferability disabled
+    ///                or not, true = disabled, false = not disabled.
     function checkTransfersDisabled(
         address user
-    ) external view returns (bool) {
+    ) external view returns (bool result) {
         UserConfig memory userConfig = _userConfig[user];
-        return (userConfig.transferDisabled ||
+        result = (userConfig.transferDisabled ||
             userConfig.transferEnabledTimestamp > block.timestamp);
     }
 
     /// @notice Sets token transferability for the caller, if enabling
     ///         transferability, the caller's opt in transfer cooldown will
     ///         be applied.
-    /// @dev Emits a {LockStatusChanged} event.
+    /// @dev Emits a {TransferableStatusChanged} event.
     /// @param transferDisabled Whether the user intends on enabling or
     ///                         disabling transferability, while flipping
     ///                         their transferability status can be assumed,
     ///                         it's best to make sure the caller intends on
     ///                         flipping their status for onchain integrators.
-    function setTransferLockStatus(bool transferDisabled) external {
+    function setTransferableStatus(bool transferDisabled) external {
         UserConfig storage userConfig = _userConfig[msg.sender];
 
         // Validates that user is intending on flipping their transfer
         // lock status, even though we could assume they want to flip
         // by calling this function, it helps to validate for human error.
         if (transferDisabled == userConfig.transferDisabled) {
-            // revert with ActionRegistry__InvalidParams()
-            _revert(0x51b33a31);
+            _revert(_INVALID_PARAMS_SELECTOR);
         }
 
         uint256 enableTimestamp;
@@ -160,21 +190,25 @@ abstract contract ActionRegistry {
         userConfig.transferDisabled = transferDisabled;
 
         // Timestamp emitted is 0 if locking transferability.
-        emit LockStatusChanged(msg.sender, transferDisabled, enableTimestamp);
+        emit TransferableStatusChanged(
+            msg.sender,
+            transferDisabled,
+            enableTimestamp
+        );
     }
 
-    /// DELEGATION PLUGIN MANAGEMENT ///
+    /// PLUGIN DELEGATION MANAGEMENT ///
 
-    /// @notice Returns `user`'s approval index.
+    /// @notice Returns `user`'s current approval index value.
     /// @dev The approval index is a way to revoke approval on all tokens,
     ///      and features at once if a malicious delegation was allowed by
     ///      `user`.
     /// @param user The user to check delegated approval index for.
-    /// @return `User`'s approval index.
-    function getUserApprovalIndex(
+    /// @return result The `user`'s current approval index value.
+    function userApprovalIndex(
         address user
-    ) external view returns (uint256) {
-        return _userConfig[user].approvalIndex;
+    ) external view returns (uint256 result) {
+        result = _userConfig[user].approvalIndex;
     }
 
     /// @notice Increments a caller's approval index.
@@ -192,12 +226,15 @@ abstract contract ActionRegistry {
 
     /// @notice Checks whether `user` has delegation enabled or disabled
     ///         for user actions inside Curvance.
-    /// @return Returns true if the user has delegation disabled.
+    /// @param user The address to check whether delegation is enabled or
+    ///             disabled for.
+    /// @return result Indicates whether `user` has delegation disabled
+    ///                or not, true = disabled, false = not disabled.
     function checkDelegationDisabled(
         address user
-    ) external view returns (bool) {
+    ) external view returns (bool result) {
         UserConfig memory userConfig = _userConfig[user];
-        return (userConfig.delegationDisabled ||
+        result = (userConfig.delegationDisabled ||
             userConfig.delegationEnabledTimestamp > block.timestamp);
     }
 
@@ -206,15 +243,14 @@ abstract contract ActionRegistry {
     /// @param delegationDisabled Whether caller wants to allow new delegation
     ///                           or not.
     ///      Emits a {DelegableStatusChanged} event.
-    function setDelegable(bool delegationDisabled) external {
+    function setDelegableStatus(bool delegationDisabled) external {
         UserConfig storage userConfig = _userConfig[msg.sender];
 
         // Validates that user is intending on flipping their delegation
         // status, even though we could assume they want to flip
         // by calling this function, it helps to validate for human error.
         if (delegationDisabled == userConfig.delegationDisabled) {
-            // revert with ActionRegistry__InvalidParams()
-            _revert(0x51b33a31);
+            _revert(_INVALID_PARAMS_SELECTOR);
         }
 
         uint256 enableTimestamp;
@@ -243,17 +279,17 @@ abstract contract ActionRegistry {
     /// @dev Checks that action timestamp was not recently updated and
     ///      calculates the timestamp that the desired action will be
     ///      enabled.
+    /// @return result The timestamp at which action(s) will be enabled again.
     function _calculateActionEnableTimestamp(
         uint256 enabledTimestamp
-    ) internal view returns (uint256) {
+    ) internal view returns (uint256 result) {
         // Validate the user did not recently reduce their action cooldown
         // period, triggering their action cooldown.
         if (enabledTimestamp > block.timestamp) {
-            // revert with ActionRegistry__InvalidParams()
-            _revert(0x51b33a31);
+            _revert(_COOLDOWN_ACTIVE_SELECTOR);
         }
-
-        return (_userConfig[msg.sender].lockCooldown + block.timestamp);
+        
+        result = _userConfig[msg.sender].lockCooldown + block.timestamp;
     }
 
     /// @dev Internal helper for reverting efficiently.

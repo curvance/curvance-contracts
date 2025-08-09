@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
-import { DENOMINATOR, RAY } from "contracts/libraries/Constants.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
+import { BASIS_POINTS, RAY } from "contracts/libraries/ConstantsLib.sol";
+
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
@@ -11,10 +12,19 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
+
+/// @dev KNOWN ISSUE - REWARD CALCULATION ROUNDING:
+///      Integer division in reward distribution causes small rounding differences.
+///      Example: User with 400 tokens out of 900 total should get 400/900 * 30000 = 13333.33
+///      tokens, but receives either 13333 or 13334 due to truncation. Over multiple periods,
+///      expected 40784 but actual 40785 (accumulated +1 rounding errors). These differences
+///      can lead to unfair distribution over time. Future iterations should implement
+///      improved precision handling or alternative distribution mechanisms.
+///
 
 /// @title Curvance Gauge Manager.
 /// @notice A market specific system for distributing rewards to Curvance
@@ -61,6 +71,9 @@ contract GaugeManager is
 {
     /// TYPES ///
 
+    /// @title Epoch Information
+    /// @notice Manages and tracks epoch information, including their
+    ///         total weights and token weights.
     /// @param totalWeights The total weight value of all tokens, inside
     ///                     the pool, for this epoch.
     /// @param tokenWeight The weight value of a token, inside the pool,
@@ -98,7 +111,7 @@ contract GaugeManager is
     /// @dev Epoch Number => Epoch information.
     mapping(uint256 => Epoch) internal _epochInfo;
 
-    /// @dev mToken => rewardToken => last epoch
+    /// @dev mToken => rewardToken => last epoch.
     mapping(address => mapping(address => uint256)) public lastEpochOf;
 
     /// @notice The total supply of a token deposited.
@@ -145,28 +158,15 @@ contract GaugeManager is
     event Withdraw(address user, address token, uint256 amount);
     event Claim(address user, address token);
 
-    constructor(
-        ICentralRegistry centralRegistry_
-    ) PluginDelegable(centralRegistry_) {
+    /// CONSTRUCTOR ///
+
+    constructor(ICentralRegistry cr) PluginDelegable(cr) {
         // Query epoch and token configuration directly to minimize potential
         // human error.
         epochDuration = centralRegistry.EPOCH_DURATION();
     }
 
     /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Returns gauge weight of given epoch and token.
-    /// @param epoch The epoch to pull weights for.
-    /// @param token The address of the gauge token to query weights for.
-    function gaugeWeight(
-        uint256 epoch,
-        address token
-    ) external view returns (uint256, uint256) {
-        return (
-            _epochInfo[epoch].totalWeights,
-            _epochInfo[epoch].tokenWeight[token]
-        );
-    }
 
     /// @notice Sets emission rates of tokens of current epoch.
     /// @dev Only the Messaging Hub and Voting Hub can call this.
@@ -254,10 +254,25 @@ contract GaugeManager is
         }
     }
 
+    /// @notice Returns gauge weight of given epoch and token.
+    /// @param epoch The epoch to pull weights for.
+    /// @param token The address of the gauge token to query weights for.
+    /// @return tuple containing total weights and token weight.
+    function gaugeWeight(
+        uint256 epoch,
+        address token
+    ) external view returns (uint256, uint256) {
+        return (
+            _epochInfo[epoch].totalWeights,
+            _epochInfo[epoch].tokenWeight[token]
+        );
+    }
+
     /// @notice Returns pending reward of user for their deposited `tokens`
     /// @param tokens Array of Protocol supported mToken addresses to check
     ///               rewards for.
     /// @param user User address to query pending rewards for.
+    /// @return rewardAmounts Array of pending rewards for each token.
     function pendingRewards(
         address[] calldata tokens,
         address user
@@ -328,9 +343,9 @@ contract GaugeManager is
     ///      we simply record deposits/withdraws as virtual balances here.
     /// @param token Protocol supported mToken address to withdraw for
     ///              `user`.
-    /// @param user User address to withdraw `amount` of `token` for, on
+    /// @param user Address to withdraw `amount` of `token` for, on
     ///             liquidation.
-    /// @param liquidator User address to deposit `amount` of `token` for, on
+    /// @param liquidator Address to deposit `amount` of `token` for, on
     ///                   liquidation.
     /// @param amount The amount of `token` to move from `user` and
     ///               `liquidator` on liquidation.
@@ -423,7 +438,7 @@ contract GaugeManager is
         // If theres a current lock boost, recognize their bonus rewards.
         if (currentLockBoost > 0) {
             uint256 boostedRewards = (cveRewards * currentLockBoost) /
-                DENOMINATOR;
+                BASIS_POINTS;
             // We know this will never underflow due to `currentLockBoost`
             // needing to be greater than 1.
             ICVE(cve).mintLockBoost(boostedRewards - cveRewards);
@@ -486,12 +501,14 @@ contract GaugeManager is
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Returns current epoch number.
+    /// @return The current epoch number.
     function currentEpoch() public view returns (uint256) {
         return epochOfTimestamp(block.timestamp);
     }
 
     /// @notice Returns epoch number of `timestamp`.
     /// @param timestamp Timestamp in seconds.
+    /// @return The epoch number of the timestamp.
     function epochOfTimestamp(
         uint256 timestamp
     ) public view returns (uint256) {
@@ -533,6 +550,7 @@ contract GaugeManager is
 
     /// @notice Returns start time of `epoch`.
     /// @param epoch Epoch number to return start time for.
+    /// @return The start time of the epoch.
     function epochStartTime(uint256 epoch) public view returns (uint256) {
         _checkGaugeHasStarted();
         return _genesisEpoch() + (epoch * epochDuration);
@@ -540,6 +558,7 @@ contract GaugeManager is
 
     /// @notice Returns end time of `epoch`.
     /// @param epoch Epoch number to return end time for.
+    /// @return The end time of the epoch.
     function epochEndTime(uint256 epoch) public view returns (uint256) {
         _checkGaugeHasStarted();
         return _genesisEpoch() + ((epoch + 1) * epochDuration);
@@ -548,6 +567,7 @@ contract GaugeManager is
     /// @notice Returns if given gauge token is enabled in `epoch`.
     /// @param epoch Epoch number to check for gauge activity.
     /// @param token Gauge token address.
+    /// @return True if the gauge token is enabled in the epoch, false otherwise.
     function isGaugeEnabled(
         uint256 epoch,
         address token
@@ -558,6 +578,7 @@ contract GaugeManager is
     /// @notice Returns CVE emissions of `token`.
     /// @param token Pool token address that receives CVE overtime.
     /// @param epoch The epoch number to check CVE allocation for.
+    /// @return The CVE emissions of the token in the epoch.
     function rewardAllocation(
         address token,
         uint256 epoch
@@ -568,11 +589,12 @@ contract GaugeManager is
     /// @notice Returns pending reward of user for their deposited `token`
     /// @param token Protocol supported mToken address to check rewards for.
     /// @param user User address to query pending rewards for.
+    /// @return The pending reward of the user for the token.
     function pendingRewards(
         address token,
         address user
     ) public view returns (uint256) {
-        // Cache storage values
+        // Cache storage values.
         uint256 accRewardPerShare = poolAccRewardPerShare[token];
         uint256 lastRewardTimestamp = poolLastRewardTimestamp[token];
         uint256 totalDeposited = totalSupply[token];
@@ -596,8 +618,6 @@ contract GaugeManager is
             RAY -
             info.rewardDebt;
     }
-
-    /// PUBLIC FUNCTIONS ///
 
     /// @notice Update reward variables for `token` to be up to date as
     ///         of the current block timestamp.
@@ -645,6 +665,7 @@ contract GaugeManager is
     }
 
     /// @inheritdoc ERC165
+    /// @return True if the interface is supported, false otherwise.
     function supportsInterface(
         bytes4 interfaceId
     ) public view override returns (bool) {
@@ -655,8 +676,12 @@ contract GaugeManager is
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Calculate accRewardPerShare.
+    /// @notice Calculates accumulated rewards per share across multiple epochs.
     /// @param token Protocol supported mToken address to check rewards for.
+    /// @param accRewardPerShare Current accumulated reward per share.
+    /// @param lastRewardTimestamp Timestamp when rewards were last calculated.
+    /// @param totalDeposited Total amount of token deposited in the pool.
+    /// @return Updated accumulated reward per share value.
     function _calcAccRewardPerShare(
         address token,
         uint256 accRewardPerShare,
@@ -697,6 +722,7 @@ contract GaugeManager is
     /// @param tokens Array containing pool token addresses to claim
     ///               rewards for.
     /// @param user The user address that gauge rewards should be claimed for.
+    /// @return cveRewards The total amount of CVE token rewards claimed across all specified tokens.
     function _claimRewards(
         address[] calldata tokens,
         address user
@@ -713,6 +739,7 @@ contract GaugeManager is
     /// @notice Claim pending rewards for `token` from the Gauge Manager.
     /// @param token Pool token address to claim rewards for.
     /// @param user The user address that gauge rewards should be claimed for.
+    /// @return cveRewards The amount of CVE token rewards claimed for the specified token.
     function _claim(
         address token,
         address user
@@ -736,11 +763,13 @@ contract GaugeManager is
     }
 
     /// @notice Returns the current CVE address.
+    /// @return The current CVE address.
     function _getCVE() internal view returns (address) {
         return centralRegistry.cve();
     }
 
     /// @notice Returns the current VeCVE address to call.
+    /// @return The current VeCVE contract.
     function _getVeCVE() internal view returns (IVeCVE) {
         return IVeCVE(centralRegistry.veCVE());
     }
@@ -766,7 +795,7 @@ contract GaugeManager is
 
         // Make sure the token is listed inside this market,
         // and that the token is executing the deposit call.
-        IMarketManager marketManager = IMToken(token).marketManager();
+        IMarketManager marketManager = ICToken(token).marketManager();
         if (
             msg.sender != token ||
             !marketManager.isListed(token) ||

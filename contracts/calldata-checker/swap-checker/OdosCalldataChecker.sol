@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { BaseSwapChecker } from "./BaseSwapChecker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -9,7 +9,10 @@ import { IOdosRouterV2 } from "contracts/interfaces/external/odos/IOdosRouterV2.
 /// @notice WARNING: Currently built for Router V2.
 contract OdosCalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
+    
+    /// @notice The mask for the one for zero flag
     uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;
+    /// @notice The mask for the reverse flag
     uint256 private constant _REVERSE_MASK =
         0x8000000000000000000000000000000000000000000000000000000000000000;
 
@@ -17,6 +20,10 @@ contract OdosCalldataChecker is BaseSwapChecker {
     // than reading from calldata. addressListStart is the storage slot of the first dynamic array element
     uint256 private constant addressListStart =
         80084422859880547211683076133703299733277748156566366325829078699459944778998;
+
+    /// STORAGE ///
+
+    /// @notice List of cached addresses used for validating Odos swaps
     address[] public addressList;
 
     /// CONSTRUCTOR ///
@@ -25,7 +32,7 @@ contract OdosCalldataChecker is BaseSwapChecker {
         address _target,
         address[] memory addresses
     ) BaseSwapChecker(_target) {
-        for (uint256 i = 0; i < addresses.length; i++) {
+        for (uint256 i; i < addresses.length; i++) {
             addressList.push(addresses[i]);
         }
     }
@@ -34,26 +41,27 @@ contract OdosCalldataChecker is BaseSwapChecker {
 
     /// @notice Inspects calldata for compliance with other swap instruction
     ///         parameters.
-    /// @dev Used on Zap/swap to inspect and validate calldata safety.
-    /// @param swapData Zap/swap instruction data including both direct
-    ///                 parameters and decodeable calldata.
-    /// @param expectedRecipient User who will receive results of Zap/swap.
+    /// @dev Used on swap to inspect and validate calldata safety.
+    /// @param swapAction Swap action instructions including both direct
+    ///                   parameters and decodeable calldata.
+    /// @param expectedRecipient Address who will receive proceeds of
+    ///                          `swapAction`.
     function checkCalldata(
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         address expectedRecipient
     ) external view override {
-        if (swapData.target != target) {
+        if (swapAction.target != target) {
             revert CalldataChecker__TargetError();
         }
 
-        bytes4 funcSigHash = _getFuncSigHash(swapData.call);
+        bytes4 funcSigHash = _getFuncSigHash(swapAction.call);
         address recipient;
         address inputToken;
         uint256 inputAmount;
         address outputToken;
         if (funcSigHash == IOdosRouterV2.swap.selector) {
             (IOdosRouterV2.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
-                _getFuncParams(swapData.call),
+                _getFuncParams(swapAction.call),
                 (IOdosRouterV2.swapTokenInfo, bytes, address, uint32)
             );
             recipient = tokenInfo.outputReceiver;
@@ -63,7 +71,7 @@ contract OdosCalldataChecker is BaseSwapChecker {
         } else if (funcSigHash == IOdosRouterV2.swapPermit2.selector) {
             (, IOdosRouterV2.swapTokenInfo memory tokenInfo, , , ) = abi
                 .decode(
-                    _getFuncParams(swapData.call),
+                    _getFuncParams(swapAction.call),
                     (
                         IOdosRouterV2.permit2Info,
                         IOdosRouterV2.swapTokenInfo,
@@ -85,15 +93,15 @@ contract OdosCalldataChecker is BaseSwapChecker {
             revert CalldataChecker__RecipientError();
         }
 
-        if (inputToken != swapData.inputToken) {
+        if (inputToken != swapAction.inputToken) {
             revert CalldataChecker__InputTokenError();
         }
 
-        if (inputAmount != swapData.inputAmount) {
+        if (inputAmount != swapAction.inputAmount) {
             revert CalldataChecker__InputAmountError();
         }
 
-        if (outputToken != swapData.outputToken) {
+        if (outputToken != swapAction.outputToken) {
             revert CalldataChecker__OutputTokenError();
         }
     }

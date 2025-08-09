@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
@@ -16,7 +16,7 @@ contract SetDelegateApprovalTest is TestBaseRewardManager {
     function test_setDelegateApproval_fail_whenDelegationIsDisabled() public {
         vm.startPrank(user1);
 
-        centralRegistry.setDelegable(true);
+        centralRegistry.setDelegableStatus(true);
 
         vm.expectRevert(
             PluginDelegable.PluginDelegable__DelegatingDisabled.selector
@@ -30,8 +30,8 @@ contract SetDelegateApprovalTest is TestBaseRewardManager {
         vm.startPrank(user1);
 
         centralRegistry.setCooldown(10 days);
-        centralRegistry.setDelegable(true);
-        centralRegistry.setDelegable(false);
+        centralRegistry.setDelegableStatus(true);
+        centralRegistry.setDelegableStatus(false);
 
         vm.expectRevert(
             PluginDelegable.PluginDelegable__DelegatingDisabled.selector

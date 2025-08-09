@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
+
+import { BaseMulticallChecker } from "contracts/calldata-checker/multicall-checker/BaseMulticallChecker.sol";
+import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
-import { OracleManager } from "contracts/oracles/OracleManager.sol";
-import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
-
-import { BaseMulticallChecker } from "./BaseMulticallChecker.sol";
 
 contract PythAdaptorMulticallChecker is BaseMulticallChecker {
     /// CONSTRUCTOR ///
 
-    constructor(
-        address _centralRegistry
-    ) BaseMulticallChecker(_centralRegistry) {}
+    constructor(ICentralRegistry cr) BaseMulticallChecker(cr) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -31,26 +27,13 @@ contract PythAdaptorMulticallChecker is BaseMulticallChecker {
         address target,
         bytes memory data
     ) external view override {
-        OracleManager oracleManager = OracleManager(
-            ICentralRegistry(centralRegistry).oracleManager()
-        );
+        // Validate `target` is actually a Pyth oracle adaptor. This will also
+        // fail if `target` does not properly implement `IOracleAdaptor`.
+        _checkIsApprovedAdaptor(target, 4);
 
-        // Validate that target contract is actually approved inside the
-        // oracle manager.
-        if (!oracleManager.isApprovedAdaptor(target)) {
-            revert MulticallChecker__TargetError();
-        }
-
-        // Validate that target contract is actually a Pyth oracle adaptor.
-        // This will also fail if the target does not properly follow protocol
-        // adaptor design which includes an adaptor type function.
-        if (IOracleAdaptor(target).adaptorType() != 2) {
-            revert MulticallChecker__TargetError();
-        }
-
-        bytes4 functionSig = _getFuncSigHash(data);
         if (
-            functionSig == PythAdaptor.updateFeedsFromUniversalBalance.selector
+            _getFuncSigHash(data) == PythAdaptor
+                .updateFeedsFromUniversalBalance.selector
         ) {
             (, address user) = abi.decode(
                 _getFuncParams(data),

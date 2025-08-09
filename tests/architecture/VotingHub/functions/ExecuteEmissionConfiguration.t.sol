@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
 import { TestBaseVotingHub } from "../TestBaseVotingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
@@ -21,7 +21,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
 
         srcMessagingHub = makeAddr("SrcMessagingHub");
         srcVotingHub = makeAddr("SrcVotingHub");
-        _WORMHOLE_CORES[block.chainid] = address(new WormholeMock());
+        _CROSSCHAIN_CORES[block.chainid] = address(new WormholeMock());
 
         _init();
 

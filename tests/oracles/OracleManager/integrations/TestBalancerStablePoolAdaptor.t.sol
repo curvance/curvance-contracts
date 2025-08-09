@@ -27,34 +27,44 @@ contract TestBalancerStablePoolAdaptor is TestBaseOracleManager {
     }
 
     function testRevertWhenUnderlyingAssetPriceNotSet() public {
-        BalancerStablePoolAdaptor.AdaptorData memory adaptorData;
-        adaptorData.poolId = _BAL_WETH_RETH_POOLID;
-        adaptorData.poolDecimals = 18;
-        adaptorData.rateProviderDecimals[0] = 18;
-        adaptorData.rateProviders[
+        BalancerStablePoolAdaptor.AssetConfig memory assetConfig;
+        assetConfig.poolId = _BAL_WETH_RETH_POOLID;
+        assetConfig.poolDecimals = 18;
+        assetConfig.rateProviderDecimals[0] = 18;
+        assetConfig.rateProviders[
             0
         ] = 0x1a8F81c256aee9C640e14bB0453ce247ea0DFE6F;
-        adaptorData.underlyingOrConstituent[0] = _RETH_ADDRESS;
-        adaptorData.underlyingOrConstituent[1] = _WETH_ADDRESS;
+        assetConfig.underlyingOrConstituent[0] = _RETH_ADDRESS;
+        assetConfig.underlyingOrConstituent[1] = _WETH_ADDRESS;
         vm.expectRevert(
             BalancerStablePoolAdaptor
                 .BalancerStablePoolAdaptor__ConfigurationError
                 .selector
         );
-        adaptor.addAsset(_BAL_WETH_RETH_ADDRESS, adaptorData);
+        adaptor.addAsset(_BAL_WETH_RETH_ADDRESS, assetConfig);
     }
 
     function testReturnsCorrectPrice() public {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
-        chainlinkAdaptor.addAsset(_WETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _WETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            false,
             _CHAINLINK_RETH_ETH,
-            0,
-            false
+            0
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
@@ -70,16 +80,16 @@ contract TestBalancerStablePoolAdaptor is TestBaseOracleManager {
             address(chainlinkAdaptor)
         );
 
-        BalancerStablePoolAdaptor.AdaptorData memory adaptorData;
-        adaptorData.poolId = _BAL_WETH_RETH_POOLID;
-        adaptorData.poolDecimals = 18;
-        adaptorData.rateProviderDecimals[0] = 18;
-        adaptorData.rateProviders[
+        BalancerStablePoolAdaptor.AssetConfig memory assetConfig;
+        assetConfig.poolId = _BAL_WETH_RETH_POOLID;
+        assetConfig.poolDecimals = 18;
+        assetConfig.rateProviderDecimals[0] = 18;
+        assetConfig.rateProviders[
             0
         ] = 0x1a8F81c256aee9C640e14bB0453ce247ea0DFE6F;
-        adaptorData.underlyingOrConstituent[0] = _RETH_ADDRESS;
-        adaptorData.underlyingOrConstituent[1] = _WETH_ADDRESS;
-        adaptor.addAsset(_BAL_WETH_RETH_ADDRESS, adaptorData);
+        assetConfig.underlyingOrConstituent[0] = _RETH_ADDRESS;
+        assetConfig.underlyingOrConstituent[1] = _WETH_ADDRESS;
+        adaptor.addAsset(_BAL_WETH_RETH_ADDRESS, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPriceFeed(

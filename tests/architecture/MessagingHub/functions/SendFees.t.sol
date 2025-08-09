@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
 import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
@@ -73,7 +73,7 @@ contract SendFeesTest is TestBaseMessagingHub {
         deal(address(messagingHub), _ONE);
         _prepareUSDC(address(feeManager), _ONE);
 
-        centralRegistry.setCircleTokenMessenger(address(0));
+        centralRegistry.setTokenMessager(address(0));
 
         vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
         messagingHub.sendFees(42161, 10e6, 0);

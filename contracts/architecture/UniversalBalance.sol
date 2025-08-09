@@ -1,26 +1,50 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { RescueLib } from "contracts/libraries/RescueLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
+
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { RescueLib } from "contracts/libraries/RescueLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
-/// @title Curvance Universal Balance.
-/// @notice A system for managing a Universal Balance within the Curvance
-///         Protocol.
+/// @title Curvance Universal Balance
+/// @notice A user-facing system for flexible token management within the Curvance Protocol
+/// @dev Universal Balance provides a comprehensive solution for users to manage their token
+///      positions with multiple options for utilization:
+///      
+///      1. Asset Management:
+///         - Front-facing contract for users to deposit and withdraw tokens (e.g., USDC)
+///         - Maintains two balance types per user: sitting (held) and lent (deployed)
+///         - Token-specific implementation linked to corresponding
+///           BorrowableCToken contract.
+///      
+///      2. Position Flexibility:
+///         - Users can freely shift balances between sitting and lent states
+///         - Lent balances earn yield through Curvance's lending protocols
+///         - Sitting balances remain liquid and immediately available
+///      
+///      3. Social Features:
+///         - Users can transfer portions of their balance to other users
+///         - Supports delegated account operations with permission system
+///         - Multi-user batch operations for efficient management
+///      
+///      Implementation uses a non-custodial design where users maintain full control
+///      of their assets while benefiting from integrated position management.
+///      Lent balances are represented as shares/tokens of the underlying
+///      BorrowableCToken.
+///
 contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// TYPES ///
 
+    /// @title User Balance
     /// @notice Stores user-specific balance information within the 
     /// @notice             Universal Balance system.
     /// @param sittingBalance The amount of tokens currently held in 
@@ -35,7 +59,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// CONSTANTS ///
 
     /// @notice The address of the token linked to this contract.
-    IEToken public immutable linkedToken;
+    IBorrowableCToken public immutable linkedToken;
 
     /// @notice The address of Universal Balance underlying token.
     address public immutable underlying;
@@ -81,19 +105,19 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
-        address eToken
-    ) PluginDelegable(centralRegistry_) {
-        // Validate inputted eToken is actually an eToken.
-        if (IMToken(eToken).isPToken()) {
+        ICentralRegistry cr,
+        address borrowableCToken
+    ) PluginDelegable(cr) {
+        // Validate `borrowableCToken` is actually lendable.
+        if (!IBorrowableCToken(borrowableCToken).isBorrowable()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        linkedToken = IEToken(eToken);
-        address underlying_ = IMToken(eToken).underlying();
+        linkedToken = IBorrowableCToken(borrowableCToken);
+        address underlying_ = IBorrowableCToken(borrowableCToken).asset();
         underlying = underlying_;
 
-        IERC20(underlying_).approve(eToken, type(uint256).max);
+        IERC20(underlying_).approve(borrowableCToken, type(uint256).max);
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -101,7 +125,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @notice Deposits underlying token into user's Universal Balance
     ///         account, either to be held or lent out.
     /// @dev Emits { Deposit } event.
-    /// @param amount The amount of underlying token to be deposited.
+    /// @param amount The amount of underlying tokens to be deposited,
+    ///               in assets.
     /// @param willLend Whether the deposited underlying tokens should be lent
     ///                 out inside Curvance Protocol.
     function deposit(uint256 amount, bool willLend) external {
@@ -120,7 +145,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @dev Requires that `recipient` has approved the caller previously to
     ///      access their Universal Balance.
     ///      Emits { Deposit } event.
-    /// @param amount The amount of underlying token to be deposited.
+    /// @param amount The amount of underlying tokens to be deposited,
+    ///               in assets.
     /// @param willLend Whether the deposited underlying tokens should be lent
     ///                 out inside Curvance Protocol.
     /// @param recipient The account who will receive the deposit.
@@ -145,8 +171,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @dev Requires that all `recipients` has approved the caller previously
     ///      to access their Universal Balance.
     ///      Emits one or more { Deposit } event(s).
-    /// @param amounts An array containing the amount of underlying token to
-    ///                be deposited to each account.
+    /// @param amounts An array containing the amount of underlying tokens to
+    ///                be deposited to each account, in assets.
     /// @param willLend An array containing whether the deposited underlying
     ///                 tokens should be lent out inside Curvance Protocol for
     ///                 each account.
@@ -185,11 +211,15 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @notice Withdraws underlying token from user's Universal Balance
     ///         account, currently held or lent out.
     /// @dev Emits { Withdraw } event.
-    /// @param amount The amount of underlying token to be withdrawn.
+    //// @param amount The amount of underlying tokens to be withdrawn,
+    ///                in assets.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
     /// @param recipient The account who will receive the underlying assets.
+    /// @return amountWithdrawn The amount of underlying token withdrawn.
+    /// @return lendingBalanceUsed Whether the withdrawn underlying tokens
+    ///                            were pulled from the lent balance.
     function withdraw(
         uint256 amount,
         bool forceLentRedemption,
@@ -218,13 +248,17 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @dev Requires that `owner` has approved the caller previously to
     ///      access their Universal Balance.
     ///      Emits { Withdraw } event.
-    /// @param amount The amount of underlying token to be withdrawn.
+    /// @param amount The amount of underlying tokens to be withdrawn,
+    ///               in assets.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
     /// @param recipient The account who will receive the underlying assets.
     /// @param owner The account that will redeem from their universal
     ///              balance.
+    /// @return amountWithdrawn The amount of underlying token withdrawn.
+    /// @return lendingBalanceUsed Whether the withdrawn underlying tokens
+    ///                            were pulled from the lent balance.
     function withdrawFor(
         uint256 amount,
         bool forceLentRedemption,
@@ -285,9 +319,12 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @notice Moves a user's Universal Balance between lent and sitting
     ///         mode.
     /// @dev Emits a { Withdraw } and { Deposit } event.
-    /// @param amount The amount of underlying token to be shifted.
+    /// @param amount The amount of underlying tokens to be shifted, in assets.
     /// @param fromLent Whether the shifted underlying tokens should be pulled
     ///                 from the user's lent balance or the full balance.
+    /// @return amountWithdrawn The amount of underlying token withdrawn.
+    /// @return lendingBalanceUsed Whether the withdrawn underlying tokens
+    ///                            were pulled from the lent balance.
     function shiftBalance(
         uint256 amount,
         bool fromLent
@@ -322,6 +359,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param willLend Whether the deposited underlying tokens should be lent
     ///                 out inside Curvance Protocol.
     /// @param recipient The account who will receive the transferred balance.
+    /// @return amountTransferred The amount of underlying token transferred.
+    /// @return lendingBalanceUsed Whether the transferred underlying tokens
+    ///                            were pulled from the lent balance.
     function transfer(
         uint256 amount,
         bool forceLentRedemption,
@@ -356,6 +396,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param recipient The account who will receive the underlying assets.
     /// @param owner The account that will redeem from their universal
     ///              balance.
+    /// @return amountTransferred The amount of underlying token transferred.
+    /// @return lendingBalanceUsed Whether the transferred underlying tokens
+    ///                            were pulled from the lent balance.
     function transferFor(
         uint256 amount,
         bool forceLentRedemption,
@@ -393,7 +436,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        RescueLib.rescueToken(centralRegistry, token, amount);
+        RescueLib._rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Updating delegated access to gauge emissions to the current
@@ -413,7 +456,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @notice Deposits underlying token into user's Universal Balance
     ///         account, either to be held or lent out.
     /// @dev Emits { Deposit } event.
-    /// @param amount The amount of underlying token to be deposited.
+    /// @param amount The amount of underlying tokens to be deposited,
+    ///               in assets.
     /// @param willLend Whether the deposited underlying tokens should be lent
     ///                 out inside Curvance Protocol.
     /// @param recipient The account that should receive the deposit.
@@ -422,18 +466,15 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool willLend,
         address recipient
     ) internal {
+        _checkZeroAmount(amount);
+
         if (willLend) {
-            // Will natively fail if amount == 0 on gaugeManager call.
-            // Records balance in tokens (shares).
-            uint256 tokensReceived = linkedToken.mint(amount);
+            // Records balance in shares.
+            uint256 tokensReceived = linkedToken.deposit(amount, address(this));
             userBalances[recipient].lentBalance += tokensReceived;
 
             emit Deposit(msg.sender, recipient, amount, willLend);
             return;
-        }
-
-        if (amount == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         userBalances[recipient].sittingBalance += amount;
@@ -479,23 +520,22 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
     /// @notice Withdraws underlying token from user's Universal Balance
     ///         account, either currently held or lent out.
-    /// @param amount The amount of underlying token to be withdrawn.
+    /// @param amount The amount of underlying tokens to be withdrawn,
+    ///               in assets.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
     /// @param owner The account that will redeem from their universal
     ///              balance.
+    /// @return amountWithdrawn The amount of underlying token withdrawn.
+    /// @return lendingBalanceUsed Whether the withdrawn underlying tokens
+    ///                            were pulled from the lent balance.
     function _withdraw(
         uint256 amount,
         bool forceLentRedemption,
         address owner
     ) internal returns (uint256, bool) {
-        // Validate caller is not trying to withdraw nothing, though this
-        // technically double checks amount in cases of lending balance
-        // redemption, we want an efficient non-panic check here.
-        if (amount == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        _checkZeroAmount(amount);
 
         if (
             IActionRegistry(address(centralRegistry)).checkTransfersDisabled(
@@ -506,7 +546,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         UserBalance memory ownerBalance = userBalances[owner];
-        uint256 exchangeRate = linkedToken.exchangeRateWithUpdate();
+        uint256 exchangeRate = linkedToken.exchangeRateUpdated();
 
         // If it's a forced lending redemption only check their lent balance,
         // otherwise look at both sitting and lent balances.
@@ -555,7 +595,11 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             // Decrement user lent balance.
             userBalances[owner].lentBalance -= pointerAmount;
 
-            pointerAmount = linkedToken.redeem(pointerAmount, address(this));
+            pointerAmount = linkedToken.redeem(
+                pointerAmount,
+                address(this),
+                address(this)
+            );
 
             // Make sure enough was redeemed.
             if (pointerAmount < remainingAmount) {
@@ -573,8 +617,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @dev Requires that each `owners` has approved the caller previously to
     ///      access their Universal Balance.
     ///      Emits one or more { Withdraw } event(s).
-    /// @param amounts An array containing the amount of underlying token to
-    ///                be withdrawn from each account.
+    /// @param amounts An array containing the amount of underlying tokens to
+    ///                be withdrawn from each account, in assets.
     /// @param forceLentRedemption An array containing whether the withdrawn
     ///                            underlying tokens should be pulled only
     ///                            from an `owners` lent position or the full
@@ -622,9 +666,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         // Validate that tokens were actually redeemed.
-        if (withdrawSum == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        _checkZeroAmount(withdrawSum);
 
         return withdrawSum;
     }
@@ -634,7 +676,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @dev Requires that `owner` has approved the caller previously to
     ///      access their universal balance.
     ///      Emits { Withdraw } and { Deposit } events.
-    /// @param amount The amount of underlying token to be withdrawn.
+    /// @param amount The amount of underlying tokens to be transferred,
+    ///               in assets.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
@@ -642,6 +685,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ///                 out inside Curvance Protocol.
     /// @param recipient The account who will receive the underlying assets.
     /// @param owner The account that will redeem from their universal balance.
+    /// @return amountTransferred The amount of underlying token transferred.
+    /// @return lendingBalanceUsed Whether the transferred underlying tokens
+    ///                            were pulled from the lent balance.
     function _transfer(
         uint256 amount,
         bool forceLentRedemption,
@@ -664,6 +710,18 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         );
 
         _deposit(amountTransferred, willLend, recipient);
+    }
+
+    /// @notice Checks to make sure an action is not an empty action.
+    function _checkZeroAmount(uint256 amount) internal pure {
+        /// @solidity memory-safe-assembly
+        assembly {
+            if iszero(amount) {
+                mstore(0x00, _INVALID_PARAMETER_SELECTOR)
+                // Return bytes 29-32 for the selector.
+                revert(0x1c, 0x04)
+            }
+        }
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.

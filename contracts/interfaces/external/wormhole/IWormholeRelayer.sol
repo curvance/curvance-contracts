@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 interface IWormholeRelayer {
     /// @param keyType 0-127 are reserved for standardized KeyTypes,

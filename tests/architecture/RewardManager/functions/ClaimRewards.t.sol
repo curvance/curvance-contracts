@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
@@ -10,7 +10,7 @@ import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswap
 
 contract ClaimRewardsTest is TestBaseRewardManager {
     RewardsData public rewardsData = RewardsData(true, false, false, false);
-    SwapperLib.Swap public swapData;
+    SwapperLib.Swap public swapAction;
     address[] public path;
 
     function setUp() public override {
@@ -19,11 +19,11 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         path.push(_USDC_ADDRESS);
         path.push(address(cve));
 
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.inputAmount = 100e6;
-        swapData.outputToken = address(cve);
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.call = abi.encodeWithSignature(
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 100e6;
+        swapAction.outputToken = address(cve);
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             100e6,
             0,
@@ -67,10 +67,10 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         vm.prank(user1);
 
         vm.expectRevert(RewardManager.RewardManager__NoEpochRewards.selector);
-        rewardManager.claimRewards(rewardsData, abi.encode(swapData), 0);
+        rewardManager.claimRewards(rewardsData, abi.encode(swapAction), 0);
     }
 
-    function test_claimRewards_fail_whenSwapDataIsInvalid() public {
+    function test_claimRewards_fail_whenSwapActionIsInvalid() public {
         _skipRestrictionDuration();
 
         vm.startPrank(user1);
@@ -85,7 +85,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         vm.prank(address(veCVE));
         rewardManager.updateUserClaimIndex(user1, 1);
 
-        swapData.inputToken = _DAI_ADDRESS;
+        swapAction.inputToken = _DAI_ADDRESS;
 
         for (uint256 i = 0; i < 2; i++) {
             vm.prank(address(messagingHub));
@@ -95,9 +95,9 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         vm.prank(user1);
 
         vm.expectRevert(
-            RewardManager.RewardManager__SwapDataIsInvalid.selector
+            RewardManager.RewardManager__SwapActionIsInvalid.selector
         );
-        rewardManager.claimRewards(rewardsData, abi.encode(swapData), 0);
+        rewardManager.claimRewards(rewardsData, abi.encode(swapAction), 0);
     }
 
     function test_claimRewards_success_fuzzed(
@@ -144,8 +144,8 @@ contract ClaimRewardsTest is TestBaseRewardManager {
 
         _prepareUSDC(address(rewardManager), rewards);
 
-        swapData.inputAmount = rewards;
-        swapData.call = abi.encodeWithSignature(
+        swapAction.inputAmount = rewards;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
             0,
@@ -160,7 +160,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         uint256 desiredTokenBalance = cve.balanceOf(user1);
 
         vm.prank(user1);
-        rewardManager.claimRewards(rewardsData, abi.encode(swapData), 0);
+        rewardManager.claimRewards(rewardsData, abi.encode(swapAction), 0);
 
         assertEq(
             usdc.balanceOf(address(rewardManager)),

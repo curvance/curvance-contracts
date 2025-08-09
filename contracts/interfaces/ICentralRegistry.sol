@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
-
-import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
-import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
-import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
-import { IMessageTransmitter } from "contracts/interfaces/external/wormhole/IMessageTransmitter.sol";
-import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
+pragma solidity ^0.8.26;
 
 /// TYPES ///
 
+/// @title Chain Data
+/// @notice Struct containing information on a chain's data.
 /// @param isSupported Whether the chain is supported or not.
 ///                    2 = yes
 ///                    0 or 1 = no
@@ -17,8 +13,8 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 /// @param cveAddress CVE address on the chain.
 /// @param feeTokenAddress Fee token address on the chain.
 /// @param messagingChainId Messaging Chain ID where this address authorized.
-/// @param wormholeRelayer Wormhole relayer address on the chain.
-/// @param cctpDomain CCTP domain for the chain.
+/// @param crosschainRelayer Crosschain relayer address on the chain.
+/// @param domain Domain for the chain.
 struct ChainData {
     uint256 isSupported;
     address messagingHub;
@@ -26,8 +22,8 @@ struct ChainData {
     address cveAddress;
     address feeTokenAddress;
     uint16 messagingChainId;
-    address wormholeRelayer;
-    uint32 cctpDomain;
+    address crosschainRelayer;
+    uint32 domain;
 }
 
 interface ICentralRegistry {
@@ -43,18 +39,36 @@ interface ICentralRegistry {
     /// @notice Returns Protocol DAO address.
     function daoAddress() external view returns (address);
 
-    /// @notice Returns whether the caller has dao permissions or not.
-    function hasDaoPermissions(address _address) external view returns (bool);
+    /// @notice Returns Protocol Emergency Council address.
+    function emergencyCouncil() external view returns (address);
 
-    /// @notice Returns whether the caller has elevated protocol permissions
-    ///         or not.
-    function hasElevatedPermissions(
-        address _address
+    /// @notice Indicates if address has DAO permissions or not.
+    function hasDaoPermissions(
+        address addressToCheck
     ) external view returns (bool);
 
-    /// @notice Returns whether the inputted has lock creation permissioning
-    ///         or not.
+    /// @notice Indicates if address has elevated DAO permissions or not.
+    function hasElevatedPermissions(
+        address addressToCheck
+    ) external view returns (bool);
+
+    /// @notice Indicates if address has lock creation permissions or not.
     function hasLockingPermissions(
+        address addressToCheck
+    ) external view returns (bool);
+
+    /// @notice Indicates if address has auction permissions or not.
+    function hasAuctionPermissions(
+        address addressToCheck
+    ) external view returns (bool);
+
+    /// @notice Indicates if address has market permissions or not.
+    function hasMarketPermissions(
+        address addressToCheck
+    ) external view returns (bool);
+
+    /// @notice Indicates if address has harvest permissions or not.
+    function hasHarvestPermissions(
         address addressToCheck
     ) external view returns (bool);
 
@@ -79,69 +93,63 @@ interface ICentralRegistry {
     /// @notice Returns Oracle Manager address.
     function oracleManager() external view returns (address);
 
-    /// @notice Returns feeManager address.
+    /// @notice Returns Fee Manager address.
     function feeManager() external view returns (address);
 
-    /// @notice Returns fee token address.
+    /// @notice Returns Fee Token address.
     function feeToken() external view returns (address);
 
-    /// @notice Returns WormholeCore contract address.
-    function wormholeCore() external view returns (IWormhole);
+    /// @notice Returns Crosschain Core contract address.
+    function crosschainCore() external view returns (address);
 
-    /// @notice Returns WormholeRelayer contract address.
-    function wormholeRelayer() external view returns (IWormholeRelayer);
+    /// @notice Returns Crosschain Relayer contract address.
+    function crosschainRelayer() external view returns (address);
 
-    /// @notice Returns Circle Token Messenger contract address.
-    function circleTokenMessenger() external view returns (ITokenMessenger);
+    /// @notice Returns Token Messenger contract address.
+    function tokenMessager() external view returns (address);
 
-    /// @notice Returns Circle Token Messenger contract address.
-    function circleMessageTransmitter()
-        external
-        view
-        returns (IMessageTransmitter);
+    /// @notice Returns Messenger Transmitter contract address.
+    function messageTransmitter() external view returns (address);
 
-    /// @notice Returns Wormhole TokenBridge contract address.
-    function tokenBridge() external view returns (ITokenBridge);
+    /// @notice Returns domain value.
+    function domain() external view returns (uint32);
 
-    /// @notice Returns CCTP domain.
-    function cctpDomain() external view returns (uint32);
-
-    /// @notice Returns protocolCompoundFee, in `WAD`.
+    /// @notice Returns protocol gas fee on harvest, in `WAD`.
     function protocolCompoundFee() external view returns (uint256);
 
-    /// @notice Returns protocolYieldFee, in `WAD`.
+    /// @notice Returns protocol yield fee on strategy harvest, in `WAD`.
     function protocolYieldFee() external view returns (uint256);
 
-    /// @notice Returns protocolHarvestFee, in `WAD`.
+    /// @notice Returns protocol yield + gas fee on strategy harvest,
+    ///         in `WAD`.
     function protocolHarvestFee() external view returns (uint256);
 
-    /// @notice Returns protocolLeverageFee, in `WAD`.
+    /// @notice Returns protocol fee on leverage actions, in `WAD`.
     function protocolLeverageFee() external view returns (uint256);
 
-    /// @notice Returns slippage limit, in `WAD`.
-    function slippageLimit() external view returns (uint256);
-
-    /// @notice Lending Market => Protocol Reserve Factor on interest
-    ///         generated.
-    function protocolInterestFactor(
+    /// @notice Returns protocol fee on interest generated in `market`.
+    function protocolInterestFee(
         address market
     ) external view returns (uint256);
 
-    /// @notice Returns earlyUnlockPenaltyMultiplier value, in `Basis Points`
+    /// @notice Returns earlyUnlockPenaltyMultiplier value, in `Basis Points`.
     function earlyUnlockPenaltyMultiplier() external view returns (uint256);
 
-    /// @notice Returns voteBoostMultiplier value, in `Basis Points`
+    /// @notice Returns voteBoostMultiplier value, in `Basis Points`.
     function voteBoostMultiplier() external view returns (uint256);
 
-    /// @notice Returns lockBoostMultiplier value, in `Basis Points`
+    /// @notice Returns lockBoostMultiplier value, in `Basis Points`.
     function lockBoostMultiplier() external view returns (uint256);
 
-    /// @notice Returns an array of Chain IDs recorded in the Messaging Layers
-    ///         Chain ID format.
-    function getForeignChainIds() external view returns (uint256[] memory);
+    /// @notice Returns swap slippage limit, in `WAD`.
+    function slippageLimit() external view returns (uint256);
+
+    /// @notice Returns an array of Chain IDs recorded in the Crosschain
+    ///         Protocol's Chain ID format.
+    function foreignChainIds() external view returns (uint256[] memory);
 
     /// @notice Returns an array of Curvance markets on this chain.
-    function getMarketManagers() external view returns (address[] memory);
+    function marketManagers() external view returns (address[] memory);
 
     /// @notice Increments a caller's approval index.
     /// @dev By incrementing their approval index, a user's delegates will all
@@ -152,9 +160,7 @@ interface ICentralRegistry {
 
     /// @notice Returns `user`'s approval index.
     /// @param user The user to check approval index for.
-    function getUserApprovalIndex(
-        address user
-    ) external view returns (uint256);
+    function userApprovalIndex(address user) external view returns (uint256);
 
     /// @notice Returns whether a user has delegation disabled.
     /// @param user The user to check delegation status for.
@@ -178,44 +184,66 @@ interface ICentralRegistry {
         uint256 chainId
     ) external view returns (uint16);
 
-    /// @notice Returns whether the inputted address is a Harvester.
-    function isHarvester(address addressToCheck) external view returns (bool);
-
-    /// @notice Returns whether the inputted address is a Multicall provider.
-    function isMulticallProvider(
-        address addressToCheck
-    ) external view returns (bool);
-
-    /// @notice Returns whether the inputted address is a Market Manager.
+    /// @notice Indicates if an address is a market manager or not.
     function isMarketManager(
         address addressToCheck
     ) external view returns (bool);
 
+    /// @notice Indicates if an address is a multicall provider or not.
+    function isMulticallProvider(
+        address addressToCheck
+    ) external view returns (bool);
+
+    /// @notice Maps an intent target address to the contract that will
+    ///         inspect provided external calldata.
     function externalCalldataChecker(
         address addressToCheck
     ) external view returns (address);
 
+    /// @notice Maps a Multicall target address to the contract that will
+    ///         inspect provided multicall calldata.
     function multicallChecker(
         address addressToCheck
     ) external view returns (address);
 
-    function atlasOevAllowed() external view returns (bool);
-    /// @notice Returns the amount of CVE rewards allocated on this chain,
+    /// @notice Indicates the amount of token rewards allocated on this chain,
     ///         for an epoch.
     function emissionsAllocatedByEpoch(
         uint256 epoch
     ) external view returns (uint256);
 
-    /// @notice Returns the amount of CVE rewards allocated across all chains,
-    ///         for an era.
+    /// @notice Indicates the amount of token rewards allocated across all
+    ///         chains, for an era. An era is a particular period in time in
+    ///         which rewards are constant, before a halvening event moves the
+    ///         protocol to a new era.
     function targetEmissionAllocationByEra(
         uint256 era
     ) external view returns (uint256);
 
-    /// @notice Sets the amount of CVE rewards allocated on this chain,
+    /// @notice Checks if a market is unlocked for auction operations.
+    /// @return Whether the caller is an unlocked market, approved for
+    ///         auction-based liquidations.
+    function isMarketUnlocked() external view returns (bool);
+
+    /// @notice Sets the amount of token rewards allocated on this chain,
     ///         for an epoch.
+    /// @dev Only callable by the Voting Hub.
+    /// @param epoch The epoch having its token emission values set.
+    /// @param emissionsAllocated The amount of token rewards allocated on
+    ///                           this chain, for an epoch.
     function setEmissionsAllocatedByEpoch(
         uint256 epoch,
         uint256 emissionsAllocated
     ) external;
+
+    /// @notice Checks whether `user` has transferability enabled or disabled
+    ///         for their tokens.
+    /// @dev This is inherited from ActionRegistry portion of centralRegistry.
+    /// @param user The address to check whether transferability is enabled or
+    ///             disabled for.
+    /// @return result Indicates whether `user` has transferability disabled
+    ///                or not, true = disabled, false = not disabled.
+    function checkTransfersDisabled(
+        address user
+    ) external view returns (bool result);
 }

@@ -1,10 +1,11 @@
-//SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
 
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
+
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -87,7 +88,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
     /// ERRORS ///
 
-    error RewardManager__SwapDataIsInvalid();
+    error RewardManager__SwapActionIsInvalid();
     error RewardManager__Unauthorized();
     error RewardManager__NoEpochRewards();
     error RewardManager__RewardManagerIsAlreadyStarted();
@@ -97,9 +98,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_
-    ) PluginDelegable(centralRegistry_) {
+    constructor(ICentralRegistry cr) PluginDelegable(cr) {
         // Query epoch and token configuration directly to minimize potential
         // human error.
         epochDuration = centralRegistry.EPOCH_DURATION();
@@ -139,6 +138,47 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         emit EpochRewardsSet(nextEpochToDeliver++, 0, 0);
     }
 
+    /// @notice Starts the Reward Manager, called by the DAO after setting up
+    ///         both RewardManager and veCVE contracts.
+    /// @dev Only callable on by an entity with DAO permissions or higher.
+    function startRewardManager() external {
+        _checkDaoPermissions();
+
+        if (rewardManagerStarted == 2) {
+            revert RewardManager__RewardManagerIsAlreadyStarted();
+        }
+
+        nextEpochToDeliver = _getVeCVE().currentEpoch(block.timestamp);
+        rewardManagerStarted = 2;
+    }
+
+    /// @notice Rescue any token sent by mistake.
+    /// @param token token to rescue.
+    /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
+    function rescueToken(address token, uint256 amount) external {
+        _checkDaoPermissions();
+
+        if (token == _getFeeToken()) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        RescueLib._rescueToken(centralRegistry, token, amount);
+    }
+
+    /// @notice Shuts down the RewardManager and prevents future reward
+    /// distributions.
+    /// @dev Should only be used to facilitate migration to a new system.
+    function notifyShutdown() external {
+        if (
+            msg.sender != address(_getVeCVE()) &&
+            !centralRegistry.hasElevatedPermissions(msg.sender)
+        ) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        isShutdown = 2;
+    }
+
     /// @notice Called by the Messaging Hub to record rewards allocated to
     ///         an epoch.
     /// @dev Only callable on by the Messaging Hub.
@@ -172,47 +212,6 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             rewardsPerPoint,
             rewardsPerPoint * veCVE.chainPoints()
         );
-    }
-
-    /// @notice Starts the Reward Manager, called by the DAO after setting up
-    ///         both RewardManager and veCVE contracts.
-    /// @dev Only callable on by an entity with DAO permissions or higher.
-    function startRewardManager() external {
-        _checkDaoPermissions();
-
-        if (rewardManagerStarted == 2) {
-            revert RewardManager__RewardManagerIsAlreadyStarted();
-        }
-
-        nextEpochToDeliver = _getVeCVE().currentEpoch(block.timestamp);
-        rewardManagerStarted = 2;
-    }
-
-    /// @notice Rescue any token sent by mistake.
-    /// @param token token to rescue.
-    /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
-    function rescueToken(address token, uint256 amount) external {
-        _checkDaoPermissions();
-
-        if (token == _getFeeToken()) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        RescueLib.rescueToken(centralRegistry, token, amount);
-    }
-
-    /// @notice Shuts down the RewardManager and prevents future reward
-    /// distributions.
-    /// @dev Should only be used to facilitate migration to a new system.
-    function notifyShutdown() external {
-        if (
-            msg.sender != address(_getVeCVE()) &&
-            !centralRegistry.hasElevatedPermissions(msg.sender)
-        ) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        isShutdown = 2;
     }
 
     /// @notice Returns the current epoch for the given time.
@@ -293,8 +292,6 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         return rewards / WAD;
     }
 
-    /// CLAIM INDEX FUNCTIONS ///
-
     /// @notice Updates `user`'s claim index.
     /// @dev Updates the claim index of a user.
     ///      Can only be called by the VeCVE contract.
@@ -313,8 +310,6 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         _checkIsVeCVE();
         delete userNextClaimIndex[user];
     }
-
-    /// REWARD FUNCTIONS ///
 
     /// @notice Claims rewards for multiple epochs.
     /// @param rewardsData Rewards data for desired Reward Manager action.
@@ -573,25 +568,25 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
         // Check if `recipient` wants to route their rewards into another token.
         if (rewardsData.asCVE) {
-            SwapperLib.Swap memory swapData = abi.decode(
+            SwapperLib.Swap memory swapAction = abi.decode(
                 params,
                 (SwapperLib.Swap)
             );
 
             // Swap into their desired reward token.
             if (
-                swapData.call.length == 0 ||
-                swapData.inputToken != rewardToken ||
-                swapData.outputToken != _getCVE() ||
-                swapData.inputAmount != rewards
+                swapAction.call.length == 0 ||
+                swapAction.inputToken != rewardToken ||
+                swapAction.outputToken != _getCVE() ||
+                swapAction.inputAmount != rewards
             ) {
-                revert RewardManager__SwapDataIsInvalid();
+                revert RewardManager__SwapActionIsInvalid();
             }
 
             // Swap to CVE and update reward amount based on CVE received.
-            uint256 adjustedRewards = SwapperLib.swapUnsafe(
+            uint256 adjustedRewards = SwapperLib._swapUnsafe(
                 centralRegistry,
-                swapData
+                swapAction
             );
 
             // Check if the claimer wants to compound their rewards
@@ -665,21 +660,25 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     }
 
     /// @notice Returns the current CVE address.
+    /// @return The current CVE contract.
     function _getCVE() internal view returns (address) {
         return centralRegistry.cve();
     }
 
     /// @notice Returns the current VeCVE address to call.
+    /// @return The current VeCVE contract.
     function _getVeCVE() internal view returns (IVeCVE) {
         return IVeCVE(centralRegistry.veCVE());
     }
 
-    /// @notice Returns the current fee token address.
+    /// @notice Returns the current fee token address
+    /// @return The current fee token address.
     function _getFeeToken() internal view returns (address) {
         return centralRegistry.feeToken();
     }
 
     /// @dev Internal helper for reverting efficiently.
+    /// @param s The error selector (bytes4 cast to uint256).
     function _revert(uint256 s) internal pure {
         /// @solidity memory-safe-assembly
         assembly {

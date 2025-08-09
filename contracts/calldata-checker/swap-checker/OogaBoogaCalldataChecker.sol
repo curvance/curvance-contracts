@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { BaseSwapChecker } from "./BaseSwapChecker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -9,7 +9,10 @@ import { IOBRouter } from "contracts/interfaces/external/ooga/IOBRouter.sol";
 /// @notice WARNING: Currently built for Router V1.
 contract OogaBoogaCalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
+
+    /// @notice The mask for the one for zero flag
     uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;
+    /// @notice The mask for the reverse flag
     uint256 private constant _REVERSE_MASK =
         0x8000000000000000000000000000000000000000000000000000000000000000;
 
@@ -21,26 +24,27 @@ contract OogaBoogaCalldataChecker is BaseSwapChecker {
 
     /// @notice Inspects calldata for compliance with other swap instruction
     ///         parameters.
-    /// @dev Used on Zap/swap to inspect and validate calldata safety.
-    /// @param swapData Zap/swap instruction data including both direct
-    ///                 parameters and decodeable calldata.
-    /// @param expectedRecipient User who will receive results of Zap/swap.
+    /// @dev Used on swap to inspect and validate calldata safety.
+    /// @param swapAction Swap action instructions including both direct
+    ///                   parameters and decodeable calldata.
+    /// @param expectedRecipient Address who will receive proceeds of
+    ///                          `swapAction`.
     function checkCalldata(
-        SwapperLib.Swap memory swapData,
+        SwapperLib.Swap memory swapAction,
         address expectedRecipient
     ) external view override {
-        if (swapData.target != target) {
+        if (swapAction.target != target) {
             revert CalldataChecker__TargetError();
         }
 
-        bytes4 funcSigHash = _getFuncSigHash(swapData.call);
+        bytes4 funcSigHash = _getFuncSigHash(swapAction.call);
         address recipient;
         address inputToken;
         uint256 inputAmount;
         address outputToken;
         if (funcSigHash == IOBRouter.swap.selector) {
             (IOBRouter.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
-                _getFuncParams(swapData.call),
+                _getFuncParams(swapAction.call),
                 (IOBRouter.swapTokenInfo, bytes, address, uint32)
             );
             recipient = tokenInfo.outputReceiver;
@@ -49,7 +53,7 @@ contract OogaBoogaCalldataChecker is BaseSwapChecker {
             outputToken = tokenInfo.outputToken;
         } else if (funcSigHash == IOBRouter.swapERC20Permit.selector) {
             (, IOBRouter.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
-                _getFuncParams(swapData.call),
+                _getFuncParams(swapAction.call),
                 (
                     IOBRouter.erc20PermitInfo,
                     IOBRouter.swapTokenInfo,
@@ -65,7 +69,7 @@ contract OogaBoogaCalldataChecker is BaseSwapChecker {
             outputToken = tokenInfo.outputToken;
         } else if (funcSigHash == IOBRouter.swapPermit2.selector) {
             (, IOBRouter.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
-                _getFuncParams(swapData.call),
+                _getFuncParams(swapAction.call),
                 (
                     IOBRouter.permit2Info,
                     IOBRouter.swapTokenInfo,
@@ -87,15 +91,15 @@ contract OogaBoogaCalldataChecker is BaseSwapChecker {
             revert CalldataChecker__RecipientError();
         }
 
-        if (inputToken != swapData.inputToken) {
+        if (inputToken != swapAction.inputToken) {
             revert CalldataChecker__InputTokenError();
         }
 
-        if (inputAmount != swapData.inputAmount) {
+        if (inputAmount != swapAction.inputAmount) {
             revert CalldataChecker__InputAmountError();
         }
 
-        if (outputToken != swapData.outputToken) {
+        if (outputToken != swapAction.outputToken) {
             revert CalldataChecker__OutputTokenError();
         }
     }

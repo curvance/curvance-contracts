@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
@@ -7,6 +7,10 @@ import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { IBalancerVault } from "contracts/interfaces/external/balancer/IBalancerVault.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
+/// @title Curvance Balancer Library.
+/// @notice Helper Library for working with Balancer LP (BPT) tokens. Supports both
+///         creating and exiting LP positions for better composability across
+///         DeFi.
 library BalancerLib {
     /// ERRORS ///
 
@@ -16,7 +20,7 @@ library BalancerLib {
     );
     error BalancerLib__InvalidPoolInvariantError();
 
-    /// FUNCTIONS ///
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Enter a Balancer position.
     /// @param balancerVault The Balancer vault address.
@@ -25,7 +29,7 @@ library BalancerLib {
     /// @param tokens The underlying token addresses of the BPT.
     /// @param lpMinOutAmount The minimum output amount acceptable.
     /// @return lpOutAmount The output amount of BPT received.
-    function enterBalancer(
+    function _enterBalancer(
         address balancerVault,
         bytes32 balancerPoolId,
         address lpToken,
@@ -39,14 +43,14 @@ library BalancerLib {
 
         // Approve tokens to deposit into BPT.
         for (uint256 i; i < numTokens; ++i) {
-            balances[i] = CommonLib.getTokenBalance(tokens[i]);
-            SwapperLib._approveTokenIfNeeded(
+            balances[i] = CommonLib._balanceOf(tokens[i]);
+            SwapperLib._approveIfNeeded(
                 tokens[i],
                 balancerVault,
                 balances[i]
             );
 
-            if (CommonLib.isETH(tokens[i])) {
+            if (CommonLib._isNative(tokens[i])) {
                 // If eth is somehow contained in a pool twice,
                 // something is wrong and we need to halt execution.
                 if (containsEth) {
@@ -98,7 +102,7 @@ library BalancerLib {
     /// @param singleAssetIndex Used if `singleAssetWithdraw` = true,
     ///                         indicates the coin index inside the Balancer
     ///                         BPT to withdraw as.
-    function exitBalancer(
+    function _exitBalancer(
         address balancerVault,
         bytes32 balancerPoolId,
         address lpToken,
@@ -108,7 +112,7 @@ library BalancerLib {
         uint256 singleAssetIndex
     ) internal {
         // Approve BPT.
-        SwapperLib._approveTokenIfNeeded(lpToken, balancerVault, lpAmount);
+        SwapperLib._approveIfNeeded(lpToken, balancerVault, lpAmount);
 
         uint256 numTokens = tokens.length;
         uint256[] memory balances = new uint256[](numTokens);

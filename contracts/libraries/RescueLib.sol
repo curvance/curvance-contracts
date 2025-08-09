@@ -1,23 +1,27 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
+/// @title Curvance Rescue Library
+/// @notice A utility library for rescuing tokens sent by mistake.
 library RescueLib {
     /// @notice Rescue any token sent by mistake.
-    /// @dev Contracts implementing RescueLib.rescueToken should NOT support
+    /// @dev Contracts implementing RescueLib._rescueToken should NOT support
     ///      duel-entry point tokens, otherwise pre/post protected token
     ///      balances will need to be checked in child implementations.
+    ///      NOTE: Restrictions to which tokens should be limited for rescuing
+    ///      must be handled by implementation contract.
     /// @param token token to rescue.
     /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
-    function rescueToken(
-        ICentralRegistry centralRegistry,
+    function _rescueToken(
+        ICentralRegistry cr,
         address token,
         uint256 amount
     ) internal {
-        address daoOperator = centralRegistry.daoAddress();
+        address daoOperator = cr.daoAddress();
 
         if (token == address(0)) {
             if (amount == 0) {

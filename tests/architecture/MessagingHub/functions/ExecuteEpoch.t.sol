@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
 import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
@@ -14,7 +14,7 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
 
         srcMessagingHub = makeAddr("SrcMessagingHub");
         srcVotingHub = makeAddr("SrcVotingHub");
-        _WORMHOLE_CORES[block.chainid] = address(new WormholeMock());
+        _CROSSCHAIN_CORES[block.chainid] = address(new WormholeMock());
 
         _init();
 

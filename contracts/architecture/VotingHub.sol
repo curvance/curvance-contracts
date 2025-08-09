@@ -1,14 +1,42 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMessagingHub, EmissionData } from "contracts/interfaces/IMessagingHub.sol";
-import { ICVE } from "contracts/interfaces/ICVE.sol";
+
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
+import { ICVE } from "contracts/interfaces/ICVE.sol";
+
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
+/// @title Curvance Protocol Cross-Chain Voting and Emissions Hub
+/// @notice Coordinates protocol-wide token emission allocation based on governance decisions
+/// @dev VotingHub serves as the central coordinator for the Curvance tokenomics system by:
+///      
+///      1. Emission Management:
+///         - Sets token emission values in GaugeManager for the local chain
+///         - Coordinates emission distribution to other chains via MessagingHub
+///         - Enforces the protocol's deflationary emission schedule across all chains
+///      
+///      2. Cross-Chain Validation:
+///         - Uses Wormhole Cross-Chain Queries (CCQ) to verify emission data
+///         - Validates that total emissions across all chains don't exceed protocol limits
+///         - Ensures emission configurations are properly synchronized network-wide
+///      
+///      3. Tokenomics Implementation:
+///         - Manages the halving emission schedule (26 epochs ≈ 1 year per era)
+///         - Tracks emissions across multiple protocol eras (6 total eras)
+///         - Enforces supply control by reducing emissions by 50% each era
+///      
+///      The contract implements strict verification of cross-chain data to prevent
+///      manipulation, requiring Wormhole Guardian signatures. This ensures that
+///      token emissions are correctly balanced across the entire Curvance ecosystem,
+///      regardless of which chains users interact with.
+///
 contract VotingHub is QueryResponse {
     /// CONSTANTS ///
 
@@ -47,10 +75,9 @@ contract VotingHub is QueryResponse {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_
-    ) QueryResponse(address(centralRegistry_.wormholeCore())) {
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) QueryResponse(address(cr.crosschainCore())) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
         // Query epoch and token configuration directly to minimize potential
         // human error.
@@ -98,7 +125,7 @@ contract VotingHub is QueryResponse {
         EmissionData[] memory remoteEmissionData
     ) external {
         if (
-            !centralRegistry.isHarvester(msg.sender) &&
+            !centralRegistry.hasHarvestPermissions(msg.sender) &&
             !centralRegistry.hasDaoPermissions(msg.sender)
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -117,7 +144,7 @@ contract VotingHub is QueryResponse {
             signatures
         );
         uint256 numResponses = r.responses.length;
-        uint256[] memory chainIds = centralRegistry.getForeignChainIds();
+        uint256[] memory chainIds = centralRegistry.foreignChainIds();
         if (numResponses != chainIds.length) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -208,32 +235,38 @@ contract VotingHub is QueryResponse {
 
     /// @notice Returns the number of Protocol Eras, corresponds to how many
     ///         different periods there are with token emission incentives.
+    /// @return The number of Protocol Eras.
     function protocolRewardEras() public pure returns (uint256) {
         return PROTOCOL_REWARD_ERAS;
     }
 
     /// @notice Returns current token emissions allocated, for this epoch.
+    /// @return The current token emissions allocated.
     function queryEmissionsAllocated() public view returns (uint256) {
         return centralRegistry.emissionsAllocatedByEpoch(currentEpoch());
     }
 
     /// @notice Returns current target token emissions, for this epoch.
+    /// @return The current target token emissions.
     function currentTargetEmissions() public view returns (uint256) {
         return centralRegistry.targetEmissionAllocationByEra(currentEra());
     }
 
     /// @notice Returns current era number.
+    /// @return The current era number.
     function currentEra() public view returns (uint256) {
         return currentEpoch() / REWARD_HALVENING_RATE;
     }
 
     /// @notice Returns current epoch number.
+    /// @return The current epoch number.
     function currentEpoch() public view returns (uint256) {
         return epochOfTimestamp(block.timestamp);
     }
 
     /// @notice Returns epoch number of `timestamp`.
     /// @param timestamp Timestamp in seconds.
+    /// @return The epoch number of the timestamp.
     function epochOfTimestamp(
         uint256 timestamp
     ) public view returns (uint256) {
@@ -249,6 +282,8 @@ contract VotingHub is QueryResponse {
     /// INTERNAL FUNCTIONS ///
 
     /// @dev Returns ChainData struct for `chainId`.
+    /// @param chainId The chain ID to get ChainData for.
+    /// @return chainData The ChainData struct for the given chain ID.
     function _getChainData(
         uint256 chainId
     ) internal view returns (ChainData memory chainData) {
@@ -286,6 +321,10 @@ contract VotingHub is QueryResponse {
     ///                                 for the epoch being validated.
     /// @param totalEmissionsAllocated The total emissions allocated, for the
     ///                                epoch being validated.
+    /// @return cachedEmissionsAllocated The emissions currently allocated,
+    ///                                 for the epoch being validated.
+    /// @return emissionData The emission data for the current chain.
+    /// @return remoteEmissionData The emission data for the remote chains.
     function _validateEmissionValues(
         EmissionData memory emissionData,
         EmissionData[] memory remoteEmissionData,

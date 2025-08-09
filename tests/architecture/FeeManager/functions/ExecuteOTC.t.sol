@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
 import { TestBaseFeeManager } from "../TestBaseFeeManager.sol";
 import { FeeManager } from "contracts/architecture/FeeManager.sol";
@@ -45,14 +45,15 @@ contract ExecuteOTCTest is TestBaseFeeManager {
     function test_executeOTC_fail_whenPriceIsInvalid() public {
         feeManager.setEarmarked(_WETH_ADDRESS, true);
 
-        chainlinkEthUsd.updateAnswer(0);
+        mockWethFeed.setMockAnswer(-1);
+        _refreshMockFeeds();
 
         vm.expectRevert(FeeManager.FeeManager__ConfigurationError.selector);
         feeManager.executeOTC(
             _WETH_ADDRESS,
             _ONE,
             _ONE,
-            1e16,
+            0,
             block.timestamp + 300
         );
     }
@@ -106,6 +107,11 @@ contract ExecuteOTCTest is TestBaseFeeManager {
         assertEq(usdc.balanceOf(address(centralRegistry)), 0);
 
         usdc.approve(address(feeManager), _ONE);
+
+        mockWethFeed.setMockAnswer(1500e8);
+        mockUsdcFeed.setMockAnswer(1e8);
+
+        _refreshMockFeeds();
 
         // Eth spoofed as $1500, USDC spoofed as $1
         feeManager.executeOTC(

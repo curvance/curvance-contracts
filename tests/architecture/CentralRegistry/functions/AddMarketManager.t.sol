@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract Market {
     function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
@@ -13,10 +15,14 @@ contract Market {
     }
 }
 
-contract AddMarketManagerTest is TestBaseMarket {
+contract AddMarketManagerTest is TestBaseMarketIsolated {
     address public newMarket;
 
-    event NewCurvanceContract(string indexed contractType, address newAddress);
+    event PermissionsUpdated(
+        string indexed permissionsType,
+        address addressUpdated,
+        bool isAdded
+    );
 
     function setUp() public virtual override {
         super.setUp();
@@ -55,27 +61,44 @@ contract AddMarketManagerTest is TestBaseMarket {
     }
 
     function test_addMarketManager_success() public {
-        address[] memory marketManagers = centralRegistry.getMarketManagers();
+        address[] memory marketManagers = centralRegistry.marketManagers();
 
         assertFalse(centralRegistry.isMarketManager(newMarket));
 
         vm.expectEmit(true, true, true, true);
-        emit NewCurvanceContract("Market Manager", newMarket);
+        emit PermissionsUpdated("Market Manager", newMarket, true);
 
         centralRegistry.addMarketManager(newMarket, 5000);
 
         assertTrue(centralRegistry.isMarketManager(newMarket));
         assertEq(
-            centralRegistry.getMarketManagers().length,
+            centralRegistry.marketManagers().length,
             marketManagers.length + 1
         );
         assertEq(
-            centralRegistry.getMarketManagers()[marketManagers.length],
+            centralRegistry.marketManagers()[marketManagers.length],
             newMarket
         );
         assertEq(
-            centralRegistry.protocolInterestFactor(newMarket),
+            centralRegistry.protocolInterestFee(newMarket),
             5000 * 1e14
         );
     }
+
+    function testMarketManagerIntegration() public {
+        // Setup an actual MarketManager.
+        MarketManagerIsolated marketManager = new MarketManagerIsolated(ICentralRegistry(address(centralRegistry)));
+        
+        // Add market manager with actual implementation
+        vm.prank(centralRegistry.emergencyCouncil());
+        centralRegistry.addMarketManager(address(marketManager), 1000); // 10% interest fee
+        
+        // Verify market is registered correctly
+        assertTrue(centralRegistry.isMarketManager(address(marketManager)));
+        assertEq(centralRegistry.protocolInterestFee(address(marketManager)), 1000 * 1e14);
+        
+        // Verify market manager's central registry reference
+        assertEq(address(marketManager.centralRegistry()), address(centralRegistry));
+    }
+    
 }

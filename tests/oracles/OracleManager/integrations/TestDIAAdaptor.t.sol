@@ -14,6 +14,7 @@ contract TestDIAAdaptor is TestBaseOracleManager {
     function setUp() public override {
         _fork(19422728);
 
+        
         _deployCentralRegistry();
         _deployOracleManager();
 
@@ -22,14 +23,14 @@ contract TestDIAAdaptor is TestBaseOracleManager {
             _DIA_ORACLE
         );
 
-        DIAAdaptor.AdaptorData memory data;
+        DIAAdaptor.AssetConfig memory data;
         data.isConfigured = true;
-        data.decimals = 6;
+        data.decimals = 8;
         data.max = 1000000e18;
         data.min = 0;
         data.heartbeat = 24 hours;
         data.key = "BTC/USD";
-        adaptor.addAsset(_WBTC_ADDRESS, data, true);
+        adaptor.addAsset(_WBTC_ADDRESS, true, data);
 
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
