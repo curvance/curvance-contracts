@@ -127,17 +127,19 @@ interface ICToken {
         address receiver
     ) external returns (uint256 shares);
 
-    /// @notice Redeems cTokens to the caller.
-    /// @param assets The amount of assets to redeem.
+    /// @notice Withdraws assets, quoted in `shares` from the market,
+    ///         and burns `owner` shares.
+    /// @dev Does not force collateral to be withdrawn.
+    /// @param shares The amount of shares to be redeemed.
     /// @param receiver The account that should receive the assets.
     /// @param owner The account that will burn their shares to withdraw
     ///              assets.
-    /// @return shares The amount of shares redeemed by `owner`.
+    /// @return assets The amount of assets redeemed by `owner`.
     function redeem(
-        uint256 assets,
+        uint256 shares,
         address receiver,
         address owner
-    ) external returns (uint256 shares);
+    ) external returns (uint256 assets);
 
     /// @notice Withdraws assets, quoted in `shares` from the market,
     ///         and burns `owner` shares, sending assets to `receiver`.

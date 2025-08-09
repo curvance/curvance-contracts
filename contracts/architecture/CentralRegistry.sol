@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ActionRegistry } from "contracts/libraries/ActionRegistry.sol";
+import { ActionRegistry, IActionRegistry } from "contracts/libraries/ActionRegistry.sol";
 import { BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
 
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
-import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IVotingHub } from "contracts/interfaces/IVotingHub.sol";
 
 /// @title Curvance DAO Central Registry.
