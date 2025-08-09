@@ -34,7 +34,7 @@ contract SetProtocolInterestFeeTest is TestBaseMarketIsolated {
 
     function test_setProtocolInterestFee_fail_whenValueTooHigh() public {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.setProtocolInterestFee(newMarket, 7501);
     }
@@ -43,7 +43,7 @@ contract SetProtocolInterestFeeTest is TestBaseMarketIsolated {
         public
     {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.setProtocolInterestFee(newMarket, 5000);
 

@@ -44,7 +44,7 @@ contract RemoveMarketManagerTest is TestBaseMarketIsolated {
         public
     {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.removeMarketManager(user1);
 
@@ -55,7 +55,7 @@ contract RemoveMarketManagerTest is TestBaseMarketIsolated {
             .checked_write(true);
 
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.removeMarketManager(user1);
     }

@@ -64,21 +64,21 @@ contract RemoveChainSupportTest is TestBaseMarketIsolated {
 
     function test_removeChainSupport_fail_whenMessagingHubIsInvalid() public {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.removeChainSupport(address(1), address(this), 42161);
     }
 
     function test_removeChainSupport_fail_whenVotingHubIsInvalid() public {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.removeChainSupport(address(this), address(1), 42161);
     }
 
     function test_removeChainSupport_fail_whenChainIdIsNotAuthorized() public {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.removeChainSupport(
             address(this),

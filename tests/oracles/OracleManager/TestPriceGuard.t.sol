@@ -125,7 +125,7 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         IOracleAdaptor.PriceGuard memory pg;
         pg.guardType = 1;
         pg.timestampStart = uint40(timestampStart1);
-        pg.increasePerSecond = 0;
+        pg.ips = 0;
         pg.minPrice = uint144(3400e18);
         pg.basePrice = 3600e18;
 
@@ -161,7 +161,7 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         IOracleAdaptor.PriceGuard memory pg;
         pg.guardType = 1;
         pg.timestampStart = uint40(timestampStart);
-        pg.increasePerSecond = 0;
+        pg.ips = 0;
         pg.minPrice = uint144(3400e18);
         pg.basePrice = 3600e18;
 
@@ -211,7 +211,7 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         IOracleAdaptor.PriceGuard memory pg;
         pg.guardType = 2;
         pg.timestampStart = uint40(timestampStart);
-        pg.increasePerSecond = uint64(incPerSecond);
+        pg.ips = uint64(incPerSecond);
         pg.minPrice = uint144(minPrice);
         pg.basePrice = basePrice;
 
@@ -289,7 +289,7 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         IOracleAdaptor.PriceGuard memory pg;
         pg.guardType = 2;
         pg.timestampStart = uint40(timestampStart);
-        pg.increasePerSecond = uint64((increasePerYearBps * 1e14) / SECONDS_PER_YEAR);
+        pg.ips = uint64((increasePerYearBps * 1e14) / SECONDS_PER_YEAR);
         pg.minPrice = uint144(minPrice);
         pg.basePrice = basePrice;
 

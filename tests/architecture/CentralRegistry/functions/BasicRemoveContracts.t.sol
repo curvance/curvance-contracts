@@ -77,9 +77,7 @@ contract BasicRemoveContractsTest is TestBaseMarketIsolated {
             assertEq(
                 bytes32(data),
                 bytes32(
-                    CentralRegistry
-                        .CentralRegistry__ParametersMisconfigured
-                        .selector
+                    CentralRegistry.CentralRegistry__InvalidParameter.selector
                 )
             );
         }

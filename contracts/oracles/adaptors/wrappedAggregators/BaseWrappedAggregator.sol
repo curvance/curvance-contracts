@@ -83,14 +83,6 @@ abstract contract BaseWrappedAggregator is IChainlink {
         answer = (answer * _toInt256(getExchangeRate())) / _toInt256(WAD);
     }
 
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure returns (uint256) {
-        return 5;
-    }
-
     /// PUBLIC FUNCTIONS TO OVERRIDE ///
 
     /// @notice Returns the underlying aggregator address.
@@ -129,9 +121,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
     ///         greater than largest int192).
     /// @param value The int256 value to convert to int192.
     /// @return downcasted The downcasted int192 value.
-    function _toInt192(
-        int256 value
-    ) internal pure returns (int192 downcasted) {
+    function _toInt192(int256 value) internal pure returns (int192 downcasted) {
         downcasted = int192(value);
         if (downcasted != value) {
             revert BaseWrappedAggregator__UintToIntError();

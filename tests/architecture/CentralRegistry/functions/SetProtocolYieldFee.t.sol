@@ -18,7 +18,7 @@ contract SetProtocolYieldFeeTest is TestBaseMarketIsolated {
         public
     {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.setProtocolYieldFee(5001);
 

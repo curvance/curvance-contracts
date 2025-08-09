@@ -79,18 +79,17 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
             }
         }
 
-        if (Bytes32Helper.stringToBytes32(id) != IRedstone(feed).getDataFeedId()) {
+        if (Bytes32Helper.toBytes32(id) != IRedstone(feed).getDataFeedId()) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        AssetConfig storage config = assetConfig[asset][inUSD];
+        AssetConfig storage c = assetConfig[asset][inUSD];
 
-        // Update `config` and make sure `isSupportedAsset` returns true
-        // for `asset`.
-        config.feed = IRedstone(feed);
-        config.decimals = IRedstone(feed).decimals();
-        config.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT);
-        config.isConfigured = true;
+        // Update `c` and make sure `isSupportedAsset` returns true for `asset`.
+        c.feed = IRedstone(feed);
+        c.decimals = IRedstone(feed).decimals();
+        c.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT);
+        c.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -99,7 +98,7 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit AssetAdded(asset, config, isUpdate);
+        emit AssetAdded(asset, c, isUpdate);
     }
 
     /// @notice Returns the adaptor's type.

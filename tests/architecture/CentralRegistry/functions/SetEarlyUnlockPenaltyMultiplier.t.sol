@@ -20,12 +20,12 @@ contract SetEarlyUnlockPenaltyMultiplierTest is TestBaseMarketIsolated {
         public
     {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.setEarlyUnlockPenaltyMultiplier(9001);
 
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.setEarlyUnlockPenaltyMultiplier(2999);
 

@@ -28,14 +28,9 @@ contract VaultAggregator is BaseWrappedAggregator {
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Returns the underlying aggregator address.
-    /// @return result The underlying aggregator address.
-    function underlyingAggregator()
-        public
-        view
-        override
-        returns (address result)
-    {
-        result = assetAggregator;
+    /// @return r The underlying aggregator address.
+    function underlyingAggregator() public view override returns (address r) {
+        r = assetAggregator;
     }
 
     /// @notice Returns the current exchange rate between the wrapped asset
