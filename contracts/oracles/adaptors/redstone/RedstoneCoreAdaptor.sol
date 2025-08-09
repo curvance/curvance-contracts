@@ -101,9 +101,9 @@ contract RedstoneCoreAdaptor is
         ICentralRegistry cr,
         address[] memory signers,
         uint256 uniqueSignersThreshold_,
-        string memory nativeTokenSymbol
+        string memory nativeSymbol
     ) BaseOracleAdaptor(cr) PrimaryProdDataServiceConsumerBase(signers) {
-        _nativeTokenSymbol = nativeTokenSymbol;
+        _nativeSymbol = nativeSymbol;
 
         // Validate that unique signer threshold is within acceptable limits.
         if (MINIMUM_SIGNERS_THRESHOLD_ALLOWED > uniqueSignersThreshold_) {
@@ -222,12 +222,9 @@ contract RedstoneCoreAdaptor is
             symbolHash = Bytes32Helper._toBytes32(asset);
         } else {
             // Redstone Core appends "/" + the native chain token's symbol at
-            // the end of native denominated feeds, so we use
-            // toBytes32WithSymbol here.
-            symbolHash = Bytes32Helper._toBytes32WithSymbol(
-                asset,
-                _nativeTokenSymbol
-            );
+            // the end of native denominated feeds, so we can compute the
+            // output with `toBytes32Symbol`.
+            symbolHash = Bytes32Helper._toBytes32Symbol(asset, _nativeSymbol);
         }
 
         // Update `config` and make sure `isSupportedAsset` returns true

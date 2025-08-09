@@ -17,7 +17,7 @@ uint256 constant BASIS_POINTS = 1e4;
 /// @dev Return value indicating no price returned at all.
 uint256 constant BAD_SOURCE = 2;
 
-/// @dev Return value indicating price divergence or 1 missing price.
+/// @dev Return value indicating price divergence or a missing price feed.
 uint256 constant CAUTION = 1;
 
 /// @dev Return value indicating no price error.

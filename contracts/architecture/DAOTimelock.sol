@@ -113,10 +113,9 @@ contract DAOTimelock is TimelockController, ERC165 {
     ///         by `interfaceId`.
     /// @param interfaceId The interface to check for implementation.
     /// @return Whether `interfaceId` is implemented or not.
-    function supportsInterface(bytes4 interfaceId) public view virtual override (
-        ERC165,
-        TimelockController
-    ) returns (bool) {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override (ERC165, TimelockController) returns (bool) {
         return
             interfaceId == type(ITimelock).interfaceId ||
             super.supportsInterface(interfaceId);

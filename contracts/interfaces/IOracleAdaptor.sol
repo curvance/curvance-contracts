@@ -26,9 +26,8 @@ interface IOracleAdaptor {
     ///                  2: Indicates an ever increasing maximum of
     ///                     `basePrice` and minimum of `minPrice` continually
     ///                     growing by `increasePerSecond` % per second.
-    /// @param increasePerSecond The magnitude that `basePrice` should
-    ///                          increase overtime from `timestampStart`,
-    ///                          inputted in `BASIS_POINTS`, per second.
+    /// @param ips The magnitude that `basePrice` should increase overtime
+    ///            from `timestampStart`, in `WAD`, per second.
     /// @param timestampStart When `increasePerYear` should start increasing
     ///                       `basePrice` raising the maximum price returned
     ///                       when pricing `asset`.
@@ -39,7 +38,7 @@ interface IOracleAdaptor {
     struct PriceGuard {
         uint8 guardType;
         uint40 timestampStart;
-        uint64 increasePerSecond;
+        uint64 ips;
         uint144 minPrice;
         uint256 basePrice;
     }

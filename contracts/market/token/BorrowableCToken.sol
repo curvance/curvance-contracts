@@ -26,14 +26,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// @dev Mask of vesting rate entry in `_vestingData`.
     uint256 internal constant _BITMASK_VESTING_RATE = (1 << 96) - 1;
-    /// @dev Mask of a timestamp entry in `_vestingData`.
-    uint256 internal constant _BITMASK_TIMESTAMP = (1 << 40) - 1;
-    /// @dev Mask of bits in `_vestingData` until the start of
-    ///      `lastVestingClaim`.
-    uint256 internal constant _BITMASK_VEST_END_COMPLEMENT = (1 << 136) - 1;
-    /// @dev Mask of all bits in `_vestingData` except the 80 bits
-    ///      for a debt index value.
-    uint256 internal constant _BITMASK_DEBT_INDEX_COMPLEMENT = (1 << 176) - 1;
     /// @dev The bit position of `vestingEnd` in `_vestingData`.
     uint256 internal constant _BITPOS_VEST_END = 96;
     /// @dev The bit position of `lastVestingClaim` in `_vestingData`.

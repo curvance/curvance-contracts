@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
+
 import { ActionRegistry } from "contracts/libraries/ActionRegistry.sol";
+import { SECONDS_PER_YEAR } from "contracts/libraries/ConstantsLib.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 contract SetCooldownTest is TestBaseMarketIsolated {
     event CooldownSet(address indexed user, uint256 cooldown);
 
     function test_setCooldown_fail_whenCooldownExceedsMaximum() public {
-        uint256 maximumCooldown = centralRegistry.COOLDOWN_MAXIMUM();
-
         vm.expectRevert(
-            ActionRegistry.ActionRegistry__UnsafeCooldown.selector
+            ActionRegistry.ActionRegistry__InvalidParams.selector
         );
-        centralRegistry.setCooldown(maximumCooldown + 1);
+        centralRegistry.setCooldown(SECONDS_PER_YEAR + 1);
     }
 
     // Will pass because it's being set in the same block
@@ -193,11 +194,9 @@ contract SetCooldownTest is TestBaseMarketIsolated {
 
     // Tests that cooldowns work with the maximum time allowed.
     function test_setCooldown_success_atMaximumRestraint() public {
-        uint256 maxCooldown = centralRegistry.COOLDOWN_MAXIMUM();
-        
         vm.expectEmit(true, true, true, true);
-        emit CooldownSet(address(this), maxCooldown);
-        centralRegistry.setCooldown(maxCooldown);
+        emit CooldownSet(address(this), SECONDS_PER_YEAR);
+        centralRegistry.setCooldown(SECONDS_PER_YEAR);
     }
 
     // Ensures the user cannot set the cooldown to zero while there are locks

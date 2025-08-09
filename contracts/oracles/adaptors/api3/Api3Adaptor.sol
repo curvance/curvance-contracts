@@ -77,7 +77,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
             }
         }
 
-        bytes32 dapiName = Bytes32Helper.stringToBytes32(ticker);
+        bytes32 dapiName = Bytes32Helper.toBytes32(ticker);
         bytes32 dapiNameHash = keccak256(abi.encodePacked(dapiName));
 
         // Validate that the dAPI name and corresponding hash generated off

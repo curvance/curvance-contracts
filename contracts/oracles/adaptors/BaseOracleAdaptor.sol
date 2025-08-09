@@ -19,10 +19,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
     /// @notice The maximum price allowed to be returned by an oracle adaptor.
     uint256 internal constant _MAXIMUM_PRICE_ALLOWED = type(uint240).max;
-    /// @notice The enforced minimum amount of time that a price guard grows
-    ///         before overflowing type(uint240).max, in years.
-    /// @dev 5 = 5 years.
-    uint256 internal constant _MINIMUM_YEARS_BEFORE_OVERFLOW = 5;
     /// @notice The maximum % increase allowed per second of a guarded price,
     ///         in `WAD`.
     uint256 internal constant _MAXIMUM_INCREASE_PER_SECOND = type(uint64).max;
@@ -31,6 +27,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ///         in `BASIS_POINTS`.
     /// @dev 1000 = 10%.
     uint256 internal constant _MAXIMUM_PRICE_DIFFERENCE = 1000;
+    /// @notice The enforced minimum amount of time that a price guard grows
+    ///         before overflowing type(uint240).max, in years.
+    /// @dev 5 = 5 years.
+    uint256 internal constant _MINIMUM_YEARS_BEFORE_OVERFLOW = 5;
     /// @notice The minimum amount of time allowed between `timestampStart`
     ///         and `block.timestamp` on `setGuardedPriceConfig` call.
     uint256 internal constant _MINIMUM_TIMESTAMP_BUFFER = 7 days;
@@ -146,9 +146,9 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
         // Convert `increasePerYear` from basis points to WAD.
         increasePerYear = increasePerYear * 1e14;
-        // Technically _getBoundedPrice is meant for only seconds but by
+        // Technically `_guardedPrice()` is meant for only seconds, but, by
         // converting time and increase rate to years it works the same.
-        uint256 priceForOverflowCheck = _getBoundedPrice(
+        uint256 priceForOverflowCheck = _guardedPrice(
             _MINIMUM_YEARS_BEFORE_OVERFLOW,
             increasePerYear,
             basePrice
@@ -162,7 +162,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        uint256 boundedPrice = _getBoundedPrice(
+        uint256 boundedPrice = _guardedPrice(
             block.timestamp - timestampStart,
             increasePerYear / SECONDS_PER_YEAR,
             basePrice
@@ -197,7 +197,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
         pg.guardType = uint8(guardType);
         pg.timestampStart = uint40(timestampStart);
-        pg.increasePerSecond = uint64(increasePerYear / SECONDS_PER_YEAR);
+        pg.ips = uint64(increasePerYear / SECONDS_PER_YEAR);
         pg.minPrice = uint144(minPrice);
         pg.basePrice = basePrice;
 
@@ -310,34 +310,22 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         // Calculate how much to shift up minimum and maximum values from
         // scaling guarded prices.
         uint256 timePassed = block.timestamp - pg.timestampStart;
-        uint256 boundedMin = _getBoundedPrice(
-            timePassed,
-            pg.increasePerSecond,
-            pg.minPrice
-        );
+        uint256 min = _guardedPrice(timePassed, pg.ips, pg.minPrice);
 
-        if (price < boundedMin) {
-            return boundedMin;
+        if (price < min) {
+            return min;
         }
         
-        uint256 boundedMax = _getBoundedPrice(
-            timePassed,
-            pg.increasePerSecond,
-            pg.basePrice
-        );
-        return price > boundedMax ? boundedMax : price;
+        uint256 max = _guardedPrice(timePassed, pg.ips, pg.basePrice);
+        return price > max ? max : price;
     }
 
-    function _getBoundedPrice(
-        uint256 timeSinceStart,
-        uint256 increasePerSecond,
+    function _guardedPrice(
+        uint256 timePassed,
+        uint256 ips,
         uint256 price
-    ) internal pure returns (uint256 result) {
-        result = FixedPointMathLib.mulDiv(
-            price,
-            ((timeSinceStart * increasePerSecond) + WAD),
-            WAD
-        );
+    ) internal pure returns (uint256 r) {
+        r = FixedPointMathLib.mulDiv(price, ((timePassed * ips) + WAD), WAD);
     }
 
     /// @notice Helper function to check whether `price` would overflow

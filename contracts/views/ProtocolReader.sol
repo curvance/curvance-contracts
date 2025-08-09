@@ -1043,8 +1043,7 @@ contract ProtocolReader {
             return pg.basePrice;
         }
 
-        return ((block.timestamp - pg.timestampStart) *
-            pg.increasePerSecond) + pg.basePrice;
+        return ((block.timestamp - pg.timestampStart) * pg.ips) + pg.basePrice;
     }
 
     function getGuardedPriceMin(
