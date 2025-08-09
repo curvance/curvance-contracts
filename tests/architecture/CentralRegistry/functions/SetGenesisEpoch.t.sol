@@ -41,7 +41,7 @@ contract SetGenesisEpochTest is TestBaseMarketIsolated {
         vm.prank(address(0));
 
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.setGenesisEpoch(newGenesisEpoch);
     }

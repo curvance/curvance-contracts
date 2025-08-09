@@ -39,7 +39,7 @@ contract AddChainSupportTest is TestBaseMarketIsolated {
             3
         );
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.addChainSupport(
             address(this),
@@ -65,7 +65,7 @@ contract AddChainSupportTest is TestBaseMarketIsolated {
             3
         );
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.addChainSupport(
             address(this),

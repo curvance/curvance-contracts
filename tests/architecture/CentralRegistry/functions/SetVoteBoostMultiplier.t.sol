@@ -21,7 +21,7 @@ contract SetVoteBoostMultiplierTest is TestBaseMarketIsolated {
         public
     {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.setVoteBoostMultiplier(BASIS_POINTS);
 

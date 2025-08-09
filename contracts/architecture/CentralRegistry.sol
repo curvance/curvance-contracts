@@ -63,13 +63,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Sequencer uptime oracle feed address for L2s.
     address public immutable sequencer;
 
-    /// @dev bytes4(keccak256(bytes("CentralRegistry__ParametersMisconfigured()")))
-    uint256 internal constant _PARAMETERS_MISCONFIGURED_SELECTOR = 0xa5bb570d;
-    /// @dev bytes4(keccak256(bytes("CentralRegistry__Unauthorized()")))
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xe675838a;
-    /// @dev bytes4(keccak256(bytes("CentralRegistry__EpochHasStarted()")))
-    uint256 internal constant _EPOCH_HAS_STARTED_SELECTOR = 0xffb4e740;
-
     /// STORAGE ///
 
     /// @notice Genesis Epoch timestamp.
@@ -280,7 +273,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// ERRORS ///
 
-    error CentralRegistry__ParametersMisconfigured();
+    error CentralRegistry__InvalidParameter();
     error CentralRegistry__Unauthorized();
     error CentralRegistry__EpochHasStarted();
 
@@ -305,7 +298,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         // of 2022 (Jan 1 12:00 EST) so we know the value is not accidently
         // misconverted or missing with a value of 0.
         if (genesisEpoch_ < 1640926800) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Configure DAO permission data.
@@ -353,12 +346,12 @@ contract CentralRegistry is ERC165, ActionRegistry {
         // restrictions, so we do not need to check for 0 input here as this
         // check would catch `newGenesisEpoch` == 0.
         if (newGenesisEpoch < genesisEpoch) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         _checkElevatedPermissions();
         if (genesisEpoch <= block.timestamp) {
-            _revert(_EPOCH_HAS_STARTED_SELECTOR);
+            revert CentralRegistry__EpochHasStarted();
         }
 
         genesisEpoch = newGenesisEpoch;
@@ -539,7 +532,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Compound fee cannot be more than 5%.
         if (value > 500) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
         // Convert the parameters from basis points to `WAD` format
         // while inefficient we want to minimize potential human error
@@ -563,7 +556,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Compound fee cannot be more than 50%.
         if (value > 5000) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
         // Convert the parameters from basis points to `WAD` format
         // while inefficient we want to minimize potential human error
@@ -587,7 +580,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Leverage fee cannot be more than 2%.
         if (value > 200) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
         // Convert the parameters from basis points to `WAD` format
         // while inefficient we want to minimize potential human error
@@ -609,12 +602,12 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Interest fee cannot be more than 75%.
         if (value > 7500) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Validate that you're setting the fee for an actual market manager.
         if (!isMarketManager[market]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Convert the parameters from basis points to `WAD` format
@@ -636,13 +629,13 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Early unlock penalty cannot be more than 90%.
         if (value > 9000) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Early unlock penalty cannot be less than 30%,
         // unless its being turned off.
         if (value < 3000 && value != 0) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         earlyUnlockPenaltyMultiplier = value;
@@ -663,7 +656,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         // unless its being turned off, which is represented with a
         // value of 0.
         if (value <= BASIS_POINTS && value != 0) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         voteBoostMultiplier = value;
@@ -685,7 +678,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         // unless its being turned off, which is represented with a
         // value of 0.
         if (value <= BASIS_POINTS && value != 0) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         lockBoostMultiplier = value;
@@ -704,7 +697,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Slippage limit cannot be less than 4%.
         if (value < 400) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Convert the parameters from basis points to `WAD` format
@@ -727,7 +720,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         uint256 emissionsAllocated
     ) external {
         if (msg.sender != votingHub) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert CentralRegistry__Unauthorized();
         }
 
         emissionsAllocatedByEpoch[epoch] = emissionsAllocated;
@@ -805,7 +798,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
                 type(ITimelock).interfaceId
             )
         ) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Cache old timelock.
@@ -912,7 +905,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate `newMarket` is not currently supported.
         if (isMarketManager[newMarket]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Ensure that `newMarket` is a market manager.
@@ -922,12 +915,12 @@ contract CentralRegistry is ERC165, ActionRegistry {
                 type(IMarketManager).interfaceId
             )
         ) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         /// Interest fee cannot be more than 50%.
         if (marketInterestFee > 5000) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         isMarketManager[newMarket] = true;
@@ -953,7 +946,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate `marketApproved` is currently supported.
         if (!isMarketManager[marketApproved]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         delete isMarketManager[marketApproved];
@@ -973,7 +966,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         // so it corresponds to last element index now (starting at index 0).
         // This is an additional runtime invariant check for extra security.
         if (marketIndex >= numMarkets--) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Copy last `_marketManagers` slot to `marketIndex` slot.
@@ -996,7 +989,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate `newAddress` is not currently supported.
         if (hasLockingPermissions[newAddress]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         hasLockingPermissions[newAddress] = true;
@@ -1015,7 +1008,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate `addressApproved` is currently supported.
         if (!hasLockingPermissions[addressApproved]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         delete hasLockingPermissions[addressApproved];
@@ -1033,7 +1026,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate `newAddress` is not currently supported.
         if (hasAuctionPermissions[newAddress]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         hasAuctionPermissions[newAddress] = true;
@@ -1051,7 +1044,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate `addressApproved` is currently supported.
         if (!hasAuctionPermissions[addressApproved]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         delete hasAuctionPermissions[addressApproved];
@@ -1070,7 +1063,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate `newAddress` is not currently supported.
         if (hasMarketPermissions[newAddress]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         hasMarketPermissions[newAddress] = true;
@@ -1088,7 +1081,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate `addressApproved` is currently supported.
         if (!hasMarketPermissions[addressApproved]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         delete hasMarketPermissions[addressApproved];
@@ -1106,7 +1099,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate `newAddress` is not currently supported.
         if (hasHarvestPermissions[newAddress]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         hasHarvestPermissions[newAddress] = true;
@@ -1124,7 +1117,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate `addressApproved` is currently supported.
         if (!hasHarvestPermissions[addressApproved]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         delete hasHarvestPermissions[addressApproved];
@@ -1159,7 +1152,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate this "new" chain is not currently supported.
         if (supportedChainData[chainId].isSupported == 2) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         supportedChainData[chainId] = ChainData({
@@ -1202,17 +1195,17 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Validate that `expectedMessagingHub` is currently supported.
         if (chainDataToRemove.messagingHub != expectedMessagingHub) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Validate that `expectedVotingHub` is currently supported.
         if (chainDataToRemove.votingHub != expectedVotingHub) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Validate that `chainId` is currently supported.
         if (chainDataToRemove.isSupported < 2) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Remove chain support from protocol.
@@ -1237,12 +1230,12 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///                       liquidation bonus.
     function unlockAuctionForMarket(address marketToUnlock) external {
         if (!hasAuctionPermissions[msg.sender]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert CentralRegistry__Unauthorized();
         }
 
         // Validate that you're unlocking an approved market manager.
         if (!isMarketManager[marketToUnlock]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         uint256 marketToUnlockUint = uint256(uint160(marketToUnlock));
@@ -1325,7 +1318,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         for (uint256 i; i < numProviders; ++i) {
             cachedProvider = providers[i];
             if (isMulticallProvider[cachedProvider] == supported) {
-                _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+                revert CentralRegistry__InvalidParameter();
             }
 
             isMulticallProvider[cachedProvider] = supported;
@@ -1392,21 +1385,21 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkEmergencyCouncilPermissions() internal view {
         if (msg.sender != emergencyCouncil) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert CentralRegistry__Unauthorized();
         }
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkDaoPermissions() internal view {
         if (!hasDaoPermissions[msg.sender]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert CentralRegistry__Unauthorized();
         }
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkElevatedPermissions() internal view {
         if (!hasElevatedPermissions[msg.sender]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert CentralRegistry__Unauthorized();
         }
     }
 
@@ -1419,7 +1412,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         }
 
         if (genesisEpoch <= block.timestamp) {
-            _revert(_EPOCH_HAS_STARTED_SELECTOR);
+            revert CentralRegistry__EpochHasStarted();
         }
     }
 }

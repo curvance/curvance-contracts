@@ -41,21 +41,21 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
     function test_addMarketManager_fail_whenMarketAlreadyAdded() public {
         centralRegistry.addMarketManager(newMarket, 5000);
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.addMarketManager(newMarket, 5000);
     }
 
     function test_addMarketManager_fail_whenNoSupportForERC165() public {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.addMarketManager(user1, 5000);
     }
 
     function test_addMarketManager_fail_whenFeeTooHigh() public {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.addMarketManager(newMarket, 5001);
     }

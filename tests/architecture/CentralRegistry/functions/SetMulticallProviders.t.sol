@@ -28,7 +28,7 @@ contract SetMulticallProvidersTest is TestBaseMarketIsolated {
 
     function test_setMulticallProviders_fail_whenAlreadyNotSupported() public {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.setMulticallProviders(providers, false);
     }
@@ -37,7 +37,7 @@ contract SetMulticallProvidersTest is TestBaseMarketIsolated {
         centralRegistry.setMulticallProviders(providers, true);
 
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.setMulticallProviders(providers, true);
     }
