@@ -9,7 +9,7 @@ import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.so
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICentralRegistry, ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
@@ -132,9 +132,8 @@ contract CCTPBorrowZapper is ReentrancyGuard {
         if (
             address(tokenMessager) != address(0) &&
             tokenMessager.remoteTokenMessengers(
-                centralRegistry.supportedChainData(dstChainId).domain
-            ) !=
-            bytes32(0)
+                _chainConfig(dstChainId).domain
+            ) != bytes32(0)
         ) {
             _transferFeeTokenViaCCTP(
                 tokenMessager,
@@ -166,10 +165,8 @@ contract CCTPBorrowZapper is ReentrancyGuard {
             revert CCTPBorrowZapper__InsufficientGasToken();
         }
 
-        IWormholeRelayer crosschainRelayer = _getCrosschainRelayer();
-        ChainData memory chainData = centralRegistry.supportedChainData(
-            dstChainId
-        );
+        IWormholeRelayer crosschainRelayer = _crosschainRelayer();
+        ChainConfig memory config = _chainConfig(dstChainId);
 
         address feeToken = centralRegistry.feeToken();
         SwapperLib._approveIfNeeded(
@@ -180,10 +177,10 @@ contract CCTPBorrowZapper is ReentrancyGuard {
 
         uint64 nonce = tokenMessager.depositForBurnWithCaller(
             amount,
-            chainData.domain,
+            config.domain,
             bytes32(uint256(uint160(msg.sender))),
             feeToken,
-            bytes32(uint256(uint160(chainData.crosschainRelayer)))
+            bytes32(uint256(uint160(config.crosschainRelayer)))
         );
 
         IWormholeRelayer.MessageKey[]
@@ -197,13 +194,13 @@ contract CCTPBorrowZapper is ReentrancyGuard {
             .getDefaultDeliveryProvider();
 
         crosschainRelayer.sendToEvm{ value: wormholeFee }(
-            chainData.messagingChainId,
+            config.messagingChainId,
             msg.sender,
             "",
             0,
             0,
             gasLimit > _DEFAULT_GAS_LIMIT ? gasLimit : _DEFAULT_GAS_LIMIT,
-            chainData.messagingChainId,
+            config.messagingChainId,
             address(0),
             defaultDeliveryProvider,
             messageKeys,
@@ -226,8 +223,8 @@ contract CCTPBorrowZapper is ReentrancyGuard {
         uint256 dstChainId,
         uint256 gasLimit
     ) internal view returns (uint256 nativeFee) {
-        (nativeFee, ) = _getCrosschainRelayer().quoteEVMDeliveryPrice(
-            centralRegistry.supportedChainData(dstChainId).messagingChainId,
+        (nativeFee, ) = _crosschainRelayer().quoteEVMDeliveryPrice(
+            _chainConfig(dstChainId).messagingChainId,
             0,
             gasLimit > _DEFAULT_GAS_LIMIT ? gasLimit : _DEFAULT_GAS_LIMIT
         );
@@ -236,9 +233,22 @@ contract CCTPBorrowZapper is ReentrancyGuard {
         nativeFee += IWormhole(centralRegistry.crosschainCore()).messageFee();
     }
 
+    /// @dev Returns ChainConfig struct for `chainId`.
+    /// @param chainId The chain ID to get chain configuration of.
+    /// @return config The ChainConfig struct for the given chain ID.
+    function _chainConfig(
+        uint256 chainId
+    ) internal view returns (ChainConfig memory config) {
+        config = centralRegistry.chainConfig(chainId);
+        // Validate that `chainId` is actually a supported chain.
+        if (config.isSupported < 2) {
+            revert CCTPBorrowZapper__CCTPIsNotConfigured();
+        }
+    }
+
     /// @dev Returns the current Crosschain Relayer address to call.
     /// @return The current Crosschain Relayer contract.
-    function _getCrosschainRelayer() internal view returns (IWormholeRelayer) {
+    function _crosschainRelayer() internal view returns (IWormholeRelayer) {
         return IWormholeRelayer(centralRegistry.crosschainRelayer());
     }
 }

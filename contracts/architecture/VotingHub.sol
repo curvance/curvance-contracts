@@ -281,19 +281,6 @@ contract VotingHub is QueryResponse {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @dev Returns ChainConfig struct for `chainId`.
-    /// @param chainId The chain ID to get chain configuration of.
-    /// @return config The ChainConfig struct for the given chain ID.
-    function _chainConfig(
-        uint256 chainId
-    ) internal view returns (ChainConfig memory config) {
-        config = centralRegistry.chainConfig(chainId);
-        // Validate that `chainId` is actually a supported chain.
-        if (config.isSupported < 2) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-    }
-
     /// @dev Validates that the input emission values are within the
     ///      constraints of the protocol.
     /// @param emissionData Struct containing information on emission
@@ -456,6 +443,19 @@ contract VotingHub is QueryResponse {
             gasLimit,
             epoch
         );
+    }
+
+    /// @dev Returns ChainConfig struct for `chainId`.
+    /// @param chainId The chain ID to get chain configuration of.
+    /// @return config The ChainConfig struct for the given chain ID.
+    function _chainConfig(
+        uint256 chainId
+    ) internal view returns (ChainConfig memory config) {
+        config = centralRegistry.chainConfig(chainId);
+        // Validate that `chainId` is actually a supported chain.
+        if (config.isSupported < 2) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
     }
 
     /**

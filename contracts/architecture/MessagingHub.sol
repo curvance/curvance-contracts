@@ -294,13 +294,13 @@ contract MessagingHub is QueryResponse {
             srcChainId
         );
         address srcAddr = address(uint160(uint256(srcAddress)));
-        ChainConfig memory config = _chainConfig(gethChainId);
 
         ICVE cve = ICVE(centralRegistry.cve());
         IVeCVE veCVE = _veCVE();
 
-        // Validate message came directly from MessagingHub on the source chain.
-        if (config.messagingHub != srcAddr) {
+        // Validate message came directly from `messagingHub` on the source
+        // chain.
+        if (_chainConfig(gethChainId).messagingHub != srcAddr) {
             return;
         }
 
@@ -433,13 +433,10 @@ contract MessagingHub is QueryResponse {
         _checkMessagingStatus(1);
         _checkCrosschainPermissions();
 
-        ChainConfig memory config = _chainConfig(dstChainId);
-
-        amount = _pullFees(amount);
         _sendFeeToken(
             dstChainId,
-            config.domain,
-            amount,
+            _chainConfig(dstChainId).domain,
+            _pullFees(amount), // Pull fees then input amount pulled.
             abi.encode(1),
             gasLimit
         );
