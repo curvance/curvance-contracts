@@ -110,7 +110,7 @@ contract TestVotingHub is TestBaseVotingHub {
 
     function test_executeEmissionConfiguration_multipleChains_success() public {
         ChainConfig memory configTwo;
-        configTwo.isSupported = 2;
+        configTwo.isSupported = true;
         configTwo.messagingChainId = 24;
         configTwo.domain = 2;
         configTwo.messagingHub = address(messagingHubs[10]);

@@ -84,7 +84,7 @@ contract RemoveChainTest is TestBaseMarketIsolated {
         uint256 prevSupportedChains = centralRegistry.supportedChains();
 
         (
-            uint256 isSupported,
+            bool isSupported,
             uint16 messagingChainId,
             uint32 domain,
             address messagingHub,
@@ -94,7 +94,7 @@ contract RemoveChainTest is TestBaseMarketIsolated {
             address crosschainRelayer
         ) = centralRegistry.chainConfig(42161);
 
-        assertEq(isSupported, 2);
+        assertTrue(isSupported);
         assertEq(messagingChainId, 23);
         assertEq(domain, 3);
         assertEq(messagingHub, address(this));
@@ -112,7 +112,7 @@ contract RemoveChainTest is TestBaseMarketIsolated {
 
         (isSupported, , , , , , , ) = centralRegistry.chainConfig(42161);
 
-        assertEq(isSupported, 0);
+        assertFalse(isSupported);
         assertEq(centralRegistry.messagingToGETHChainId(42161), 0);
         assertEq(centralRegistry.GETHToMessagingChainId(23), 0);
 

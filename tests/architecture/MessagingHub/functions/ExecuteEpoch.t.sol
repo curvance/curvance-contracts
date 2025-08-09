@@ -61,7 +61,7 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
 
     function test_executeEpoch_fail_whenNumResponseIsMismatch() public {
         ChainConfig memory configTwo;
-        configTwo.isSupported = 2;
+        configTwo.isSupported = true;
         configTwo.messagingChainId = 24;
         configTwo.domain = 2;
         configTwo.messagingHub = address(this);
