@@ -14,43 +14,43 @@ contract IncreaseAmountAndExtendLockTest is TestBaseVeCVE {
 
         _skipRestrictionDuration();
 
-        veCVE.createLock(50e18, false, rewardsData, "", 0);
+        veCVE.createLock(50e18, false, action, "", 0);
     }
 
     function test_increaseAmountAndExtendLock_fail_whenVeCVEShutdown(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         veCVE.shutdown();
 
         vm.expectRevert(VeCVE.VeCVE__VeCVEShutdown.selector);
-        veCVE.increaseAmountAndExtendLock(30e18, 0, true, rewardsData, "", 0);
+        veCVE.increaseAmountAndExtendLock(30e18, 0, true, action, "", 0);
     }
 
     function test_increaseAmountAndExtendLock_fail_whenAmountIsZero(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.increaseAmountAndExtendLock(0, 0, true, rewardsData, "", 0);
+        veCVE.increaseAmountAndExtendLock(0, 0, true, action, "", 0);
     }
 
     function test_increaseAmountAndExtendLock_fail_whenLockIndexIsInvalid(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.increaseAmountAndExtendLock(30e18, 1, true, rewardsData, "", 0);
+        veCVE.increaseAmountAndExtendLock(30e18, 1, true, action, "", 0);
     }
 
     function test_increaseAmountAndExtendLock_fail_whenUnlockTimestampIsExpired(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
 
         for (
@@ -67,15 +67,15 @@ contract IncreaseAmountAndExtendLockTest is TestBaseVeCVE {
         _skipRestrictionDuration();
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.increaseAmountAndExtendLock(30e18, 0, true, rewardsData, "", 0);
+        veCVE.increaseAmountAndExtendLock(30e18, 0, true, action, "", 0);
     }
 
     function test_increaseAmountAndExtendLock_success_withContinuousLock(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        veCVE.increaseAmountAndExtendLock(30e18, 0, true, rewardsData, "", 0);
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
+        veCVE.increaseAmountAndExtendLock(30e18, 0, true, action, "", 0);
 
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         assertEq(unlockTime, veCVE.CONTINUOUS_LOCK_VALUE());
@@ -85,8 +85,8 @@ contract IncreaseAmountAndExtendLockTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        veCVE.increaseAmountAndExtendLock(30e18, 0, false, rewardsData, "", 0);
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
+        veCVE.increaseAmountAndExtendLock(30e18, 0, false, action, "", 0);
 
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         assertEq(unlockTime, veCVE.freshLockTimestamp());

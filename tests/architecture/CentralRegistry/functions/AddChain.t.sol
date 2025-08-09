@@ -82,7 +82,7 @@ contract AddChainTest is TestBaseMarketIsolated {
         uint256 prevSupportedChains = centralRegistry.supportedChains();
 
         vm.expectEmit(true, true, true, true);
-        emit NewChainAdded(42161, config);
+        emit NewChain(42161, config);
 
         centralRegistry.addChain(42161, config);
 

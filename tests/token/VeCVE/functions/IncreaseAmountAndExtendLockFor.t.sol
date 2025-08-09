@@ -16,7 +16,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
 
         _skipRestrictionDuration();
 
-        veCVE.createLockFor(address(1), 50e18, false, rewardsData, "", 0);
+        veCVE.createLockFor(address(1), 50e18, false, action, "", 0);
 
         centralRegistry.removeLockingPermissions(address(this));
     }
@@ -32,7 +32,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
             30e18,
             0,
             true,
-            rewardsData,
+            action,
             "",
             0
         );
@@ -47,7 +47,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
             0,
             0,
             true,
-            rewardsData,
+            action,
             "",
             0
         );
@@ -60,7 +60,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
             30e18,
             0,
             true,
-            rewardsData,
+            action,
             "",
             0
         );
@@ -70,7 +70,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         centralRegistry.addLockingPermissions(address(this));
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
@@ -79,7 +79,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
             30e18,
             1,
             true,
-            rewardsData,
+            action,
             "",
             0
         );
@@ -89,7 +89,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         centralRegistry.addLockingPermissions(address(this));
 
         (, uint40 unlockTime) = veCVE.userLocks(address(1), 0);
@@ -113,7 +113,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
             30e18,
             0,
             true,
-            rewardsData,
+            action,
             "",
             0
         );
@@ -123,7 +123,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         centralRegistry.addLockingPermissions(address(this));
 
         veCVE.increaseAmountAndExtendLockFor(
@@ -131,7 +131,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
             30e18,
             0,
             true,
-            rewardsData,
+            action,
             "",
             0
         );
@@ -144,7 +144,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         centralRegistry.addLockingPermissions(address(this));
 
         veCVE.increaseAmountAndExtendLockFor(
@@ -152,7 +152,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
             30e18,
             0,
             false,
-            rewardsData,
+            action,
             "",
             0
         );
@@ -166,7 +166,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
     {
         centralRegistry.addLockingPermissions(address(this));
 
-        veCVE.createLockFor(address(2), 10e18, true, rewardsData, "", 0);
+        veCVE.createLockFor(address(2), 10e18, true, action, "", 0);
 
         // cannot extned a continuous lock with a non-continuous lock
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
@@ -175,7 +175,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
             1e18,
             0,
             false,
-            rewardsData,
+            action,
             "",
             0
         );
@@ -187,14 +187,14 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
     {
         centralRegistry.addLockingPermissions(address(this));
 
-        veCVE.createLockFor(address(2), 10e18, true, rewardsData, "", 0);
+        veCVE.createLockFor(address(2), 10e18, true, action, "", 0);
 
         veCVE.increaseAmountAndExtendLockFor(
             address(2),
             1e18,
             0,
             true,
-            rewardsData,
+            action,
             "",
             0
         );

@@ -21,7 +21,7 @@ contract VotesTest is TestBaseVeCVE {
         _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
 
-        veCVE.createLock(amount, false, rewardsData, "", 0);
+        veCVE.createLock(amount, false, action, "", 0);
 
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         vm.warp(unlockTime * 2);
@@ -38,7 +38,7 @@ contract VotesTest is TestBaseVeCVE {
         _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
 
-        veCVE.createLock(amount, true, rewardsData, "", 0);
+        veCVE.createLock(amount, true, action, "", 0);
         vm.warp(1000);
 
         // current boost is x2
@@ -53,7 +53,7 @@ contract VotesTest is TestBaseVeCVE {
         _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
 
-        veCVE.createLock(amount, false, rewardsData, "", 0);
+        veCVE.createLock(amount, false, action, "", 0);
         vm.warp(timeWarp);
 
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);

@@ -10,7 +10,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -411,7 +411,7 @@ contract GaugeManager is
     /// @param isNewLock True if creating a new lock, false if extending existing.
     /// @param lockIndex The index of the lock to extend (ignored if isNewLock is true).
     /// @param continuousLock Whether the lock should be continuous or not.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function claimAndLock(
@@ -419,7 +419,7 @@ contract GaugeManager is
         bool isNewLock,
         bool continuousLock,
         uint256 lockIndex,
-        RewardsData memory rewardsData,
+        ClaimAction memory action,
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
@@ -453,7 +453,7 @@ contract GaugeManager is
                 msg.sender,
                 cveRewards,
                 continuousLock,
-                rewardsData,
+                action,
                 params,
                 aux
             );
@@ -463,7 +463,7 @@ contract GaugeManager is
                 cveRewards,
                 lockIndex,
                 continuousLock,
-                rewardsData,
+                action,
                 params,
                 aux
             );

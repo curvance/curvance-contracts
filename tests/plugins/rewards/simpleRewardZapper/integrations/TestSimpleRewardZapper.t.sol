@@ -6,7 +6,7 @@ import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SimpleCToken, IERC20 } from "contracts/market/token/SimpleCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -143,7 +143,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         veCVE.createLock(
             amount,
             false,
-            RewardsData(false, false, false, false),
+            ClaimAction(false, false, false, false),
             "",
             0
         );
@@ -209,7 +209,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         veCVE.createLock(
             amount,
             false,
-            RewardsData(false, false, false, false),
+            ClaimAction(false, false, false, false),
             "",
             0
         );
@@ -291,7 +291,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         veCVE.createLock(
             amount,
             false,
-            RewardsData(false, false, false, false),
+            ClaimAction(false, false, false, false),
             "",
             0
         );

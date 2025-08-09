@@ -20,7 +20,7 @@ contract CompoundRewardsIntoLockTest is TestBaseVeCVE {
         vm.startPrank(user1);
 
         cve.approve(address(veCVE), 100e18);
-        veCVE.createLock(50e18, false, rewardsData, "", 0);
+        veCVE.createLock(50e18, false, action, "", 0);
 
         vm.stopPrank();
     }

@@ -16,7 +16,7 @@ import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { ICentralRegistry, ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
 import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 import { IFeeManager } from "contracts/interfaces/IFeeManager.sol";
-import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { IRewardManager, ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
@@ -395,7 +395,7 @@ contract MessagingHub is QueryResponse {
             cve.mintLockedTokens(recipient, amount);
             SwapperLib._approveIfNeeded(address(cve), address(veCVE), amount);
 
-            RewardsData memory rewardData;
+            ClaimAction memory rewardData;
 
             // RewardData is forced to be an empty struct since Curvance does
             // not how long it has been between lock destruction and creation,

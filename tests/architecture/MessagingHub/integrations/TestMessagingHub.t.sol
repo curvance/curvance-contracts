@@ -10,7 +10,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
@@ -24,7 +24,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
     uint256 public srcForkId;
     uint256 public dstForkId;
     WormholeHelper public wormholeHelper;
-    RewardsData public rewardsData = RewardsData(true, false, false, false);
+    ClaimAction public action = ClaimAction(true, false, false, false);
     VeCVE.BridgeData public bridgeData = VeCVE.BridgeData(42161, 0, false);
 
     function setUp() public override {
@@ -203,7 +203,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         uint256 desiredTokenBalance = cve.balanceOf(user1);
 
         vm.prank(user1);
-        rewardManager.claimRewards(rewardsData, abi.encode(swapAction), 0);
+        rewardManager.claimRewards(action, abi.encode(swapAction), 0);
 
         assertEq(
             usdc.balanceOf(address(rewardManager)),
@@ -406,7 +406,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         veCVE.bridgeLock{ value: messageFee }(
             0,
             bridgeData,
-            rewardsData,
+            action,
             abi.encode(swapAction),
             0
         );
@@ -501,7 +501,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(_ONE, false, rewardsData, "", 0);
+        veCVE.createLock(_ONE, false, action, "", 0);
 
         vm.stopPrank();
     }

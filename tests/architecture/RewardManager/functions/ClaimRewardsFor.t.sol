@@ -5,11 +5,11 @@ import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
 contract ClaimRewardsForTest is TestBaseRewardManager {
-    RewardsData public rewardsData = RewardsData(true, false, false, false);
+    ClaimAction public action = ClaimAction(true, false, false, false);
     SwapperLib.Swap public swapAction;
     address[] public path;
 
@@ -67,7 +67,7 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
         rewardManager.claimRewardsFor(
             user1,
             epoch,
-            rewardsData,
+            action,
             abi.encode(swapAction),
             0
         );
@@ -83,7 +83,7 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
         _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(amount, false, rewardsData, "", 0);
+        veCVE.createLock(amount, false, action, "", 0);
 
         vm.stopPrank();
 
@@ -118,7 +118,7 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
         rewardManager.claimRewardsFor(
             user1,
             epoch,
-            rewardsData,
+            action,
             abi.encode(swapAction),
             0
         );

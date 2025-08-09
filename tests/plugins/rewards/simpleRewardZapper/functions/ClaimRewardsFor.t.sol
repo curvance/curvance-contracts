@@ -3,14 +3,14 @@ pragma solidity 0.8.26;
 
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
 import { TestBaseSimpleRewardZapper, BaseZapper, SimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
 contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
-    RewardsData public rewardsData = RewardsData(false, false, false, false);
+    ClaimAction public action = ClaimAction(false, false, false, false);
     SwapperLib.Swap public swapAction;
     address[] public path;
 
@@ -51,7 +51,7 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
         _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(1e18, false, rewardsData, "", 0);
+        veCVE.createLock(1e18, false, action, "", 0);
 
         vm.stopPrank();
 
@@ -64,7 +64,7 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
         rewardManager.claimRewardsFor(
             user1,
             epochs,
-            rewardsData,
+            action,
             abi.encode(swapAction),
             0
         );
@@ -82,7 +82,7 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
         _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(amount, false, rewardsData, "", 0);
+        veCVE.createLock(amount, false, action, "", 0);
 
         vm.stopPrank();
 

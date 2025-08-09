@@ -12,7 +12,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 /// @title Curvance Reward Manager.
@@ -312,12 +312,12 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     }
 
     /// @notice Claims rewards for multiple epochs.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Swap data for token swapping rewards to
     ///               desiredRewardToken.
     /// @param aux Auxiliary data for wrapped assets such as veCVE.
     function claimRewards(
-        RewardsData calldata rewardsData,
+        ClaimAction calldata action,
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
@@ -336,7 +336,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             msg.sender,
             msg.sender,
             epochs,
-            rewardsData,
+            action,
             params,
             aux
         );
@@ -345,14 +345,14 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// @notice Claims rewards for multiple epochs.
     /// @param user The address of the user claiming rewards.
     /// @param epochs The number of epochs for which to claim rewards.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Swap data for token swapping rewards to cve,
     ///               if necessary.
     /// @param aux Auxiliary data for veCVE.
     function claimRewardsFor(
         address user,
         uint256 epochs,
-        RewardsData calldata rewardsData,
+        ClaimAction calldata action,
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
@@ -360,7 +360,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
         // We check whether there are epochs to claim in veCVE
         // so we do not need to check here like in claimRewards.
-        _claimRewards(user, user, epochs, rewardsData, params, aux);
+        _claimRewards(user, user, epochs, action, params, aux);
     }
 
     /// @notice Manages rewards for `user`, used at the beginning
@@ -419,7 +419,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// @param user The address of the user claiming rewards.
     /// @param recipient The address receiving rewards.
     /// @param epochs The number of epochs for which to claim rewards.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Swap data for token swapping rewards to cve,
     ///               if necessary.
     /// @param aux Auxiliary data for veCVE.
@@ -427,18 +427,18 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         address user,
         address recipient,
         uint256 epochs,
-        RewardsData calldata rewardsData,
+        ClaimAction calldata action,
         bytes calldata params,
         uint256 aux
     ) internal {
         uint256 rewards = _calculateRewards(user, epochs);
 
         // Process rewards and bubble up the amount of rewards received in
-        // `rewardsData.desiredRewardToken`.
+        // `action.desiredRewardToken`.
         uint256 rewardAmount = _processRewards(
             recipient,
             rewards,
-            rewardsData,
+            action,
             params,
             aux
         );
@@ -448,7 +448,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         if (rewardAmount > 0) {
             emit RewardPaid(
                 user,
-                rewardsData.asCVE ? _getCVE() : _getFeeToken(),
+                action.asCVE ? _getCVE() : _getFeeToken(),
                 rewardAmount
             );
         }
@@ -546,7 +546,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     ///         the rewards are locked as VeCVE.
     /// @param recipient The address receiving processed rewards.
     /// @param rewards The amount of rewards to process for `recipient`.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Swap data for token swapping rewards to cve,
     ///               if necessary.
     /// @param aux Auxiliary data for veCVE.
@@ -555,7 +555,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     function _processRewards(
         address recipient,
         uint256 rewards,
-        RewardsData calldata rewardsData,
+        ClaimAction calldata action,
         bytes calldata params,
         uint256 aux
     ) internal returns (uint256) {
@@ -567,7 +567,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         address rewardToken = _getFeeToken();
 
         // Check if `recipient` wants to route their rewards into another token.
-        if (rewardsData.asCVE) {
+        if (action.asCVE) {
             SwapperLib.Swap memory swapAction = abi.decode(
                 params,
                 (SwapperLib.Swap)
@@ -591,12 +591,12 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
             // Check if the claimer wants to compound their rewards
             // into a lock.
-            if (rewardsData.shouldLock) {
+            if (action.shouldLock) {
                 return
                     _compoundRewardsIntoLock(
                         recipient,
-                        rewardsData.isFreshLock,
-                        rewardsData.isFreshLockContinuous,
+                        action.isFreshLock,
+                        action.isFreshLockContinuous,
                         aux
                     );
             }

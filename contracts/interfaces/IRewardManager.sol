@@ -10,7 +10,7 @@ pragma solidity ^0.8.26;
 /// @param isFreshLock Indicator of whether it's a fresh lock, if applicable.
 /// @param isFreshLockContinuous Indicator of whether the fresh lock
 ///                              should be continuous.
-struct RewardsData {
+struct ClaimAction {
     bool asCVE;
     bool shouldLock;
     bool isFreshLock;
@@ -55,14 +55,14 @@ interface IRewardManager {
     /// @notice Claims rewards for multiple epochs.
     /// @param user The address of the user claiming rewards.
     /// @param epochs The number of epochs for which to claim rewards.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Swap data for token swapping rewards to
-    ///               rewardsData.desiredRewardToken, if necessary.
+    ///               action.desiredRewardToken, if necessary.
     /// @param aux Auxiliary data for wrapped assets such as veCVE.
     function claimRewardsFor(
         address user,
         uint256 epochs,
-        RewardsData memory rewardsData,
+        ClaimAction memory action,
         bytes memory params,
         uint256 aux
     ) external;

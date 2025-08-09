@@ -4,7 +4,7 @@
 // import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 // import { TestBaseGaugeManager } from "tests/gauge/TestBaseGaugeManager.sol";
 // import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
-// import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+// import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 // import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 // contract User {}
@@ -152,7 +152,7 @@
 //         _skipRestrictionDuration();
 
 //         // user0, user3 claims
-//         RewardsData memory rewardData;
+//         ClaimAction memory rewardData;
 //         vm.prank(users[0]);
 //         gaugeManager.claimAndLock(
 //             _makeTokenArray(tokens[0]),
@@ -217,7 +217,7 @@
 //     function testRevertClaimAndExtendLock() public {
 //         vm.warp(gaugeManager.gaugeStartTime() - 1);
 
-//         RewardsData memory rewardData;
+//         ClaimAction memory rewardData;
 
 //         vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
 //         vm.prank(users[0]);
@@ -248,7 +248,7 @@
 //     function testRevertClaimAndLock() public {
 //         vm.warp(gaugeManager.gaugeStartTime() - 1);
 
-//         RewardsData memory rewardData;
+//         ClaimAction memory rewardData;
 
 //         vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
 //         vm.prank(users[0]);

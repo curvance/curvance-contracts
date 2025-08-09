@@ -5,11 +5,11 @@ import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
 contract ClaimRewardsTest is TestBaseRewardManager {
-    RewardsData public rewardsData = RewardsData(true, false, false, false);
+    ClaimAction public action = ClaimAction(true, false, false, false);
     SwapperLib.Swap public swapAction;
     address[] public path;
 
@@ -67,7 +67,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         vm.prank(user1);
 
         vm.expectRevert(RewardManager.RewardManager__NoEpochRewards.selector);
-        rewardManager.claimRewards(rewardsData, abi.encode(swapAction), 0);
+        rewardManager.claimRewards(action, abi.encode(swapAction), 0);
     }
 
     function test_claimRewards_fail_whenSwapActionIsInvalid() public {
@@ -78,7 +78,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(100e18, false, rewardsData, "", 0);
+        veCVE.createLock(100e18, false, action, "", 0);
 
         vm.stopPrank();
 
@@ -97,7 +97,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         vm.expectRevert(
             RewardManager.RewardManager__SwapActionIsInvalid.selector
         );
-        rewardManager.claimRewards(rewardsData, abi.encode(swapAction), 0);
+        rewardManager.claimRewards(action, abi.encode(swapAction), 0);
     }
 
     function test_claimRewards_success_fuzzed(
@@ -108,7 +108,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
     ) public {
         centralRegistry.addLockingPermissions(address(rewardManager));
 
-        rewardsData = RewardsData(
+        action = ClaimAction(
             true,
             shouldLock,
             isFreshLock,
@@ -127,7 +127,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(amount, isFreshLockContinuous, rewardsData, "", 0);
+        veCVE.createLock(amount, isFreshLockContinuous, action, "", 0);
 
         vm.stopPrank();
 
@@ -160,7 +160,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         uint256 desiredTokenBalance = cve.balanceOf(user1);
 
         vm.prank(user1);
-        rewardManager.claimRewards(rewardsData, abi.encode(swapAction), 0);
+        rewardManager.claimRewards(action, abi.encode(swapAction), 0);
 
         assertEq(
             usdc.balanceOf(address(rewardManager)),

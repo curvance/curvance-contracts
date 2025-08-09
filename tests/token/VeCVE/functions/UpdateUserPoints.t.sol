@@ -22,7 +22,7 @@ contract UpdateUserPointsTest is TestBaseVeCVE {
         _prepareCVE(address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(100e18, false, rewardsData, "", 0);
+        veCVE.createLock(100e18, false, action, "", 0);
         assertEq(veCVE.userPoints(address(this)), 100e18);
 
         vm.startPrank(address(rewardManager));

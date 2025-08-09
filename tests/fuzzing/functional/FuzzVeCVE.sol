@@ -2,11 +2,11 @@
 // pragma solidity ^0.8.19;
 
 // import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
-// import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+// import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 // import { BASIS_POINTS, WAD } from "contracts/libraries/ConstantsLib.sol";
 
 // contract FuzzVeCVE is StatefulBaseMarket {
-//     RewardsData defaultRewardData;
+//     ClaimAction defaultRewardData;
 //     // uint256.max to represent no locks existing
 //     uint256 NO_LOCKS = type(uint256).max;
 //     // caller address set to address(this) for execution
@@ -14,7 +14,7 @@
 
 //     constructor() {
 //         caller = address(this);
-//         defaultRewardData = RewardsData(false, false, false, false);
+//         defaultRewardData = ClaimAction(false, false, false, false);
 //         // seeds the execution with creating a lock
 //         create_lock_when_not_shutdown(uint(0), false);
 //     }
@@ -43,7 +43,7 @@
 //             veCVE.createLock(
 //                 amount,
 //                 continuousLock,
-//                 RewardsData(false, false, false, false),
+//                 ClaimAction(false, false, false, false),
 //                 bytes(""),
 //                 0
 //             )
@@ -474,7 +474,7 @@
 //             veCVE.extendLock(
 //                 lockIndex,
 //                 continuousLock,
-//                 RewardsData(false, true, true, true),
+//                 ClaimAction(false, true, true, true),
 //                 bytes(""),
 //                 0
 //             )
@@ -505,7 +505,7 @@
 //             veCVE.extendLock(
 //                 lockIndex,
 //                 continuousLock,
-//                 RewardsData(false, true, true, true),
+//                 ClaimAction(false, true, true, true),
 //                 bytes(""),
 //                 0
 //             )
