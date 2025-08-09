@@ -23,41 +23,41 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(mockUsdcFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(mockUsdcFeed),
-            0,
-            true
+            0
         );
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            false,
             address(mockRethFeed),
-            0,
-            false
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            false,
             address(mockRethFeed),
-            0,
-            false
+            0
         );
 
         // start epoch

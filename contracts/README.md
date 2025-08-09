@@ -93,7 +93,7 @@ Core lending infrastructure that implements Curvance's unique Dynamic Liquidatio
 - 📁 `isolated/`: Contracts for isolated markets.
 - 📁 `position-management/`: Contracts that contain the logic for managing leveraged positions.
 - 📁 `token/`: Contracts for several different token types, including simple ERC20's and exotic assets. Also includes logic for eTokens (Debt Tokens) and pTokens. (Position/Collateral Tokens).
-- 📄 `DynamicInterestRateModel.sol`: Manages borrow and supply interest rates for Curvance debt tokens.
+- 📄 `DynamicIRM.sol`: Manages borrow and supply interest rates for Curvance debt tokens.
 - 📄 `LiquidationManager.sol`: Manages Curvance's liquidation queue system, enabling efficient capture of Optimal Extractable Value (OEV) while ensuring liquidations always proceed in a timely manner.
 - 📄 `MarketManager.sol`: The MarketManager is the central risk management component in Curvance that governs interactions between collateral (pTokens) and debt (eTokens), implementing the dynamic liquidation engine with tiered thresholds to maintain system stability while supporting diverse asset types with isolated risk profiles.
 

@@ -372,8 +372,8 @@
 //         (uint40 lastTimestampUpdated, , uint256 compoundRate) = EToken(eToken)
 //             .marketData();
 //         // uint256 borrow_rate = EToken(eToken)
-//         //     .interestRateModel()
-//         //     .getBorrowRateWithUpdate(
+//         //     .IRM()
+//         //     .adjustedBorrowRate(
 //         //         EToken(eToken).marketUnderlyingHeld(),
 //         //         EToken(eToken).totalBorrows(),
 //         //         EToken(eToken).totalReserves()

@@ -44,28 +44,28 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(mockUsdcFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(mockUsdcFeed),
-            0,
-            true
+            0
         );
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
 
         adapter = new PendlePrincipalTokenAdaptor(
@@ -562,9 +562,9 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
     function _getDebtToCollateralAndCloseFactor(uint256 lFactor, uint256 debtTokenPrice, uint256 collateralTokenPrice) internal view returns (uint256, uint256) {
         uint256 cTokenExchangeRate = pendleCTokenPTSTETH.exchangeRate();
 
-        (,,,, uint256 liqIncBase, uint256 liqIncCurve,,, uint256 closeFactorBase, uint256 closeFactorCurve,,)
-            =  marketManagerIsolated.tokenData(address(pendleCTokenPTSTETH));
-            
+        (uint256 liqIncBase, uint256 liqIncCurve,,, uint256 closeFactorBase, uint256 closeFactorCurve,,)
+            =  marketManagerIsolated.liquidationConfig(address(pendleCTokenPTSTETH));
+
         // Follow the contract's exact calculations but with higher precision
         uint256 closeFactor = closeFactorBase + ((closeFactorCurve * lFactor) / WAD);
         uint256 liqInc = liqIncBase + ((liqIncCurve * lFactor) / WAD);

@@ -17,10 +17,15 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
+    /// @notice The maximum price allowed to be returned by an oracle adaptor.
+    uint256 internal constant _MAXIMUM_PRICE_ALLOWED = type(uint240).max;
     /// @notice The enforced minimum amount of time that a price guard grows
     ///         before overflowing type(uint240).max, in years.
     /// @dev 5 = 5 years.
     uint256 internal constant _MINIMUM_YEARS_BEFORE_OVERFLOW = 5;
+    /// @notice The maximum % increase allowed per second of a guarded price,
+    ///         in `WAD`.
+    uint256 internal constant _MAXIMUM_INCREASE_PER_SECOND = type(uint64).max;
     /// @notice The maximum difference between current oracle price and
     ///         min/max allowed for successful `setGuardedPriceConfig` call,
     ///         in `BASIS_POINTS`.
@@ -42,14 +47,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// EVENTS ///
 
     event AssetRemoved(address asset);
-    event PriceGuardUpdated(
-        address asset,
-        bool inUSD,
-        uint256 timestampStart,
-        uint256 increasePerYear,
-        uint256 basePrice,
-        uint256 minPrice
-    );
+    event PriceGuardUpdated(PriceGuard pg);
 
     /// ERRORS ///
 
@@ -126,8 +124,8 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 guardType,
         uint256 increasePerYear,
         uint256 timestampStart,
-        uint256 basePrice,
-        uint256 minPrice
+        uint256 minPrice,
+        uint256 basePrice
     ) external {
         _checkMarketPermissions();
 
@@ -142,7 +140,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        if (minPrice > basePrice) {
+        if (minPrice > basePrice || minPrice > type(uint144).max) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
@@ -160,11 +158,16 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
+        if (increasePerYear / SECONDS_PER_YEAR > type(uint64).max) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+
         uint256 boundedPrice = _getBoundedPrice(
             block.timestamp - timestampStart,
             increasePerYear / SECONDS_PER_YEAR,
             basePrice
         );
+
         uint256 boundedPriceHigh = FixedPointMathLib.mulDiv(
             boundedPrice,
             BASIS_POINTS + _MAXIMUM_PRICE_DIFFERENCE,
@@ -185,27 +188,20 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             }
         }
 
-        PriceGuard storage model = priceGuards[asset][inUSD];
+        PriceGuard storage pg = priceGuards[asset][inUSD];
 
         // New `timestampStart` needs to start after the current one.
-        if (model.timestampStart > timestampStart) {
+        if (pg.timestampStart > timestampStart) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        model.guardType = guardType;
-        model.increasePerSecond = increasePerYear / SECONDS_PER_YEAR;
-        model.timestampStart = timestampStart;
-        model.basePrice = basePrice;
-        model.minPrice = minPrice;
+        pg.guardType = uint8(guardType);
+        pg.timestampStart = uint40(timestampStart);
+        pg.increasePerSecond = uint64(increasePerYear / SECONDS_PER_YEAR);
+        pg.minPrice = uint144(minPrice);
+        pg.basePrice = basePrice;
 
-        emit PriceGuardUpdated(
-            asset,
-            inUSD,
-            timestampStart,
-            increasePerYear,
-            basePrice,
-            minPrice
-        );
+        emit PriceGuardUpdated(pg);
     }
 
     /// @notice Disables any PriceGuard active when pricing `asset`
@@ -349,7 +345,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @param price The price to check against overflow.
     /// @return o Whether `price` will overflow on conversion to uint240.
     function _checkOverflow(uint256 price) internal pure returns (bool o) {
-        o = price > type(uint240).max;
+        o = price > _MAXIMUM_PRICE_ALLOWED;
     }
 
     /// @notice Checks whether `asset` is supported by the adaptor or not.

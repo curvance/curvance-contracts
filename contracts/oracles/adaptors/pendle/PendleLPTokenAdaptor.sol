@@ -178,7 +178,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
     ///      with a supported asset.
     /// @return The adaptor's type.
     function adaptorType() external pure override returns (uint256) {
-        return 10;
+        return 8;
     }
 
     /// INTERNAL FUNCTIONS ///

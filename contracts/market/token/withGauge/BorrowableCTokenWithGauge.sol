@@ -27,14 +27,14 @@ contract BorrowableCTokenWithGauge is BorrowableCToken {
     /// @param asset_ The address of the underlying asset for this cToken.
     /// @param mm The address of the MarketManager which manages liquidity
     ///           positions between linked cTokens inside a joint market.
-    /// @param interestRateModel_ The address of the interest rate model to
-    ///                           manage outstanding loans.
+    /// @param IRM_ The interest rate model to determine interest
+    ///             paid by borrowers to lenders for outstanding debt.
     constructor(
         ICentralRegistry cr,
         IERC20 asset_,
         address mm,
-        address interestRateModel_
-    ) BorrowableCToken(cr, asset_, mm, interestRateModel_) {
+        address IRM_
+    ) BorrowableCToken(cr, asset_, mm, IRM_) {
         address gaugeManagerAddress = centralRegistry.gaugeManager();
 
         // Validate Gauge Manager has been set.

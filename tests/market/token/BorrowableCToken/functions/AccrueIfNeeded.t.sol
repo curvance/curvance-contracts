@@ -146,7 +146,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
         
         // Get interest rate
-        uint256 borrowRate = borrowableCUSDC.interestRateModel().getBorrowRate(
+        uint256 borrowRate = borrowableCUSDC.IRM().borrowRate(
             borrowableCUSDC.assetsHeld(),
             initialMarketDebt
         );
@@ -169,7 +169,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         assertEq(actualYield, expectedYield, "First period yield should match calculated yield");
 
         // Get updated interest rate after first accrual
-        borrowRate = borrowableCUSDC.interestRateModel().getBorrowRate(
+        borrowRate = borrowableCUSDC.IRM().borrowRate(
             borrowableCUSDC.assetsHeld(),
             midMarketDebt
         );
@@ -219,7 +219,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         
         // Get interest rate for yield validation
-        uint256 borrowRate = borrowableCUSDC.interestRateModel().getBorrowRate(
+        uint256 borrowRate = borrowableCUSDC.IRM().borrowRate(
             borrowableCUSDC.assetsHeld(),
             initialMarketDebt
         );
@@ -279,7 +279,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         
         // Get current interest rate
-        uint256 borrowRate = borrowableCUSDC.interestRateModel().getBorrowRate(
+        uint256 borrowRate = borrowableCUSDC.IRM().borrowRate(
             borrowableCUSDC.assetsHeld(),
             initialMarketDebt
         );
@@ -335,7 +335,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         
         // Get interest rate for yield validation
-        uint256 borrowRate = borrowableCUSDC.interestRateModel().getBorrowRate(
+        uint256 borrowRate = borrowableCUSDC.IRM().borrowRate(
             borrowableCUSDC.assetsHeld(),
             initialMarketDebt
         );
@@ -409,7 +409,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
             skip(5 minutes);
             
             // Get current interest rate before accrual
-            uint256 currentBorrowRate = borrowableCUSDC.interestRateModel().getBorrowRate(
+            uint256 currentBorrowRate = borrowableCUSDC.IRM().borrowRate(
                 borrowableCUSDC.assetsHeld(),
                 previousMarketDebt
             );

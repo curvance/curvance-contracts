@@ -37,8 +37,18 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         super.setUp();
 
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(_USDC_ADDRESS, address(mockUsdcFeed), 0, true);
-        dualChainlinkAdaptor.addAsset(_USDC_ADDRESS, address(mockUsdcFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            address(mockUsdcFeed),
+            0
+        );
+        dualChainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            address(mockUsdcFeed),
+            0
+        );
 
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);

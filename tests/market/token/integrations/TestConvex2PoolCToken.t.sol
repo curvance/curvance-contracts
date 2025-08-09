@@ -79,7 +79,12 @@ contract TestConvex2PoolCToken is TestBaseMarketIsolated {
             0xCd627aA160A6fA45Eb793D19Ef54f5062F20f33f
         );
         mockCRVFeed.setMockUpdatedAt(block.timestamp);
-        chainlinkAdaptor.addAsset(_CRV_ADDRESS, address(mockCRVFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _CRV_ADDRESS,
+            true,
+            address(mockCRVFeed),
+            0
+        );
         oracleManager.addAssetPriceFeed(
             _CRV_ADDRESS,
             address(chainlinkAdaptor)
@@ -89,7 +94,12 @@ contract TestConvex2PoolCToken is TestBaseMarketIsolated {
             0xd962fC30A72A84cE50161031391756Bf2876Af5D
         );
         mockCVXFeed.setMockUpdatedAt(block.timestamp);
-        chainlinkAdaptor.addAsset(_CVX_ADDRESS, address(mockCVXFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _CVX_ADDRESS,
+            true,
+            address(mockCVXFeed),
+            0
+        );
         oracleManager.addAssetPriceFeed(
             _CVX_ADDRESS,
             address(chainlinkAdaptor)
@@ -98,27 +108,27 @@ contract TestConvex2PoolCToken is TestBaseMarketIsolated {
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         chainlinkAdaptor.addAsset(
             0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
     }
 

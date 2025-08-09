@@ -21,17 +21,13 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     ///                    Set to aggregator maxAnswer() reduced by ~10%.
     /// @param reportedMin The minimum valid price of the asset.
     ///                    Set to aggregator minAnswer() increased by ~10%.
-    /// @param max
-    /// @param min 
     struct AssetConfig {
         bool isConfigured;
         IChainlink aggregator;
-        uint256 decimals;
-        uint256 heartbeat;
+        uint8 decimals;
+        uint24 heartbeat;
         uint256 reportedMax;
         uint256 reportedMin;
-        uint256 max;
-        uint256 min;
     }
 
     /// CONSTANTS ///
@@ -67,16 +63,16 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
+    /// @param inUSD Whether the price feed is in USD (inUSD = true)
+    ///              or native token (inUSD = false).
     /// @param aggregator Chainlink aggregator to use for pricing `asset`.
     /// @param heartbeat Chainlink heartbeat to use when validating prices
     ///                  for `asset`. 0 = `DEFAULT_HEART_BEAT`.
-    /// @param inUSD Whether the price feed is in USD (inUSD = true)
-    ///              or native token (inUSD = false).
     function addAsset(
         address asset,
+        bool inUSD,
         address aggregator,
-        uint256 heartbeat,
-        bool inUSD
+        uint256 heartbeat
     ) external {
         _checkElevatedPermissions();
 
@@ -107,16 +103,13 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
 
         AssetConfig storage config = assetConfig[asset][inUSD];
 
-        // Save adaptor data and update mapping that we support `asset` now.
+        // Update `config` and make sure `isSupportedAsset` returns true
+        // for `asset`.
+        config.aggregator = IChainlink(aggregator);
         config.decimals = feedAggregator.decimals();
+        config.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT);
         config.reportedMax = bufferedMaxPrice;
         config.reportedMin = bufferedMinPrice;
-        config.max = type(uint240).max;
-        // Data.min is intended to be 0 which is uint256 default value
-        // so can skip setting here.
-        
-        config.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
-        config.aggregator = IChainlink(aggregator);
         config.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
@@ -134,7 +127,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     ///      with a supported asset.
     /// @return The adaptor's type.
     function adaptorType() external pure override returns (uint256) {
-        return 3;
+        return 1;
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -190,8 +183,8 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         result.hadError = _verifyData(
             adjustedPrice,
             updatedAt,
-            config.max,
-            config.min,
+            _MAXIMUM_PRICE_ALLOWED,
+            0,
             config.heartbeat
         );
 

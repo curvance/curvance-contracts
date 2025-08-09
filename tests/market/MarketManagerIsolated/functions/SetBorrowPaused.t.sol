@@ -29,20 +29,24 @@ contract SetBorrowPausedTest is TestBaseMarketIsolated {
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
 
-        assertEq(marketManagerIsolated.borrowPaused(address(borrowableCUSDC)), 0);
+        assertFalse(_borrowPaused(address(borrowableCUSDC)));
 
         vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit TokenActionPaused(address(borrowableCUSDC), "Borrow Paused", true);
 
         marketManagerIsolated.setBorrowPaused(address(borrowableCUSDC), true);
 
-        assertEq(marketManagerIsolated.borrowPaused(address(borrowableCUSDC)), 2);
+        assertTrue(_borrowPaused(address(borrowableCUSDC)));
 
         vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit TokenActionPaused(address(borrowableCUSDC), "Borrow Paused", false);
 
         marketManagerIsolated.setBorrowPaused(address(borrowableCUSDC), false);
 
-        assertEq(marketManagerIsolated.borrowPaused(address(borrowableCUSDC)), 1);
+        assertFalse(_borrowPaused(address(borrowableCUSDC)));
+    }
+
+    function _borrowPaused(address cToken) internal returns (bool isPaused) {
+        (, , isPaused) = marketManagerIsolated.actionsPaused(cToken);
     }
 }

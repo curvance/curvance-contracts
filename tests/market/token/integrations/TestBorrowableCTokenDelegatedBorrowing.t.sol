@@ -25,38 +25,43 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
 
         // use mock pricing for testing
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            true,
+            address(mockDaiFeed),
+            0
+        );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
+            true,
             address(mockDaiFeed),
-            0,
-            true
+            0
         );
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            false,
             address(mockRethFeed),
-            0,
-            false
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            false,
             address(mockRethFeed),
-            0,
-            false
+            0
         );
 
         // start epoch
@@ -216,12 +221,12 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
                     ICentralRegistry(address(centralRegistry)),
                     IERC20(asset),
                     address(marketManagerIsolated),
-                    _deployDynamicInterestRateModel(asset)
+                    _deployDynamicIRM(asset)
                 )
             )
         );
 
-        interestRateModels[block.chainid][asset].setLinkedToken(
+        IRMs[block.chainid][asset].setLinkedToken(
             address(borrowableCToken)
         );
 

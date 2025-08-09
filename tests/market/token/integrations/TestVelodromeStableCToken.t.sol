@@ -70,9 +70,9 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
         chainlinkVELO = new MockV3Aggregator(8, 0.06e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _VELO_ADDRESS,
+            true,
             address(chainlinkVELO),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _VELO_ADDRESS,
@@ -82,9 +82,9 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
         chainlinkUSDC = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(chainlinkUSDC),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,

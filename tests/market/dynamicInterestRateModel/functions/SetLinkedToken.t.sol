@@ -1,12 +1,12 @@
 pragma solidity ^0.8.19;
 
-import { TestBaseDynamicInterestRateModel } from "../TestBaseDynamicInterestRateModel.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { TestBaseDynamicIRM } from "../TestBaseDynamicIRM.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-contract SetLinkedTokenTest is TestBaseDynamicInterestRateModel {
+contract SetLinkedTokenTest is TestBaseDynamicIRM {
     event TokenLinked(address cTokenAddress);
 
     BorrowableCToken public cToken;
@@ -14,13 +14,12 @@ contract SetLinkedTokenTest is TestBaseDynamicInterestRateModel {
     function setUp() public override {
         super.setUp();
 
-        interestRateModel = new DynamicInterestRateModel(
+        IRM = new DynamicIRM(
             ICentralRegistry(address(centralRegistry)),
             1000, // baseRatePerYear
             1000, // vertexRatePerYear
             5000, // vertexUtilizationStart
-            4 hours, // adjustmentRate
-            5000, // adjustmentVelocity
+            1000, // adjustmentVelocity
             100000000, // 1000x maximum vertex multiplier
             100 // decayRate
         );
@@ -28,7 +27,7 @@ contract SetLinkedTokenTest is TestBaseDynamicInterestRateModel {
             ICentralRegistry(address(centralRegistry)),
             IERC20(_USDC_ADDRESS),
             address(marketManagerIsolated),
-            address(interestRateModel)
+            address(IRM)
         );
     }
 
@@ -36,50 +35,50 @@ contract SetLinkedTokenTest is TestBaseDynamicInterestRateModel {
         vm.prank(address(1));
 
         vm.expectRevert(
-            DynamicInterestRateModel
-                .DynamicInterestRateModel__Unauthorized
+            DynamicIRM
+                .DynamicIRM__Unauthorized
                 .selector
         );
-        interestRateModel.setLinkedToken(address(cToken));
+        IRM.setLinkedToken(address(cToken));
     }
 
     function test_setLinkedToken_fail_whenBorrowableCTokenHasAlreadyLinked() public {
-        interestRateModel.setLinkedToken(address(cToken));
+        IRM.setLinkedToken(address(cToken));
 
         vm.expectRevert(
-            DynamicInterestRateModel
-                .DynamicInterestRateModel__Unauthorized
+            DynamicIRM
+                .DynamicIRM__Unauthorized
                 .selector
         );
-        interestRateModel.setLinkedToken(address(cToken));
+        IRM.setLinkedToken(address(cToken));
     }
 
     function test_setLinkedToken_fail_whenBorrowableCTokenIsNotBorrowable() public {
         vm.expectRevert(
-            DynamicInterestRateModel
-                .DynamicInterestRateModel__InvalidToken
+            DynamicIRM
+                .DynamicIRM__InvalidToken
                 .selector
         );
-        interestRateModel.setLinkedToken(address(strategyCBALRETH));
+        IRM.setLinkedToken(address(strategyCBALRETH));
     }
 
-    function test_setLinkedToken_fail_whenInterestRateModelMismatch() public {
+    function test_setLinkedToken_fail_whenIRMMismatch() public {
         vm.expectRevert(
-            DynamicInterestRateModel
-                .DynamicInterestRateModel__InvalidToken
+            DynamicIRM
+                .DynamicIRM__InvalidToken
                 .selector
         );
-        interestRateModel.setLinkedToken(address(borrowableCDAI));
+        IRM.setLinkedToken(address(borrowableCDAI));
     }
 
     function test_setLinkedToken_success() public {
-        assertEq(interestRateModel.linkedToken(), _ZERO_ADDRESS);
+        assertEq(IRM.linkedToken(), _ZERO_ADDRESS);
 
         vm.expectEmit(true, true, true, true);
         emit TokenLinked(address(cToken));
 
-        interestRateModel.setLinkedToken(address(cToken));
+        IRM.setLinkedToken(address(cToken));
 
-        assertEq(interestRateModel.linkedToken(), address(cToken));
+        assertEq(IRM.linkedToken(), address(cToken));
     }
 }

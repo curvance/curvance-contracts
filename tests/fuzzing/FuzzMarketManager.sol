@@ -1311,7 +1311,7 @@
 
 //         if (
 //             higherPrice - lowerPrice >
-//             OracleManager(oracleManager).badSourceDivergenceFlag()
+//             OracleManager(oracleManager).badSourcePriceDivergence()
 //         ) {
 //             divergenceTooLarge = true;
 //         }

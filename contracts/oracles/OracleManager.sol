@@ -78,35 +78,28 @@ contract OracleManager is IOracleManager {
     /// @notice Time to pass before accepting answers when sequencer
     ///         comes back up.
     uint256 public constant GRACE_PERIOD_TIME = 3600;
-    /// @notice Minimum value that a divergence flag can be set as
-    ///         inside the protocol.
-    /// @dev 1.002e4 = 0.2%.
-    uint256 public constant MIN_DIVERGENCE_FLAG_VALUE = 1.002e4;
-    /// @notice Maximum value that a divergence flag can be set as
+    /// @notice Maximum value that a price divergence flag can be set as
     ///         inside the protocol.
     /// @dev 1.03e4 = 3.0%.
-    uint256 public constant MAX_DIVERGENCE_FLAG_VALUE = 1.03e4;
+    uint256 public constant MAX_DIVERGENCE_VALUE = 10300;
+    /// @notice Minimum value that a price divergence flag can be set as
+    ///         inside the protocol.
+    /// @dev 1.002e4 = 0.2%.
+    uint256 public constant MIN_DIVERGENCE_VALUE = 10020;
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
-    /// @dev `bytes4(keccak256(bytes("OracleManager__NotSupported()")))`.
-    uint256 internal constant _NOT_SUPPORTED_SELECTOR = 0x37ccbfb5;
-    /// @dev `bytes4(keccak256(bytes("OracleManager__InvalidParameter()")))`.
-    uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0x3e1a10b2;
-    /// @dev `bytes4(keccak256(bytes("OracleManager__ErrorCodeFlagged()")))`.
-    uint256 internal constant _ERROR_CODE_FLAGGED_SELECTOR = 0x7c70f82f;
-
     /// STORAGE ///
 
-    /// @notice The maximum allowed divergence between prices
-    ///         before CAUTION is flipped, in `BASIS_POINTS`.
-    ///         10050 = 0.5% = 50 basis point deviation.
-    uint256 public cautionDivergenceFlag = 1.005e4;
-    /// @notice The maximum allowed divergence between prices
-    ///         before BAD_SOURCE is flipped, in `BASIS_POINTS`.
-    ///         10100 = 1% = 100 basis point deviation.
-    uint256 public badSourceDivergenceFlag = 1.01e4;
+    /// @notice The maximum allowed price feed divergence between prices
+    ///         before `CAUTION` error code is returned, in `BASIS_POINTS`.
+    /// @dev 10050 = 0.5% = 50 basis point price feed deviation allowed.
+    uint128 public cautionPriceDivergence = 10050;
+    /// @notice The maximum allowed price feed divergence between prices
+    ///         before `BAD_SOURCE` error code is returned, in `BASIS_POINTS`.
+    /// @dev 10100 = 1% = 100 basis point price feed deviation allowed.
+    uint128 public badSourcePriceDivergence = 10100;
 
     // Address => Adaptor approval status.
     mapping(address => bool) public isApprovedAdaptor;
@@ -159,7 +152,7 @@ contract OracleManager is IOracleManager {
         // Validate that the feeds are not identical as there would be no
         // point to replace a feed with itself.
         if (feedToRemove == feedToAdd) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+            revert OracleManager__InvalidParameter();
         }
 
         _removeFeed(asset, feedToRemove);
@@ -191,7 +184,7 @@ contract OracleManager is IOracleManager {
         _checkElevatedPermissions();
 
         if (cTokens[newCToken].isCToken) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+            revert OracleManager__InvalidParameter();
         }
 
         // We call a Curvance-specific token function as a sanity check.
@@ -209,7 +202,7 @@ contract OracleManager is IOracleManager {
         _checkElevatedPermissions();
 
         if (!cTokens[cTokenToRemove].isCToken) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+            revert OracleManager__InvalidParameter();
         }
 
         delete cTokens[cTokenToRemove];
@@ -223,7 +216,7 @@ contract OracleManager is IOracleManager {
 
         // Validate `adaptorToAdd` is not already supported.
         if (isApprovedAdaptor[adaptorToAdd]) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+            revert OracleManager__InvalidParameter();
         }
 
         isApprovedAdaptor[adaptorToAdd] = true;
@@ -242,7 +235,7 @@ contract OracleManager is IOracleManager {
 
         // Validate `adaptorToAdd` is not already supported.
         if (isApprovedAdaptor[adaptorToAdd]) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+            revert OracleManager__InvalidParameter();
         }
 
         // Validate `adaptorToRemove` is currently supported.
@@ -251,7 +244,7 @@ contract OracleManager is IOracleManager {
         // Validate that the adaptors are not identical as there would be no
         // point to replace an adaptor with itself.
         if (adaptorToAdd == adaptorToRemove) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+            revert OracleManager__InvalidParameter();
         }
 
         delete isApprovedAdaptor[adaptorToRemove];
@@ -270,42 +263,36 @@ contract OracleManager is IOracleManager {
     }
 
     /// @notice Sets a new maximum divergence for price feeds
-    ///         before CAUTION or BAD_SOURCE is activated.
-    /// @dev Requires that the new divergences is greater than
-    ///      or equal to 10200 aka 2% and less than or equal to 12000 aka 20%.
-    /// @param maxCautionDivergence The new maximum divergence
-    ///                             for a caution flag to be returned.
-    /// @param maxBadSourceDivergence The new maximum divergence
-    ///                               for a bad source flag to be returned.
+    ///         before CAUTION or BAD_SOURCE error codes are activated.
+    /// @param newCaution The new maximum price divergence before a
+    ///                   `CAUTION` error code is returned.
+    /// @param newBadSource The new maximum price divergence before a
+    ///                     `BAD_SOURCE` error code is returned.
     function setDivergenceFlags(
-        uint256 maxCautionDivergence,
-        uint256 maxBadSourceDivergence
+        uint256 newCaution,
+        uint256 newBadSource
     ) external {
         _checkElevatedPermissions();
 
-        // Validate that the caution divergence flag does not occur after
-        // the bad source divergence flag as bad source is a more
-        // significant error than caution.
-        if (maxCautionDivergence >= maxBadSourceDivergence) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+        // Validate that the `CAUTION` error code will not occur after
+        // `BAD_SOURCE`, because `BAD_SOURCE` is the more significant error
+        // than `CAUTION`.
+        if (newCaution >= newBadSource) {
+            revert OracleManager__InvalidParameter();
         }
 
+        // Validate divergence values are within acceptable value range.
         if (
-            maxCautionDivergence < MIN_DIVERGENCE_FLAG_VALUE ||
-            maxCautionDivergence > MAX_DIVERGENCE_FLAG_VALUE
-            ) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+            newCaution > MAX_DIVERGENCE_VALUE ||
+            newCaution < MIN_DIVERGENCE_VALUE ||
+            newBadSource > MAX_DIVERGENCE_VALUE ||
+            newBadSource < MIN_DIVERGENCE_VALUE
+        ) {
+            revert OracleManager__InvalidParameter();
         }
 
-        if (
-            maxBadSourceDivergence < MIN_DIVERGENCE_FLAG_VALUE ||
-            maxBadSourceDivergence > MAX_DIVERGENCE_FLAG_VALUE
-            ) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        cautionDivergenceFlag = maxCautionDivergence;
-        badSourceDivergenceFlag = maxBadSourceDivergence;
+        cautionPriceDivergence = uint128(newCaution);
+        badSourcePriceDivergence = uint128(newBadSource);
     }
 
     /// @notice Returns the token data of `cToken`.
@@ -426,7 +413,7 @@ contract OracleManager is IOracleManager {
             true
         );
         if (errorCode >= errorCodeBreakpoint) {
-            _revert(_ERROR_CODE_FLAGGED_SELECTOR);
+            revert OracleManager__ErrorCodeFlagged();
         }
 
         (debtUnderlyingPrice, errorCode) = getPrice(
@@ -435,7 +422,7 @@ contract OracleManager is IOracleManager {
             false
         );
         if (errorCode >= errorCodeBreakpoint) {
-            _revert(_ERROR_CODE_FLAGGED_SELECTOR);
+            revert OracleManager__ErrorCodeFlagged();
         }
     }
 
@@ -452,10 +439,11 @@ contract OracleManager is IOracleManager {
         address account,
         address[] calldata assets,
         uint256 errorCodeBreakpoint
-    )
-        external
-        view
-        returns (AccountSnapshot[] memory, uint256[] memory, uint256) {
+    ) external view returns (
+        AccountSnapshot[] memory,
+        uint256[] memory,
+        uint256
+    ) {
         uint256 numAssets = assets.length;
 
         AccountSnapshot[] memory snapshots = new AccountSnapshot[](numAssets);
@@ -474,7 +462,7 @@ contract OracleManager is IOracleManager {
             );
 
             if (errorCode >= errorCodeBreakpoint) {
-                _revert(_ERROR_CODE_FLAGGED_SELECTOR);
+                revert OracleManager__ErrorCodeFlagged();
             }
         }
 
@@ -493,20 +481,20 @@ contract OracleManager is IOracleManager {
 
         // Validate that the feed supports the proposed asset.
         if (!IOracleAdaptor(feed).isSupportedAsset(asset)) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+            revert OracleManager__InvalidParameter();
         }
 
         uint256 numPriceFeeds = assetPriceFeeds[asset].length;
 
         // Validate that we do not already have 2 or more feeds for `asset`.
         if (numPriceFeeds >= 2) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+            revert OracleManager__InvalidParameter();
         }
 
         // Validate that the feed proposed is not a duplicate
         // of a supported feed for `asset`.
         if (numPriceFeeds != 0 && assetPriceFeeds[asset][0] == feed) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+            revert OracleManager__InvalidParameter();
         }
 
         // Validate that the feed returns a usable price for us with a sample
@@ -515,7 +503,7 @@ contract OracleManager is IOracleManager {
             .getPrice(asset, true, true);
 
         if (result.price == 0 || result.hadError) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+            revert OracleManager__InvalidParameter();
         }
 
         assetPriceFeeds[asset].push(feed);
@@ -536,7 +524,7 @@ contract OracleManager is IOracleManager {
                 assetPriceFeeds[asset][0] != feed &&
                 assetPriceFeeds[asset][1] != feed
             ) {
-                _revert(_NOT_SUPPORTED_SELECTOR);
+                revert OracleManager__NotSupported();
             }
 
             // We want to remove the first feed of two,
@@ -546,7 +534,7 @@ contract OracleManager is IOracleManager {
             }
         } else {
             if (assetPriceFeeds[asset][0] != feed) {
-                _revert(_NOT_SUPPORTED_SELECTOR);
+                revert OracleManager__NotSupported();
             }
         }
         // We know the feed exists, but we cannot use `isApprovedAdaptor` as
@@ -756,13 +744,12 @@ contract OracleManager is IOracleManager {
         uint256 b
     ) internal view returns (uint256) {
         if (a <= b) {
-            // Check if both feeds are within `cautionDivergenceFlag`
-            // of each other.
-            if (((a * cautionDivergenceFlag) / BASIS_POINTS) < b) {
+            // Check if both feeds are within `f.caution` of each other.
+            if (((a * cautionPriceDivergence) / BASIS_POINTS) < b) {
                 // Notify that the price is dangerous and to treat data as a
                 // bad source because we are outside the accepted range of
                 // divergence.
-                if (((a * badSourceDivergenceFlag) / BASIS_POINTS) < b) {
+                if (((a * badSourcePriceDivergence) / BASIS_POINTS) < b) {
                     return BAD_SOURCE;
                 }
 
@@ -774,13 +761,12 @@ contract OracleManager is IOracleManager {
             return NO_ERROR;
         }
 
-        // Check if both feeds are within `cautionDivergenceFlag`
-        // of each other.
-        if (((b * cautionDivergenceFlag) / BASIS_POINTS) < a) {
+        // Check if both feeds are within `f.caution` of each other.
+        if (((b * cautionPriceDivergence) / BASIS_POINTS) < a) {
             // Notify that the price is dangerous and to treat data as a
             // bad source because we are outside the accepted range of
             // divergence.
-            if (((b * badSourceDivergenceFlag) / BASIS_POINTS) < a) {
+            if (((b * badSourcePriceDivergence) / BASIS_POINTS) < a) {
                 return BAD_SOURCE;
             }
 
@@ -800,7 +786,7 @@ contract OracleManager is IOracleManager {
         f = assetPriceFeeds[asset].length;
         // Validate we have a feed or feeds to price `asset`.
         if (f == 0) {
-            _revert(_NOT_SUPPORTED_SELECTOR);
+            revert OracleManager__NotSupported();
         }
     }
 
@@ -810,16 +796,6 @@ contract OracleManager is IOracleManager {
     function _checkIsApprovedAdaptor(address adaptor) internal view {
         if (!isApprovedAdaptor[adaptor]) {
             revert OracleManager__AdaptorIsNotApproved();
-        }
-    }
-
-    /// @notice Internal helper for reverting efficiently.
-    /// @param s Selector to revert with.
-    function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x00, s)
-            revert(0x1c, 0x04)
         }
     }
 

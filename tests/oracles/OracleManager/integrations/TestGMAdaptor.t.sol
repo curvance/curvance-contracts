@@ -41,9 +41,24 @@ contract TestGMAdaptor is TestBaseOracleManager {
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
-        chainlinkAdaptor.addAsset(_WBTC_ADDRESS, _CHAINLINK_WBTC_USD, 0, true);
-        chainlinkAdaptor.addAsset(_USDC_ADDRESS, _CHAINLINK_USDC_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _WBTC_ADDRESS,
+            true,
+            _CHAINLINK_WBTC_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            _CHAINLINK_USDC_USD,
+            0
+        );
 
         oracleManager.addAssetPriceFeed(
             _ETH_ADDRESS,

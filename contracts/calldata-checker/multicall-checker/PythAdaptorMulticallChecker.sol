@@ -29,7 +29,7 @@ contract PythAdaptorMulticallChecker is BaseMulticallChecker {
     ) external view override {
         // Validate `target` is actually a Pyth oracle adaptor. This will also
         // fail if `target` does not properly implement `IOracleAdaptor`.
-        _checkIsApprovedAdaptor(target, 2);
+        _checkIsApprovedAdaptor(target, 4);
 
         if (
             _getFuncSigHash(data) == PythAdaptor

@@ -32,10 +32,10 @@ contract TestApi3Adaptor is TestBaseOracleManager {
         );
         adaptor.addAsset(
             _ARB_ADDRESS,
-            _ARB_TICKER,
+            true,
             _DAPI_PROXY_ARB_USD,
             0,
-            true
+            _ARB_TICKER
         );
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
@@ -71,10 +71,10 @@ contract TestApi3Adaptor is TestBaseOracleManager {
         vm.expectRevert(Api3Adaptor.Api3Adaptor__InvalidHeartbeat.selector);
         adaptor.addAsset(
             _ARB_ADDRESS,
-            _ARB_TICKER,
+            true,
             _DAPI_PROXY_ARB_USD,
             1 days + 1,
-            true
+            _ARB_TICKER
         );
     }
 
@@ -82,20 +82,20 @@ contract TestApi3Adaptor is TestBaseOracleManager {
         vm.expectRevert(Api3Adaptor.Api3Adaptor__DAPINameHashError.selector);
         adaptor.addAsset(
             _ARB_ADDRESS,
-            "ARB/USDC",
+            true,
             _DAPI_PROXY_ARB_USD,
             0,
-            true
+            "ARB/USDC"
         );
     }
 
     function testCanAddSameAsset() public {
         adaptor.addAsset(
             _ARB_ADDRESS,
-            _ARB_TICKER,
+            false,
             _DAPI_PROXY_ARB_USD,
             0,
-            false
+            _ARB_TICKER
         );
     }
 

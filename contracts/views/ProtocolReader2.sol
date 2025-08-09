@@ -18,13 +18,24 @@ contract ProtocolReader2 {
     struct StaticMarketToken {
         address _address;
         StaticMarketAsset asset;
-        uint256[2] adapters;
-        bool borrowPaused;
-        bool collateralizationPaused;
-        bool mintPaused;
         uint256 collateralCap;
         uint256 debtCap;
-        LiquidityManagerIsolated.CurvanceToken config;
+        bool isListed;
+        bool mintPaused;
+        bool collateralizationPaused;
+        bool borrowPaused;
+        uint256 collRatio;
+        uint256 collReqSoft;
+        uint256 collReqHard;
+        uint256 liqIncBase;
+        uint256 liqIncCurve;
+        uint256 liqIncMin;
+        uint256 liqIncMax;
+        uint256 closeFactorBase;
+        uint256 closeFactorCurve;
+        uint256 closeFactorMin;
+        uint256 closeFactorMax;
+        uint256[2] adapters;
     }
 
     struct StaticMarketAsset {
@@ -129,9 +140,7 @@ contract ProtocolReader2 {
         returns (StaticMarketData[] memory data)
     {
         address[] memory markets = centralRegistry.marketManagers();
-        IOracleManager router = IOracleManager(
-            centralRegistry.oracleManager()
-        );
+        IOracleManager om = IOracleManager(centralRegistry.oracleManager());
 
         data = new StaticMarketData[](markets.length);
         for (uint256 i; i < markets.length; i++) {
@@ -148,31 +157,14 @@ contract ProtocolReader2 {
                 IERC20 asset = IERC20(cToken.asset());
                 (uint256 oracleA, uint256 oracleB) = _getAdaptorTypes(
                     address(cToken),
-                    router
+                    om
                 );
 
                 uniqueAdapters = _addUniqueAdapter(uniqueAdapters, oracleA);
                 uniqueAdapters = _addUniqueAdapter(uniqueAdapters, oracleB);
 
-                tokens[j] = StaticMarketToken({
-                    _address: address(cToken),
-                    asset: StaticMarketAsset({
-                        _address: address(asset),
-                        name: asset.name(),
-                        symbol: asset.symbol(),
-                        decimals: asset.decimals(),
-                        totalSupply: asset.totalSupply()
-                    }),
-                    borrowPaused: mm.borrowPaused(address(cToken)) == 2,
-                    collateralizationPaused: mm.collateralizationPaused(
-                        address(cToken)
-                    ) == 2,
-                    mintPaused: mm.mintPaused(address(cToken)) == 2,
-                    debtCap: mm.debtCaps(address(cToken)),
-                    collateralCap: mm.collateralCaps(address(cToken)),
-                    config: _convertTokenData(mm, address(cToken)),
-                    adapters: [oracleA, oracleB]
-                });
+                tokens[j] = _getStaticTokenConfig(mm, asset);
+                tokens[j].adapters = [oracleA, oracleB];
             }
 
             data[i] = StaticMarketData({
@@ -253,7 +245,8 @@ contract ProtocolReader2 {
                 10 ** ICToken(cToken).decimals()
             );
 
-            uint256 collRatio = mm.collateralizationRatio(cToken);
+            (uint256 collRatio, ,) = mm.collConfig(address(cToken));
+
             // If the collateral token cannot be borrowed against the hypothetical
             // leverage check will result in 0 meaning nothing new to leverage
             // against.
@@ -309,48 +302,40 @@ contract ProtocolReader2 {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Copies a CurvanceToken from contract as CurvanceToken struct,
-    /// for whatever reason this is needed since its a compilation error to just fetch mm.tokenData(cToken) as the CurvanceToken struct
-    /// @param mm The market manager
-    /// @param cToken The address of the cToken to convert
-    /// @return config A instance of the CurvanceToken struct
-    function _convertTokenData(
+    /// @notice Queries static token configuration of `cToken`
+    /// @param mm The market manager to pull static token data from.
+    /// @param cToken The address of the cToken to pull static token
+    ///               configuration of.
+    /// @return t A StaticMarketToken struct containing static token
+    ///           configuration information.
+    function _getStaticTokenConfig(
         MarketManagerIsolated mm,
-        address cToken
-    )
-        internal
-        view
-        returns (LiquidityManagerIsolated.CurvanceToken memory config)
-    {
-        // I tried setting config directly in this tuple, but hit a compilation error
-        (
-            bool isListed,
-            uint256 collRatio,
-            uint256 collReqSoft,
-            uint256 collReqHard,
-            uint256 liqIncBase,
-            uint256 liqIncCurve,
-            uint256 liqIncMin,
-            uint256 liqIncMax,
-            uint256 closeFactorBase,
-            uint256 closeFactorCurve,
-            uint256 closeFactorMin,
-            uint256 closeFactorMax
-        ) = mm.tokenData(cToken);
+        IERC20 cToken
+    ) internal view returns (StaticMarketToken memory t) {
+        t._address = address(cToken);
+        t.asset._address = address(cToken);
+        t.asset.name =  cToken.name();
+        t.asset.symbol = cToken.symbol();
+        t.asset.decimals = cToken.decimals();
+        t.asset.totalSupply = cToken.totalSupply();
+        
+        t.collateralCap = mm.collateralCaps(address(cToken));
+        t.debtCap = mm.debtCaps(address(cToken));
 
-        // So here we are.
-        config.isListed = isListed;
-        config.collRatio = collRatio;
-        config.collReqSoft = collReqSoft;
-        config.collReqHard = collReqHard;
-        config.liqIncBase = liqIncBase;
-        config.liqIncCurve = liqIncCurve;
-        config.liqIncMin = liqIncMin;
-        config.liqIncMax = liqIncMax;
-        config.closeFactorBase = closeFactorBase;
-        config.closeFactorCurve = closeFactorCurve;
-        config.closeFactorMin = closeFactorMin;
-        config.closeFactorMax = closeFactorMax;
+        t.isListed = mm.isListed(address(cToken));
+        (t.mintPaused, t.collateralizationPaused, t.borrowPaused) =
+            mm.actionsPaused(address(cToken));
+        (t.collRatio, t.collReqSoft, t.collReqHard) = mm.collConfig(address(cToken));
+        (
+            t.liqIncBase,
+            t.liqIncCurve,
+            t.liqIncMin,
+            t.liqIncMax,
+            t.closeFactorBase,
+            t.closeFactorCurve,
+            t.closeFactorMin,
+            t.closeFactorMax
+        ) = mm.liquidationConfig(address(cToken));
     }
 
     /// @notice Adds an newAdapter to the existingAdapters if it doesn't already exist

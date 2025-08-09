@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 
 import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/ConstantsLib.sol";
@@ -14,12 +14,11 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import "forge-std/console2.sol";
 
-// new DynamicInterestRateModel(
+// new DynamicIRM(
 //             ICentralRegistry(address(centralRegistry)),
 //             1000, // baseRatePerYear
 //             1000, // vertexRatePerYear
 //             5000, // vertexUtilizationStart
-//             4 hours, // adjustmentRate
 //             5000, // adjustmentVelocity
 //             100000000, // 1000x maximum vertex multiplier
 //             100 // decayRate
@@ -30,8 +29,8 @@ import "forge-std/console2.sol";
 // Clean up testing of Maximum/minimum vertex rates
 // Clean up testing of Decay rate being applied
 //
-contract TestDynamicInterestRate is TestBaseMarketIsolated {
-    DynamicInterestRateModel public interestRateModel;
+contract TestDynamicIRM is TestBaseMarketIsolated {
+    DynamicIRM public IRM;
 
     address public owner;
     address public user;
@@ -50,7 +49,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         // Deploy borrowable cDAI and simpleCUSDC.
         
         _deploySimpleCUSDC();
-        interestRateModel = interestRateModels[block.chainid][_DAI_ADDRESS];
+        IRM = IRMs[block.chainid][_DAI_ADDRESS];
 
         // Setup borrowable cDAI.
         
@@ -78,22 +77,21 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function test_DynamicInterestRateModel_PrecisionCheck() public {
-        interestRateModel.updateDynamicInterestRateModel(
+    function test_DynamicIRM_PrecisionCheck() public {
+        IRM.updateDynamicIRM(
             1500,
             1500,
             5500,
-            4 hours,
-            5500,
+            1000,
             150000000,
             150,
             true
         );
 
-        uint256 rate1 = interestRateModel.getBorrowRate(0, 1e18);
+        uint256 rate1 = IRM.borrowRate(0, 1e18);
         console2.log("borrowRate: %d", rate1);
 
-        uint256 rate2 = interestRateModel.getBorrowRate(0.1e18, 0.9e18);
+        uint256 rate2 = IRM.borrowRate(0.1e18, 0.9e18);
         console2.log("borrowRate: %d", rate2);
 
         assertNotEq(rate1, rate2);
@@ -108,11 +106,11 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         simpleCUSDC.depositAsCollateral(100000e6, user);
 
         // Initial state checks
-        uint256 initialUtilization = interestRateModel.utilizationRate(
+        uint256 initialUtilization = IRM.utilizationRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
-        uint256 initialBorrowRate = interestRateModel.getBorrowRate(
+        uint256 initialBorrowRate = IRM.borrowRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
@@ -120,21 +118,29 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         // Borrow amount that keeps utilization below vertex point
         borrowableCDAI.borrow(BORROW_AMOUNT_BELOW_VERTEX, user);
 
-        uint256 newUtilization = interestRateModel.utilizationRate(
+        uint256 newUtilization = IRM.utilizationRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
-        uint256 newBorrowRate = interestRateModel.getBorrowRate(
+        uint256 newBorrowRate = IRM.borrowRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
-        (, , uint256 vertexPoint, , , , , , , , ) = interestRateModel
-            .ratesConfig();
+        (
+            uint256 baseRatePerSecond,
+            ,
+            uint256 vertexStart,
+            ,
+            ,
+            ,
+            ,
+            ,
+        ) = IRM.ratesConfig();
 
         // Verify utilization is below vertex point
         assertLt(
             newUtilization,
-            vertexPoint,
+            vertexStart,
             "Utilization should be below vertex point"
         );
 
@@ -153,10 +159,8 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         );
 
         // Verify we're using base interest rate calculation
-        // (util * baseInterestRate) / WAD
-        (uint256 baseInterestRate, , , , , , , , , , ) = interestRateModel
-            .ratesConfig();
-        uint256 expectedRate = (newUtilization * baseInterestRate) / WAD;
+        // (util * baseRatePerSecond) / WAD
+        uint256 expectedRate = (newUtilization * baseRatePerSecond) / WAD;
         assertApproxEqRel(
             newBorrowRate,
             expectedRate,
@@ -178,11 +182,11 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         skip(1);
 
         // Initial state checks
-        uint256 initialUtilization = interestRateModel.utilizationRate(
+        uint256 initialUtilization = IRM.utilizationRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
-        uint256 initialBorrowRate = interestRateModel.getBorrowRate(
+        uint256 initialBorrowRate = IRM.borrowRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
@@ -192,21 +196,29 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         // Borrow amount that pushes utilization above vertex point
         borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX, user);
 
-        uint256 newUtilization = interestRateModel.utilizationRate(
+        uint256 newUtilization = IRM.utilizationRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
-        uint256 newBorrowRate = interestRateModel.getBorrowRate(
+        uint256 newBorrowRate = IRM.borrowRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
-        (, , uint256 vertexPoint, , , , , , , , ) = interestRateModel
-            .ratesConfig();
+        (
+            uint256 baseRatePerSecond,
+            uint256 vertexRatePerSecond,
+            uint256 vertexStart,
+            ,
+            ,
+            ,
+            ,
+            ,
+        ) = IRM.ratesConfig();
 
         // Verify utilization is above vertex point
         assertGt(
             newUtilization,
-            vertexPoint,
+            vertexStart,
             "Utilization should be above vertex point"
         );
 
@@ -225,23 +237,11 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         );
 
         // Verify we're using vertex interest rate calculation
-        // baseRate(vertexPoint) + vertexRate(util - vertexPoint)
-        (
-            uint256 baseInterestRate,
-            uint256 vertexInterestRate,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-        ) = interestRateModel.ratesConfig();
-        uint256 vertexMultiplier = interestRateModel.vertexMultiplier();
-        uint256 baseComponent = (vertexPoint * baseInterestRate) / WAD;
-        uint256 vertexComponent = ((newUtilization - vertexPoint) *
-            vertexInterestRate *
+        // baseRate(vertexStart) + vertexRate(util - vertexStart)
+        uint256 vertexMultiplier = IRM.vertexMultiplier();
+        uint256 baseComponent = (vertexStart * baseRatePerSecond) / WAD;
+        uint256 vertexComponent = ((newUtilization - vertexStart) *
+            vertexRatePerSecond *
             vertexMultiplier) / (WAD * WAD);
         uint256 expectedRate = baseComponent + vertexComponent;
 
@@ -264,21 +264,20 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         simpleCUSDC.depositAsCollateral(1000000e6, user);
 
         // Initial state checks
-        uint256 initialMultiplier = interestRateModel.vertexMultiplier();
+        uint256 initialMultiplier = IRM.vertexMultiplier();
         (
             ,
             ,
             ,
-            uint256 adjustmentRate,
             ,
             ,
-            uint256 increaseThreshold,
+            uint256 increaseThresholdStart,
             ,
             ,
-            ,
-        ) = interestRateModel.ratesConfig();
+        ) = IRM.ratesConfig();
+        uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
-        // Borrow enough to push utilization above increaseThreshold
+        // Borrow enough to push utilization above increaseThresholdStart
         borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX, user);
 
         // Move time forward to trigger multiplier update
@@ -287,15 +286,15 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         // Force an interest rate update
         borrowableCDAI.accrueIfNeeded();
 
-        uint256 newMultiplier = interestRateModel.vertexMultiplier();
-        uint256 utilization = interestRateModel.utilizationRate(
+        uint256 newMultiplier = IRM.vertexMultiplier();
+        uint256 utilization = IRM.utilizationRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
 
         assertGt(
             utilization,
-            increaseThreshold,
+            increaseThresholdStart,
             "Utilization should be above increase threshold"
         );
         assertGt(
@@ -310,9 +309,10 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
     function testVertexMultiplierDecreaseBelowThreshold() public {
         // First increase the multiplier
         testVertexMultiplierIncreaseAboveThreshold();
+        skip(20 minutes);
 
         vm.startPrank(user);
-        uint256 highMultiplier = interestRateModel.vertexMultiplier();
+        uint256 highMultiplier = IRM.vertexMultiplier();
 
         // Repay most of the debt to drop utilization
         uint256 currentDebt = borrowableCDAI.debtBalance(address(user));
@@ -321,20 +321,17 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         _prepareDAI(user, repayAmount);
         dai.approve(address(borrowableCDAI), repayAmount);
         borrowableCDAI.repay(repayAmount);
-
         (
             ,
             ,
             ,
-            uint256 adjustmentRate,
+            uint256 vertexStart,
             ,
             ,
             ,
             ,
-            ,
-            uint256 decreaseThreshold
-            ,
-        ) = interestRateModel.ratesConfig();
+        ) = IRM.ratesConfig();
+        uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Move time forward to trigger multiplier update
         skip(adjustmentRate);
@@ -345,16 +342,16 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         // Force an interest rate update
         borrowableCDAI.accrueIfNeeded();
 
-        uint256 newMultiplier = interestRateModel.vertexMultiplier();
-        uint256 utilization = interestRateModel.utilizationRate(
+        uint256 newMultiplier = IRM.vertexMultiplier();
+        uint256 utilization = IRM.utilizationRate(
             borrowableCDAI.assetsHeld(),
             borrowableCDAI.marketOutstandingDebt()
         );
 
         assertLt(
             utilization,
-            decreaseThreshold,
-            "Utilization should be below decrease threshold"
+            vertexStart,
+            "Utilization should be below vertexStart aka decrease threshold start"
         );
         assertLt(
             newMultiplier,
@@ -372,19 +369,17 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         _prepareUSDC(user, 2000000e6);
         usdc.approve(address(simpleCUSDC), 2000000e6);
         simpleCUSDC.depositAsCollateral(2000000e6, user);
-
         (
             ,
             ,
             ,
-            uint256 adjustmentRate,
             ,
             uint256 vertexMultiplierMax,
             ,
             ,
             ,
-            ,
-        ) = interestRateModel.ratesConfig();
+        ) = IRM.ratesConfig();
+        uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Borrow to push utilization very high
         borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX, user);
@@ -395,7 +390,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
             borrowableCDAI.accrueIfNeeded();
         }
 
-        uint256 finalMultiplier = interestRateModel.vertexMultiplier();
+        uint256 finalMultiplier = IRM.vertexMultiplier();
         assertGt(
                 finalMultiplier,
                 WAD,
@@ -417,19 +412,17 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         _prepareUSDC(user, 3000000e6);
         usdc.approve(address(simpleCUSDC), 3000000e6);
         simpleCUSDC.depositAsCollateral(3000000e6, user);
-
         (
             ,
             ,
             ,
-            uint256 adjustmentRate,
             ,
             uint256 vertexMultiplierMax,
             ,
             ,
             ,
-            ,
-        ) = interestRateModel.ratesConfig();
+        ) = IRM.ratesConfig();
+        uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Borrow to push utilization extremely high.
         borrowableCDAI.borrow(BORROW_AMOUNT_JUST_UNDER_CAP, user);
@@ -442,7 +435,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
 
         // Multiplier should be at cap now.
         assertEq(
-            interestRateModel.vertexMultiplier(),
+            IRM.vertexMultiplier(),
             vertexMultiplierMax,
             "Multiplier should be equal to vertexMultiplierMax"
         );
@@ -453,7 +446,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         // Make sure multiplier is still at the cap even though it
         // theoretically could warrant being raised more.
         assertEq(
-            interestRateModel.vertexMultiplier(),
+            IRM.vertexMultiplier(),
             vertexMultiplierMax,
             "Multiplier should be equal to vertexMultiplierMax still"
         );
@@ -464,6 +457,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
     function testVertexMultiplierMinimumFloorHit() public {
         // First increase the multiplier.
         testVertexMultiplierIncreaseAboveThreshold();
+        skip(20 minutes);
 
         vm.startPrank(user);
         // Repay almost all debt
@@ -472,8 +466,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         dai.approve(address(borrowableCDAI), currentDebt);
         borrowableCDAI.repay(currentDebt);
 
-        (, , , uint256 adjustmentRate, , , , , , , ) = interestRateModel
-            .ratesConfig();
+        uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Move time forward several adjustment periods
         uint256 adjustmentPeriods = 100;
@@ -483,7 +476,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         }
 
         assertEq(
-            interestRateModel.vertexMultiplier(),
+            IRM.vertexMultiplier(),
             WAD,
             "Multiplier should be at floor of 1 WAD"
         );
@@ -498,19 +491,17 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         _prepareUSDC(user, 2000000e6);
         usdc.approve(address(simpleCUSDC), 2000000e6);
         simpleCUSDC.depositAsCollateral(2000000e6, user);
-
         (
             ,
             ,
             ,
-            uint256 adjustmentRate,
             ,
             uint256 vertexMultiplierMax,
             ,
             ,
             ,
-            ,
-        ) = interestRateModel.ratesConfig();
+        ) = IRM.ratesConfig();
+        uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
         // Borrow to push utilization very high.
         borrowableCDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX, user);
@@ -534,7 +525,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
         // Loop through multiple periods making sure only decay applies.
         adjustmentPeriods = 10;
         for (uint256 i = 0; i < adjustmentPeriods; i++) {
-            currentMultiplier = interestRateModel.vertexMultiplier();
+            currentMultiplier = IRM.vertexMultiplier();
             uint256 decay = FixedPointMathLib.mulDiv(
                 currentMultiplier,
                 decayRate,
@@ -546,7 +537,7 @@ contract TestDynamicInterestRate is TestBaseMarketIsolated {
 
             // New vertexMultiplier should decrease by exactly decay if 
             assertEq(
-                interestRateModel.vertexMultiplier(),
+                IRM.vertexMultiplier(),
                 currentMultiplier - decay,
                 "New vertexMultiplier should decrease by exactly decay."
             );

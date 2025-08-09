@@ -14,7 +14,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
@@ -300,45 +300,45 @@ contract TestBaseMarketIsolated is TestBase {
         );
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
+            true,
             address(chainlinkEthUsd),
-            0,
-            true
+            0
         );
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(chainlinkEthUsd),
-            0,
-            true
+            0
         );
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(chainlinkUsdcUsd),
-            0,
-            true
+            0
         );
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            false,
             address(chainlinkUsdcEth),
-            0,
-            false
+            0
         );
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
+            true,
             address(chainlinkDaiUsd),
-            0,
-            true
+            0
         );
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
+            false,
             address(chainlinkDaiEth),
-            0,
-            false
+            0
         );
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            false,
             address(chainlinkRethEth),
-            0,
-            false
+            0
         );
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
@@ -369,41 +369,41 @@ contract TestBaseMarketIsolated is TestBase {
 
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(chainlinkEthUsd),
-            0,
-            true
+            0
         );
 
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(chainlinkUsdcUsd),
-            0,
-            true
+            0
         );
 
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            false,
             address(chainlinkUsdcEth),
-            0,
-            false
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
+            true,
             address(chainlinkDaiUsd),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
+            false,
             address(chainlinkDaiEth),
-            0,
-            false
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            false,
             address(chainlinkRethEth),
-            0,
-            false
+            0
         );
         oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
@@ -464,23 +464,22 @@ contract TestBaseMarketIsolated is TestBase {
         );
     }
 
-    function _deployDynamicInterestRateModel(
+    function _deployDynamicIRM(
         address underlyingToken
     ) internal returns (address) {
-        interestRateModels[block.chainid][
+        IRMs[block.chainid][
             underlyingToken
-        ] = new DynamicInterestRateModel(
+        ] = new DynamicIRM(
             ICentralRegistry(address(centralRegistry)),
             1000, // baseRatePerYear
             1000, // vertexRatePerYear
             5000, // vertexUtilizationStart
-            4 hours, // adjustmentRate
-            5000, // adjustmentVelocity
+            1000, // adjustmentVelocity
             100000000, // 1000x maximum vertex multiplier
             100 // decayRate
         );
 
-        return address(interestRateModels[block.chainid][underlyingToken]);
+        return address(IRMs[block.chainid][underlyingToken]);
     }
 
     function _deployBorrowableCUSDC() internal initMainVariables returns (BorrowableCToken) {
@@ -500,10 +499,10 @@ contract TestBaseMarketIsolated is TestBase {
             ICentralRegistry(address(centralRegistry)),
             IERC20(underlyingAsset),
             address(marketManagerIsolated),
-            _deployDynamicInterestRateModel(underlyingAsset)
+            _deployDynamicIRM(underlyingAsset)
         );
 
-        interestRateModels[block.chainid][underlyingAsset].setLinkedToken(
+        IRMs[block.chainid][underlyingAsset].setLinkedToken(
             address(borrowableCToken)
         );
 
@@ -1047,8 +1046,8 @@ contract TestBaseMarketIsolated is TestBase {
 
         LiquidationCalcData memory data;
 
-        (,,,, data.liqIncBase, data.liqIncCurve,,, data.closeFactorBase, data.closeFactorCurve,,)
-            = _marketManager.tokenData(address(_collateralToken));
+        (data.liqIncBase, data.liqIncCurve,,, data.closeFactorBase, data.closeFactorCurve,,)
+            = _marketManager.liquidationConfig(address(_collateralToken));
 
         (data.lFactor, data.collateralTokenPrice, data.debtTokenPrice) = 
             _marketManager.liquidationStatusOf(_borrower, _collateralToken, _debtToken);
@@ -1148,7 +1147,7 @@ contract TestBaseMarketIsolated is TestBase {
         }
 
         // Get collateral requirement
-        (,,,, uint256 collReqSoft,,,,,,,) = marketManager_.tokenData(params.collateralToken);
+        (, uint256 collReqSoft, ) = marketManager_.collConfig(params.collateralToken);
 
         // Calculate lFactor: (debt * collReqSoft) / adjustedCollateralSoft
         return (debt * collReqSoft) / adjustedCollateralSoft;
@@ -1234,24 +1233,29 @@ contract TestBaseMarketIsolated is TestBase {
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(mockUsdcFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(mockUsdcFeed),
-            0,
-            true
+            0
         );
 
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            true,
+            address(mockDaiFeed),
+            0
+        );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
+            true,
             address(mockDaiFeed),
-            0,
-            true
+            0
         );
 
         /// ETH
@@ -1259,36 +1263,46 @@ contract TestBaseMarketIsolated is TestBase {
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
 
         mockRethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            true,
             address(mockRethFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            true,
             address(mockRethFeed),
-            0,
-            true
+            0
         );
 
         /// STETH
 
         mockStethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(_STETH, address(mockStethFeed), 0, true);
-        dualChainlinkAdaptor.addAsset(_STETH, address(mockStethFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _STETH,
+            true,
+            address(mockStethFeed),
+            0
+        );
+        dualChainlinkAdaptor.addAsset(
+            _STETH,
+            true,
+            address(mockStethFeed),
+            0
+        );
 
         oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(_STETH, address(dualChainlinkAdaptor));
@@ -1298,7 +1312,12 @@ contract TestBaseMarketIsolated is TestBase {
             0xdF2917806E30300537aEB49A7663062F4d1F2b5F
         );
         mockBALFeed.setMockUpdatedAt(block.timestamp);
-        chainlinkAdaptor.addAsset(_BAL_ADDRESS, address(mockBALFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _BAL_ADDRESS,
+            true,
+            address(mockBALFeed),
+            0
+        );
         oracleManager.addAssetPriceFeed(
             _BAL_ADDRESS,
             address(chainlinkAdaptor)
@@ -1311,9 +1330,9 @@ contract TestBaseMarketIsolated is TestBase {
         mockAURAFeed.setMockUpdatedAt(block.timestamp);
         chainlinkAdaptor.addAsset(
             _AURA_ADDRESS,
+            true,
             address(mockAURAFeed),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _AURA_ADDRESS,
@@ -1325,15 +1344,15 @@ contract TestBaseMarketIsolated is TestBase {
         mockWbtcFeed = new MockV3Aggregator(8, 60000e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _WBTC_ADDRESS,
+            true,
             address(mockWbtcFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WBTC_ADDRESS,
+            true,
             address(mockWbtcFeed),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _WBTC_ADDRESS,

@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import { Multicall } from "contracts/libraries/Multicall.sol";
 
 import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
-import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
+import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
@@ -217,8 +217,8 @@ interface IBorrowableCToken {
 
     /// IBorrowableCToken SPECIFIC FUNCTIONS ///
 
-    /// @notice Address of the current Interest Rate Model.
-    function interestRateModel() external view returns (IInterestRateModel);
+    /// @notice Address of the current Dynamic IRM.
+    function IRM() external view returns (IDynamicIRM);
 
     /// @notice Fee that goes to protocol for interested generated for
     ///         lenders, in `WAD`.
@@ -226,7 +226,7 @@ interface IBorrowableCToken {
 
     /// @notice Can accrue interest yield, configure next interest accrual
     ///         period, and updates vesting data, if needed.
-    /// @dev May emit a {InterestAccrualUpdate} event.
+    /// @dev May emit a {RatesAdjusted} event.
     function accrueIfNeeded() external;
 
     /// @notice The amount of tokens that has been borrowed as debt,

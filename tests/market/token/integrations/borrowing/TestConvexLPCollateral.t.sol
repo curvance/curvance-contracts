@@ -46,9 +46,9 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         chainlinkStethUsd = new MockV3Aggregator(8, 1500e8, 3000e12, 1000e6);
         chainlinkAdaptor.addAsset(
             _STETH_ADDRESS,
+            true,
             address(chainlinkStethUsd),
-            0,
-            true
+            0
         );
 
         _refreshMockFeeds();

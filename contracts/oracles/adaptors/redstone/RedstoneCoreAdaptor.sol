@@ -17,17 +17,16 @@ contract RedstoneCoreAdaptor is
     /// @notice Stores configuration data for Redstone price sources.
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
-    /// @param symbolHash The bytes32 encoded hash of the price feed.
-    /// @param max The max valid price of the asset.
+    /// @param heartbeat The max amount of time allowed between price updates.
+    ///                  0 defaults to using DEFAULT_HEART_BEAT.
     /// @param decimals Returns the number of decimals the Redstone price feed
-    ///                 responds with. We save this as a uint256 so we do not
-    ///                 need to convert from uint8 -> uint256 at runtime.
+    ///                 responds with.
+    /// @param symbolHash The bytes32 encoded hash of the price feed.
     struct AssetConfig {
         bool isConfigured;
+        uint8 decimals;
+        uint24 heartbeat;
         bytes32 symbolHash;
-        uint256 max;
-        uint256 decimals;
-        uint256 heartbeat;
     }
 
     /// @notice Stores cached price data for Redstone core pulled
@@ -160,7 +159,7 @@ contract RedstoneCoreAdaptor is
 
         // Validate `price` is not at or above the maximum value allowed,
         // and `price` is not truncated or misreported with a 0 value.
-        if (price == 0 || price >= config.max) {
+        if (price == 0 || price >= _MAXIMUM_PRICE_ALLOWED) {
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
@@ -231,16 +230,15 @@ contract RedstoneCoreAdaptor is
             );
         }
 
+        // Update `config` and make sure `isSupportedAsset` returns true
+        // for `asset`.
         AssetConfig storage config = assetConfig[asset][inUSD];
-        
-        // We need to make sure casting to a uint240 will not truncate
-        // the reported price.
-        config.max = type(uint240).max;
+
         config.symbolHash = symbolHash;
-        config.heartbeat = heartbeat;
+        config.heartbeat = uint24(heartbeat);
         // If decimals == 0 we use default 8 decimals that
         // Redstone typically provides prices in.
-        config.decimals = decimals != 0 ? uint256(decimals) : 8;
+        config.decimals = decimals != 0 ? decimals : 8;
         config.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
@@ -355,7 +353,7 @@ contract RedstoneCoreAdaptor is
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
     function adaptorType() external pure override returns (uint256) {
-        return 1;
+        return 2;
     }
 
     /// PUBLIC FUNCTIONS ///

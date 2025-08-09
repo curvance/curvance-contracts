@@ -92,8 +92,8 @@ abstract contract BaseCToken is
     string internal _name;
     /// @notice Token symbol metadata.
     string internal _symbol;
-    /// @notice Total amount of `asset()` in this vault, minus
-    ///         pending vesting.
+    /// @notice Total amount of `asset()` in this vault, minus pending
+    ///         vesting.
     uint256 internal _totalAssets;
 
     /// @notice Shares of this token that an account has posted as collateral.
@@ -485,10 +485,8 @@ abstract contract BaseCToken is
     function maxDeposit(
         address receiver
     ) public view override returns (uint256 maxAssets) {
-        if (
-            !marketManager.isListed(address(this)) ||
-            marketManager.mintPaused(address(this)) == 2
-        ) {
+        (bool mintPaused, , ) = marketManager.actionsPaused(address(this));
+        if (!marketManager.isListed(address(this)) || mintPaused) {
             // We do not need to set maxAssets here since its initialized
             // as 0 so we can just return.
             return maxAssets;
@@ -504,10 +502,8 @@ abstract contract BaseCToken is
     function maxMint(
         address receiver
     ) public view override returns (uint256 maxShares) {
-        if (
-            !marketManager.isListed(address(this)) ||
-            marketManager.mintPaused(address(this)) == 2
-        ) {
+        (bool mintPaused, , ) = marketManager.actionsPaused(address(this));
+        if (!marketManager.isListed(address(this)) || mintPaused) {
             // We do not need to set maxShares here since its initialized
             // as 0 so we can just return.
             return maxShares;
@@ -720,7 +716,7 @@ abstract contract BaseCToken is
 
     /// @notice Can accrue pending yield, configure next vesting
     ///         period, and updates vesting data, if needed.
-    /// @dev May emit a {InterestAccrualUpdate} event.
+    /// @dev May emit a {RatesAdjusted} event.
     function accrueIfNeeded() external nonReentrant {
         _accrueIfNeeded();
     }
