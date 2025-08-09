@@ -179,7 +179,7 @@ contract ProtocolReader2 {
                 uniqueAdapters = _addUniqueAdapter(uniqueAdapters, oracleA);
                 uniqueAdapters = _addUniqueAdapter(uniqueAdapters, oracleB);
 
-                tokens[j] = _getStaticTokenConfig(mm, asset);
+                tokens[j] = _getStaticTokenConfig(mm, cToken);
                 tokens[j].adapters = [oracleA, oracleB];
             }
 
@@ -345,10 +345,10 @@ contract ProtocolReader2 {
     ///           configuration information.
     function _getStaticTokenConfig(
         IMarketManager mm,
-        IERC20 cToken
+        ICToken cToken
     ) internal view returns (StaticMarketToken memory t) {
         t._address = address(cToken);
-        t.asset._address = address(cToken);
+        t.asset._address = cToken.asset();
         t.asset.name =  cToken.name();
         t.asset.symbol = cToken.symbol();
         t.asset.decimals = cToken.decimals();
@@ -360,6 +360,7 @@ contract ProtocolReader2 {
         t.isListed = mm.isListed(address(cToken));
         (t.mintPaused, t.collateralizationPaused, t.borrowPaused) =
             mm.actionsPaused(address(cToken));
+        t.isBorrowable = cToken.isBorrowable();
         (t.collRatio, t.collReqSoft, t.collReqHard) = mm.collConfig(address(cToken));
         (
             t.liqIncBase,

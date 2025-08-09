@@ -30,6 +30,9 @@ interface ICToken {
     ///         matching the underlying token.
     function decimals() external view returns (uint8);
 
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+
     /// @notice Returns whether the underlying token can be borrowed.
     /// @dev true = Borrowable; false = Not Borrowable.
     /// @return Whether this token is borrowable or not.

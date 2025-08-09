@@ -5,7 +5,6 @@ import { Script } from "forge-std/Script.sol";
 import { Vm } from "forge-std/Vm.sol";
 import { DeploymentLogger } from "../utils/DeploymentLogger.sol";
 
-import { Faucet } from "contracts/testnet/Faucet.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -34,7 +33,6 @@ contract DeployBase is Script {
     DeploymentLogger logger;
 
     function run(
-        bool is_testnet,
         Config memory config,
         address harvester,
         Adaptors calldata adaptors
@@ -42,12 +40,6 @@ contract DeployBase is Script {
         logger = new DeploymentLogger();
         vm.recordLogs();
         vm.startBroadcast();
-
-        // Deploy Faucet
-        if (is_testnet) {
-            Faucet faucet = new Faucet();
-            emit ContractDeployed(address(faucet), "Faucet");
-        }
 
         // Deploy CentralRegistry
         CentralRegistry centralRegistry = new CentralRegistry(
