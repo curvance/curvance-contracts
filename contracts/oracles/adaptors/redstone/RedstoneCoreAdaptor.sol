@@ -59,7 +59,7 @@ contract RedstoneCoreAdaptor is
     uint256 constant DEFAULT_MAX_DATA_TIMESTAMP_AHEAD_SECONDS = 1 minutes;
 
     /// @notice Chain's native token symbol metadata.
-    string internal _nativeTokenSymbol;
+    string internal _nativeSymbol;
 
     /// STORAGE ///
 
