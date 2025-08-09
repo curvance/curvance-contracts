@@ -131,20 +131,18 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ICentralRegistry public immutable centralRegistry;
 
     /// @notice Maximum Rate at which `vertexMultiplier` will
-    ///         decay per adjustment, in `WAD`.
+    ///         decay per `ADJUSTMENT_RATE`, in `WAD`.
     /// @dev .05e18 = 5%.
     uint256 internal constant _MAX_VERTEX_DECAY_RATE = .02e18;
     /// @notice The maximum rate at which `vertexMultiplier` is adjusted,
     ///         in WAD on top of base rate (1 `WAD`).
     ///         E.g. 1 * WAD = 200% multiplied to vertex interest rate per
-    ///         adjustment at 100% utilization,
-    ///         due to 100% (in WAD) applied on top.
+    ///         `ADJUSTMENT_RATE` at 100% utilization.
     uint256 internal constant _MAX_VERTEX_ADJUSTMENT_VELOCITY = 0.2e18;
     /// @notice The minimum rate at which `vertexMultiplier` is adjusted,
     ///         in WAD on top of base rate (1 `WAD`).
     ///         E.g. 0.1 * WAD = 110% multiplied to vertex interest rate per
-    ///         adjustment at 100% utilization,
-    ///         due to 100% (in WAD) applied on top.
+    ///         `ADJUSTMENT_RATE` at 100% utilization.
     uint256 internal constant _MIN_VERTEX_ADJUSTMENT_VELOCITY = 0.01e18;
     /// @notice The maximum value that the vertex interest rate can
     ///         be set to begin at, in `WAD`.
@@ -175,6 +173,9 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
 
     /// STORAGE ///
 
+    /// @notice The dynamic value applied to `vertexRatePerSecond`, increasing
+    ///         it as `utilizationRate` remains elevated over time, adjusted
+    ///         every `ADJUSTMENT_RATE`, in `WAD`.
     uint256 public vertexMultiplier;
 
     /// @notice Struct containing current configuration data for the
@@ -405,13 +406,15 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         RatesConfig memory c = ratesConfig;
         uint256 vertexStart = c.vertexStart;
 
-        // Query base interest rate directly since `vertexMultiplier` is not
-        // applied.
+        // Directly pull interest rate since `vertexMultiplier` is irrelevant
+        // with util <= vertexStart.
         if (util <= vertexStart) {
             return _baseRate(util, c.baseRatePerSecond);
         }
 
         uint256 multiplier = vertexMultiplier;
+        // Vertex multiplier is not going to change so we can pull interest
+        // rate with current `vertexMultiplier`.
         if (multiplier == WAD && util < c.increaseThresholdStart) {
             return _vertexRate(
                 util,
@@ -422,13 +425,14 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
             );
         }
 
-        uint256 newMultiplier = _updateAboveVertex(c, util, multiplier);
+        // Get updated vertex multiplier then pull interest rate with new
+        // vertex multiplier.
         result = _vertexRate(
             util,
             c.baseRatePerSecond,
             c.vertexRatePerSecond,
             vertexStart,
-            newMultiplier
+            _updateAboveVertex(c, util, multiplier)
         );
     }
 
@@ -499,11 +503,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint256 debt
     ) public pure returns (uint256 result) {
         // Utilization rate is 0 when there are no outstanding debt.
-        if (debt == 0) {
-            return 0;
-        }
-
-        result = _mulDiv(debt, WAD, assetsHeld + debt);
+        result = debt == 0 ? 0 : _mulDiv(debt, WAD, assetsHeld + debt);
     }
 
     /// @inheritdoc ERC165
@@ -675,6 +675,8 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     /// @param c The cached version of the current `RatesConfig`.
     /// @param util The current utilization value, used to determine how the
     ///             multiplier should be adjusted.
+    /// @param multiplier The dynamic value applied to `vertexRatePerSecond`
+    ///                   that will be adjusted, in `WAD`.
     /// @return newMultiplier The updated multiplier after applying decay
     ///                       and adjustments based on the current utilization
     ///                       level.
@@ -734,6 +736,8 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     /// @param c The cached version of the current `RatesConfig`.
     /// @param util The current utilization value, used to determine how the
     ///             multiplier should be adjusted.
+    /// @param multiplier The dynamic value applied to `vertexRatePerSecond`
+    ///                   that will be adjusted, in `WAD`.
     /// @return newMultiplier The updated multiplier after applying decay
     ///                       and adjustments based on the current utilization
     ///                       level.
@@ -787,7 +791,8 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///      `end`. The terminal shift is then applied to the
     ///      adjustmentVelocity in determining the growth of `multiplier` for
     ///      this period, then the decay rate is applied.
-    /// @param multiplier The current vertex multiplier value, in `WAD`.
+    /// @param multiplier The dynamic value applied to `vertexRatePerSecond`
+    ///                   that will be adjusted, in `WAD`.
     /// @param adjustmentVelocity The current adjustment velocity, the maximum
     ///                           rate at with the vertex multiplier is
     ///                           adjusted, as a % multiplier, in `WAD`.
@@ -830,7 +835,8 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///      `end`. The terminal shift is then applied to the
     ///      adjustmentVelocity in determining the reduction of `multiplier`
     ///      for this period, then the decay rate is applied.
-    /// @param multiplier The current vertex multiplier value, in `WAD`.
+    /// @param multiplier The dynamic value applied to `vertexRatePerSecond`
+    ///                   that will be adjusted, in `WAD`.
     /// @param adjustmentVelocity The current adjustment velocity, the maximum
     ///                           rate at with the vertex multiplier is
     ///                           adjusted, as a % multiplier, in `WAD`.
