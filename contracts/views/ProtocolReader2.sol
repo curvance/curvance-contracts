@@ -1,9 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { MarketManagerIsolated, ICentralRegistry, WAD, WAD_SQUARED, LiquidityManagerIsolated, ICToken, IOracleManager, IMarketManager, FixedPointMathLib, IERC20, ERC165Checker } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+
+import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 // NOTE: This is a work in progress, don't implement yet.
 // TODO: Figure out what to do with tokenDataOf since we have tests attached
@@ -12,6 +22,7 @@ contract ProtocolReader2 {
     struct StaticMarketData {
         address _address;
         uint256[] adapters;
+        uint256 cooldownLength;
         StaticMarketToken[] tokens;
     }
 
@@ -19,6 +30,7 @@ contract ProtocolReader2 {
         address _address;
         StaticMarketAsset asset;
         uint256[2] adapters;
+        bool isBorrowable;
         bool borrowPaused;
         bool collateralizationPaused;
         bool mintPaused;
@@ -135,7 +147,7 @@ contract ProtocolReader2 {
 
         data = new StaticMarketData[](markets.length);
         for (uint256 i; i < markets.length; i++) {
-            MarketManagerIsolated mm = MarketManagerIsolated(markets[i]);
+            IMarketManager mm = IMarketManager(markets[i]);
 
             address[] memory tokenAddresses = mm.queryTokensListed();
             StaticMarketToken[] memory tokens = new StaticMarketToken[](
@@ -163,6 +175,7 @@ contract ProtocolReader2 {
                         decimals: asset.decimals(),
                         totalSupply: asset.totalSupply()
                     }),
+                    isBorrowable: cToken.isBorrowable(),
                     borrowPaused: mm.borrowPaused(address(cToken)) == 2,
                     collateralizationPaused: mm.collateralizationPaused(
                         address(cToken)
@@ -178,6 +191,7 @@ contract ProtocolReader2 {
             data[i] = StaticMarketData({
                 _address: address(mm),
                 adapters: uniqueAdapters,
+                cooldownLength: mm.MIN_HOLD_PERIOD(),
                 tokens: tokens
             });
         }
@@ -307,6 +321,24 @@ contract ProtocolReader2 {
         }
     }
 
+    /// @notice Returns the cooldown periods for multiple markets for a user
+    /// @param markets The list of market addresses
+    /// @param user The user address
+    /// @return cooldowns The list of cooldown periods for each market
+    function marketMultiCooldown(
+        address[] calldata markets,
+        address user
+    ) public view returns (uint256[] memory) {
+        uint256[] memory cooldowns = new uint256[](markets.length);
+        for (uint256 i; i < markets.length; ++i) {
+            IMarketManager mm = IMarketManager(markets[i]);
+            uint256 cooldownTimestamp = mm.cooldown(user);
+
+            cooldowns[i] = cooldownTimestamp + mm.MIN_HOLD_PERIOD();
+        }
+        return cooldowns;
+    }
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Copies a CurvanceToken from contract as CurvanceToken struct,
@@ -315,7 +347,7 @@ contract ProtocolReader2 {
     /// @param cToken The address of the cToken to convert
     /// @return config A instance of the CurvanceToken struct
     function _convertTokenData(
-        MarketManagerIsolated mm,
+        IMarketManager mm,
         address cToken
     )
         internal
@@ -336,7 +368,7 @@ contract ProtocolReader2 {
             uint256 closeFactorCurve,
             uint256 closeFactorMin,
             uint256 closeFactorMax
-        ) = mm.tokenData(cToken);
+        ) = LiquidityManagerIsolated(address(mm)).tokenData(cToken);
 
         // So here we are.
         config.isListed = isListed;

@@ -51,6 +51,17 @@ interface IMarketManager {
     /// @dev Token => 0 or 1 = unpaused; 2 = paused.
     function mintPaused(address cToken) external view returns (uint256);
 
+    /// @notice Whether token borrowing is paused.
+    /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
+    function borrowPaused(address cToken) external view returns (uint256);
+
+    /// @notice Returns the market cooldownTimestamp
+    function cooldown(address account) external view returns (uint256);
+    
+    /// @notice Minimum hold period before an account can be liquidated
+    ///         after taking on new debt.
+    function MIN_HOLD_PERIOD() external view returns (uint256);
+
     /// @notice Whether cToken collateralization is paused.
     /// @dev Token => 0 or 1 = unpaused; 2 = paused.
     function collateralizationPaused(
