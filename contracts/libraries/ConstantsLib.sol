@@ -22,3 +22,7 @@ uint256 constant CAUTION = 1;
 
 /// @dev Return value indicating no price error.
 uint256 constant NO_ERROR = 0;
+
+/// @dev Unix time has 31,536,000 seconds per year.
+///      All my homies hate leap seconds and leap years.
+uint256 constant SECONDS_PER_YEAR = 31_536_000;

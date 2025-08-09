@@ -7,7 +7,6 @@ import { console2 } from "forge-std/console2.sol";
 
 contract ExtremeDropTest is TestBaseLiquidations {
     
-
     function setUp() public override {
         super.setUp();
         
@@ -41,19 +40,21 @@ contract ExtremeDropTest is TestBaseLiquidations {
         usdc.approve(address(borrowableCUSDC), 100000e6);
 
         borrowableCUSDC.liquidate(borrowers, address(borrowableCDAI));
-        
-
-        
     }
 
     function _setUpMarketPreLiquidation() internal {
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            true,
+            address(mockDaiFeed),
+            0
+        );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
+            true,
             address(mockDaiFeed),
-            0,
-            true
+            0
         );
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);

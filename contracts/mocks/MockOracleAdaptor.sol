@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract MockOracleAdaptor is BaseOracleAdaptor {
     struct MockPrice {
@@ -16,24 +15,18 @@ contract MockOracleAdaptor is BaseOracleAdaptor {
     mapping(address => MockPrice) public definedPrices;
     mapping(address => bool) public hasSetPrice;
 
-    constructor(
-        ICentralRegistry centralRegistry_
-    ) BaseOracleAdaptor(centralRegistry_) {}
+    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
 
     function getPrice(
         address asset,
         bool inUSD,
         bool
-    ) external view override returns (PriceReturnData memory) {
+    ) external view override returns (PricingResult memory) {
         if (!hasSetPrice[asset]) {
             revert("Price not set by MockOracle");
         }
 
-        if (inUSD) {
-            return PriceReturnData(definedPrices[asset].usdPrice, false, true);
-        }
-
-        return PriceReturnData(definedPrices[asset].nativePrice, false, false);
+        return PricingResult(definedPrices[asset].nativePrice, inUSD, false);
     }
 
     function setPrice(
@@ -60,19 +53,20 @@ contract MockOracleAdaptor is BaseOracleAdaptor {
         return 1337;
     }
 
-    function removeAsset(address asset) external override {
-        _checkElevatedPermissions();
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
+    /// @param asset The address of the asset for which the price is needed.
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
+    function _getPrice(
+        address asset,
+        bool inUSD
+    ) internal virtual view override returns (PricingResult memory result) {}
 
-        if (!isSupportedAsset[asset]) {
-            revert("Asset not supported");
-        }
-
-        delete isSupportedAsset[asset];
-        delete definedPrices[asset];
-        delete hasSetPrice[asset];
-
-        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
-            asset
-        );
-    }
+    /// @notice Wipes supported asset pricing configs from an adaptor.
+    function _wipeAssetConfigs(address asset) internal override {}
 }

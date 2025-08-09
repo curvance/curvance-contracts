@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
-import { LiquidityManagerIsolated, ICToken, IOracleManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
+import { LiquidityManagerIsolated, CommonLib, ICToken, IOracleManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
-import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
@@ -92,7 +92,7 @@ contract MarketManagerIsolated is
     /// @notice Minimum excess collateral requirement
     ///         on top of liquidation incentive.
     /// @dev .01e18 = 1.0%.
-    uint256 public constant MIN_EXCESS_COLLATERAL_REQUIREMENT = .01e18;
+    uint256 public constant MIN_EXCESS_COLL_REQUIRED = .01e18;
     /// @notice Maximum collateralization ratio.
     /// @dev .975e18 = 97.5%.
     uint256 public constant MAX_COLLATERALIZATION_RATIO = .975e18;
@@ -121,14 +121,8 @@ contract MarketManagerIsolated is
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0x65513fc1;
     /// @dev `bytes4(keccak256(bytes("MarketManager__Unauthorized()")))`
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x37cf6ad5;
-    /// @dev `bytes4(keccak256(bytes("MarketManager__TokenNotListed()")))`
-    uint256 internal constant _TOKEN_NOT_LISTED_SELECTOR = 0x4f3013c5;
-    /// @dev `bytes4(keccak256(bytes("MarketManager__Paused()")))`
-    uint256 internal constant _PAUSED_SELECTOR = 0xf47323f4;
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvariantError()")))`
     uint256 internal constant _INVARIANT_ERROR_SELECTOR = 0x5518d5cb;
-    /// @dev `bytes4(keccak256(bytes("MarketManager__UnauthorizedLiquidation()")))`
-    uint256 internal constant _UNAUTHORIZED_LIQUIDATION_SELECTOR = 0xfac97a2b;
     /// @dev A fixed key to use in transient storage for the dynamic penalty.
     bytes32 internal constant _TRANSIENT_INCENTIVE_KEY
         = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
@@ -150,25 +144,16 @@ contract MarketManagerIsolated is
 
     /// @notice Whether liquidations are paused.
     /// @dev 1 = unpaused; 2 = paused.
-    uint256 public liquidationPaused = 1;
+    uint8 public liquidationPaused = 1;
     /// @notice Whether token transfers are paused.
     /// @dev 1 = unpaused; 2 = paused.
-    uint256 public transferPaused = 1;
+    uint8 public transferPaused = 1;
     /// @notice Whether token liquidations are paused.
     /// @dev 1 = unpaused; 2 = paused.
-    uint256 public seizePaused = 1;
+    uint8 public seizePaused = 1;
     /// @notice Whether token redemptions are paused.
     /// @dev 1 = unpaused; 2 = paused.
-    uint256 public redeemPaused = 1;
-    /// @notice Whether token minting is paused.
-    /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
-    mapping(address => uint256) public mintPaused;
-    /// @notice Whether token collateralization is paused.
-    /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
-    mapping(address => uint256) public collateralizationPaused;
-    /// @notice Whether token borrowing is paused.
-    /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
-    mapping(address => uint256) public borrowPaused;
+    uint8 public redeemPaused = 1;
 
     /// @notice The total amount of `cToken` that can be posted as collateral,
     ///         in shares.
@@ -209,9 +194,7 @@ contract MarketManagerIsolated is
     
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_
-    ) LiquidityManagerIsolated(centralRegistry_) {}
+    constructor(ICentralRegistry cr) LiquidityManagerIsolated(cr) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -220,29 +203,89 @@ contract MarketManagerIsolated is
     /// @return result Whether `cToken` is listed inside this lending market
     ///                or not.
     function isListed(address cToken) external view returns (bool result) {
-        result = tokenData[cToken].isListed;
+        result = _tokenConfig[cToken].isListed;
     }
 
-    /// @notice Returns the ratio at which `cToken` can be collateralized.
-    /// @dev In WAD form e.g. 0.8e18 = 80% collateral value can be borrowed.
+    /// @notice Returns whether minting, collateralization, borrowing of
+    ///         `cToken` is disabled.
     /// @param cToken The address of the Curvance token to return
-    ///               collateralization ratio of.
-    /// @return result The ratio at which debt can be borrowed against
-    ///                collateralized `cToken`, in WAD.
-    function collateralizationRatio(
-        address cToken
-    ) external view returns (uint256 result) {
-        result = tokenData[cToken].collRatio;
+    ///               action statuses of.
+    /// @return mintPaused Whether minting `cToken` is paused or not.
+    /// @return collateralizationPaused Whether collateralization `cToken`
+    ///                                 is paused or not.
+    /// @return borrowPaused Whether borrowing `cToken` is paused or not.
+    function actionsPaused(address cToken) external view returns (
+        bool mintPaused,
+        bool collateralizationPaused,
+        bool borrowPaused
+    ) {
+        CurvanceToken storage c = _tokenConfig[cToken];
+        mintPaused = c.mintPaused == 2;
+        collateralizationPaused = c.collateralizationPaused == 2;
+        borrowPaused = c.borrowPaused == 2;
+    }
+
+    /// @notice Returns the current collateralization configuration
+    ///         of `cToken`.
+    /// @param cToken The address of the Curvance token to return
+    ///               collateralization configuration of.
+    /// @return The ratio at which this token can be borrowed against
+    ///         when collateralized.
+    /// @return The collateral requirement where dipping below this
+    ///         will cause a soft liquidation.
+    /// @return The collateral requirement where dipping below
+    ///         this will cause a hard liquidation.
+    function collConfig(address cToken) external view returns (
+         uint256, uint256, uint256
+    ) {
+        CurvanceToken storage c = _tokenConfig[cToken];
+        return (c.collRatio, c.collReqSoft, c.collReqHard);
+    }
+
+    /// @notice Returns the current liquidation configuration
+    ///         of `cToken`.
+    /// @param cToken The address of the Curvance token to return
+    ///               liquidation configuration of.
+    /// @return The base ratio at which this token will be
+    ///         compensated on soft liquidation.
+    /// @return The liquidation incentive curve length between soft
+    ///         liquidation to hard liquidation, in `WAD`. e.g. 5% base
+    ///         incentive with 8% curve length results in 13% liquidation
+    ///         incentive on hard liquidation.
+    /// @return The minimum possible liquidation incentive for during an
+    ///         auction, in `WAD`.
+    /// @return The maximum possible liquidation incentive for during an
+    ///         auction, in `WAD`.
+    /// @return Maximum % that a liquidator can repay when soft
+    ///         liquidating an account, in `WAD`.
+    /// @return Curve length between soft liquidation and hard liquidation,
+    ///         should be equal to 100% - `closeFactorBase`, in `WAD`.
+    /// @return The minimum possible close factor for during an auction,
+    ///         in `WAD`.
+    /// @return The maximum possible close factor for during an auction,
+    ///         in `WAD`.
+    function liquidationConfig(address cToken) external view returns (
+        uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256
+    ) {
+        CurvanceToken storage c = _tokenConfig[cToken];
+        return (
+            c.liqIncBase,
+            c.liqIncCurve,
+            c.liqIncMin,
+            c.liqIncMax,
+            c.closeFactorBase,
+            c.closeFactorCurve,
+            c.closeFactorMin,
+            c.closeFactorMax
+        );
     }
 
     /// @notice Helper function for querying the current Curvance tokens listed
     ///         inside this market.
-    /// @return result Array containing list of all Curvance token addresses
-    ///                listed in this market.
-    function queryTokensListed() external view returns (
-        address[] memory result
-    ) {
-        result = tokensListed;
+    /// @return r Array containing list of all Curvance token addresses
+    ///           listed in this market.
+    function queryTokensListed() external view returns (address[] memory r) {
+        r = tokensListed;
     }
 
     /// ACCOUNT SPECIFIC FUNCTIONS ///
@@ -281,9 +324,8 @@ contract MarketManagerIsolated is
     function liquidationValuesOf(
         address account
     ) external view returns (uint256, uint256, uint256) {
-        (
-            AccountLiqResult memory result,,,
-        ) = _liquidationValuesOf(account, address(0), address(0));
+        (AccountLiqResult memory result, , , )
+            = _liquidationValuesOf(account, address(0), address(0));
         return (result.cSoft, result.cHard, result.debt);
     }
 
@@ -304,20 +346,13 @@ contract MarketManagerIsolated is
         address account,
         address collateralToken,
         address debtToken
-    )
-        public
-        view
-        returns (
-            uint256 lfactor,
-            uint256 collateralPrice,
-            uint256 debtPrice
-        )
-    {
-        (, lfactor, collateralPrice, debtPrice) = _liquidationValuesOf(
-            account,
-            collateralToken,
-            debtToken
-        );
+    ) public view returns (
+        uint256 lfactor,
+        uint256 collateralPrice,
+        uint256 debtPrice
+    ) {
+        (, lfactor, collateralPrice, debtPrice) =
+            _liquidationValuesOf(account, collateralToken, debtToken);
     }
 
     /// @notice Determine what the account liquidity would be if
@@ -348,10 +383,8 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        (
-            HypotheticalResult memory result,
-            bool[] memory positionsToClose
-        ) = _hypotheticalLiquidityOf(
+        (HypotheticalResult memory r, bool[] memory positionsToClose) =
+            _hypotheticalLiquidityOf(
                 account,
                 HypotheticalAction({
                     cTokenModified: cTokenModified,
@@ -360,19 +393,15 @@ contract MarketManagerIsolated is
                     errorCodeBreakpoint: 2
                 })
             );
-        return (
-            result.collateralSurplus,
-            result.liquidityDeficit,
-            positionsToClose
-        );
+        return (r.collateralSurplus, r.liquidityDeficit, positionsToClose);
     }
 
     /// @notice Checks if the account should be allowed to mint tokens
     ///         in the given market.
     /// @param cToken The Curvance token to verify mintability of.
     function canMint(address cToken) external view virtual {
-        if (mintPaused[cToken] == 2) {
-            _revert(_PAUSED_SELECTOR);
+        if (_tokenConfig[cToken].mintPaused == 2) {
+            revert MarketManager__Paused();
         }
 
         _checkIsListedToken(cToken);
@@ -406,8 +435,8 @@ contract MarketManagerIsolated is
             }
         }
 
-        if (collateralizationPaused[collateralToken] == 2) {
-            _revert(_PAUSED_SELECTOR);
+        if (_tokenConfig[collateralToken].collateralizationPaused == 2) {
+            revert MarketManager__Paused();
         }
 
         // This also acts as a check that collateralization ratio is > 0,
@@ -531,7 +560,6 @@ contract MarketManagerIsolated is
     /// @param account The account who will have their loan repaid.
     function canRepay(address cToken, address account) external view {
         _checkIsListedToken(cToken);
-
         _checkHoldPeriod(account);
     }
 
@@ -582,13 +610,15 @@ contract MarketManagerIsolated is
         IMarketManager.LiqResult memory result,
         uint256[] memory
     ) {
+        if (liquidationPaused == 2) {
+            revert MarketManager__Paused();
+        }
+
         _checkIsListedToken(action.collateralToken);
         _checkIsListedToken(action.debtToken);
 
-        (
-            TokenLiqData memory tData,
-            AccountLiqData memory aData
-        ) = _getLiquidationConfig(action.collateralToken, action.debtToken);
+        (TokenLiqData memory tData, AccountLiqData memory aData) =
+            _getLiquidationConfig(action.collateralToken, action.debtToken);
 
         address cachedAccount;
         // Amounts array is empty since the max amount possible
@@ -653,7 +683,7 @@ contract MarketManagerIsolated is
         address debtToken
     ) external view {
         if (seizePaused == 2) {
-            _revert(_PAUSED_SELECTOR);
+            revert MarketManager__Paused();
         }
 
         _checkIsListedToken(collateralToken);
@@ -688,7 +718,7 @@ contract MarketManagerIsolated is
     ) external returns (uint256) {
         _checkIsToken(cToken);
         if (transferPaused == 2) {
-            _revert(_PAUSED_SELECTOR);
+            revert MarketManager__Paused();
         }
 
         return _canRedeemWithCollateralRemoval(
@@ -729,17 +759,14 @@ contract MarketManagerIsolated is
 
         // At least one of the two tokens has to be borrowable or the
         // market does not make any sense to create.
-        if (
-            !ICToken(token0).isBorrowable() &&
-            !ICToken(token1).isBorrowable()
-            ) {
+        if (!ICToken(token0).isBorrowable() && !ICToken(token1).isBorrowable()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // List the tokens, we do this prior since some _afterDeposit
         // hooks could require listing.
-        tokenData[token0].isListed = true;
-        tokenData[token1].isListed = true;
+        _tokenConfig[token0].isListed = true;
+        _tokenConfig[token1].isListed = true;
 
         // Immediately deposits into the cToken before anyone else can,
         // preventing any rounding attack vectors.
@@ -760,15 +787,15 @@ contract MarketManagerIsolated is
         emit TokenListed(token1);
     }
 
-    /// @notice Sets token liquidity configuration values for `config.cToken`
-    ///         a listed cToken inside this market.
+    /// @notice Sets token liquidity configuration values for `c.cToken` a
+    ///         listed cToken inside this market.
     /// @dev Emits a {TokenConfigUpdated} event.
-    /// @param config A TokenConfig struct containing:
+    /// @param c A TokenConfig struct containing:
     ///               cToken The Curvance token to update liquidity 
     ///                      configuration values of.
-    ///               collRatio The ratio at which $1 of collateral
-    ///                         can be borrowed against, for `config.cToken`,
-    ///                         in basis points.
+    ///               collRatio The ratio at which $1 of collateral can be
+    ///                         borrowed against, for `c.cToken`, in basis
+    ///                         points.
     ///               collReqSoft The premium of excess collateral
     ///                           required to avoid soft liquidation,
     ///                           in basis points.
@@ -776,202 +803,167 @@ contract MarketManagerIsolated is
     ///                           required to avoid hard liquidation,
     ///                           in basis points.
     ///               liqIncBase The default liquidation incentive for
-    ///                          `config.cToken`, in basis points.
+    ///                          `c.cToken`, in basis points.
     ///               liqIncHard The hard liquidation incentive for
-    ///                          `config.cToken`, in basis points.
+    ///                          `c.cToken`, in basis points.
     ///               liqIncMin The minimum possible liquidation incentive for
-    ///                         `config.cToken` during an auction,
-    ///                         in basis points.
+    ///                         `c.cToken` during an auction, in basis points.
     ///               liqIncMax The maximum possible liquidation incentive for
-    ///                         `config.cToken` during an auction,
-    ///                         in basis points.
+    ///                         `c.cToken` during an auction, in basis points.
     ///               closeFactorBase Maximum % that a liquidator can repay
-    ///                               when soft liquidating `config.cToken` 
-    ///                               for an account.
+    ///                               when soft liquidating `c.cToken` for an
+    ///                               account.
     ///               closeFactorMin The minimum possible close factor for
-    ///                              `config.cToken` during an auction,
-    ///                              in basis points.
+    ///                              `c.cToken` during an auction, in basis
+    ///                              points.
     ///               closeFactorMax The maximum possible close factor for
-    ///                              `config.cToken` during an auction,
-    ///                              in basis points.
+    ///                              `c.cToken` during an auction, in basis
+    ///                              points.
     ///               collateralCap The maximum amount of shares that can be
-    ///                             collateralized of `config.cToken` inside
-    ///                             this market.
+    ///                             collateralized of `c.cToken` inside this
+    ///                             market.
     ///               debtCap The maximum amount of assets that can be
-    ///                       borrowed of `config.cToken` inside this market.
-    function updateTokenConfig(TokenConfig memory config) external {
-        _checkIsListedToken(config.cToken);
+    ///                       borrowed of `c.cToken` inside this market.
+    function updateTokenConfig(TokenConfig memory c) external {
+        _checkIsListedToken(c.cToken);
         _checkMarketPermissions();
 
-        // Convert the parameters from basis points to `WAD` format.
-        // While inefficient, we want to minimize potential human error
-        // as much as possible, even if it costs a bit extra gas on config.
-        config.collRatio = _bpToWad(config.collRatio);
-        config.collReqSoft = _bpToWad(config.collReqSoft);
-        config.collReqHard = _bpToWad(config.collReqHard);
-        config.liqIncBase = _bpToWad(config.liqIncBase);
-        config.liqIncHard = _bpToWad(config.liqIncHard);
-        config.liqIncMin = _bpToWad(config.liqIncMin);
-        config.liqIncMax = _bpToWad(config.liqIncMax);
-        config.closeFactorBase = _bpToWad(config.closeFactorBase);
-        config.closeFactorMin = _bpToWad(config.closeFactorMin);
-        config.closeFactorMax = _bpToWad(config.closeFactorMax);
+        // Convert the parameters from `BASIS_POINTS` to `WAD` format.
+        // While inefficient, we want to minimize potential human error,
+        // even if it costs a bit extra gas on function call.
+        c.collRatio = _bpToWad(c.collRatio);
+        c.collReqSoft = _bpToWad(c.collReqSoft);
+        c.collReqHard = _bpToWad(c.collReqHard);
+        c.liqIncBase = _bpToWad(c.liqIncBase);
+        c.liqIncHard = _bpToWad(c.liqIncHard);
+        c.liqIncMin = _bpToWad(c.liqIncMin);
+        c.liqIncMax = _bpToWad(c.liqIncMax);
+        c.closeFactorBase = _bpToWad(c.closeFactorBase);
+        c.closeFactorMin = _bpToWad(c.closeFactorMin);
+        c.closeFactorMax = _bpToWad(c.closeFactorMax);
 
-        // Validate collateralization ratio is not above the maximum allowed.
-        if (config.collRatio > MAX_COLLATERALIZATION_RATIO) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Validate soft liquidation collateral requirement is
-        // not above the maximum allowed.
-        if (config.collReqSoft > MAX_COLLATERAL_REQUIREMENT) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Validate hard liquidation collateral requirement is not above
+        // Validate collateralization ratio is not above the maximum allowed,
+        // and that hard liquidation collateral requirement is not above
         // the soft liquidation requirement. Liquidations occur when
         // collateral dries up so hard liquidation should be less collateral
         // than soft liquidation.
-        if (config.collReqHard >= config.collReqSoft) {
+        if (
+            c.collRatio > MAX_COLLATERALIZATION_RATIO ||
+            c.collReqSoft > MAX_COLLATERAL_REQUIREMENT ||
+            c.collReqHard >= c.collReqSoft
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Validate hard liquidation incentive is higher than the soft
         // liquidation incentive. We should give heavier incentives when
         // collateral is running out to reduce lender delta exposure.
-        if (config.liqIncBase >= config.liqIncHard) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Make sure the maximum dynamic penalty is not greater than the base
+        // The maximum dynamic penalty is not greater than the base
         // liquidation incentive and that the minimum dynamic penalty is not
         // less than the base liquidation incentive.
-        if (
-            config.liqIncBase > config.liqIncMax ||
-            config.liqIncBase < config.liqIncMin
-            ) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Validate hard liquidation incentive is
-        // not above the maximum allowed.
-        if (config.liqIncMax > MAX_LIQUIDATION_INCENTIVE) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
         // Validate maximum liquidation incentive and default is
         // equal or higher than the minimum liquidation incentive.
-        if (config.liqIncMin >= config.liqIncMax) {
+        if (
+            c.liqIncBase >= c.liqIncHard || c.liqIncBase > c.liqIncMax ||
+            c.liqIncBase < c.liqIncMin || c.liqIncMin >= c.liqIncMax ||
+            c.liqIncMax > MAX_LIQUIDATION_INCENTIVE
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Validate hard liquidation collateral requirement is larger
+        // Validate hard and max liquidation collateral requirements are larger
         // than the hard liquidation incentive. We cannot give more incentives
         // than are available. We do not need to check soft liquidation as the
         // restrictions are thinner than this case.
         if (
-            config.liqIncHard + MIN_EXCESS_COLLATERAL_REQUIREMENT >
-            config.collReqHard
-            ) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Validate hard liquidation collateral requirement is larger
-        // than the hard liquidation incentive. We cannot give more incentives
-        // than are available. We do not need to check soft liquidation as the
-        // restrictions are thinner than this case.
-        if (
-            config.liqIncMax + MIN_EXCESS_COLLATERAL_REQUIREMENT >
-            config.collReqHard
-            ) {
+            c.liqIncHard + MIN_EXCESS_COLL_REQUIRED > c.collReqHard ||
+            c.liqIncMax + MIN_EXCESS_COLL_REQUIRED > c.collReqHard
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Validate that soft liquidation is within acceptable bounds.
         if (
-            config.closeFactorBase > MAX_BASE_CFACTOR ||
-            config.closeFactorBase < MIN_BASE_CFACTOR
-            ) {
+            c.closeFactorBase > MAX_BASE_CFACTOR ||
+            c.closeFactorBase < MIN_BASE_CFACTOR
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Validate the soft liquidation collateral premium
-        // is not more strict than the asset's CR.
-        if (config.collRatio > (WAD_SQUARED / (WAD + config.collReqSoft))) {
+        // Validate the soft liquidation collateral premium is not stricter
+        // than its `collRatio`.
+        if (c.collRatio > (WAD_SQUARED / (WAD + c.collReqSoft))) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Validate that collateral is not trying to be turned on without
         // setting a collateralization ratio.
-        if (config.collRatio == 0 && config.collateralCap > 0) {
+        if (c.collRatio == 0 && c.collateralCap > 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Do not let people borrow assets if they are not intended to be.
-        if (config.debtCap > 0) {
-            if (
-                config.debtCap > _MAX_DEBT_CAP ||
-                !ICToken(config.cToken).isBorrowable()
-                ) {
-                    _revert(_INVALID_PARAMETER_SELECTOR);
+        if (c.debtCap > 0) {
+            if (c.debtCap > _MAX_DEBT_CAP || !ICToken(c.cToken).isBorrowable()) {
+                _revert(_INVALID_PARAMETER_SELECTOR);
             }
         }
 
-        CurvanceToken storage ctData = tokenData[config.cToken];
+        CurvanceToken storage ct = _tokenConfig[c.cToken];
 
         // If this token already has collateralization enabled,
         // we cannot turn collateralization off completely as this
         // would cause downstream effects to the DLE.
-        if (ctData.collRatio != 0 && config.collRatio == 0) {
+        if (ct.collRatio != 0 && c.collRatio == 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        (, uint256 errorCode) = IOracleManager(centralRegistry.oracleManager())
-            .getPrice(config.cToken, true, true);
+        (, uint256 errorCode) = CommonLib._oracleManager(centralRegistry)
+            .getPrice(c.cToken, true, true);
 
         // Validate that we get a usable price.
         if (errorCode == 2) {
             revert MarketManager__PriceError();
         }
 
-        // Assign new collateralization ratio.
+        // Set new collateralization ratio.
         // Note that a collateralization ratio of 0 corresponds to
-        // no collateralization of the cToken.
-        ctData.collRatio = config.collRatio;
+        // no collateralization of `cToken`.
+        ct.collRatio = uint72(c.collRatio);
 
         // Store the collateral requirement as a premium above `WAD`,
         // that way we can calculate solvency via division
         // efficiently in _liquidationStatusOf.
-        ctData.collReqSoft = config.collReqSoft + WAD;
-        ctData.collReqHard = config.collReqHard + WAD;
+        ct.collReqSoft = uint72(c.collReqSoft + WAD);
+        ct.collReqHard = uint72(c.collReqHard + WAD);
 
         // We use the liquidation incentive values as a premium in
         // `calculateLiquidatedTokens`, so it needs to be 1 + incentive.
-        ctData.liqIncBase = WAD + config.liqIncBase;
-        ctData.liqIncMin = WAD + config.liqIncMin;
-        ctData.liqIncMax = WAD + config.liqIncMax;
+        ct.liqIncBase = uint64(WAD + c.liqIncBase);
+        ct.liqIncMin = uint64(WAD + c.liqIncMin);
+        ct.liqIncMax = uint64(WAD + c.liqIncMax);
 
         // Store the distance between liquidation incentive A & B,
         // so we can quickly scale between [base, 100%] based on lFactor.
-        ctData.liqIncCurve = config.liqIncHard - config.liqIncBase;
+        ct.liqIncCurve = uint64(c.liqIncHard - c.liqIncBase);
 
         // Assign the base cFactor.
-        ctData.closeFactorBase = config.closeFactorBase;
+        ct.closeFactorBase = uint64(c.closeFactorBase);
         // Store the distance between base cFactor and 100%,
         // that way we can quickly scale between [base, 100%] based on lFactor.
-        ctData.closeFactorCurve = WAD - config.closeFactorBase;
+        ct.closeFactorCurve = uint64(WAD - c.closeFactorBase);
 
         // Assign the min and max effective closeFactor.
-        ctData.closeFactorMin = config.closeFactorMin;
-        ctData.closeFactorMax = config.closeFactorMax;
+        ct.closeFactorMin = uint64(c.closeFactorMin);
+        ct.closeFactorMax = uint64(c.closeFactorMax);
 
-        // Assign the collateral posted cap of `config.cToken`.
-        collateralCaps[config.cToken] = config.collateralCap;
+        // Assign the collateral posted cap of `c.cToken`.
+        collateralCaps[c.cToken] = c.collateralCap;
 
-        // Assign the outstanding debt cap of `config.cToken`.
-        debtCaps[config.cToken] = config.debtCap;
+        // Assign the outstanding debt cap of `c.cToken`.
+        debtCaps[c.cToken] = c.debtCap;
 
-        emit TokenConfigUpdated(config);
+        emit TokenConfigUpdated(c);
     }
 
     /// @notice Admin function to set market-wide liquidation status.
@@ -994,7 +986,7 @@ contract MarketManagerIsolated is
         _checkAuthorizedPermissions(state);
         _checkIsListedToken(cToken);
 
-        mintPaused[cToken] = state ? 2 : 1;
+        _tokenConfig[cToken].mintPaused = state ? 2 : 1;
         emit TokenActionPaused(cToken, "Mint Paused", state);
     }
 
@@ -1007,7 +999,7 @@ contract MarketManagerIsolated is
         _checkAuthorizedPermissions(state);
         _checkIsListedToken(cToken);
 
-        collateralizationPaused[cToken] = state ? 2 : 1;
+        _tokenConfig[cToken].collateralizationPaused = state ? 2 : 1;
         emit TokenActionPaused(cToken, "Collateralization Paused", state);
     }
 
@@ -1020,7 +1012,7 @@ contract MarketManagerIsolated is
         _checkAuthorizedPermissions(state);
         _checkIsListedToken(cToken);
 
-        borrowPaused[cToken] = state ? 2 : 1;
+        _tokenConfig[cToken].borrowPaused = state ? 2 : 1;
         emit TokenActionPaused(cToken, "Borrow Paused", state);
     }
 
@@ -1061,49 +1053,47 @@ contract MarketManagerIsolated is
     ///         position actions.
     /// @dev Requires timelock authority.
     ///      Emits a {PositionManagerUpdated} event.
-    /// @param newAddress The address to add position management
-    ///                   permissions for.
-    function addPositionManager(address newAddress) external {
-        _checkElevatedPermissions();
+    /// @param newPM The address to add position manager permissions for.
+    function addPositionManager(address newPM) external {
+        _checkMarketPermissions();
 
         if (
             !ERC165Checker.supportsInterface(
-                newAddress,
+                newPM,
                 type(IPositionManager).interfaceId
             )
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Validate `newAddress` does not have permissions.
-        if (isPositionManager[newAddress]) {
+        // Validate `newPM` does not have permissions.
+        if (isPositionManager[newPM]) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Add `isPositionManager` permissions.
-        isPositionManager[newAddress] = true;
+        // Add `isPositionManager` permissions to `newPM`.
+        isPositionManager[newPM] = true;
 
-        emit PositionManagerUpdated(newAddress, true);
+        emit PositionManagerUpdated(newPM, true);
     }
 
     /// @notice Removes an position management address for complex
     ///         position actions.
     /// @dev Requires timelock authority.
     ///      Emits a {PositionManagerUpdated} event.
-    /// @param addressApproved The address to remove position
-    ///                        management permissions for.
-    function removePositionManager(address addressApproved) external {
-        _checkElevatedPermissions();
+    /// @param oldPM The address to remove position manager permissions for.
+    function removePositionManager(address oldPM) external {
+        _checkMarketPermissions();
 
-        // Validate `addressApproved` already has permissions.
-        if (!isPositionManager[addressApproved]) {
+        // Validate `oldPM` already has permissions.
+        if (!isPositionManager[oldPM]) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Remove `isPositionManager` permissions.
-        delete isPositionManager[addressApproved];
+        delete isPositionManager[oldPM];
 
-        emit PositionManagerUpdated(addressApproved, false);
+        emit PositionManagerUpdated(oldPM, false);
     }
 
     /// @notice Called from the Auction DappControl as a post hook
@@ -1133,8 +1123,8 @@ contract MarketManagerIsolated is
 
     /// @notice Sets new dynamic close factor and liquidation penalty
     ///         values in transient storage.
-    /// @dev Transient storage enforces any liquidator outside Auction
-    ///      uses the default risk parameters.
+    /// @dev Transient storage enforces any liquidator outside auction-based
+    ///      liquidations uses the default risk parameters.
     /// @param cToken The Curvance token to set liquidation incentive and
     ///               close factor for during an auction-based liquidation.
     /// @param incentive The auction liquidation incentive value, in WAD.
@@ -1147,25 +1137,22 @@ contract MarketManagerIsolated is
         _checkAuctionPermissions();
         _checkIsListedToken(cToken);
 
-        CurvanceToken memory ctData = tokenData[cToken];
+        CurvanceToken memory c = _tokenConfig[cToken];
 
         // Make sure this token actually can be liquidated, by being
         // collateralizable in the first place.
-        if (ctData.collRatio == 0) {
-            _revert(_UNAUTHORIZED_LIQUIDATION_SELECTOR);
+        if (c.collRatio == 0) {
+            revert MarketManager__UnauthorizedLiquidation();
         }
 
         // Validate `incentive` is within configured incentive bounds.
-        if (incentive < ctData.liqIncMin || incentive > ctData.liqIncMax) {
+        if (incentive < c.liqIncMin || incentive > c.liqIncMax) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Validate `closeFactor` is within configured allowed close factor
         // range.
-        if (
-            closeFactor < ctData.closeFactorMin ||
-            closeFactor > ctData.closeFactorMax
-            ) {
+        if (closeFactor < c.closeFactorMin || closeFactor > c.closeFactorMax) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -1180,9 +1167,11 @@ contract MarketManagerIsolated is
         }
     }
 
-    /// @notice Resets the Auction risk parameters in transient storage to zero.
-    ///         This is redundant since the transient values will be reset 
-    ///         after an Auction tx, but helps to ensure expected behaviour. 
+    /// @notice Resets the liquidation risk parameters in transient storage to
+    ///         zero.
+    /// @dev This is redundant since the transient values will be reset after
+    ///      the liquidation transaction, but can be useful during meta calls
+    ///      with multiple liquidations during a single transaction. 
     function resetLiquidationConfig() external {
         _checkAuctionPermissions();
 
@@ -1196,12 +1185,12 @@ contract MarketManagerIsolated is
 
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice Returns the current auction liquidation values in an active
+    /// @notice Returns the current liquidation values in an active
     ///         transaction.
-    /// @dev If a dynamic liquidation incentive or close factor is set in
+    /// @dev If a liquidation incentive or close factor is set in
     ///      transient storage, that value is returned (0 if no set value).
-    /// @return incentive The auction liquidation incentive value, in WAD.
-    /// @return closeFactor The auction close factor value, in WAD.
+    /// @return incentive The liquidation incentive value, in WAD.
+    /// @return closeFactor The close factor value, in WAD.
     function getLiquidationConfig() public view returns (
         uint256 incentive,
         uint256 closeFactor
@@ -1213,12 +1202,14 @@ contract MarketManagerIsolated is
         }
     }
 
-    /// @inheritdoc ERC165
+    /// @dev Returns true that this contract implements both IMarketManager
+    ///      and ERC165 interfaces.
+    /// @param interfaceId The interface ID to check.
+    /// @return result Whether the contract implements the interface.
     function supportsInterface(
         bytes4 interfaceId
-    ) public view override returns (bool) {
-        return
-            interfaceId == type(IMarketManager).interfaceId ||
+    ) public view override returns (bool result) {
+        result = interfaceId == type(IMarketManager).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
@@ -1255,8 +1246,8 @@ contract MarketManagerIsolated is
             }
         }
 
-        if (borrowPaused[debtToken] == 2) {
-            _revert(_PAUSED_SELECTOR);
+        if (_tokenConfig[debtToken].borrowPaused == 2) {
+            revert MarketManager__Paused();
         }
 
         // Validates that newNetDebt is not an empty value and this borrow
@@ -1317,7 +1308,7 @@ contract MarketManagerIsolated is
         address account
     ) internal view returns (uint256, bool[] memory) {
         if (redeemPaused == 2) {
-            _revert(_PAUSED_SELECTOR);
+            revert MarketManager__Paused();
         }
 
         _checkIsListedToken(cToken);
@@ -1481,13 +1472,8 @@ contract MarketManagerIsolated is
         uint256 badDebt
     ) {
         // Calculate the users lFactor and bubble up their active debt.
-        (
-            aData.lFactor,
-            aData.debtBalance
-        ) = _liquidationValuesOfCached(
-            account,
-            tData
-        );
+        (aData.lFactor, aData.debtBalance) =
+            _liquidationValuesOfCached(account, tData);
 
         if (aData.lFactor == 0) {
             return (0, 0, 0);
@@ -1639,20 +1625,17 @@ contract MarketManagerIsolated is
         TokenLiqData memory tData,
         AccountLiqData memory aData
     ) {
-        CurvanceToken memory ctData = tokenData[collateralToken];
+        CurvanceToken memory c = _tokenConfig[collateralToken];
         // Do not let people liquidate 0% collateralization ratio assets.
-        if (ctData.collRatio == 0) {
+        if (c.collRatio == 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Liquidations are only blocked if an error code of 2 (NO_SOURCE)
         // is calculated.
-        (
-            tData.collateralUnderlyingPrice,
-            tData.debtUnderlyingPrice
-        ) = IOracleManager(
-            centralRegistry.oracleManager()
-        ).getPriceIsolatedPair(collateralToken, debtToken, 2);
+        (tData.collateralUnderlyingPrice, tData.debtUnderlyingPrice) =
+            CommonLib._oracleManager(centralRegistry)
+                .getPriceIsolatedPair(collateralToken, debtToken, 2);
 
         // Will revert if this liquidation is an attempted auction liquidator
         // and liquidator has chosen incorrect collateral or market.
@@ -1661,8 +1644,8 @@ contract MarketManagerIsolated is
         // Cache all variables needed for computing liquidation levels.
         tData.collateralToken = collateralToken;
         tData.collateralExchangeRate = ICToken(collateralToken).exchangeRate();
-        tData.collateralReqSoft = ctData.collReqSoft;
-        tData.collateralReqHard = ctData.collReqHard;
+        tData.collateralReqSoft = c.collReqSoft;
+        tData.collateralReqHard = c.collReqHard;
         tData.collateralDecimals = 10 ** IERC20(collateralToken).decimals();
         tData.debtToken = debtToken;
         tData.debtDecimals = 10 ** IERC20(debtToken).decimals();
@@ -1673,10 +1656,10 @@ contract MarketManagerIsolated is
         // We only need to cache these variables if we did not receive close
         // factor/liquidation incentive from `getLiquidationConfig`.
         if (aData.closeFactor == 0 || aData.liqInc == 0) {
-            aData.closeFactorBase = ctData.closeFactorBase;
-            aData.closeFactorCurve = ctData.closeFactorCurve;
-            aData.liqIncBase = ctData.liqIncBase;
-            aData.liqIncCurve = ctData.liqIncCurve;
+            aData.closeFactorBase = c.closeFactorBase;
+            aData.closeFactorCurve = c.closeFactorCurve;
+            aData.liqIncBase = c.liqIncBase;
+            aData.liqIncCurve = c.liqIncCurve;
         }
     }
 
@@ -1762,8 +1745,8 @@ contract MarketManagerIsolated is
     /// @notice Checks whether `token` is listed in this Market Manager.
     /// @param token The token to check whether it's listed or not.
     function _checkIsListedToken(address token) internal view {
-        if (!tokenData[token].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
+        if (!_tokenConfig[token].isListed) {
+            revert MarketManager__TokenNotListed();
         }
     }
 
@@ -1817,19 +1800,12 @@ contract MarketManagerIsolated is
 
             // This is an attempted auction liquidation, but its misconfigured
             // and unauthorized because of this.
-            _revert(_UNAUTHORIZED_LIQUIDATION_SELECTOR);
+            revert MarketManager__UnauthorizedLiquidation();
         }
 
         // This is not an attempted auction liquidation, so approve the
         // liquidation, but without the auction priority buffer.
         return 0;
-    }
-
-    /// @dev Checks whether the caller has sufficient permissions.
-    function _checkElevatedPermissions() internal view {
-        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
@@ -1856,7 +1832,9 @@ contract MarketManagerIsolated is
             return;
         }
 
-        _checkElevatedPermissions();
+        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
     }
 
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`

@@ -12,7 +12,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
@@ -40,19 +40,24 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         _fork(20287400);
         _init();
 
-        chainlinkAdaptor.addAsset(_STETH, _CHAINLINK_STETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _STETH,
+            true,
+            _CHAINLINK_STETH_USD,
+            0
+        );
         // oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 
         adaptor = new PendleLPTokenAdaptor(
             ICentralRegistry(address(centralRegistry)),
             IPendlePTOracle(_PT_ORACLE)
         );
-        PendleLPTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.twapDuration = 12;
-        adapterData.quoteAsset = _STETH;
-        adapterData.pt = _PT_STETH;
-        adapterData.quoteAssetDecimals = 18;
-        adaptor.addAsset(_LP_STETH, adapterData);
+        PendleLPTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.pt = _PT_STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        adaptor.addAsset(_LP_STETH, assetConfig);
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPriceFeed(_LP_STETH, address(adaptor));
 
@@ -291,7 +296,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
     function testRedeemAndExitPendle() public {
         testEnterPendleWithCTokenWithCollateralize();
 
-        ZapperBase.RedeemAction memory redeemAction;
+        BaseZapper.RedeemAction memory redeemAction;
         redeemAction.cToken = address(pendleCTokenSTETH);
         redeemAction.shares = 1.24 ether;
         redeemAction.forceRedeemCollateral = false;

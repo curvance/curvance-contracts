@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.26;
 
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { console2 } from "forge-std/console2.sol";
 
   // This test demonstrates the liquidation buffer functionality in MarketManagerIsolated.
@@ -67,14 +68,11 @@ contract TestLiquidationBuffer is TestBaseMarketIsolated {
     }
 
     function test_fail_NonAuctionLiquidation() public {
-    
         vm.expectRevert(abi.encodeWithSelector(MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector));    
         borrowableCUSDC.liquidate(borrowers, address(borrowableCDAI));
-
     }
 
     function test_success_AuctionLiquidation() public {
-
         _prepareUSDC(dappControlUser, 1000e6);
 
         vm.startPrank(dappControlUser);

@@ -1,16 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract OracleManagerDeploymentTest is TestBaseOracleManager {
     function test_oracleManagerDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
         vm.expectRevert(
-            OracleManager.OracleManager__InvalidParameter.selector
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
+                .selector
         );
         new OracleManager(ICentralRegistry(address(1)));
     }

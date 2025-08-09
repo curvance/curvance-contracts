@@ -1,15 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
 import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidations.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-
-import "forge-std/console2.sol";
+import { console2 } from "forge-std/console2.sol";
 
 // TODO - ADD ASSERTIONS!!!!
 
@@ -41,8 +37,18 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         super.setUp();
 
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(_USDC_ADDRESS, address(mockUsdcFeed), 0, true);
-        dualChainlinkAdaptor.addAsset(_USDC_ADDRESS, address(mockUsdcFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            address(mockUsdcFeed),
+            0
+        );
+        dualChainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            address(mockUsdcFeed),
+            0
+        );
 
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);

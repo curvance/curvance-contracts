@@ -83,7 +83,8 @@ contract CanCollateralizeTest is TestBaseMarketIsolated {
         vm.stopPrank();
 
         bool hasPosition;
-        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(borrowableCUSDC));
+        (hasPosition, , ) =
+            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
 
         assertTrue(hasPosition);
     }

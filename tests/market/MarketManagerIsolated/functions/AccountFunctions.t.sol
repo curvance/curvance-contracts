@@ -22,7 +22,8 @@ contract AccountFunctionsTest is TestBaseLiquidations {
     }
 
     function test_tokenDataOf() public {
-        (bool hasPosition, uint256 balanceOf, uint256 collateralPostedOf) = auxiliaryData.tokenDataOf(user1, address(strategyCBALRETH));
+        (bool hasPosition, uint256 balanceOf, uint256 collateralPostedOf) =
+            protocolReader.tokenDataOf(user1, address(strategyCBALRETH));
         assertEq(hasPosition, true);
         assertEq(balanceOf, _ONE, "balance of mismatch");
         assertEq(collateralPostedOf, _ONE - 1, "collateral posted mismatch");

@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
+
+import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 
 contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
     function test_universalBalanceDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
         vm.expectRevert(
-            PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
+                .selector
         );
         new UniversalBalance(ICentralRegistry(address(1)), address(borrowableCUSDC));
     }

@@ -45,7 +45,22 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenRepay_success() public {
+        _harvestAuraStrategyRewards(1 weeks);
+
+        uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+        
         borrowableCUSDC.accrueIfNeeded();
+        
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
+        
+        assertGt(debtAfterAccrual, 100e6, "Debt should include accrued interest");
+        assertGt(debtAfterAccrual, debtBeforeAccrual, "Debt should increase after accrual");
+        
+        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
+        assertEq(debtIncrease, assetsIncrease, "Debt increase must equal assets increase");
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = borrowableCUSDC.balanceOf(address(this));
@@ -61,10 +76,29 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
         assertEq(borrowableCUSDC.balanceOf(address(this)), balance);
         assertEq(borrowableCUSDC.totalSupply(), totalSupply);
         assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrows - 100e6);
+        
+        // Verify remaining debt after partial repayment
+        uint256 remainingDebt = borrowableCUSDC.debtBalance(address(this));
+        assertEq(remainingDebt, debtAfterAccrual - 100e6, "Remaining debt should equal accrued debt minus repayment");
     }
 
     function test_borrowableCTokenRepay_success_whenRepayAll() public {
+
+        uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+        
         borrowableCUSDC.accrueIfNeeded();
+        
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
+        
+        assertGt(debtAfterAccrual, 100e6, "Debt should include accrued interest");
+        assertGt(debtAfterAccrual, debtBeforeAccrual, "Debt should increase after accrual");
+        
+        // Critical invariant
+        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
+        assertEq(debtIncrease, assetsIncrease, "Debt increase must equal assets increase");
 
         uint256 debtBalance = borrowableCUSDC.debtBalance(address(this));
         uint256 underlyingBalance = usdc.balanceOf(address(this));
@@ -92,6 +126,9 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
         assertEq(borrowableCUSDC.balanceOf(address(this)), balance);
         assertEq(borrowableCUSDC.totalSupply(), totalSupply);
         assertEq(borrowableCUSDC.marketOutstandingDebt(), expectedTotalBorrows);
+        
+        // Verify all debt is repaid
+        assertEq(borrowableCUSDC.debtBalance(address(this)), 0, "All debt should be repaid");
     }
 
     function test_borrowers_repayAllDebts() public {
@@ -125,6 +162,7 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
 
         // 2. repay user101 and user102 all debt after two days
         skip(2 days);
+        _harvestAuraStrategyRewards(2 weeks);
         for (uint i; i < 2; ++i) {
             address user = users[i];
             vm.startPrank(user);

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseBorrowableCToken } from "tests/market/token/BorrowableCToken/TestBaseBorrowableCToken.sol";
-import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { console2 } from "forge-std/console2.sol";
@@ -23,6 +23,22 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
 
     // Test a single liquidation
     function test_liquidateExact_single_success() public {
+        uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(user1);
+        uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+        
+        borrowableCUSDC.accrueIfNeeded();
+        
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(user1);
+        uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
+        
+        assertGt(debtAfterAccrual, debtBeforeAccrual);
+        
+        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
+        assertEq(debtIncrease, assetsIncrease);
+
+        debtBalancePreLiquidation = borrowableCUSDC.debtBalance(user1);
+
         address[] memory accounts = new address[](1);
         accounts[0] = user1;
         uint256[] memory debtAmounts = new uint256[](1);
@@ -156,10 +172,10 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         );
         
         // Verify collateral exchange rate didn't change
-        assertEq(
+        assertGt(
             strategyCBALRETH.exchangeRate(),
-            1e18,
-            "Exchange rate should remain constant during liquidation"
+            _ONE,
+            "Exchange rate should remain positive during liquidation, strategy should have harvested"
         );
 
         // Verify USDC exchange rate didn't change 

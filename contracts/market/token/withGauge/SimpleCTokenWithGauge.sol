@@ -19,14 +19,13 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract SimpleCTokenWithGauge is BaseCTokenWithGauge {
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param cr The address of the Protocol Central Registry.
     /// @param asset_ The address of the underlying asset for this cToken.
-    /// @param marketManager_ The address of the MarketManager which manages
-    ///                       liquidity positions between linked cTokens
-    ///                       inside a joint market.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         IERC20 asset_,
-        address marketManager_
-    ) BaseCTokenWithGauge(centralRegistry_, asset_, marketManager_) {}
+        address mm
+    ) BaseCTokenWithGauge(cr, asset_, mm) {}
 }

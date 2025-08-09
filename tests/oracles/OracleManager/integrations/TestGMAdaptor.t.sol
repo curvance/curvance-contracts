@@ -5,7 +5,11 @@ import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { GMAdaptor } from "contracts/oracles/adaptors/gmx/GMAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract TestGMAdaptor is TestBaseOracleManager {
@@ -37,9 +41,24 @@ contract TestGMAdaptor is TestBaseOracleManager {
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
-        chainlinkAdaptor.addAsset(_WBTC_ADDRESS, _CHAINLINK_WBTC_USD, 0, true);
-        chainlinkAdaptor.addAsset(_USDC_ADDRESS, _CHAINLINK_USDC_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _WBTC_ADDRESS,
+            true,
+            _CHAINLINK_WBTC_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            _CHAINLINK_USDC_USD,
+            0
+        );
 
         oracleManager.addAssetPriceFeed(
             _ETH_ADDRESS,
@@ -61,8 +80,7 @@ contract TestGMAdaptor is TestBaseOracleManager {
 
     function testDeploymentRevertWhenCentralRegistryIsInvalid() public {
         vm.expectRevert(
-            BaseOracleAdaptor
-                .BaseOracleAdaptor__InvalidCentralRegistry
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
                 .selector
         );
         new GMAdaptor(
@@ -134,7 +152,7 @@ contract TestGMAdaptor is TestBaseOracleManager {
     function testRemoveAssetRevertWhenGCTokenIsNotSupported() public {
         adaptor.removeAsset(_GM_BTC_USDC);
 
-        vm.expectRevert(GMAdaptor.GMAdaptor__AssetIsNotSupported.selector);
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector);
         adaptor.removeAsset(_GM_BTC_USDC);
     }
 

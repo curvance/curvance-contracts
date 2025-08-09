@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseNativeUniversalBalance } from "../TestBaseNativeUniversalBalance.sol";
 import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBalance.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
+
+import { TestBaseNativeUniversalBalance } from "../TestBaseNativeUniversalBalance.sol";
 
 contract NativeUniversalBalanceDeploymentTest is
     TestBaseNativeUniversalBalance
@@ -13,7 +16,8 @@ contract NativeUniversalBalanceDeploymentTest is
         public
     {
         vm.expectRevert(
-            PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
+                .selector
         );
         new NativeUniversalBalance(
             ICentralRegistry(address(1)),

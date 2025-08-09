@@ -12,6 +12,17 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 ///      totalAssets is not actually using the balances stored in the
 ///      contract, rather it only uses an internal balance.
 abstract contract StrategyCToken is BaseCTokenWithYield {
+    /// TYPES ///
+
+    /// @notice Storage configuration for pending vesting update.
+    /// @param updateNeeded Whether there is a pending update to vault
+    ///                     vesting schedule.
+    /// @param newVestingPeriod The pending new compounding vesting schedule.
+    struct NewVestingData {
+        bool updateNeeded;
+        uint248 newVestingPeriod;
+    }
+
     /// CONSTANTS ///
 
     /// @dev Mask of vesting rate in `_vestingData`.
@@ -29,6 +40,10 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     /// @notice Whether harvesting is currently paused.
     /// @dev Starts paused until market started, 1 = unpaused; 2 = paused.
     uint256 public harvestingPaused = 2;
+
+    /// @notice Whether there is a pending update to vesting period,
+    ///         after this vesting period ends.
+    NewVestingData public pendingVestingPeriodUpdate;
 
     /// @notice Whether a particular token is an approved asset for swapping.
     /// @dev Token => Is approved swap token.
@@ -50,26 +65,32 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of the Protocol Central Registry.
+    /// @param cr The address of the Protocol Central Registry.
     /// @param asset_ The address of the underlying asset for this cToken.
-    /// @param marketManager_ The address of the MarketManager which manages
-    ///                       liquidity positions between linked cTokens
-    ///                       inside a joint market.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
     /// @param vestingPeriod_ The length of time a vesting period will last,
     ///                       in seconds.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         IERC20 asset_,
-        address marketManager_,
+        address mm,
         uint256 vestingPeriod_
-    ) BaseCTokenWithYield(
-        centralRegistry_,
-        asset_,
-        marketManager_,
-        vestingPeriod_
-    ) {}
+    ) BaseCTokenWithYield(cr, asset_, mm, vestingPeriod_) {}
 
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Permissioned function to set a new compounding vesting period.
+    /// @dev Requires dao authority, `newVestingPeriod` cannot be longer
+    ///      than `_MAXIMUM_VESTING_PERIOD` (3 days).
+    /// @param newPeriod New vesting period, in seconds.
+    function setVestingPeriod(uint256 newPeriod) external {
+        _checkDaoPermissions();
+        _checkVestingPeriod(newPeriod);
+
+        pendingVestingPeriodUpdate.updateNeeded = true;
+        pendingVestingPeriodUpdate.newVestingPeriod = uint248(newPeriod);
+    }
 
     /// @notice Permissioned function to set harvesting paused.
     /// @dev Requires elevated authority if unpausing.
@@ -92,19 +113,19 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
         emit HarvestingPaused(state);
     }
 
-    /// @notice Returns the current cToken yield status information.
-    /// @return vestingRate Yield per second in `asset()`.
-    /// @return vestingPeriodEnd When the current vesting period ends and
-    ///                          a new harvest can execute.
+    /// @notice Returns the current vesting yield information.
+    /// @return vestingRate % per second in `asset()`.
+    /// @return vestingEnd When the current vesting period ends and a new
+    ///                    harvest can execute.
     /// @return lastVestingClaim Last time pending vested yield was claimed.
-    function getVestingYieldData() external view nonReadReentrant returns (
+    function getYieldInformation() external view nonReadReentrant returns (
         uint256 vestingRate,
-        uint256 vestingPeriodEnd,
+        uint256 vestingEnd,
         uint256 lastVestingClaim
     ) {
         uint256 vestingData = _vestingData;
         vestingRate = uint176(vestingData);
-        vestingPeriodEnd = uint40(vestingData >> _BITPOS_VEST_END);
+        vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
         lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
     }
 
@@ -116,77 +137,70 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
 
     /// @notice Vests pending rewards, and updates vesting data.
     function _accrueIfNeeded() internal override {
-        uint256 yieldToVest = _getPendingYield();
+        uint256 assetsToVest = _assetsToVest();
         
-        // Vest pending yield, if there is any.
-        if (yieldToVest > 0) {
+        // Vest pending assets, if there is any.
+        if (assetsToVest > 0) {
             // Update the lastVestingClaim timestamp.
             _setlastVestingClaim(uint40(block.timestamp));
             
-            // Update _totalAssets invariant with pending yield added.
-            _totalAssets = _totalAssets + yieldToVest;
+            // Update _totalAssets invariant with vested assets added.
+            _totalAssets = _totalAssets + assetsToVest;
         }
     }
 
-    /// @notice Calculates pending yield that have been vested.
-    /// @dev If there are no pending yield or the vesting period has ended,
+    /// @notice Calculates pending assets that have been vested.
+    /// @dev If there are no pending assets or the vesting period has ended,
     ///      it returns 0.
-    /// @return pendingYield The calculated pending yield.
-    function _getPendingYield() internal view override returns (
-        uint256 pendingYield
-    ) {
+    /// @return assets The calculated pending assets to vest.
+    function _assetsToVest() internal view override returns (uint256 assets) {
         // Cache vesting data.
         uint256 vestingData = _vestingData;
-        pendingYield =  _getPendingYield(
+        assets =  _assetsToVest(
             uint176(vestingData),
             uint40(vestingData >> _BITPOS_VEST_END),
             uint40(vestingData >> _BITPOS_LAST_VEST)
         );
     }
 
-    /// @notice Calculates pending yield that has been vested.
-    /// @dev If there are no pending yield or the vesting period has ended,
+    /// @notice Calculates pending assets that have been vested.
+    /// @dev If there are no pending assets or the vesting period has ended,
     ///      it returns 0.
-    /// @return pendingYield The calculated pending yield, in assets.
-    function _getPendingYield(
+    /// @return assets The calculated pending assets to vest.
+    function _assetsToVest(
         uint256 vestingRate,
-        uint256 vestingPeriodEnd,
+        uint256 vestingEnd,
         uint256 lastVestingClaim
-    )
-        internal
-        view
-        returns (uint256 pendingYield)
-    {
+    ) internal view returns (uint256 assets) {
         // Check whether there are pending yield vesting.
-        if (vestingRate > 0 && lastVestingClaim < vestingPeriodEnd) {
+        if (vestingRate > 0 && lastVestingClaim < vestingEnd) {
             // When calculating pending yield:
-            // pendingYield =
+            // assets =
             // If the vesting period has not ended:
             // PY = vestingRate * (block.timestamp - lastTimeVestClaimed).
             // If the vesting period has ended:
-            // PY = vestingRate * (vestingPeriodEnd - lastTimeVestClaimed)).
+            // PY = vestingRate * (vestingEnd - lastTimeVestClaimed)).
             // Then in either case:
             // Divide the pending yield by `WAD` (1e18) for precision.
-            pendingYield =
+            assets =
                 (
-                    block.timestamp < vestingPeriodEnd
+                    block.timestamp < vestingEnd
                         ? vestingRate * (block.timestamp - lastVestingClaim)
-                        : vestingRate * (vestingPeriodEnd - lastVestingClaim)
-                ) /
-                WAD;
+                        : vestingRate * (vestingEnd - lastVestingClaim)
+                ) / WAD;
         }
     }
 
-    /// @notice Sets a new `_vestingData` invariant based on `yieldToVest`,
+    /// @notice Sets a new `_vestingData` invariant based on `assetsToVest`,
     ///         calculated from the yield generated by a strategy.
-    /// @param yieldToVest The yield to vest over `vestingPeriod`.
-    function _setVestingData(uint256 yieldToVest) internal {
+    /// @param assetsToVest The yield to vest over `vestingPeriod`.
+    function _setVestingData(uint256 assetsToVest) internal {
         uint256 cachedVestingPeriod = vestingPeriod;
 
-        // Set yield vesting rate equal to `yieldToVest` prorated over
-        // `periodToVest`, in `WAD` (1e18).
+        // Set yield vesting rate equal to `assetsToVest` prorated over
+        // `vestingPeriod`, in `WAD` (1e18).
         uint256 newVestingRate =
-            FixedPointMathLib.mulDiv(yieldToVest, WAD, cachedVestingPeriod);
+            FixedPointMathLib.mulDiv(assetsToVest, WAD, cachedVestingPeriod);
         uint256 newVestingEnd = block.timestamp + cachedVestingPeriod;
         
         // Reuse `cachedVestingPeriod` as a temporary variable to store the
@@ -233,8 +247,7 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     function _checkVestingFinished(
         uint256 vestingData
     ) internal pure override returns (bool result) {
-        result = 
-            uint40(vestingData >> _BITPOS_LAST_VEST) >=
+        result =  uint40(vestingData >> _BITPOS_LAST_VEST) >=
             uint40(vestingData >> _BITPOS_VEST_END);
     }
 
@@ -273,6 +286,19 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
 
         _setlastVestingClaim(uint40(block.timestamp));
         harvestingPaused = 1;
+    }
+
+    /// @notice Updates the vesting period, if needed.
+    /// @dev If there a pending vesting update,
+    ///      and prior vest is done then `vestingPeriod` is updated.
+    function _updateVestingPeriodIfNeeded() internal {
+        // Check whether there is a pending update to reward vesting schedule.
+        if (pendingVestingPeriodUpdate.updateNeeded) {
+            // Update vesting period.
+            vestingPeriod = pendingVestingPeriodUpdate.newVestingPeriod;
+            // Remove pending vesting update flag.
+            delete pendingVestingPeriodUpdate.updateNeeded;
+        }
     }
 
     /// @notice Checks if the caller can harvest pending strategy yield.

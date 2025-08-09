@@ -318,12 +318,12 @@ contract TestETokenReserves is TestBaseMarketIsolated {
                     ICentralRegistry(address(centralRegistry)),
                     token,
                     address(marketManagerIsolated),
-                    _deployDynamicInterestRateModel(token)
+                    _deployDynamicIRM(token)
                 )
             )
         );
 
-        interestRateModels[block.chainid][token].setLinkedToken(
+        IRMs[block.chainid][token].setLinkedToken(
             address(eToken)
         );
 

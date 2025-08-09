@@ -2,18 +2,18 @@
 pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IReader } from "contracts/interfaces/external/gmx/IReader.sol";
 
 contract GMAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
-    /// @title Synthetic Asset
     /// @notice Holds information regarding synthetic asset data
     ///         for synthetic-asset denominated GM tokens.
     /// @param asset The address of synthetic asset for native token.
@@ -49,14 +49,13 @@ contract GMAdaptor is BaseOracleAdaptor {
 
     /// EVENTS ///
 
-    event GMXGMAssetAdded(
+    event AssetAdded(
         address asset,
         address[] marketTokens,
         bool isSynthetic,
         address alteredToken,
         bool isUpdate
     );
-    event GMXGMAssetRemoved(address asset);
 
     /// ERRORS ///
 
@@ -65,20 +64,19 @@ contract GMAdaptor is BaseOracleAdaptor {
     error GMAdaptor__GMXDataStoreIsZeroAddress();
     error GMAdaptor__MarketIsInvalid();
     error GMAdaptor__AlteredTokenIsInvalid();
-    error GMAdaptor__AssetIsNotSupported();
     error GMAdaptor__MarketTokenIsNotSupported(address token);
 
     /// CONSTRUCTOR ///
 
     /// @dev Only deployable on Arbitrum.
-    /// @param centralRegistry_ The address of central registry.
+    /// @param cr The address of central registry.
     /// @param gmxReader_ The address of GMX Reader.
     /// @param gmxDataStore_ The address of GMX DataStore.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address gmxReader_,
         address gmxDataStore_
-    ) BaseOracleAdaptor(centralRegistry_) {
+    ) BaseOracleAdaptor(cr) {
         if (block.chainid != 42161) {
             revert GMAdaptor__ChainIsNotSupported();
         }
@@ -95,22 +93,21 @@ contract GMAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the asset for which the price is needed.
     /// @param getLower A boolean to determine if lower of two oracle prices
     ///                 should be retrieved.
-    /// @return pData A structure containing the price, error status,
-    ///               and the quote format of the price.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
     function getPrice(
         address asset,
         bool /* inUSD */,
         bool getLower
-    ) external view override returns (PriceReturnData memory pData) {
-        // Validate we support pricing `asset`.
-        if (!isSupportedAsset[asset]) {
-            revert GMAdaptor__AssetIsNotSupported();
-        }
+    ) external view override returns (PricingResult memory result) {
+        _checkSupportedAsset(asset);
 
         // Cache the Oracle Manager.
-        IOracleManager oracleManager = IOracleManager(
-            centralRegistry.oracleManager()
-        );
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
 
         uint256[] memory prices = new uint256[](3);
         address[] memory tokens = marketData[asset];
@@ -122,14 +119,10 @@ contract GMAdaptor is BaseOracleAdaptor {
         for (uint256 i; i < 3; ++i) {
             token = tokens[i];
 
-            (prices[i], errorCode) = oracleManager.getPrice(
-                token,
-                true,
-                getLower
-            );
+            (prices[i], errorCode) = om.getPrice(token, true, getLower);
             if (errorCode > 0) {
-                pData.hadError = true;
-                return pData;
+                result.hadError = true;
+                return result;
             }
 
             prices[i] = (prices[i] * 1e30) / _priceUnit[token];
@@ -149,21 +142,21 @@ contract GMAdaptor is BaseOracleAdaptor {
         // Make sure we got a positive price, bubble up an error,
         // if we got 0 or a negative number.
         if (price <= 0) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
         // Convert from 30 decimals to standardized 18.
         uint256 newPrice = uint256(price) / 1e12;
 
         // Validate price will not overflow on conversion to uint240.
-        if (_checkOracleOverflow(newPrice)) {
-            pData.hadError = true;
-            return pData;
+        if (_checkOverflow(newPrice)) {
+            result.hadError = true;
+            return result;
         }
 
-        pData.inUSD = true;
-        pData.price = uint240(newPrice);
+        result.inUSD = true;
+        result.price = uint240(newPrice);
     }
 
     /// @notice Adds pricing support for `asset`, a GMX GM token.
@@ -201,9 +194,7 @@ contract GMAdaptor is BaseOracleAdaptor {
             revert GMAdaptor__AlteredTokenIsInvalid();
         }
 
-        IOracleManager oracleManager = IOracleManager(
-            centralRegistry.oracleManager()
-        );
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
 
         address[] memory tokens = new address[](4);
         tokens[0] = isSynthetic ? alteredToken : market.indexToken;
@@ -217,7 +208,7 @@ contract GMAdaptor is BaseOracleAdaptor {
         for (uint256 i; i < 3; ++i) {
             token = tokens[i];
 
-            if (!oracleManager.isSupportedAsset(token)) {
+            if (!om.isSupportedAsset(token)) {
                 revert GMAdaptor__MarketTokenIsNotSupported(token);
             }
 
@@ -226,7 +217,7 @@ contract GMAdaptor is BaseOracleAdaptor {
             }
         }
 
-        // Save adaptor data and update mapping that we support `asset` now.
+        // Save `tokens` and update mapping that we support `asset` now.
         marketData[asset] = tokens;
 
         // Check whether this is new or updated support for `asset`.
@@ -236,7 +227,7 @@ contract GMAdaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit GMXGMAssetAdded(
+        emit AssetAdded(
             asset,
             tokens,
             isSynthetic,
@@ -245,38 +236,12 @@ contract GMAdaptor is BaseOracleAdaptor {
         );
     }
 
-    /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Manager to notify it of its removal.
-    ///      Requires that `asset` is currently supported.
-    /// @param asset The address of the supported asset to remove from
-    ///              the adaptor.
-    function removeAsset(address asset) external override {
-        _checkElevatedPermissions();
-
-        // Validate that `asset` is currently supported.
-        if (!isSupportedAsset[asset]) {
-            revert GMAdaptor__AssetIsNotSupported();
-        }
-
-        // Wipe config mapping entries for a gas refund.
-        // Notify the adaptor to stop supporting the asset.
-        delete isSupportedAsset[asset];
-        delete marketData[asset];
-
-        // Notify the Oracle Manager that we are going to
-        // stop supporting the asset.
-        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
-            asset
-        );
-        emit GMXGMAssetRemoved(asset);
-    }
-
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
     /// @return The adaptor's type.
     function adaptorType() external pure override returns (uint256) {
-        return 16;
+        return 14;
     }
 
     /// PERMISSIONED FUNCTIONS ///
@@ -284,7 +249,7 @@ contract GMAdaptor is BaseOracleAdaptor {
     /// @notice Permissioned function to set a new GMX Reader address.
     /// @param newReader The address to set as the new GMX Reader.
     function setGMXReader(address newReader) external {
-        _checkDaoPermissions();
+        _checkMarketPermissions();
 
         _setGMXReader(newReader);
     }
@@ -292,7 +257,7 @@ contract GMAdaptor is BaseOracleAdaptor {
     /// @notice Permissioned function to set a new GMX DataStore address.
     /// @param newDataStore The address to set as the new GMX DataStore.
     function setGMXDataStore(address newDataStore) external {
-        _checkDaoPermissions();
+        _checkMarketPermissions();
 
         _setGMXDataStore(newDataStore);
     }
@@ -317,5 +282,26 @@ contract GMAdaptor is BaseOracleAdaptor {
         }
 
         gmxDataStore = newDataStore;
+    }
+
+    /// INTERNAL FUNCTIONS TO OVERRIDE ///
+
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
+    /// @param asset The address of the asset for which the price is needed.
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
+    function _getPrice(
+        address asset,
+        bool inUSD
+    ) internal view virtual override returns (PricingResult memory result) {}
+
+    /// @notice Wipes supported asset pricing configs from an adaptor.
+    function _wipeAssetConfigs(address asset) internal override {
+        delete marketData[asset];
     }
 }

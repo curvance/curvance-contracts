@@ -43,7 +43,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         _depositCollateral();
         _delegateToUser();
 
-        skip(69 minutes);
+        _harvestAuraStrategyRewards(1 weeks);
 
         uint256 assetsHeld = borrowableCUSDC.assetsHeld();
 
@@ -65,6 +65,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         _delegateToUser();
 
         skip(69 minutes);
+        _harvestAuraStrategyRewards(1 weeks);
 
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 0);
 
@@ -127,6 +128,25 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         assertEq(borrowableCUSDC.balanceOf(user1), balance);
         assertEq(borrowableCUSDC.totalSupply(), totalSupply);
         assertEq(borrowableCUSDC.marketOutstandingDebt(), totalDebt + 100e6);
+
+        skip(1 hours);
+        _harvestAuraStrategyRewards(1 weeks);
+        
+        uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(user1);
+        uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+        
+        borrowableCUSDC.accrueIfNeeded();
+        
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(user1);
+        uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
+        
+        assertGt(debtAfterAccrual, 100e6, "Debt should include accrued interest");
+        assertGt(debtAfterAccrual, debtBeforeAccrual, "Debt should increase after accrual");
+        
+        // Critical invariant
+        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
+        assertEq(debtIncrease, assetsIncrease, "Debt increase must equal assets increase");
     }
 
     function test_borrowableCTokenBorrowForSendToDelegatee_success() public {
@@ -152,6 +172,27 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         assertEq(borrowableCUSDC.balanceOf(user2), balance);
         assertEq(borrowableCUSDC.totalSupply(), totalSupply);
         assertEq(borrowableCUSDC.marketOutstandingDebt(), totalDebt + 100e6);
+
+        // Test interest accrual over time  
+        skip(1 hours);
+        _harvestAuraStrategyRewards(1 weeks);
+        
+        uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(user1);
+        uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+        
+        borrowableCUSDC.accrueIfNeeded();
+        
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(user1);
+        uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
+        
+        // Verify interest accrued
+        assertGt(debtAfterAccrual, 100e6, "Debt should include accrued interest");
+        assertGt(debtAfterAccrual, debtBeforeAccrual, "Debt should increase after accrual");
+        
+        // Critical invariant
+        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
+        assertEq(debtIncrease, assetsIncrease, "Debt increase must equal assets increase");
     }
 
     function _delegateToUser() internal {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ZapperBase, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper, ICentralRegistry } from "contracts/plugins/BaseZapper.sol";
 
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -10,7 +10,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 
-contract VelodromeZapper is ZapperBase {
+contract VelodromeZapper is BaseZapper {
     /// TYPES ///
 
     /// @param inputToken Address of input token to zap from.
@@ -35,10 +35,7 @@ contract VelodromeZapper is ZapperBase {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        address wrappedNative_
-    ) ZapperBase(centralRegistry_, wrappedNative_) {}
+    constructor(ICentralRegistry cr, address wNative) BaseZapper(cr, wNative) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -100,8 +97,8 @@ contract VelodromeZapper is ZapperBase {
             router,
             factory,
             zapAction.outputToken,
-            CommonLib._getBalanceOf(IVeloPair(zapAction.outputToken).token0()),
-            CommonLib._getBalanceOf(IVeloPair(zapAction.outputToken).token1()),
+            CommonLib._balanceOf(IVeloPair(zapAction.outputToken).token0()),
+            CommonLib._balanceOf(IVeloPair(zapAction.outputToken).token1()),
             zapAction.minimumOut
         );
 
@@ -257,7 +254,7 @@ contract VelodromeZapper is ZapperBase {
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
+        outAmount = CommonLib._balanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapAction.minimumOut) {
             revert VelodromeZapper__SlippageError();

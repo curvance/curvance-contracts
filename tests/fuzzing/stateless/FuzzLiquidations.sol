@@ -1,6 +1,6 @@
 // pragma solidity 0.8.26;
 
-// import { WAD } from "contracts/libraries/Constants.sol";
+// import { WAD } from "contracts/libraries/ConstantsLib.sol";
 // import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 // import { ICToken } from "contracts/interfaces/ICToken.sol";
 // import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";

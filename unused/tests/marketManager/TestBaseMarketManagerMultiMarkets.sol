@@ -6,8 +6,7 @@ import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
 import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import "forge-std/console2.sol";

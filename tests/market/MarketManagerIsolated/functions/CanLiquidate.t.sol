@@ -2,8 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 

@@ -25,11 +25,9 @@ abstract contract BalancerBaseAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        IVault balancerVault_
-    ) BaseOracleAdaptor(centralRegistry_) {
-        balancerVault = balancerVault_;
+    /// @param cr The address of central registry.
+    constructor(ICentralRegistry cr, IVault vault) BaseOracleAdaptor(cr) {
+        balancerVault = vault;
     }
 
     /// INTERNAL FUNCTIONS ///

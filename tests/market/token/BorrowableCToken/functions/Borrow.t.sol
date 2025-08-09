@@ -32,7 +32,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         strategyCBALRETH.deposit(_ONE, address(this));
         strategyCBALRETH.postCollateral(_ONE);
 
-        skip(69 minutes);
+        _harvestAuraStrategyRewards(1 weeks);
 
         uint256 assetsHeld = borrowableCUSDC.assetsHeld();
 
@@ -57,6 +57,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         strategyCBALRETH.postCollateral(_ONE);
 
         skip(69 minutes);
+        _harvestAuraStrategyRewards(1 weeks);
 
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 0);
 
@@ -82,9 +83,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenBorrow_success() public {
-
         borrowableCUSDC.deposit(200e6, address(this));
-
         strategyCBALRETH.postCollateral(1e18 - 1);
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
@@ -97,12 +96,30 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
         borrowableCUSDC.borrow(100e6, address(this));
 
-
-
+        // Initial assertions
         assertEq(usdc.balanceOf(address(this)), underlyingBalance + 100e6);
         assertEq(borrowableCUSDC.balanceOf(address(this)), balance);
         assertEq(borrowableCUSDC.totalSupply(), totalSupply);
         assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrows + 100e6);
+
+        // Test interest accrual over time
+        _harvestAuraStrategyRewards(1 weeks);
+
+        uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+
+        borrowableCUSDC.accrueIfNeeded();
+
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
+
+        assertGt(debtAfterAccrual, 100e6, "Debt should include accrued interest");
+        assertGt(debtAfterAccrual, debtBeforeAccrual, "Debt should increase after accrual");
+
+        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
+        assertEq(debtIncrease, assetsIncrease, "Debt increase must equal assets increase");
     }
+
 
 }

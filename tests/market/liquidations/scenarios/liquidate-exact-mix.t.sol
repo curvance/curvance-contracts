@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
+
 import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidations.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-
-import "forge-std/console2.sol";
+import { console2 } from "forge-std/console2.sol";
 
 // ## Scenario 4: Mixed Auction and Regular Liquidations, with a mix of liquidateExact() and liquidate()
 // - Setup: 4 users with varying positions
@@ -41,15 +38,15 @@ contract LiquidateExactMix is TestBaseLiquidations {
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(mockUsdcFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(mockUsdcFeed),
-            0,
-            true
+            0
         );
 
         // use mock pricing for testing
@@ -283,8 +280,6 @@ contract LiquidateExactMix is TestBaseLiquidations {
 
         // Verify remaining debt calculation was correct
         assertApproxEqAbs(remainingDebt_after_third, 0, 1, "Remaining debt should be approximately zero");
-        
-
     }
 
     function _createPositions() internal {
@@ -295,7 +290,6 @@ contract LiquidateExactMix is TestBaseLiquidations {
         strategyCBALRETH.depositAsCollateral(collateralAmountStart, borrower1);
         borrowableCUSDC.borrow(borrowAmount, borrower1);
         vm.stopPrank();
-
     }
 
     function _getLFactorPreLiquidation(address _borrower) internal view returns (uint256 lFactor) {

@@ -3,9 +3,8 @@ pragma solidity ^0.8.19;
 
 import { TestBaseBorrowableCToken } from "tests/market/token/BorrowableCToken/TestBaseBorrowableCToken.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import "forge-std/console2.sol";
 
 // NOTE: Test also uses canLiquidate for extra accounting checks
@@ -21,6 +20,21 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
 
     // Test a single liquidation
     function test_liquidate_single_success() public {
+        uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(user1);
+        uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+        
+        borrowableCUSDC.accrueIfNeeded();
+        
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(user1);
+        uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
+        
+        assertGt(debtAfterAccrual, 1000e6);
+        assertGt(debtAfterAccrual, debtBeforeAccrual);
+        
+        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
+        assertEq(debtIncrease, assetsIncrease);
+
         address[] memory accounts = new address[](1);
         accounts[0] = user1;
 
@@ -78,7 +92,7 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         assertEq(expectedLiquidationValues.debtRepaid, result.debtRepaid, "Debt repaid mismatch");
 
         assertEq(borrowableCUSDC.debtBalance(user1), 0, "borrowableCUSDC debt balance mismatch");
-        assertEq(strategyCBALRETH.exchangeRate(), _ONE, "strategyCBALRETH exchange rate mismatch");
+        assertGt(strategyCBALRETH.exchangeRate(), _ONE, "strategyCBALRETH exchange rate mismatch, strategy should have harvested");
         assertLt(borrowableCUSDC.exchangeRate(), _ONE, "borrowableCUSDC exchange rate mismatch, there should be bad debt");
         assertEq(strategyCBALRETH.balanceOf(user2), _ONE - 1, "Liquidator strategyCBALRETH balance mismatch");
         assertEq(usdc.balanceOf(user2), 1000e6 - result.debtRepaid, "Liquidator USDC balance mismatch");
@@ -110,6 +124,7 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
 
         // skip min hold period
         skip(20 minutes);
+        _harvestAuraStrategyRewards(1 weeks);
 
         mockWethFeed.setMockAnswer(1000e8);
         mockRethFeed.setMockAnswer(1000e8);

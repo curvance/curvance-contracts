@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ZapperBase, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper, ICentralRegistry } from "contracts/plugins/BaseZapper.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
@@ -9,7 +9,7 @@ import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 
-contract SimpleRewardZapper is ZapperBase {
+contract SimpleRewardZapper is BaseZapper {
     /// CONSTANTS ///
 
     /// @notice Curvance Reward Manager.
@@ -27,16 +27,12 @@ contract SimpleRewardZapper is ZapperBase {
     error SimpleRewardZapper__IsAlreadyAuthorized();
     error SimpleRewardZapper__IsNotAuthorized();
     error SimpleRewardZapper__InvalidInputAmount();
-    error SimpleRewardZapper__ExecutionError();
     error SimpleRewardZapper__InvalidRewardManager();
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        address wrappedNative_
-    ) ZapperBase(centralRegistry_, wrappedNative_) {
-        address rewardManager_ = centralRegistry_.rewardManager();
+    constructor(ICentralRegistry cr, address wNative) BaseZapper(cr, wNative) {
+        address rewardManager_ = cr.rewardManager();
 
         // Validate that Reward Manager is properly configured inside
         // the Central Registry.
@@ -76,7 +72,7 @@ contract SimpleRewardZapper is ZapperBase {
         // rather than hardcoding input here this also acts as check that
         // solver API call instructions have been configured properly.
         if (swapAction.inputToken != _getFeeToken()) {
-            revert SimpleRewardZapper__ExecutionError();
+            revert BaseZapper__ExecutionError();
         }
 
         // Validate that the desired output token is approved.
@@ -99,7 +95,7 @@ contract SimpleRewardZapper is ZapperBase {
         // all prior checks, slippage checks are native handled by the solver
         // so we do not need to measure slippage % here.
         if (outAmount == 0) {
-            revert SimpleRewardZapper__ExecutionError();
+            revert BaseZapper__ExecutionError();
         }
 
         // Transfer output tokens to `receiver`.
@@ -144,7 +140,7 @@ contract SimpleRewardZapper is ZapperBase {
         // Manager, rather than hardcoding input here this also acts as check
         // that solver API call instructions have been configured properly.
         if (swapAction.inputToken != _getFeeToken()) {
-            revert SimpleRewardZapper__ExecutionError();
+            revert BaseZapper__ExecutionError();
         }
 
         // We do not need to check for an output token approval here since all
@@ -212,7 +208,7 @@ contract SimpleRewardZapper is ZapperBase {
         // Manager, rather than hardcoding input here this also acts as check
         // that solver API call instructions have been configured properly.
         if (swapAction.inputToken != rewardToken) {
-            revert SimpleRewardZapper__ExecutionError();
+            revert BaseZapper__ExecutionError();
         }
 
         // Claim caller rewards and cache reward amount.
@@ -230,7 +226,7 @@ contract SimpleRewardZapper is ZapperBase {
             // Validate that if we are swapping that the output token
             // matches `debtAsset`.
             if (swapAction.outputToken != debtAsset) {
-                revert SimpleRewardZapper__ExecutionError();
+                revert BaseZapper__ExecutionError();
             }
 
             // Swap from `rewardToken` into `debtAsset`.
@@ -306,14 +302,14 @@ contract SimpleRewardZapper is ZapperBase {
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkDaoPermissions() internal view {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert BaseZapper__Unauthorized();
         }
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkElevatedPermissions() internal view {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert BaseZapper__Unauthorized();
         }
     }
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ZapperBase, SwapperLib, CommonLib, IPToken, SafeTransferLib, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper, SwapperLib, CommonLib, IPToken, SafeTransferLib, ICentralRegistry } from "contracts/plugins/BaseZapper.sol";
 
 import { CurveLib } from "contracts/libraries/CurveLib.sol";
 import { BalancerLib } from "contracts/libraries/BalancerLib.sol";
@@ -11,7 +11,7 @@ import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 
-contract ComplexZapper is ZapperBase {
+contract ComplexZapper is BaseZapper {
     /// TYPES ///
 
     /// @param inputToken Address of input token to Zap from.
@@ -50,7 +50,7 @@ contract ComplexZapper is ZapperBase {
     constructor(
         ICentralRegistry centralRegistry_,
         address wrappedNative_
-    ) ZapperBase(centralRegistry_, wrappedNative_) {}
+    ) BaseZapper(centralRegistry_, wrappedNative_) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -405,8 +405,8 @@ contract ComplexZapper is ZapperBase {
             router,
             factory,
             zapAction.outputToken,
-            CommonLib._getBalanceOf(IVeloPair(zapAction.outputToken).token0()),
-            CommonLib._getBalanceOf(IVeloPair(zapAction.outputToken).token1()),
+            CommonLib._balanceOf(IVeloPair(zapAction.outputToken).token0()),
+            CommonLib._balanceOf(IVeloPair(zapAction.outputToken).token1()),
             zapAction.minimumOut
         );
 
@@ -673,7 +673,7 @@ contract ComplexZapper is ZapperBase {
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
+        outAmount = CommonLib._balanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapAction.minimumOut) {
             revert ComplexZapper__SlippageError();
@@ -727,7 +727,7 @@ contract ComplexZapper is ZapperBase {
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
+        outAmount = CommonLib._balanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapAction.minimumOut) {
             revert ComplexZapper__SlippageError();
@@ -764,7 +764,7 @@ contract ComplexZapper is ZapperBase {
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
+        outAmount = CommonLib._balanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapAction.minimumOut) {
             revert ComplexZapper__SlippageError();
@@ -810,7 +810,7 @@ contract ComplexZapper is ZapperBase {
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
+        outAmount = CommonLib._balanceOf(zapAction.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapAction.minimumOut) {
             revert ComplexZapper__SlippageError();

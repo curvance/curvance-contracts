@@ -9,9 +9,10 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
+import { VaultZapper } from "contracts/plugins/market/VaultZapper.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
@@ -33,13 +34,14 @@ contract DeployMarkets is Script {
     }
 
     struct ListConfig {
-        address underlyingAddress;
+        address asset;
         bool canBorrow;
         MarketManagerIsolated.TokenConfig tokenConfig;
         DynamicInterestRateConfig interestConfig;
     }
 
     event ContractDeployed(address contractAddress, string contractName);
+    event ContractMetadata(string jsonIndex, string key, bool value);
 
     DeploymentLogger logger;
 
@@ -67,8 +69,9 @@ contract DeployMarkets is Script {
             registry.addMarketManager(address(market), interestFees[i]);
             emit ContractDeployed(
                 address(market),
-                string.concat("Market-", name)
+                string.concat(name, ".address")
             );
+            emit ContractMetadata(name, "isMarket", true);
 
             _deployPlugins(icr, market, wrappedNative, name, plugins[i]);
 
@@ -129,17 +132,17 @@ contract DeployMarkets is Script {
         MarketManagerIsolated market,
         ICentralRegistry icr
     ) internal returns (address) {
-        IERC20 underlying = IERC20(config.underlyingAddress);
+        IERC20 asset = IERC20(config.asset);
 
         address cToken = address(
-            new SimpleCToken(icr, underlying, address(market))
+            new SimpleCToken(icr, asset, address(market))
         );
         emit ContractDeployed(
             cToken,
-            string.concat(marketName, "-", underlying.symbol())
+            string.concat(marketName, ".tokens.", asset.symbol())
         );
 
-        underlying.approve(cToken, 1 * 10 ** underlying.decimals());
+        asset.approve(cToken, 1 * 10 ** asset.decimals());
 
         return cToken;
     }
@@ -150,43 +153,42 @@ contract DeployMarkets is Script {
         MarketManagerIsolated market,
         ICentralRegistry icr
     ) internal returns (address) {
-        IERC20 underlying = IERC20(config.underlyingAddress);
+        IERC20 asset = IERC20(config.asset);
 
-        DynamicInterestRateModel interestRateModel = new DynamicInterestRateModel(
+        DynamicIRM IRM = new DynamicIRM(
                 icr,
                 config.interestConfig.baseRatePerYear,
                 config.interestConfig.vertexRatePerYear,
                 config.interestConfig.vertexUtilStart,
-                config.interestConfig.adjustmentRate,
                 config.interestConfig.adjustmentVelocity,
                 config.interestConfig.vertexMultiplierMax,
                 config.interestConfig.decayRate
             );
         emit ContractDeployed(
-            address(interestRateModel),
+            address(IRM),
             string.concat(
                 marketName,
-                "-",
-                underlying.symbol(),
-                "-DynamicInterestRateModel"
+                ".",
+                asset.symbol(),
+                "-DynamicIRM"
             )
         );
 
         address cToken = address(
             new BorrowableCToken(
                 icr,
-                underlying,
+                asset,
                 address(market),
-                address(interestRateModel)
+                address(IRM)
             )
         );
         emit ContractDeployed(
             cToken,
-            string.concat(marketName, "-", underlying.symbol())
+            string.concat(marketName, ".tokens.", asset.symbol())
         );
 
-        interestRateModel.setLinkedToken(cToken);
-        underlying.approve(cToken, 1 * 10 ** underlying.decimals());
+        IRM.setLinkedToken(cToken);
+        asset.approve(cToken, 1 * 10 ** asset.decimals());
 
         return cToken;
     }
@@ -209,7 +211,7 @@ contract DeployMarkets is Script {
             );
             emit ContractDeployed(
                 address(simplePositionManager),
-                string.concat("Market-", marketName, "-simplePositionManager")
+                string.concat(marketName, ".plugins.simplePositionManager")
             );
         }
 
@@ -217,20 +219,16 @@ contract DeployMarkets is Script {
             SimpleZapper simpleZapper = new SimpleZapper(icr, wrappedNative);
             emit ContractDeployed(
                 address(simpleZapper),
-                string.concat("Market-", marketName, "-simpleZapper")
+                string.concat(marketName, ".plugins.simpleZapper")
             );
         }
 
         if (plugins.vaultZapper) {
-            // VaultZapper is not yet implemented, but can be added here in the future.
-            // Uncomment the following lines when ready to deploy VaultZapper.
-            /*
             VaultZapper vaultZapper = new VaultZapper(icr, wrappedNative);
             emit ContractDeployed(
                 address(vaultZapper),
-                string.concat("Market-", marketName, "-vaultZapper")
+                string.concat(marketName, ".plugins.vaultZapper")
             );
-            */
         }
     }
 }

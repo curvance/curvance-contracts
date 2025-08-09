@@ -16,7 +16,7 @@ import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
@@ -29,7 +29,7 @@ import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol"
 import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
-import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
+import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
 contract TestVariables {
     uint256 internal constant _ONE = 1e18;
@@ -107,7 +107,7 @@ contract TestVariables {
     ChainlinkAdaptor public dualChainlinkAdaptor;
     MarketManagerIsolated public marketManagerIsolated;
     OracleManager public oracleManager;
-    AuxiliaryData public auxiliaryData;
+    ProtocolReader public protocolReader;
     DAOTimelock public daoTimelock;
     BorrowableCToken public borrowableCUSDC;
     BorrowableCToken public borrowableCDAI;
@@ -150,7 +150,7 @@ contract TestVariables {
     mapping(uint256 => ChainlinkAdaptor) public chainlinkAdaptors;
     mapping(uint256 => ChainlinkAdaptor) public dualChainlinkAdaptors;
     mapping(uint256 => MarketManagerIsolated) public marketManagersIsolated;
-    mapping(uint256 => AuxiliaryData) public auxiliaryDatas;
+    mapping(uint256 => ProtocolReader) public protocolReaders;
     mapping(uint256 => DAOTimelock) public daoTimelocks;
     mapping(uint256 => OracleManager) public oracleManagers;
     mapping(uint256 => BorrowableCToken) public borrowableCUSDCs;
@@ -167,8 +167,7 @@ contract TestVariables {
     mapping(uint256 => MockV3Aggregator) public chainlinkDaiUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkDaiEths;
 
-    mapping(uint256 => mapping(address => DynamicInterestRateModel))
-        public interestRateModels;
+    mapping(uint256 => mapping(address => DynamicIRM)) public IRMs;
 
     mapping(uint256 => MockToken) public rewardTokens;
     mapping(uint256 => GaugeManager) public gaugeManagers;
@@ -214,6 +213,7 @@ contract TestVariables {
         _initArbitrumVariables();
         _initOptimismVariables();
         _initBaseVariables();
+        _initMonadVariables();
     }
 
     function _initMainnetVariables() internal {
@@ -351,6 +351,12 @@ contract TestVariables {
         ] = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
     }
 
+    function _initMonadVariables() internal {
+        uint256 chainId = 10143;
+
+        _USDC_ADDRESSES[chainId] = 0xf817257fed379853cDe0fa4F97AB987181B1E5Ea;
+    }
+
     function _initMainConstantVariables() internal {
         uint256 chainId = block.chainid;
 
@@ -404,7 +410,7 @@ contract TestVariables {
         dualChainlinkAdaptor = dualChainlinkAdaptors[chainId];
         marketManagerIsolated = marketManagersIsolated[chainId];
         oracleManager = oracleManagers[chainId];
-        auxiliaryData = auxiliaryDatas[chainId];
+        protocolReader = protocolReaders[chainId];
         borrowableCUSDC = borrowableCUSDCs[chainId];
         borrowableCDAI = borrowableCDAIs[chainId];
 

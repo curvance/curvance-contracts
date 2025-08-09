@@ -16,7 +16,7 @@ import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { PendleZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/PendleZapperCalldataChecker.sol";
@@ -33,7 +33,7 @@ import { QueryTest } from "tests/utils/QueryTest.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
+import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
 contract TestBaseMarket is TestBase {
     struct PerChainData {
@@ -181,8 +181,8 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setFeeManager(address(feeManager));
     }
 
-    function _deployAuxiliaryData() internal initMainVariables {
-        auxiliaryData = auxiliaryDatas[block.chainid] = new AuxiliaryData(
+    function _deployProtocolReader() internal initMainVariables {
+        protocolReader = protocolReaders[block.chainid] = new ProtocolReader(
             ICentralRegistry(address(centralRegistry))
         );
     }
@@ -361,16 +361,16 @@ contract TestBaseMarket is TestBase {
             ICentralRegistry(address(centralRegistry)),
             IVault(_BAL_VAULT_ADDRESS)
         );
-        BalancerStablePoolAdaptor.AdaptorData memory adapterData;
-        adapterData.poolId = _BAL_WETH_RETH_POOLID;
-        adapterData.poolDecimals = 18;
-        adapterData.rateProviderDecimals[0] = 18;
-        adapterData.rateProviders[
+        BalancerStablePoolAdaptor.AssetConfig memory assetConfig;
+        assetConfig.poolId = _BAL_WETH_RETH_POOLID;
+        assetConfig.poolDecimals = 18;
+        assetConfig.rateProviderDecimals[0] = 18;
+        assetConfig.rateProviders[
             0
         ] = 0x1a8F81c256aee9C640e14bB0453ce247ea0DFE6F;
-        adapterData.underlyingOrConstituent[0] = _RETH_ADDRESS;
-        adapterData.underlyingOrConstituent[1] = _WETH_ADDRESS;
-        balRETHAdapter.addAsset(_BAL_WETH_RETH_ADDRESS, adapterData);
+        assetConfig.underlyingOrConstituent[0] = _RETH_ADDRESS;
+        assetConfig.underlyingOrConstituent[1] = _WETH_ADDRESS;
+        balRETHAdapter.addAsset(_BAL_WETH_RETH_ADDRESS, assetConfig);
         oracleManager.addApprovedAdaptor(address(balRETHAdapter));
         oracleManager.addAssetPriceFeed(
             _BAL_WETH_RETH_ADDRESS,
@@ -405,41 +405,39 @@ contract TestBaseMarket is TestBase {
             marketInterestFactor);
     }
 
-    function _deployDynamicInterestRateModel(
+    function _deployDynamicIRM(
         address underlyingToken
     ) internal returns (address) {
-        interestRateModels[block.chainid][
+        IRMs[block.chainid][
             underlyingToken
-        ] = new DynamicInterestRateModel(
+        ] = new DynamicIRM(
             ICentralRegistry(address(centralRegistry)),
             1000, // baseRatePerYear
             1000, // vertexRatePerYear
             5000, // vertexUtilizationStart
-            4 hours, // adjustmentRate
-            5000, // adjustmentVelocity
+            1000, // adjustmentVelocity
             100000000, // 1000x maximum vertex multiplier
             100 // decayRate
         );
 
-        return address(interestRateModels[block.chainid][underlyingToken]);
+        return address(IRMs[block.chainid][underlyingToken]);
     }
 
-    function _deployIsolatedDynamicInterestRateModel(
+    function _deployIsolatedDynamicIRM(
         address underlyingToken
         ) internal returns (address) {
-            isolatedInterestRateModels[block.chainid][underlyingToken] =
-            new DynamicInterestRateModel(
+            isolatedIRMs[block.chainid][underlyingToken] =
+            new DynamicIRM(
                 ICentralRegistry(address(centralRegistry)),
                 1000, // baseRatePerYear
                 1000, // vertexRatePerYear
                 5000, // vertexUtilizationStart
-                4 hours, // adjustmentRate
-                5000, // adjustmentVelocity
+                1000, // adjustmentVelocity
                 100000000, // 1000x maximum vertex multiplier
                 100 // decayRate
             );
 
-        return address(isolatedInterestRateModels[block.chainid][underlyingToken]);
+        return address(isolatedIRMs[block.chainid][underlyingToken]);
     }
 
     function _deployBorrowableCUSDC() internal initMainVariables returns (EToken) {
@@ -459,10 +457,10 @@ contract TestBaseMarket is TestBase {
             ICentralRegistry(address(centralRegistry)),
             token,
             address(marketManager),
-            _deployDynamicInterestRateModel(token)
+            _deployDynamicIRM(token)
         );
 
-        interestRateModels[block.chainid][token].setLinkedToken(
+        IRMs[block.chainid][token].setLinkedToken(
             address(eToken)
         );
 

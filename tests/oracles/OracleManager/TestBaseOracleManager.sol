@@ -27,36 +27,50 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
 
         chainlinkAdaptor = chainlinkAdaptors[
             block.chainid
-        ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
+        ] = new ChainlinkAdaptor(ICentralRegistry(
+            address(centralRegistry))
+        );
         dualChainlinkAdaptor = dualChainlinkAdaptors[
             block.chainid
-        ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
+        ] = new ChainlinkAdaptor(ICentralRegistry(
+            address(centralRegistry))
+        );
 
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
         dualChainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
+            true,
             _CHAINLINK_ETH_USD,
-            0,
-            true
+            0
         );
-        chainlinkAdaptor.addAsset(_USDC_ADDRESS, _CHAINLINK_USDC_USD, 0, true);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
-            _CHAINLINK_USDC_ETH,
-            0,
-            false
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
+            true,
             _CHAINLINK_USDC_USD,
-            0,
-            true
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            false,
+            _CHAINLINK_USDC_ETH,
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
+            _CHAINLINK_USDC_USD,
+            0
+        );
+        dualChainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            false,
             _CHAINLINK_USDC_ETH,
-            0,
-            false
+            0
         );
 
         vm.warp(centralRegistry.genesisEpoch());

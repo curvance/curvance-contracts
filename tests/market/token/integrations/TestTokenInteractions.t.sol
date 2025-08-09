@@ -5,7 +5,7 @@ import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { LiquidityManagerIsolated } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { WAD_SQUARED, WAD } from "contracts/libraries/Constants.sol";
+import { WAD_SQUARED, WAD } from "contracts/libraries/ConstantsLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { console2 } from "forge-std/console2.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
@@ -599,38 +599,43 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // use mock pricing for testing
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            true,
+            address(mockDaiFeed),
+            0
+        );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
+            true,
             address(mockDaiFeed),
-            0,
-            true
+            0
         );
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            false,
             address(mockRethFeed),
-            0,
-            false
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            false,
             address(mockRethFeed),
-            0,
-            false
+            0
         );
 
         // start epoch
@@ -672,38 +677,43 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // use mock pricing for testing
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            true,
+            address(mockDaiFeed),
+            0
+        );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
+            true,
             address(mockDaiFeed),
-            0,
-            true
+            0
         );
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            false,
             address(mockRethFeed),
-            0,
-            false
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            false,
             address(mockRethFeed),
-            0,
-            false
+            0
         );
 
         // start epoch

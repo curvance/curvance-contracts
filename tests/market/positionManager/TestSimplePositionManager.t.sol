@@ -115,11 +115,11 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
-        // Try leverage with 50% of max.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
 
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -276,11 +276,11 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
-        // Try leverage with 50% of max.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
 
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -395,10 +395,11 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         // Borrow borrowable cDAI.
         borrowableCDAI.borrow(100 ether, user);
         
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
         
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -481,10 +482,11 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         // Borrow borrowable cDAI.
         borrowableCDAI.borrow(100 ether, user);
         
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
         
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -567,10 +569,11 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         // Borrow borrowable cDAI.
         borrowableCDAI.borrow(100 ether, user);
         
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
         
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -614,10 +617,11 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         // Borrow borrowable cDAI.
         borrowableCDAI.borrow(100 ether, user);
         
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
         
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -700,10 +704,11 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         // Borrow borrowable cDAI.
         borrowableCDAI.borrow(100 ether, user);
         
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
         
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -759,10 +764,11 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         // Borrow borrowable cDAI.
         borrowableCDAI.borrow(100 ether, user);
         
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
         
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -812,11 +818,11 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
 
         vm.stopPrank();
         
-        // Set up leverage data
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
         
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -913,10 +919,11 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         
         vm.stopPrank();
 
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
         
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));

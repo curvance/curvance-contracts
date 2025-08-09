@@ -25,17 +25,29 @@ contract BorrowableCTokenRepayForTest is TestBaseBorrowableCToken {
 
         borrowableCUSDC.borrow(100e6, address(this));
 
-        skip(20 minutes);
+        // skip 20 min hold period in harvestAuraStrategyRewards
+        _harvestAuraStrategyRewards(1 weeks);
     }
 
 
     function test_borrowableCTokenRepayFor_success() public {
+        uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+        
+        borrowableCUSDC.accrueIfNeeded();
+        
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(address(this));
+        uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
+        
+        assertGt(debtAfterAccrual, 100e6);
+        assertGt(debtAfterAccrual, debtBeforeAccrual);
+        
+        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
+        assertEq(debtIncrease, assetsIncrease);
 
-       borrowableCUSDC.accrueIfNeeded();
-
-       uint256 currentDebt = borrowableCUSDC.debtBalance(address(this));
-
-       uint256 underlyingBalance = usdc.balanceOf(address(borrowableCUSDC));
+        uint256 currentDebt = borrowableCUSDC.debtBalance(address(this));
+        uint256 underlyingBalance = usdc.balanceOf(address(borrowableCUSDC));
 
         _prepareUSDC(user2, currentDebt);
         vm.startPrank(user2);
@@ -48,7 +60,6 @@ contract BorrowableCTokenRepayForTest is TestBaseBorrowableCToken {
         assertEq(newDebt, 0);
         assertEq(usdc.balanceOf(user2), 0);
         assertEq(usdc.balanceOf(address(borrowableCUSDC)), underlyingBalance + currentDebt);
-
     }
 
 }

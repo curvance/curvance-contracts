@@ -8,11 +8,11 @@ contract MockPythAdaptor is PythAdaptor {
     bool skipHeartBeatCheck = true;
     
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address universalBalance_,
         address pyth_,
         address weth_
-    ) PythAdaptor(centralRegistry_, universalBalance_, pyth_, weth_) {}
+    ) PythAdaptor(cr, universalBalance_, pyth_, weth_) {}
 
     function setSkipHeartBeatCheck(bool skip) external {
         skipHeartBeatCheck = skip;

@@ -11,7 +11,7 @@ import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/P
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { LiquidityManagerIsolated } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
@@ -44,40 +44,40 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(mockUsdcFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(mockUsdcFeed),
-            0,
-            true
+            0
         );
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
 
         adapter = new PendlePrincipalTokenAdaptor(
             ICentralRegistry(address(centralRegistry)),
             IPendlePTOracle(_PT_ORACLE)
         );
-        PendlePrincipalTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.market = IPMarket(_LP_STETH);
-        adapterData.twapDuration = 12;
-        adapterData.quoteAsset = _STETH;
-        adapterData.quoteAssetDecimals = 18;
-        adapter.addAsset(_PT_STETH, adapterData);
+        PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.market = IPMarket(_LP_STETH);
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        adapter.addAsset(_PT_STETH, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(adapter));
         oracleManager.addAssetPriceFeed(_PT_STETH, address(adapter));
@@ -562,9 +562,9 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
     function _getDebtToCollateralAndCloseFactor(uint256 lFactor, uint256 debtTokenPrice, uint256 collateralTokenPrice) internal view returns (uint256, uint256) {
         uint256 cTokenExchangeRate = pendleCTokenPTSTETH.exchangeRate();
 
-        (,,,, uint256 liqIncBase, uint256 liqIncCurve,,, uint256 closeFactorBase, uint256 closeFactorCurve,,)
-            =  marketManagerIsolated.tokenData(address(pendleCTokenPTSTETH));
-            
+        (uint256 liqIncBase, uint256 liqIncCurve,,, uint256 closeFactorBase, uint256 closeFactorCurve,,)
+            =  marketManagerIsolated.liquidationConfig(address(pendleCTokenPTSTETH));
+
         // Follow the contract's exact calculations but with higher precision
         uint256 closeFactor = closeFactorBase + ((closeFactorCurve * lFactor) / WAD);
         uint256 liqInc = liqIncBase + ((liqIncCurve * lFactor) / WAD);

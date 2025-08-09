@@ -32,15 +32,6 @@ contract SetDivergenceFlagsTest is TestBaseOracleManager {
         oracleManager.setDivergenceFlags(12001, 10200);
     }
 
-    function test_setCautionDivergenceFlag_success() public {
-        assertEq(oracleManager.cautionDivergenceFlag(), 10050);
-
-        oracleManager.setDivergenceFlags(10100, 10200);
-
-        assertEq(oracleManager.cautionDivergenceFlag(), 10100);
-        assertEq(oracleManager.badSourceDivergenceFlag(), 10200);
-    }
-
     function test_setBadSourceDivergenceFlag_fail_whenCallerIsNotAuthorized()
         public
     {
@@ -68,15 +59,6 @@ contract SetDivergenceFlagsTest is TestBaseOracleManager {
         oracleManager.setDivergenceFlags(10100, 12001);
     }
 
-    function test_setBadSourceDivergenceFlag_success() public {
-        assertEq(oracleManager.badSourceDivergenceFlag(), 10100);
-
-        oracleManager.setDivergenceFlags(10100, 10150);
-
-        assertEq(oracleManager.cautionDivergenceFlag(), 10100);
-        assertEq(oracleManager.badSourceDivergenceFlag(), 10150);
-    }
-
     function test_setDivergenceFlags_fail_whenCautionEqualToBadSource()
         public
     {
@@ -93,5 +75,23 @@ contract SetDivergenceFlagsTest is TestBaseOracleManager {
             OracleManager.OracleManager__InvalidParameter.selector
         );
         oracleManager.setDivergenceFlags(10200, 10100);
+    }
+
+    function test_setCautionDivergenceFlag_success() public {
+        assertEq(oracleManager.cautionPriceDivergence(), 10050);
+
+        oracleManager.setDivergenceFlags(10100, 10200);
+
+        assertEq(oracleManager.cautionPriceDivergence(), 10100);
+        assertEq(oracleManager.badSourcePriceDivergence(), 10200);
+    }
+
+    function test_setBadSourceDivergenceFlag_success() public {
+        assertEq(oracleManager.badSourcePriceDivergence(), 10100);
+
+        oracleManager.setDivergenceFlags(10100, 10150);
+
+        assertEq(oracleManager.cautionPriceDivergence(), 10100);
+        assertEq(oracleManager.badSourcePriceDivergence(), 10150);
     }
 }

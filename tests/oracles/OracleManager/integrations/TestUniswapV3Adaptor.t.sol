@@ -5,10 +5,13 @@ import { UniswapV3Adaptor } from "contracts/oracles/adaptors/uniswap/UniswapV3Ad
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
+
 import { IStaticOracle } from "contracts/interfaces/external/uniswap/IStaticOracle.sol";
+
+import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract TestUniswapV3Adaptor is TestBaseOracleManager {
     address internal _UNISWAP_V3_ORACLE =
@@ -29,19 +32,34 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
             ICentralRegistry(address(centralRegistry))
         );
 
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
-        chainlinkAdaptor.addAsset(_WETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
-        chainlinkAdaptor.addAsset(_USDC_ADDRESS, _CHAINLINK_USDC_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _WETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            _CHAINLINK_USDC_USD,
+            0
+        );
 
         adaptor = new UniswapV3Adaptor(
             ICentralRegistry(address(centralRegistry)),
             IStaticOracle(_UNISWAP_V3_ORACLE),
             _WETH_ADDRESS
         );
-        UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = _WBTC_WETH;
-        adaptorData.secondsAgo = 3600;
-        adaptor.addAsset(_WBTC_ADDRESS, adaptorData);
+        UniswapV3Adaptor.AssetConfig memory assetConfig;
+        assetConfig.priceSource = _WBTC_WETH;
+        assetConfig.secondsAgo = 3600;
+        adaptor.addAsset(_WBTC_ADDRESS, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
@@ -103,70 +121,70 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
 
     function testRevertGetPriceInETH__NotSupported() public {
         vm.expectRevert(
-            UniswapV3Adaptor.UniswapV3Adaptor__AssetIsNotSupported.selector
+            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.getPrice(address(0), false, false);
     }
 
     function testRevertAddAsset__SecondsAgoIsLessThanMinimum() public {
-        UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = _WBTC_WETH;
-        adaptorData.secondsAgo = 240;
+        UniswapV3Adaptor.AssetConfig memory assetConfig;
+        assetConfig.priceSource = _WBTC_WETH;
+        assetConfig.secondsAgo = 240;
 
         vm.expectRevert(
             UniswapV3Adaptor
                 .UniswapV3Adaptor__SecondsAgoIsLessThanMinimum
                 .selector
         );
-        adaptor.addAsset(_WBTC_ADDRESS, adaptorData);
+        adaptor.addAsset(_WBTC_ADDRESS, assetConfig);
     }
 
     function testRevertAddAsset__AssetIsNotSupported() public {
-        UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = _WBTC_WETH;
-        adaptorData.secondsAgo = 3600;
+        UniswapV3Adaptor.AssetConfig memory assetConfig;
+        assetConfig.priceSource = _WBTC_WETH;
+        assetConfig.secondsAgo = 3600;
         vm.expectRevert(
             UniswapV3Adaptor.UniswapV3Adaptor__AssetIsNotSupported.selector
         );
-        adaptor.addAsset(_USDC_ADDRESS, adaptorData);
+        adaptor.addAsset(_USDC_ADDRESS, assetConfig);
     }
 
     function testAddAssetForDifferentPair() public {
         testReturnsCorrectPriceInUSD();
         testReturnsCorrectPriceInETH();
 
-        UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = _WBTC_USDC;
-        adaptorData.secondsAgo = 3600;
-        adaptor.addAsset(_WBTC_ADDRESS, adaptorData);
+        UniswapV3Adaptor.AssetConfig memory assetConfig;
+        assetConfig.priceSource = _WBTC_USDC;
+        assetConfig.secondsAgo = 3600;
+        adaptor.addAsset(_WBTC_ADDRESS, assetConfig);
     }
 
     function testRevertRemoveAsset__AssetIsNotSupported() public {
         vm.expectRevert(
-            UniswapV3Adaptor.UniswapV3Adaptor__AssetIsNotSupported.selector
+            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.removeAsset(_USDC_ADDRESS);
     }
 
     function testGetPriceFromDifferentPair() public {
-        UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = _WBTC_USDC;
-        adaptorData.secondsAgo = 3600;
-        adaptor.addAsset(_USDC_ADDRESS, adaptorData);
+        UniswapV3Adaptor.AssetConfig memory assetConfig;
+        assetConfig.priceSource = _WBTC_USDC;
+        assetConfig.secondsAgo = 3600;
+        adaptor.addAsset(_USDC_ADDRESS, assetConfig);
 
-        PriceReturnData memory data = adaptor.getPrice(
+        IOracleAdaptor.PricingResult memory result = adaptor.getPrice(
             _USDC_ADDRESS,
             true,
             false
         );
-        assertGt(data.price, 0);
-        assertFalse(data.hadError);
-        assertTrue(data.inUSD);
+        assertGt(result.price, 0);
+        assertFalse(result.hadError);
+        assertTrue(result.inUSD);
 
-        data = adaptor.getPrice(_USDC_ADDRESS, false, false);
-        assertGt(data.price, 0);
-        assertFalse(data.hadError);
-        assertFalse(data.inUSD);
+        result = adaptor.getPrice(_USDC_ADDRESS, false, false);
+        assertGt(result.price, 0);
+        assertFalse(result.hadError);
+        assertFalse(result.inUSD);
     }
 
     function testRevertRemoveAsset__Unauthorized() public {

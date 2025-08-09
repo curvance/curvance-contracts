@@ -48,7 +48,7 @@ library CurveLib {
 
         // Approve tokens to deposit into Curve lp.
         for (uint256 i; i < numTokens; ++i) {
-            balances[i] = CommonLib._getBalanceOf(tokens[i]);
+            balances[i] = CommonLib._balanceOf(tokens[i]);
             SwapperLib._approveIfNeeded(tokens[i], lpMinter, balances[i]);
 
             if (CommonLib._isNative(tokens[i])) {

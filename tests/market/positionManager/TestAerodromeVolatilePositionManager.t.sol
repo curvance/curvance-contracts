@@ -57,9 +57,9 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         chainlinkDaiUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
+            true,
             address(chainlinkDaiUsd),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _DAI_ADDRESS,
@@ -68,9 +68,9 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(chainlinkUsdcUsd),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,
@@ -80,15 +80,15 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         chainlinkEthUsd = new MockV3Aggregator(8, 2700e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
+            true,
             address(chainlinkEthUsd),
-            0,
-            true
+            0
         );
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(chainlinkEthUsd),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _ETH_ADDRESS,
@@ -199,11 +199,11 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
-        // Try leverage with 50% of max.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
 
         AerodromePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -329,11 +329,11 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         // allow delegation for postCollateral
         strategyCTokenWETHUSDC.setDelegateApproval(address(positionManager), true);
 
-        // try max leverage
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 99% of limit.
+        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        );
+        ) * 99) / 100;
 
         AerodromePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -403,7 +403,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         // allow delegation for postCollateral
         strategyCTokenWETHUSDC.setDelegateApproval(address(positionManager), true);
 
-        // Try leverage with 50% of max.
+        // Try leveraging with 50% of limit.
         uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
@@ -548,11 +548,11 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
-        // Try leverage with 50% of max.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
 
         AerodromePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));

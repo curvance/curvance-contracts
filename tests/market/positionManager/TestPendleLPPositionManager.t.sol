@@ -54,11 +54,16 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         chainlinkPendleUsd = new MockV3Aggregator(18, 3.6e18, 3.6e24, 3.6e13);
         chainlinkAdaptor.addAsset(
             _PENDLE,
+            true,
             address(chainlinkPendleUsd),
-            0,
-            true
+            0
         );
-        chainlinkAdaptor.addAsset(_STETH, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _STETH,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
         oracleManager.addAssetPriceFeed(_PENDLE, address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 
@@ -77,12 +82,12 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             ICentralRegistry(address(centralRegistry)),
             IPendlePTOracle(_PT_ORACLE)
         );
-        PendleLPTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.twapDuration = 12;
-        adapterData.quoteAsset = _STETH;
-        adapterData.pt = _PT_STETH;
-        adapterData.quoteAssetDecimals = 18;
-        adaptor.addAsset(_LP_STETH, adapterData);
+        PendleLPTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.pt = _PT_STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        adaptor.addAsset(_LP_STETH, assetConfig);
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPriceFeed(_LP_STETH, address(adaptor));
 
@@ -175,11 +180,11 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
-        // Try leverage with 50% of max.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
 
         PendleLPPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -369,11 +374,11 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
-        // Try leverage with 50% of max.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
 
         PendleLPPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));

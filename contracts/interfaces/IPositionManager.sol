@@ -37,8 +37,8 @@ interface IPositionManager {
     ///                         have its debt paid.
     /// @param repayAssets The amount of `borrowableCToken` asset that will
     ///                    be repaid to lenders.
-    /// @param swapAction Swap actions instructions converting collateral
-    ///                   asset into debt asset to facilitate deleveraging.
+    /// @param swapActions Swap actions instructions converting collateral
+    ///                    asset into debt asset to facilitate deleveraging.
     /// @param auxData Optional auxiliary data for execution of a deleverage
     ///                action.
     struct DeleverageAction {

@@ -7,7 +7,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
 import { PendleLPPToken } from "contracts/market/token/PendleLPPToken.sol";
 
@@ -42,15 +42,14 @@ contract TestComplexZapperPendle is TestBaseMarketIsolated {
         oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 
         adaptor = new PendleLPTokenAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            IPendlePTOracle(_PT_ORACLE)
+            ICentralRegistry(address(centralRegistry))
         );
-        PendleLPTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.twapDuration = 12;
-        adapterData.quoteAsset = _STETH;
-        adapterData.pt = _PT_STETH;
-        adapterData.quoteAssetDecimals = 18;
-        adaptor.addAsset(_LP_STETH, adapterData);
+        PendleLPTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.pt = _PT_STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        adaptor.addAsset(_LP_STETH, assetConfig);
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPriceFeed(_LP_STETH, address(adaptor));
 
@@ -282,7 +281,7 @@ contract TestComplexZapperPendle is TestBaseMarketIsolated {
         vm.prank(user1);
         pSTETH.setDelegateApproval(address(complexZapper), true);
 
-        ZapperBase.RedeemAction memory redeemAction;
+        BaseZapper.RedeemAction memory redeemAction;
         redeemAction.mToken = address(pSTETH);
         redeemAction.shares = 1.24 ether;
         redeemAction.forceRedeemCollateral = false;

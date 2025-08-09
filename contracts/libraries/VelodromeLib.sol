@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { BASIS_POINTS, WAD } from "contracts/libraries/Constants.sol";
+import { BASIS_POINTS, WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
@@ -97,7 +97,7 @@ library VelodromeLib {
             lpOutAmount += newLpOutAmount;
         }
 
-        amount1 = CommonLib._getBalanceOf(token1);
+        amount1 = CommonLib._balanceOf(token1);
 
         // Check if we are entering through token1 leg.
         if (amount1 > 0) {

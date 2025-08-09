@@ -53,7 +53,12 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         _deployChainlinkAdaptors();
         _deployMarketManager();
 
-        chainlinkAdaptor.addAsset(_STETH, _CHAINLINK_STETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _STETH,
+            true,
+            _CHAINLINK_STETH_USD,
+            0
+        );
         oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 
         centralRegistry.addHarvestPermissions(address(this));
@@ -68,12 +73,12 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
             ICentralRegistry(address(centralRegistry)),
             IPendlePTOracle(_PT_ORACLE)
         );
-        PendlePrincipalTokenAdaptor.AdaptorData memory adapterData;
-        adapterData.market = IPMarket(_LP_STETH);
-        adapterData.twapDuration = 12;
-        adapterData.quoteAsset = _STETH;
-        adapterData.quoteAssetDecimals = 18;
-        adaptor.addAsset(_PT_STETH, adapterData);
+        PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.market = IPMarket(_LP_STETH);
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.quoteAssetDecimals = 18;
+        adaptor.addAsset(_PT_STETH, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPriceFeed(_PT_STETH, address(adaptor));
@@ -174,11 +179,11 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
-        // Try leverage with 50% of max.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
 
         PendlePTPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -293,11 +298,11 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
-        // Try leverage with 50% of max.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
 
         PendlePTPositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -417,11 +422,11 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         // Borrow borrowable cDAI.
         borrowableCDAI.borrow(100 ether, user);
         
-        // Try leverage with 50% of max.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
         
         // Create leverage action with valid Pendle settings
         PendlePTPositionManager.LeverageAction memory leverageAction;
@@ -470,11 +475,11 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         // Borrow borrowable cDAI.
         borrowableCDAI.borrow(100 ether, user);
         
-        // Calculate leverage amount
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
         
         // Create leverage action
         PendlePTPositionManager.LeverageAction memory leverageAction;

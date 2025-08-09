@@ -36,9 +36,8 @@ abstract contract CurveBaseAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_
-    ) BaseOracleAdaptor(centralRegistry_) {}
+    /// @param cr The address of central registry.
+    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
 
     /// PUBLIC FUNCTIONS ///
 

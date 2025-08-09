@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ZapperBase, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper, ICentralRegistry } from "contracts/plugins/BaseZapper.sol";
 
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-contract PendleZapper is ZapperBase {
+contract PendleZapper is BaseZapper {
     /// TYPES ///
 
     /// @param inputToken Address of input token to zap from.
@@ -33,10 +33,7 @@ contract PendleZapper is ZapperBase {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        address wrappedNative_
-    ) ZapperBase(centralRegistry_, wrappedNative_) {}
+    constructor(ICentralRegistry cr, address wNative) BaseZapper(cr, wNative) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -352,7 +349,7 @@ contract PendleZapper is ZapperBase {
             SwapperLib._swapUnsafe(centralRegistry, swapActions[i++]);
         }
 
-        outAmount = CommonLib._getBalanceOf(zapAction.outputToken);
+        outAmount = CommonLib._balanceOf(zapAction.outputToken);
         // Validate action output is sufficient.
         if (outAmount < zapAction.minimumOut) {
             revert PendleZapper__SlippageError();

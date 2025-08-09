@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { WAD } from "contracts/libraries/Constants.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
+
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -61,7 +62,6 @@ contract LBP {
 
     /// ERRORS ///
 
-    error LBP__InvalidCentralRegistry();
     error LBP__Unauthorized();
     error LBP__InvalidStartTime();
     error LBP__InvalidPrice();
@@ -84,17 +84,10 @@ contract LBP {
 
     receive() external payable {}
 
-    constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert LBP__InvalidCentralRegistry();
-        }
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
-        centralRegistry = centralRegistry_;
         cve = centralRegistry.cve();
     }
 

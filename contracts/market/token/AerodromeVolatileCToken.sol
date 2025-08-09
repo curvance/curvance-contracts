@@ -10,19 +10,25 @@ import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter
 contract AerodromeVolatileCToken is VelodromeVolatileCToken {
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param asset_ The address of the underlying asset for this cToken.
+    /// @param mm The address of the MarketManager which manages liquidity
+    ///           positions between linked cTokens inside a joint market.
+    /// @param vestingPeriod_ The length of time a vesting period will last,
+    ///                       in seconds.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         IERC20 asset_,
-        address marketManager_,
+        address mm,
         IVeloGauge gauge,
         IVeloPairFactory pairFactory,
         IVeloRouter router,
         uint256 vestingPeriod_
     )
         VelodromeVolatileCToken(
-            centralRegistry_,
+            cr,
             asset_,
-            marketManager_,
+            mm,
             gauge,
             pairFactory,
             router,

@@ -1,17 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
-import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
-import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
-
-import "forge-std/console.sol";
 
 contract TestBaseLiquidations is TestBaseMarketIsolated {
 
@@ -35,28 +29,28 @@ contract TestBaseLiquidations is TestBaseMarketIsolated {
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(mockWethFeed),
-            0,
-            true
+            0
         );
         mockRethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            true,
             address(mockRethFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
+            true,
             address(mockRethFeed),
-            0,
-            true
+            0
         );
     }
 
@@ -64,15 +58,15 @@ contract TestBaseLiquidations is TestBaseMarketIsolated {
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(mockUsdcFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(mockUsdcFeed),
-            0,
-            true
+            0
         );
 
         // use mock pricing for testing
@@ -133,8 +127,8 @@ contract TestBaseLiquidations is TestBaseMarketIsolated {
         borrowableCUSDC.borrow(1000e6, user1);
         vm.stopPrank();
 
-        // skip min hold period
-        skip(20 minutes);
+        // skip 20 min hold period in harvestAuraStrategyRewards
+        _harvestAuraStrategyRewards(1 weeks);
 
         mockUsdcFeed.setMockAnswer(2e8);
 

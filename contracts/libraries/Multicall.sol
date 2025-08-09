@@ -17,7 +17,7 @@ abstract contract Multicall {
     /// @param target The address of the target contract to execute the call at.
     /// @param isPriceUpdate Boolean indicating if the call is a price update.
     /// @param data The data to attach to the call.
-    struct MulticallData {
+    struct MulticallAction {
         address target;
         bool isPriceUpdate;
         bytes data;
@@ -34,12 +34,12 @@ abstract contract Multicall {
     ///         This can be used to update oracle prices before
     ///         a liquidity dependent action.
     function multicall(
-        MulticallData[] calldata calls
+        MulticallAction[] calldata calls
     ) external returns (bytes[] memory results) {
-        ICentralRegistry centralRegistry = _getCentralRegistry();
+        ICentralRegistry cr = _getCentralRegistry();
         uint256 numCalls = calls.length;
         results = new bytes[](numCalls);
-        MulticallData memory cachedCall;
+        MulticallAction memory cachedCall;
 
         for (uint256 i; i < numCalls; ++i) {
             cachedCall = calls[i];
@@ -47,26 +47,22 @@ abstract contract Multicall {
             if (cachedCall.isPriceUpdate) {
                 // CASE: We need to update a pull based price oracle and we
                 //       need a direct call to the target address.
-                address callDataChecker = centralRegistry.multicallChecker(
-                    cachedCall.target
-                );
+                address checker = cr.multicallChecker(cachedCall.target);
 
                 // Validate we know how to verify this calldata.
-                if (callDataChecker == address(0)) {
+                if (checker == address(0)) {
                     revert Multicall__UnknownCalldata();
                 }
 
-                IMulticallChecker(callDataChecker).checkCalldata(
+                IMulticallChecker(checker).checkCalldata(
                     msg.sender,
                     cachedCall.target,
                     cachedCall.data
                 );
 
-                results[i] = LowLevelCallsHelper._call(
-                    cachedCall.target,
-                    cachedCall.data
-                );
-
+                results[i] = LowLevelCallsHelper.
+                    _call(cachedCall.target, cachedCall.data);
+                
                 continue;
             }
 
@@ -77,10 +73,8 @@ abstract contract Multicall {
                 revert Multicall__InvalidTarget();
             }
 
-            results[i] = LowLevelCallsHelper._delegateCall(
-                address(this),
-                cachedCall.data
-            );
+            results[i] = LowLevelCallsHelper.
+                _delegateCall(address(this), cachedCall.data);
         }
     }
 

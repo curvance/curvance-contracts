@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
 import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidations.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
 
 // ## Scenario 3: No Users Liquidated, all using liquidate() function
 // - Setup: 3 users with healthy positions
@@ -32,15 +30,15 @@ contract NoneLiquidated is TestBaseLiquidations {
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(mockUsdcFeed),
-            0,
-            true
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(mockUsdcFeed),
-            0,
-            true
+            0
         );
 
         // use mock pricing for testing
@@ -140,20 +138,6 @@ contract NoneLiquidated is TestBaseLiquidations {
         strategyCBALRETH.depositAsCollateral(collateralAmounts[2], borrower3);
         borrowableCUSDC.borrow(borrowAmount, borrower3);
         vm.stopPrank();
-    }
-
-    function _getLFactorsPreLiquidation() internal view returns (uint256[] memory lFactors) {
-        lFactors = new uint256[](3);
-
-        for(uint i; i < 3; i++) {
-            (lFactors[i],,) = marketManagerIsolated.liquidationStatusOf(
-                borrowers[i],
-                address(strategyCBALRETH),
-                address(borrowableCUSDC)
-            );
-        }
-
-        return lFactors;
     }
 
     function _getDebtBalancePreLiquidation() internal view returns (uint256[] memory debtBalances) {

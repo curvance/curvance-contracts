@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { BASIS_POINTS } from "contracts/libraries/Constants.sol";
+import { BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
 
 contract SetVoteBoostMultiplierTest is TestBaseMarketIsolated {
     function test_setVoteBoostMultiplier_fail_whenCallerIsNotAuthorized()

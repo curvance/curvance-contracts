@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
-import { BASIS_POINTS } from "contracts/libraries/Constants.sol";
+import { BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
 
 contract VotesTest is TestBaseVeCVE {
     function setUp() public override {

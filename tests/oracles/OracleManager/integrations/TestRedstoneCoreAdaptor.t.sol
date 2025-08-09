@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
+import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
     MockRedstoneCoreAdaptor public adaptor;
+    
 
     function getRedstonePayload(
         // dataFeedId:value:decimals
@@ -31,7 +35,6 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
     function setUp() public override {
         _fork(18031848);
 
-        
         _deployCentralRegistry();
         _deployOracleManager();
         _setRedstoneSigners();
@@ -52,90 +55,6 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         oracleManager.addApprovedAdaptor(address(adaptor));
-    }
-
-    function testReturnsCorrectPrice() public {
-        bytes memory redstonePayload = getRedstonePayload(
-            "WBTC:60000:8",
-            redstoneSignerKeys
-        );
-
-        (, bytes32 symbolHash, , , ) = adaptor.adaptorData(_WBTC_ADDRESS, true);
-        assertEq(symbolHash, bytes32("WBTC"));
-        
-        bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool,uint128)",
-            _WBTC_ADDRESS,
-            true,
-            uint128(block.timestamp * 1000)
-        );
-        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
-            encodedFunction,
-            redstonePayload
-        );
-
-        // Securely getting oracle value
-        (bool success, ) = address(adaptor).call(
-            encodedFunctionWithRedstonePayload
-        );
-        assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
-        
-        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
-
-        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
-            _WBTC_ADDRESS,
-            true,
-            false
-        );
-        assertEq(errorCode, 0, "Should have had no error code returned when pricing via redstone core adaptor");
-        assertEq(price, 60000e18, "We expect to get the 60k price back from the payload we built");
-    }
-
-    function testZeroHeartBeatRequiresPriceUpdateInEverySecond() public {
-        adaptor.addAsset(_WETH_ADDRESS, true, 8, 0);
-
-        bytes memory redstonePayload = getRedstonePayload(
-            "WETH:3000:8",
-            redstoneSignerKeys
-        );
-
-        (, bytes32 symbolHash, , , ) = adaptor.adaptorData(_WETH_ADDRESS, true);
-        assertEq(symbolHash, bytes32("WETH"));
-        bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool,uint128)",
-            _WETH_ADDRESS,
-            true,
-            uint128(block.timestamp * 1000)
-        );
-        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
-            encodedFunction,
-            redstonePayload
-        );
-
-        // Securely getting oracle value
-        (bool success, ) = address(adaptor).call(
-            encodedFunctionWithRedstonePayload
-        );
-        assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
-
-        oracleManager.addAssetPriceFeed(_WETH_ADDRESS, address(adaptor));
-
-        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
-            _WETH_ADDRESS,
-            true,
-            false
-        );
-        assertEq(errorCode, 0, "Should have had no error code returned when pricing via redstone core adaptor");
-        assertEq(price, 3000e18, "We expect to get the 3k price back from the payload we built");
-
-        vm.warp(block.timestamp + 1);
-        (price, errorCode) = oracleManager.getPrice(
-            _WETH_ADDRESS,
-            true,
-            false
-        );
-
-        assertNotEq(errorCode, 0, "We expect an error message returned since the price feed should be stale now");
     }
 
     function testAddNewSignersUpdatePriceWithNewSigners() public {
@@ -198,16 +117,34 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         assertEq(price, 61000e18, "We expect to get the 61k price back from the payload we built");
     }
 
-    function testRemoveOldSignerAndFailToUpdatePriceWithOldSignersKeys()
+    function test_fail_RemoveOldSignerBelowSignerThreshold() public {
+        adaptor.removeSigner(redstoneSigners[0], false);
+        
+        vm.expectRevert(
+            RedstoneCoreAdaptor.RedstoneCoreAdaptor__InvalidConfiguration
+                .selector
+        );
+        
+        adaptor.removeSigner(redstoneSigners[1], false);
+    }
+
+    function test_fail_RemoveOldSignerAndFailToUpdatePriceWithOldSignersKeys()
         public
     {
-        testAddNewSignersUpdatePriceWithNewSigners();
-
-        adaptor.removeSigner(redstoneSigners[0], false);
+        bytes32[] memory fewerRedstoneSignerKeys = new bytes32[](3);
+        fewerRedstoneSignerKeys[
+            0
+        ] = 0x56938289786ae24fdb687a2a740e755d6ed7e72a1f82f8f9c3ed6eac5b38ba23;
+        fewerRedstoneSignerKeys[
+            1
+        ] = 0x4022f8e215d01e76d90987d7f56a09513fe76f97add10db250215bdbfab3e9c1;
+        fewerRedstoneSignerKeys[
+            2
+        ] = 0x00b2ff109fc6421974dff44f7e2f95a0ebbba51acb43b6975b77615c6cba12b2;
 
         bytes memory redstonePayload = getRedstonePayload(
             "WBTC:61000:8",
-            redstoneSignerKeys
+            fewerRedstoneSignerKeys
         );
 
         bytes memory encodedFunction = abi.encodeWithSignature(
@@ -221,9 +158,95 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             redstonePayload
         );
 
+        adaptor.removeSigner(redstoneSigners[0], false);
+
         (bool success, ) = address(adaptor).call(
             encodedFunctionWithRedstonePayload
         );
         assertFalse(success, "Writing Price should have failed since only 2 of 3 signers are approved");
+    }
+
+    function test_success_ReturnsCorrectPrice() public {
+        bytes memory redstonePayload = getRedstonePayload(
+            "WBTC:60000:8",
+            redstoneSignerKeys
+        );
+
+        (, , , bytes32 symbolHash) = adaptor.assetConfig(_WBTC_ADDRESS, true);
+        assertEq(symbolHash, bytes32("WBTC"));
+        
+        bytes memory encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool,uint128)",
+            _WBTC_ADDRESS,
+            true,
+            uint128(block.timestamp * 1000)
+        );
+        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+
+        // Securely getting oracle value
+        (bool success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayload
+        );
+        assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
+        
+        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _WBTC_ADDRESS,
+            true,
+            false
+        );
+        assertEq(errorCode, 0, "Should have had no error code returned when pricing via redstone core adaptor");
+        assertEq(price, 60000e18, "We expect to get the 60k price back from the payload we built");
+    }
+
+    function testZeroHeartBeatRequiresPriceUpdateInEverySecond() public {
+        adaptor.addAsset(_WETH_ADDRESS, true, 8, 0);
+
+        bytes memory redstonePayload = getRedstonePayload(
+            "WETH:3000:8",
+            redstoneSignerKeys
+        );
+
+        (, , , bytes32 symbolHash) = adaptor.assetConfig(_WETH_ADDRESS, true);
+        assertEq(symbolHash, bytes32("WETH"));
+        bytes memory encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool,uint128)",
+            _WETH_ADDRESS,
+            true,
+            uint128(block.timestamp * 1000)
+        );
+        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+
+        // Securely getting oracle value
+        (bool success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayload
+        );
+        assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
+
+        oracleManager.addAssetPriceFeed(_WETH_ADDRESS, address(adaptor));
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _WETH_ADDRESS,
+            true,
+            false
+        );
+        assertEq(errorCode, 0, "Should have had no error code returned when pricing via redstone core adaptor");
+        assertEq(price, 3000e18, "We expect to get the 3k price back from the payload we built");
+
+        vm.warp(block.timestamp + 1);
+        (price, errorCode) = oracleManager.getPrice(
+            _WETH_ADDRESS,
+            true,
+            false
+        );
+
+        assertNotEq(errorCode, 0, "We expect an error message returned since the price feed should be stale now");
     }
 }

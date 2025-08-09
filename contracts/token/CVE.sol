@@ -62,9 +62,9 @@ contract CVE is CVEBase {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address contributorAddress_
-    ) CVEBase(centralRegistry_) {
+    ) CVEBase(cr) {
         if (contributorAddress_ == address(0)) {
             contributorAddress_ = msg.sender;
         }

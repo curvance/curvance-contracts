@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { SimpleCToken, IERC20 } from "contracts/market/token/SimpleCToken.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
@@ -159,7 +159,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
 
         uint256 shares = simpleCUSDC.balanceOf(user1);
 
-        ZapperBase.RedeemAction memory redeemAction;
+        BaseZapper.RedeemAction memory redeemAction;
         redeemAction.cToken = address(simpleCUSDC);
         redeemAction.shares = shares;
         redeemAction.forceRedeemCollateral = false;
@@ -200,7 +200,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
 
         borrowableCDAI.setDelegateApproval(address(simpleZapper), true);
 
-        ZapperBase.RedeemAction memory redeemAction;
+        BaseZapper.RedeemAction memory redeemAction;
         redeemAction.cToken = address(borrowableCDAI);
         redeemAction.shares = 10 ether;
         redeemAction.forceRedeemCollateral = false;
@@ -242,7 +242,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         borrowableCDAI.setDelegateApproval(address(simpleZapper), true);
         vm.stopPrank();  
 
-        ZapperBase.RedeemAction memory redeemAction;
+        BaseZapper.RedeemAction memory redeemAction;
         redeemAction.cToken = address(borrowableCDAI);
         redeemAction.shares = 100 ether;
         redeemAction.forceRedeemCollateral = false;

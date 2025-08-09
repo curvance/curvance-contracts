@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
+
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
 struct AccountSnapshot {
@@ -69,9 +70,7 @@ interface ICToken {
     ///               for conversion to assets.
     /// @return The number of assets a user would receive for converting
     ///         `shares`.
-    function convertToAssets(
-        uint256 shares
-    ) external view returns (uint256);
+    function convertToAssets(uint256 shares) external view returns (uint256);
 
     /// @notice Returns share -> asset exchange rate, in `WAD`.
     /// @dev Oracle Manager calculates cToken value from this exchange rate.
@@ -81,7 +80,7 @@ interface ICToken {
     ///         This can be used to update oracle prices before
     ///         a liquidity dependent action.
     function multicall(
-        Multicall.MulticallData[] memory calls
+        Multicall.MulticallAction[] memory calls
     ) external returns (bytes[] memory results);
 
     /// @notice Caller deposits `assets` into the market and `receiver`
@@ -123,6 +122,18 @@ interface ICToken {
     function depositAsCollateralFor(
         uint256 assets,
         address receiver
+    ) external returns (uint256 shares);
+
+    /// @notice Redeems cTokens to the caller.
+    /// @param assets The amount of assets to redeem.
+    /// @param receiver The account that should receive the assets.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
+    /// @return shares The amount of shares redeemed by `owner`.
+    function redeem(
+        uint256 assets,
+        address receiver,
+        address owner
     ) external returns (uint256 shares);
 
     /// @notice Withdraws assets, quoted in `shares` from the market,
@@ -169,9 +180,9 @@ interface ICToken {
     ///                                will have its debt paid.
     ///               repayAssets The amount of `borrowableCToken` asset that
     ///                           will be repaid to lenders.
-    ///               swapAction Swap actions instructions converting
-    ///                          collateral asset into debt asset to
-    ///                          facilitate deleveraging.
+    ///               swapActions Swap actions instructions converting
+    ///                           collateral asset into debt asset to
+    ///                           facilitate deleveraging.
     ///               auxData Optional auxiliary data for execution of a
     ///                       deleverage action.
     function withdrawByPositionManager(
@@ -187,9 +198,7 @@ interface ICToken {
     /// @notice Shares of this token that an account has posted as collateral.
     /// @param account The address of the account to check collateral posted
     ///                of.
-    function collateralPosted(
-        address account
-    ) external view returns (uint256);
+    function collateralPosted(address account) external view returns (uint256);
 
     /// @notice Transfers tokens from `account` to `liquidator`.
     /// @dev Will fail unless called by a cToken during the process

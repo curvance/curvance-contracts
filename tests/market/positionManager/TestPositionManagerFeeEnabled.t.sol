@@ -51,7 +51,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
     ) public returns (bytes memory) {
         string[] memory args = new string[](8);
         args[0] = "node";
-        args[1] = "getOdosSwapAction.js";
+        args[1] = "getOdosSwapData.js";
         args[2] = vm.toString(chainId);
         args[3] = vm.toString(fromToken);
         args[4] = vm.toString(toToken);
@@ -81,9 +81,9 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         chainlinkDaiUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
+            true,
             address(chainlinkDaiUsd),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _DAI_ADDRESS,
@@ -92,9 +92,9 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(chainlinkUsdcUsd),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,
@@ -194,11 +194,11 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
-        // Try leverage with 50% of max.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
             user,
             address(borrowableCDAI)
-        ) * 50) / 100;
+        ) / 2;
         uint256 protocolBalanceBeforeLeverage = dai.balanceOf(
             centralRegistry.daoAddress()
         );

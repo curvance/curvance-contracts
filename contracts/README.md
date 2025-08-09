@@ -93,7 +93,7 @@ Core lending infrastructure that implements Curvance's unique Dynamic Liquidatio
 - 📁 `isolated/`: Contracts for isolated markets.
 - 📁 `position-management/`: Contracts that contain the logic for managing leveraged positions.
 - 📁 `token/`: Contracts for several different token types, including simple ERC20's and exotic assets. Also includes logic for eTokens (Debt Tokens) and pTokens. (Position/Collateral Tokens).
-- 📄 `DynamicInterestRateModel.sol`: Manages borrow and supply interest rates for Curvance debt tokens.
+- 📄 `DynamicIRM.sol`: Manages borrow and supply interest rates for Curvance debt tokens.
 - 📄 `LiquidationManager.sol`: Manages Curvance's liquidation queue system, enabling efficient capture of Optimal Extractable Value (OEV) while ensuring liquidations always proceed in a timely manner.
 - 📄 `MarketManager.sol`: The MarketManager is the central risk management component in Curvance that governs interactions between collateral (pTokens) and debt (eTokens), implementing the dynamic liquidation engine with tiered thresholds to maintain system stability while supporting diverse asset types with isolated risk profiles.
 
@@ -119,7 +119,7 @@ Core lending infrastructure that implements Curvance's unique Dynamic Liquidatio
 **Contents**:
 - 📁 `market/`: Contains specialized zapper contracts that facilitate seamless interactions between users and various DeFi protocols (like Pendle and Velodrome), enabling complex multi-step operations to be executed in single transactions within the Curvance ecosystem.
 - 📁 `rewards/`: Contracts that streamline the process of claiming rewards and reinvesting them into the protocol in a single transactions.
-- 📄 `ZapperBase.sol`: An abstract contract that provides the foundational infrastructure for various zapper implementations in the Curvance protocol, handling common functionality such as token routing, protocol interactions, and slippage controls.
+- 📄 `BaseZapper.sol`: An abstract contract that provides the foundational infrastructure for various zapper implementations in the Curvance protocol, handling common functionality such as token routing, protocol interactions, and slippage controls.
 ---
 ### 📁 testnet
 

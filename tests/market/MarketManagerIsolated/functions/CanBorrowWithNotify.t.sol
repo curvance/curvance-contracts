@@ -189,7 +189,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
    
     }
 
-    function test_canBorrowWithNotify_success_withAuxiliaryDataReview() external {
+    function test_canBorrowWithNotify_success_withProtocolReaderReview() external {
         _prepareBALRETH(user1, 10_000e18);
 
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100_000e6);
@@ -201,7 +201,8 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         vm.stopPrank();
 
         bool hasPosition;
-        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(borrowableCUSDC));
+        (hasPosition, , ) =
+            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
 
         assertFalse(hasPosition);
         address[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
@@ -215,7 +216,8 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
             1_000e6
         );
 
-        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(borrowableCUSDC));
+        (hasPosition, , ) =
+            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
 
         assertTrue(hasPosition);
 

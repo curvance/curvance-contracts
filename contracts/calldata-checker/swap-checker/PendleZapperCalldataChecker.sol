@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { BaseSwapChecker } from "./BaseSwapChecker.sol";
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -95,7 +95,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                 ,
                 ,
                 ,
-                ZapperBase.RedeemAction memory redeemAction,
+                BaseZapper.RedeemAction memory redeemAction,
                 PendleZapper.ZapAction memory desc,
                 ,
                 address receiver
@@ -106,7 +106,7 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
                         address,
                         bool,
                         PendleLib.PendleAction,
-                        ZapperBase.RedeemAction,
+                        BaseZapper.RedeemAction,
                         PendleZapper.ZapAction,
                         SwapperLib.Swap[],
                         address

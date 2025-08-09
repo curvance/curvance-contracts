@@ -15,11 +15,11 @@ contract BorrowableCTokenInitializeDepositsTest is TestBaseBorrowableCToken {
         borrowableCUSDC.initializeDeposits(address(0));
     }
 
-    function test_borrowableCTokenInitializeDeposits_fail_whenInterestRateModelLinkedToWrongToken()
+    function test_borrowableCTokenInitializeDeposits_fail_whenIRMLinkedToWrongToken()
         public
     {
-        borrowableCUSDC.setInterestRateModel(
-            address(interestRateModels[block.chainid][_DAI_ADDRESS])
+        borrowableCUSDC.setIRM(
+            address(IRMs[block.chainid][_DAI_ADDRESS])
         );
 
         vm.prank(address(marketManagerIsolated));

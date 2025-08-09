@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+import { SECONDS_PER_YEAR, WAD, BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
+
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleAdaptor, PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// CONSTANTS ///
@@ -14,47 +17,222 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
+    /// @notice The maximum price allowed to be returned by an oracle adaptor.
+    uint256 internal constant _MAXIMUM_PRICE_ALLOWED = type(uint240).max;
+    /// @notice The enforced minimum amount of time that a price guard grows
+    ///         before overflowing type(uint240).max, in years.
+    /// @dev 5 = 5 years.
+    uint256 internal constant _MINIMUM_YEARS_BEFORE_OVERFLOW = 5;
+    /// @notice The maximum % increase allowed per second of a guarded price,
+    ///         in `WAD`.
+    uint256 internal constant _MAXIMUM_INCREASE_PER_SECOND = type(uint64).max;
+    /// @notice The maximum difference between current oracle price and
+    ///         min/max allowed for successful `setGuardedPriceConfig` call,
+    ///         in `BASIS_POINTS`.
+    /// @dev 1000 = 10%.
+    uint256 internal constant _MAXIMUM_PRICE_DIFFERENCE = 1000;
+    /// @notice The minimum amount of time allowed between `timestampStart`
+    ///         and `block.timestamp` on `setGuardedPriceConfig` call.
+    uint256 internal constant _MINIMUM_TIMESTAMP_BUFFER = 7 days;
+
     /// STORAGE ///
 
     /// @notice Whether an asset is supported by the Oracle Adaptor or not.
-    /// @dev Asset => Supported by adaptor.
+    /// @dev Asset => Supported by Adaptor.
     mapping(address => bool) public isSupportedAsset;
+    /// @notice Token price guard configuration for pricing an asset.
+    /// @dev Token address => inUSD => Price Guard configuration.
+    mapping(address => mapping(bool => PriceGuard)) public priceGuards;
+
+    /// EVENTS ///
+
+    event AssetRemoved(address asset);
+    event PriceGuardUpdated(PriceGuard pg);
 
     /// ERRORS ///
 
     error BaseOracleAdaptor__Unauthorized();
-    error BaseOracleAdaptor__InvalidCentralRegistry();
-
+    error BaseOracleAdaptor__NoPriceGuard();
+    error BaseOracleAdaptor__InvalidConfig();
+    error BaseOracleAdaptor__AssetIsNotSupported();
+    
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert BaseOracleAdaptor__InvalidCentralRegistry();
-        }
-
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
     }
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Called by OracleManager to price an asset.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @param inUSD A boolean to determine if the price should be returned in
-    ///              USD or not.
-    /// @param getLower A boolean to determine if lower of two oracle prices
-    ///                 should be retrieved.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price.
+    /// @notice Retrieves the price of `asset`, in `inUSD` price form.
+    /// @param asset The address of the asset to retrieve a price for.
+    /// @param inUSD Specifies whether the price format should be in USD (true)
+    ///              or a chain's native token (false).
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
     function getPrice(
         address asset,
         bool inUSD,
-        bool getLower
-    ) external view virtual returns (PriceReturnData memory);
+        bool /* getLower */
+    ) external view virtual override returns (PricingResult memory result) {
+        _checkSupportedAsset(asset);
+        result = _getPrice(asset, inUSD);
+    }
+
+    /// @notice Returns PriceGuard data for pricing `asset` denominated either
+    ///         USD or native tokens depending on `inUSD`.
+    /// @param asset The address of the asset to retrieve any PriceGuard data on.
+    /// @param inUSD Specifies whether the PriceGuard returned should be in
+    ///              USD (true) or a chain's native token (false).
+    function getPriceGuard(
+        address asset,
+        bool inUSD
+    ) external view returns (PriceGuard memory) {
+        return priceGuards[asset][inUSD];
+    }
+
+    /// @notice Sets a PriceGuard when pricing `asset` denominated either USD
+    ///         or native tokens depending on `inUSD`.
+    /// @param asset The address of the asset to set a PriceGuard data on.
+    /// @param inUSD Specifies whether the PriceGuard should be in
+    ///              USD (true) or a chain's native token (false).
+    /// @param guardType The type of PriceGuard to set on `asset`. 
+    ///                  Where:
+    ///                  1: Indicates a static maximum of `basePrice` and
+    ///                     minimum of `minPrice`.
+    ///                  2: Indicates an ever increasing maximum of
+    ///                     `basePrice` and minimum of `minPrice` continually
+    ///                     growing by `increasePerYear` % per year.
+    /// @param increasePerYear The magnitude that `basePrice` should increase
+    ///                        overtime from `timestampStart`, inputted in
+    ///                        `BASIS_POINTS` per year.
+    /// @param timestampStart When `increasePerYear` should start increasing
+    ///                       `basePrice` raising the maximum price returned
+    ///                       when pricing `asset`.
+    /// @param basePrice The base price that should be the maximum price
+    ///                  returned when pricing `asset`.
+    /// @param minPrice The minimum price that should be allowed to be
+    ///                 returned when pricing `asset`.
+    function setGuardedPriceConfig(
+        address asset,
+        bool inUSD,
+        uint256 guardType,
+        uint256 increasePerYear,
+        uint256 timestampStart,
+        uint256 minPrice,
+        uint256 basePrice
+    ) external {
+        _checkMarketPermissions();
+
+        if (guardType == 0 || guardType > 2) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+        
+        if (
+            timestampStart > block.timestamp ||
+            block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
+        ) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+
+        if (minPrice > basePrice || minPrice > type(uint144).max) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+
+        // Convert `increasePerYear` from basis points to WAD.
+        increasePerYear = increasePerYear * 1e14;
+        // Technically _getBoundedPrice is meant for only seconds but by
+        // converting time and increase rate to years it works the same.
+        uint256 priceForOverflowCheck = _getBoundedPrice(
+            _MINIMUM_YEARS_BEFORE_OVERFLOW,
+            increasePerYear,
+            basePrice
+        );
+
+        if (priceForOverflowCheck > type(uint240).max) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+
+        if (increasePerYear / SECONDS_PER_YEAR > type(uint64).max) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+
+        uint256 boundedPrice = _getBoundedPrice(
+            block.timestamp - timestampStart,
+            increasePerYear / SECONDS_PER_YEAR,
+            basePrice
+        );
+
+        uint256 boundedPriceHigh = FixedPointMathLib.mulDiv(
+            boundedPrice,
+            BASIS_POINTS + _MAXIMUM_PRICE_DIFFERENCE,
+            BASIS_POINTS
+        );
+        uint256 boundedPriceLow = FixedPointMathLib.mulDiv(
+            boundedPrice,
+            BASIS_POINTS - _MAXIMUM_PRICE_DIFFERENCE,
+            BASIS_POINTS
+        );
+
+        {
+            PricingResult memory result = this.getPrice(asset, inUSD, true);
+            uint256 oraclePrice = result.price;
+
+            if (boundedPriceHigh < oraclePrice || boundedPriceLow > oraclePrice) {
+                revert BaseOracleAdaptor__InvalidConfig();
+            }
+        }
+
+        PriceGuard storage pg = priceGuards[asset][inUSD];
+
+        // New `timestampStart` needs to start after the current one.
+        if (pg.timestampStart > timestampStart) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+
+        pg.guardType = uint8(guardType);
+        pg.timestampStart = uint40(timestampStart);
+        pg.increasePerSecond = uint64(increasePerYear / SECONDS_PER_YEAR);
+        pg.minPrice = uint144(minPrice);
+        pg.basePrice = basePrice;
+
+        emit PriceGuardUpdated(pg);
+    }
+
+    /// @notice Disables any PriceGuard active when pricing `asset`
+    ///         denominated either USD or native tokens depending on `inUSD`.
+    /// @param asset The address of the asset to disable any PriceGuard data on.
+    /// @param inUSD Specifies whether the PriceGuard disabled should be in
+    ///              USD (true) or a chain's native token (false).
+    function disableGuardedPriceConfig(address asset, bool inUSD) external {
+        _checkMarketPermissions();
+        delete priceGuards[asset][inUSD];
+    }
+
+    /// @notice Removes a supported asset from the adaptor.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
+    ///      Requires that `asset` is currently supported.
+    /// @param asset The address of the supported asset to remove from
+    ///              the adaptor.
+    function removeAsset(address asset) external {
+        _checkElevatedPermissions();
+        _checkSupportedAsset(asset);
+
+        // Notify the adaptor to stop supporting the asset.
+        delete isSupportedAsset[asset];
+        _wipeAssetConfigs(asset);
+
+        // Notify the Oracle Manager that we are going to stop supporting
+        // the asset.
+        CommonLib._oracleManager(centralRegistry).notifyFeedRemoval(asset);
+        
+        emit AssetRemoved(asset);
+    }
 
     /// INTERNAL FUNCTIONS ///
     
@@ -75,8 +253,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 max,
         uint256 min,
         uint256 heartbeat
-    ) internal virtual view returns (bool) {
-
+    ) internal view virtual returns (bool) {
         // Validate `value` is not at or above the maximum value allowed.
         if (value >= max) {
             return true;
@@ -95,35 +272,87 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         return false;
     }
 
-    /// @notice Helper function for normalizing (converting prices in
-    ///         different forms to a common scale) prices received from
-    ///         various oracle adaptors.
-    /// @param price The price to normalize.
+    /// @notice Helper function for adjusting received price into WAD form
+    ///         received from various oracle adaptors.
+    /// @param price The price to adjust.
     /// @param decimals The decimal precision `price` is reported in.
-    /// @return Returns the normalized price in 1e18 (WAD) scale.
-    function _normalizePrice(
+    /// @return Returns the potentially adjusted price in 1e18 (WAD) scale.
+    function _adjustPrice(
+        address asset,
+        bool inUSD,
         uint256 price,
         uint256 decimals
-    ) internal pure returns (uint256) {
-        return FixedPointMathLib.fullMulDiv(
+    ) internal view returns (uint256) {
+        // Normalize price to 18 decimals (WAD).
+        if (decimals != 18) {
+            price = FixedPointMathLib.fullMulDiv(price, WAD, 10 ** decimals);
+        }
+        
+        // Adjust price based on any present price guards.
+        PriceGuard memory pg = priceGuards[asset][inUSD];
+        
+        // Case with no minimum/maximum guarded prices.
+        if (pg.guardType == 0) {
+            return price;
+        }
+
+        // Case with static minimum/maximum guarded prices.
+        if (pg.guardType == 1) {
+            if (price < pg.minPrice) {
+                return pg.minPrice;
+            }
+
+            return price > pg.basePrice ? pg.basePrice : price;
+        }
+
+        // Case with dynamic minimum/maximum guarded prices.
+
+        // Calculate how much to shift up minimum and maximum values from
+        // scaling guarded prices.
+        uint256 timePassed = block.timestamp - pg.timestampStart;
+        uint256 boundedMin = _getBoundedPrice(
+            timePassed,
+            pg.increasePerSecond,
+            pg.minPrice
+        );
+
+        if (price < boundedMin) {
+            return boundedMin;
+        }
+        
+        uint256 boundedMax = _getBoundedPrice(
+            timePassed,
+            pg.increasePerSecond,
+            pg.basePrice
+        );
+        return price > boundedMax ? boundedMax : price;
+    }
+
+    function _getBoundedPrice(
+        uint256 timeSinceStart,
+        uint256 increasePerSecond,
+        uint256 price
+    ) internal pure returns (uint256 result) {
+        result = FixedPointMathLib.mulDiv(
             price,
-            WAD,
-            10 ** decimals
+            ((timeSinceStart * increasePerSecond) + WAD),
+            WAD
         );
     }
 
     /// @notice Helper function to check whether `price` would overflow
     ///         based on a uint240 maximum.
     /// @param price The price to check against overflow.
-    /// @return Whether `price` will overflow on conversion to uint240.
-    function _checkOracleOverflow(uint256 price) internal pure returns (bool) {
-        return price > type(uint240).max;
+    /// @return o Whether `price` will overflow on conversion to uint240.
+    function _checkOverflow(uint256 price) internal pure returns (bool o) {
+        o = price > _MAXIMUM_PRICE_ALLOWED;
     }
 
-    /// @notice Checks whether the caller has sufficient permissioning.
-    function _checkDaoPermissions() internal view {
-        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            revert BaseOracleAdaptor__Unauthorized();
+    /// @notice Checks whether `asset` is supported by the adaptor or not.
+    function _checkSupportedAsset(address asset) internal view {
+        // Validate we support pricing `asset`.
+        if (!isSupportedAsset[asset]) {
+            revert BaseOracleAdaptor__AssetIsNotSupported();
         }
     }
 
@@ -134,18 +363,37 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         }
     }
 
+    /// @notice Checks whether the caller has sufficient permissioning.
+    function _checkMarketPermissions() internal view {
+        if (!centralRegistry.hasMarketPermissions(msg.sender)) {
+            revert BaseOracleAdaptor__Unauthorized();
+        }
+    }
+
     /// EXTERNAL FUNCTIONS TO OVERRIDE ///
 
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
     /// @return The adaptor's type.
-    function adaptorType() external virtual view returns (uint256);
+    function adaptorType() external view virtual returns (uint256);
 
-    /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Manager to notify it of its removal.
-    ///      Requires that `asset` is currently supported.
-    /// @param asset The address of the supported asset to remove from
-    ///              the adaptor.
-    function removeAsset(address asset) external virtual;
+    /// INTERNAL FUNCTIONS TO OVERRIDE ///
+
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
+    /// @param asset The address of the asset for which the price is needed.
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
+    function _getPrice(
+        address asset,
+        bool inUSD
+    ) internal view virtual returns (PricingResult memory result);
+
+    /// @notice Wipes supported asset pricing configs from an adaptor.
+    function _wipeAssetConfigs(address /*asset*/ ) internal virtual;
 }

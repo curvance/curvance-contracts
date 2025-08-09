@@ -12,7 +12,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
+import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
@@ -64,9 +64,9 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
             address(chainlinkUsdcUsd),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,
@@ -75,15 +75,15 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         chainlinkEthUsd = new MockV3Aggregator(8, 2700e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
+            true,
             address(chainlinkEthUsd),
-            0,
-            true
+            0
         );
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
+            true,
             address(chainlinkEthUsd),
-            0,
-            true
+            0
         );
         oracleManager.addAssetPriceFeed(
             _ETH_ADDRESS,
@@ -301,7 +301,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
     function testRedeemAndExitVelodrome() public {
         testEnterVelodromeWithCToken();
 
-        ZapperBase.RedeemAction memory redeemAction;
+        BaseZapper.RedeemAction memory redeemAction;
         redeemAction.cToken = address(veloCTokenWETHUSDC);
         redeemAction.shares = 0.00006 ether;
         redeemAction.forceRedeemCollateral = false;

@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { WAD } from "contracts/libraries/Constants.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
@@ -32,6 +34,12 @@ abstract contract LiquidityManagerIsolated {
     ///         in the liquidity manager.
     /// @param isListed Whether or not this Curvance token is listed.
     /// @dev false = unlisted; true = listed.
+    /// @param mintPaused Whether token minting is paused.
+    /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
+    /// @param collateralizationPaused Whether token collateralization is paused.
+    /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
+    /// @param borrowPaused Whether token borrowing is paused.
+    /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
     /// @param collRatio The ratio at which this token can be borrowed against
     ///                  when collateralized.
     /// @dev In `WAD`, e.g. 0.8e18 = 80% collateral value borrowable.
@@ -50,10 +58,10 @@ abstract contract LiquidityManagerIsolated {
     ///                    in 13% liquidation incentive on hard liquidation.
     /// @dev In `WAD`, e.g. 0.05e18 = 5% maximum additional incentive.
     /// @param liqIncMin The minimum possible liquidation incentive for
-    ///                  during an auction, in basis points.
+    ///                  during an auction.
     /// @dev In `WAD`, stored as Incentive + WAD e.g. 1.03e18 = 3% incentive.
     /// @param liqIncMax The maximum possible liquidation incentive for
-    ///                  during an auction, in basis points.
+    ///                  during an auction.
     /// @dev In `WAD`, stored as Incentive + WAD e.g. 1.07e18 = 7% incentive.
     /// @param closeFactorBase Maximum % that a liquidator can repay when soft
     ///                        liquidating an account.
@@ -64,24 +72,27 @@ abstract contract LiquidityManagerIsolated {
     /// @dev In `WAD` format, e.g. 0.9e18 = 90% distance between
     ///      `closeFactorBase`, and 100%.
     /// @param closeFactorMin The minimum possible close factor for during an
-    ///                       auction, in basis points.
+    ///                       auction.
     /// @dev In `WAD` format, e.g. 0.2e18 = 20% minimum close factor.
     /// @param closeFactorMax The maximum possible close factor for during an 
-    ///                       auction, in basis points.
+    ///                       auction.
     /// @dev In `WAD` format, e.g. 0.4e18 = 40% maximum close factor.
     struct CurvanceToken {
         bool isListed;
-        uint256 collRatio;
-        uint256 collReqSoft;
-        uint256 collReqHard;
-        uint256 liqIncBase;
-        uint256 liqIncCurve;
-        uint256 liqIncMin;
-        uint256 liqIncMax;
-        uint256 closeFactorBase;
-        uint256 closeFactorCurve;
-        uint256 closeFactorMin;
-        uint256 closeFactorMax;
+        uint8 mintPaused;
+        uint8 collateralizationPaused;
+        uint8 borrowPaused;
+        uint72 collRatio;
+        uint72 collReqSoft;
+        uint72 collReqHard;
+        uint64 liqIncBase;
+        uint64 liqIncCurve;
+        uint64 liqIncMin;
+        uint64 liqIncMax;
+        uint64 closeFactorBase;
+        uint64 closeFactorCurve;
+        uint64 closeFactorMin;
+        uint64 closeFactorMax;
     }
 
     /// @notice Data structure containing information on hypothetical action
@@ -211,9 +222,10 @@ abstract contract LiquidityManagerIsolated {
     /// STORAGE ///
 
     /// @notice Curvance token data including listing status,
-    ///         token characterists, account position data.
+    ///         action enablement, collateralization configuration,
+    ///         and liquidation configuration.
     /// @dev Curvance Token Address => CurvanceToken struct.
-    mapping(address => CurvanceToken) public tokenData;
+    mapping(address => CurvanceToken) internal _tokenConfig;
 
     // ACCOUNT LIQUIDITY DATA //
 
@@ -228,21 +240,11 @@ abstract contract LiquidityManagerIsolated {
 
     /// ERRORS ///
 
-    error LiquidityManager__InvalidParameter();
     error LiquidityManager__InsufficientLoanSize();
 
-    constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            // bytes4(keccak256(bytes("LiquidityManager__InvalidParameter()"))).
-            _revert(0x78eefdcc);
-        }
-
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
     }
 
     /// @notice Determine `account`'s current status between collateral,
@@ -258,7 +260,7 @@ abstract contract LiquidityManagerIsolated {
         uint256 collateral,
         uint256 maxDebt,
         uint256 debt
-    ){
+    ) {
         (
             AccountSnapshot[] memory snapshots,
             uint256[] memory underlyingPrices,
@@ -279,7 +281,7 @@ abstract contract LiquidityManagerIsolated {
                 collateral += collateralValue;
                 maxDebt += _mulDiv(
                     collateralValue,
-                    tokenData[snap.asset].collRatio,
+                    _tokenConfig[snap.asset].collRatio,
                     WAD
                 );
             } else {
@@ -361,7 +363,7 @@ abstract contract LiquidityManagerIsolated {
                         snap.exchangeRate,
                         underlyingPrices[i],
                         10 ** snap.decimals,
-                        tokenData[snap.asset].collRatio,
+                        _tokenConfig[snap.asset].collRatio,
                         true
                     );
                 }
@@ -411,7 +413,7 @@ abstract contract LiquidityManagerIsolated {
                         snap.exchangeRate,
                         underlyingPrices[i],
                         10 ** snap.decimals,
-                        tokenData[snap.asset].collRatio,
+                        _tokenConfig[snap.asset].collRatio,
                         false
                     );
                 } else {
@@ -440,21 +442,15 @@ abstract contract LiquidityManagerIsolated {
                 }
             }
         }
-        // These will not underflow/overflow as condition is checked prior.
+
         // Returns excess liquidity on hypothetical positions.
         if (maxDebt > newDebt) {
-            unchecked {
-                result.collateralSurplus = maxDebt - newDebt;
-            }
-
+            result.collateralSurplus = maxDebt - newDebt;
             return (result, positionsToClose);
         }
 
         // Returns shortfall on hypothetical positions.
-        unchecked {
-            result.liquidityDeficit = newDebt - maxDebt;
-        }
-
+        result.liquidityDeficit = newDebt - maxDebt;
         return (result, positionsToClose);
     }
 
@@ -474,24 +470,20 @@ abstract contract LiquidityManagerIsolated {
     ///                debt The account's total debt value.
     /// @return lFactor The liquidation factor determining liquidation
     ///                 severity.
-    /// @return collateralTokenPrice The price of the underlying asset of
-    ///                              `collateralToken`.
-    /// @return debtTokenPrice The price of the underlying asset of
-    ///                        `debtToken`.
+    /// @return collateralUnderlyingPrice The price of the underlying asset of
+    ///                                   `collateralToken`.
+    /// @return debtUnderlyingPrice The price of the underlying asset of
+    ///                             `debtToken`.
     function _liquidationValuesOf(
         address account,
         address collateralToken,
         address debtToken
-    )
-        internal
-        view
-        returns (
-            AccountLiqResult memory result,
-            uint256 lFactor,
-            uint256 collateralTokenPrice,
-            uint256 debtTokenPrice
-            )
-    {
+    ) internal view returns (
+        AccountLiqResult memory result,
+        uint256 lFactor,
+        uint256 collateralUnderlyingPrice,
+        uint256 debtUnderlyingPrice
+    ) {
         (
             AccountSnapshot[] memory snapshots,
             uint256[] memory underlyingPrices,
@@ -504,13 +496,10 @@ abstract contract LiquidityManagerIsolated {
 
             if (snap.isCollateral) {
                 if (snap.asset == collateralToken) {
-                    collateralTokenPrice = underlyingPrices[i];
+                    collateralUnderlyingPrice = underlyingPrices[i];
                 }
 
-                (
-                    result.cSoft,
-                    result.cHard
-                ) = _addLiquidationValues(
+                (result.cSoft, result.cHard) = _addLiquidationValues(
                     snap,
                     account,
                     underlyingPrices[i],
@@ -519,7 +508,7 @@ abstract contract LiquidityManagerIsolated {
                 );
             } else {
                 if (snap.asset == debtToken) {
-                    debtTokenPrice = underlyingPrices[i];
+                    debtUnderlyingPrice = underlyingPrices[i];
                 }
 
                 // If they have a debt balance,
@@ -585,28 +574,22 @@ abstract contract LiquidityManagerIsolated {
             for (uint256 i; i < assets.length; ) {
                 asset = assets[i++];
                 if (asset == tData.collateralToken) {
-                    (
+                    (r.cSoft, r.cHard) = _addLiquidationValuesCached(
+                        tData.collateralExchangeRate,
+                        tData.collateralDecimals,
+                        tData.collateralReqSoft,
+                        tData.collateralReqHard,
+                        tData.collateralUnderlyingPrice,
+                        ICToken(tData.collateralToken).collateralPosted(account),
                         r.cSoft,
                         r.cHard
-                    ) = _addLiquidationValuesCached(
-                            tData.collateralExchangeRate,
-                            tData.collateralDecimals,
-                            tData.collateralReqSoft,
-                            tData.collateralReqHard,
-                            tData.collateralUnderlyingPrice,
-                            ICToken(tData.collateralToken).collateralPosted(
-                                account
-                            ),
-                            r.cSoft,
-                            r.cHard
                     );
                 } else {
                     // If the asset is not `collateralToken`, the asset must
                     // be the `debtToken` debt position because this market
                     // only has two tokens.
-                    debt = IBorrowableCToken(tData.debtToken).debtBalance(
-                        account
-                    );
+                    debt =
+                        IBorrowableCToken(tData.debtToken).debtBalance(account);
 
                     // If they have a debt balance, document additional
                     // collateral requirements.
@@ -684,20 +667,15 @@ abstract contract LiquidityManagerIsolated {
     /// @return Assets data for `account`.
     /// @return Prices for `account` assets.
     /// @return The number of assets `account` is in.
-    function _assetDataOf(
-        address account,
-        uint256 errorCodeBreakpoint
-    )
+    function _assetDataOf(address account, uint256 errorCodeBreakpoint)
         internal
         view
-        returns (AccountSnapshot[] memory, uint256[] memory, uint256)
-    {
-        return
-            IOracleManager(centralRegistry.oracleManager()).getPricesForMarket(
-                account,
-                accountAssets[account].assets,
-                errorCodeBreakpoint
-            );
+        returns (AccountSnapshot[] memory, uint256[] memory, uint256) {
+        return CommonLib._oracleManager(centralRegistry).getPricesForMarket(
+            account,
+            accountAssets[account].assets,
+            errorCodeBreakpoint
+        );
     }
 
     /// @notice Calculates an assets value based on its `price`,
@@ -774,8 +752,8 @@ abstract contract LiquidityManagerIsolated {
         return _addLiquidationValuesCached(
             snap.exchangeRate,
             10 ** snap.decimals,
-            tokenData[asset].collReqSoft,
-            tokenData[asset].collReqHard,
+            _tokenConfig[asset].collReqSoft,
+            _tokenConfig[asset].collReqHard,
             price,
             ICToken(asset).collateralPosted(account),
             softSumPrior,
