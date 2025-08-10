@@ -12,13 +12,15 @@ import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
 
-import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, WAD_SQUARED, SECONDS_PER_YEAR } from "contracts/libraries/ConstantsLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 // NOTE: This is a work in progress, don't implement yet.
-// TODO: Figure out what to do with tokenDataOf since we have tests attached
+// TODO: Change things like tokenPrice -> assetPrice, this token prefix is 
+// commonly referenced as the "asset" which is what the protocol uses
 contract ProtocolReader2 {
     /// TYPES ///
     struct StaticMarketData {
@@ -60,22 +62,29 @@ contract ProtocolReader2 {
         uint256 totalSupply;
     }
 
+    // TODO: In the JS world we need to have the option to convert tvl,collateral,debt to USD
     struct DynamicMarketData {
         address _address;
         uint256 tvl;
+        uint256 collateral;
+        uint256 debt;
         DynamicMarketToken[] tokens;
     }
 
+    // TODO: In the JS world we need to have the option to convert tvl,collateral,debt to USD
     struct DynamicMarketToken {
         address _address;
-        uint256 posted;
+        uint256 tvl;
+        uint256 collateral;
+        uint256 debt;
         uint256 sharePrice;
         uint256 tokenPrice;
-        uint256 tvl;
+        uint256 sharePriceLower;
+        uint256 tokenPriceLower;
         uint256 borrowRate;
+        uint256 predictedBorrowRate;
         uint256 utilizationRate;
         uint256 supplyRate;
-        uint256 predictedSupplyRate;
         uint256 liquidity;
     }
 
@@ -170,7 +179,6 @@ contract ProtocolReader2 {
             uint256[] memory uniqueAdapters;
             for (uint256 j; j < tokenAddresses.length; j++) {
                 ICToken cToken = ICToken(tokenAddresses[j]);
-                IERC20 asset = IERC20(cToken.asset());
                 (uint256 oracleA, uint256 oracleB) = _getAdaptorTypes(
                     address(cToken),
                     om
@@ -192,14 +200,18 @@ contract ProtocolReader2 {
         }
     }
 
-    // TODO: Implement
-    // getAllMarketData
     function getDynamicMarketData()
         public
         view
         returns (DynamicMarketData[] memory data)
     {
-        // address[] memory markets = centralRegistry.marketManagers();
+        address[] memory markets = centralRegistry.marketManagers();
+        data = new DynamicMarketData[](markets.length);
+        for (uint256 i; i < markets.length; i++) {
+            data[i] = _buildDynamicMarketData(IMarketManager(markets[i]));
+        }
+
+        return data;
     }
 
     function getUserData(
@@ -498,5 +510,76 @@ contract ProtocolReader2 {
             cooldown: MarketManagerIsolated(address(mm)).accountAssets(account) + MARKET_COOLDOWN_LENGTH,
             tokens: tokens
         });
+    }
+
+    function _buildDynamicMarketToken(ICToken ctoken) internal view returns (DynamicMarketToken memory) {
+        bool canBorrow = ctoken.isBorrowable();
+        address asset = ctoken.asset();
+        uint256 tokenPriceLower = _getUsdPrice(address(asset), true);
+        uint256 sharePriceLower = _getUsdPrice(address(ctoken), true);
+        uint256 tokenPrice = _getUsdPrice(address(asset), false);
+        uint256 sharePrice = _getUsdPrice(address(ctoken), false);
+
+        DynamicMarketToken memory dmt = DynamicMarketToken({
+            _address: address(ctoken),
+            tokenPrice: tokenPrice,
+            tokenPriceLower: tokenPriceLower,
+            sharePrice: sharePrice,
+            sharePriceLower: sharePriceLower,
+            tvl: IERC20(asset).balanceOf(address(ctoken)),
+            collateral: ctoken.marketCollateralPosted(),
+            debt: 0,
+            liquidity: 0,
+            borrowRate: 0,
+            predictedBorrowRate: 0,
+            utilizationRate: 0,
+            supplyRate: 0
+        });
+
+        if(canBorrow) {
+            IBorrowableCToken bcToken = IBorrowableCToken(address(ctoken));
+            IDynamicIRM irm = bcToken.IRM();
+
+            dmt.debt = bcToken.marketOutstandingDebt();
+            dmt.liquidity = dmt.tvl - dmt.debt;
+            dmt.borrowRate = irm.borrowRate(dmt.tvl, dmt.debt) * SECONDS_PER_YEAR;
+            dmt.predictedBorrowRate = irm.predictedBorrowRate(dmt.tvl, dmt.debt) * SECONDS_PER_YEAR;
+            dmt.utilizationRate = irm.utilizationRate(dmt.tvl, dmt.debt) * SECONDS_PER_YEAR;
+            dmt.supplyRate = irm.supplyRate(dmt.tvl, dmt.debt, bcToken.interestFee()) * SECONDS_PER_YEAR;
+        }
+
+        return dmt;
+    }
+
+    function _buildDynamicMarketData(IMarketManager mm) internal view returns (DynamicMarketData memory) {
+        address[] memory tokenAddresses = mm.queryTokensListed();
+        DynamicMarketToken[] memory tokens = new DynamicMarketToken[](tokenAddresses.length);
+
+        uint256 marketTvl = 0;
+        uint256 marketCollateral = 0;
+        uint256 marketDebt = 0;
+        for (uint256 i = 0; i < tokenAddresses.length; i++) {
+            ICToken ctoken = ICToken(tokenAddresses[i]);
+            DynamicMarketToken memory dmToken = _buildDynamicMarketToken(ctoken);
+            tokens[i] = dmToken;
+
+            marketTvl += dmToken.tvl;
+            marketCollateral += dmToken.collateral;
+            marketDebt += dmToken.debt;
+        }
+
+        return DynamicMarketData({
+            _address: address(mm),
+            tvl: marketTvl,
+            collateral: marketCollateral,
+            debt: marketDebt,
+            tokens: tokens
+        });
+    }
+
+    function _getUsdPrice(address token, bool getLower) internal view returns (uint256) {
+        IOracleManager om = IOracleManager(centralRegistry.oracleManager());
+        (uint256 price, ) = om.getPrice(token, true, getLower);
+        return price;
     }
 }
