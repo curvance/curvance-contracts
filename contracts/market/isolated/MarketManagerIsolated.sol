@@ -300,15 +300,6 @@ contract MarketManagerIsolated is
         result = accountAssets[account].assets;
     }
 
-    /// @notice Returns the market cooldown timestamp for `account`.
-    /// @param account The address of the account to pull cooldown for.
-    /// @return The cooldown timestamp for the account.
-    function cooldown(
-        address account
-    ) external view returns (uint256) {
-        return accountAssets[account].cooldownTimestamp;
-    }
-
     /// @notice Determine `account`'s current status between collateral,
     ///         debt, and additional liquidity.
     /// @param account The account to determine liquidity for.

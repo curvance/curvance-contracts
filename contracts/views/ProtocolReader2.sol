@@ -6,6 +6,7 @@ import { LiquidityManagerIsolated } from "contracts/market/isolated/MarketManage
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
@@ -19,9 +20,6 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 // NOTE: This is a work in progress, don't implement yet.
 // TODO: Figure out what to do with tokenDataOf since we have tests attached
 contract ProtocolReader2 {
-    // @dev: See MarketManagerIsolated constant: MIN_HOLD_PERIOD
-    uint256 public constant MARKET_COOLDOWN_LENGTH = 20 minutes;
-
     /// TYPES ///
     struct StaticMarketData {
         address _address;
@@ -104,13 +102,15 @@ contract ProtocolReader2 {
 
     struct UserMarketToken {
         address _address;
-        bool hasPosition;
         uint256 tokenAmount;
         uint256 shareAmount;
         uint256 debt;
+        uint256 collateral;
     }
 
     /// CONSTANTS ///
+    // @dev: See MarketManagerIsolated constant: MIN_HOLD_PERIOD
+    uint256 public constant MARKET_COOLDOWN_LENGTH = 20 minutes;
     uint256 public constant MARKET_ASSET_RESERVE = 77777;
 
     /// STORAGE ///
@@ -202,17 +202,26 @@ contract ProtocolReader2 {
         // address[] memory markets = centralRegistry.marketManagers();
     }
 
-    // TODO: Implement
-    // getAllMarketData
-    // getAccountState
-    // getUserLocks
     function getUserData(
         address account
     ) public view returns (UserData memory data) {
-        // Load locks
-        // (data.locks, ) = IVeCVE(centralRegistry.veCVE()).queryUserLocks(
-        //     account
-        // );
+        IVeCVE veCve = IVeCVE(centralRegistry.veCVE());
+        (uint256[] memory lockAmounts, uint256[] memory lockTimestamps) = veCve.queryUserLocks(account);
+        data.locks = new UserLock[](lockAmounts.length);
+        for (uint256 i = 0; i < lockAmounts.length; i++) {
+            data.locks[i] = UserLock({
+                lockIndex: i,
+                amount: lockAmounts[i],
+                unlockTime: lockTimestamps[i]
+            });
+        }
+        
+        address[] memory markets = centralRegistry.marketManagers();
+        data.markets = new UserMarket[](markets.length);
+        for (uint256 i = 0; i < markets.length; i++) {
+            IMarketManager mm = IMarketManager(markets[i]);
+            data.markets[i] = _buildUserMarket(mm, account);
+        }
 
         return data;
     }
@@ -327,8 +336,8 @@ contract ProtocolReader2 {
     ) public view returns (uint256[] memory) {
         uint256[] memory cooldowns = new uint256[](markets.length);
         for (uint256 i; i < markets.length; ++i) {
-            IMarketManager mm = IMarketManager(markets[i]);
-            uint256 cooldownTimestamp = mm.cooldown(user);
+            MarketManagerIsolated mm = MarketManagerIsolated(markets[i]);
+            uint256 cooldownTimestamp = mm.accountAssets(user);
 
             cooldowns[i] = cooldownTimestamp + MARKET_COOLDOWN_LENGTH;
         }
@@ -336,6 +345,17 @@ contract ProtocolReader2 {
     }
 
     /// INTERNAL FUNCTIONS ///
+    /// @notice Gets the health factor of a user's position in a market
+    /// @param mm The market manager to pull data from.
+    /// @param account The user address to get the health factor for.
+    /// @return healthFactor The health factor of the user's position.
+    function _getPositionHealth(IMarketManager mm, address account)
+        internal
+        view
+        returns (uint256 healthFactor) {
+        (uint256 soft, , uint256 debt) = mm.liquidationValuesOf(account);
+        return (soft * WAD) / debt;
+    }
 
     /// @notice Queries static token configuration of `cToken`
     /// @param mm The market manager to pull static token data from.
@@ -441,5 +461,42 @@ contract ProtocolReader2 {
             : 0;
 
         return (adaptorTypeA, adaptorTypeB);
+    }
+
+    function _buildUserMarketToken(
+        address tokenAddress,
+        address account
+    ) internal view returns (UserMarketToken memory) {
+        ICToken ctoken = ICToken(tokenAddress);
+        uint256 shares = ctoken.balanceOf(account);
+        return UserMarketToken({
+            _address: tokenAddress,
+            tokenAmount: ctoken.convertToAssets(shares),
+            shareAmount: shares,
+            debt: ctoken.isBorrowable() ? IBorrowableCToken(address(ctoken)).debtBalance(account) : 0,
+            collateral: ctoken.collateralPosted(account)
+        });
+    }
+
+    function _buildUserMarket(
+        IMarketManager mm,
+        address account
+    ) internal view returns (UserMarket memory) {
+        address[] memory tokenAddresses = mm.queryTokensListed();
+        UserMarketToken[] memory tokens = new UserMarketToken[](tokenAddresses.length);
+        for (uint256 j = 0; j < tokenAddresses.length; j++) {
+            tokens[j] = _buildUserMarketToken(tokenAddresses[j], account);
+        }
+        
+        (uint256 collateral, uint256 maxDebt, uint256 debt) = mm.statusOf(account);
+        return UserMarket({
+            _address: address(mm),
+            debt: debt,
+            collateral: collateral,
+            maxDebt: maxDebt,
+            healthFactor: _getPositionHealth(mm, account),
+            cooldown: MarketManagerIsolated(address(mm)).accountAssets(account) + MARKET_COOLDOWN_LENGTH,
+            tokens: tokens
+        });
     }
 }
