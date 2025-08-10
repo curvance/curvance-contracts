@@ -8,7 +8,6 @@ import { WAD, WAD_SQUARED, SECONDS_PER_YEAR } from "contracts/libraries/Constant
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
@@ -104,10 +103,10 @@ contract ProtocolReader2 {
 
     struct UserMarket {
         address _address;
-        uint256 debt;
         uint256 collateral;
         uint256 maxDebt;
-        uint256 healthFactor;
+        uint256 debt;
+        uint256 positionHealth;
         uint256 cooldown;
         UserMarketToken[] tokens;
     }
@@ -116,8 +115,8 @@ contract ProtocolReader2 {
         address _address;
         uint256 tokenAmount;
         uint256 shareAmount;
-        uint256 debt;
         uint256 collateral;
+        uint256 debt;
     }
 
     /// CONSTANTS ///
@@ -139,13 +138,10 @@ contract ProtocolReader2 {
 
     /// PUBLIC FUNCTIONS ///
 
-    function getAllDynamicState(
-        address account
-    )
-        public
-        view
-        returns (DynamicMarketData[] memory market, UserData memory user)
-    {
+    function getAllDynamicState(address account) public view returns (
+        DynamicMarketData[] memory market,
+        UserData memory user
+    ) {
         return (getDynamicMarketData(), getUserData(account));
     }
 
@@ -239,8 +235,8 @@ contract ProtocolReader2 {
         address[] memory markets = centralRegistry.marketManagers();
         data.markets = new UserMarket[](markets.length);
         for (uint256 i = 0; i < markets.length; i++) {
-            IMarketManager mm = IMarketManager(markets[i]);
-            data.markets[i] = _buildUserMarket(mm, account);
+            data.markets[i] =
+                _buildUserMarket(MarketManagerIsolated(markets[i]), account);
         }
     }
 
@@ -478,22 +474,21 @@ contract ProtocolReader2 {
     function _buildUserMarketToken(
         address tokenAddress,
         address account
-    ) internal view returns (UserMarketToken memory) {
+    ) internal view returns (UserMarketToken memory umt) {
         ICToken ctoken = ICToken(tokenAddress);
         uint256 shares = ctoken.balanceOf(account);
-        return UserMarketToken({
-            _address: tokenAddress,
-            tokenAmount: ctoken.convertToAssets(shares),
-            shareAmount: shares,
-            debt: ctoken.isBorrowable() ? IBorrowableCToken(address(ctoken)).debtBalance(account) : 0,
-            collateral: ctoken.collateralPosted(account)
-        });
+
+        umt._address = tokenAddress;
+        umt.tokenAmount = ctoken.convertToAssets(shares);
+        umt.shareAmount = ctoken.balanceOf(account);
+        umt.debt = ctoken.isBorrowable() ? IBorrowableCToken(address(ctoken)).debtBalance(account) : 0;
+        umt.collateral = ctoken.collateralPosted(account);
     }
 
     function _buildUserMarket(
-        IMarketManager mm,
+        MarketManagerIsolated mm,
         address account
-    ) internal view returns (UserMarket memory) {
+    ) internal view returns (UserMarket memory um) {
         address[] memory tokenAddresses = mm.queryTokensListed();
         uint256 numTokens = tokenAddresses.length;
         UserMarketToken[] memory tokens = new UserMarketToken[](numTokens);
@@ -502,16 +497,11 @@ contract ProtocolReader2 {
             tokens[j] = _buildUserMarketToken(tokenAddresses[j], account);
         }
         
-        (uint256 collateral, uint256 maxDebt, uint256 debt) = mm.statusOf(account);
-        return UserMarket({
-            _address: address(mm),
-            debt: debt,
-            collateral: collateral,
-            maxDebt: maxDebt,
-            healthFactor: _getPositionHealth(mm, account),
-            cooldown: MarketManagerIsolated(address(mm)).accountAssets(account) + MARKET_COOLDOWN_LENGTH,
-            tokens: tokens
-        });
+        (um.collateral, um.maxDebt, um.debt) = mm.statusOf(account);
+        um._address = address(mm);
+        um.positionHealth = _getPositionHealth(mm, account);
+        um.cooldown = mm.accountAssets(account) + MARKET_COOLDOWN_LENGTH;
+        um.tokens = tokens;
     }
 
     function _buildDynamicMarketToken(
@@ -540,7 +530,9 @@ contract ProtocolReader2 {
         }
     }
 
-    function _buildDynamicMarketData(IMarketManager mm) internal view returns (DynamicMarketData memory) {
+    function _buildDynamicMarketData(
+        IMarketManager mm
+    ) internal view returns (DynamicMarketData memory dmd) {
         address[] memory tokenAddresses = mm.queryTokensListed();
         DynamicMarketToken[] memory tokens = new DynamicMarketToken[](tokenAddresses.length);
 
@@ -557,13 +549,11 @@ contract ProtocolReader2 {
             marketDebt += dmToken.debt;
         }
 
-        return DynamicMarketData({
-            _address: address(mm),
-            tvl: marketTvl,
-            collateral: marketCollateral,
-            debt: marketDebt,
-            tokens: tokens
-        });
+        dmd._address = address(mm);
+        dmd.tvl = marketTvl;
+        dmd.collateral = marketCollateral;
+        dmd.debt = marketDebt;
+        dmd.tokens = tokens;
     }
 
     /// @dev Returns `floor(x * y / d)`.
