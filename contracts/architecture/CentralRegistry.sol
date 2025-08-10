@@ -59,8 +59,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice The length of one protocol epoch, in seconds.
     uint256 public constant EPOCH_DURATION = 2 weeks;
 
-    /// @notice Sequencer uptime oracle feed address for L2s.
-    address public immutable sequencer;
+    /// @notice Sequencer uptime oracle on this chain (for L2s).
+    address public immutable SEQUENCER_ORACLE;
 
     /// STORAGE ///
 
@@ -319,7 +319,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         emit PermissionsUpdated("Market", ec, true);
 
         genesisEpoch = genesisEpoch_;
-        sequencer = sequencer_;
+        SEQUENCER_ORACLE = sequencer_;
         feeToken = feeToken_;
     }
 
@@ -1131,6 +1131,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @param chainId GETH Chain ID of the chain to support.
     /// @param config ChainConfig struct for new chain to support.
     ///               Containing:
+    ///               isSupported Whether `chainId` is currently supported
+    ///                           or not.
     ///               messagingChainId Messaging Chain ID where this address
     ///                         authorized.
     ///               domain Domain for the chain.

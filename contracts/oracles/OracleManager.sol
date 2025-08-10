@@ -76,7 +76,7 @@ contract OracleManager is IOracleManager {
     address public constant native =
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     /// @notice Time to pass before accepting answers when sequencer
-    ///         comes back up.
+    ///         comes back up, in seconds.
     uint256 public constant GRACE_PERIOD_TIME = 3600;
     /// @notice Maximum value that a price divergence flag can be set as
     ///         inside the protocol.
@@ -680,11 +680,11 @@ contract OracleManager is IOracleManager {
     /// @notice Check whether a sequencer is valid or down.
     /// @return True if sequencer is valid.
     function _isSequencerValid() internal view returns (bool) {
-        address sequencer = centralRegistry.sequencer();
+        address sequencerUptimeFeed = centralRegistry.SEQUENCER_ORACLE();
 
-        if (sequencer != address(0)) {
-            (, int256 answer, uint256 startedAt, , ) = IChainlink(sequencer)
-                .latestRoundData();
+        if (sequencerUptimeFeed != address(0)) {
+            (, int256 answer, uint256 startedAt, , ) =
+                IChainlink(sequencerUptimeFeed).latestRoundData();
 
             // Answer == 0: Sequencer is up.
             // Check that the sequencer is up or the grace period has passed
