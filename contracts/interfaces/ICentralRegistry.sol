@@ -6,8 +6,6 @@ pragma solidity ^0.8.26;
 /// @title Chain Data
 /// @notice Struct containing information on a chain's data.
 /// @param isSupported Whether the chain is supported or not.
-///                    2 = yes
-///                    0 or 1 = no
 /// @param messagingChainId Messaging Chain ID where this address authorized.
 /// @param domain Domain for the chain.
 /// @param messagingHub Messaging Hub address on the chain.
@@ -16,7 +14,7 @@ pragma solidity ^0.8.26;
 /// @param feeTokenAddress Fee token address on the chain.
 /// @param crosschainRelayer Crosschain relayer address on the chain.
 struct ChainConfig {
-    uint8 isSupported;
+    bool isSupported;
     uint16 messagingChainId;
     uint32 domain;
     address messagingHub;
@@ -30,11 +28,11 @@ interface ICentralRegistry {
     /// @notice The length of one protocol epoch, in seconds.
     function EPOCH_DURATION() external view returns (uint256);
 
+    /// @notice Sequencer uptime oracle on this chain (for L2s).
+    function SEQUENCER_ORACLE() external view returns (address);
+
     /// @notice Returns Genesis Epoch Timestamp of Curvance.
     function genesisEpoch() external view returns (uint256);
-
-    /// @notice Sequencer Uptime Feed address for L2.
-    function sequencer() external view returns (address);
 
     /// @notice Returns Protocol DAO address.
     function daoAddress() external view returns (address);

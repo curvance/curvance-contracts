@@ -127,10 +127,10 @@ contract VeCVE is ERC20, ReentrancyGuard {
     uint256 public constant CL_POINT_MULTIPLIER = 2;
 
     /// @notice The length of one protocol epoch, in seconds.
-    uint256 public immutable epochDuration;
+    uint256 public immutable EPOCH_DURATION;
     /// @notice The length of a fresh voting escrow token position,
     ///         in seconds.
-    uint256 public immutable lockDuration;
+    uint256 public immutable LOCK_DURATION;
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
@@ -203,8 +203,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         centralRegistry = cr;
 
         // Query epoch duration directly to minimize potential human error.
-        epochDuration = centralRegistry.EPOCH_DURATION();
-        lockDuration = epochDuration * LOCK_DURATION_EPOCHS;
+        EPOCH_DURATION = centralRegistry.EPOCH_DURATION();
+        LOCK_DURATION = EPOCH_DURATION * LOCK_DURATION_EPOCHS;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -878,7 +878,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _removeLock(locks, lockIndex);
 
         // Penalty value = lock amount * penalty multiplier,
-        // linearly scaled down as `unlockTime` scales from `lockDuration`
+        // linearly scaled down as `unlockTime` scales from `LOCK_DURATION`
         // down to 0.
         uint256 penaltyAmount = _getUnlockPenalty(
             amount,
@@ -943,7 +943,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @return Whether state changes are allowed.
     function canModifyState() external view returns (bool) {
         uint256 nextEpochTimestamp = nextEpochStartTime();
-        uint256 currentEpochTimestamp = nextEpochTimestamp - epochDuration;
+        uint256 currentEpochTimestamp = nextEpochTimestamp - EPOCH_DURATION;
 
         if (
             currentEpochTimestamp <= block.timestamp &&
@@ -1034,7 +1034,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         return
             timestamp < cachedGenesisEpoch
                 ? 0
-                : (timestamp - cachedGenesisEpoch) / epochDuration;
+                : (timestamp - cachedGenesisEpoch) / EPOCH_DURATION;
     }
 
     /// @notice Returns the timestamp of when the next epoch begins.
@@ -1049,7 +1049,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         uint256 timestampOffset = (currentEpoch(block.timestamp) + 1) *
-            epochDuration;
+            EPOCH_DURATION;
         return (genesisEpoch + timestampOffset);
     }
 
@@ -1067,8 +1067,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         return
             uint40(
                 _genesisEpoch() +
-                    (currentEpoch(block.timestamp) * epochDuration) +
-                    lockDuration
+                    (currentEpoch(block.timestamp) * EPOCH_DURATION) +
+                    LOCK_DURATION
             );
     }
 
@@ -1151,11 +1151,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         // Equal to:
-        // epochsLeft = (lock.unlockTime - time) / epochDuration
+        // epochsLeft = (lock.unlockTime - time) / EPOCH_DURATION
         // votes = (lock.amount * epochsLeft) / LOCK_DURATION_EPOCHS.
         return
             (lock.amount *
-                ((lock.unlockTime - block.timestamp) / epochDuration)) /
+                ((lock.unlockTime - block.timestamp) / EPOCH_DURATION)) /
             LOCK_DURATION_EPOCHS;
     }
 
@@ -1459,7 +1459,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         uint256 unlockTime
     ) internal view returns (uint256) {
         // Penalty value = lock amount * penalty multiplier,
-        // linearly scaled down as `unlockTime` scales from `lockDuration`
+        // linearly scaled down as `unlockTime` scales from `LOCK_DURATION`
         // down to 0.
         // If the lock mode is continuous, we know its a full penalty unlock.
         if (unlockTime == CONTINUOUS_LOCK_VALUE) {
@@ -1468,7 +1468,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
         return
             (amount *
-                ((penalty * (unlockTime - block.timestamp)) / lockDuration)) /
+                ((penalty * (unlockTime - block.timestamp)) / LOCK_DURATION)) /
             BASIS_POINTS;
     }
 
@@ -1503,7 +1503,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///      structure or not.
     function _canModifyState() internal view {
         uint256 nextEpochTimestamp = nextEpochStartTime();
-        uint256 currentEpochTimestamp = nextEpochTimestamp - epochDuration;
+        uint256 currentEpochTimestamp = nextEpochTimestamp - EPOCH_DURATION;
 
         if (
             currentEpochTimestamp <= block.timestamp &&

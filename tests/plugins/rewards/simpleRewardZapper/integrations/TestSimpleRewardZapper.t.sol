@@ -134,7 +134,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
-        skip(veCVE.epochDuration() + veCVE.RESTRICTION_DURATION() + 1);
+        skip(veCVE.EPOCH_DURATION() + veCVE.RESTRICTION_DURATION() + 1);
 
         uint256 amount = 100e18;
         vm.startPrank(user1);

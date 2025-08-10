@@ -29,8 +29,8 @@
 //             "CURV-4: CentralRegistry.genesisEpoch() == 0 failed"
 //         );
 //         assertWithMsg(
-//             centralRegistry.sequencer() == address(0),
-//             "CURV-5: CentralRegistry.sequencer == address(0) failed"
+//             centralRegistry.SEQUENCER_ORACLE() == address(0),
+//             "CURV-5: CentralRegistry.SEQUENCER_ORACLE == address(0) failed"
 //         );
 //         assertWithMsg(
 //             centralRegistry.hasDaoPermissions(address(this)),

@@ -49,7 +49,7 @@ contract TestVotingHub is TestBaseVotingHub {
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 2;
         config.domain = 0;
         config.messagingHub = address(messagingHubs[1]);
@@ -110,7 +110,7 @@ contract TestVotingHub is TestBaseVotingHub {
 
     function test_executeEmissionConfiguration_multipleChains_success() public {
         ChainConfig memory configTwo;
-        configTwo.isSupported = 2;
+        configTwo.isSupported = true;
         configTwo.messagingChainId = 24;
         configTwo.domain = 2;
         configTwo.messagingHub = address(messagingHubs[10]);
@@ -400,7 +400,7 @@ contract TestVotingHub is TestBaseVotingHub {
         assertEq(totalWeights, _ONE);
         assertEq(poolWeight, _ONE);
 
-        skip(votingHub.epochDuration() * 5);
+        skip(votingHub.EPOCH_DURATION() * 5);
 
         centralRegistry.setEraTargetEmissions(_ONE * 5);
 
@@ -440,7 +440,7 @@ contract TestVotingHub is TestBaseVotingHub {
         assertEq(totalWeights, _ONE * 2);
         assertEq(poolWeight, _ONE * 2);
 
-        skip(votingHub.epochDuration() * votingHub.REWARD_HALVENING_RATE());
+        skip(votingHub.EPOCH_DURATION() * votingHub.REWARD_HALVENING_RATE());
 
         centralRegistry.setEraTargetEmissions(_ONE * 10);
 
@@ -522,7 +522,7 @@ contract TestVotingHub is TestBaseVotingHub {
             _remoteEmissionData
         );
 
-        skip(votingHub.epochDuration());
+        skip(votingHub.EPOCH_DURATION());
 
         vm.expectRevert(bytes4(keccak256("StaleBlockTime()")));
         votingHub.executeEmissionConfiguration(

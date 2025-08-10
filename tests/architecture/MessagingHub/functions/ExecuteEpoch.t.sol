@@ -22,7 +22,7 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
         _init();
 
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 23;
         config.domain = 3;
         config.messagingHub = srcMessagingHub;
@@ -40,7 +40,7 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
     function test_executeEpoch_fail_whenCurrentEpochIsEarlierThanNextEpochToDeliver()
         public
     {
-        vm.warp(block.timestamp - rewardManager.epochDuration() * 2);
+        vm.warp(block.timestamp - rewardManager.EPOCH_DURATION() * 2);
 
         PerChainData[] memory perChainData = new PerChainData[](1);
         perChainData[0] = PerChainData(
@@ -61,7 +61,7 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
 
     function test_executeEpoch_fail_whenNumResponseIsMismatch() public {
         ChainConfig memory configTwo;
-        configTwo.isSupported = 2;
+        configTwo.isSupported = true;
         configTwo.messagingChainId = 24;
         configTwo.domain = 2;
         configTwo.messagingHub = address(this);

@@ -16,7 +16,7 @@ contract BridgeLockTest is TestBaseVeCVE {
 
         // Support chainId 42161.
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 23;
         config.domain = 3;
         config.messagingHub = address(messagingHub);
@@ -66,7 +66,7 @@ contract BridgeLockTest is TestBaseVeCVE {
 
         for (
             uint256 i = 0;
-            i <= (unlockTime - block.timestamp) / veCVE.epochDuration();
+            i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
             i++
         ) {
             vm.prank(address(messagingHub));
@@ -128,7 +128,7 @@ contract BridgeLockTest is TestBaseVeCVE {
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
 
-        vm.warp(veCVE.nextEpochStartTime() - veCVE.epochDuration());
+        vm.warp(veCVE.nextEpochStartTime() - veCVE.EPOCH_DURATION());
 
         vm.expectRevert(VeCVE.VeCVE__PostEpochRestriction.selector);
         veCVE.bridgeLock{ value: messageFee }(

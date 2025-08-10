@@ -21,13 +21,14 @@ abstract contract LiquidityManagerIsolated {
 
     /// @notice Storage structure for Account data involving liquidity
     ///         positions, and pending redemption cooldown.
+    /// @param cooldownTimestamp Timestamp corresponding to when the last time
+    ///                          `account` performed a liquidity focused
+    ///                          action, which activates a cooldown period on
+    ///                          redemptions/repayment/collateral removal.
     /// @param assets Array of account assets.
-    /// @param cooldownTimestamp Last time an account performed an action,
-    ///                          which activates the redeem/repay/exit market
-    ///                          cooldown.
     struct AccountData {
-        address[] assets;
         uint256 cooldownTimestamp;
+        address[] assets;
     }
 
     /// @notice Storage configuration for how a Curvance token should behave

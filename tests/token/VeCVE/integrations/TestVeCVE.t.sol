@@ -20,7 +20,7 @@ contract TestVeCVE is TestBaseVeCVE {
         super.setUp();
 
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 23;
         config.domain = 3;
         config.messagingHub = address(messagingHub);
@@ -188,8 +188,8 @@ contract TestVeCVE is TestBaseVeCVE {
         assertEq(
             unlockTime,
             centralRegistry.genesisEpoch() +
-                (veCVE.currentEpoch(timestamp) * veCVE.epochDuration()) +
-                veCVE.lockDuration()
+                (veCVE.currentEpoch(timestamp) * veCVE.EPOCH_DURATION()) +
+                veCVE.LOCK_DURATION()
         );
 
         assertEq(veCVE.chainPoints(), amount);
@@ -296,7 +296,7 @@ contract TestVeCVE is TestBaseVeCVE {
 
         uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
-        vm.warp(veCVE.nextEpochStartTime() - veCVE.epochDuration());
+        vm.warp(veCVE.nextEpochStartTime() - veCVE.EPOCH_DURATION());
 
         vm.expectRevert(VeCVE.VeCVE__PostEpochRestriction.selector);
         veCVE.bridgeLock{ value: messageFee }(
@@ -307,7 +307,7 @@ contract TestVeCVE is TestBaseVeCVE {
             0
         );
 
-        skip(veCVE.epochDuration() - 1);
+        skip(veCVE.EPOCH_DURATION() - 1);
 
         vm.expectRevert(VeCVE.VeCVE__PreEpochRestriction.selector);
         veCVE.bridgeLock{ value: messageFee }(

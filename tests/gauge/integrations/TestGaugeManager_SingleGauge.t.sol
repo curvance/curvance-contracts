@@ -91,15 +91,15 @@ contract TestGaugeManager_SingleGauge is TestBaseGaugeManager {
 
     function testStartTimeShouldBeAfterLock() public {
         uint256 genesisEpoch = centralRegistry.genesisEpoch();
-        uint256 epochDuration = gaugeManager.epochDuration();
+        uint256 EPOCH_DURATION = gaugeManager.EPOCH_DURATION();
         vm.warp(genesisEpoch + 1000);
 
         uint256 gaugeStartTimeBefore = gaugeManager.gaugeStartTime();
         assertEq(
             gaugeStartTimeBefore,
             genesisEpoch +
-                (((block.timestamp - genesisEpoch) / epochDuration) *
-                    epochDuration)
+                (((block.timestamp - genesisEpoch) / EPOCH_DURATION) *
+                    EPOCH_DURATION)
         );
 
         gaugeManager.lockInStartTime();

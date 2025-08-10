@@ -14,7 +14,7 @@ contract AddChainTest is TestBaseMarketIsolated {
 
     function test_addChain_fail_whenCallerIsNotAuthorized() public {
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 23;
         config.domain = 3;
         config.messagingHub = address(this);
@@ -33,7 +33,7 @@ contract AddChainTest is TestBaseMarketIsolated {
 
     function test_addChain_fail_whenChainAlreadyAdded() public {
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 23;
         config.domain = 3;
         config.messagingHub = address(this);
@@ -51,7 +51,6 @@ contract AddChainTest is TestBaseMarketIsolated {
 
     function test_addChain_fail_whenConfigIsMalformed() public {
         ChainConfig memory config;
-        config.isSupported = 1;
         config.messagingChainId = 23;
         config.domain = 3;
         config.messagingHub = address(messagingHub);
@@ -68,7 +67,7 @@ contract AddChainTest is TestBaseMarketIsolated {
 
     function test_addChain_success() public {
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 23;
         config.domain = 3;
         config.messagingHub = address(messagingHub);
@@ -87,7 +86,7 @@ contract AddChainTest is TestBaseMarketIsolated {
         centralRegistry.addChain(42161, config);
 
         (
-            uint256 isSupported,
+            bool isSupported,
             uint16 messagingChainId,
             uint32 domain,
             address messagingHub,
@@ -97,7 +96,7 @@ contract AddChainTest is TestBaseMarketIsolated {
             address crosschainRelayer
         ) = centralRegistry.chainConfig(42161);
 
-        assertEq(isSupported, 2);
+        assertTrue(isSupported);
         assertEq(messagingChainId, 23);
         assertEq(domain, 3);
         assertEq(messagingHub, address(messagingHub));

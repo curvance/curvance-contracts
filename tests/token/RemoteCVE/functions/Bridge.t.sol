@@ -40,7 +40,7 @@ contract BridgeTest is TestBaseRemoteCVE {
 
     function test_bridge_success() public {
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 23;
         config.domain = 3;
         config.messagingHub = address(messagingHub);

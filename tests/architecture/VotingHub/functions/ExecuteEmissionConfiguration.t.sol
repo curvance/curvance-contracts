@@ -29,7 +29,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
         _init();
 
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 23;
         config.domain = 3;
         config.messagingHub = srcMessagingHub;

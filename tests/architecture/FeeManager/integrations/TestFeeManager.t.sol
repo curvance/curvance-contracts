@@ -48,7 +48,7 @@ contract TestFeeManager is TestBaseFeeManager {
         );
 
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 2;
         config.domain = 0;
         config.messagingHub = address(messagingHubs[1]);

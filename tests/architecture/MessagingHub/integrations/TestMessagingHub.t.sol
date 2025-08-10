@@ -53,7 +53,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         );
 
         ChainConfig memory config;
-        config.isSupported = 2;
+        config.isSupported = true;
         config.messagingChainId = 2;
         config.domain = 0;
         config.messagingHub = address(messagingHubs[1]);
@@ -446,8 +446,8 @@ contract TestMessagingHub is TestBaseMessagingHub {
         assertEq(
             unlockTime,
             centralRegistry.genesisEpoch() +
-                (veCVE.currentEpoch(timestamp) * veCVE.epochDuration()) +
-                veCVE.lockDuration()
+                (veCVE.currentEpoch(timestamp) * veCVE.EPOCH_DURATION()) +
+                veCVE.LOCK_DURATION()
         );
 
         assertEq(veCVE.chainPoints(), _ONE);
