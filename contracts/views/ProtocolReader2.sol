@@ -5,6 +5,7 @@ import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/marke
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { WAD, WAD_SQUARED, SECONDS_PER_YEAR } from "contracts/libraries/ConstantsLib.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -24,6 +25,7 @@ import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
 // commonly referenced as the "asset" which is what the protocol uses
 contract ProtocolReader2 {
     /// TYPES ///
+    
     struct StaticMarketData {
         address _address;
         uint256[] adapters;
@@ -119,28 +121,20 @@ contract ProtocolReader2 {
     }
 
     /// CONSTANTS ///
+
     // @dev: See MarketManagerIsolated constant: MIN_HOLD_PERIOD
     uint256 public constant MARKET_COOLDOWN_LENGTH = 20 minutes;
     uint256 public constant MARKET_ASSET_RESERVE = 77777;
 
     /// STORAGE ///
+
     ICentralRegistry public immutable centralRegistry;
 
-    /// ERRORS ///
-    error AuxiliaryData__InvalidCentralRegistry();
-
     /// CONSTRUCTOR ///
-    constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert AuxiliaryData__InvalidCentralRegistry();
-        }
 
-        centralRegistry = centralRegistry_;
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -525,21 +519,13 @@ contract ProtocolReader2 {
     ) internal view returns (DynamicMarketToken memory dmt) {
         address asset = ctoken.asset();
 
-        dmt = DynamicMarketToken({
-            _address: address(ctoken),
-            tokenPrice: getPriceOnly(address(asset), true, false),
-            tokenPriceLower: getPriceOnly(address(asset), true, true),
-            sharePrice: getPriceOnly(address(ctoken), true, false),
-            sharePriceLower: getPriceOnly(address(ctoken), true, true),
-            tvl: IERC20(asset).balanceOf(address(ctoken)),
-            collateral: ctoken.marketCollateralPosted(),
-            debt: 0,
-            liquidity: 0,
-            borrowRate: 0,
-            predictedBorrowRate: 0,
-            utilizationRate: 0,
-            supplyRate: 0
-        });
+        dmt._address = address(ctoken);
+        dmt.tokenPrice = getPriceOnly(address(asset), true, false);
+        dmt.tokenPriceLower = getPriceOnly(address(asset), true, true);
+        dmt.sharePrice = getPriceOnly(address(ctoken), true, false);
+        dmt.sharePriceLower = getPriceOnly(address(ctoken), true, true);
+        dmt.tvl = IERC20(asset).balanceOf(address(ctoken));
+        dmt.collateral = ctoken.marketCollateralPosted();
 
         if(ctoken.isBorrowable()) {
             IBorrowableCToken bcToken = IBorrowableCToken(address(ctoken));
