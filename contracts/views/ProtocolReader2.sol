@@ -64,9 +64,6 @@ contract ProtocolReader2 {
     // TODO: In the JS world we need to have the option to convert tvl,collateral,debt to USD
     struct DynamicMarketData {
         address _address;
-        uint256 tvl;
-        uint256 collateral;
-        uint256 debt;
         DynamicMarketToken[] tokens;
     }
 
@@ -533,23 +530,13 @@ contract ProtocolReader2 {
         address[] memory tokenAddresses = mm.queryTokensListed();
         DynamicMarketToken[] memory tokens = new DynamicMarketToken[](tokenAddresses.length);
 
-        uint256 marketTvl;
-        uint256 marketCollateral;
-        uint256 marketDebt;
         for (uint256 i; i < tokenAddresses.length; ++i) {
             ICToken ctoken = ICToken(tokenAddresses[i]);
             DynamicMarketToken memory dmToken = _buildDynamicMarketToken(ctoken);
             tokens[i] = dmToken;
-
-            marketTvl += dmToken.tvl;
-            marketCollateral += dmToken.collateral;
-            marketDebt += dmToken.debt;
         }
 
         dmd._address = address(mm);
-        dmd.tvl = marketTvl;
-        dmd.collateral = marketCollateral;
-        dmd.debt = marketDebt;
         dmd.tokens = tokens;
     }
 
