@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { WAD, WAD_SQUARED, SECONDS_PER_YEAR } from "contracts/libraries/ConstantsLib.sol";
+
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
@@ -13,10 +18,6 @@ import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
-
-import { WAD, WAD_SQUARED, SECONDS_PER_YEAR } from "contracts/libraries/ConstantsLib.sol";
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 // NOTE: This is a work in progress, don't implement yet.
 // TODO: Change things like tokenPrice -> assetPrice, this token prefix is 
@@ -124,7 +125,6 @@ contract ProtocolReader2 {
 
     /// STORAGE ///
     ICentralRegistry public immutable centralRegistry;
-    uint256 public calcMaxLeverage = 0.99e18;
 
     /// ERRORS ///
     error AuxiliaryData__InvalidCentralRegistry();
@@ -145,10 +145,6 @@ contract ProtocolReader2 {
 
     /// PUBLIC FUNCTIONS ///
 
-    function setCalcMaxLeverage(uint256 newCalcMaxLeverage) external {
-		calcMaxLeverage = newCalcMaxLeverage;
-    }
-
     function getAllDynamicState(
         address account
     )
@@ -165,7 +161,7 @@ contract ProtocolReader2 {
         returns (StaticMarketData[] memory data)
     {
         address[] memory markets = centralRegistry.marketManagers();
-        IOracleManager om = IOracleManager(centralRegistry.oracleManager());
+        IOracleManager om = _getOracleManager();
 
         data = new StaticMarketData[](markets.length);
         for (uint256 i; i < markets.length; i++) {
@@ -200,8 +196,24 @@ contract ProtocolReader2 {
         }
     }
 
-    function getUsdPrice(address token, bool lowerPrice) public view returns (uint256 price) {
-        return _getUsdPrice(token, lowerPrice);
+    function getPrice(
+        address asset,
+        bool inUSD,
+        bool getLower
+    ) public view returns (uint256 price, uint256 errorCode) {
+        (price, errorCode) = _getOracleManager()
+            .getPrice(asset, inUSD, getLower);
+        if (errorCode == 2) {
+            price = 0;
+        }
+    }
+
+    function getPriceOnly(
+        address asset,
+        bool inUSD,
+        bool getLower
+    ) public view returns (uint256 price) {
+        (price, ) = getPrice(asset, inUSD, getLower);
     }
 
     function getDynamicMarketData()
@@ -214,8 +226,6 @@ contract ProtocolReader2 {
         for (uint256 i; i < markets.length; i++) {
             data[i] = _buildDynamicMarketData(IMarketManager(markets[i]));
         }
-
-        return data;
     }
 
     function getUserData(
@@ -238,16 +248,13 @@ contract ProtocolReader2 {
             IMarketManager mm = IMarketManager(markets[i]);
             data.markets[i] = _buildUserMarket(mm, account);
         }
-
-        return data;
     }
 
     /// @notice Calculates the hypothetical maximum amount of
     ///         `borrowableCToken` assets `account` can borrow for maximum
     ///         leverage based on a new `cToken` collateralized deposit.
-    /// @dev Applies a minor dampening effect to calculated maximum leverage
-    ///      via `calcMaxLeverage`. Offsets maximum borrowable debt amount if
-    ///      there is insufficient liquidity to borrow in the target market.
+    /// @dev NOTE: This can overestimate maximum executeable leverage when
+    ///            swapping due to AMM fees and slippage.
     /// @param account The account to query maximum borrow amount for.
     /// @param borrowableCToken The token that `account` will borrow assets
     ///                         from to achieve leverage.
@@ -261,34 +268,32 @@ contract ProtocolReader2 {
     ///                           hypothetical deposit.
     /// @return isOffset Whether the maximum borrowable debt amount returned
     ///                  has been offset due to available liquidity or not.
-    function hypotheticalMaxLeverage(
+    function hypotheticalMaxRemainingLeverageOf(
         address account,
         address borrowableCToken,
         address cToken,
         uint256 assets
     ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
         IMarketManager mm = ICToken(borrowableCToken).marketManager();
-        (uint256 price, uint256 errorCode) = IOracleManager(
-            ICentralRegistry(centralRegistry).oracleManager()
-        ).getPrice(address(cToken), true, true);
+        (uint256 price, uint256 errorCode) =
+            getPrice(address(cToken), true, true);
 
         // Validate we got a price for `cToken`.
         if (errorCode != 0) {
             revert();
         }
 
-        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) = mm
-            .statusOf(account);
+        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
+            mm.statusOf(account);
 
         {
-            uint256 newCollateral = FixedPointMathLib.mulDiv(
+            uint256 newCollateral = _mulDiv(
                 ICToken(cToken).previewDeposit(assets),
                 price,
                 10 ** ICToken(cToken).decimals()
             );
 
             (uint256 collRatio, ,) = mm.collConfig(address(cToken));
-
             // If the collateral token cannot be borrowed against the hypothetical
             // leverage check will result in 0 meaning nothing new to leverage
             // against.
@@ -297,7 +302,7 @@ contract ProtocolReader2 {
             }
 
             sumCollateral += newCollateral;
-            maxDebt += FixedPointMathLib.mulDiv(newCollateral, collRatio, WAD);
+            maxDebt += _mulDiv(newCollateral, collRatio, WAD);
         }
 
         // We can calculate terminal leverage by calculating the infinite
@@ -308,27 +313,23 @@ contract ProtocolReader2 {
         // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
         // The equation below is equal to this equation,
         // just extrapolated for an account's collateral vs debt.
-        //
-        // We also embed a `calcMaxLeverage` dampening effect to minimize
-        // transaction failure from imperfect execution due to things
-        // such as price fluctuations, and AMM fees.
-        uint256 maxLeverage = FixedPointMathLib.mulDiv(
+        /// NOTE: This can overestimate maximum executeable leverage when
+        ///       swapping due to AMM fees and slippage.
+        uint256 maxLeverage = _mulDiv(
             maxDebt - sumDebt,
-            sumCollateral * calcMaxLeverage,
+            sumCollateral,
             sumCollateral - maxDebt
-        ) / WAD;
+        );
 
-        (price, errorCode) = IOracleManager(
-            ICentralRegistry(centralRegistry).oracleManager()
-        ).getPrice(address(borrowableCToken), true, false);
+        (price, errorCode) = getPrice(address(borrowableCToken), true, false);
 
         // Validate we got a price for `borrowableCToken`.
         if (errorCode != 0) {
             revert();
         }
 
-        maxDebtBorrowable = FixedPointMathLib.mulDiv(
-            FixedPointMathLib.mulDiv(maxLeverage, WAD, price),
+        maxDebtBorrowable = _mulDiv(
+            _mulDiv(maxLeverage, WAD, price),
             10 ** IERC20(borrowableCToken).decimals(),
             WAD
         );
@@ -361,16 +362,17 @@ contract ProtocolReader2 {
     }
 
     /// INTERNAL FUNCTIONS ///
+
     /// @notice Gets the health factor of a user's position in a market
     /// @param mm The market manager to pull data from.
     /// @param account The user address to get the health factor for.
-    /// @return healthFactor The health factor of the user's position.
-    function _getPositionHealth(IMarketManager mm, address account)
-        internal
-        view
-        returns (uint256 healthFactor) {
+    /// @return positionHealth The healthiness of `account`'s position.
+    function _getPositionHealth(
+        IMarketManager mm,
+        address account
+    ) internal view returns (uint256 positionHealth) {
         (uint256 soft, , uint256 debt) = mm.liquidationValuesOf(account);
-        return (soft * WAD) / debt;
+        positionHealth = (soft * WAD) / debt;
     }
 
     /// @notice Queries static token configuration of `cToken`
@@ -499,8 +501,10 @@ contract ProtocolReader2 {
         address account
     ) internal view returns (UserMarket memory) {
         address[] memory tokenAddresses = mm.queryTokensListed();
-        UserMarketToken[] memory tokens = new UserMarketToken[](tokenAddresses.length);
-        for (uint256 j = 0; j < tokenAddresses.length; j++) {
+        uint256 numTokens = tokenAddresses.length;
+        UserMarketToken[] memory tokens = new UserMarketToken[](numTokens);
+        
+        for (uint256 j; j < numTokens; ++j) {
             tokens[j] = _buildUserMarketToken(tokenAddresses[j], account);
         }
         
@@ -516,21 +520,17 @@ contract ProtocolReader2 {
         });
     }
 
-    function _buildDynamicMarketToken(ICToken ctoken) internal view returns (DynamicMarketToken memory) {
-        bool canBorrow = ctoken.isBorrowable();
+    function _buildDynamicMarketToken(
+        ICToken ctoken
+    ) internal view returns (DynamicMarketToken memory dmt) {
         address asset = ctoken.asset();
 
-        uint256 tokenPriceLower = _getUsdPrice(address(asset), true);
-        uint256 sharePriceLower = _getUsdPrice(address(ctoken), true);
-        uint256 tokenPrice = _getUsdPrice(address(asset), false);
-        uint256 sharePrice = _getUsdPrice(address(ctoken), false);
-
-        DynamicMarketToken memory dmt = DynamicMarketToken({
+        dmt = DynamicMarketToken({
             _address: address(ctoken),
-            tokenPrice: tokenPrice,
-            tokenPriceLower: tokenPriceLower,
-            sharePrice: sharePrice,
-            sharePriceLower: sharePriceLower,
+            tokenPrice: getPriceOnly(address(asset), true, false),
+            tokenPriceLower: getPriceOnly(address(asset), true, true),
+            sharePrice: getPriceOnly(address(ctoken), true, false),
+            sharePriceLower: getPriceOnly(address(ctoken), true, true),
             tvl: IERC20(asset).balanceOf(address(ctoken)),
             collateral: ctoken.marketCollateralPosted(),
             debt: 0,
@@ -541,7 +541,7 @@ contract ProtocolReader2 {
             supplyRate: 0
         });
 
-        if(canBorrow) {
+        if(ctoken.isBorrowable()) {
             IBorrowableCToken bcToken = IBorrowableCToken(address(ctoken));
             IDynamicIRM irm = bcToken.IRM();
 
@@ -552,18 +552,16 @@ contract ProtocolReader2 {
             dmt.utilizationRate = irm.utilizationRate(dmt.tvl, dmt.debt) * SECONDS_PER_YEAR;
             dmt.supplyRate = irm.supplyRate(dmt.tvl, dmt.debt, bcToken.interestFee()) * SECONDS_PER_YEAR;
         }
-
-        return dmt;
     }
 
     function _buildDynamicMarketData(IMarketManager mm) internal view returns (DynamicMarketData memory) {
         address[] memory tokenAddresses = mm.queryTokensListed();
         DynamicMarketToken[] memory tokens = new DynamicMarketToken[](tokenAddresses.length);
 
-        uint256 marketTvl = 0;
-        uint256 marketCollateral = 0;
-        uint256 marketDebt = 0;
-        for (uint256 i = 0; i < tokenAddresses.length; i++) {
+        uint256 marketTvl;
+        uint256 marketCollateral;
+        uint256 marketDebt;
+        for (uint256 i; i < tokenAddresses.length; ++i) {
             ICToken ctoken = ICToken(tokenAddresses[i]);
             DynamicMarketToken memory dmToken = _buildDynamicMarketToken(ctoken);
             tokens[i] = dmToken;
@@ -582,9 +580,17 @@ contract ProtocolReader2 {
         });
     }
 
-    function _getUsdPrice(address token, bool getLower) internal view returns (uint256) {
-        IOracleManager om = IOracleManager(centralRegistry.oracleManager());
-        (uint256 price, ) = om.getPrice(token, true, getLower);
-        return price;
+    /// @dev Returns `floor(x * y / d)`.
+    /// Reverts if `x * y` overflows, or `d` is zero.
+    function _mulDiv(
+        uint256 x,
+        uint256 y,
+        uint256 d
+    ) internal pure returns (uint256 z) {
+        z = FixedPointMathLib.mulDiv(x, y, d);
+    }
+
+    function _getOracleManager() internal view returns (IOracleManager) {
+        return CommonLib._oracleManager(centralRegistry);
     }
 }

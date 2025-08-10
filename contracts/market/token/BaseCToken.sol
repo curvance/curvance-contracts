@@ -17,10 +17,11 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
-/// @notice Curvance's cTokens (Curvance Tokens) are ERC4626 compliant. However,
-///         they follow their own design flow modifying underlying mechanisms
-///         such as totalAssets following a vesting mechanism in yield-bearing
-///         scenarios and a direct conversion in basic or "simple" vaults.
+/// @notice Curvance's cTokens (Curvance Tokens) are ERC4626 compliant.
+///         However, they follow their own design modifying underlying
+///         mechanisms such as `totalAssets` following an asset vesting system
+///         in both external strategies and lender interest accrual from
+///         borrowers.
 ///
 ///         The "cToken" employs two different methods of engaging with the
 ///         Curvance protocol. Users can deposit an unlimited amount of assets,
@@ -38,11 +39,12 @@ import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 ///         asset.
 ///
 ///         Each token can have their minting, collateralization, borrowing,
-///         compounding, or redemption functionality paused. Modifying the
-///         maximum mint, deposit, withdrawal, or redemptions possible.
+///         compounding, liquidations, and redemption functionality paused.
+///         Modifying the maximum mint, deposit, withdrawal, or redemptions
+///         possible.
 ///
 ///         View functions are "safe" by introducing reentry and update
-///         protection logic to minimize risks when integrating with Curvance.
+///         protection to minimize risks when integrating with Curvance.
 ///
 /// @dev `Asset()` Positions must have all assets ready for withdraw,
 ///      IE assets can NOT be locked.
