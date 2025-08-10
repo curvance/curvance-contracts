@@ -19,9 +19,6 @@ import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IDynamicIRM } from "contracts/interfaces/IDynamicIRM.sol";
 
-// NOTE: This is a work in progress, don't implement yet.
-// TODO: Change things like tokenPrice -> assetPrice, this token prefix is 
-// commonly referenced as the "asset" which is what the protocol uses
 contract ProtocolReader2 {
     /// TYPES ///
     
@@ -80,9 +77,9 @@ contract ProtocolReader2 {
         uint256 collateral;
         uint256 debt;
         uint256 sharePrice;
-        uint256 tokenPrice;
+        uint256 assetPrice;
         uint256 sharePriceLower;
-        uint256 tokenPriceLower;
+        uint256 assetPriceLower;
         uint256 borrowRate;
         uint256 predictedBorrowRate;
         uint256 utilizationRate;
@@ -113,7 +110,7 @@ contract ProtocolReader2 {
 
     struct UserMarketToken {
         address _address;
-        uint256 tokenAmount;
+        uint256 assetAmount;
         uint256 shareAmount;
         uint256 collateral;
         uint256 debt;
@@ -479,7 +476,7 @@ contract ProtocolReader2 {
         uint256 shares = ctoken.balanceOf(account);
 
         umt._address = tokenAddress;
-        umt.tokenAmount = ctoken.convertToAssets(shares);
+        umt.assetAmount = ctoken.convertToAssets(shares);
         umt.shareAmount = ctoken.balanceOf(account);
         umt.debt = ctoken.isBorrowable() ? IBorrowableCToken(address(ctoken)).debtBalance(account) : 0;
         umt.collateral = ctoken.collateralPosted(account);
@@ -510,8 +507,8 @@ contract ProtocolReader2 {
         address asset = ctoken.asset();
 
         dmt._address = address(ctoken);
-        dmt.tokenPrice = getPriceOnly(address(asset), true, false);
-        dmt.tokenPriceLower = getPriceOnly(address(asset), true, true);
+        dmt.assetPrice = getPriceOnly(address(asset), true, false);
+        dmt.assetPriceLower = getPriceOnly(address(asset), true, true);
         dmt.sharePrice = getPriceOnly(address(ctoken), true, false);
         dmt.sharePriceLower = getPriceOnly(address(ctoken), true, true);
         dmt.tvl = IERC20(asset).balanceOf(address(ctoken));
