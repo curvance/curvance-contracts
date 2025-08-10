@@ -200,6 +200,10 @@ contract ProtocolReader2 {
         }
     }
 
+    function getUsdPrice(address token, bool lowerPrice) public view returns (uint256 price) {
+        return _getUsdPrice(token, lowerPrice);
+    }
+
     function getDynamicMarketData()
         public
         view
@@ -515,6 +519,7 @@ contract ProtocolReader2 {
     function _buildDynamicMarketToken(ICToken ctoken) internal view returns (DynamicMarketToken memory) {
         bool canBorrow = ctoken.isBorrowable();
         address asset = ctoken.asset();
+
         uint256 tokenPriceLower = _getUsdPrice(address(asset), true);
         uint256 sharePriceLower = _getUsdPrice(address(ctoken), true);
         uint256 tokenPrice = _getUsdPrice(address(asset), false);
