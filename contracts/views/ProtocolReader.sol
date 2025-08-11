@@ -270,7 +270,7 @@ contract ProtocolReader {
             revert();
         }
 
-        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) = _statusOfSafe(mm, account);
+        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) = mm.statusOf(account);
 
         {
             uint256 newCollateral = _mulDiv(
@@ -358,6 +358,11 @@ contract ProtocolReader {
         address account
     ) internal view returns (uint256 positionHealth) {
         (uint256 soft, , uint256 debt) = mm.liquidationValuesOf(account);
+        
+        if (debt == 0) {
+            return type(uint256).max; // No debt means infinite health
+        }
+
         positionHealth = (soft * WAD) / debt;
     }
 
@@ -497,10 +502,9 @@ contract ProtocolReader {
             tokens[j] = _buildUserMarketToken(tokenAddresses[j], account);
         }
         
-        // (um.collateral, um.maxDebt, um.debt) = _statusOfSafe(mm,account);
         (um.collateral, um.maxDebt, um.debt) = mm.statusOf(account);
         um._address = address(mm);
-        // um.positionHealth = _getPositionHealth(mm, account);
+        um.positionHealth = _getPositionHealth(mm, account);
         um.cooldown = mm.accountAssets(account) + MARKET_COOLDOWN_LENGTH;
         um.tokens = tokens;
     }
@@ -555,15 +559,6 @@ contract ProtocolReader {
         uint256 d
     ) internal pure returns (uint256 z) {
         z = FixedPointMathLib.mulDiv(x, y, d);
-    }
-
-    function _statusOfSafe(IMarketManager mm, address account) internal view returns (uint256 collateral, uint256 maxDebt, uint256 debt) {
-        try mm.statusOf(account) returns (
-            uint256 collateral,
-            uint256 maxDebt,
-            uint256 debt
-        ) {
-        } catch {}
     }
 
     function _getOracleManager() internal view returns (IOracleManager) {
