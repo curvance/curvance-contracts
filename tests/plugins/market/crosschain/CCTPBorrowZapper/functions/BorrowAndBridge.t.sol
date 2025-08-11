@@ -67,7 +67,6 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
             address(mockRethFeed),
             0
         );
-
         // start epoch
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
@@ -234,6 +233,8 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         borrowableCDAI.borrow(500e18, user1);
 
         vm.stopPrank();
+
+        _harvestAuraStrategyRewards(1 weeks);
 
         assertEq(user1.balance, balance - messageFee);
     }
