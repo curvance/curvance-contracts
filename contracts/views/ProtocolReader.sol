@@ -31,6 +31,9 @@ contract ProtocolReader {
 
     struct StaticMarketToken {
         address _address;
+        string name;
+        string symbol;
+        uint8 decimals;
         StaticMarketAsset asset;
         uint256 collateralCap;
         uint256 debtCap;
@@ -369,6 +372,10 @@ contract ProtocolReader {
         ICToken cToken
     ) internal view returns (StaticMarketToken memory t) {
         t._address = address(cToken);
+        t.name = cToken.name();
+        t.symbol = cToken.symbol();
+        t.decimals = cToken.decimals();
+        
         t.asset._address = cToken.asset();
         t.asset.name =  cToken.name();
         t.asset.symbol = cToken.symbol();
