@@ -63,9 +63,8 @@ contract CanRedeemTest is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(9e17);
         vm.stopPrank();
 
-        bool hasPosition;
-        (hasPosition, , ) =
-            protocolReader.tokenDataOf(user1, address(strategyCBALRETH));
+        bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(strategyCBALRETH), user1) == 2;
 
         assertTrue(hasPosition);
 
@@ -85,9 +84,8 @@ contract CanRedeemTest is TestBaseMarketIsolated {
     }
 
     function test_canRedeem_success_whenRedeemerHasNoPosition() public {
-        bool hasPosition;
-        (hasPosition, , ) =
-            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
+        bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(borrowableCUSDC), user1) == 2;
 
         assertFalse(hasPosition);
         marketManagerIsolated.canRedeem(address(borrowableCUSDC), 100e6, user1);

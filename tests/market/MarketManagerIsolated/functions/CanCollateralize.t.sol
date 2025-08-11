@@ -82,9 +82,8 @@ contract CanCollateralizeTest is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        bool hasPosition;
-        (hasPosition, , ) =
-            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
+        bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(borrowableCUSDC), user1) == 2;
 
         assertTrue(hasPosition);
     }

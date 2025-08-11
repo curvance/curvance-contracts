@@ -358,9 +358,10 @@ contract ProtocolReader {
         address account
     ) internal view returns (uint256 positionHealth) {
         (uint256 soft, , uint256 debt) = mm.liquidationValuesOf(account);
-        
+
+        // No debt means infinite position health.
         if (debt == 0) {
-            return type(uint256).max; // No debt means infinite health
+            return type(uint256).max; 
         }
 
         positionHealth = (soft * WAD) / debt;

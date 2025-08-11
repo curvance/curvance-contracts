@@ -21,15 +21,6 @@ contract AccountFunctionsTest is TestBaseLiquidations {
         assertEq(address(assets[1]), address(borrowableCUSDC));
     }
 
-    function test_tokenDataOf() public {
-        (bool hasPosition, uint256 balanceOf, uint256 collateralPostedOf) =
-            protocolReader.tokenDataOf(user1, address(strategyCBALRETH));
-        assertEq(hasPosition, true);
-        assertEq(balanceOf, _ONE, "balance of mismatch");
-        assertEq(collateralPostedOf, _ONE - 1, "collateral posted mismatch");
-
-    }
-
     function test_statusOf() public {
         mockUsdcFeed.setMockAnswer(1e8); // reset price back to $1
 
