@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import { Script } from "forge-std/Script.sol";
 import { Vm } from "forge-std/Vm.sol";
 import { DeploymentLogger } from "../utils/DeploymentLogger.sol";
-import { ProtocolReader2 } from "contracts/views/ProtocolReader2.sol";
+import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract DeployProtocolReader is Script {
@@ -19,7 +19,7 @@ contract DeployProtocolReader is Script {
 
         // TODO: Update this to ProtocolReader instead of ProtocolReader2 when 2 is done and moves to the normal file
         ICentralRegistry icr = ICentralRegistry(registry);
-        address newContract = address(new ProtocolReader2(icr));
+        address newContract = address(new ProtocolReader(icr));
         emit ContractDeployed(newContract, "ProtocolReader");
 
         vm.stopBroadcast();
