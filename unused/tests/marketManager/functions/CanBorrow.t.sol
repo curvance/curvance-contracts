@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
+import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
 
+import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 

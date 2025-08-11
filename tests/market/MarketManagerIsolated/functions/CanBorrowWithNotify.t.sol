@@ -2,6 +2,8 @@
 pragma solidity ^0.8.19;
 
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";

@@ -3,6 +3,8 @@ pragma solidity ^0.8.19;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
+import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
+
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 contract CanRedeemTest is TestBaseMarketIsolated {
