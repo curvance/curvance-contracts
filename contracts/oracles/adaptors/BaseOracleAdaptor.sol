@@ -29,8 +29,8 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     uint256 internal constant _MAXIMUM_PRICE_DIFFERENCE = 1000;
     /// @notice The enforced minimum amount of time that a price guard grows
     ///         before overflowing type(uint240).max, in years.
-    /// @dev 5 = 5 years.
-    uint256 internal constant _MINIMUM_YEARS_BEFORE_OVERFLOW = 5;
+    /// @dev 157_680_000 seconds = 5 years.
+    uint256 internal constant _MINIMUM_TIME_BEFORE_OVERFLOW = 157_680_000;
     /// @notice The minimum amount of time allowed between `timestampStart`
     ///         and `block.timestamp` on `setGuardedPriceConfig` call.
     uint256 internal constant _MINIMUM_TIMESTAMP_BUFFER = 7 days;
@@ -108,9 +108,8 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ///                  2: Indicates an ever increasing maximum of
     ///                     `basePrice` and minimum of `minPrice` continually
     ///                     growing by `increasePerYear` % per year.
-    /// @param increasePerYear The magnitude that `basePrice` should increase
-    ///                        overtime from `timestampStart`, inputted in
-    ///                        `BASIS_POINTS` per year.
+    /// @param ips The magnitude that `basePrice` should increase overtime
+    ///            overtime from `timestampStart`, in `WAD`, in seconds.
     /// @param timestampStart When `increasePerYear` should start increasing
     ///                       `basePrice` raising the maximum price returned
     ///                       when pricing `asset`.
@@ -122,17 +121,19 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         address asset,
         bool inUSD,
         uint256 guardType,
-        uint256 increasePerYear,
+        uint256 ips,
         uint256 timestampStart,
         uint256 minPrice,
         uint256 basePrice
     ) external {
         _checkMarketPermissions();
 
+        // Validate that the intended guardType actually exists (type 1 / 2).
         if (guardType == 0 || guardType > 2) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
         
+        // Validate the starting timestamp is not in the future or too "now".
         if (
             timestampStart > block.timestamp ||
             block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
@@ -140,52 +141,41 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        if (minPrice > basePrice || minPrice > type(uint144).max) {
+        // Validate that growth rate will fit in 40 bit slot.
+        if (ips > type(uint40).max) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        // Convert `increasePerYear` from basis points to WAD.
-        increasePerYear = increasePerYear * 1e14;
+        // Validate that min and max price logic is not inverted and that the
+        // minimum price will not overflow.
+        if (minPrice > basePrice || minPrice > type(uint80).max) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+
         // Technically `_guardedPrice()` is meant for only seconds, but, by
         // converting time and increase rate to years it works the same.
         uint256 priceForOverflowCheck = _guardedPrice(
-            _MINIMUM_YEARS_BEFORE_OVERFLOW,
-            increasePerYear,
+            _MINIMUM_TIME_BEFORE_OVERFLOW,
+            ips,
             basePrice
         );
 
-        if (priceForOverflowCheck > type(uint240).max) {
+        // Validate that max price logic is not inverted and that the
+        // minimum price will not overflow.
+        if (
+            basePrice > type(uint96).max ||
+            priceForOverflowCheck > type(uint240).max
+        ) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        if (increasePerYear / SECONDS_PER_YEAR > type(uint64).max) {
+        PricingResult memory result = this.getPrice(asset, inUSD, true);
+
+        // Having a minimum price above the current price does not make sense,
+        // implying that asset price behaves differently than our PriceGuard
+        // assumes.
+        if (minPrice > result.price) {
             revert BaseOracleAdaptor__InvalidConfig();
-        }
-
-        uint256 boundedPrice = _guardedPrice(
-            block.timestamp - timestampStart,
-            increasePerYear / SECONDS_PER_YEAR,
-            basePrice
-        );
-
-        uint256 boundedPriceHigh = FixedPointMathLib.mulDiv(
-            boundedPrice,
-            BASIS_POINTS + _MAXIMUM_PRICE_DIFFERENCE,
-            BASIS_POINTS
-        );
-        uint256 boundedPriceLow = FixedPointMathLib.mulDiv(
-            boundedPrice,
-            BASIS_POINTS - _MAXIMUM_PRICE_DIFFERENCE,
-            BASIS_POINTS
-        );
-
-        {
-            PricingResult memory result = this.getPrice(asset, inUSD, true);
-            uint256 oraclePrice = result.price;
-
-            if (boundedPriceHigh < oraclePrice || boundedPriceLow > oraclePrice) {
-                revert BaseOracleAdaptor__InvalidConfig();
-            }
         }
 
         PriceGuard storage pg = priceGuards[asset][inUSD];
@@ -195,11 +185,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        pg.guardType = uint8(guardType);
         pg.timestampStart = uint40(timestampStart);
-        pg.ips = uint64(increasePerYear / SECONDS_PER_YEAR);
-        pg.minPrice = uint144(minPrice);
-        pg.basePrice = basePrice;
+        pg.ips = uint40(ips);
+        pg.minPrice = uint80(minPrice);
+        pg.basePrice = uint96(basePrice);
 
         emit PriceGuardUpdated(pg);
     }
@@ -287,13 +276,15 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         // Adjust price based on any present price guards.
         PriceGuard memory pg = priceGuards[asset][inUSD];
         
-        // Case with no minimum/maximum guarded prices.
-        if (pg.guardType == 0) {
+        // Case where there is no base price at all, this indicates PriceGuard
+        // is disabled, so can return price as is.
+        if (pg.basePrice == 0) {
             return price;
         }
 
-        // Case with static minimum/maximum guarded prices.
-        if (pg.guardType == 1) {
+        // Case where there is no realtime price increase so the PriceGuard
+        // has static minimum/maximum guarded prices.
+        if (pg.ips == 0) {
             if (price < pg.minPrice) {
                 return pg.minPrice;
             }

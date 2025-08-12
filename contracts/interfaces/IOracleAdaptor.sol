@@ -36,11 +36,10 @@ interface IOracleAdaptor {
     /// @param basePrice The base price that should be the maximum price
     ///                  returned when pricing `asset`.
     struct PriceGuard {
-        uint8 guardType;
         uint40 timestampStart;
-        uint64 ips;
-        uint144 minPrice;
-        uint256 basePrice;
+        uint40 ips;
+        uint80 minPrice;
+        uint96 basePrice;
     }
 
     /// @notice Called by OracleManager to price an asset.
