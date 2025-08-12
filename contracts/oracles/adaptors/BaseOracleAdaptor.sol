@@ -241,8 +241,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ///      and if the data is not outdated.
     /// @param value The value that is retrieved from the feed data.
     /// @param timestamp The time at which the value was last updated.
-    /// @param max The maximum value allowed of `value`.
-    /// @param min The minimum value allowed of `value`.
     /// @param heartbeat The maximum allowed time difference between
     ///                  current time and 'timestamp'.
     /// @return A boolean indicating whether the feed data had an error
@@ -250,17 +248,15 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     function _verifyData(
         uint256 value,
         uint256 timestamp,
-        uint256 max,
-        uint256 min,
         uint256 heartbeat
     ) internal view virtual returns (bool) {
-        // Validate `value` is not at or above the maximum value allowed.
-        if (value >= max) {
+        // Validate `value` is not at or above type(uint240).max.
+        if (value >= _MAXIMUM_PRICE_ALLOWED) {
             return true;
         }
 
-        // Validate `value` is not at or below the min value allowed.
-        if (value <= min) {
+        // Validate `value` is not at or below 0.
+        if (value <= 0) {
             return true;
         }
 

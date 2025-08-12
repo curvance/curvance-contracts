@@ -133,10 +133,10 @@ contract Api3Adaptor is BaseOracleAdaptor {
         if (!assetConfig[asset][inUSD].isConfigured) {
             inUSD = !inUSD;  
         }
-        AssetConfig memory config = assetConfig[asset][inUSD];
+        AssetConfig memory c = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
         
-        (int256 price, uint256 updatedAt) = config.proxyFeed.read();
+        (int256 price, uint256 updatedAt) = c.proxyFeed.read();
 
         // If we got a price of 0 or less, bubble up an error immediately.
         if (price <= 0) {
@@ -144,14 +144,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
             return result;
         }
 
-        result.hadError = _verifyData(
-            uint256(price),
-            updatedAt,
-            _MAXIMUM_PRICE_ALLOWED,
-            0,
-            config.heartbeat
-        );
-
+        result.hadError = _verifyData(uint256(price), updatedAt, c.heartbeat);
         result.price = uint240(uint256(price));
     }
 

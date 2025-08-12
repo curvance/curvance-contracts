@@ -127,11 +127,11 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
             inUSD = !inUSD;  
         }
 
-        AssetConfig memory config = assetConfig[asset][inUSD];
+        AssetConfig memory c = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
         
-        (, int256 price, , uint256 updatedAt, ) = 
-            IChainlink(config.aggregatorProxy).latestRoundData();
+        (, int256 price,, uint256 updatedAt, ) = IChainlink(c.aggregatorProxy)
+            .latestRoundData();
 
         // If we got a price of 0 or less, bubble up an error immediately.
         if (price <= 0) {
@@ -143,17 +143,10 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
             asset,
             inUSD,
             uint256(price),
-            config.decimals
+            c.decimals
         );
 
-        result.hadError = _verifyData(
-            adjustedPrice,
-            updatedAt,
-            _MAXIMUM_PRICE_ALLOWED,
-            0,
-            config.heartbeat
-        );
-
+        result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
         result.price = uint240(adjustedPrice);
     }
 

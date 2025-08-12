@@ -26,10 +26,8 @@ contract PythAdaptor is BaseOracleAdaptor {
     ///            0 defaults to use proxy min price increased by ~10%.
     struct AssetConfig {
         bool isConfigured;
+        uint24 heartbeat;
         bytes32 priceId;
-        uint256 heartbeat;
-        uint256 max;
-        uint256 min;
     }
 
     /// CONSTANTS ///
@@ -57,7 +55,6 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     error PythAdaptor__Unauthorized();
     error PythAdaptor__InvalidHeartbeat();
-    error PythAdaptor__InvalidMinMaxConfig();
 
     /// CONSTRUCTOR ///
 
@@ -95,18 +92,6 @@ contract PythAdaptor is BaseOracleAdaptor {
             if (config.heartbeat > DEFAULT_HEART_BEAT) {
                 revert PythAdaptor__InvalidHeartbeat();
             }
-        }
-
-        // If the buffered max price is above uint240 its theoretically
-        // possible to get a price which would lose precision on uint240
-        // conversion, which we need to protect against in getPrice() so
-        // we can add a second protective layer here.
-        if (config.max > type(uint240).max) {
-            config.max = type(uint240).max;
-        }
-
-        if (config.min >= config.max) {
-            revert PythAdaptor__InvalidMinMaxConfig();
         }
 
         // Save `config` and update mapping that we support `asset` now.
@@ -163,12 +148,16 @@ contract PythAdaptor is BaseOracleAdaptor {
         }
     }
 
+    /// @notice Updates Pyth prices using native gas tokens for the chain.
+    /// @dev The `priceUpdateData` data should be retrieved
+    /// from Pyth's off-chain Price Service API using the `pyth-evm-js`
+    /// package.
+    /// @param priceUpdateData The calldata representing a price update.
     function updateFeedsWithNative(
         bytes[] calldata priceUpdateData
     ) public payable {
-        // Update the prices to the latest available values and pay the required fee for it. The `priceUpdateData` data
-        // should be retrieved from our off-chain Price Service API using the `pyth-evm-js` package.
-        // See section "How Pyth Works on EVM Chains" below for more information.
+        // Update the prices to the latest available values and pay the
+        // required fee for it. 
         uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
         IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
 
@@ -225,11 +214,8 @@ contract PythAdaptor is BaseOracleAdaptor {
         result.hadError = _verifyData(
             adjustedPrice,
             price.publishTime,
-            config.max,
-            config.min,
             config.heartbeat
         );
-
         result.price = uint240(adjustedPrice);
     }
 

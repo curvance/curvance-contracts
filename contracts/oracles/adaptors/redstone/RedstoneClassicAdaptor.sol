@@ -132,10 +132,10 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
             inUSD = !inUSD;  
         }
 
-        AssetConfig memory config = assetConfig[asset][inUSD];
+        AssetConfig memory c = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
         
-        (, int256 price,, uint256 updatedAt, ) = IRedstone(config.feed)
+        (, int256 price,, uint256 updatedAt, ) = IRedstone(c.feed)
             .latestRoundData();
 
         // If we got a price of 0 or less, bubble up an error immediately.
@@ -148,17 +148,10 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
             asset,
             inUSD,
             uint256(price),
-            config.decimals
+            c.decimals
         );
 
-        result.hadError = _verifyData(
-            adjustedPrice,
-            updatedAt,
-            _MAXIMUM_PRICE_ALLOWED,
-            0,
-            config.heartbeat
-        );
-
+        result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
         result.price = uint240(adjustedPrice);
     }
 

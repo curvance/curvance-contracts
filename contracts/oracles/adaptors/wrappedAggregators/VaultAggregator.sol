@@ -12,17 +12,18 @@ contract VaultAggregator is BaseWrappedAggregator {
     address public vault;
     /// @notice The address of the underlying asset token.
     address public asset;
+
     /// @notice The address of the underlying asset aggregator.
-    address public assetAggregator;
+    address internal _assetAggregator;
 
     /// CONSTRUCTOR ///
     
-    constructor(address _vault, address _asset, address _assetAggregator) {
+    constructor(address _vault, address _asset, address _aggregator) {
         _checkVaultAsset(_vault, _asset);
 
         vault = _vault;
         asset = _asset;
-        assetAggregator = _assetAggregator;
+        _assetAggregator = _aggregator;
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -30,7 +31,7 @@ contract VaultAggregator is BaseWrappedAggregator {
     /// @notice Returns the underlying aggregator address.
     /// @return r The underlying aggregator address.
     function underlyingAggregator() public view override returns (address r) {
-        r = assetAggregator;
+        r = _assetAggregator;
     }
 
     /// @notice Returns the current exchange rate between the wrapped asset
