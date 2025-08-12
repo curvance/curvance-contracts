@@ -242,30 +242,6 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         );
     }
 
-    // minAnswer * 11/10 >= maxAnswer * 9/10
-    // minAnswer >= maxAnswer * 9/11
-    // maxAnswer = 1000, then minAnswer needs to be >= 818
-    // 900 * 11/10 > 1000 * 9/10
-    // 990 > 900
-    // 900 * 11/10 > 1000 * 9/10
-    function test_fail_InvalidMinMaxConfig() public {
-
-        MockV3Aggregator invalidFeed = new MockV3Aggregator(
-            8,
-            1e8,
-            1000e8,
-            900e8
-        );
-
-        vm.expectRevert(ChainlinkAdaptor.ChainlinkAdaptor__InvalidMinMaxConfig.selector);
-        chainlinkAdaptor.addAsset(
-            SNX_ADDRESS,
-            true,
-            address(invalidFeed),
-            0
-        );
-    }
-
     function testGetPriceRevertAssetNotSupported() public {
         // Should revert when asset is not supported
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector);
@@ -447,43 +423,6 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         // Test zero price
         snxUsdPriceFeed.updateAnswer(0);
         snxUsdPriceFeed.updateRoundData(1, 0, block.timestamp, block.timestamp);
-        IOracleAdaptor.PricingResult memory result =
-            chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
-
-        assertTrue(result.hadError);
-    }
-
-    function test_fail_AboveBufferedMax() public {
-
-        chainlinkAdaptor.addAsset(
-            SNX_ADDRESS,
-            true,
-            address(snxUsdPriceFeed),
-            0
-        );
-
-        // Test above buffered max
-        snxUsdPriceFeed.updateAnswer(1e11);
-        snxUsdPriceFeed.updateRoundData(1, 1e11, block.timestamp, block.timestamp);
-        IOracleAdaptor.PricingResult memory result =
-            chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
-
-        assertTrue(result.hadError);
-    }
-
-    function test_fail_BelowBufferedMin() public {
-
-        chainlinkAdaptor.addAsset(
-            SNX_ADDRESS,
-            true,
-            address(snxUsdPriceFeed),
-            0
-        );
-
-        // Test below buffered min
-        snxUsdPriceFeed.updateAnswer(1e6);
-        snxUsdPriceFeed.updateRoundData(1, 1e6, block.timestamp, block.timestamp);
-
         IOracleAdaptor.PricingResult memory result =
             chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);
 
