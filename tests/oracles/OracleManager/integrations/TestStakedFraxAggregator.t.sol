@@ -23,12 +23,6 @@ contract TestStakedFraxAggregator is TestBase {
         );
     }
 
-    function testMinMaxAnswer() public {
-        int192 maxAnswer = aggregator.maxAnswer();
-        int192 minAnswer = aggregator.minAnswer();
-        assertGt(maxAnswer, minAnswer);
-    }
-
     function testLatestRoundData() public {
         (, int256 sfraxPrice, , , ) = aggregator.latestRoundData();
         (, int256 fraxPrice, , , ) = IChainlink(_CHAINLINK_FRAX_USD)

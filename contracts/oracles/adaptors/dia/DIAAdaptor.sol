@@ -107,7 +107,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
         if (!assetConfig[asset][inUSD].isConfigured) {
             inUSD = !inUSD;  
         }
-        AssetConfig memory config = assetConfig[asset][inUSD];
+        AssetConfig memory c = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
 
         (uint128 price, uint128 updatedAt) =

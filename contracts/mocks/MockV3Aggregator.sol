@@ -20,22 +20,15 @@ contract MockV3Aggregator is IChainlink {
     uint256 public latestTimestamp;
     uint256 public latestRound;
 
-    int192 public immutable override minAnswer;
-    int192 public immutable override maxAnswer;
-
     mapping(uint256 => int256) public getAnswer;
     mapping(uint256 => uint256) public getTimestamp;
     mapping(uint256 => uint256) private getStartedAt;
 
     constructor(
         uint8 _decimals,
-        int256 _initialAnswer,
-        int192 _maxAnswer,
-        int192 _minAnswer
+        int256 _initialAnswer
     ) {
         decimals = _decimals;
-        maxAnswer = _maxAnswer;
-        minAnswer = _minAnswer;
         updateAnswer(_initialAnswer);
     }
 
@@ -103,9 +96,5 @@ contract MockV3Aggregator is IChainlink {
             getTimestamp[latestRound],
             uint80(latestRound)
         );
-    }
-
-    function aggregator() external view override returns (address) {
-        return address(this);
     }
 }

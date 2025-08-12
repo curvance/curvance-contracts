@@ -78,7 +78,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkDaiUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkDaiUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
@@ -89,7 +89,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             _DAI_ADDRESS,
             address(chainlinkAdaptor)
         );
-        chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,

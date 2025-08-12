@@ -260,39 +260,27 @@ contract TestBaseMarketIsolated is TestBase {
 
         chainlinkEthUsd = chainlinkEthUsds[chainId] = new MockV3Aggregator(
             8,
-            1500e8,
-            1e50,
-            1e6
+            1500e8
         );
         chainlinkUsdcUsd = chainlinkUsdcUsds[chainId] = new MockV3Aggregator(
             8,
-            1e8,
-            1e11,
-            1e6
+            1e8
         );
         chainlinkDaiUsd = chainlinkDaiUsds[chainId] = new MockV3Aggregator(
             8,
-            1e8,
-            1e11,
-            1e6
+            1e8
         );
         chainlinkUsdcEth = chainlinkUsdcEths[chainId] = new MockV3Aggregator(
             18,
-            1e18,
-            1e24,
-            1e13
+            1e18
         );
         chainlinkRethEth = chainlinkRethEths[chainId] = new MockV3Aggregator(
             18,
-            1e18,
-            1e24,
-            1e13
+            1e18
         );
         chainlinkDaiEth = chainlinkDaiEths[chainId] = new MockV3Aggregator(
             18,
-            1e18,
-            1e24,
-            1e13
+            1e18
         );
 
         chainlinkAdaptor = chainlinkAdaptors[chainId] = new ChainlinkAdaptor(
@@ -1341,7 +1329,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         // WBTC
 
-        mockWbtcFeed = new MockV3Aggregator(8, 60000e8, 1e50, 1e6);
+        mockWbtcFeed = new MockV3Aggregator(8, 60000e8);
         chainlinkAdaptor.addAsset(
             _WBTC_ADDRESS,
             true,

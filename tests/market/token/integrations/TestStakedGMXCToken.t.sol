@@ -64,7 +64,7 @@ contract TestStakedGMXCToken is TestBaseMarketIsolated {
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkWETH = new MockV3Aggregator(8, 3000e8, 1e50, 1e6);
+        chainlinkWETH = new MockV3Aggregator(8, 3000e8);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
@@ -76,7 +76,7 @@ contract TestStakedGMXCToken is TestBaseMarketIsolated {
             address(chainlinkAdaptor)
         );
 
-        chainlinkGMX = new MockV3Aggregator(8, 45e8, 1e50, 1e6);
+        chainlinkGMX = new MockV3Aggregator(8, 45e8);
         chainlinkAdaptor.addAsset(
             _GMX_ADDRESS,
             true,

@@ -43,7 +43,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         // remove STETH pricefeed made in base market setup
         oracleManager.removeAssetPriceFeed(_STETH_ADDRESS, address(chainlinkAdaptor));
 
-        chainlinkStethUsd = new MockV3Aggregator(8, 1500e8, 3000e12, 1000e6);
+        chainlinkStethUsd = new MockV3Aggregator(8, 1500e8);
         chainlinkAdaptor.addAsset(
             _STETH_ADDRESS,
             true,

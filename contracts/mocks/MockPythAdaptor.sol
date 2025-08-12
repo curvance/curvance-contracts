@@ -35,7 +35,7 @@ contract MockPythAdaptor is PythAdaptor {
         uint256 max,
         uint256 min,
         uint256 heartbeat
-    ) internal view override returns (bool) {
+    ) internal view returns (bool) {
         // Validate `value` is not below the buffered min value allowed.
         if (value < min) {
             return true;
