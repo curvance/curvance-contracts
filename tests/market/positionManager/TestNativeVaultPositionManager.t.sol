@@ -35,7 +35,105 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
     fallback() external payable {}
 
     function setUp() public override {
+    }
 
+    function testLeverage_BorrowedWrappedNative_NoSwaps() public {
+
+        _setUpSHMONMarket();
+
+        deal(SHMON_ADDRESS, user1, 500e18);
+        vm.startPrank(user1);
+        IERC20(SHMON_ADDRESS).approve(address(simpleCSHMON), type(uint256).max);
+        uint256 depositShares = 500e18;
+        simpleCSHMON.deposit(depositShares, user1);
+        simpleCSHMON.postCollateral(depositShares);
+
+        borrowableCWMON.borrow(1 ether, user1);
+
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+            user1,
+            address(borrowableCWMON)
+        ) / 2;
+
+        console2.log("amountForLeverage", amountForLeverage);
+
+        NativeVaultPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCWMON));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(simpleCSHMON));
+
+        positionManager.leverage(leverageAction, 0.5e18);
+
+        AccountSnapshot memory debtSnap = borrowableCWMON.getSnapshot(user1);
+        AccountSnapshot memory collSnap = simpleCSHMON.getSnapshot(user1);
+
+        assertGt(debtSnap.debtBalance, 1 ether, "Debt should increase after leverage");
+        assertGt(collSnap.collateralPosted, 0, "Collateral should be posted");
+
+        vm.stopPrank();
+    }
+
+    function testDepositAndLeverage_BorrowedWrappedNative_NoSwaps() public {
+
+        _setUpSHMONMarket();
+
+        vm.startPrank(user1);
+
+        deal(SHMON_ADDRESS, user1, 500e18);
+        IERC20(SHMON_ADDRESS).approve(address(positionManager), type(uint256).max);
+
+        simpleCSHMON.setDelegateApproval(address(positionManager), true);
+
+        uint256 amountForLeverage = 100 ether;
+
+        NativeVaultPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCWMON));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(simpleCSHMON));
+
+        positionManager.depositAndLeverage(500e18, leverageAction, 0.05e18);
+
+        AccountSnapshot memory collSnap = simpleCSHMON.getSnapshot(user1);
+        AccountSnapshot memory debtSnap = borrowableCWMON.getSnapshot(user1);
+
+        assertGt(collSnap.collateralPosted, 0, "Collateral should be posted");
+        assertGt(debtSnap.debtBalance, 0, "Debt should be incurred");
+
+        vm.stopPrank();
+    }
+
+    function testDeleverage_BorrowedWrappedNative_NoSwaps() public {
+
+        _setUpSHMONMarket();
+
+        // Accrue a bit
+        skip(20 minutes);
+        borrowableCWMON.accrueIfNeeded();
+
+        vm.startPrank(user1);
+
+        AccountSnapshot memory debtBefore = borrowableCWMON.getSnapshot(user1);
+        AccountSnapshot memory collBefore = simpleCSHMON.getSnapshot(user1);
+
+        NativeVaultPositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(simpleCSHMON));
+        deleverageAction.collateralAssets = collBefore.collateralPosted / 5;
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCWMON));
+        deleverageAction.repayAssets = debtBefore.debtBalance / 10;
+        simpleCSHMON.approve(address(positionManager), type(uint256).max);
+
+        positionManager.deleverage(deleverageAction, 0.5e18);
+
+        AccountSnapshot memory debtAfter = borrowableCWMON.getSnapshot(user1);
+        AccountSnapshot memory collAfter = simpleCSHMON.getSnapshot(user1);
+
+        assertLt(debtAfter.debtBalance, debtBefore.debtBalance, "Debt should be reduced after deleverage");
+        assertLt(collAfter.collateralPosted, collBefore.collateralPosted, "Collateral should be reduced after deleverage");
+
+        vm.stopPrank();
+    }
+
+    function _setUpSHMONMarket() internal {
         _fork("ETH_NODE_URI_MONAD");
 
         _deployCentralRegistry();
@@ -93,94 +191,31 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testLeverage_BorrowedWrappedNative_NoSwaps() public {
+    function _setUpCSFRAX_FRAXPool() internal {
+        deal(_FRAX_ADDRESS, address(this), 77777);
+        IERC20(_FRAX_ADDRESS).approve(address(borrowableCFRAX), 77777);
 
-        deal(SHMON_ADDRESS, user1, 500e18);
-        vm.startPrank(user1);
-        IERC20(SHMON_ADDRESS).approve(address(simpleCSHMON), type(uint256).max);
-        uint256 depositShares = 500e18;
-        simpleCSHMON.deposit(depositShares, user1);
-        simpleCSHMON.postCollateral(depositShares);
+        deal(_SFRAX_ADDRESS, address(this), 77777);
+        IERC20(_SFRAX_ADDRESS).approve(address(simpleCSFRAX), 77777);
 
-        borrowableCWMON.borrow(1 ether, user1);
+        marketManagerIsolated.listTokens(address(simpleCSFRAX), address(borrowableCFRAX));
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
-            user1,
-            address(borrowableCWMON)
-        ) / 2;
+        _setCTokenConfigBasic(address(simpleCSFRAX), 1_000_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCFRAX), 1_000_000e18, 1_000_000e18);
 
-        console2.log("amountForLeverage", amountForLeverage);
+        positionManager = new VaultPositionManager(
+            ICentralRegistry(address(centralRegistry)),
+            address(marketManagerIsolated),
+            _WETH_ADDRESS
+        );
+        marketManagerIsolated.addPositionManager(address(positionManager));
 
-        NativeVaultPositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCWMON));
-        leverageAction.borrowAssets = amountForLeverage;
-        leverageAction.cToken = ICToken(address(simpleCSHMON));
-
-        positionManager.leverage(leverageAction, 0.5e18);
-
-        AccountSnapshot memory debtSnap = borrowableCWMON.getSnapshot(user1);
-        AccountSnapshot memory collSnap = simpleCSHMON.getSnapshot(user1);
-
-        assertGt(debtSnap.debtBalance, 1 ether, "Debt should increase after leverage");
-        assertGt(collSnap.collateralPosted, 0, "Collateral should be posted");
-
-        vm.stopPrank();
-    }
-
-    function testDepositAndLeverage_BorrowedWrappedNative_NoSwaps() public {
-        vm.startPrank(user1);
-
-        deal(SHMON_ADDRESS, user1, 500e18);
-        IERC20(SHMON_ADDRESS).approve(address(positionManager), type(uint256).max);
-
-        simpleCSHMON.setDelegateApproval(address(positionManager), true);
-
-        uint256 amountForLeverage = 100 ether;
-
-        NativeVaultPositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCWMON));
-        leverageAction.borrowAssets = amountForLeverage;
-        leverageAction.cToken = ICToken(address(simpleCSHMON));
-
-        positionManager.depositAndLeverage(500e18, leverageAction, 0.05e18);
-
-        AccountSnapshot memory collSnap = simpleCSHMON.getSnapshot(user1);
-        AccountSnapshot memory debtSnap = borrowableCWMON.getSnapshot(user1);
-
-        assertGt(collSnap.collateralPosted, 0, "Collateral should be posted");
-        assertGt(debtSnap.debtBalance, 0, "Debt should be incurred");
-
-        vm.stopPrank();
-    }
-
-    function testDeleverage_BorrowedWrappedNative_NoSwaps() public {
-
-        testLeverage_BorrowedWrappedNative_NoSwaps();
-
-        // Accrue a bit
-        skip(20 minutes);
-        borrowableCWMON.accrueIfNeeded();
-
-        vm.startPrank(user1);
-
-        AccountSnapshot memory debtBefore = borrowableCWMON.getSnapshot(user1);
-        AccountSnapshot memory collBefore = simpleCSHMON.getSnapshot(user1);
-
-        NativeVaultPositionManager.DeleverageAction memory deleverageAction;
-        deleverageAction.cToken = ICToken(address(simpleCSHMON));
-        deleverageAction.collateralAssets = collBefore.collateralPosted / 5;
-        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCWMON));
-        deleverageAction.repayAssets = debtBefore.debtBalance / 10;
-        simpleCSHMON.approve(address(positionManager), type(uint256).max);
-
-        positionManager.deleverage(deleverageAction, 0.5e18);
-
-        AccountSnapshot memory debtAfter = borrowableCWMON.getSnapshot(user1);
-        AccountSnapshot memory collAfter = simpleCSHMON.getSnapshot(user1);
-
-        assertLt(debtAfter.debtBalance, debtBefore.debtBalance, "Debt should be reduced after deleverage");
-        assertLt(collAfter.collateralPosted, collBefore.collateralPosted, "Collateral should be reduced after deleverage");
-
+        // Provide liquidity
+        address liquidityProvider = makeAddr("liquidityProvider");
+        deal(_FRAX_ADDRESS, liquidityProvider, 1_000_000e18);
+        vm.startPrank(liquidityProvider);
+        IERC20(_FRAX_ADDRESS).approve(address(borrowableCFRAX), type(uint256).max);
+        borrowableCFRAX.deposit(1_000_000e18, liquidityProvider);
         vm.stopPrank();
     }
 }

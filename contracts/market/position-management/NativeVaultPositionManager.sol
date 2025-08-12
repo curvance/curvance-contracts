@@ -82,64 +82,44 @@ contract NativeVaultPositionManager is BasePositionManager {
         vault.deposit{value: nativeAmount}(nativeAmount, address(this));
     }
 
-    /// @notice Redeem callback: redeem ERC4626 shares to native, then optionally
-    ///         convert to the `debtAsset` for repayment.
-    /// @dev If `debtAsset == wrappedNative`, wrap native and return.
-    ///      Otherwise validate and execute exactly one aggregator swap from
-    ///      native -> `debtAsset` (`swapActions.length == 1`).
+    /// @notice Deleverage callback: take the collateral asset already on hand and
+    ///         swap it exactly once into the `debtAsset` using aggregator calldata.
+    /// @dev This function does not redeem from a vault or perform native wrap/unwrap.
+    ///      It enforces a single swap (`swapActions.length == 1`) and validates:
+    ///        - non-empty `call`
+    ///        - nonzero `target`
+    ///        - `inputToken == action.cToken.asset()` (collateral asset)
+    ///        - `outputToken == action.borrowableCToken.asset()` (debt asset)
+    ///      The exact swap amount is encoded in the aggregator calldata; this function
+    ///      does not validate it against `action.collateralAssets`.
+    ///      The swap is executed via `SwapperLib._swapSafe`.
     /// @param action Instructions for a deleverage action containing:
-    ///               cToken Address of the cToken that will be redeemed from
-    ///                      and assets swapped into `borrowableCToken` asset.
-    ///               collateralAssets The amount of `cToken` that will be
-    ///                                deleveraged, in assets.
-    ///               borrowableCToken Address of the borrowableCToken that
-    ///                                will have its debt paid.
-    ///               repayAssets The amount of `borrowableCToken` asset that
-    ///                           will be repaid to lenders.
-    ///               swapActions Swap actions instructions converting
-    ///                           collateral asset into debt asset to
-    ///                           facilitate deleveraging.
-    ///               auxData Optional auxiliary data for execution of a
-    ///                       deleverage action.
+    ///               cToken Address of the cToken whose underlying is the input token.
+    ///               collateralAssets Collateral shares/amount context for the deleverage.
+    ///               borrowableCToken The borrowable cToken whose asset will be repaid.
+    ///               repayAssets Target repay amount in `debtAsset`.
+    ///               swapActions Exactly one swap converting collateral asset -> debt asset.
+    ///               auxData Optional auxiliary data for execution of a deleverage action.
     function _swapCollateralAssetToDebtAsset(
         DeleverageAction memory action
     ) internal virtual override {
-        address vaultAddr = action.cToken.asset();
-        IVault vault = IVault(vaultAddr);
+        address collateralAsset = action.cToken.asset();
         address debtAsset = action.borrowableCToken.asset();
-
-        // Redeem shares to native.
-        uint256 nativeOut = vault.redeem(
-            action.collateralAssets,
-            address(this),
-            address(this)
-        );
-
-        if (nativeOut == 0) {
-            return;
-        }
-
-        if (debtAsset == wrappedNative) {
-            // Wrap native to wrapped for repayment.
-            IWETH(wrappedNative).deposit{value: nativeOut}();
-            return;
-        }
 
         SwapperLib.Swap[] memory swapActions = action.swapActions;
         if (swapActions.length != 1) {
             revert BasePositionManager__InvalidParam();
         }
 
-        SwapperLib.Swap memory swapAction = swapActions[0];
         if (
-            swapAction.call.length == 0 ||
-            swapAction.target == address(0) ||
-            !CommonLib._isNative(swapAction.inputToken) ||
-            swapAction.outputToken != debtAsset
+            swapActions[0].call.length == 0 ||
+            swapActions[0].target == address(0) ||
+            swapActions[0].inputToken != collateralAsset ||
+            swapActions[0].outputToken != debtAsset
         ) {
             revert BasePositionManager__InvalidParam();
         }
 
-        SwapperLib._swapSafe(centralRegistry, swapAction);
+        SwapperLib._swapSafe(centralRegistry, swapActions[0]);
     }
 }
