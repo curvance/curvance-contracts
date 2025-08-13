@@ -209,12 +209,13 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         bool inUSD
     ) internal view virtual override returns (PricingResult memory result) {}
 
-    /// INTERNAL FUNCTIONS TO OVERRIDE ///
-
-    /// @notice Wipes supported asset pricing configs from an adaptor.
+    /// @notice Wipes `asset` pricing configurations from this adaptor.
+    /// @param asset The address of the asset to wipe pricing support of.
     function _wipeAssetConfigs(address asset) internal override {
         delete assetConfig[asset];
     }
+
+    /// INTERNAL FUNCTIONS TO OVERRIDE ///
 
     /// @notice Checks whether `asset` is the proper type of LP to try
     ///         to support.

@@ -353,6 +353,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         bool inUSD
     ) internal view virtual returns (PricingResult memory result);
 
-    /// @notice Wipes supported asset pricing configs from an adaptor.
+    /// @notice Wipes asset pricing configurations from this adaptor.
     function _wipeAssetConfigs(address /*asset*/ ) internal virtual;
 }

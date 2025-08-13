@@ -25,7 +25,7 @@ uint256 constant NO_ERROR = 0;
 
 /// @dev Extra time added to top end Oracle feed heartbeat incase of
 ///      transaction congestion delaying an update.
-uint256 constant HEARTBEAT_GRACE_PERIOD = 60;
+uint256 constant HEARTBEAT_GRACE_PERIOD = 90;
 
 /// @dev Unix time has 31,536,000 seconds per year.
 ///      All my homies hate leap seconds and leap years.

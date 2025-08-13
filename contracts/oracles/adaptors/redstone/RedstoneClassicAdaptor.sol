@@ -12,24 +12,24 @@ import { IRedstone } from "contracts/interfaces/external/redstone/IRedstone.sol"
 contract RedstoneClassicAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
-    /// @notice Stores configuration data for Chainlink price sources.
+    /// @notice Stores configuration data for Redstone classic price sources.
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
-    /// @param feed The Redstone price feed address.
+    /// @param feed The Redstone price feed proxy address.
     /// @param decimals Returns the number of decimals the aggregator
     ///                 responds with.
     /// @param heartbeat The max amount of time allowed between price updates.
     ///                  0 defaults to using DEFAULT_HEART_BEAT.
     struct AssetConfig {
         bool isConfigured;
-        IRedstone feed;
+        IRedstone feedProxy;
         uint8 decimals;
         uint24 heartbeat;
     }
 
     /// CONSTANTS ///
 
-    /// @notice If zero is specified for a Chainlink asset heartbeat,
+    /// @notice If zero is specified for a Redstone asset heartbeat,
     ///         this value is used instead, added 60 seconds incase of
     ///         transaction congestion delaying an update.
     /// @dev    1 days = 24 hours = 1,440 minutes = 86,400 seconds.
@@ -62,14 +62,14 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
-    /// @param feed Redstone price feed to use for pricing `asset`.
+    /// @param feedProxy Redstone price feed proxy to use for pricing `asset`.
     /// @param heartbeat Redstone heartbeat to use when validating prices
     ///                  for `asset`. 0 = `DEFAULT_HEART_BEAT`.
     /// @param id The dataFeedId of the token to add pricing for.
     function addAsset(
         address asset,
         bool inUSD,
-        address feed,
+        address feedProxy,
         uint256 heartbeat,
         string memory id
     ) external {
@@ -81,15 +81,16 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
             }
         }
 
-        if (Bytes32Helper.toBytes32(id) != IRedstone(feed).getDataFeedId()) {
+        if (Bytes32Helper.toBytes32(id) != IRedstone(feedProxy).getDataFeedId()) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
         AssetConfig storage c = assetConfig[asset][inUSD];
 
-        // Update `c` and make sure `isSupportedAsset` returns true for `asset`.
-        c.feed = IRedstone(feed);
-        c.decimals = IRedstone(feed).decimals();
+        // Update `assetConfig` and make sure `isSupportedAsset` returns true
+        // for `asset`.
+        c.feedProxy = IRedstone(feedProxy);
+        c.decimals = IRedstone(feedProxy).decimals();
         c.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT);
         c.isConfigured = true;
 
@@ -137,7 +138,7 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
         AssetConfig memory c = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
         
-        (, int256 price,, uint256 updatedAt, ) = IRedstone(c.feed)
+        (, int256 price,, uint256 updatedAt, ) = IRedstone(c.feedProxy)
             .latestRoundData();
 
         // If we got a price of 0 or less, bubble up an error immediately.
@@ -157,7 +158,8 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
         result.price = uint240(adjustedPrice);
     }
 
-    /// @notice Wipes supported asset pricing configs from an adaptor.
+    /// @notice Wipes `asset` pricing configurations from this adaptor.
+    /// @param asset The address of the asset to wipe pricing support of.
     function _wipeAssetConfigs(address asset) internal override {
         delete assetConfig[asset][true];
         delete assetConfig[asset][false];
