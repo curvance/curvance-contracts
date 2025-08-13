@@ -73,29 +73,52 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         );
     }
 
-    function test_fail_whenMaxPriceTooHigh() public {
+    function test_fail_whenIncreasePerSecondIsTooHigh() public {
+        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 overflowedIncreasePerSecond = type(uint40).max + 1;
+
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
         chainlinkAdaptor.setGuardedPriceConfig(
             _ETH_ADDRESS,
             true,
-            1,
-            block.timestamp - 8 days,
-            1,
-            type(uint96).max + 1,
+            2,
+            timestampStart,
+            overflowedIncreasePerSecond,
+            3600e18,
             0
         );
     }
 
-    function test_fail_whenMinPriceTooHigh() public {
+    function test_fail_whenBasePriceIsTooHigh() public {
+        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 overflowedBasePrice = type(uint96).max + 1;
+
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
         chainlinkAdaptor.setGuardedPriceConfig(
             _ETH_ADDRESS,
             true,
             1,
-            block.timestamp - 8 days,
+            timestampStart,
+            0,
+            overflowedBasePrice,
+            0
+        );
+    }
+
+    function test_fail_whenMinPriceIsTooHigh() public {
+        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 basePrice = type(uint80).max + 2;
+        uint256 overflowedMinPrice = type(uint80).max + 1;
+
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        chainlinkAdaptor.setGuardedPriceConfig(
+            _ETH_ADDRESS,
+            true,
             1,
-            type(uint80).max + 2,
-            type(uint80).max + 1
+            timestampStart,
+            0,
+            basePrice,
+            overflowedMinPrice
         );
     }
 
@@ -122,8 +145,8 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         IOracleAdaptor.PriceGuard memory pg;
         pg.timestampStart = uint40(timestampStart1);
         pg.ips = 0;
-        pg.minPrice = uint80(3400e18);
         pg.basePrice = uint96(3600e18);
+        pg.minPrice = uint80(3400e18);
 
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
         emit BaseOracleAdaptor.PriceGuardUpdated(pg);
@@ -157,8 +180,8 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         IOracleAdaptor.PriceGuard memory pg;
         pg.timestampStart = uint40(timestampStart);
         pg.ips = 0;
-        pg.minPrice = uint80(3400e18);
         pg.basePrice = uint96(3600e18);
+        pg.minPrice = uint80(3400e18);
 
         // Static constraints [3400, 3600]
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
@@ -203,8 +226,8 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         IOracleAdaptor.PriceGuard memory pg;
         pg.timestampStart = uint40(timestampStart);
         pg.ips = uint40(increasePerSecond);
-        pg.minPrice = uint80(minPrice);
         pg.basePrice = uint96(basePrice);
+        pg.minPrice = uint80(minPrice);
 
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
         emit BaseOracleAdaptor.PriceGuardUpdated(pg);
@@ -280,8 +303,8 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         IOracleAdaptor.PriceGuard memory pg;
         pg.timestampStart = uint40(timestampStart);
         pg.ips = 0;
-        pg.minPrice = uint80(minPrice);
         pg.basePrice = uint96(basePrice);
+        pg.minPrice = uint80(minPrice);
 
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
         emit BaseOracleAdaptor.PriceGuardUpdated(pg);
