@@ -18,7 +18,7 @@ import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswap
 
 import { console2 } from "forge-std/console2.sol";
 
-// This test suite uses SHMON as the collateral asset, and WMON as the collateral asset.
+// This test suite uses SHMON as the collateral asset, and WMON as the borrowed asset.
 // We use a USDC/DAI lending pool on Ethereum mainnet during deleveraging because swaps are 
 // enforced during deleveraging operations, and at the time of writing there isn't support 
 // currently written for DEXes on Monad testnet. 
@@ -107,7 +107,7 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testDeleverage_BorrowedWrappedNative() public {
+    function testDeleverage() public {
 
         _setUpUSDC_DAIPool_Eth();
 

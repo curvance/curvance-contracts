@@ -17,10 +17,13 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { console2 } from "forge-std/console2.sol";
 
 /// Test suite is set into two parts:
-/// 1. Test leverage and deleverage operations with SimpleCSFRAX and borrowableCUSDC
-///    where sFRAX is collateralized against USDC debt, which includes swaps.
-/// 2. Test leverage and deleverage operations with SimpleCSFRAX and borrowableCFRAX
-///    where FRAX is collateralized against sFRAX, while also being the underlying asset, and not including swaps.
+/// 1. Test leverage and operations with SimpleCSFRAX and borrowableCUSDC
+///     where sFRAX is collateralized against USDC debt, which includes swaps.
+/// 2. Test leverage operations with SimpleCSFRAX and borrowableCFRAX
+///     where FRAX is collateralized against sFRAX, while also being the underlying asset, and not including swaps.
+/// 3. We use a USDC/DAI lending pool on Ethereum mainnet during deleveraging because swaps are 
+//      enforced during deleveraging operations, and at the time of writing there isn't support 
+//      currently written for DEXes on Monad testnet. 
 
 contract TestVaultPositionManager is TestBaseMarketIsolated {
 
@@ -192,80 +195,6 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testDeleverage_BorrowedDifferentFromUnderlying() public {
-
-        // First create a leveraged position
-        testLeverage_BorrowedDifferentFromUnderlying();
-
-        // Cooldown and accrue
-        vm.warp(block.timestamp + 20 minutes);
-        borrowableCUSDC.accrueIfNeeded();
-
-        vm.startPrank(user1);
-
-        AccountSnapshot memory debtBefore = borrowableCUSDC.getSnapshot(user1);
-        AccountSnapshot memory collBefore = simpleCSFRAX.getSnapshot(user1);
-
-        // Deleverage: redeem sFRAX shares and swap FRAX -> USDC to repay part of debt
-        VaultPositionManager.DeleverageAction memory deleverageAction;
-        deleverageAction.cToken = ICToken(address(simpleCSFRAX));
-        // redeem a modest portion to avoid large price impact in tests
-        deleverageAction.collateralAssets = collBefore.collateralPosted / 10;
-        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
-        // target a small, safe repayment in USDC units (6 decimals)
-        deleverageAction.repayAssets = 1_000_000; // 1 USDC
-
-        // Determine exact FRAX amount we will swap using vault preview
-        uint256 expectedFRAXAmount = IVault(_SFRAX_ADDRESS).previewRedeem(
-            deleverageAction.collateralAssets
-        );
-
-        // Build swap actions FRAX -> USDC using 0.05% pool
-        deleverageAction.swapActions = new SwapperLib.Swap[](1);
-        deleverageAction.swapActions[0].inputToken = _FRAX_ADDRESS;
-        deleverageAction.swapActions[0].inputAmount = expectedFRAXAmount;
-        deleverageAction.swapActions[0].outputToken = address(usdc);
-        deleverageAction.swapActions[0].target = _UNISWAP_V3_SWAP_ROUTER;
-
-        IUniswapV3Router.ExactInputParams memory params;
-        params.path = abi.encodePacked(
-            _FRAX_ADDRESS,
-            uint24(500),
-            address(usdc)
-        );
-        params.recipient = address(positionManager);
-        params.deadline = block.timestamp + 1 hours;
-        params.amountIn = expectedFRAXAmount;
-        params.amountOutMinimum = 0;
-
-        deleverageAction.swapActions[0].call = abi.encodeWithSelector(
-            IUniswapV3Router.exactInput.selector,
-            params
-        );
-        deleverageAction.swapActions[0].slippage = 0.5e18;
-
-        // Approve PM to move user's collateral shares if required by token logic
-        simpleCSFRAX.approve(address(positionManager), type(uint256).max);
-
-        positionManager.deleverage(deleverageAction, 0.5e18);
-
-        AccountSnapshot memory debtAfter = borrowableCUSDC.getSnapshot(user1);
-        AccountSnapshot memory collAfter = simpleCSFRAX.getSnapshot(user1);
-
-        assertLt(
-            debtAfter.debtBalance,
-            debtBefore.debtBalance,
-            "Debt should be reduced after deleverage"
-        );
-        assertLt(
-            collAfter.collateralPosted,
-            collBefore.collateralPosted,
-            "Collateral should be reduced after deleverage"
-        );
-
-        vm.stopPrank();
-    }
-
     /// Borrowed asset: FRAX ///
 
     function testLeverage_BorrowedSameAsUnderlying() public {
@@ -336,34 +265,63 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testDeleverage_BorrowedSameAsUnderlying() public {
+    /// Deleverage test ///
 
-        testLeverage_BorrowedSameAsUnderlying();
+    function testDeleverage() public {
 
-        vm.warp(block.timestamp + 20 minutes);
-        borrowableCFRAX.accrueIfNeeded();
+        _setUpUSDC_DAIPool_Eth();
+
+        deal(address(usdc), user1, 1000e6);
 
         vm.startPrank(user1);
+        
+        usdc.approve(address(borrowableCUSDC), 1000e6);
 
-        AccountSnapshot memory debtBefore = borrowableCFRAX.getSnapshot(user1);
-        AccountSnapshot memory collBefore = simpleCSFRAX.getSnapshot(user1);
+        borrowableCUSDC.depositAsCollateral(1000e6, user1);
+
+        borrowableCDAI.borrow(600e18, user1);
+
+        skip(20 minutes);
+        borrowableCDAI.accrueIfNeeded();
+
+        AccountSnapshot memory debtBefore = borrowableCDAI.getSnapshot(user1);
+        AccountSnapshot memory collBefore = borrowableCUSDC.getSnapshot(user1);
 
         VaultPositionManager.DeleverageAction memory deleverageAction;
-        deleverageAction.cToken = ICToken(address(simpleCSFRAX));
+        deleverageAction.cToken = ICToken(address(borrowableCUSDC));
+        deleverageAction.collateralAssets = collBefore.collateralPosted / 5;
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.repayAssets = debtBefore.debtBalance / 10;
 
-        uint256 collateralShares = collBefore.collateralPosted / 2;
-        deleverageAction.collateralAssets = collateralShares;
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = address(usdc);
+        deleverageAction.swapActions[0].inputAmount = collBefore.collateralPosted / 5;
+        deleverageAction.swapActions[0].outputToken = address(dai);
+        deleverageAction.swapActions[0].target = _UNISWAP_V3_SWAP_ROUTER;
 
-        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCFRAX));
+        IUniswapV3Router.ExactInputParams memory params;
+        params.path = abi.encodePacked(
+            address(usdc),
+            uint24(3000),
+            address(dai)
+        );
+        params.recipient = address(positionManager);
+        params.deadline = block.timestamp + 1 hours;
+        params.amountIn = collBefore.collateralPosted / 5;
+        params.amountOutMinimum = 0;
 
-        deleverageAction.repayAssets = debtBefore.debtBalance;
+        deleverageAction.swapActions[0].call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInput.selector,
+            params
+        );
+        deleverageAction.swapActions[0].slippage = 0.5e18;
 
-        simpleCSFRAX.approve(address(positionManager), type(uint256).max);
+        borrowableCUSDC.approve(address(positionManager), type(uint256).max);
 
         positionManager.deleverage(deleverageAction, 0.5e18);
 
-        AccountSnapshot memory debtAfter = borrowableCFRAX.getSnapshot(user1);
-        AccountSnapshot memory collAfter = simpleCSFRAX.getSnapshot(user1);
+        AccountSnapshot memory debtAfter = borrowableCDAI.getSnapshot(user1);
+        AccountSnapshot memory collAfter = borrowableCUSDC.getSnapshot(user1);
 
         assertLt(debtAfter.debtBalance, debtBefore.debtBalance, "Debt should be reduced after deleverage");
         assertLt(collAfter.collateralPosted, collBefore.collateralPosted, "Collateral should be reduced after deleverage");
@@ -426,6 +384,43 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         vm.startPrank(liquidityProvider);
         IERC20(_FRAX_ADDRESS).approve(address(borrowableCFRAX), type(uint256).max);
         borrowableCFRAX.deposit(1_000_000e18, liquidityProvider);
+        vm.stopPrank();
+    }
+
+    function _setUpUSDC_DAIPool_Eth() internal {
+
+        super.setUp();
+
+        centralRegistry.setExternalCalldataChecker(
+            _UNISWAP_V3_SWAP_ROUTER,
+            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
+        );
+
+        _prepareUSDC(address(this), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
+
+        deal(_DAI_ADDRESS, address(this), 77777);
+        IERC20(_DAI_ADDRESS).approve(address(borrowableCDAI), 77777);
+
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
+
+        _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000e6, 1_000_000e6);
+        _setCTokenConfigBasic(address(borrowableCDAI), 1_000_000e18, 1_000_000e18);
+
+        positionManager = new VaultPositionManager(
+            ICentralRegistry(address(centralRegistry)),
+            address(marketManagerIsolated),
+            _WETH_ADDRESS
+        );
+
+        marketManagerIsolated.addPositionManager(address(positionManager));
+
+        // Provide liquidity
+        address liquidityProvider = makeAddr("liquidityProvider");
+        deal(address(dai), liquidityProvider, 1_000_000e18);
+        vm.startPrank(liquidityProvider);
+        dai.approve(address(borrowableCDAI), type(uint256).max);
+        borrowableCDAI.deposit(1_000_000e18, liquidityProvider);
         vm.stopPrank();
     }
 }
