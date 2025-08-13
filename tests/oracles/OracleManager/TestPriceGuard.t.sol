@@ -248,10 +248,10 @@ contract PriceGuardTest is TestBaseMarketIsolated {
 
         // Calculate bounds
         uint256 timeElapsed = block.timestamp - timestampStart;
-        uint256 minBound = (minPrice * (WAD + timeElapsed * incPerSecond)) / WAD;
-        uint256 maxBound = (basePrice * (WAD + timeElapsed * incPerSecond)) / WAD;
+        uint256 minBound = (minPrice * (WAD + timeElapsed * increasePerSecond)) / WAD;
+        uint256 maxBound = (basePrice * (WAD + timeElapsed * increasePerSecond)) / WAD;
         console2.log("timeElapsed", timeElapsed);
-        console2.log("incPerSecond", incPerSecond);
+        console2.log("increasePerSecond", increasePerSecond);
         console2.log("minBound", minBound);
         console2.log("maxBound", maxBound);
 
@@ -279,8 +279,8 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         chainlinkEthUsd.updateAnswer(5000e8);
 
         timeElapsed = block.timestamp - timestampStart;
-        uint256 newMinBound = (minPrice * (WAD + timeElapsed * incPerSecond)) / WAD;
-        uint256 newMaxBound = (basePrice * (WAD + timeElapsed * incPerSecond)) / WAD;
+        uint256 newMinBound = (minPrice * (WAD + timeElapsed * increasePerSecond)) / WAD;
+        uint256 newMaxBound = (basePrice * (WAD + timeElapsed * increasePerSecond)) / WAD;
         console2.log("timeElapsed", timeElapsed);
         console2.log("newMinBound", newMinBound);
         console2.log("newMaxBound", newMaxBound);
