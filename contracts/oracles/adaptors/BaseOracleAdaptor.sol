@@ -19,18 +19,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
     /// @notice The maximum price allowed to be returned by an oracle adaptor.
     uint256 internal constant _MAXIMUM_PRICE_ALLOWED = type(uint240).max;
-    /// @notice The maximum % increase allowed per second of a guarded price,
-    ///         in `WAD`.
-    uint256 internal constant _MAXIMUM_INCREASE_PER_SECOND = type(uint64).max;
-    /// @notice The maximum difference between current oracle price and
-    ///         min/max allowed for successful `setGuardedPriceConfig` call,
-    ///         in `BASIS_POINTS`.
-    /// @dev 1000 = 10%.
-    uint256 internal constant _MAXIMUM_PRICE_DIFFERENCE = 1000;
-    /// @notice The enforced minimum amount of time that a price guard grows
-    ///         before overflowing type(uint240).max, in years.
-    /// @dev 157_680_000 seconds = 5 years.
-    uint256 internal constant _MINIMUM_TIME_BEFORE_OVERFLOW = 157_680_000;
     /// @notice The minimum amount of time allowed between `timestampStart`
     ///         and `block.timestamp` on `setGuardedPriceConfig` call.
     uint256 internal constant _MINIMUM_TIMESTAMP_BUFFER = 7 days;
@@ -141,31 +129,19 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        // Validate that growth rate will fit in 40 bit slot.
+        // Validate that growth rate will fit in 40 bit slot allocated.
         if (ips > type(uint40).max) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        // Validate that min and max price logic is not inverted and that the
-        // minimum price will not overflow.
-        if (minPrice > basePrice || minPrice > type(uint80).max) {
+        // Validate that max price will fit in the 96 bit slot allocated.
+        if (basePrice > type(uint96).max) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        // Technically `_guardedPrice()` is meant for only seconds, but, by
-        // converting time and increase rate to years it works the same.
-        uint256 priceForOverflowCheck = _guardedPrice(
-            _MINIMUM_TIME_BEFORE_OVERFLOW,
-            ips,
-            basePrice
-        );
-
-        // Validate that max price logic is not inverted and that the
+        // Validate that min and max price logic are not inverted and that the
         // minimum price will not overflow.
-        if (
-            basePrice > type(uint96).max ||
-            priceForOverflowCheck > type(uint240).max
-        ) {
+        if (minPrice > basePrice || minPrice > type(uint80).max) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
