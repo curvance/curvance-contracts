@@ -75,7 +75,7 @@ contract PriceGuardTest is TestBaseMarketIsolated {
 
     function test_fail_whenIncreasePerSecondIsTooHigh() public {
         uint256 timestampStart = block.timestamp - 8 days;
-        uint256 overflowedIncreasePerSecond = type(uint40).max + 1;
+        uint256 overflowedIncreasePerSecond = uint256(type(uint40).max) + 1;
 
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
         chainlinkAdaptor.setGuardedPriceConfig(
@@ -91,7 +91,7 @@ contract PriceGuardTest is TestBaseMarketIsolated {
 
     function test_fail_whenBasePriceIsTooHigh() public {
         uint256 timestampStart = block.timestamp - 8 days;
-        uint256 overflowedBasePrice = type(uint96).max + 1;
+        uint256 overflowedBasePrice = uint256(type(uint96).max) + 1;
 
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
         chainlinkAdaptor.setGuardedPriceConfig(
@@ -107,8 +107,8 @@ contract PriceGuardTest is TestBaseMarketIsolated {
 
     function test_fail_whenMinPriceIsTooHigh() public {
         uint256 timestampStart = block.timestamp - 8 days;
-        uint256 basePrice = type(uint80).max + 2;
-        uint256 overflowedMinPrice = type(uint80).max + 1;
+        uint256 basePrice = uint256(type(uint80).max) + 2;
+        uint256 overflowedMinPrice = uint256(type(uint80).max) + 1;
 
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
         chainlinkAdaptor.setGuardedPriceConfig(

@@ -41,9 +41,11 @@ contract RedstoneCoreAdaptor is
 
     /// CONSTANTS ///
 
-    /// @notice If zero is specified for an asset heartbeat,
+    /// @notice If type(uint256).max is specified for an asset heartbeat,
     ///         `DEFAULT_HEART_BEAT` is used instead.
     /// @dev    10 minutes = 600 seconds.
+    ///         We use type(uint256).max instead of 0 for trigger as we may
+    ///         want 0 second requirement on redstone pull oracles.
     uint256 public constant DEFAULT_HEART_BEAT = 10 minutes;
     /// @notice The smallest value that Redstone Core unique signer threshold
     ///         can be inside Curvance.
@@ -209,7 +211,7 @@ contract RedstoneCoreAdaptor is
     ) external {
         _checkElevatedPermissions();
 
-        if (heartbeat != 0) {
+        if (heartbeat == type(uint256).max) {
             if (heartbeat > DEFAULT_HEART_BEAT) {
                 revert RedstoneCoreAdaptor__InvalidConfiguration();
             }

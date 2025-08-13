@@ -3,6 +3,8 @@ pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
+import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 
@@ -30,7 +32,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// @notice If zero is specified for a Chainlink asset heartbeat,
     ///         this value is used instead.
     /// @dev    1 days = 24 hours = 1,440 minutes = 86,400 seconds.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days;
+    uint256 public constant DEFAULT_HEART_BEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
 
     /// STORAGE ///
 

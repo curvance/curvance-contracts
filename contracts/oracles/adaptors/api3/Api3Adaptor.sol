@@ -2,7 +2,9 @@
 pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
+import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IProxy } from "contracts/interfaces/external/api3/IProxy.sol";
@@ -28,7 +30,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
     /// @notice If zero is specified for an Api3 asset heartbeat,
     ///         this value is used instead.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days;
+    uint256 public constant DEFAULT_HEART_BEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
 
     /// STORAGE ///
 

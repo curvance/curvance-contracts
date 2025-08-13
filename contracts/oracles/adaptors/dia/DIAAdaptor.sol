@@ -19,8 +19,6 @@ contract DIAAdaptor is BaseOracleAdaptor {
     struct AssetConfig {
         bool isConfigured;
         uint256 decimals;
-        uint256 max;
-        uint256 min;
         uint256 heartbeat;
         string key;
     }

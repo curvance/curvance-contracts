@@ -3,6 +3,8 @@ pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
+import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IManagementOracle } from "contracts/interfaces/external/chainsight/IManagementOracle.sol";
 
@@ -31,7 +33,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
     /// @notice If zero is specified for a Chainsight asset heartbeat,
     ///         this value is used instead.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days;
+    uint256 public constant DEFAULT_HEART_BEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
 
     IManagementOracle public immutable MANAGEMENT_ORACLE;
 

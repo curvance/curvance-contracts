@@ -4,6 +4,8 @@ pragma solidity ^0.8.26;
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBalance.sol";
 
+import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
+
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -32,10 +34,12 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// CONSTANTS ///
 
-    /// @notice If zero is specified for a Pyth asset heartbeat,
-    ///         this value is used instead.
+    /// @notice If type(uint256).max is specified for an asset heartbeat,
+    ///         `DEFAULT_HEART_BEAT` is used instead.
     /// @dev    1 days = 24 hours = 1,440 minutes = 86,400 seconds.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days;
+    ///         We use type(uint256).max instead of 0 for trigger as we may
+    ///         want 0 second requirement on redstone pull oracles.
+    uint256 public constant DEFAULT_HEART_BEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
 
     /// STORAGE ///
 
@@ -88,7 +92,7 @@ contract PythAdaptor is BaseOracleAdaptor {
     ) external {
         _checkElevatedPermissions();
 
-        if (config.heartbeat != 0) {
+        if (config.heartbeat == type(uint256).max) {
             if (config.heartbeat > DEFAULT_HEART_BEAT) {
                 revert PythAdaptor__InvalidHeartbeat();
             }
