@@ -211,7 +211,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
     }
 
     function test_fail_InvalidHeartbeat() public {
-        // Should revert when heartbeat > DEFAULT_HEART_BEAT
+        // Should revert when heartbeat > DEFAULT_HEART_BEAT.
         uint256 invalidHeartbeat = chainlinkAdaptor.DEFAULT_HEART_BEAT() + 1;
         
         vm.expectRevert(ChainlinkAdaptor.ChainlinkAdaptor__InvalidHeartbeat.selector);

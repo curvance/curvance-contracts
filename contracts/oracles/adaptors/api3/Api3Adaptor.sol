@@ -16,7 +16,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
     /// @param proxyFeed The current proxy's feed address.
-    /// @param heartbeat The max amount of time between price updates.
+    /// @param heartbeat The max amount of time allowed between price updates.
     ///                  0 defaults to using DEFAULT_HEART_BEAT.
     /// @param dapiNameHash The bytes32 encoded name hash of the price feed. 
     struct AssetConfig {

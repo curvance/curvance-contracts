@@ -18,7 +18,8 @@ contract RedstoneCoreAdaptor is
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
     /// @param heartbeat The max amount of time allowed between price updates.
-    ///                  0 defaults to using DEFAULT_HEART_BEAT.
+    ///                  type(uint256).max defaults to using
+    ///                  DEFAULT_HEART_BEAT.
     /// @param decimals Returns the number of decimals the Redstone price feed
     ///                 responds with.
     /// @param symbolHash The bytes32 encoded hash of the price feed.
@@ -211,7 +212,7 @@ contract RedstoneCoreAdaptor is
     ) external {
         _checkElevatedPermissions();
 
-        if (heartbeat == type(uint256).max) {
+        if (heartbeat != type(uint256).max) {
             if (heartbeat > DEFAULT_HEART_BEAT) {
                 revert RedstoneCoreAdaptor__InvalidConfiguration();
             }
@@ -234,7 +235,8 @@ contract RedstoneCoreAdaptor is
         AssetConfig storage config = assetConfig[asset][inUSD];
 
         config.symbolHash = symbolHash;
-        config.heartbeat = uint24(heartbeat);
+        config.heartbeat = uint24(heartbeat != type(uint256).max ?
+            heartbeat : DEFAULT_HEART_BEAT);
         // If decimals == 0 we use default 8 decimals that
         // Redstone typically provides prices in.
         config.decimals = decimals != 0 ? decimals : 8;

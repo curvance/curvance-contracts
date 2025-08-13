@@ -19,13 +19,10 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// @notice Stores configuration data for Pyth price sources.
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
+    /// @param heartbeat The max amount of time allowed between price updates.
+    ///                  type(uint256).max defaults to using
+    ///                  DEFAULT_HEART_BEAT.
     /// @param priceId The price id of the asset to price.
-    /// @param heartbeat The max amount of time between price updates.
-    ///                  0 defaults to using DEFAULT_HEART_BEAT.
-    /// @param max The maximum valid price of the asset.
-    ///            0 defaults to use proxy max price reduced by ~10%.
-    /// @param min The minimum valid price of the asset.
-    ///            0 defaults to use proxy min price increased by ~10%.
     struct AssetConfig {
         bool isConfigured;
         uint24 heartbeat;
@@ -84,23 +81,30 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
-    /// @param config The adaptor data
+    /// @param heartbeat The max amount of time allowed between price updates.
+    /// @param priceId The price id of the asset to price.
     function addAsset(
         address asset,
         bool inUSD,
-        AssetConfig memory config
+        uint256 heartbeat,
+        bytes32 priceId
     ) external {
         _checkElevatedPermissions();
 
-        if (config.heartbeat == type(uint256).max) {
-            if (config.heartbeat > DEFAULT_HEART_BEAT) {
+        if (heartbeat != type(uint256).max) {
+            if (heartbeat > DEFAULT_HEART_BEAT) {
                 revert PythAdaptor__InvalidHeartbeat();
             }
         }
 
-        // Save `config` and update mapping that we support `asset` now.
+        // Update `config` and make sure `isSupportedAsset` returns true
+        // for `asset`.
+        AssetConfig storage config = assetConfig[asset][inUSD];
+
+        config.heartbeat = uint24(heartbeat != type(uint256).max ?
+            heartbeat : DEFAULT_HEART_BEAT);
+        config.priceId = priceId;
         config.isConfigured = true;
-        assetConfig[asset][inUSD] = config;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;

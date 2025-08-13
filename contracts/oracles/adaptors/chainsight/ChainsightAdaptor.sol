@@ -16,7 +16,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     ///                     false = unconfigured; true = configured.
     /// @param sender The sender address corresponding to `asset`'s feed
     ///               inside Management Oracle.
-    /// @param heartbeat The max amount of time between price updates.
+    /// @param heartbeat The max amount of time allowed between price updates.
     ///                  0 defaults to using DEFAULT_HEART_BEAT.
     /// @param decimals Returns the number of decimals the Feed Key
     ///                 responds with.
