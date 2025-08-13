@@ -2,11 +2,11 @@
 pragma solidity ^0.8.26;
 
 import { SwapperLib, ICentralRegistry } from "contracts/market/position-management/BasePositionManager.sol";
-import { BaseVaultPositionManager } from "./BaseVaultPositionManager.sol";
+import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
 
-contract VaultPositionManager is BaseVaultPositionManager {
+contract VaultPositionManager is SimplePositionManager {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
@@ -17,7 +17,7 @@ contract VaultPositionManager is BaseVaultPositionManager {
         ICentralRegistry cr,
         address mm,
         address wNative
-    ) BaseVaultPositionManager(cr, mm, wNative) {}
+    ) SimplePositionManager(cr, mm, wNative) {}
 
     /// INTERNAL FUNCTIONS ///
 

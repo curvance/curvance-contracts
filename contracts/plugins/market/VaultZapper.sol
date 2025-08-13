@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BaseVaultZapper, ICentralRegistry } from "contracts/plugins/market/BaseVaultZapper.sol";
+import { SimpleZapper, ICentralRegistry } from "contracts/plugins/market/SimpleZapper.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
@@ -9,10 +9,10 @@ import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
 
-contract VaultZapper is BaseVaultZapper {
+contract VaultZapper is SimpleZapper {
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry cr, address wNative) BaseVaultZapper(cr, wNative) {}
+    constructor(ICentralRegistry cr, address wNative) SimpleZapper(cr, wNative) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -48,7 +48,7 @@ contract VaultZapper is BaseVaultZapper {
         uint256 expectedShares,
         bool collateralizeFor,
         address receiver
-    ) external payable nonReentrant returns (uint256 outAmount) {
+    ) external override payable nonReentrant returns (uint256 outAmount) {
         _prepareSwap(
             swapAction.inputToken,
             swapAction.inputAmount,
