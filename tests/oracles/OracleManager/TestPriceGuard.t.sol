@@ -29,20 +29,22 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             _ETH_ADDRESS,
             true,
             3,
-            0,
             block.timestamp,
-            3400e18,
-            3600e18);
+            0,
+            3600e18,
+            3400e18
+        );
 
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
         chainlinkAdaptor.setGuardedPriceConfig(
             _ETH_ADDRESS,
             true,
             0,
-            0,
             block.timestamp,
-            3400e18,
-            3600e18);
+            0,
+            3600e18,
+            3400e18
+        );
     }
 
     function test_fail_when_timestampStartIsSoonerThanBuffer() public {
@@ -51,10 +53,10 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             _ETH_ADDRESS,
             true,
             1,
-            0,
             (block.timestamp - (7 days - 1)),
-            3400e18,
-            3600e18
+            0,
+            3600e18,
+            3400e18
         );
     }
 
@@ -64,10 +66,10 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             _ETH_ADDRESS,
             true,
             1,
-            0,
             block.timestamp,
-            3600e18,
-            3400e18
+            0,
+            3400e18,
+            3600e18
         );
     }
 
@@ -82,10 +84,10 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             _ETH_ADDRESS,
             true,
             1,
-            increasePerSecond,
             timestampStart,
-            minPrice,
-            basePrice
+            increasePerSecond,
+            basePrice,
+            minPrice
         );
     }
 
@@ -99,10 +101,10 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             _ETH_ADDRESS,
             true,
             1,
-            increasePerSecond,
             timestampStart,
-            0,
-            basePrice
+            increasePerSecond,
+            basePrice,
+            0
         );
     }
 
@@ -116,10 +118,10 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             _ETH_ADDRESS,
             true,
             1,
-            increasePerSecond,
             timestampStart,
-            0,
-            basePrice
+            increasePerSecond,
+            basePrice,
+            0
         );
     }
 
@@ -132,10 +134,10 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             _WETH_ADDRESS,
             true,
             1,
-            0,
             timestampStart,
-            4000e18,
-            10000e18
+            0,
+            10000e18,
+            4000e18
         );
     }
 
@@ -144,7 +146,6 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         uint256 timestampStart1 = block.timestamp - 8 days;
 
         IOracleAdaptor.PriceGuard memory pg;
-        pg.guardType = 1;
         pg.timestampStart = uint40(timestampStart1);
         pg.ips = 0;
         pg.minPrice = uint80(3400e18);
@@ -156,10 +157,10 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             _WETH_ADDRESS,
             true,
             1,
-            0,
             timestampStart1,
-            3400e18,
-            3600e18
+            0,
+            3600e18,
+            3400e18
         );
 
         // Attempt to set with earlier timestampStart
@@ -169,10 +170,10 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             _WETH_ADDRESS,
             true,
             1,
-            0,
             timestampStart2,
-            3400e18,
-            3600e18
+            0,
+            3600e18,
+            3400e18
         );
     }
 
@@ -180,7 +181,6 @@ contract PriceGuardTest is TestBaseMarketIsolated {
     function test_success_StaticGuardAdjustPriceMinMax() public {
         uint256 timestampStart = block.timestamp - 8 days;
         IOracleAdaptor.PriceGuard memory pg;
-        pg.guardType = 1;
         pg.timestampStart = uint40(timestampStart);
         pg.ips = 0;
         pg.minPrice = uint80(3400e18);
@@ -193,10 +193,10 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             _ETH_ADDRESS,
             true,
             1,
-            0,
             timestampStart,
-            3400e18,
-            3600e18
+            0,
+            3600e18,
+            3400e18
         );
 
         // Below floor: adjust to 3400
@@ -227,7 +227,6 @@ contract PriceGuardTest is TestBaseMarketIsolated {
 
         // Set dynamic guard (guardType = 2)
         IOracleAdaptor.PriceGuard memory pg;
-        pg.guardType = 2;
         pg.timestampStart = uint40(timestampStart);
         pg.ips = uint40(increasePerSecond);
         pg.minPrice = uint80(minPrice);
@@ -240,10 +239,10 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             _ETH_ADDRESS, 
             true, 
             2, 
-            increasePerSecond,
             timestampStart,
-            minPrice,
-            basePrice
+            increasePerSecond,
+            basePrice,
+            minPrice
         );
 
         // Calculate bounds
@@ -305,7 +304,6 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         uint256 minPrice = 3400e18;
 
         IOracleAdaptor.PriceGuard memory pg;
-        pg.guardType = 2;
         pg.timestampStart = uint40(timestampStart);
         pg.ips = 0;
         pg.minPrice = uint80(minPrice);
@@ -318,10 +316,10 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             _ETH_ADDRESS,
             true,
             2,
-            increasePerSecond,
             timestampStart,
-            minPrice,
-            basePrice
+            increasePerSecond,
+            basePrice,
+            minPrice
         );
 
         // Below floor: adjust to min

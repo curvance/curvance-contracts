@@ -108,11 +108,11 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ///                  2: Indicates an ever increasing maximum of
     ///                     `basePrice` and minimum of `minPrice` continually
     ///                     growing by `increasePerYear` % per year.
-    /// @param ips The magnitude that `basePrice` should increase overtime
-    ///            overtime from `timestampStart`, in `WAD`, in seconds.
     /// @param timestampStart When `increasePerYear` should start increasing
     ///                       `basePrice` raising the maximum price returned
     ///                       when pricing `asset`.
+    /// @param ips The magnitude that `basePrice` should increase overtime
+    ///            overtime from `timestampStart`, in `WAD`, in seconds.
     /// @param basePrice The base price that should be the maximum price
     ///                  returned when pricing `asset`.
     /// @param minPrice The minimum price that should be allowed to be
@@ -121,10 +121,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         address asset,
         bool inUSD,
         uint256 guardType,
-        uint256 ips,
         uint256 timestampStart,
-        uint256 minPrice,
-        uint256 basePrice
+        uint256 ips,
+        uint256 basePrice,
+        uint256 minPrice
     ) external {
         _checkMarketPermissions();
 
@@ -187,8 +187,8 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
 
         pg.timestampStart = uint40(timestampStart);
         pg.ips = uint40(ips);
-        pg.minPrice = uint80(minPrice);
         pg.basePrice = uint96(basePrice);
+        pg.minPrice = uint80(minPrice);
 
         emit PriceGuardUpdated(pg);
     }
@@ -307,6 +307,14 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         return price > max ? max : price;
     }
 
+    /// @notice Calculated the guarded price value to compare an oracle feeds
+    ///         calculated price against.
+    /// @notice timePassed The time passed since dynamic price increase
+    ///                    started.
+    /// @notice ips The increase per second relative applied to `price`,
+    ///             in `WAD`.
+    /// @notice price The starting price to calculate the guarded price from,
+    ///               increased by `ips` overtime.
     function _guardedPrice(
         uint256 timePassed,
         uint256 ips,
