@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BaseCTokenWithYield, FixedPointMathLib, ICentralRegistry, IERC20, BPS, WAD } from "contracts/market/token/BaseCTokenWithYield.sol";
+import { BaseCTokenWithYield, FixedPointMathLib, ICentralRegistry, IERC20, WAD } from "contracts/market/token/BaseCTokenWithYield.sol";
+
+import { BPS } from "contracts/libraries/ConstantsLib.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";

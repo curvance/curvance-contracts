@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BaseCTokenWithYield, FixedPointMathLib, BPS, WAD, IERC20, ICentralRegistry } from "contracts/market/token/BaseCTokenWithYield.sol";
+import { BaseCTokenWithYield, FixedPointMathLib, WAD, IERC20, ICentralRegistry } from "contracts/market/token/BaseCTokenWithYield.sol";
+
+import { BPS } from "contracts/libraries/ConstantsLib.sol";
+
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 /// @dev `Asset()` Positions must have all assets ready for withdraw,

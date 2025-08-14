@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BaseCToken, FixedPointMathLib, BPS, WAD, IERC20, ICentralRegistry } from "contracts/market/token/BaseCToken.sol";
+import { BaseCToken, FixedPointMathLib, WAD, IERC20, ICentralRegistry } from "contracts/market/token/BaseCToken.sol";
 
 abstract contract BaseCTokenWithYield is BaseCToken {
     /// CONSTANTS ///
