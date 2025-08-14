@@ -27,7 +27,7 @@ contract SetProtocolYieldFeeTest is TestBaseMarketIsolated {
 
     function test_setProtocolYieldFee_success() public {
         centralRegistry.setProtocolYieldFee(100);
-        uint256 newProtocolYieldFee = 100 * 1e14;
+        uint256 newProtocolYieldFee = 100;
         assertEq(centralRegistry.protocolYieldFee(), newProtocolYieldFee);
         uint256 newProtocolHarvestFee = centralRegistry.protocolCompoundFee() +
             newProtocolYieldFee;

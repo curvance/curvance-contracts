@@ -1,22 +1,29 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { VelodromeStableCToken } from "contracts/market/token/VelodromeStableCToken.sol";
 import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeStableLPAdaptor.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { VelodromePositionManager } from "contracts/market/position-management/VelodromePositionManager.sol";
 import { OdosCalldataChecker } from "contracts/calldata-checker/swap-checker/OdosCalldataChecker.sol";
+
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { BPS } from "contracts/libraries/ConstantsLib.sol";
+
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
+
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
+
 import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
 import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
+
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
@@ -205,7 +212,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         uint256 leverageFee = FixedPointMathLib.mulDivUp(
             amountForLeverage,
             centralRegistry.protocolLeverageFee(),
-            1e18
+            BPS
         );
         uint256 swapInputAmount = amountForLeverage - leverageFee;
         bytes memory result = getOdosSwapAction(
@@ -271,7 +278,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         uint256 leverageFee = FixedPointMathLib.mulDivUp(
             collateralAmount,
             centralRegistry.protocolLeverageFee(),
-            1e18
+            BPS
         );
         uint256 collateralWithoutFee = collateralAmount - leverageFee;
         uint256 protocolBalanceBeforeDeLeverage = IERC20(_VELODROME_DAI_USDC)

@@ -97,7 +97,7 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
 
     function testInitialize() public {
         assertEq(centralRegistry.daoAddress(), dao);
-        assertEq(borrowableCDAI.interestFee(), (marketInterestFee * 1e18) / 10000);
+        assertEq(borrowableCDAI.interestFee(), 1000);
         assertEq(
             borrowableCDAI.interestFee(),
             centralRegistry.protocolInterestFee(address(marketManagerIsolated))

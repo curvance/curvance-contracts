@@ -29,9 +29,9 @@ contract SetProtocolCompoundFeeTest is TestBaseMarketIsolated {
 
     function test_setProtocolCompoundFee_success() public {
         centralRegistry.setProtocolCompoundFee(100);
-        assertEq(centralRegistry.protocolCompoundFee(), 100 * 1e14);
-        uint256 newProtocolHarvestFee = centralRegistry.protocolYieldFee() +
-            (100 * 1e14);
+        assertEq(centralRegistry.protocolCompoundFee(), 100);
+        uint256 newProtocolHarvestFee =
+            centralRegistry.protocolYieldFee() + 100;
         assertEq(centralRegistry.protocolHarvestFee(), newProtocolHarvestFee);
     }
 }

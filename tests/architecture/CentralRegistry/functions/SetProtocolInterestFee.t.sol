@@ -54,9 +54,6 @@ contract SetProtocolInterestFeeTest is TestBaseMarketIsolated {
     function test_setProtocolInterestFee_success() public {
         centralRegistry.addMarketManager(newMarket, 5000);
         centralRegistry.setProtocolInterestFee(newMarket, 5000);
-        assertEq(
-            centralRegistry.protocolInterestFee(newMarket),
-            5000 * 1e14
-        );
+        assertEq(centralRegistry.protocolInterestFee(newMarket), 5000);
     }
 }

@@ -29,6 +29,6 @@ contract SetProtocolLeverageFeeTest is TestBaseMarketIsolated {
 
     function test_setProtocolLeverageFee_success() public {
         centralRegistry.setProtocolLeverageFee(100);
-        assertEq(centralRegistry.protocolLeverageFee(), 100 * 1e14);
+        assertEq(centralRegistry.protocolLeverageFee(), 100);
     }
 }
