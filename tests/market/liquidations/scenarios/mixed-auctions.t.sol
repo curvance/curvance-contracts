@@ -43,8 +43,8 @@ contract MixedAuction is TestBaseLiquidations {
     uint256[] collateralAmounts = [1.9e18,1.9e18,1.9e18,1.9e18];
 
     // Auction parameters
-    uint256 validPenalty = 1.04e18;
-    uint256 closeFactor = 0.50e18;
+    uint256 validPenalty = 10400;
+    uint256 closeFactor = 5000;
 
     uint256[] debtBalancesPreLiquidation_auction;
     uint256[] debtBalancesPreLiquidation_regular;

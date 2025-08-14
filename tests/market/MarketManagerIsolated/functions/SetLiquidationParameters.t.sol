@@ -85,12 +85,12 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
 
     function test_setLiquidationConfig_success() public {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setAuctionConfigs(address(strategyCBALRETH), 1.15e18, 0.30e18);
+        _setAuctionConfigs(address(strategyCBALRETH), 11500, 3000);
 
         // Verify the penalty was set correctly
         (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLiquidationConfig();
-        assertEq(currentPenalty, 1.15e18);
-        assertEq(currentCloseFactor, 0.30e18);
+        assertEq(currentPenalty, 11500);
+        assertEq(currentCloseFactor, 3000);
         vm.stopPrank();
     }
 

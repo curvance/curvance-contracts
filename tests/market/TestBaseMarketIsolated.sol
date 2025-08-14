@@ -27,7 +27,7 @@ import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/B
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { BPS, WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD, WAD_SQUARED, WAD_CUBED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -1043,8 +1043,8 @@ contract TestBaseMarketIsolated is TestBase {
         if (_isAuction) {
             (data.liqInc, cFactor) = _marketManager.getLiquidationConfig();
         } else {
-            cFactor = data.closeFactorBase + ((data.closeFactorCurve * data.lFactor) / BPS);
-            data.liqInc = data.liqIncBase + ((data.liqIncCurve * data.lFactor) / BPS);
+            cFactor = data.closeFactorBase + ((data.closeFactorCurve * data.lFactor) / WAD);
+            data.liqInc = data.liqIncBase + ((data.liqIncCurve * data.lFactor) / WAD);
         }
 
         console2.log("data.liqInc from auction", data.liqInc);
@@ -1056,7 +1056,7 @@ contract TestBaseMarketIsolated is TestBase {
         uint256 collateralExchangeRate = ICToken(_collateralToken).exchangeRate();
 
         debtToCollateral = (((data.liqInc *
-            data.debtTokenPrice * WAD_SQUARED) /
+            data.debtTokenPrice * WAD_CUBED_BPS_OFFSET) /
             (data.collateralTokenPrice * collateralExchangeRate)) * 
             data.collateralTokenDecimals) / data.debtTokenDecimals;
             
