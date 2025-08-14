@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BaseCTokenWithYield, FixedPointMathLib, WAD, IERC20, ICentralRegistry } from "contracts/market/token/BaseCTokenWithYield.sol";
+import { BaseCTokenWithYield, FixedPointMathLib, BPS, WAD, IERC20, ICentralRegistry } from "contracts/market/token/BaseCTokenWithYield.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 /// @dev `Asset()` Positions must have all assets ready for withdraw,
@@ -329,7 +329,7 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
         address feeManager
     ) internal returns (uint256) {
         // Calculate protocol fee for token lockers and strategy bot.
-        uint256 fee = FixedPointMathLib.mulDivUp(reward, strategyFee, WAD);
+        uint256 fee = FixedPointMathLib.mulDivUp(reward, strategyFee, BPS);
         // Take fee.
         SafeTransferLib.safeTransfer(rewardToken, feeManager, fee);
         // Return remaining reward after fee was taken.
