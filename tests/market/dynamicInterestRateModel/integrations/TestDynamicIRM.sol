@@ -5,7 +5,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 
-import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/ConstantsLib.sol";
+import { SECONDS_PER_YEAR, BPS, WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -324,8 +324,8 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         (
             ,
             ,
-            ,
             uint256 vertexStart,
+            ,
             ,
             ,
             ,
@@ -374,9 +374,9 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             ,
+            ,
+            ,
             uint256 vertexMultiplierMax,
-            ,
-            ,
             ,
         ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
@@ -417,9 +417,9 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             ,
+            ,
+            ,
             uint256 vertexMultiplierMax,
-            ,
-            ,
             ,
         ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
@@ -529,7 +529,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             uint256 decay = FixedPointMathLib.mulDiv(
                 currentMultiplier,
                 decayRate,
-                WAD
+                BPS
             );
 
             vm.warp(block.timestamp + adjustmentRate);
