@@ -144,12 +144,12 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     uint256 internal constant _MAX_VERTEX_INTEREST_RATE_PER_YEAR = 2e18;
     /// @notice The maximum value that the vertex interest rate can
     ///         be set to begin at, in `WAD`.
-    ///         E.g. 0.99 * BPS = Vertex rate begins at 99% utilization.
-    uint256 internal constant _MAX_VERTEX_START = 9900;
+    ///         E.g. 0.99 * WAD = Vertex rate begins at 99% utilization.
+    uint256 internal constant _MAX_VERTEX_START = 0.99e18;
     /// @notice The minimum value that the vertex interest rate can
-    ///         be set to begin at, in `BPS`.
-    ///         E.g. 0.50 * BPS = Vertex rate begins at 50% utilization.
-    uint256 internal constant _MIN_VERTEX_START = 5000;
+    ///         be set to begin at, in `WAD`.
+    ///         E.g. 0.50 * WAD = Vertex rate begins at 50% utilization.
+    uint256 internal constant _MIN_VERTEX_START = 0.5e18;
     /// @notice The maximum rate at which `vertexMultiplier` is adjusted,
     ///         in BPS on top of base rate (1 `BPS`).
     ///         E.g. 1 * BPS = 200% multiplied to vertex interest rate per
