@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
-import { SECONDS_PER_YEAR, WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
+import { SECONDS_PER_YEAR, BPS, WAD, WAD_BPS, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
@@ -88,24 +88,26 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     /// @notice Stores configuration data for current Dynamic Interest
     ///         Rate Model.
     /// @param baseRatePerSecond Rate at which interest is accumulated,
-    ///                          before `vertexStart`, per second.
+    ///                          before `vertexStart`, per second, in `WAD`.
     /// @param vertexRatePerSecond Rate at which interest is
     ///                            accumulated, after `vertexStart`,
-    ///                            per second.
+    ///                            per second, in `WAD`.
     /// @param vertexStart Utilization rate point where vertex rate
-    ///                    is used, instead of base rate.
-    /// @param adjustmentVelocity The maximum rate at with the vertex
-    ///                           multiplier is adjusted, in `WAD`.
-    /// @param vertexMultiplierMax The maximum value that vertexMultiplier
-    ///                            can be.
-    /// @param decayPerAdjustment Rate at which vertexMultiplier will
-    ///                           decay per adjustment, in `WAD`.
+    ///                    is used, instead of base rate, in `WAD`.
     /// @param increaseThresholdStart The utilization rate at which the vertex
-    ///                                multiplier will begin to increase.
+    ///                               multiplier will begin to increase,
+    ///                               in `BPS`.
     /// @param decreaseThresholdEnd The utilization rate at which the vertex
-    ///                             multiplier negative velocity will max out.
-    /// @param linkedToken The borrowable Curvance token linked to this interest rate
-    ///                    model contract.
+    ///                             multiplier negative velocity will max out,
+    ///                             in `BPS`.
+    /// @param adjustmentVelocity The maximum rate at with the vertex
+    ///                           multiplier is adjusted, in `BPS`.
+    /// @param decayPerAdjustment Rate at which vertexMultiplier will
+    ///                           decay per adjustment, in `BPS`.
+    /// @param vertexMultiplierMax The maximum value that vertexMultiplier
+    ///                            can be, in `multiplier` denomination aka `WAD`.
+    /// @param linkedToken The borrowable Curvance token linked to this
+    ///                    interest rate model contract.
     /// @dev Once this token is set it can never be changed, like an immutable
     ///      variable, this IRM will also be depreciated if that token ever
     ///      switches IRMs.
@@ -113,11 +115,11 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint64 baseRatePerSecond;
         uint64 vertexRatePerSecond;
         uint64 vertexStart;
-        uint64 adjustmentVelocity;
-        uint128 vertexMultiplierMax;
-        uint64 increaseThresholdStart;
-        uint64 decreaseThresholdEnd;
-        uint64 decayPerAdjustment;
+        uint16 increaseThresholdStart;
+        uint16 decreaseThresholdEnd;
+        uint16 adjustmentVelocity;
+        uint16 decayPerAdjustment;
+        uint96 vertexMultiplierMax;
         address linkedToken;
     }
 
@@ -130,28 +132,6 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
-    /// @notice Maximum Rate at which `vertexMultiplier` will
-    ///         decay per `ADJUSTMENT_RATE`, in `WAD`.
-    /// @dev .05e18 = 5%.
-    uint256 internal constant _MAX_VERTEX_DECAY_RATE = .02e18;
-    /// @notice The maximum rate at which `vertexMultiplier` is adjusted,
-    ///         in WAD on top of base rate (1 `WAD`).
-    ///         E.g. 1 * WAD = 200% multiplied to vertex interest rate per
-    ///         `ADJUSTMENT_RATE` at 100% utilization.
-    uint256 internal constant _MAX_VERTEX_ADJUSTMENT_VELOCITY = 0.2e18;
-    /// @notice The minimum rate at which `vertexMultiplier` is adjusted,
-    ///         in WAD on top of base rate (1 `WAD`).
-    ///         E.g. 0.1 * WAD = 110% multiplied to vertex interest rate per
-    ///         `ADJUSTMENT_RATE` at 100% utilization.
-    uint256 internal constant _MIN_VERTEX_ADJUSTMENT_VELOCITY = 0.01e18;
-    /// @notice The maximum value that the vertex interest rate can
-    ///         be set to begin at, in `WAD`.
-    ///         E.g. 0.99 * WAD = Vertex rate begins at 99% utilization.
-    uint256 internal constant _MAX_VERTEX_START = 0.99e18;
-    /// @notice The minimum value that the vertex interest rate can
-    ///         be set to begin at, in `WAD`.
-    ///         E.g. 0.50 * WAD = Vertex rate begins at 50% utilization.
-    uint256 internal constant _MIN_VERTEX_START = 0.5e18;
     /// @notice The maximum value that the annual base interest rate can
     ///         be set to, in `WAD`.
     ///         E.g. 1.5 * WAD = 150% Base Interest Rate value at
@@ -162,10 +142,32 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///         E.g. 2 * WAD = 200% Vertex Interest Rate value at
     ///         100% borrowing utilization.
     uint256 internal constant _MAX_VERTEX_INTEREST_RATE_PER_YEAR = 2e18;
+    /// @notice The maximum value that the vertex interest rate can
+    ///         be set to begin at, in `WAD`.
+    ///         E.g. 0.99 * BPS = Vertex rate begins at 99% utilization.
+    uint256 internal constant _MAX_VERTEX_START = 9900;
+    /// @notice The minimum value that the vertex interest rate can
+    ///         be set to begin at, in `BPS`.
+    ///         E.g. 0.50 * BPS = Vertex rate begins at 50% utilization.
+    uint256 internal constant _MIN_VERTEX_START = 5000;
+    /// @notice The maximum rate at which `vertexMultiplier` is adjusted,
+    ///         in BPS on top of base rate (1 `BPS`).
+    ///         E.g. 1 * BPS = 200% multiplied to vertex interest rate per
+    ///         `ADJUSTMENT_RATE` at 100% utilization.
+    uint256 internal constant _MAX_VERTEX_ADJUSTMENT_VELOCITY = 2000;
+    /// @notice The minimum rate at which `vertexMultiplier` is adjusted,
+    ///         in BPS on top of base rate (1 `BPS`).
+    ///         E.g. 0.01 * BPS = 101% multiplied to vertex interest rate per
+    ///         `ADJUSTMENT_RATE` at 100% utilization.
+    uint256 internal constant _MIN_VERTEX_ADJUSTMENT_VELOCITY = 100;
+        /// @notice Maximum Rate at which `vertexMultiplier` will
+    ///         decay per `ADJUSTMENT_RATE`, in `BPS`.
+    /// @dev 200 = 2%.
+    uint256 internal constant _MAX_VERTEX_DECAY_RATE = 200;
     /// @notice The maximum value that `vertexMultiplierMax` can be set
     ///         to, in `WAD`.
     ///         E.g. 1 * WAD = 100% Maximum `vertexMultiplierMax` value.
-    uint256 internal constant _MAXIMUM_VERTEX_MULTIPLIER_MAX = type(uint128).max;
+    uint256 internal constant _MAXIMUM_VERTEX_MULTIPLIER_MAX = type(uint96).max;
     /// @notice The minimum value that `vertexMultiplierMax` can be set to,
     ///         in `WAD`.
     ///         E.g. 1 * WAD = 100% Minimum `vertexMultiplierMax` value.
@@ -210,19 +212,20 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     /// @param vertexStart The utilization point at which the vertex
     ///                    rate is applied, in `BPS`.
     /// @param adjustmentVelocity The maximum rate at with the vertex
-    ///                           multiplier is adjusted, in `BPS`.
-    /// @param vertexMultiplierMax The maximum value that vertexMultiplier
-    ///                            can be.
+    ///                           multiplier is adjusted per `adjustmentRate`,
+    ///                           in `BPS`.
     /// @param decayPerAdjustment Rate at which ``vertexMultiplier`` will
     ///                           decay per adjustment, in `BPS`.
+    /// @param vertexMultiplierMax The maximum value that vertexMultiplier
+    ///                            can be, in `BPS`.
     constructor(
         ICentralRegistry cr,
         uint256 baseRatePerYear,
         uint256 vertexRatePerYear,
         uint256 vertexStart,
         uint256 adjustmentVelocity,
-        uint256 vertexMultiplierMax,
-        uint256 decayPerAdjustment
+        uint256 decayPerAdjustment,
+        uint256 vertexMultiplierMax
     ) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
@@ -232,8 +235,8 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
             vertexRatePerYear,
             vertexStart,
             adjustmentVelocity,
-            vertexMultiplierMax,
             decayPerAdjustment,
+            vertexMultiplierMax,
             true
         );
     }
@@ -301,11 +304,12 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     /// @param vertexStart The utilization point at which the vertex
     ///                    rate is applied, in `BPS`.
     /// @param adjustmentVelocity The maximum rate at with the vertex
-    ///                           multiplier is adjusted, in `BPS`.
-    /// @param vertexMultiplierMax The maximum value that vertexMultiplier
-    ///                            can be.
+    ///                           multiplier is adjusted per `adjustmentRate`,
+    ///                           in `BPS`.
     /// @param decayPerAdjustment Rate at which ``vertexMultiplier`` will
     ///                           decay per adjustment, in `BPS`.
+    /// @param vertexMultiplierMax The maximum value that vertexMultiplier
+    ///                            can be, in `BPS`.
     /// @param vertexReset Whether `vertexMultiplier` should be reset back
     ///                    to its default value.
     function updateDynamicIRM(
@@ -313,8 +317,8 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint256 vertexRatePerYear,
         uint256 vertexStart,
         uint256 adjustmentVelocity,
-        uint256 vertexMultiplierMax,
         uint256 decayPerAdjustment,
+        uint256 vertexMultiplierMax,
         bool vertexReset
     ) external {
         _checkMarketPermissions();
@@ -324,8 +328,8 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
             vertexRatePerYear,
             vertexStart,
             adjustmentVelocity,
-            vertexMultiplierMax,
             decayPerAdjustment,
+            vertexMultiplierMax,
             vertexReset
         );
     }
@@ -374,7 +378,9 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
 
         // If `vertexMultiplier` is already at its minimum,
         // and would decrease more, can break here.
-        if (multiplier == WAD && util < c.increaseThresholdStart) {
+        // Convert `util` to `BPS` by dividing to be in same terms as
+        // `increaseThresholdStart`, no precision loss as a result.
+        if (multiplier == WAD && (util / 1e14) < c.increaseThresholdStart) {
             return (ratePerSecond, ADJUSTMENT_RATE);
         }
 
@@ -415,7 +421,9 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint256 multiplier = vertexMultiplier;
         // Vertex multiplier is not going to change so we can pull interest
         // rate with current `vertexMultiplier`.
-        if (multiplier == WAD && util < c.increaseThresholdStart) {
+        // Convert `util` to `BPS` by dividing to be in same terms as
+        // `increaseThresholdStart`, no precision loss as a result.
+        if (multiplier == WAD && (util / 1e14) < c.increaseThresholdStart) {
             return _vertexRate(
                 util,
                 c.baseRatePerSecond,
@@ -568,11 +576,13 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///                          in `BPS`.
     /// @param vertexStart The utilization point at which the vertex
     ///                            rate is applied, in `BPS`.
-    /// @param adjustmentVelocity The velocity of adjustment for `vertexMultiplier`.
-    /// @param vertexMultiplierMax The maximum value that `vertexMultiplier`
-    ///                            can be.
+    /// @param adjustmentVelocity The maximum rate at with the vertex
+    ///                           multiplier is adjusted per `adjustmentRate`,
+    ///                           in `BPS`.
     /// @param decayPerAdjustment Rate at which `vertexMultiplier` will
-    ///                           decay per adjustment, in `basis points`.
+    ///                           decay per adjustment, in `BPS`.
+    /// @param vertexMultiplierMax The maximum value that vertexMultiplier
+    ///                            can be, in `BPS`.
     /// @param vertexReset A boolean flag indicating whether `vertexMultiplier`
     ///                    should be reset to `WAD`.
     function _updateDynamicIRM(
@@ -580,19 +590,17 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint256 vertexRatePerYear,
         uint256 vertexStart,
         uint256 adjustmentVelocity,
-        uint256 vertexMultiplierMax,
         uint256 decayPerAdjustment,
+        uint256 vertexMultiplierMax,
         bool vertexReset
     ) internal {
-        // Convert the parameters from basis points to `WAD` format.
+        // Convert the parameters from `BPS` to `WAD` format.
         // While inefficient, we want to minimize potential human error
         // as much as possible, even if it costs a bit extra gas on config.
         baseRatePerYear = _bpToWad(baseRatePerYear);
         vertexRatePerYear = _bpToWad(vertexRatePerYear);
         vertexStart = _bpToWad(vertexStart);
-        adjustmentVelocity = _bpToWad(adjustmentVelocity);
         vertexMultiplierMax = _bpToWad(vertexMultiplierMax);
-        decayPerAdjustment = _bpToWad(decayPerAdjustment);
 
         /// Validate config values are within allowed constraints.
         if (
@@ -642,19 +650,29 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         ));
 
         config.vertexStart = uint64(vertexStart);
-        config.adjustmentVelocity = uint64(adjustmentVelocity);
-        config.vertexMultiplierMax = uint128(vertexMultiplierMax);
-        config.decayPerAdjustment = uint64(decayPerAdjustment);
+        config.adjustmentVelocity = uint16(adjustmentVelocity);
+        config.decayPerAdjustment = uint16(decayPerAdjustment);
+        config.vertexMultiplierMax = uint96(vertexMultiplierMax);
         vertexMultiplier = vertexReset ? WAD : vertexMultiplier;
 
         // Dynamic rates start increasing halfway between desired
         // utilization and 100% utilization, in `WAD`.
         uint256 thresholdLength = (WAD - vertexStart) / 2;
-        config.increaseThresholdStart = uint64(vertexStart + thresholdLength);
+
+        // Dynamic rates start increasing as soon as we are halfway between
+        // `vertexStart` and 100% utilization. Convert to `BPS` form to save a
+        // storage slot and `vertexStart` is set in `BPS` so we shouldnt lose
+        // precision.
+        config.increaseThresholdStart =
+            uint16((vertexStart + thresholdLength) / 1e14);
 
         // Dynamic rates start decreasing as soon as we are below desired
-        // utilization (vertexStart).
-        config.decreaseThresholdEnd = uint64(vertexStart - thresholdLength);
+        // utilization (vertexStart) and maximizes an equal utilization down
+        // from where increase threshold starts upward. Convert to `BPS` form
+        // to save a storage slot and `vertexStart` is set in `BPS` so we
+        // shouldnt lose precision.
+        config.decreaseThresholdEnd =
+            uint16((vertexStart - thresholdLength) / 1e14);
 
         emit NewIRM(config);
     }
@@ -686,7 +704,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint256 multiplier
     ) internal pure returns (uint256 newMultiplier) {
         // Calculate decay rate.
-        uint256 decay = _mulDiv(multiplier, c.decayPerAdjustment, WAD);
+        uint256 decay = _mulDiv(multiplier, c.decayPerAdjustment, BPS);
 
         if (util <= c.increaseThresholdStart) {
             newMultiplier = multiplier - decay;
@@ -747,17 +765,19 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint256 multiplier
     ) internal pure returns (uint256 newMultiplier) {
         // Calculate decay rate.
-        uint256 decay = _mulDiv(multiplier, c.decayPerAdjustment, WAD);
+        uint256 decay = _mulDiv(multiplier, c.decayPerAdjustment, BPS);
 
-        if (util <= c.decreaseThresholdEnd) {
+        // Convert `util` to `BPS` by dividing to be in same terms as
+        // `decreaseThresholdEnd`, no precision loss as a result.
+        if ((util / 1e14) <= c.decreaseThresholdEnd) {
             // Apply maximum adjustVelocity reduction (shift = 1).
             // We only need to adjust for 1e18 precision since `shift`
             // is not used here.
             // currentMultiplier / (1 + adjustmentVelocity) = newMultiplier.
             newMultiplier = _mulDiv(
                 multiplier,
-                WAD,
-                WAD + c.adjustmentVelocity
+                BPS,
+                BPS + c.adjustmentVelocity
             ) - decay;
 
             // Check if decay rate sends multiplier below 1.
@@ -797,7 +817,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///                           rate at with the vertex multiplier is
     ///                           adjusted, as a % multiplier, in `WAD`.
     /// @param decay The current decay rate, calculated as a negative % value,
-    ///              in `WAD`.
+    ///              in `multiplier` denomination, aka `WAD` form.
     /// @param current The current value, representing a point on the curve.
     /// @param start The start value of the curve, marking the beginning of
     ///              the calculation range.
@@ -816,13 +836,16 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // Thus, this will be bound between [0, WAD].
         uint256 shift = _mulDiv(current - start, WAD, WAD - start);
 
-        // Apply shift result to adjustment velocity.
+        // Apply `shift` result to adjustment velocity.
         // Then add 100% on top for final adjustment value to `multiplier`.
-        shift = WAD_SQUARED + (shift * adjustmentVelocity);
+        // We use WAD_BPS here since `shift` is in `WAD` for max precision but
+        // `adjustmentVelocity` is in BPS since it does not need greater
+        // precision due to being configured in `BPS`.
+        shift = WAD_BPS + (shift * adjustmentVelocity);
 
         // Apply positive `shift` effect to `currentMultiplier`, and
         // adjust for 1e36 precision. Then apply decay effect.
-        result = _mulDiv(multiplier, shift, WAD_SQUARED) -  decay;
+        result = _mulDiv(multiplier, shift, WAD_BPS) -  decay;
     }
 
     /// @notice Calculates negative shift value based on `current`,
@@ -841,7 +864,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///                           rate at with the vertex multiplier is
     ///                           adjusted, as a % multiplier, in `WAD`.
     /// @param decay The current decay rate, calculated as a negative % value,
-    ///              in `WAD`.
+    ///              in `multiplier` denomination, aka `WAD` form.
     /// @param current The current value, representing a point on the curve.
     /// @param start The start value of the curve, marking the beginning of
     ///              the calculation range, equal to `vertexStart`.
@@ -862,13 +885,16 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // Thus, this will be bound between [0, WAD].
         uint256 shift = _mulDiv(start - current, WAD, start - end);
 
-        // Apply shift result to adjustment velocity.
+        // Apply `shift` result to adjustment velocity.
         // Then add 100% on top for final adjustment value to `multiplier`.
-        shift = WAD_SQUARED + (shift * adjustmentVelocity);
+        // We use WAD_BPS here since `shift` is in `WAD` for max precision but
+        // `adjustmentVelocity` is in BPS since it does not need greater
+        // precision due to being configured in `BPS`.
+        shift = WAD_BPS + (shift * adjustmentVelocity);
 
         // Apply negative `shift` effect to `currentMultiplier`, and
         // adjust for 1e36 precision. Then apply decay effect.
-        result = _mulDiv(multiplier, WAD_SQUARED, shift) -  decay;
+        result = _mulDiv(multiplier, WAD_BPS, shift) -  decay;
     }
 
     /// @dev Returns `floor(x * y / d)`.
@@ -888,11 +914,11 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         }
     }
 
-    /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
-    ///         to WAD.
+    /// @notice Multiplies `value` by 1e14 to convert it from `BPS`
+    ///         to `WAD`.
     /// @dev Internal helper function for easily converting between scalars.
-    /// @param value The value to convert from basis points to WAD.
-    /// @return The value in WAD.
+    /// @param value The value to convert from `BPS` to `WAD`.
+    /// @return The value, in `WAD`.
     function _bpToWad(uint256 value) internal pure returns (uint256) {
         return value * 1e14;
     }

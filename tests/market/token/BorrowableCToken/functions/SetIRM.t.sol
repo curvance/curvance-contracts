@@ -19,8 +19,8 @@ contract SetIRMTest is TestBaseBorrowableCToken {
             1000, // vertexRatePerYear
             5000, // vertexUtilizationStart
             1000, // adjustmentVelocity
-            100000000, // 1000x maximum vertex multiplier
-            100 // decayRate
+            100, // decayRate
+            100000000 // 1000x maximum vertex multiplier
         );
     }
 

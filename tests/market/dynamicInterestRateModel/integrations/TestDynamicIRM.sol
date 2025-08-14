@@ -20,8 +20,8 @@ import "forge-std/console2.sol";
 //             1000, // vertexRatePerYear
 //             5000, // vertexUtilizationStart
 //             5000, // adjustmentVelocity
-//             100000000, // 1000x maximum vertex multiplier
-//             100 // decayRate
+//             100, // decayRate
+//             100000000 // 1000x maximum vertex multiplier
 //         );
 // TO-DO:
 // Remove dependencies on assertGt/assertLe/assertLt/assertApproxEqRel
@@ -83,8 +83,8 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             1500,
             5500,
             1000,
-            150000000,
             150,
+            150000000,
             true
         );
 
