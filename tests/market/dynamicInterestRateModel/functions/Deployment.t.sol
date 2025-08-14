@@ -22,29 +22,8 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             5000,
             1000,
-            100000000,
-            100
-        );
-    }
-
-    function test_dynamicIRMDeployment_fail_whenAdjustmentVelocityExceedsMaximum()
-        public
-    {
-        uint256 maxVertexAdjustmentVelocity = 0.2e18; // Value from the contract
-
-        vm.expectRevert(
-            DynamicIRM
-                .DynamicIRM__InvalidAdjustmentVelocity
-                .selector
-        );
-        new DynamicIRM(
-            ICentralRegistry(address(centralRegistry)),
-            1000,
-            1000,
-            5000,
-            (maxVertexAdjustmentVelocity) / 1e14 + 1,
-            100000000,
-            100
+            100,
+            100000000
         );
     }
 
@@ -62,8 +41,8 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             5000,
             1000,
-            100000000,
-            100
+            100,
+            100000000
         );
     }
 
@@ -81,15 +60,15 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             20001,
             5000,
             1000,
-            100000000,
-            100
+            100,
+            100000000
         );
     }
 
-    function test_dynamicIRMDeployment_fail_whenAdjustmentVelocityIsBelowMinimum()
+    function test_dynamicIRMDeployment_fail_whenAdjustmentVelocityExceedsMaximum()
         public
     {
-        uint256 minVertexAdjustmentVelocity = 0.01e18;
+        uint256 maxVertexAdjustmentVelocity = 2000; // Value from the contract
 
         vm.expectRevert(
             DynamicIRM
@@ -101,16 +80,37 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             1000,
             5000,
-            (minVertexAdjustmentVelocity) / 1e14 - 1,
-            100000000,
-            100
+            maxVertexAdjustmentVelocity + 1,
+            100,
+            100000000
+        );
+    }
+
+    function test_dynamicIRMDeployment_fail_whenAdjustmentVelocityIsBelowMinimum()
+        public
+    {
+        uint256 minVertexAdjustmentVelocity = 100;
+
+        vm.expectRevert(
+            DynamicIRM
+                .DynamicIRM__InvalidAdjustmentVelocity
+                .selector
+        );
+        new DynamicIRM(
+            ICentralRegistry(address(centralRegistry)),
+            1000,
+            1000,
+            5000,
+            minVertexAdjustmentVelocity - 1,
+            100,
+            100000000
         );
     }
 
     function test_dynamicIRMDeployment_fail_whenDecayRateExceedsMaximum()
         public
     {
-        uint256 maxVertexDecayRate = 0.05e18;
+        uint256 maxVertexDecayRate = 200;
 
         vm.expectRevert(
             DynamicIRM
@@ -123,8 +123,8 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             5000,
             1000,
-            100000000,
-            (maxVertexDecayRate / 1e14) + 1
+            maxVertexDecayRate + 1,
+            100000000
         );
     }
 
@@ -142,8 +142,8 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1000,
             5000,
             1000,
-            type(uint192).max / (1000 * 1e14) / 1e14 + 1,
-            100
+            100,
+            uint256(type(uint96).max) + 1
         );
     }
 
@@ -154,8 +154,8 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             1500,
             5500,
             1000,
-            150000000,
-            150
+            150,
+            150000000
         );
     }
 }

@@ -5,7 +5,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 
-import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/ConstantsLib.sol";
+import { SECONDS_PER_YEAR, BPS, WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -20,8 +20,8 @@ import "forge-std/console2.sol";
 //             1000, // vertexRatePerYear
 //             5000, // vertexUtilizationStart
 //             5000, // adjustmentVelocity
-//             100000000, // 1000x maximum vertex multiplier
-//             100 // decayRate
+//             100, // decayRate
+//             100000000 // 1000x maximum vertex multiplier
 //         );
 // TO-DO:
 // Remove dependencies on assertGt/assertLe/assertLt/assertApproxEqRel
@@ -83,8 +83,8 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             1500,
             5500,
             1000,
-            150000000,
             150,
+            150000000,
             true
         );
 
@@ -324,8 +324,8 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         (
             ,
             ,
-            ,
             uint256 vertexStart,
+            ,
             ,
             ,
             ,
@@ -374,10 +374,10 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             ,
+            ,
+            ,
+            ,
             uint256 vertexMultiplierMax,
-            ,
-            ,
-            ,
         ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
@@ -417,10 +417,10 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             ,
+            ,
+            ,
+            ,
             uint256 vertexMultiplierMax,
-            ,
-            ,
-            ,
         ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
@@ -496,10 +496,10 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             ,
+            ,
+            ,
+            ,
             uint256 vertexMultiplierMax,
-            ,
-            ,
-            ,
         ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
@@ -529,7 +529,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             uint256 decay = FixedPointMathLib.mulDiv(
                 currentMultiplier,
                 decayRate,
-                WAD
+                BPS
             );
 
             vm.warp(block.timestamp + adjustmentRate);

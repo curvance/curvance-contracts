@@ -12,6 +12,9 @@ uint256 constant WAD_SQUARED = 1e36;
 ///      but WAD_SQUARED runs the risk of overflow.
 uint256 constant RAY = 1e27;
 
+/// @dev Scalar for math. `WAD` * `BPS`.
+uint256 constant WAD_BPS = 1e22;
+
 /// @dev Scalar for math. Base precision matching ether.
 uint256 constant WAD = 1e18;
 

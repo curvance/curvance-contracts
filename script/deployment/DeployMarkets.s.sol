@@ -161,8 +161,8 @@ contract DeployMarkets is Script {
                 config.interestConfig.vertexRatePerYear,
                 config.interestConfig.vertexUtilStart,
                 config.interestConfig.adjustmentVelocity,
-                config.interestConfig.vertexMultiplierMax,
-                config.interestConfig.decayRate
+                config.interestConfig.decayRate,
+                config.interestConfig.vertexMultiplierMax
             );
         emit ContractDeployed(
             address(IRM),
