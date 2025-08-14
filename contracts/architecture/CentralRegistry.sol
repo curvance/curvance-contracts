@@ -155,7 +155,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     mapping(address => uint256) public protocolInterestFee;
 
     // AUCTION TRANSACTION STORAGE
-    
+
     // Controls which Market Manager auction liquidators can act inside.
     bytes32 internal constant _TRANSIENT_MARKET_UNLOCKED_KEY
         = 0x3456789012345678901234567890123456789012345678901234567890123457;
@@ -181,12 +181,12 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @dev Stored redundantly to reduce gas overhead.
     uint256[] internal _foreignChainIds;
     
-    /// @notice ChainId => 2 = supported; 1 = unsupported.
+    /// @notice Configuration data for a separately supported blockchain.
     mapping(uint256 => ChainConfig) public chainConfig;
-    /// @notice Messaging ChainId => GETH ChainId.
+    /// @notice Returns the GETH chainId corresponding chainId corresponding
+    ///         to Crosschain Messaging Protocol's `chainId`.
+    /// @dev Messaging ChainId => GETH ChainId.
     mapping(uint16 => uint256) public messagingToGETHChainId;
-    /// @notice GETH ChainId => Messaging ChainId.
-    mapping(uint256 => uint16) public GETHToMessagingChainId;
 
     /// @notice Indicates the amount of token rewards allocated on this chain,
     ///         for an epoch.
@@ -1146,11 +1146,9 @@ contract CentralRegistry is ERC165, ActionRegistry {
         }
 
         chainConfig[chainId] = config;
-        
         messagingToGETHChainId[config.messagingChainId] = chainId;
-        GETHToMessagingChainId[chainId] = config.messagingChainId;
-        ++supportedChains;
         _foreignChainIds.push(chainId);
+        ++supportedChains;
 
         emit NewChain(chainId, config);
     }
@@ -1184,13 +1182,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         // Remove chain support from protocol.
         delete chainConfig[chainId];
+        // Remove messagingChainId <> GETH chainId mapping table reference.
+        delete messagingToGETHChainId[c.messagingChainId];
         // Decrease supportedChains.
         --supportedChains;
-        // Remove messagingChainId <> GETH chainId mapping table references.
-        delete GETHToMessagingChainId[
-            messagingToGETHChainId[c.messagingChainId]
-        ];
-        delete messagingToGETHChainId[c.messagingChainId];
 
         uint256 numForeignChainIds = _foreignChainIds.length;
         uint256 i;
@@ -1208,6 +1203,17 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         _foreignChainIds.pop();
         emit RemovedChain(chainId, expectedMessagingHub, expectedVotingHub);
+    }
+
+    /// @notice Returns the Crosschain Messaging Protocol's internal ChainId
+    ///         corresponding to GETH's `chainId`.
+    /// @param chainId The GETH chainId.
+    /// @return The Crosschain Messaging Protocol's internal ChainId
+    ///         corresponding to GETH's `chainId`.
+    function GETHToMessagingChainId(
+        uint256 chainId
+    ) external view returns(uint256) {
+        return chainConfig[chainId].messagingChainId;
     }
 
     /// AUCTION CONFIGURATION LOGIC
