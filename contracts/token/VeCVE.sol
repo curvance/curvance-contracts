@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
-import { WAD, BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
 
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
@@ -997,7 +997,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         uint256 voteBoost = centralRegistry.voteBoostMultiplier();
-        voteBoost = voteBoost == 0 ? BASIS_POINTS : voteBoost;
+        voteBoost = voteBoost == 0 ? BPS : voteBoost;
         uint256 votes;
 
         for (uint256 i; i < numLocks; ) {
@@ -1146,7 +1146,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
         if (lock.unlockTime == CONTINUOUS_LOCK_VALUE) {
             unchecked {
-                return ((lock.amount * voteBoost) / BASIS_POINTS);
+                return ((lock.amount * voteBoost) / BPS);
             }
         }
 
@@ -1463,13 +1463,13 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // down to 0.
         // If the lock mode is continuous, we know its a full penalty unlock.
         if (unlockTime == CONTINUOUS_LOCK_VALUE) {
-            return (amount * penalty) / BASIS_POINTS;
+            return (amount * penalty) / BPS;
         }
 
         return
             (amount *
                 ((penalty * (unlockTime - block.timestamp)) / LOCK_DURATION)) /
-            BASIS_POINTS;
+            BPS;
     }
 
     /// @notice Returns the genesis epoch timestamp.

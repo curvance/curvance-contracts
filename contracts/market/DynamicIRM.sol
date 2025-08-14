@@ -203,18 +203,18 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     /// @param cr The address of the Protocol Central Registry.
     /// @param baseRatePerYear Rate at which interest is accumulated,
     ///                        before `vertexStart`, per year,
-    ///                        in `BASIS_POINTS`.
+    ///                        in `BPS`.
     /// @param vertexRatePerYear Rate at which interest is accumulated,
     ///                          after `vertexStart`, per year,
-    ///                          in `BASIS_POINTS`.
+    ///                          in `BPS`.
     /// @param vertexStart The utilization point at which the vertex
-    ///                    rate is applied, in `BASIS_POINTS`.
+    ///                    rate is applied, in `BPS`.
     /// @param adjustmentVelocity The maximum rate at with the vertex
-    ///                           multiplier is adjusted, in `BASIS_POINTS`.
+    ///                           multiplier is adjusted, in `BPS`.
     /// @param vertexMultiplierMax The maximum value that vertexMultiplier
     ///                            can be.
     /// @param decayPerAdjustment Rate at which ``vertexMultiplier`` will
-    ///                           decay per adjustment, in `BASIS_POINTS`.
+    ///                           decay per adjustment, in `BPS`.
     constructor(
         ICentralRegistry cr,
         uint256 baseRatePerYear,
@@ -294,18 +294,18 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///         impacting for interest rates behave for the linked borrowableCToken.
     /// @param baseRatePerYear Rate at which interest is accumulated,
     ///                        before `vertexStart`, per year,
-    ///                        in `BASIS_POINTS`.
+    ///                        in `BPS`.
     /// @param vertexRatePerYear Rate at which interest is accumulated,
     ///                          after `vertexStart`, per year,
-    ///                          in `BASIS_POINTS`.
+    ///                          in `BPS`.
     /// @param vertexStart The utilization point at which the vertex
-    ///                    rate is applied, in `BASIS_POINTS`.
+    ///                    rate is applied, in `BPS`.
     /// @param adjustmentVelocity The maximum rate at with the vertex
-    ///                           multiplier is adjusted, in `BASIS_POINTS`.
+    ///                           multiplier is adjusted, in `BPS`.
     /// @param vertexMultiplierMax The maximum value that vertexMultiplier
     ///                            can be.
     /// @param decayPerAdjustment Rate at which ``vertexMultiplier`` will
-    ///                           decay per adjustment, in `BASIS_POINTS`.
+    ///                           decay per adjustment, in `BPS`.
     /// @param vertexReset Whether `vertexMultiplier` should be reset back
     ///                    to its default value.
     function updateDynamicIRM(
@@ -562,12 +562,12 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///      Emits a {NewIRM} event.
     /// @param baseRatePerYear Rate at which interest is accumulated,
     ///                        before `vertexStart`, per year,
-    ///                        in `BASIS_POINTS`.
+    ///                        in `BPS`.
     /// @param vertexRatePerYear Rate at which interest is accumulated,
     ///                          after `vertexStart`, per year,
-    ///                          in `BASIS_POINTS`.
+    ///                          in `BPS`.
     /// @param vertexStart The utilization point at which the vertex
-    ///                            rate is applied, in `BASIS_POINTS`.
+    ///                            rate is applied, in `BPS`.
     /// @param adjustmentVelocity The velocity of adjustment for `vertexMultiplier`.
     /// @param vertexMultiplierMax The maximum value that `vertexMultiplier`
     ///                            can be.

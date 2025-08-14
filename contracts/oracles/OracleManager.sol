@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
-import { WAD, BASIS_POINTS, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, BPS, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
@@ -93,11 +93,11 @@ contract OracleManager is IOracleManager {
     /// STORAGE ///
 
     /// @notice The maximum allowed price feed divergence between prices
-    ///         before `CAUTION` error code is returned, in `BASIS_POINTS`.
+    ///         before `CAUTION` error code is returned, in `BPS`.
     /// @dev 10050 = 0.5% = 50 basis point price feed deviation allowed.
     uint128 public cautionPriceDivergence = 10050;
     /// @notice The maximum allowed price feed divergence between prices
-    ///         before `BAD_SOURCE` error code is returned, in `BASIS_POINTS`.
+    ///         before `BAD_SOURCE` error code is returned, in `BPS`.
     /// @dev 10100 = 1% = 100 basis point price feed deviation allowed.
     uint128 public badSourcePriceDivergence = 10100;
 
@@ -745,11 +745,11 @@ contract OracleManager is IOracleManager {
     ) internal view returns (uint256) {
         if (a <= b) {
             // Check if both feeds are within `f.caution` of each other.
-            if (((a * cautionPriceDivergence) / BASIS_POINTS) < b) {
+            if (((a * cautionPriceDivergence) / BPS) < b) {
                 // Notify that the price is dangerous and to treat data as a
                 // bad source because we are outside the accepted range of
                 // divergence.
-                if (((a * badSourcePriceDivergence) / BASIS_POINTS) < b) {
+                if (((a * badSourcePriceDivergence) / BPS) < b) {
                     return BAD_SOURCE;
                 }
 
@@ -762,11 +762,11 @@ contract OracleManager is IOracleManager {
         }
 
         // Check if both feeds are within `f.caution` of each other.
-        if (((b * cautionPriceDivergence) / BASIS_POINTS) < a) {
+        if (((b * cautionPriceDivergence) / BPS) < a) {
             // Notify that the price is dangerous and to treat data as a
             // bad source because we are outside the accepted range of
             // divergence.
-            if (((b * badSourcePriceDivergence) / BASIS_POINTS) < a) {
+            if (((b * badSourcePriceDivergence) / BPS) < a) {
                 return BAD_SOURCE;
             }
 

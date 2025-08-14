@@ -3,7 +3,7 @@
 
 // import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 // import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
-// import { BASIS_POINTS, WAD } from "contracts/libraries/ConstantsLib.sol";
+// import { BPS, WAD } from "contracts/libraries/ConstantsLib.sol";
 
 // contract FuzzVeCVE is StatefulBaseMarket {
 //     ClaimAction defaultRewardData;
@@ -183,7 +183,7 @@
 //                 postCombineUserPoints,
 //                 ((veCVE.balanceOf(caller) * veCVE.CL_POINT_MULTIPLIER())) /
 //                     WAD,
-//                 "VECVE-5 - combineAllLocks() veCVE balance = userPoints * multiplier/BASIS_POINTS failed for all continuous => continuous"
+//                 "VECVE-5 - combineAllLocks() veCVE balance = userPoints * multiplier/BPS failed for all continuous => continuous"
 //             );
 //             _check_continuous_lock_has_no_user_or_chain_points(
 //                 combinedUnlockTime,
@@ -258,7 +258,7 @@
 //                 postCombineUserPoints,
 //                 ((veCVE.balanceOf(caller) * veCVE.CL_POINT_MULTIPLIER())) /
 //                     WAD,
-//                 "VECVE-10 - combineAllLocks() veCVE balance = userPoints * multiplier/BASIS_POINTS failed for all continuous => continuous"
+//                 "VECVE-10 - combineAllLocks() veCVE balance = userPoints * multiplier/BPS failed for all continuous => continuous"
 //             );
 //             // for each existing lock's unique epoch
 //             for (uint i = 0; i < uniqueEpochs.length; i++) {

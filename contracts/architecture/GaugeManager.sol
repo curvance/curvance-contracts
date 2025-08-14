@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
-import { BASIS_POINTS, RAY } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, RAY } from "contracts/libraries/ConstantsLib.sol";
 
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -437,8 +437,7 @@ contract GaugeManager is
 
         // If theres a current lock boost, recognize their bonus rewards.
         if (currentLockBoost > 0) {
-            uint256 boostedRewards = (cveRewards * currentLockBoost) /
-                BASIS_POINTS;
+            uint256 boostedRewards = (cveRewards * currentLockBoost) / BPS;
             // We know this will never underflow due to `currentLockBoost`
             // needing to be greater than 1.
             ICVE(cve).mintLockBoost(boostedRewards - cveRewards);

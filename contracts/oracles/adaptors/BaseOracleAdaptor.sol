@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
-import { SECONDS_PER_YEAR, WAD, BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
+import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 

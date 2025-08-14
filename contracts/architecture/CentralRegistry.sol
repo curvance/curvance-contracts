@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { ActionRegistry, IActionRegistry } from "contracts/libraries/ActionRegistry.sol";
-import { BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
+import { BPS } from "contracts/libraries/ConstantsLib.sol";
 
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -34,7 +34,7 @@ import { IVotingHub } from "contracts/interfaces/IVotingHub.sol";
 ///
 ///      All values inside Curvance are entered in basis point form. However,
 ///      Fees are recorded internally in `WAD` format, or 1e18. Rather than
-///      `BASIS_POINTS`, or 1e4, for improved precision in calculations.
+///      `BPS`, or 1e4, for improved precision in calculations.
 ///      As a result, you will see multiplier values stored in 1e4 form,
 ///      and fees stored in 1e18 form.
 ///
@@ -114,45 +114,48 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///         on this chain.
     address[] internal _marketManagers;
 
-    // PROTOCOL VALUES
-    // @dev Protocol values are always set in `Basis Points` (1e4), "FEE" values
-    //      are converted and stored in `WAD` while "MULTIPLIERS" stay in
-    //      `BASIS_POINTS`.
-
-    /// @notice Fee on yield generated for compounding vaults, in `WAD`.
-    uint256 public protocolCompoundFee = 100 * 1e14;
-    /// @notice Fee on yield generated in vaults distributed to veCVE lockers,
-    ///         in `WAD`.
-    uint256 public protocolYieldFee = 1500 * 1e14;
-    /// @notice Joint fee value so that we can perform one less external call
-    ///         in vault contracts, in `WAD`.
-    uint256 public protocolHarvestFee = protocolCompoundFee + protocolYieldFee;
-    /// @notice Protocol fee on leverage usage, in `WAD`.
-    uint256 public protocolLeverageFee;
-
-    /// @notice % fee on accrued interest payments from borrowers inside
-    ///         permissionless Curvance Markets.
-    /// @dev Market Manager => Protocol Accrued interest fee, in `WAD`.
-    mapping(address => uint256) public protocolInterestFee;
-    
     // ACTION MULTIPLIER VALUES
+    // @dev We save these in uint256 slots since they are accessed separately.
 
     /// @notice Penalty multiplier for unlocking a veCVE lock early,
-    ///         in `BASIS_POINTS`.
+    ///         in `BPS`.
     uint256 public earlyUnlockPenaltyMultiplier;
     /// @notice Voting power multiplier for Continuous Lock mode,
-    ///         in `BASIS_POINTS`.
+    ///         in `BPS`.
     uint256 public voteBoostMultiplier;
     /// @notice Rewards multiplier for locking gauge emissions as veCVE,
-    ///         in `BASIS_POINTS`.
+    ///         in `BPS`.
     uint256 public lockBoostMultiplier;
 
     // SLIPPAGE VALUES
 
     /// @notice Protocol slippage limit for safe swap.
-    uint256 public slippageLimit = 1000 * 1e14;
+    /// @dev 1000 = 10%.
+    uint16 public slippageLimit = 1000;
+
+    // PROTOCOL VALUES
+
+    /// @notice Fee on yield generated for compounding vaults, in `BPS`.
+    /// @dev 100 = 1%.
+    uint16 public protocolCompoundFee = 100;
+    /// @notice Fee on yield generated in vaults distributed to veCVE lockers,
+    ///         in `BPS`.
+    /// @dev 1500 = 15%.
+    uint16 public protocolYieldFee = 1500;
+    /// @notice Joint fee value so that we can perform one less external call
+    ///         in vault contracts, in `BPS`.
+    /// @dev 1600 = 16%.
+    uint16 public protocolHarvestFee = protocolCompoundFee + protocolYieldFee;
+    /// @notice Protocol fee on leverage usage, in `BPS`.
+    uint16 public protocolLeverageFee;
+
+    /// @notice % fee on accrued interest payments from borrowers inside
+    ///         permissionless Curvance Markets.
+    /// @dev Market Manager => Protocol Accrued interest fee, in `BPS`.
+    mapping(address => uint256) public protocolInterestFee;
 
     // AUCTION TRANSACTION STORAGE
+    
     // Controls which Market Manager auction liquidators can act inside.
     bytes32 internal constant _TRANSIENT_MARKET_UNLOCKED_KEY
         = 0x3456789012345678901234567890123456789012345678901234567890123457;
@@ -529,7 +532,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///      can only have a maximum value of 5%.
     ///      Emits a {FeeSet} event.
     /// @param value The new fee to take on compound to fund future
-    ///              auto compounding, in `basis points`.
+    ///              auto compounding, in `BPS`.
     function setProtocolCompoundFee(uint256 value) external {
         _checkElevatedPermissions();
 
@@ -537,13 +540,11 @@ contract CentralRegistry is ERC165, ActionRegistry {
         if (value > 500) {
             revert CentralRegistry__InvalidParameter();
         }
-        // Convert the parameters from basis points to `WAD` format
-        // while inefficient we want to minimize potential human error
-        // as much as possible, even if it costs a bit extra gas on config.
-        protocolCompoundFee = _bpToWad(value);
 
-        // Update vault harvest fee with new yield fee.
-        protocolHarvestFee = protocolYieldFee + _bpToWad(value);
+        // Update `protocolCompoundFee` and `protocolHarvestFee`
+        // with new fee.
+        protocolCompoundFee = uint16(value);
+        protocolHarvestFee = uint16(protocolYieldFee + value);
         emit FeeSet("Compound", value);
     }
 
@@ -553,7 +554,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///      can only have a maximum value of 50%.
     ///      Emits a {FeeSet} event.
     /// @param value The new fee to take on compound to distribute to veCVE
-    ///              lockers, in `basis points`.
+    ///              lockers, in `BPS`.
     function setProtocolYieldFee(uint256 value) external {
         _checkElevatedPermissions();
 
@@ -561,13 +562,11 @@ contract CentralRegistry is ERC165, ActionRegistry {
         if (value > 5000) {
             revert CentralRegistry__InvalidParameter();
         }
-        // Convert the parameters from basis points to `WAD` format
-        // while inefficient we want to minimize potential human error
-        // as much as possible, even if it costs a bit extra gas on config.
-        protocolYieldFee = _bpToWad(value);
 
-        // Update vault harvest fee with new yield fee.
-        protocolHarvestFee = _bpToWad(value) + protocolCompoundFee;
+        // Update `protocolYieldFee` and `protocolHarvestFee`
+        // with new fee.
+        protocolYieldFee = uint16(value);
+        protocolHarvestFee = uint16(protocolCompoundFee + value);
         emit FeeSet("Yield", value);
     }
 
@@ -577,7 +576,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///      can only have a maximum value of 2%.
     ///      Emits a {FeeSet} event.
     /// @param value The new fee to take on leverage/deleverage when done
-    ///              by position managers, in `basis points`.
+    ///              by position managers, in `BPS`.
     function setProtocolLeverageFee(uint256 value) external {
         _checkElevatedPermissions();
 
@@ -585,10 +584,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
         if (value > 200) {
             revert CentralRegistry__InvalidParameter();
         }
-        // Convert the parameters from basis points to `WAD` format
-        // while inefficient we want to minimize potential human error
-        // as much as possible, even if it costs a bit extra gas on config.
-        protocolLeverageFee = _bpToWad(value);
+
+        protocolLeverageFee = uint16(value);
         emit FeeSet("Leverage", value);
     }
 
@@ -599,7 +596,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @param market The address of the market manager to configure
     ///               interest fees of.
     /// @param value The new fee to take on interest generated
-    ///              by a debt token, in `basis points`.
+    ///              by a debt token, in `BPS`.
     function setProtocolInterestFee(address market, uint256 value) external {
         _checkElevatedPermissions();
 
@@ -613,10 +610,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
             revert CentralRegistry__InvalidParameter();
         }
 
-        // Convert the parameters from basis points to `WAD` format
-        // while inefficient we want to minimize potential human error
-        // as much as possible, even if it costs a bit extra gas on config.
-        protocolInterestFee[market] = _bpToWad(value);
+        protocolInterestFee[market] = value;
         emit InterestFeeSet(market, value);
     }
 
@@ -626,7 +620,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///      must be between 30% and 90%, or off, with a value of 0%.
     ///      Emits a {MultiplierSet} event.
     /// @param value The new penalty on early expiring a vote escrowed
-    ///              cve position, in `basis points`.
+    ///              cve position, in `BPS`.
     function setEarlyUnlockPenaltyMultiplier(uint256 value) external {
         _checkElevatedPermissions();
 
@@ -651,14 +645,14 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///      must be a positive boost i.e. > 1.01 or greater multiplier.
     ///      Emits a {MultiplierSet} event.
     /// @param value The new voting power boost for continuous lock mode
-    ///              vote escrowed cve positions, in `basis points`.
+    ///              vote escrowed cve positions, in `BPS`.
     function setVoteBoostMultiplier(uint256 value) external {
         _checkElevatedPermissions();
 
         // Voting power boost cannot be less than or equal to 1,
         // unless its being turned off, which is represented with a
         // value of 0.
-        if (value <= BASIS_POINTS && value != 0) {
+        if (value <= BPS && value != 0) {
             revert CentralRegistry__InvalidParameter();
         }
 
@@ -673,14 +667,14 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///      Emits a {MultiplierSet} event.
     /// @param value The new emissions boost for opting to take emissions
     ///              in a vote escrowed cve position instead of liquid CVE,
-    ///              in `basis points`.
+    ///              in `BPS`.
     function setLockBoostMultiplier(uint256 value) external {
         _checkElevatedPermissions();
 
         // Locking emissions boost cannot be less than or equal to 1,
         // unless its being turned off, which is represented with a
         // value of 0.
-        if (value <= BASIS_POINTS && value != 0) {
+        if (value <= BPS && value != 0) {
             revert CentralRegistry__InvalidParameter();
         }
 
@@ -694,7 +688,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///      must have a minimum value of 4%.
     ///      Emits a {SlippageLimit} event.
     /// @param value The new slippage limit users can input on swap
-    ///              instructions, in `basis points`.
+    ///              instructions, in `BPS`.
     function setSlippageLimit(uint256 value) external {
         _checkElevatedPermissions();
 
@@ -703,10 +697,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
             revert CentralRegistry__InvalidParameter();
         }
 
-        // Convert the parameters from basis points to `WAD` format
-        // while inefficient we want to minimize potential human error
-        // as much as possible, even if it costs a bit extra gas on config.
-        slippageLimit = _bpToWad(value);
+        slippageLimit = uint16(value);
         emit SlippageLimit(value);
     }
 
@@ -926,14 +917,11 @@ contract CentralRegistry is ERC165, ActionRegistry {
             revert CentralRegistry__InvalidParameter();
         }
 
-        isMarketManager[newMarket] = true;
         // We store supported markets semi redundantly for offchain querying.
         _marketManagers.push(newMarket);
-        // Convert interest factor parameter from basis points to `WAD`
-        // for precision calculations.
-        protocolInterestFee[newMarket] = _bpToWad(
-            marketInterestFee
-        );
+        protocolInterestFee[newMarket] = marketInterestFee;
+        isMarketManager[newMarket] = true;
+
         emit PermissionsUpdated("Market Manager", newMarket, true);
         emit InterestFeeSet(newMarket, marketInterestFee);
     }
@@ -1353,13 +1341,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
     }
 
     /// INTERNAL FUNCTIONS ///
-
-    /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
-    ///         to WAD.
-    /// @dev Internal helper function for easily converting between scalars.
-    function _bpToWad(uint256 value) internal pure returns (uint256) {
-        return value * 1e14;
-    }
 
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkEmergencyCouncilPermissions() internal view {

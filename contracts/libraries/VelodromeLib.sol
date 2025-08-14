@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { BASIS_POINTS, WAD } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
@@ -209,8 +209,8 @@ library VelodromeLib {
             stable,
             amount0,
             amount1,
-            amount0 - (amount0 * slippage) / BASIS_POINTS,
-            amount1 - (amount1 * slippage) / BASIS_POINTS,
+            amount0 - (amount0 * slippage) / BPS,
+            amount1 - (amount1 * slippage) / BPS,
             address(this),
             block.timestamp
         );
@@ -248,7 +248,7 @@ library VelodromeLib {
         // sAMM deposit calculation.
         if (stable) {
             a =
-                (((amount0 * BASIS_POINTS) / (BASIS_POINTS - swapFee)) * WAD) /
+                (((amount0 * BPS) / (BPS - swapFee)) * WAD) /
                 decimals0;
 
             uint256 x = (reserve0 * WAD) / decimals0;
@@ -264,10 +264,10 @@ library VelodromeLib {
         }
 
         // vAMM deposit calculation.
-        uint256 swapFeeFactor = BASIS_POINTS - swapFee;
+        uint256 swapFeeFactor = BPS - swapFee;
 
-        a = (BASIS_POINTS + swapFeeFactor) * reserve0;
-        uint256 b = amount0 * BASIS_POINTS * reserve0 * 4 * swapFeeFactor;
+        a = (BPS + swapFeeFactor) * reserve0;
+        uint256 b = amount0 * BPS * reserve0 * 4 * swapFeeFactor;
         uint256 c = FixedPointMathLib.sqrt(a * a + b);
         uint256 d = swapFeeFactor * 2;
         return (c - a) / d;
