@@ -27,7 +27,7 @@ import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/B
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -980,7 +980,7 @@ contract TestBaseMarketIsolated is TestBase {
             );
 
         uint256 debtBalance = IBorrowableCToken(params.borrowedToken).debtBalance(params.borrower);
-        uint256 maxAmount = (cFactor * debtBalance) / WAD;
+        uint256 maxAmount = (cFactor * debtBalance) / BPS;
         
         expectedLiquidationValues.maxAmountRepaid = maxAmount;
 
@@ -1043,8 +1043,8 @@ contract TestBaseMarketIsolated is TestBase {
         if (_isAuction) {
             (data.liqInc, cFactor) = _marketManager.getLiquidationConfig();
         } else {
-            cFactor = data.closeFactorBase + ((data.closeFactorCurve * data.lFactor) / WAD);
-            data.liqInc = data.liqIncBase + ((data.liqIncCurve * data.lFactor) / WAD);
+            cFactor = data.closeFactorBase + ((data.closeFactorCurve * data.lFactor) / BPS);
+            data.liqInc = data.liqIncBase + ((data.liqIncCurve * data.lFactor) / BPS);
         }
 
         console2.log("data.liqInc from auction", data.liqInc);
@@ -1127,7 +1127,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         // Apply auction buffer
         uint256 AUCTION_BUFFER = marketManager_.AUCTION_BUFFER();
-        uint256 adjustedCollateralSoft = (collateralSoft * AUCTION_BUFFER) / WAD;
+        uint256 adjustedCollateralSoft = (collateralSoft * AUCTION_BUFFER) / BPS;
 
         // Recalculate lFactor with buffered collateral
         if (adjustedCollateralSoft == 0) {
@@ -1160,7 +1160,7 @@ contract TestBaseMarketIsolated is TestBase {
         console2.log("Earned BAL:", earnedBAL);
 
         uint256 protocolFee = centralRegistry.protocolHarvestFee();
-        uint256 netHarvestAmount = (earnedBAL * (WAD - protocolFee)) / WAD;
+        uint256 netHarvestAmount = (earnedBAL * (BPS - protocolFee)) / BPS;
         console2.log("Protocol fee:", protocolFee);
         console2.log("Net harvest amount:", netHarvestAmount);
 
