@@ -376,8 +376,8 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             ,
-            uint256 vertexMultiplierMax,
             ,
+            uint256 vertexMultiplierMax,
         ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
@@ -419,8 +419,8 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             ,
-            uint256 vertexMultiplierMax,
             ,
+            uint256 vertexMultiplierMax,
         ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
@@ -496,10 +496,10 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             ,
+            ,
+            ,
+            ,
             uint256 vertexMultiplierMax,
-            ,
-            ,
-            ,
         ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 

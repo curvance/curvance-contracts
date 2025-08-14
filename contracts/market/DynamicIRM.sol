@@ -100,12 +100,14 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     /// @param decreaseThresholdEnd The utilization rate at which the vertex
     ///                             multiplier negative velocity will max out,
     ///                             in `BPS`.
-    /// @param adjustmentVelocity The maximum rate at with the vertex
-    ///                           multiplier is adjusted, in `BPS`.
-    /// @param decayPerAdjustment Rate at which vertexMultiplier will
-    ///                           decay per adjustment, in `BPS`.
-    /// @param vertexMultiplierMax The maximum value that vertexMultiplier
-    ///                            can be, in `multiplier` denomination aka `WAD`.
+    /// @param adjustmentVelocity The maximum rate at which `vertexMultiplier`
+    ///                           is adjusted per `adjustmentRate`, in `BPS`.
+    /// @param decayPerAdjustment The rate at which `vertexMultiplier` will
+    ///                           decay back down per `adjustmentRate`,
+    ///                           in `BPS`.
+    /// @param vertexMultiplierMax The maximum value that `vertexMultiplier`
+    ///                            can be, in `multiplier` denomination
+    ///                            aka `WAD`.
     /// @param linkedToken The borrowable Curvance token linked to this
     ///                    interest rate model contract.
     /// @dev Once this token is set it can never be changed, like an immutable
@@ -211,12 +213,12 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///                          in `BPS`.
     /// @param vertexStart The utilization point at which the vertex
     ///                    rate is applied, in `BPS`.
-    /// @param adjustmentVelocity The maximum rate at with the vertex
-    ///                           multiplier is adjusted per `adjustmentRate`,
+    /// @param adjustmentVelocity The maximum rate at which `vertexMultiplier`
+    ///                           is adjusted per `adjustmentRate`, in `BPS`.
+    /// @param decayPerAdjustment The rate at which `vertexMultiplier` will
+    ///                           decay back down per `adjustmentRate`,
     ///                           in `BPS`.
-    /// @param decayPerAdjustment Rate at which ``vertexMultiplier`` will
-    ///                           decay per adjustment, in `BPS`.
-    /// @param vertexMultiplierMax The maximum value that vertexMultiplier
+    /// @param vertexMultiplierMax The maximum value that `vertexMultiplier`
     ///                            can be, in `BPS`.
     constructor(
         ICentralRegistry cr,
@@ -281,10 +283,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
 
         // Validate that the token is actually expecting this interest
         // rate model to be linked to it.
-        if (
-            address(IBorrowableCToken(cTokenAddress).IRM()) !=
-            address(this)
-        ) {
+        if (address(IBorrowableCToken(cTokenAddress).IRM()) != address(this)) {
             revert DynamicIRM__InvalidToken();
         }
 
@@ -293,22 +292,20 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         emit TokenLinked(cTokenAddress);
     }
 
-    /// @notice Updates the dynamic interest rate model's configuration values
-    ///         impacting for interest rates behave for the linked borrowableCToken.
+    /// @notice Updates the dynamic interest rate model's configuration
+    ///         for calculating interest payment for `linkedToken`.
     /// @param baseRatePerYear Rate at which interest is accumulated,
-    ///                        before `vertexStart`, per year,
-    ///                        in `BPS`.
+    ///                        before `vertexStart`, per year, in `BPS`.
     /// @param vertexRatePerYear Rate at which interest is accumulated,
-    ///                          after `vertexStart`, per year,
-    ///                          in `BPS`.
+    ///                          after `vertexStart`, per year, in `BPS`.
     /// @param vertexStart The utilization point at which the vertex
     ///                    rate is applied, in `BPS`.
-    /// @param adjustmentVelocity The maximum rate at with the vertex
-    ///                           multiplier is adjusted per `adjustmentRate`,
+    /// @param adjustmentVelocity The maximum rate at which `vertexMultiplier`
+    ///                           is adjusted per `adjustmentRate`, in `BPS`.
+    /// @param decayPerAdjustment The rate at which `vertexMultiplier` will
+    ///                           decay back down per `adjustmentRate`,
     ///                           in `BPS`.
-    /// @param decayPerAdjustment Rate at which ``vertexMultiplier`` will
-    ///                           decay per adjustment, in `BPS`.
-    /// @param vertexMultiplierMax The maximum value that vertexMultiplier
+    /// @param vertexMultiplierMax The maximum value that `vertexMultiplier`
     ///                            can be, in `BPS`.
     /// @param vertexReset Whether `vertexMultiplier` should be reset back
     ///                    to its default value.
@@ -576,12 +573,12 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///                          in `BPS`.
     /// @param vertexStart The utilization point at which the vertex
     ///                            rate is applied, in `BPS`.
-    /// @param adjustmentVelocity The maximum rate at with the vertex
-    ///                           multiplier is adjusted per `adjustmentRate`,
+    /// @param adjustmentVelocity The maximum rate at which `vertexMultiplier`
+    ///                           is adjusted per `adjustmentRate`, in `BPS`.
+    /// @param decayPerAdjustment The rate at which `vertexMultiplier` will
+    ///                           decay back down per `adjustmentRate`,
     ///                           in `BPS`.
-    /// @param decayPerAdjustment Rate at which `vertexMultiplier` will
-    ///                           decay per adjustment, in `BPS`.
-    /// @param vertexMultiplierMax The maximum value that vertexMultiplier
+    /// @param vertexMultiplierMax The maximum value that `vertexMultiplier`
     ///                            can be, in `BPS`.
     /// @param vertexReset A boolean flag indicating whether `vertexMultiplier`
     ///                    should be reset to `WAD`.
@@ -813,9 +810,8 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///      this period, then the decay rate is applied.
     /// @param multiplier The dynamic value applied to `vertexRatePerSecond`
     ///                   that will be adjusted, in `WAD`.
-    /// @param adjustmentVelocity The current adjustment velocity, the maximum
-    ///                           rate at with the vertex multiplier is
-    ///                           adjusted, as a % multiplier, in `WAD`.
+    /// @param adjustmentVelocity The maximum rate at which `vertexMultiplier`
+    ///                           is adjusted per `adjustmentRate`, in `BPS`.
     /// @param decay The current decay rate, calculated as a negative % value,
     ///              in `multiplier` denomination, aka `WAD` form.
     /// @param current The current value, representing a point on the curve.
@@ -860,9 +856,8 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///      for this period, then the decay rate is applied.
     /// @param multiplier The dynamic value applied to `vertexRatePerSecond`
     ///                   that will be adjusted, in `WAD`.
-    /// @param adjustmentVelocity The current adjustment velocity, the maximum
-    ///                           rate at with the vertex multiplier is
-    ///                           adjusted, as a % multiplier, in `WAD`.
+    /// @param adjustmentVelocity The maximum rate at which `vertexMultiplier`
+    ///                           is adjusted per `adjustmentRate`, in `BPS`.
     /// @param decay The current decay rate, calculated as a negative % value,
     ///              in `multiplier` denomination, aka `WAD` form.
     /// @param current The current value, representing a point on the curve.
