@@ -43,11 +43,11 @@ contract VaultPositionManager is SimplePositionManager {
         LeverageAction memory action,
         address /* receiver */
     ) internal override {
+        address debtAsset = action.borrowableCToken.asset();
         address vaultAddr = action.cToken.asset();
         IVault vault = IVault(vaultAddr);
         address underlying = address(vault.asset());
-        address debtAsset = action.borrowableCToken.asset();
-
+        
         // If the debt asset already matches the vault underlying, we skip swap.
         if (debtAsset != underlying) {
             SwapperLib.Swap memory swapAction = action.swapAction;
@@ -62,17 +62,18 @@ contract VaultPositionManager is SimplePositionManager {
                 revert BasePositionManager__InvalidParam();
             }
 
-            // Swap debt asset to vault underlying.
-            SwapperLib._swapSafe(centralRegistry, swapAction);
+            // Swap `debtAsset` to vault `underlying`, update action assets.
+            action.borrowAssets =
+                SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
-        uint256 depositAmount = IERC20(underlying).balanceOf(address(this));
-        if (depositAmount == 0) {
+        // Validate we have tokens to deposit into the vault.
+        if (action.borrowAssets == 0) {
             revert BasePositionManager__InvalidAmount();
         }
 
-        SwapperLib._approveIfNeeded(underlying, vaultAddr, depositAmount);
-        vault.deposit(depositAmount, address(this));
+        SwapperLib._approveIfNeeded(underlying, vaultAddr, action.borrowAssets);
+        vault.deposit(action.borrowAssets, address(this));
         SwapperLib._removeApprovalIfNeeded(underlying, vaultAddr);
     }
 }

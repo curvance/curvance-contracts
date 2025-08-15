@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import { BasePositionManager, SwapperLib, ICentralRegistry } from "contracts/market/position-management/BasePositionManager.sol";
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
+
 import { IVault } from "contracts/interfaces/IVault.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
@@ -46,16 +47,11 @@ contract NativeVaultPositionManager is SimplePositionManager {
         LeverageAction memory action,
         address /* receiver */
     ) internal override {
-        address vaultAddr = action.cToken.asset();
-        IVault vault = IVault(vaultAddr);
         address debtAsset = action.borrowableCToken.asset();
-
-        uint256 nativeAmount;
 
         if (debtAsset == wrappedNative) {
             // Wrapped asset to native.
             IWETH(wrappedNative).withdraw(action.borrowAssets);
-            nativeAmount = action.borrowAssets;
         } else {
             SwapperLib.Swap memory swapAction = action.swapAction;
 
@@ -70,16 +66,19 @@ contract NativeVaultPositionManager is SimplePositionManager {
                 revert BasePositionManager__InvalidParam();
             }
 
-            uint256 balBefore = address(this).balance;
-            SwapperLib._swapSafe(centralRegistry, swapAction);
-            nativeAmount = address(this).balance - balBefore;
+            // Swap `debtAsset` to vault `underlying`, update action assets.
+            action.borrowAssets =
+                SwapperLib._swapSafe(centralRegistry, swapAction);
         }
 
-        if (nativeAmount == 0) {
+        // Validate we have tokens to deposit into the vault.
+        if (action.borrowAssets == 0) {
             revert BasePositionManager__InvalidAmount();
         }
 
-        vault.deposit{value: nativeAmount}(nativeAmount, address(this));
+        // Call the vault contract, the asset of the cToken.
+        IVault(action.cToken.asset()).deposit{value: action.borrowAssets}
+            (action.borrowAssets, address(this));
     }
 
 }
