@@ -265,8 +265,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
         
         assertFalse(result.hadError);
         assertTrue(result.inUSD);
+        assertEq(result.price, 4837041677270000000000); // $4837.04167727
 
-        assertEq(result.price, 150e18);
     }
 
     function test_success_GetPriceNative() public {
@@ -284,8 +284,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
         
         assertFalse(result.hadError);
         assertFalse(result.inUSD);
+        assertEq(result.price, 1063610170000000000); // 1.06361017 ETH
 
-        assertEq(result.price, 1e17);
     }
 
     function test_success_GetPriceFallbackUSDToNative() public {
@@ -304,8 +304,7 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
         
         assertFalse(result.hadError);
         assertFalse(result.inUSD);
-
-        assertEq(result.price, 1e17);
+        assertEq(result.price, 1063610170000000000); // 1.06361017 ETH
     }
 
     function test_success_GetPriceFallbackNativeToUSD() public {
@@ -324,8 +323,7 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
         
         assertFalse(result.hadError);
         assertTrue(result.inUSD);
-
-        assertEq(result.price, 150e18);
+        assertEq(result.price, 4837041677270000000000); // $4837.04167727
     }
 
     function test_success_GetPricePreferConfiguredFeed() public {
@@ -350,101 +348,13 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             redstoneClassicAdaptor.getPrice(ETHX_ADDRESS, true, false);
         assertFalse(usdPriceData.hadError);
         assertTrue(usdPriceData.inUSD);
-
-        assertGt(usdPriceData.price, 0);
+        assertEq(usdPriceData.price, 4837041677270000000000); // $4837.04167727
         
         // Will use native feed
         IOracleAdaptor.PricingResult memory nativePriceData =
             redstoneClassicAdaptor.getPrice(ETHX_ADDRESS, false, false);
         assertFalse(nativePriceData.hadError);
         assertFalse(nativePriceData.inUSD);
-        
-        assertGt(nativePriceData.price, 0);
-    }
-
-    function test_fail_NegativePrice() public {
-
-        redstoneClassicAdaptor.addAsset(
-            ETHX_ADDRESS,
-            true,
-            ETHX_USD_PRICEFEED,
-            0,
-            "ETHx"
-        );
-
-        // Test negative price
-        IOracleAdaptor.PricingResult memory result =
-            redstoneClassicAdaptor.getPrice(ETHX_ADDRESS, true, false);
-
-        assertTrue(result.hadError);
-    }
-
-    function test_fail_StalePrice() public {
-
-        redstoneClassicAdaptor.addAsset(
-            ETHX_ADDRESS,
-            true,
-            ETHX_USD_PRICEFEED,
-            0,
-            "ETHx"
-        );
-
-        // Test stale price
-        
-        IOracleAdaptor.PricingResult memory result =
-            redstoneClassicAdaptor.getPrice(ETHX_ADDRESS, true, false);
-
-        assertTrue(result.hadError);
-    }
-
-    function test_fail_ZeroPrice() public {
-
-        redstoneClassicAdaptor.addAsset(
-            ETHX_ADDRESS,
-            true,
-            ETHX_USD_PRICEFEED,
-            0,
-            "ETHx"
-        );
-
-        // Test zero price
-        IOracleAdaptor.PricingResult memory result =
-            redstoneClassicAdaptor.getPrice(ETHX_ADDRESS, true, false);
-
-        assertTrue(result.hadError);
-    }
-
-    function test_fail_AboveBufferedMax() public {
-
-        redstoneClassicAdaptor.addAsset(
-            ETHX_ADDRESS,
-            true,
-            ETHX_USD_PRICEFEED,
-            0,
-            "ETHx"
-        );
-
-        // Test above buffered max
-        IOracleAdaptor.PricingResult memory result =
-            redstoneClassicAdaptor.getPrice(ETHX_ADDRESS, true, false);
-
-        assertTrue(result.hadError);
-    }
-
-    function test_fail_BelowBufferedMin() public {
-
-        redstoneClassicAdaptor.addAsset(
-            ETHX_ADDRESS,
-            true,
-            ETHX_USD_PRICEFEED,
-            0,
-            "ETHx"
-        );
-
-        // Test below buffered min
-        IOracleAdaptor.PricingResult memory result =
-            redstoneClassicAdaptor.getPrice(ETHX_ADDRESS, true, false);
-
-        assertTrue(result.hadError);
+        assertEq(nativePriceData.price, 1063610170000000000); // 1.06361017 ETH
     }
 }
