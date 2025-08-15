@@ -337,8 +337,8 @@ contract OracleManager is IOracleManager {
     ///      If it has two or more oracles, it fetches the price from both
     ///      feeds.
     /// @param asset The address of the asset to retrieve the price for.
-    /// @param inUSD Specifies whether the price format should be in USD (true)
-    ///              or a chain's native token (false).
+    /// @param inUSD Specifies whether the price format should be in
+    ///              USD (true) or a chain's native token (false).
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
     /// @return price The current price of `asset`.
@@ -627,8 +627,8 @@ contract OracleManager is IOracleManager {
         // If the feed denomination is not in the proper form, modify it.
         if (result.inUSD != inUSD) {
             uint256 newPrice;
-            bool nativeUsdLower = inUSD ? getLower : !getLower;
-            (newPrice, result.hadError) = _getNativeUSD(nativeUsdLower);
+            (newPrice, result.hadError) =
+                _getNativeUSD(inUSD ? getLower : !getLower);
             if (result.hadError) {
                 return (0, true);
             }
