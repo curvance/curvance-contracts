@@ -5,9 +5,6 @@ interface IRedstone {
     /// @notice Returns the DataFeedId of the Redstone price feed.
     function getDataFeedId() external view returns (bytes32);
 
-    /// @notice Returns the current phase's aggregator address.
-    function aggregator() external view returns (address);
-
     /// @notice Returns the number of decimals the aggregator responds with.
     function decimals() external view returns (uint8);
 

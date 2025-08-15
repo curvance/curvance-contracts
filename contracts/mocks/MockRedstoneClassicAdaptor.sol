@@ -29,7 +29,7 @@ contract MockRedstoneClassicAdaptor is IRedstone {
     }
 
     function getDataFeedId() external view returns (bytes32) {
-        Bytes32Helper.toBytes32(id)
+        Bytes32Helper.toBytes32(id);
     }
 
     function updateAnswer(int256 _answer) public virtual {
@@ -71,9 +71,5 @@ contract MockRedstoneClassicAdaptor is IRedstone {
             getTimestamp[latestRound],
             uint80(latestRound)
         );
-    }
-
-    function aggregator() external view override returns (address) {
-        return address(this);
     }
 }
