@@ -2,13 +2,12 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseOracleManager } from "tests/oracles/OracleManager/TestBaseOracleManager.sol";
-import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { IRedstone } from "contracts/interfaces/external/redstone/IRedstone.sol";
 import { RedstoneClassicAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneClassicAdaptor.sol";
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
+import { MockRedstoneClassicFeed } from "contracts/mocks/MockRedstoneClassicFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
@@ -19,6 +18,7 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
     address constant ETHX_ADDRESS = 0xA35b1B31Ce002FBF2058D22F30f95D405200A15b;
 
     RedstoneClassicAdaptor internal redstoneClassicAdaptor;
+    MockRedstoneClassicFeed internal mockEthxUsdPriceFeed;
 
     event AssetAdded(
         address asset,
@@ -44,6 +44,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
 
         redstoneClassicAdaptor = new RedstoneClassicAdaptor(ICentralRegistry(address(centralRegistry)));
         oracleManager.addApprovedAdaptor(address(redstoneClassicAdaptor));
+
+        mockEthxUsdPriceFeed = new MockRedstoneClassicFeed(8, 483704167727, "ETHx");
     }
 
     function test_success_AddPriceFeeds() public {
@@ -356,5 +358,83 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
         assertFalse(nativePriceData.hadError);
         assertFalse(nativePriceData.inUSD);
         assertEq(nativePriceData.price, 1063610170000000000); // 1.06361017 ETH
+    }
+
+    function test_success_GetMockPriceUSD() public {
+        redstoneClassicAdaptor.addAsset(
+            ETHX_ADDRESS,
+            true,
+            address(mockEthxUsdPriceFeed),
+            0,
+            "ETHx"
+        );
+
+        mockEthxUsdPriceFeed.updateAnswer(100e8);
+
+        IOracleAdaptor.PricingResult memory result =
+            redstoneClassicAdaptor.getPrice(ETHX_ADDRESS, true, false);
+
+        assertFalse(result.hadError);
+        assertTrue(result.inUSD);
+        assertEq(result.price, 100e18); // $100
+    }
+
+    function test_fail_NegativePrice() public {
+
+        redstoneClassicAdaptor.addAsset(
+            ETHX_ADDRESS,
+            true,
+            address(mockEthxUsdPriceFeed),
+            0,
+            "ETHx"
+        );
+
+        mockEthxUsdPriceFeed.updateAnswer(-100e8);
+
+        IOracleAdaptor.PricingResult memory result =
+            redstoneClassicAdaptor.getPrice(ETHX_ADDRESS, true, false);
+
+        assertTrue(result.hadError);
+    }
+
+    function test_fail_StalePrice() public {
+
+        redstoneClassicAdaptor.addAsset(
+            ETHX_ADDRESS,
+            true,
+            address(mockEthxUsdPriceFeed),
+            0,
+            "ETHx"
+        );
+        
+        mockEthxUsdPriceFeed.updateRoundData(
+            100e8,
+            block.timestamp - redstoneClassicAdaptor.DEFAULT_HEART_BEAT() - 1,
+            block.timestamp - redstoneClassicAdaptor.DEFAULT_HEART_BEAT() - 1
+        );
+
+        IOracleAdaptor.PricingResult memory result =
+            redstoneClassicAdaptor.getPrice(ETHX_ADDRESS, true, false);
+
+        assertTrue(result.hadError);
+        
+    }
+
+    function test_fail_ZeroPrice() public {
+
+        redstoneClassicAdaptor.addAsset(
+            ETHX_ADDRESS,
+            true,
+            address(mockEthxUsdPriceFeed),
+            0,
+            "ETHx"
+        );
+
+        mockEthxUsdPriceFeed.updateAnswer(0);
+
+        IOracleAdaptor.PricingResult memory result =
+            redstoneClassicAdaptor.getPrice(ETHX_ADDRESS, true, false);
+
+        assertTrue(result.hadError);
     }
 }

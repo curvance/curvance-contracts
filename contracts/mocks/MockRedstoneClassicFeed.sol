@@ -5,7 +5,7 @@ import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 
 import { IRedstone } from "contracts/interfaces/external/redstone/IRedstone.sol";
 
-contract MockRedstoneClassicAdaptor is IRedstone {
+contract MockRedstoneClassicFeed is IRedstone {
     uint256 public constant version = 0;
 
     uint8 public override decimals;
@@ -29,7 +29,7 @@ contract MockRedstoneClassicAdaptor is IRedstone {
     }
 
     function getDataFeedId() external view returns (bytes32) {
-        Bytes32Helper.toBytes32(id);
+        return Bytes32Helper.toBytes32(id);
     }
 
     function updateAnswer(int256 _answer) public virtual {
