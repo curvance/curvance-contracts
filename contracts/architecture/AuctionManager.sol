@@ -7,6 +7,8 @@ import { UserOperation } from "@atlas/contracts/types/UserOperation.sol";
 import { SolverOperation } from "@atlas/contracts/types/SolverOperation.sol";
 import { IAtlas } from "@atlas/contracts/interfaces/IAtlas.sol";
 
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -38,9 +40,10 @@ contract AuctionManager is DAppControl {
     address public authorizedExecutionEnv;
 
     // ORACLE CONFIGURATIONS
-    uint32 public whitelistedOraclesCount = 0;
+    uint32 public whitelistedOraclesCount;
     mapping(address oracle => bool isWhitelisted) public oracleWhitelist;
-    uint32 public allowedSelectorsCount = 0;
+
+    uint32 public allowedSelectorsCount;
     mapping(bytes4 selector => bool isAllowed) public allowedSelectors;
 
     /// EVENTS ///
@@ -117,7 +120,9 @@ contract AuctionManager is DAppControl {
             })
         )
     {
-        // Configure OEV allocation
+        CentralRegistryLib._isCentralRegistry(centralRegistry_);
+
+        // Configure OEV allocation.
         if (oevShareBundler_ + oevShareFastlane_ > OEV_SHARE_SCALE) revert InvalidOevShare();
         if (oevAllocationDestinationFastlane_ == address(0)) revert InvalidOevAllocationDestination();
         if (oevAllocationDestinationProtocol_ == address(0)) revert InvalidOevAllocationDestination();
@@ -126,10 +131,10 @@ contract AuctionManager is DAppControl {
         oevAllocationDestinationFastlane = oevAllocationDestinationFastlane_;
         oevAllocationDestinationProtocol = oevAllocationDestinationProtocol_;
 
-        // Set Curvance core registry
+        // Set `CENTRAL_REGISTRY`.
         CENTRAL_REGISTRY = centralRegistry_;
 
-        // Set Oracle related configurations
+        // Set Oracle related configurations.
         allowedSelectors[IRedstoneProxy.updateDataFeedsValues.selector] = true;
         allowedSelectors[IRedstoneProxy.updateDataFeedsValuesPartial.selector] = true;
         allowedSelectorsCount = 2;
@@ -279,17 +284,17 @@ contract AuctionManager is DAppControl {
         // The userOp dapp must be this control
         if (userOp.dapp != CONTROL) revert InvalidUserOpDapp();
         // The user must be the authorized user op signer
-        if (userOp.from != CurvanceDAppControl(CONTROL).authorizedUserOpSigner()) revert InvalidUserOpFrom();
+        if (userOp.from != AuctionManager(CONTROL).authorizedUserOpSigner()) revert InvalidUserOpFrom();
 
         // If the userOp contains a RedStone feed update perform it
-        if (bytes4(userOp.data) == bytes4(CurvanceDAppControl.update.selector)) {
+        if (bytes4(userOp.data) == bytes4(AuctionManager.update.selector)) {
             (address _oracle, bytes memory _updateCallData) = abi.decode(userOp.data[4:], (address, bytes));
 
             // The called oracle must be whitelisted
-            CurvanceDAppControl(CONTROL).verifyOracleWhitelist(_oracle);
+            AuctionManager(CONTROL).verifyOracleWhitelist(_oracle);
 
             // The update call data must be a valid function call
-            CurvanceDAppControl(CONTROL).verifyAllowedSelector(bytes4(_updateCallData));
+            AuctionManager(CONTROL).verifyAllowedSelector(bytes4(_updateCallData));
         }
 
         // Else if UserOp does not contain a RedStone update, continue as no-op UserOp
@@ -305,7 +310,7 @@ contract AuctionManager is DAppControl {
      */
     function _preSolverCall(SolverOperation calldata solverOp, bytes calldata) internal override {
         (uint256 newPenalty, address collateralBid, address marketBid) = _getBidParamsFromSolverOpData(solverOp.data);
-        CurvanceDAppControl(CONTROL).preSolverSetup(marketBid, collateralBid, newPenalty);
+        AuctionManager(CONTROL).preSolverSetup(marketBid, collateralBid, newPenalty);
     }
 
     /**
@@ -317,7 +322,7 @@ contract AuctionManager is DAppControl {
         if (bidAmount == 0) return;
 
         (uint256 bundlerShare, uint256 fastlaneShare, address fastlaneDest, address protocolDest) =
-            CurvanceDAppControl(CONTROL).getSharesAndDestinations();
+            AuctionManager(CONTROL).getSharesAndDestinations();
 
         // Get the OEV share for the bundler and transfer it
         uint256 _oevShareBundler = bidAmount * bundlerShare / OEV_SHARE_SCALE;
