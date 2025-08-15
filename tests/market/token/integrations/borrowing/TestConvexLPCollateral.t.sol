@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.19;
 
 import { Convex2PoolCToken, IERC20 } from "contracts/market/token/Convex2PoolCToken.sol";
