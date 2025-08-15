@@ -54,7 +54,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkDaiUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkDaiUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
@@ -65,7 +65,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             _DAI_ADDRESS,
             address(chainlinkAdaptor)
         );
-        chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
@@ -77,7 +77,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(chainlinkAdaptor)
         );
 
-        chainlinkEthUsd = new MockV3Aggregator(8, 2700e8, 1e50, 1e6);
+        chainlinkEthUsd = new MockV3Aggregator(8, 2700e8);
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
             true,

@@ -19,28 +19,20 @@ interface IOracleAdaptor {
     /// @notice Guard logic when pricing `asset` configured to prevent oracle
     ///         mispricing either by mistake or malicious PriceGuard when
     ///         pricing `asset` denominated either USD or native tokens.
-    /// @param guardType The type of PriceGuard to set on `asset`. 
-    ///                  Where:
-    ///                  1: Indicates a static maximum of `basePrice` and
-    ///                     minimum of `minPrice`.
-    ///                  2: Indicates an ever increasing maximum of
-    ///                     `basePrice` and minimum of `minPrice` continually
-    ///                     growing by `increasePerSecond` % per second.
-    /// @param ips The magnitude that `basePrice` should increase overtime
-    ///            from `timestampStart`, in `WAD`, per second.
     /// @param timestampStart When `increasePerYear` should start increasing
     ///                       `basePrice` raising the maximum price returned
     ///                       when pricing `asset`.
-    /// @param minPrice The minimum price that should be allowed to be
-    ///                 returned when pricing `asset`.
+    /// @param ips The magnitude that `basePrice` should increase overtime
+    ///            from `timestampStart`, in `WAD`, per second.
     /// @param basePrice The base price that should be the maximum price
     ///                  returned when pricing `asset`.
+    /// @param minPrice The minimum price that should be allowed to be
+    ///                 returned when pricing `asset`.
     struct PriceGuard {
-        uint8 guardType;
         uint40 timestampStart;
-        uint64 ips;
-        uint144 minPrice;
-        uint256 basePrice;
+        uint40 ips;
+        uint96 basePrice;
+        uint80 minPrice;
     }
 
     /// @notice Called by OracleManager to price an asset.

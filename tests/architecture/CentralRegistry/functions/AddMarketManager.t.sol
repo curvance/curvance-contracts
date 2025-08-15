@@ -79,10 +79,7 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
             centralRegistry.marketManagers()[marketManagers.length],
             newMarket
         );
-        assertEq(
-            centralRegistry.protocolInterestFee(newMarket),
-            5000 * 1e14
-        );
+        assertEq(centralRegistry.protocolInterestFee(newMarket), 5000);
     }
 
     function testMarketManagerIntegration() public {
@@ -95,7 +92,7 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
         
         // Verify market is registered correctly
         assertTrue(centralRegistry.isMarketManager(address(marketManager)));
-        assertEq(centralRegistry.protocolInterestFee(address(marketManager)), 1000 * 1e14);
+        assertEq(centralRegistry.protocolInterestFee(address(marketManager)), 1000); // 10% interest fee
         
         // Verify market manager's central registry reference
         assertEq(address(marketManager.centralRegistry()), address(centralRegistry));

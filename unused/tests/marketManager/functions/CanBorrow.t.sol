@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
+import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
 
+import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 
@@ -266,8 +267,8 @@ contract CanBorrowTest is TestBaseMarketManager {
         simpleCBALRETH.postCollateral(999e18);
         vm.stopPrank();
 
-        bool hasPosition;
-        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(borrowableCUSDC));
+        bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(borrowableCUSDC), user1) == 2;
 
         assertFalse(hasPosition);
         IMToken[] memory accountAssets = marketManager.assetsOf(user1);
@@ -276,7 +277,8 @@ contract CanBorrowTest is TestBaseMarketManager {
         vm.prank(address(borrowableCUSDC));
         marketManager.canBorrow(address(borrowableCUSDC), user1, 1_000e6);
 
-        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(borrowableCUSDC));
+        hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(borrowableCUSDC), user1) == 2;
 
         assertTrue(hasPosition);
 

@@ -3,38 +3,35 @@ pragma solidity ^0.8.26;
 
 /// TYPES ///
 
-/// @title Chain Data
-/// @notice Struct containing information on a chain's data.
+/// @notice Configuration data for a separately supported blockchain.
 /// @param isSupported Whether the chain is supported or not.
-///                    2 = yes
-///                    0 or 1 = no
+/// @param messagingChainId Messaging Chain ID where this address authorized.
+/// @param domain Domain for the chain.
 /// @param messagingHub Messaging Hub address on the chain.
 /// @param votingHub Voting Hub address on the chain.
 /// @param cveAddress CVE address on the chain.
 /// @param feeTokenAddress Fee token address on the chain.
-/// @param messagingChainId Messaging Chain ID where this address authorized.
 /// @param crosschainRelayer Crosschain relayer address on the chain.
-/// @param domain Domain for the chain.
-struct ChainData {
-    uint256 isSupported;
+struct ChainConfig {
+    bool isSupported;
+    uint16 messagingChainId;
+    uint32 domain;
     address messagingHub;
     address votingHub;
     address cveAddress;
     address feeTokenAddress;
-    uint16 messagingChainId;
     address crosschainRelayer;
-    uint32 domain;
 }
 
 interface ICentralRegistry {
     /// @notice The length of one protocol epoch, in seconds.
     function EPOCH_DURATION() external view returns (uint256);
 
+    /// @notice Sequencer uptime oracle on this chain (for L2s).
+    function SEQUENCER_ORACLE() external view returns (address);
+
     /// @notice Returns Genesis Epoch Timestamp of Curvance.
     function genesisEpoch() external view returns (uint256);
-
-    /// @notice Sequencer Uptime Feed address for L2.
-    function sequencer() external view returns (address);
 
     /// @notice Returns Protocol DAO address.
     function daoAddress() external view returns (address);
@@ -170,19 +167,27 @@ interface ICentralRegistry {
 
     /// @notice Returns whether a particular GETH chainId is supported.
     /// ChainId => messagingHub address, 2 = supported; 1 = unsupported.
-    function supportedChainData(
+    function chainConfig(
         uint256 chainId
-    ) external view returns (ChainData memory);
+    ) external view returns (ChainConfig memory);
 
-    // Messaging specific ChainId => GETH comparable ChainId.
+    /// @notice Returns the GETH chainId corresponding chainId corresponding
+    ///         to Crosschain Messaging Protocol's `chainId`.
+    /// @param chainId The Crosschain Messaging Protocol's chainId.
+    /// @return The GETH chainId corresponding chainId corresponding to
+    ///         Crosschain Messaging Protocol's `chainId`.
     function messagingToGETHChainId(
         uint16 chainId
     ) external view returns (uint256);
 
-    // GETH comparable ChainId => Messaging specific ChainId.
+    /// @notice Returns the Crosschain Messaging Protocol's ChainId
+    ///         corresponding to the GETH `chainId`.
+    /// @param chainId The GETH chainId.
+    /// @return The Crosschain Messaging Protocol's ChainId
+    ///         corresponding to the GETH `chainId`.
     function GETHToMessagingChainId(
         uint256 chainId
-    ) external view returns (uint16);
+    ) external view returns (uint256);
 
     /// @notice Indicates if an address is a market manager or not.
     function isMarketManager(

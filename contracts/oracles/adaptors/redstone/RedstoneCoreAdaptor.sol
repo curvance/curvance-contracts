@@ -18,7 +18,8 @@ contract RedstoneCoreAdaptor is
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
     /// @param heartbeat The max amount of time allowed between price updates.
-    ///                  0 defaults to using DEFAULT_HEART_BEAT.
+    ///                  type(uint256).max defaults to using
+    ///                  DEFAULT_HEART_BEAT.
     /// @param decimals Returns the number of decimals the Redstone price feed
     ///                 responds with.
     /// @param symbolHash The bytes32 encoded hash of the price feed.
@@ -41,9 +42,11 @@ contract RedstoneCoreAdaptor is
 
     /// CONSTANTS ///
 
-    /// @notice If zero is specified for an asset heartbeat,
+    /// @notice If type(uint256).max is specified for an asset heartbeat,
     ///         `DEFAULT_HEART_BEAT` is used instead.
     /// @dev    10 minutes = 600 seconds.
+    ///         We use type(uint256).max instead of 0 for trigger as we may
+    ///         want 0 second requirement on redstone pull oracles.
     uint256 public constant DEFAULT_HEART_BEAT = 10 minutes;
     /// @notice The smallest value that Redstone Core unique signer threshold
     ///         can be inside Curvance.
@@ -209,7 +212,7 @@ contract RedstoneCoreAdaptor is
     ) external {
         _checkElevatedPermissions();
 
-        if (heartbeat != 0) {
+        if (heartbeat != type(uint256).max) {
             if (heartbeat > DEFAULT_HEART_BEAT) {
                 revert RedstoneCoreAdaptor__InvalidConfiguration();
             }
@@ -232,7 +235,8 @@ contract RedstoneCoreAdaptor is
         AssetConfig storage config = assetConfig[asset][inUSD];
 
         config.symbolHash = symbolHash;
-        config.heartbeat = uint24(heartbeat);
+        config.heartbeat = uint24(heartbeat != type(uint256).max ?
+            heartbeat : DEFAULT_HEART_BEAT);
         // If decimals == 0 we use default 8 decimals that
         // Redstone typically provides prices in.
         config.decimals = decimals != 0 ? decimals : 8;
@@ -452,7 +456,8 @@ contract RedstoneCoreAdaptor is
         }
     }
 
-    /// @notice Wipes supported asset pricing configs from an adaptor.
+    /// @notice Wipes `asset` pricing configurations from this adaptor.
+    /// @param asset The address of the asset to wipe pricing support of.
     function _wipeAssetConfigs(address asset) internal override {
         delete assetConfig[asset][true];
         delete assetConfig[asset][false];

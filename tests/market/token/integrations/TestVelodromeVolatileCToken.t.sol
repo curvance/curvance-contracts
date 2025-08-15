@@ -69,7 +69,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkVELO = new MockV3Aggregator(8, 0.08e8, 1e50, 1e6);
+        chainlinkVELO = new MockV3Aggregator(8, 0.08e8);
         chainlinkAdaptor.addAsset(
             _VELO_ADDRESS,
             true,
@@ -81,7 +81,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
             address(chainlinkAdaptor)
         );
 
-        chainlinkWETH = new MockV3Aggregator(8, 3000e8, 1e50, 1e6);
+        chainlinkWETH = new MockV3Aggregator(8, 3000e8);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,

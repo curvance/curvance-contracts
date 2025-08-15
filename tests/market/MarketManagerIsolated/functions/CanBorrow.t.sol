@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
+import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { console2 } from "forge-std/console2.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
@@ -97,9 +100,8 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(999e18);
         vm.stopPrank();
 
-        bool hasPosition;
-        (hasPosition, , ) =
-            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
+        bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(borrowableCUSDC), user1) == 2;
 
         assertFalse(hasPosition);
         address[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
@@ -113,8 +115,8 @@ contract CanBorrowTest is TestBaseMarketIsolated {
             1_000e6
         );
 
-        (hasPosition, , ) =
-            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
+        hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(borrowableCUSDC), user1) == 2;
 
         assertTrue(hasPosition);
 

@@ -2,6 +2,8 @@
 pragma solidity ^0.8.19;
 
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
@@ -200,9 +202,8 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(999e18);
         vm.stopPrank();
 
-        bool hasPosition;
-        (hasPosition, , ) =
-            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
+        bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(borrowableCUSDC), user1) == 2;
 
         assertFalse(hasPosition);
         address[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
@@ -216,8 +217,8 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
             1_000e6
         );
 
-        (hasPosition, , ) =
-            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
+        hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(borrowableCUSDC), user1) == 2;
 
         assertTrue(hasPosition);
 

@@ -1,23 +1,28 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
+
+import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
 
 contract BridgeTokenTest is TestBaseMessagingHub {
     function setUp() public override {
         super.setUp();
 
-        centralRegistry.addChainSupport(
-            address(messagingHub),
-            address(votingHub),
-            address(cve),
-            _USDC_ADDRESS,
-            42161,
-            23,
-            makeAddr("Wormhole Relayer"),
-            3
-        );
+        ChainConfig memory config;
+        config.isSupported = true;
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = address(messagingHub);
+        config.votingHub = address(votingHub);
+        config.cveAddress = address(cve);
+        config.feeTokenAddress = _USDC_ADDRESS;
+        config.crosschainRelayer = makeAddr("Wormhole Relayer");
+
+        // Support chainId 42161.
+        centralRegistry.addChain(42161, config);
 
         _prepareCVE(address(messagingHub), _ONE);
         deal(address(cve), _ONE);
@@ -43,10 +48,10 @@ contract BridgeTokenTest is TestBaseMessagingHub {
     function test_bridgeToken_fail_whenDestinationChainIsNotSupported()
         public
     {
-        centralRegistry.removeChainSupport(
+        centralRegistry.removeChain(
+            42161,
             address(messagingHub),
-            address(votingHub),
-            42161
+            address(votingHub)
         );
 
         vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);

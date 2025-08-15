@@ -2,15 +2,15 @@
 pragma solidity ^0.8.19;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.sol";
 
-import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 
 contract InitialDistribution is ReentrancyGuard {
     /// CONSTANTS ///
@@ -127,7 +127,7 @@ contract InitialDistribution is ReentrancyGuard {
         // Check whether the claimer prefers a boosted lock version
         // or liquid version.
         if (locked) {
-            RewardsData memory emptyData;
+            ClaimAction memory emptyData;
             uint256 boostedAmount = amount * lockedClaimMultiplier;
             SafeTransferLib.safeApprove(cve, address(veCVE), boostedAmount);
 

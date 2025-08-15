@@ -8,6 +8,7 @@ import { TestnetToken } from "contracts/mocks/TestnetToken.sol";
 import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+import { Faucet } from "contracts/testnet/Faucet.sol";
 
 contract DeployTestTokens is Script {
     event ContractDeployed(address contractAddress, string contractName);
@@ -20,7 +21,6 @@ contract DeployTestTokens is Script {
         uint8[] memory decimals,
         uint256[] memory initialBalances,
         uint240[] memory prices,
-        address faucet,
         address registry
     ) external {
         logger = new DeploymentLogger();
@@ -29,6 +29,9 @@ contract DeployTestTokens is Script {
 
         ICentralRegistry cr = ICentralRegistry(registry);
         OracleManager oracleManager = OracleManager(cr.oracleManager());
+
+        Faucet faucet = new Faucet();
+        emit ContractDeployed(address(faucet), "Faucet");
 
         MockOracleAdaptor adaptor = new MockOracleAdaptor(cr);
         oracleManager.addApprovedAdaptor(address(adaptor));
@@ -45,10 +48,8 @@ contract DeployTestTokens is Script {
             emit ContractDeployed(address(token), symbol);
 
             // Load faucet
-            if (faucet != address(0)) {
-                token.mint(initialBalances[i]);
-                token.transfer(faucet, initialBalances[i]);
-            }
+            token.mint(initialBalances[i]);
+            token.transfer(address(faucet), initialBalances[i]);
 
             // Setup fake oracle feed
             uint240 price = prices[i];

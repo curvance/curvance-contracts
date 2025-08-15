@@ -51,7 +51,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         _deployChainlinkAdaptors();
         _deployMarketManager();
 
-        chainlinkPendleUsd = new MockV3Aggregator(18, 3.6e18, 3.6e24, 3.6e13);
+        chainlinkPendleUsd = new MockV3Aggregator(18, 3.6e18);
         chainlinkAdaptor.addAsset(
             _PENDLE,
             true,

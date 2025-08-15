@@ -2,6 +2,9 @@
 pragma solidity ^0.8.26;
 
 import { BaseCTokenWithYield, FixedPointMathLib, ICentralRegistry, IERC20, WAD } from "contracts/market/token/BaseCTokenWithYield.sol";
+
+import { BPS } from "contracts/libraries/ConstantsLib.sol";
+
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
@@ -19,10 +22,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @dev 5000 = 50%.
     uint256 public constant MAX_INTEREST_ACCRUAL_FEE = 5000;
 
-    /// @notice Percentage fee on loan sized borrowed during a flashloan,
-    ///         in `WAD`.
-    /// @dev .0005e18 = 0.05%.
-    uint256 public constant FLASHLOAN_FEE = .0005e18;
+    /// @notice Percentage (%) fee on loan taken during a flashloan, in `BPS`.
+    /// @dev 5 bps = 0.05%.
+    uint256 public constant FLASHLOAN_FEE = 5;
 
     /// @dev Mask of vesting rate entry in `_vestingData`.
     uint256 internal constant _BITMASK_VESTING_RATE = (1 << 96) - 1;
@@ -40,12 +42,14 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Address of the current Interest Rate Model used to determine
     ///         interest paid by borrowers to lenders for outstanding debt.
     IDynamicIRM public IRM;
-    /// @notice The portion of interest paid by borrowers that goes to the
-    ///         protocol, in `WAD`.
-    uint256 public interestFee;
     /// @notice The amount of `asset` that has been borrowed as outstanding
     ///         debt, in assets.
-    uint256 public marketOutstandingDebt;
+    /// @dev We do not need to worry about uint240 overflow here since we
+    ///      limit debt caps to type(uint168).max in the Market Manager.
+    uint240 public marketOutstandingDebt;
+    /// @notice The portion of interest paid by borrowers that goes to the
+    ///         protocol, in `BPS`.
+    uint16 public interestFee;
 
     /// @notice Outstanding debt information associated with an account.
     /// @dev Internal packed debt data:
@@ -93,10 +97,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Assign the portion of interest paid by borrowers that goes to the
         // protocol.
-        uint256 newInterestFee = centralRegistry.protocolInterestFee(mm);
-        interestFee = newInterestFee;
-
-        emit NewInterestFee(0, newInterestFee);
+        _setInterestFee(centralRegistry.protocolInterestFee(mm));
     }
 
     /// @notice Returns the current vesting yield information.
@@ -461,7 +462,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param assets The amount of `asset()` lent during the flashloan.
     /// return The assets of `asset()` to be charged for the flashloan.
     function flashFee(uint256 assets) public pure returns (uint256 fee) {
-        fee = FixedPointMathLib.mulDivUp(assets, FLASHLOAN_FEE, WAD);
+        fee = FixedPointMathLib.mulDivUp(assets, FLASHLOAN_FEE, BPS);
     }
 
     /// @notice Gets balance of this contract, in terms of the underlying.
@@ -507,7 +508,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             uint176(debtBalance(owner) + assets),
             uint80(_vestingData >> _BITPOS_DEBT_INDEX)
         );
-        marketOutstandingDebt = marketOutstandingDebt + assets;
+        marketOutstandingDebt = uint240(marketOutstandingDebt + assets);
 
         // Transfer underlying to `receiver`.
         SafeTransferLib.safeTransfer(asset(), receiver, assets);
@@ -561,7 +562,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         if (marketOutstandingDebt < assets) {
             marketOutstandingDebt = 0;
         } else {
-            marketOutstandingDebt -= assets;
+            marketOutstandingDebt = uint240(marketOutstandingDebt - assets);
         }
 
         emit Repay(assets, payer, owner);
@@ -666,7 +667,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // cannot fully repay their debt.
             marketOutstandingDebt = 0;
         } else {
-            marketOutstandingDebt -= result.debtRepaid;
+            marketOutstandingDebt =
+                uint240(marketOutstandingDebt - result.debtRepaid);
         }
 
         // Update total assets to recognize that lenders wont be getting
@@ -764,7 +766,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         uint256 protocolFee = FixedPointMathLib.mulDivUp(
             assetsToVest,
             interestFee,
-            WAD
+            BPS
         );
         // If theres fees we need to mint new shares for the protocol.
         if (protocolFee > 0) {
@@ -795,7 +797,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
                 _mulDiv(assetsToVest, marketDebtIndex, outstandingDebt)
                     + marketDebtIndex;
             // Update marketOutstandingDebt invariant with vested assets.
-            marketOutstandingDebt = outstandingDebt + assetsToVest;
+            marketOutstandingDebt = uint240(outstandingDebt + assetsToVest);
             // Update _totalAssets based on new assets recognized by protocol.
             _totalAssets = cachedTa + assetsToVest;
         }
@@ -853,7 +855,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///         by borrowers.
     /// @dev Emits a {NewInterestFee} event.
     /// @param newInterestFee The portion of interest paid by borrowers that
-    ///                       goes to the protocol.
+    ///                       goes to the protocol, in `BPS`.
     function _setInterestFee(uint256 newInterestFee) internal {
         // The DAO cannot take more than `MAX_INTEREST_ACCRUAL_FEE` of
         // interest collected.
@@ -864,9 +866,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Cache the old interest fee for event emission.
         uint256 oldInterestFee = interestFee;
 
-        /// `interestFee` is stored is in `WAD` format. So, we need to
-        /// multiply by 1e14 to convert from basis points to `WAD`.
-        interestFee = newInterestFee * 1e14;
+        interestFee = uint16(newInterestFee);
 
         emit NewInterestFee(oldInterestFee, interestFee);
     }

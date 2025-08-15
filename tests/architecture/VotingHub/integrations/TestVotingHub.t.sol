@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseVotingHub } from "../TestBaseVotingHub.sol";
+
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
+
 import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
+import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
+import { TestBaseVotingHub } from "../TestBaseVotingHub.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
-import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
 import { Vm } from "forge-std/Vm.sol";
 
 contract TestVotingHub is TestBaseVotingHub {
@@ -44,16 +48,18 @@ contract TestVotingHub is TestBaseVotingHub {
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
-        centralRegistry.addChainSupport(
-            address(messagingHubs[1]),
-            address(votingHubs[1]),
-            address(cves[1]),
-            _USDC_ADDRESSES[1],
-            1,
-            2,
-            _CROSSCHAIN_RELAYERS[1],
-            0
-        );
+        ChainConfig memory config;
+        config.isSupported = true;
+        config.messagingChainId = 2;
+        config.domain = 0;
+        config.messagingHub = address(messagingHubs[1]);
+        config.votingHub = address(votingHubs[1]);
+        config.cveAddress = address(cves[1]);
+        config.feeTokenAddress = _USDC_ADDRESSES[1];
+        config.crosschainRelayer = _CROSSCHAIN_RELAYERS[1];
+
+        // Support Ethereum Mainnet on Arbitrum.
+        centralRegistry.addChain(1, config);
 
         // Fork Optimism as destination chain and select it
         dstForkId2 = _fork("ETH_NODE_URI_OPTIMISM", 115634760);
@@ -71,49 +77,50 @@ contract TestVotingHub is TestBaseVotingHub {
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
-        centralRegistry.addChainSupport(
-            address(messagingHubs[1]),
-            address(votingHubs[1]),
-            address(cves[1]),
-            _USDC_ADDRESSES[1],
-            1,
-            2,
-            _CROSSCHAIN_RELAYERS[1],
-            0
-        );
+
+        config.messagingChainId = 2;
+        config.domain = 0;
+        config.messagingHub = address(messagingHubs[1]);
+        config.votingHub = address(votingHubs[1]);
+        config.cveAddress = address(cves[1]);
+        config.feeTokenAddress = _USDC_ADDRESSES[1];
+        config.crosschainRelayer = _CROSSCHAIN_RELAYERS[1];
+
+        // Support Ethereum Mainnet on Optimism.
+        centralRegistry.addChain(1, config);
 
         // Select forked Ethereum
         vm.selectFork(srcForkId);
 
         _initMainVariables();
 
-        centralRegistry.addChainSupport(
-            address(messagingHubs[42161]),
-            address(votingHubs[42161]),
-            address(cve),
-            _USDC_ADDRESSES[42161],
-            42161,
-            23,
-            _CROSSCHAIN_RELAYERS[42161],
-            3
-        );
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = address(messagingHubs[42161]);
+        config.votingHub = address(votingHubs[42161]);
+        config.cveAddress = address(cve);
+        config.feeTokenAddress = _USDC_ADDRESSES[42161];
+        config.crosschainRelayer = _CROSSCHAIN_RELAYERS[42161];
+
+        // Support chainId 42161.
+        centralRegistry.addChain(42161, config);
 
         deal(address(messagingHub), _ONE);
     }
 
-    function test_executeEmissionConfiguration_multipleChains_success()
-        public
-    {
-        centralRegistry.addChainSupport(
-            address(messagingHubs[10]),
-            address(votingHubs[10]),
-            address(cve),
-            _USDC_ADDRESSES[10],
-            10,
-            24,
-            _CROSSCHAIN_RELAYERS[10],
-            2
-        );
+    function test_executeEmissionConfiguration_multipleChains_success() public {
+        ChainConfig memory configTwo;
+        configTwo.isSupported = true;
+        configTwo.messagingChainId = 24;
+        configTwo.domain = 2;
+        configTwo.messagingHub = address(messagingHubs[10]);
+        configTwo.votingHub = address(votingHubs[10]);
+        configTwo.cveAddress = address(cve);
+        configTwo.feeTokenAddress = _USDC_ADDRESSES[10];
+        configTwo.crosschainRelayer = _CROSSCHAIN_RELAYERS[10];
+
+        // Support chainId 10.
+        centralRegistry.addChain(10, configTwo);
 
         gasLimit.push(250_000);
         gasLimit.push(250_000);
@@ -393,7 +400,7 @@ contract TestVotingHub is TestBaseVotingHub {
         assertEq(totalWeights, _ONE);
         assertEq(poolWeight, _ONE);
 
-        skip(votingHub.epochDuration() * 5);
+        skip(votingHub.EPOCH_DURATION() * 5);
 
         centralRegistry.setEraTargetEmissions(_ONE * 5);
 
@@ -433,7 +440,7 @@ contract TestVotingHub is TestBaseVotingHub {
         assertEq(totalWeights, _ONE * 2);
         assertEq(poolWeight, _ONE * 2);
 
-        skip(votingHub.epochDuration() * votingHub.REWARD_HALVENING_RATE());
+        skip(votingHub.EPOCH_DURATION() * votingHub.REWARD_HALVENING_RATE());
 
         centralRegistry.setEraTargetEmissions(_ONE * 10);
 
@@ -515,7 +522,7 @@ contract TestVotingHub is TestBaseVotingHub {
             _remoteEmissionData
         );
 
-        skip(votingHub.epochDuration());
+        skip(votingHub.EPOCH_DURATION());
 
         vm.expectRevert(bytes4(keccak256("StaleBlockTime()")));
         votingHub.executeEmissionConfiguration(

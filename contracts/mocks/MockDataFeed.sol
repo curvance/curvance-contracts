@@ -14,9 +14,9 @@ contract MockDataFeed {
         realFeed = IChainlink(realFeed_);
     }
 
-    function aggregator() external view returns (address) {
-        return realFeed.aggregator();
-    }
+    // function aggregator() external view returns (address) {
+    //     return realFeed.aggregator();
+    // }
 
     function decimals() external view returns (uint8) {
         return realFeed.decimals();

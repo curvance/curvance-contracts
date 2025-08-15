@@ -1,21 +1,28 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { VelodromeVolatileCToken } from "contracts/market/token/VelodromeVolatileCToken.sol";
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { VelodromePositionManager } from "contracts/market/position-management/VelodromePositionManager.sol";
+
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { BPS } from "contracts/libraries/ConstantsLib.sol";
+
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
+
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
+
 import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.sol";
 import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
+
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
@@ -55,7 +62,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkDaiUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkDaiUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
@@ -66,7 +73,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             _DAI_ADDRESS,
             address(chainlinkAdaptor)
         );
-        chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
@@ -78,7 +85,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(chainlinkAdaptor)
         );
 
-        chainlinkEthUsd = new MockV3Aggregator(8, 2700e8, 1e50, 1e6);
+        chainlinkEthUsd = new MockV3Aggregator(8, 2700e8);
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
             true,
@@ -280,7 +287,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         uint256 leverageFee = FixedPointMathLib.mulDivUp(
             amountForLeverage,
             centralRegistry.protocolLeverageFee(),
-            1e18
+            BPS
         );
 
         VelodromePositionManager.LeverageAction memory leverageAction;

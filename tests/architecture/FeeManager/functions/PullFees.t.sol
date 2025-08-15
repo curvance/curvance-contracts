@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import { TestBaseFeeManager } from "../TestBaseFeeManager.sol";
 import { FeeManager } from "contracts/architecture/FeeManager.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract PullFeesTest is TestBaseFeeManager {
     function test_pullFees_fail_whenCallerIsNotMessagingHub() public {
@@ -19,12 +20,13 @@ contract PullFeesTest is TestBaseFeeManager {
         assertEq(usdc.balanceOf(address(messagingHub)), messagingHubBalance);
     }
 
-    function test_pullFees_success() public {
+    function test_pullFees_successA() public {
         _prepareUSDC(address(feeManager), 100e6);
 
         uint256 messagingHubBalance = usdc.balanceOf(address(messagingHub));
         uint256 daoBalance = usdc.balanceOf(centralRegistry.daoAddress());
-        uint256 compoundingFee = (100e6 *
+        
+        uint256 compoundingFee = (uint256(100e6) *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
 

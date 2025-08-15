@@ -78,8 +78,8 @@ contract TestLiquidationBuffer is TestBaseMarketIsolated {
         vm.startPrank(dappControlUser);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         // Set auction parameters
-        uint256 validPenalty = 1.15e18;
-        uint256 closeFactor = 0.30e18;
+        uint256 validPenalty = 11500;
+        uint256 closeFactor = 3000;
         marketManagerIsolated.setLiquidationConfig(address(borrowableCDAI), validPenalty, closeFactor);
         
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));

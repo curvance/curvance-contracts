@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
+import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
 
+import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 
 contract CanRedeemTest is TestBaseMarketManager {
     function setUp() public override {
@@ -80,11 +81,8 @@ contract CanRedeemTest is TestBaseMarketManager {
         simpleCBALRETH.postCollateral(9e17);
         vm.stopPrank();
 
-        bool hasPosition;
-        (hasPosition, , ) = marketManager.tokenDataOf(
-            user1,
-            address(simpleCBALRETH)
-        );
+        bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(simpleCBALRETH), user1) == 2;
 
         assertTrue(hasPosition);
 
@@ -104,8 +102,8 @@ contract CanRedeemTest is TestBaseMarketManager {
     }
 
     function test_canRedeem_success_whenRedeemerNotInMarket() public {
-        bool hasPosition;
-        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(borrowableCUSDC));
+        bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(borrowableCUSDC), user1) == 2;
 
         assertFalse(hasPosition);
         marketManager.canRedeem(address(borrowableCUSDC), user1, 100e6);

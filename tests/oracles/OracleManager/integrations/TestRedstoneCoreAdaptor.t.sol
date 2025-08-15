@@ -57,6 +57,19 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addApprovedAdaptor(address(adaptor));
     }
 
+    function test_fail_AddAsset__InvalidHeartbeat() public {
+        // Should revert when heartbeat > DEFAULT_HEART_BEAT.
+        uint256 invalidHeartbeat = adaptor.DEFAULT_HEART_BEAT() + 1;
+        
+        vm.expectRevert(RedstoneCoreAdaptor.RedstoneCoreAdaptor__InvalidConfiguration.selector);
+        adaptor.addAsset(
+            _WBTC_ADDRESS,
+            true,
+            8,
+            invalidHeartbeat
+        );
+    }
+
     function testAddNewSignersUpdatePriceWithNewSigners() public {
         address[] memory newSigners = new address[](3);
         bytes32[] memory newSignerKeys = new bytes32[](3);

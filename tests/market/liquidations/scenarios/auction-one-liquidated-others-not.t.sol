@@ -41,7 +41,7 @@ contract AuctionOneLiquidatedOthersNotTest is TestBaseLiquidations {
 
     function test_success_AuctionOneLiquidatedOthersNot() public {
         // Configure auction.
-        _setAuctionConfigs(address(strategyCBALRETH), 1.10e18, 0.30e18);
+        _setAuctionConfigs(address(strategyCBALRETH), 11000, 3000);
 
         // Cache the expected liquidation values.
         ExpectedLiquidationValues memory expectedLiquidationValuesBorrower1 = _calculateExpectedLiquidationValues(

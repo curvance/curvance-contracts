@@ -34,6 +34,21 @@ contract Faucet is Ownable {
         _claim(user, token, amount);
     }
 
+    function multiIsAvailable(
+        address[] calldata tokens,
+        uint256[] calldata amounts
+    ) public view returns (bool[] memory availability) {
+        availability = new bool[](tokens.length);
+        for(uint256 i = 0; i < tokens.length; i++) {
+            address token = tokens[i];
+            uint256 amount = amounts[i];
+            IERC20 ercToken = IERC20(token);
+
+            uint256 balance = ercToken.balanceOf(address(this));
+            availability[i] = balance >= amount;
+        }
+    }
+
     function multiClaim(
         address user,
         address[] calldata tokens,

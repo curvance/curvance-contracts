@@ -30,6 +30,6 @@ contract VotingHubDeploymentTest is TestBaseVotingHub {
             address(votingHub.gaugeManager()),
             address(centralRegistry.gaugeManager())
         );
-        assertEq(votingHub.epochDuration(), centralRegistry.EPOCH_DURATION());
+        assertEq(votingHub.EPOCH_DURATION(), centralRegistry.EPOCH_DURATION());
     }
 }

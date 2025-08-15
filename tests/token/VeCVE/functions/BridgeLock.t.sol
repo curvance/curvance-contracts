@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
+
+import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 
 contract BridgeLockTest is TestBaseVeCVE {
     VeCVE.BridgeData public bridgeData = VeCVE.BridgeData(42161, 0, true);
@@ -11,16 +14,18 @@ contract BridgeLockTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        centralRegistry.addChainSupport(
-            address(messagingHub),
-            address(votingHub),
-            address(cve),
-            _USDC_ADDRESS,
-            42161,
-            23,
-            makeAddr("Wormhole Relayer"),
-            3
-        );
+        // Support chainId 42161.
+        ChainConfig memory config;
+        config.isSupported = true;
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = address(messagingHub);
+        config.votingHub = address(votingHub);
+        config.cveAddress = address(cve);
+        config.feeTokenAddress = _USDC_ADDRESS;
+        config.crosschainRelayer = makeAddr("Wormhole Relayer");
+
+        centralRegistry.addChain(42161, config);
 
         _prepareUSDC(address(rewardManager), 10000e6);
         _prepareCVE(address(this), 100e18);
@@ -28,40 +33,40 @@ contract BridgeLockTest is TestBaseVeCVE {
 
         _skipRestrictionDuration();
 
-        veCVE.createLock(30e18, false, rewardsData, "", 0);
-        veCVE.createLock(30e18, true, rewardsData, "", 0);
+        veCVE.createLock(30e18, false, action, "", 0);
+        veCVE.createLock(30e18, true, action, "", 0);
     }
 
     function test_bridgeLock_fail_whenVeCVEIsShutdown(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         veCVE.shutdown();
 
         vm.expectRevert(VeCVE.VeCVE__VeCVEShutdown.selector);
-        veCVE.bridgeLock(0, bridgeData, rewardsData, "", 0);
+        veCVE.bridgeLock(0, bridgeData, action, "", 0);
     }
 
     function test_bridgeLock_fail_whenLockIndexExceeds(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.bridgeLock(2, bridgeData, rewardsData, "", 0);
+        veCVE.bridgeLock(2, bridgeData, action, "", 0);
     }
 
     function test_bridgeLock_fail_whenLockIsExpired(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
 
         for (
             uint256 i = 0;
-            i <= (unlockTime - block.timestamp) / veCVE.epochDuration();
+            i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
             i++
         ) {
             vm.prank(address(messagingHub));
@@ -73,21 +78,21 @@ contract BridgeLockTest is TestBaseVeCVE {
         _skipRestrictionDuration();
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.bridgeLock(0, bridgeData, rewardsData, "", 0);
+        veCVE.bridgeLock(0, bridgeData, action, "", 0);
     }
 
     function test_bridgeLock_fail_whenNativeTokenIsNotEnoughToCoverFee(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
         vm.expectRevert();
         veCVE.bridgeLock{ value: messageFee - 1 }(
             1,
             bridgeData,
-            rewardsData,
+            action,
             "",
             0
         );
@@ -97,7 +102,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
@@ -108,7 +113,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         veCVE.bridgeLock{ value: messageFee }(
             0,
             bridgeData,
-            rewardsData,
+            action,
             "",
             0
         );
@@ -118,18 +123,18 @@ contract BridgeLockTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
 
-        vm.warp(veCVE.nextEpochStartTime() - veCVE.epochDuration());
+        vm.warp(veCVE.nextEpochStartTime() - veCVE.EPOCH_DURATION());
 
         vm.expectRevert(VeCVE.VeCVE__PostEpochRestriction.selector);
         veCVE.bridgeLock{ value: messageFee }(
             0,
             bridgeData,
-            rewardsData,
+            action,
             "",
             0
         );
@@ -139,7 +144,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
@@ -150,7 +155,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         veCVE.bridgeLock{ value: messageFee }(
             0,
             bridgeData,
-            rewardsData,
+            action,
             "",
             0
         );
@@ -160,7 +165,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
@@ -172,7 +177,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         veCVE.bridgeLock{ value: messageFee }(
             0,
             bridgeData,
-            rewardsData,
+            action,
             "",
             0
         );
@@ -184,7 +189,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         veCVE.bridgeLock{ value: messageFee }(
             0,
             bridgeData,
-            rewardsData,
+            action,
             "",
             0
         );

@@ -68,12 +68,15 @@ contract TestApi3Adaptor is TestBaseOracleManager {
     }
 
     function testRevertAddAsset__InvalidHeartbeat() public {
+        // Should revert when heartbeat > DEFAULT_HEART_BEAT.
+        uint256 invalidHeartbeat = adaptor.DEFAULT_HEART_BEAT() + 1;
+
         vm.expectRevert(Api3Adaptor.Api3Adaptor__InvalidHeartbeat.selector);
         adaptor.addAsset(
             _ARB_ADDRESS,
             true,
             _DAPI_PROXY_ARB_USD,
-            1 days + 1,
+            invalidHeartbeat,
             _ARB_TICKER
         );
     }

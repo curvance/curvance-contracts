@@ -33,14 +33,12 @@ contract TestPythAdaptor is TestBaseOracleManager {
             _WETH_ADDRESS
         );
 
-        PythAdaptor.AssetConfig memory data;
-        data
-            .priceId = 0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43;
-        data.isConfigured = true;
-        data.heartbeat = 24 hours;
-        data.max = 1000000 ether;
-        data.min = 0 ether;
-        adaptor.addAsset(_WBTC_ADDRESS, true, data);
+        adaptor.addAsset(
+            _WBTC_ADDRESS,
+            true,
+            1 days,
+            0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
+        );
         vm.warp(1711335100);
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));

@@ -24,14 +24,14 @@ contract SetInterestFeeTest is TestBaseBorrowableCToken {
     }
 
     function test_setInterestFee_success() public {
-        assertEq(borrowableCUSDC.interestFee(), 0.1e18);
+        assertEq(borrowableCUSDC.interestFee(), 1000);
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit NewInterestFee(0.1e18, 0.5e18);
+        emit NewInterestFee(1000, 5000);
 
         borrowableCUSDC.setInterestFee(5000);
 
-        assertEq(borrowableCUSDC.interestFee(), 0.5e18);
+        assertEq(borrowableCUSDC.interestFee(), 5000);
     }
 
     function test_setInterestFee_success_withOutstandingDebt() public {
@@ -44,10 +44,10 @@ contract SetInterestFeeTest is TestBaseBorrowableCToken {
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
 
-        assertEq(borrowableCUSDC.interestFee(), 0.1e18);
+        assertEq(borrowableCUSDC.interestFee(), 1000);
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit NewInterestFee(0.1e18, 0.2e18);
+        emit NewInterestFee(1000, 2000);
 
         borrowableCUSDC.setInterestFee(2000);
         borrowableCUSDC.accrueIfNeeded();
@@ -55,7 +55,7 @@ contract SetInterestFeeTest is TestBaseBorrowableCToken {
         uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(address(this));
         uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
 
-        assertEq(borrowableCUSDC.interestFee(), 0.2e18);
+        assertEq(borrowableCUSDC.interestFee(), 2000);
 
         assertGt(debtAfterAccrual, 100e6);
         assertGt(debtAfterAccrual, debtBeforeAccrual);

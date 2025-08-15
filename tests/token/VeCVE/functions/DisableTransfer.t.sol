@@ -13,7 +13,7 @@ contract DisabledTransfers is TestBaseVeCVE {
 
         _skipRestrictionDuration();
 
-        veCVE.createLock(30e18, false, rewardsData, "", 0);
+        veCVE.createLock(30e18, false, action, "", 0);
     }
 
     function test_tranfer_fail() public {

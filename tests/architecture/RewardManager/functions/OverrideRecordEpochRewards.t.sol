@@ -36,7 +36,7 @@ contract OverrideRecordEpochRewardsTest is TestBaseRewardManager {
     function test_overrideRecordEpochRewards_success() public {
         vm.warp(
             centralRegistry.genesisEpoch() +
-                (nextEpochToDeliver * rewardManager.epochDuration()) +
+                (nextEpochToDeliver * rewardManager.EPOCH_DURATION()) +
                 1 hours
         );
 

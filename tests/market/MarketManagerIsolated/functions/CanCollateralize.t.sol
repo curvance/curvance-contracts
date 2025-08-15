@@ -3,6 +3,8 @@ pragma solidity ^0.8.19;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
+import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
+
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 contract CanCollateralizeTest is TestBaseMarketIsolated {
@@ -82,9 +84,8 @@ contract CanCollateralizeTest is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        bool hasPosition;
-        (hasPosition, , ) =
-            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
+        bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(borrowableCUSDC), user1) == 2;
 
         assertTrue(hasPosition);
     }

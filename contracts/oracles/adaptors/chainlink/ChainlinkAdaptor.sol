@@ -3,6 +3,8 @@ pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
+import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 
@@ -12,22 +14,17 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// @notice Stores configuration data for Chainlink price sources.
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
-    /// @param aggregator The current phase's aggregator address.
-    /// @param decimals Returns the number of decimals the aggregator
-    ///                 responds with.
+    /// @param aggregatorProxy Chainlink aggregator proxy to use for
+    ///                        pricing `asset`.
+    /// @param decimals Returns the number of decimals the proxy denominates
+    ///                 asset prices in.
     /// @param heartbeat The max amount of time allowed between price updates.
     ///                  0 defaults to using DEFAULT_HEART_BEAT.
-    /// @param reportedMax The maximum valid price of the asset.
-    ///                    Set to aggregator maxAnswer() reduced by ~10%.
-    /// @param reportedMin The minimum valid price of the asset.
-    ///                    Set to aggregator minAnswer() increased by ~10%.
     struct AssetConfig {
         bool isConfigured;
-        IChainlink aggregator;
+        IChainlink aggregatorProxy;
         uint8 decimals;
         uint24 heartbeat;
-        uint256 reportedMax;
-        uint256 reportedMin;
     }
 
     /// CONSTANTS ///
@@ -35,7 +32,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// @notice If zero is specified for a Chainlink asset heartbeat,
     ///         this value is used instead.
     /// @dev    1 days = 24 hours = 1,440 minutes = 86,400 seconds.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days;
+    uint256 public constant DEFAULT_HEART_BEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
 
     /// STORAGE ///
 
@@ -50,7 +47,6 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// ERRORS ///
 
     error ChainlinkAdaptor__InvalidHeartbeat();
-    error ChainlinkAdaptor__InvalidMinMaxConfig();
 
     /// CONSTRUCTOR ///
 
@@ -65,13 +61,14 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
-    /// @param aggregator Chainlink aggregator to use for pricing `asset`.
+    /// @param aggregatorProxy Chainlink aggregator proxy to use for
+    ///                        pricing `asset`.
     /// @param heartbeat Chainlink heartbeat to use when validating prices
     ///                  for `asset`. 0 = `DEFAULT_HEART_BEAT`.
     function addAsset(
         address asset,
         bool inUSD,
-        address aggregator,
+        address aggregatorProxy,
         uint256 heartbeat
     ) external {
         _checkElevatedPermissions();
@@ -82,34 +79,13 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
             }
         }
 
-        // Use Chainlink to get the min and max of the asset.
-        IChainlink feedAggregator = IChainlink(
-            IChainlink(aggregator).aggregator()
-        );
-
-        // Query Max and Min feed prices from Chainlink aggregator,
-        // Then add a ~10% buffer because Chainlink can stop updating
-        // its price before/above the min/max price.
-        uint256 bufferedMaxPrice = (uint256(
-            uint192(feedAggregator.maxAnswer())
-        ) * 9) / 10;
-        uint256 bufferedMinPrice = (uint256(
-            uint192(feedAggregator.minAnswer())
-        ) * 11) / 10;
-
-        if (bufferedMinPrice >= bufferedMaxPrice) {
-            revert ChainlinkAdaptor__InvalidMinMaxConfig();
-        }
-
         AssetConfig storage config = assetConfig[asset][inUSD];
 
         // Update `config` and make sure `isSupportedAsset` returns true
         // for `asset`.
-        config.aggregator = IChainlink(aggregator);
-        config.decimals = feedAggregator.decimals();
+        config.aggregatorProxy = IChainlink(aggregatorProxy);
+        config.decimals = IChainlink(aggregatorProxy).decimals();
         config.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT);
-        config.reportedMax = bufferedMaxPrice;
-        config.reportedMin = bufferedMinPrice;
         config.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
@@ -153,10 +129,10 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
             inUSD = !inUSD;  
         }
 
-        AssetConfig memory config = assetConfig[asset][inUSD];
+        AssetConfig memory c = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
         
-        (, int256 price,, uint256 updatedAt, ) = IChainlink(config.aggregator)
+        (, int256 price,, uint256 updatedAt, ) = IChainlink(c.aggregatorProxy)
             .latestRoundData();
 
         // If we got a price of 0 or less, bubble up an error immediately.
@@ -165,33 +141,19 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-        if (
-            uint256(price) >= config.reportedMax ||
-            uint256(price) <= config.reportedMin
-            ) {
-            result.hadError = true;
-            return result;
-        }
-
         uint256 adjustedPrice = _adjustPrice(
             asset,
             inUSD,
             uint256(price),
-            config.decimals
+            c.decimals
         );
 
-        result.hadError = _verifyData(
-            adjustedPrice,
-            updatedAt,
-            _MAXIMUM_PRICE_ALLOWED,
-            0,
-            config.heartbeat
-        );
-
+        result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
         result.price = uint240(adjustedPrice);
     }
 
-    /// @notice Wipes supported asset pricing configs from an adaptor.
+    /// @notice Wipes `asset` pricing configurations from this adaptor.
+    /// @param asset The address of the asset to wipe pricing support of.
     function _wipeAssetConfigs(address asset) internal override {
         delete assetConfig[asset][true];
         delete assetConfig[asset][false];

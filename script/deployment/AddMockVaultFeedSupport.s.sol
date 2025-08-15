@@ -36,9 +36,7 @@ contract AddMockVaultFeedSupport is Script {
             new MockPermissionV3Aggregator(
                 icr,
                 asset.decimals(),
-                price,
-                type(int192).max,
-                int192(0)
+                price
             )
         );
         emit ContractDeployed(

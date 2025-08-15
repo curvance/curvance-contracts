@@ -38,8 +38,8 @@ contract ResetLiquidationConfigTest is TestBaseMarketIsolated {
     function test_resetLiquidationConfig_success() public {
         vm.startPrank(dappControlUser);
         
-        uint256 validPenalty = 1.15e18;
-        uint256 validCloseFactor = 0.30e18;
+        uint256 validPenalty = 11500;
+        uint256 validCloseFactor = 3000;
         marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), validPenalty, validCloseFactor);
 
         (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLiquidationConfig();
