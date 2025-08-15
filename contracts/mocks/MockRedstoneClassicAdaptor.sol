@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
+
 import { IRedstone } from "contracts/interfaces/external/redstone/IRedstone.sol";
 
 contract MockRedstoneClassicAdaptor is IRedstone {
@@ -10,6 +12,7 @@ contract MockRedstoneClassicAdaptor is IRedstone {
     int256 public latestAnswer;
     uint256 public latestTimestamp;
     uint256 public latestRound = 1;
+    string public id;
 
     mapping(uint256 => int256) public getAnswer;
     mapping(uint256 => uint256) public getTimestamp;
@@ -17,10 +20,16 @@ contract MockRedstoneClassicAdaptor is IRedstone {
 
     constructor(
         uint8 _decimals,
-        int256 _initialAnswer
+        int256 _initialAnswer,
+        string memory _id
     ) {
         decimals = _decimals;
         updateAnswer(_initialAnswer);
+        id = _id;
+    }
+
+    function getDataFeedId() external view returns (bytes32) {
+        Bytes32Helper.toBytes32(id)
     }
 
     function updateAnswer(int256 _answer) public virtual {
