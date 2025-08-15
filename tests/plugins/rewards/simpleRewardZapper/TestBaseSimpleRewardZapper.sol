@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
 import { BaseZapper } from "contracts/plugins/BaseZapper.sol";

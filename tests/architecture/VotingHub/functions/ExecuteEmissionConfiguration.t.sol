@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";

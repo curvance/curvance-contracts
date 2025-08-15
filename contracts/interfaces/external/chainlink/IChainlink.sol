@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 interface IChainlink {
     /// @notice Returns the number of decimals the aggregator responds with.

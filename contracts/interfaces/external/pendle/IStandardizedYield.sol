@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  */
 
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 import { IERC20Metadata } from "contracts/interfaces/IERC20Metadata.sol";
 
 interface IStandardizedYield is IERC20Metadata {

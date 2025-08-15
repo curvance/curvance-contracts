@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 import { IRewardManager } from "contracts/interfaces/external/pendle/IRewardManager.sol";
 import { IPInterestManagerYT } from "contracts/interfaces/external/pendle/IPInterestManagerYT.sol";

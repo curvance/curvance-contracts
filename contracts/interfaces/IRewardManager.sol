@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 /// @title Instructions for Reward Manager rewards claiming.
 /// @notice Struct containing information on rewards data for a desired

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { WAD, BPS, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";

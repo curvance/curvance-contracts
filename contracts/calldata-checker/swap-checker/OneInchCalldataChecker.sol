@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 import { UniswapV3Pool } from "contracts/interfaces/external/uniswap/UniswapV3Pool.sol";
 import { BaseSwapChecker } from "./BaseSwapChecker.sol";

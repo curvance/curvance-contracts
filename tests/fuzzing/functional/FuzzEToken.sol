@@ -1,4 +1,4 @@
-// pragma solidity ^0.8.28;
+// pragma solidity 0.8.28;
 
 // import { FuzzMarketManager } from "tests/fuzzing/FuzzMarketManager.sol";
 // import { EToken } from "contracts/market/token/EToken.sol";

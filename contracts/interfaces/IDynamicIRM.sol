@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 interface IDynamicIRM {
     /// @notice Returns the interval at which interest rates are adjusted.

@@ -1,4 +1,4 @@
-// pragma solidity ^0.8.28;
+// pragma solidity 0.8.28;
 
 // import { WAD } from "contracts/libraries/ConstantsLib.sol";
 // import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";

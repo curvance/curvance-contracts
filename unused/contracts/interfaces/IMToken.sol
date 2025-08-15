@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";

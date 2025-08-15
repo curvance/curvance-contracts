@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";

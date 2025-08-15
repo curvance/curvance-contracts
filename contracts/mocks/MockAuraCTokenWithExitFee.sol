@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 import { FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/StrategyCToken.sol";
 import { StrategyCTokenWithExitFee } from "contracts/market/token/StrategyCTokenWithExitFee.sol";

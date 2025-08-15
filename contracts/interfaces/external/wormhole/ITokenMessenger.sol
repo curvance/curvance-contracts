@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 interface ITokenMessenger {
     /// @notice Deposits and burns tokens from sender to be minted on destination domain. The mint
