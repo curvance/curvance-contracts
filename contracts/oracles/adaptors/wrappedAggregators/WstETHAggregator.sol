@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.26;
 
 import { VaultAggregator, WAD } from "contracts/oracles/adaptors/wrappedAggregators/VaultAggregator.sol";

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.26;
 
 import { BaseCTokenWithYield, FixedPointMathLib, ICentralRegistry, IERC20, WAD } from "contracts/market/token/BaseCTokenWithYield.sol";

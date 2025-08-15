@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 // Modified from OpenZeppelin Contracts (utils/introspection/ERC165Checker.sol)
 pragma solidity ^0.8.26;
 
