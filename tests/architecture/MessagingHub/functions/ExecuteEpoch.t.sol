@@ -197,7 +197,7 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
         deal(address(messagingHub), _ONE);
         _prepareUSDC(address(feeManager), 100e6);
 
-        uint256 compoundingFee = (100e6 *
+        uint256 compoundingFee = (uint256(100e6) *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
 

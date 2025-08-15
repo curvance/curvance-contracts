@@ -118,10 +118,10 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         _prepareUSDC(address(feeManager), 100e6);
 
-        uint256 compoundingFee = (100e6 *
+        uint256 compoundingFee = (uint256(100e6) *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
-        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) *
+        uint256 epochRewardsPerPoint = ((uint256(100e6) - compoundingFee) *
             WAD_SQUARED) / (_ONE * 2);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
@@ -253,7 +253,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        uint256 compoundingFee = (1000e6 *
+        uint256 compoundingFee = (uint256(1000e6) *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
         uint256 pullAmount = 1000e6 - compoundingFee;
@@ -299,7 +299,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        uint256 compoundingFee = (1000e6 *
+        uint256 compoundingFee = (uint256(1000e6) *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
         uint256 pullAmount = 1000e6 - compoundingFee;
