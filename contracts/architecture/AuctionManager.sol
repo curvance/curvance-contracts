@@ -216,16 +216,6 @@ contract AuctionManager is DAppControl {
     }
 
     // ---------------------------------------------------- //
-    //           Market Manager Related Functions           //
-    // ---------------------------------------------------- //
-
-    function verifyMarketManager(address marketManager) public view {
-        if (!CENTRAL_REGISTRY.isMarketManager(marketManager)) {
-            revert InvalidMarketManager();
-        }
-    }
-
-    // ---------------------------------------------------- //
     //               Oracle Related Functions               //
     // ---------------------------------------------------- //
 
@@ -373,7 +363,7 @@ contract AuctionManager is DAppControl {
 
     function preSolverSetup(address marketManager, address cToken, uint256 newPenalty) external {
         if (msg.sender != authorizedExecutionEnv) revert InvalidExecutionEnv();
-        verifyMarketManager(marketManager);
+        if (!CENTRAL_REGISTRY.isMarketManager(marketManager)) revert InvalidMarketManager();
 
         // Set dynamic risk parameters.
         IMarketManager(marketManager).setLiquidationConfig(cToken, newPenalty, ATLAS_CLOSE_FACTOR);
@@ -410,11 +400,8 @@ contract AuctionManager is DAppControl {
         return solverGasLimit;
     }
 
-    function getSharesAndDestinations()external view returns (
-        uint256,
-        uint256,
-        address,
-        address
+    function getSharesAndDestinations() external view returns (
+        uint256, uint256, address, address
     ) {
         return (oevShareBundler, oevShareFastlane, oevAllocationDestinationFastlane, oevAllocationDestinationProtocol);
     }
