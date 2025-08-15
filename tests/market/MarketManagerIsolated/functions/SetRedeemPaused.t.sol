@@ -17,12 +17,14 @@ contract SetRedeemPausedTest is TestBaseMarketIsolated {
 
     function test_setRedeemPaused_success() public {
         deal(address(balRETH), address(this), 77777);
-        deal(address(_USDC_ADDRESS), address(this), 77777);
+        deal(address(_USDC_ADDRESS), address(this), 77777 + 100e6);
 
         balRETH.approve(address(strategyCBALRETH), 77777);
-        usdc.approve(address(borrowableCUSDC), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777 + 100e6);
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+
+        borrowableCUSDC.deposit(100e6, address(this));
 
         assertEq(marketManagerIsolated.redeemPaused(), 1);
 
@@ -31,10 +33,16 @@ contract SetRedeemPausedTest is TestBaseMarketIsolated {
 
         marketManagerIsolated.setRedeemPaused(true);
 
+        assertEq(marketManagerIsolated.redeemPaused(), 2);
+
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         marketManagerIsolated.canRedeem(address(borrowableCUSDC), 1, user1);
 
-        assertEq(marketManagerIsolated.redeemPaused(), 2);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
+        borrowableCUSDC.withdraw(100e6, address(this), address(this));
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
+        borrowableCUSDC.redeem(100e6, address(this), address(this));
 
         vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit ActionPaused("Redeem Paused", false);
