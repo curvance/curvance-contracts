@@ -375,9 +375,12 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
 
         // If `vertexMultiplier` is already at its minimum,
         // and would decrease more, can break here.
-        // Convert `util` to `BPS` by dividing to be in same terms as
-        // `increaseThresholdStart`, no precision loss as a result.
-        if (multiplier == WAD && (util / 1e14) < c.increaseThresholdStart) {
+        // Convert `increaseThresholdStart` to `WAD` to be in same terms as
+        // `util`, no precision loss as a result.
+        if (
+            multiplier == WAD &&
+            util < (1e14 * uint256(c.increaseThresholdStart))
+        ) {
             return (ratePerSecond, ADJUSTMENT_RATE);
         }
 
@@ -418,9 +421,12 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint256 multiplier = vertexMultiplier;
         // Vertex multiplier is not going to change so we can pull interest
         // rate with current `vertexMultiplier`.
-        // Convert `util` to `BPS` by dividing to be in same terms as
-        // `increaseThresholdStart`, no precision loss as a result.
-        if (multiplier == WAD && (util / 1e14) < c.increaseThresholdStart) {
+        // Convert `increaseThresholdStart` to `WAD` to be in same terms as
+        // `util`, no precision loss as a result.
+        if (
+            multiplier == WAD &&
+            util < (1e14 * uint256(c.increaseThresholdStart))
+        ) {
             return _vertexRate(
                 util,
                 c.baseRatePerSecond,
@@ -703,7 +709,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // Calculate decay rate.
         uint256 decay = _mulDiv(multiplier, c.decayPerAdjustment, BPS);
 
-        if ((util / 1e14) <= c.increaseThresholdStart) {
+        if (util <= (1e14 * uint256(c.increaseThresholdStart))) {
             newMultiplier = multiplier - decay;
 
             // Check if decay rate sends new rate below 1.
@@ -764,11 +770,11 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // Calculate decay rate.
         uint256 decay = _mulDiv(multiplier, c.decayPerAdjustment, BPS);
 
-        // Convert `util` to `BPS` by dividing to be in same terms as
-        // `decreaseThresholdEnd`, no precision loss as a result.
-        if ((util / 1e14) <= c.decreaseThresholdEnd) {
+        // Convert `decreaseThresholdEnd` to `WAD` to be in same terms as
+        // `util`, no precision loss as a result.
+        if (util <= (1e14 * uint256(c.decreaseThresholdEnd))) {
             // Apply maximum adjustVelocity reduction (shift = 1).
-            // We only need to adjust for 1e18 precision since `shift`
+            // We only need to adjust for `BPS` precision since `shift`
             // is not used here.
             // currentMultiplier / (1 + adjustmentVelocity) = newMultiplier.
             newMultiplier = _mulDiv(
