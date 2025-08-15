@@ -1,5 +1,5 @@
 // // SPDX-License-Identifier: GPL-3.0
-// pragma solidity ^0.8.19;
+// pragma solidity 0.8.28;
 
 // import { TestStatefulDeployments } from "tests/fuzzing/system/TestStatefulDeployments.sol";
 // import { FuzzVeCVE } from "tests/fuzzing/functional/FuzzVeCVE.sol";

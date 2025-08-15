@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Modified from OpenZeppelin Contracts (utils/introspection/ERC165Checker.sol)
-pragma solidity ^0.8.28;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 import { IERC165 } from "contracts/interfaces/IERC165.sol";
+
+// @author Modified from OpenZeppelin Contracts (utils/introspection/ERC165Checker.sol)
 
 /**
  * @dev Library used to query support of an interface declared via {IERC165}.

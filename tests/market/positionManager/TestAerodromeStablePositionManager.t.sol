@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.19;
+pragma solidity 0.8.28;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { AerodromeStableCToken } from "contracts/market/token/AerodromeStableCToken.sol";

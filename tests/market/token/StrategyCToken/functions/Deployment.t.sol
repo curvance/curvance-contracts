@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.19;
+pragma solidity 0.8.28;
 
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { AuraCToken } from "contracts/market/token/AuraCToken.sol";

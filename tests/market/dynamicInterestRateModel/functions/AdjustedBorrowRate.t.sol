@@ -1,8 +1,11 @@
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
+
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
+
+import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 import { TestBaseDynamicIRM } from "../TestBaseDynamicIRM.sol";
-import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
-import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
     uint256 public baseRatePerSecond;

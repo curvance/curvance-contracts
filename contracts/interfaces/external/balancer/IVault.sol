@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
 /// @dev This is an empty interface used to represent either ERC20-conforming token contracts or ETH (using the zero

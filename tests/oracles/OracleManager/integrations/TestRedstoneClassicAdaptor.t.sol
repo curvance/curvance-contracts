@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.19;
+pragma solidity 0.8.28;
 
 import { TestBaseOracleManager } from "tests/oracles/OracleManager/TestBaseOracleManager.sol";
 import { IRedstone } from "contracts/interfaces/external/redstone/IRedstone.sol";

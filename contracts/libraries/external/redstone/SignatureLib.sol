@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 library SignatureLib {
     uint256 constant ECDSA_SIG_R_BS = 32;

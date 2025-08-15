@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.19;
+pragma solidity 0.8.28;
 
 import { TestBaseRemoteCVE } from "../TestBaseRemoteCVE.sol";
 import { CVEBase } from "contracts/token/CVEBase.sol";

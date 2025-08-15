@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.19;
+pragma solidity 0.8.28;
 
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { SwapType } from "contracts/interfaces/external/pendle/IPSwapAggregator.sol";

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.28;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 /// @notice Arithmetic library with operations for fixed-point numbers.
 /// @dev Reduced function scope from full FixedPointMathLib library to only what is needed for Curvance.

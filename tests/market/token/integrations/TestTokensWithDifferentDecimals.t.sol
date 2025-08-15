@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.19;
+pragma solidity 0.8.28;
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import "tests/market/TestBaseMarketIsolated.sol";

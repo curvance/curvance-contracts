@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.19;
+pragma solidity 0.8.28;
 
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";

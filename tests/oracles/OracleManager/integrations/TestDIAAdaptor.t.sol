@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.19;
+pragma solidity 0.8.28;
 
 import { DIAAdaptor } from "contracts/oracles/adaptors/dia/DIAAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";

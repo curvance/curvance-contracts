@@ -1,10 +1,13 @@
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseDynamicIRM } from "../TestBaseDynamicIRM.sol";
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+
+import { TestBaseDynamicIRM } from "../TestBaseDynamicIRM.sol";
 
 contract SetLinkedTokenTest is TestBaseDynamicIRM {
     event TokenLinked(address cTokenAddress);

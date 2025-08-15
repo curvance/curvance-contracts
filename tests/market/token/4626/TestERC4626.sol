@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity >=0.8.0 <0.9.0;
+pragma solidity 0.8.28;
 
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import "./ERC4626.prop.sol";

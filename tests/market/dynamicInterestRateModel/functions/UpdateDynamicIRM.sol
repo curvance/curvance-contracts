@@ -1,7 +1,9 @@
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity ^0.8.28;
+
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 
 import { TestBaseDynamicIRM } from "../TestBaseDynamicIRM.sol";
-import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 
 contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
     function test_updateDynamicIRM_fail_whenCallerIsNotAuthorized()

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 import { IERC20Metadata } from "contracts/interfaces/IERC20Metadata.sol";
 
