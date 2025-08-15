@@ -10,3 +10,6 @@
 [submodule "lib/atlas"]
 	path = lib/atlas
 	url = https://github.com/FastLane-Labs/atlas
+[submodule "lib/solady"]
+	path = lib/solady
+	url = https://github.com/Vectorized/solady
