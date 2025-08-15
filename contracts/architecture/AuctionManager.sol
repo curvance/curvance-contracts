@@ -20,7 +20,7 @@ contract AuctionManager is DAppControl {
 
     uint256 public constant OEV_SHARE_SCALE = 10_000;
     uint256 public constant ATLAS_CLOSE_FACTOR = 5_000_000;
-    address public immutable CENTRAL_REGISTRY;
+    ICentralRegistry public immutable CENTRAL_REGISTRY;
 
     /// STORAGE ///
 
@@ -85,7 +85,7 @@ contract AuctionManager is DAppControl {
 
     constructor(
         address atlas,
-        address centralRegistry_,
+        ICentralRegistry centralRegistry_,
         uint256 oevShareBundler_,
         uint256 oevShareFastlane_,
         address oevAllocationDestinationFastlane_,
@@ -220,7 +220,7 @@ contract AuctionManager is DAppControl {
     // ---------------------------------------------------- //
 
     function verifyMarketManager(address marketManager) public view {
-        if (!ICentralRegistry(CENTRAL_REGISTRY).isMarketManager(marketManager)) {
+        if (!CENTRAL_REGISTRY.isMarketManager(marketManager)) {
             revert InvalidMarketManager();
         }
     }
@@ -375,14 +375,14 @@ contract AuctionManager is DAppControl {
         if (msg.sender != authorizedExecutionEnv) revert InvalidExecutionEnv();
         verifyMarketManager(marketManager);
 
-        // Set the risk parameters
-        IMarketManagerIsolated(marketManager).setLiquidationConfig(cToken, newPenalty, ATLAS_CLOSE_FACTOR);
+        // Set dynamic risk parameters.
+        IMarketManager(marketManager).setLiquidationConfig(cToken, newPenalty, ATLAS_CLOSE_FACTOR);
 
-        // Unlock collateral
-        IMarketManagerIsolated(marketManager).unlockAuctionCollateral(cToken);
+        // Unlock cToken collateral liquidation.
+        IMarketManager(marketManager).unlockAuctionCollateral(cToken);
 
-        // Unlock market
-        ICentralRegistry(CENTRAL_REGISTRY).unlockAuctionForMarket(marketManager);
+        // Unlock `marketManager`.
+        CENTRAL_REGISTRY.unlockAuctionForMarket(marketManager);
     }
 
     // ---------------------------------------------------- //
