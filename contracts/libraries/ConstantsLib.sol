@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 /// @dev Scalar for math. `WAD` * `WAD` * `WAD` / `BPS`.
 ///      1e18 * 1e18 * 1e18 / 1e4

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { LowLevelCallsHelper } from "contracts/libraries/LowLevelCallsHelper.sol";

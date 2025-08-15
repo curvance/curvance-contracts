@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity ^0.8.28;
 
 import { BurnMessage } from "contracts/libraries/external/BurnMessage.sol";
 import { Message } from "contracts/libraries/external/Message.sol";

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity ^0.8.28;
 
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 
