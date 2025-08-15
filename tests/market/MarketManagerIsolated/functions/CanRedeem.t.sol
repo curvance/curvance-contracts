@@ -71,6 +71,9 @@ contract CanRedeemTest is TestBaseMarketIsolated {
         assertTrue(hasPosition);
 
         skip(20 minutes);
+
+        borrowableCUSDC.accrueIfNeeded();
+
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
@@ -82,6 +85,9 @@ contract CanRedeemTest is TestBaseMarketIsolated {
         marketManagerIsolated.notifyBorrow(address(borrowableCUSDC), user1);
 
         skip(20 minutes);
+
+        borrowableCUSDC.accrueIfNeeded();
+
         marketManagerIsolated.canRedeem(address(borrowableCUSDC), 100e6, user1);
     }
 

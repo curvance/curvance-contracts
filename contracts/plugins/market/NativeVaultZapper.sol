@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BaseVaultZapper, ICentralRegistry, SwapperLib, ICToken, IVault } from "contracts/plugins/market/BaseVaultZapper.sol";
-
+import { SimpleZapper, ICentralRegistry, SwapperLib, ICToken } from "contracts/plugins/market/SimpleZapper.sol";
+import { IVault } from "contracts/interfaces/IVault.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
-contract NativeVaultZapper is BaseVaultZapper {
+contract NativeVaultZapper is SimpleZapper {
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry cr, address wNative) BaseVaultZapper(cr, wNative) {}
+    constructor(ICentralRegistry cr, address wNative) SimpleZapper(cr, wNative) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -38,11 +38,12 @@ contract NativeVaultZapper is BaseVaultZapper {
     /// @return outAmount The `cToken` output shares received by `receiver`.
     function swapAndDeposit(
         address cToken,
+        bool /* depositAsWrappedNative */,
         SwapperLib.Swap memory swapAction,
         uint256 expectedShares,
         bool collateralizeFor,
         address receiver
-    ) external payable nonReentrant returns (uint256 outAmount) {
+    ) external override payable nonReentrant returns (uint256 outAmount) {
         _prepareSwap(swapAction.inputToken, swapAction.inputAmount, false);
 
         if(!CommonLib._isNative(swapAction.outputToken)) {

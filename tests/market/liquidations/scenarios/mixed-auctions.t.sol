@@ -100,6 +100,9 @@ contract MixedAuction is TestBaseLiquidations {
         vm.stopPrank();
         _createPositions();
 
+        _harvestAuraStrategyRewards(1 weeks);
+        borrowableCUSDC.accrueIfNeeded();
+
         mockWethFeed.setMockAnswer(1300e8);
         mockRethFeed.setMockAnswer(1300e8);
 
@@ -268,7 +271,7 @@ contract MixedAuction is TestBaseLiquidations {
         }
     }
 
-    function test_fail_regularLiquidationThenAuctionLiquidation_sameTx() public {
+    function test_success_regularLiquidationThenAuctionLiquidation_sameTx() public {
         _prepareUSDC(dappControlUser, 100000e6);
         _prepareUSDC(address(this), 100000e6);
 

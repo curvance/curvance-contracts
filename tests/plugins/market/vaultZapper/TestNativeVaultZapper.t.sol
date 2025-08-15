@@ -109,6 +109,7 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
         uint256 returnedShares = vaultZapper.swapAndDeposit{value: 100 ether}
         (
             address(simpleCSHMON),
+            false,
             swapAction,
             0,
             false,
@@ -143,6 +144,7 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
 
         uint256 returnedShares = vaultZapper.swapAndDeposit(
             address(simpleCSHMON),
+            false,
             swapAction,
             0,
             false,

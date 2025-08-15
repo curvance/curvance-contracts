@@ -129,7 +129,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     // SLIPPAGE VALUES
 
-    /// @notice Protocol slippage limit for safe swap.
+    /// @notice Protocol slippage limit for `swapSafe`.
     /// @dev 1000 = 10%.
     uint16 public slippageLimit = 1000;
 

@@ -1,0 +1,696 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.19;
+
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { VaultPositionManager } from "contracts/market/position-management/VaultPositionManager.sol";
+import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IVault } from "contracts/interfaces/IVault.sol";
+import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { console2 } from "forge-std/console2.sol";
+import { BasePositionManager } from "contracts/market/position-management/BasePositionManager.sol";
+
+/// @dev
+/// Test overview:
+/// - This suite exercises VaultPositionManager on an Ethereum mainnet fork so we can rely on
+///   Uniswap V3 liquidity and FRAX/sFRAX availability.
+///
+/// Environments:
+/// - Ethereum mainnet (forked in setUp()): all tests run here.
+///
+/// Markets:
+/// - sFRAX/USDC (leverage with swap):
+///   - Collateral: SimpleCToken(sFRAX)
+///   - Debt: BorrowableCToken(USDC)
+///   - Flow: Borrow USDC -> swap USDC to FRAX via Uniswap V3 -> vault wrap FRAX to sFRAX -> deposit/post collateral.
+/// - sFRAX/FRAX (leverage without swap):
+///   - Collateral: SimpleCToken(sFRAX)
+///   - Debt: BorrowableCToken(FRAX)
+///   - Flow: Borrow FRAX -> vault wrap to sFRAX -> deposit/post collateral (no swap).
+/// - USDC/DAI (deleverage only):
+///   - Used to validate the enforced swap path during deleveraging with sufficient liquidity (USDC -> DAI).
+///
+/// Why multiple markets:
+/// - We need sFRAX-specific wrapping logic as well as a pure same-asset path with no swap.
+/// - Deleverage must perform a swap; using USDC/DAI avoids sFRAX liquidity constraints.
+/// Test map:
+/// - testLeverage_BorrowedDifferentFromUnderlying (sFRAX/USDC, with swap).
+/// - testDepositAndLeverage_BorrowedDifferentFromUnderlying (sFRAX/USDC, with swap).
+/// - testLeverage_BorrowedSameAsUnderlying (sFRAX/FRAX, no swap).
+/// - testDepositAndLeverage_BorrowedSameAsUnderlying (sFRAX/FRAX, no swap).
+/// - testDeleverage (USDC/DAI, enforced swap).
+/// - test_Leverage_fail_... (input validation: invalid target/call/tokens/amounts/wrong recipient).
+
+contract TestVaultPositionManager is TestBaseMarketIsolated {
+
+    VaultPositionManager public positionManager;
+
+    address internal _UNISWAP_V3_SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address internal _SFRAX_ADDRESS = 0xA663B02CF0a4b149d2aD41910CB81e23e1c41c32;
+
+    SimpleCToken public simpleCSFRAX;
+
+    BorrowableCToken public borrowableCFRAX;
+
+    receive() external payable {}
+
+    fallback() external payable {}
+
+    function setUp() public override {
+        _fork(21_000_000);
+
+        _init();
+
+        centralRegistry.setExternalCalldataChecker(
+            _UNISWAP_V3_SWAP_ROUTER,
+            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
+        );
+
+        simpleCSFRAX = new SimpleCToken(
+            ICentralRegistry(address(centralRegistry)),
+            IERC20(_SFRAX_ADDRESS),
+            address(marketManagerIsolated)
+        );
+
+        // Price sFRAX using FRAX/USD
+        chainlinkAdaptor.addAsset(
+            _SFRAX_ADDRESS,
+            true,
+            _CHAINLINK_FRAX_USD,
+            0
+        );
+
+        oracleManager.addAssetPriceFeed(_SFRAX_ADDRESS, address(chainlinkAdaptor));
+        oracleManager.addCTokenSupport(address(simpleCSFRAX));
+
+        // Price FRAX
+        chainlinkAdaptor.addAsset(
+            _FRAX_ADDRESS,
+            true,
+            _CHAINLINK_FRAX_USD,
+            0
+        );
+        oracleManager.addAssetPriceFeed(_FRAX_ADDRESS, address(chainlinkAdaptor));
+
+        borrowableCFRAX = _deployBorrowableCToken(_FRAX_ADDRESS);
+        oracleManager.addCTokenSupport(address(borrowableCFRAX));
+
+    }
+
+    /// Borrowed asset: USDC ///
+
+    function testLeverage_BorrowedDifferentFromUnderlying() public {
+        _setUpCSFRAX_USDCPool();
+
+        // User deposits sFRAX shares as collateral
+        deal(_SFRAX_ADDRESS, user1, 500e18);
+
+        vm.startPrank(user1);
+        IERC20(_SFRAX_ADDRESS).approve(address(simpleCSFRAX), type(uint256).max);
+        uint256 depositShares = 500e18;
+        simpleCSFRAX.deposit(depositShares, user1);
+        simpleCSFRAX.postCollateral(depositShares);
+
+        // borrow a small amount first
+        vm.startPrank(user1);
+        borrowableCUSDC.borrow(50e6, user1);
+
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+            user1,
+            address(borrowableCUSDC)
+        ) / 2;
+
+        console2.log("amountForLeverage", amountForLeverage);
+
+        VaultPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(simpleCSFRAX));
+        leverageAction.swapAction.inputToken = address(usdc);
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = _FRAX_ADDRESS;
+        leverageAction.swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+
+        // Swap USDC to FRAX using USDC/FRAX pool with 0.5% slippage
+        IUniswapV3Router.ExactInputParams memory params;
+        params.path = abi.encodePacked(
+            address(usdc),
+            uint24(500),
+            _FRAX_ADDRESS
+        );
+        params.recipient = address(positionManager);
+        params.deadline = block.timestamp + 1 hours;
+        params.amountIn = amountForLeverage;
+        params.amountOutMinimum = 0;
+
+        leverageAction.swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInput.selector,
+            params
+        );
+        leverageAction.swapAction.slippage = 0.5e18;
+
+        // Execute leverage
+        positionManager.leverage(leverageAction, 0.5e18);
+
+        AccountSnapshot memory debtSnap = borrowableCUSDC.getSnapshot(user1);
+        AccountSnapshot memory collSnap = simpleCSFRAX.getSnapshot(user1);
+
+        assertGt(debtSnap.debtBalance, 50e6, "Debt should increase after leverage");
+        assertGt(collSnap.collateralPosted, 0, "Collateral should be posted");
+
+        vm.stopPrank();
+    }
+
+    function testDepositAndLeverage_BorrowedDifferentFromUnderlying() public {
+        _setUpCSFRAX_USDCPool();
+        
+        vm.startPrank(user1);
+
+        deal(_SFRAX_ADDRESS, user1, 500e18);
+        IERC20(_SFRAX_ADDRESS).approve(address(positionManager), type(uint256).max);
+
+        // Set position manager as delegate
+        simpleCSFRAX.setDelegateApproval(address(positionManager), true);
+
+        uint256 amountForLeverage = 800e6;
+
+        VaultPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(simpleCSFRAX));
+        leverageAction.swapAction.inputToken = address(usdc);
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = _FRAX_ADDRESS;
+        leverageAction.swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+
+        IUniswapV3Router.ExactInputParams memory params;
+        params.path = abi.encodePacked(
+            address(usdc),
+            uint24(500),
+            _FRAX_ADDRESS
+        );
+        params.recipient = address(positionManager);
+        params.deadline = block.timestamp + 1 hours;
+        params.amountIn = amountForLeverage;
+        params.amountOutMinimum = 0;
+
+        leverageAction.swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInput.selector,
+            params
+        );
+        leverageAction.swapAction.slippage = 0.5e18;
+
+        positionManager.depositAndLeverage(500e18, leverageAction, 0.05e18);
+
+        AccountSnapshot memory collSnap = simpleCSFRAX.getSnapshot(user1);
+        AccountSnapshot memory debtSnap = borrowableCUSDC.getSnapshot(user1);
+
+        assertGt(collSnap.collateralPosted, 0, "Collateral should be posted");
+        assertGt(debtSnap.debtBalance, 0, "Debt should be incurred");
+
+        vm.stopPrank();
+    }
+
+    /// Borrowed asset: FRAX ///
+
+    function testLeverage_BorrowedSameAsUnderlying() public {
+        _setUpCSFRAX_FRAXPool();
+
+        // User deposits sFRAX shares as collateral
+        deal(_SFRAX_ADDRESS, user1, 500e18);
+
+        vm.startPrank(user1);
+        IERC20(_SFRAX_ADDRESS).approve(address(simpleCSFRAX), type(uint256).max);
+        uint256 depositShares = 500e18;
+        simpleCSFRAX.deposit(depositShares, user1);
+        simpleCSFRAX.postCollateral(depositShares);
+
+        // borrow a small amount first
+        vm.startPrank(user1);
+        borrowableCFRAX.borrow(50e18, user1);
+
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+            user1,
+            address(borrowableCUSDC)
+        ) / 2;
+
+        console2.log("amountForLeverage", amountForLeverage);
+
+        VaultPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCFRAX));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(simpleCSFRAX));
+
+        // Execute leverage
+        positionManager.leverage(leverageAction, 0.5e18);
+
+        AccountSnapshot memory debtSnap = borrowableCFRAX.getSnapshot(user1);
+        AccountSnapshot memory collSnap = simpleCSFRAX.getSnapshot(user1);
+
+        assertGt(debtSnap.debtBalance, 50e6, "Debt should increase after leverage");
+        assertGt(collSnap.collateralPosted, 0, "Collateral should be posted");
+
+        vm.stopPrank();
+    }
+
+    function testDepositAndLeverage_BorrowedSameAsUnderlying() public {
+        _setUpCSFRAX_FRAXPool();
+
+        vm.startPrank(user1);
+
+        deal(_SFRAX_ADDRESS, user1, 500e18);
+        IERC20(_SFRAX_ADDRESS).approve(address(positionManager), type(uint256).max);
+
+        simpleCSFRAX.setDelegateApproval(address(positionManager), true);
+
+        uint256 amountForLeverage = 800e18;
+
+        VaultPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCFRAX));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(simpleCSFRAX));
+
+        positionManager.depositAndLeverage(500e18, leverageAction, 0.05e18);
+
+        AccountSnapshot memory collSnap = simpleCSFRAX.getSnapshot(user1);
+        AccountSnapshot memory debtSnap = borrowableCFRAX.getSnapshot(user1);
+
+        assertGt(collSnap.collateralPosted, 0, "Collateral should be posted");
+        assertGt(debtSnap.debtBalance, 0, "Debt should be incurred");
+
+        vm.stopPrank();
+    }
+
+    /// Deleverage test ///
+
+    function testDeleverage() public {
+
+        _setUpUSDC_DAIPool_Eth();
+
+        deal(address(usdc), user1, 1000e6);
+
+        vm.startPrank(user1);
+        
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+
+        borrowableCUSDC.depositAsCollateral(1000e6, user1);
+
+        borrowableCDAI.borrow(600e18, user1);
+
+        skip(20 minutes);
+        borrowableCDAI.accrueIfNeeded();
+
+        AccountSnapshot memory debtBefore = borrowableCDAI.getSnapshot(user1);
+        AccountSnapshot memory collBefore = borrowableCUSDC.getSnapshot(user1);
+
+        VaultPositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(borrowableCUSDC));
+        deleverageAction.collateralAssets = collBefore.collateralPosted / 5;
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.repayAssets = debtBefore.debtBalance / 10;
+
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = address(usdc);
+        deleverageAction.swapActions[0].inputAmount = collBefore.collateralPosted / 5;
+        deleverageAction.swapActions[0].outputToken = address(dai);
+        deleverageAction.swapActions[0].target = _UNISWAP_V3_SWAP_ROUTER;
+
+        IUniswapV3Router.ExactInputParams memory params;
+        params.path = abi.encodePacked(
+            address(usdc),
+            uint24(3000),
+            address(dai)
+        );
+        params.recipient = address(positionManager);
+        params.deadline = block.timestamp + 1 hours;
+        params.amountIn = collBefore.collateralPosted / 5;
+        params.amountOutMinimum = 0;
+
+        deleverageAction.swapActions[0].call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInput.selector,
+            params
+        );
+        deleverageAction.swapActions[0].slippage = 0.5e18;
+
+        borrowableCUSDC.approve(address(positionManager), type(uint256).max);
+
+        positionManager.deleverage(deleverageAction, 0.5e18);
+
+        AccountSnapshot memory debtAfter = borrowableCDAI.getSnapshot(user1);
+        AccountSnapshot memory collAfter = borrowableCUSDC.getSnapshot(user1);
+
+        assertLt(debtAfter.debtBalance, debtBefore.debtBalance, "Debt should be reduced after deleverage");
+        assertLt(collAfter.collateralPosted, collBefore.collateralPosted, "Collateral should be reduced after deleverage");
+
+        vm.stopPrank();
+    }
+
+    /// Revert tests ///
+
+    function test_Leverage_fail_whenInvalidSwapTargetZero() public {
+        _setUpCSFRAX_USDCPool();
+
+        deal(_SFRAX_ADDRESS, user1, 500e18);
+
+        vm.startPrank(user1);
+        IERC20(_SFRAX_ADDRESS).approve(address(simpleCSFRAX), type(uint256).max);
+        simpleCSFRAX.deposit(500e18, user1);
+        simpleCSFRAX.postCollateral(500e18);
+
+        borrowableCUSDC.borrow(50e6, user1);
+
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+            user1, address(borrowableCUSDC)
+        ) / 2;
+
+        VaultPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(simpleCSFRAX));
+        leverageAction.swapAction.inputToken = address(usdc);
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = _FRAX_ADDRESS;
+        leverageAction.swapAction.call = "skibidi";
+        leverageAction.swapAction.target = address(0); // invalid target
+
+        IUniswapV3Router.ExactInputParams memory params;
+        params.path = abi.encodePacked(address(usdc), uint24(500), _FRAX_ADDRESS);
+        params.recipient = address(positionManager);
+        params.deadline = block.timestamp + 1 hours;
+        params.amountIn = amountForLeverage;
+        params.amountOutMinimum = 0;
+
+        leverageAction.swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInput.selector, params
+        );
+        leverageAction.swapAction.slippage = 0.5e18;
+
+        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
+        positionManager.leverage(leverageAction, 0.5e18);
+        vm.stopPrank();
+    }
+
+    function test_Leverage_fail_whenInvalidSwapCallEmpty() public {
+        _setUpCSFRAX_USDCPool();
+
+        deal(_SFRAX_ADDRESS, user1, 500e18);
+
+        vm.startPrank(user1);
+        IERC20(_SFRAX_ADDRESS).approve(address(simpleCSFRAX), type(uint256).max);
+        simpleCSFRAX.deposit(500e18, user1);
+        simpleCSFRAX.postCollateral(500e18);
+
+        borrowableCUSDC.borrow(50e6, user1);
+
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+            user1, address(borrowableCUSDC)
+        ) / 2;
+
+        VaultPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(simpleCSFRAX));
+        leverageAction.swapAction.inputToken = address(usdc);
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = _FRAX_ADDRESS;
+        leverageAction.swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        leverageAction.swapAction.call = "";
+        leverageAction.swapAction.slippage = 0.5e18;
+
+        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
+        positionManager.leverage(leverageAction, 0.5e18);
+        vm.stopPrank();
+    }
+
+    function test_Leverage_fail_whenInvalidInputToken() public {
+        _setUpCSFRAX_USDCPool();
+
+        deal(_SFRAX_ADDRESS, user1, 500e18);
+
+        vm.startPrank(user1);
+        IERC20(_SFRAX_ADDRESS).approve(address(simpleCSFRAX), type(uint256).max);
+        simpleCSFRAX.deposit(500e18, user1);
+        simpleCSFRAX.postCollateral(500e18);
+
+        borrowableCUSDC.borrow(50e6, user1);
+
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+            user1, address(borrowableCUSDC)
+        ) / 2;
+
+        VaultPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(simpleCSFRAX));
+        leverageAction.swapAction.inputToken = _FRAX_ADDRESS; // should be USDC
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = _FRAX_ADDRESS;
+        leverageAction.swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+
+        IUniswapV3Router.ExactInputParams memory params;
+        params.path = abi.encodePacked(address(usdc), uint24(500), _FRAX_ADDRESS);
+        params.recipient = address(positionManager);
+        params.deadline = block.timestamp + 1 hours;
+        params.amountIn = amountForLeverage;
+        params.amountOutMinimum = 0;
+        leverageAction.swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInput.selector, params
+        );
+        leverageAction.swapAction.slippage = 0.5e18;
+
+        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
+        positionManager.leverage(leverageAction, 0.5e18);
+        vm.stopPrank();
+    }
+
+    function test_Leverage_fail_whenInvalidOutputToken() public {
+        _setUpCSFRAX_USDCPool();
+
+        deal(_SFRAX_ADDRESS, user1, 500e18);
+
+        vm.startPrank(user1);
+        IERC20(_SFRAX_ADDRESS).approve(address(simpleCSFRAX), type(uint256).max);
+        simpleCSFRAX.deposit(500e18, user1);
+        simpleCSFRAX.postCollateral(500e18);
+
+        borrowableCUSDC.borrow(50e6, user1);
+
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+            user1, address(borrowableCUSDC)
+        ) / 2;
+
+        VaultPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(simpleCSFRAX));
+        leverageAction.swapAction.inputToken = address(usdc);
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = address(usdc); // should be FRAX
+        leverageAction.swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+
+        IUniswapV3Router.ExactInputParams memory params;
+        params.path = abi.encodePacked(address(usdc), uint24(500), _FRAX_ADDRESS);
+        params.recipient = address(positionManager);
+        params.deadline = block.timestamp + 1 hours;
+        params.amountIn = amountForLeverage;
+        params.amountOutMinimum = 0;
+        leverageAction.swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInput.selector, params
+        );
+        leverageAction.swapAction.slippage = 0.5e18;
+
+        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
+        positionManager.leverage(leverageAction, 0.5e18);
+        vm.stopPrank();
+    }
+
+    function test_Leverage_fail_whenInvalidInputAmount() public {
+        _setUpCSFRAX_USDCPool();
+
+        deal(_SFRAX_ADDRESS, user1, 500e18);
+
+        vm.startPrank(user1);
+        IERC20(_SFRAX_ADDRESS).approve(address(simpleCSFRAX), type(uint256).max);
+        simpleCSFRAX.deposit(500e18, user1);
+        simpleCSFRAX.postCollateral(500e18);
+
+        borrowableCUSDC.borrow(50e6, user1);
+
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+            user1, address(borrowableCUSDC)
+        ) / 2;
+
+        VaultPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(simpleCSFRAX));
+        leverageAction.swapAction.inputToken = address(usdc);
+        leverageAction.swapAction.inputAmount = amountForLeverage - 1; // mismatch
+        leverageAction.swapAction.outputToken = _FRAX_ADDRESS;
+        leverageAction.swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+
+        IUniswapV3Router.ExactInputParams memory params;
+        params.path = abi.encodePacked(address(usdc), uint24(500), _FRAX_ADDRESS);
+        params.recipient = address(positionManager);
+        params.deadline = block.timestamp + 1 hours;
+        params.amountIn = amountForLeverage;
+        params.amountOutMinimum = 0;
+        leverageAction.swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInput.selector, params
+        );
+        leverageAction.swapAction.slippage = 0.5e18;
+
+        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidParam.selector);
+        positionManager.leverage(leverageAction, 0.5e18);
+        vm.stopPrank();
+    }
+
+    function test_Leverage_fail_whenZeroDepositAmount_WrongRecipient() public {
+        _setUpCSFRAX_USDCPool();
+
+        deal(_SFRAX_ADDRESS, user1, 500e18);
+
+        vm.startPrank(user1);
+        IERC20(_SFRAX_ADDRESS).approve(address(simpleCSFRAX), type(uint256).max);
+        simpleCSFRAX.deposit(500e18, user1);
+        simpleCSFRAX.postCollateral(500e18);
+
+        borrowableCUSDC.borrow(50e6, user1);
+
+        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+            user1, address(borrowableCUSDC)
+        ) / 2;
+
+        VaultPositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(simpleCSFRAX));
+        leverageAction.swapAction.inputToken = address(usdc);
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = _FRAX_ADDRESS;
+        leverageAction.swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+
+        // valid swap, but send output to the wrong recipient so manager has 0 FRAX
+        IUniswapV3Router.ExactInputParams memory params;
+        params.path = abi.encodePacked(address(usdc), uint24(500), _FRAX_ADDRESS);
+        params.recipient = user1; // wrong recipient
+        params.deadline = block.timestamp + 1 hours;
+        params.amountIn = amountForLeverage;
+        params.amountOutMinimum = 0;
+
+        leverageAction.swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInput.selector, params
+        );
+        leverageAction.swapAction.slippage = 1e18;
+
+        vm.stopPrank();
+        centralRegistry.setSlippageLimit(10000);
+        vm.startPrank(user1);
+
+        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidAmount.selector);
+        positionManager.leverage(leverageAction, 0.5e18);
+        vm.stopPrank();
+    }
+
+    /// Market setups ///
+
+    function _setUpCSFRAX_USDCPool() internal {
+        _prepareUSDC(address(this), 100e6);
+        usdc.approve(address(borrowableCUSDC), 77777);
+
+        deal(_SFRAX_ADDRESS, address(this), 77777);
+        IERC20(_SFRAX_ADDRESS).approve(address(simpleCSFRAX), 77777);
+
+        marketManagerIsolated.listTokens(address(simpleCSFRAX), address(borrowableCUSDC));
+
+        _setCTokenConfigBasic(address(simpleCSFRAX), 1_000_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000e6, 1_000_000e6);
+
+        positionManager = new VaultPositionManager(
+            ICentralRegistry(address(centralRegistry)),
+            address(marketManagerIsolated),
+            _WETH_ADDRESS
+        );
+        marketManagerIsolated.addPositionManager(address(positionManager));
+
+        // Provide liquidity
+        address liquidityProvider = makeAddr("liquidityProvider");
+        _prepareUSDC(liquidityProvider, 1_000_000e6);
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), type(uint256).max);
+        borrowableCUSDC.deposit(1_000_000e6, liquidityProvider);
+        vm.stopPrank();
+    }
+
+    function _setUpCSFRAX_FRAXPool() internal {
+        deal(_FRAX_ADDRESS, address(this), 77777);
+        IERC20(_FRAX_ADDRESS).approve(address(borrowableCFRAX), 77777);
+
+        deal(_SFRAX_ADDRESS, address(this), 77777);
+        IERC20(_SFRAX_ADDRESS).approve(address(simpleCSFRAX), 77777);
+
+        marketManagerIsolated.listTokens(address(simpleCSFRAX), address(borrowableCFRAX));
+
+        _setCTokenConfigBasic(address(simpleCSFRAX), 1_000_000e18, 0);
+        _setCTokenConfigBasic(address(borrowableCFRAX), 1_000_000e18, 1_000_000e18);
+
+        positionManager = new VaultPositionManager(
+            ICentralRegistry(address(centralRegistry)),
+            address(marketManagerIsolated),
+            _WETH_ADDRESS
+        );
+        marketManagerIsolated.addPositionManager(address(positionManager));
+
+        // Provide liquidity
+        address liquidityProvider = makeAddr("liquidityProvider");
+        deal(_FRAX_ADDRESS, liquidityProvider, 1_000_000e18);
+        vm.startPrank(liquidityProvider);
+        IERC20(_FRAX_ADDRESS).approve(address(borrowableCFRAX), type(uint256).max);
+        borrowableCFRAX.deposit(1_000_000e18, liquidityProvider);
+        vm.stopPrank();
+    }
+
+    function _setUpUSDC_DAIPool_Eth() internal {
+
+        super.setUp();
+
+        centralRegistry.setExternalCalldataChecker(
+            _UNISWAP_V3_SWAP_ROUTER,
+            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
+        );
+
+        _prepareUSDC(address(this), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
+
+        deal(_DAI_ADDRESS, address(this), 77777);
+        IERC20(_DAI_ADDRESS).approve(address(borrowableCDAI), 77777);
+
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
+
+        _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000e6, 1_000_000e6);
+        _setCTokenConfigBasic(address(borrowableCDAI), 1_000_000e18, 1_000_000e18);
+
+        positionManager = new VaultPositionManager(
+            ICentralRegistry(address(centralRegistry)),
+            address(marketManagerIsolated),
+            _WETH_ADDRESS
+        );
+
+        marketManagerIsolated.addPositionManager(address(positionManager));
+
+        // Provide liquidity
+        address liquidityProvider = makeAddr("liquidityProvider");
+        deal(address(dai), liquidityProvider, 1_000_000e18);
+        vm.startPrank(liquidityProvider);
+        dai.approve(address(borrowableCDAI), type(uint256).max);
+        borrowableCDAI.deposit(1_000_000e18, liquidityProvider);
+        vm.stopPrank();
+    }
+}

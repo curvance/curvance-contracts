@@ -101,6 +101,10 @@ contract LiquidateExactMix is TestBaseLiquidations {
 
     function test_liquidateExactMix() public {
 
+        skip(4 weeks);
+        _refreshMockFeeds();
+        borrowableCUSDC.accrueIfNeeded();
+
         // ===== Cache general liquidation values =====
 
         outstandingDebtBefore = borrowableCUSDC.marketOutstandingDebt();

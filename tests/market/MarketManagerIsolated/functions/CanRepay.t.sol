@@ -42,6 +42,9 @@ contract CanRepayTest is TestBaseMarketIsolated {
         marketManagerIsolated.notifyBorrow(address(borrowableCUSDC), user1);
 
         skip(20 minutes);
+
+        borrowableCUSDC.accrueIfNeeded();
+
         marketManagerIsolated.canRepay(address(borrowableCUSDC), user1);
     }
 
