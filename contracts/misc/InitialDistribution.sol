@@ -2,8 +2,8 @@
 pragma solidity ^0.8.19;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.sol";
 
-import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
 

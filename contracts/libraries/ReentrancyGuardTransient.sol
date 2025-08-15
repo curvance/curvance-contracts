@@ -2,8 +2,8 @@
 pragma solidity ^0.8.26;
 
 /// @notice Reentrancy guard mixin.
-/// @author Solady (https://github.com/vectorized/solady/blob/main/src/utils/ReentrancyGuard.sol)
-/// @dev Edited to always use transient storage.
+/// @author Solady (https://github.com/vectorized/solady/blob/main/src/utils/ReentrancyGuardTransient.sol)
+/// @dev Mai: Edited to always use transient storage.
 abstract contract ReentrancyGuard {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CUSTOM ERRORS                        */
