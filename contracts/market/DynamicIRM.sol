@@ -703,7 +703,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // Calculate decay rate.
         uint256 decay = _mulDiv(multiplier, c.decayPerAdjustment, BPS);
 
-        if (util <= c.increaseThresholdStart) {
+        if ((util / 1e14) <= c.increaseThresholdStart) {
             newMultiplier = multiplier - decay;
 
             // Check if decay rate sends new rate below 1.
@@ -714,11 +714,11 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // `util` vs `increaseThresholdStart` and `WAD`.
         // Then apply decay effect.
         newMultiplier = _positiveShift(
-            multiplier, // `multiplier`.
-            c.adjustmentVelocity, // `adjustmentVelocity`.
-            decay, // `decay`.
-            util, // `current`.
-            c.increaseThresholdStart // `start`.
+            multiplier, // `multiplier` in `WAD`.
+            c.adjustmentVelocity, // `adjustmentVelocity` in `BPS`.
+            decay, // `decay` in `multiplier` aka `WAD`.
+            util, // `current` in `WAD`.
+            (1e14 * c.increaseThresholdStart) // `start` convert to WAD to match util.
         );
 
         // Update and return with adjustment and decay rate applied.
@@ -785,12 +785,12 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // `util` vs `vertexStart` and `decreaseThresholdEnd`.
         // Then apply decay effect.
         newMultiplier = _negativeShift(
-            multiplier, // `multiplier`.
-            c.adjustmentVelocity, // `adjustmentVelocity`.
-            decay, // `decay`.
-            util, // `current`.
-            c.vertexStart, // `start`.
-            c.decreaseThresholdEnd // `end`.
+            multiplier, // `multiplier` in `WAD`.
+            c.adjustmentVelocity, // `adjustmentVelocity` in `BPS`.
+            decay, // `decay` in `multiplier` aka `WAD`.
+            util, // `current` in `WAD`.
+            c.vertexStart, // `start` in `WAD`.
+            (1e14 * c.decreaseThresholdEnd) // `end` convert to WAD to match util/vertexStart.
         );
 
         // Update and return with adjustment and decay rate applied.
