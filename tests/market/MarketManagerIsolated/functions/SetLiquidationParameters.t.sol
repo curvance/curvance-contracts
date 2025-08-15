@@ -41,7 +41,7 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
     function test_setLiquidationConfig_fail_whenTokenNotListed() public {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
 
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector); 
         marketManagerIsolated.setLiquidationConfig(user1, 1.15e18, 0.30e18);
@@ -49,7 +49,7 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
     }
 
     function test_setLiquidationConfig_fail_whenCollateralizationOff() public {
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedLiquidation.selector); 
         marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), 1.15e18, 0.30e18);
@@ -66,7 +66,7 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
         uint256 tooLowCloseFactor = 1.09e18;
         uint256 validCloseFactor = 0.30e18;
 
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
         marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), tooLowPenalty, validCloseFactor);

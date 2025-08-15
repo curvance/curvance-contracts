@@ -36,7 +36,7 @@ contract ResetLiquidationConfigTest is TestBaseMarketIsolated {
     }
 
     function test_resetLiquidationConfig_success() public {
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
         
         uint256 validPenalty = 11500;
         uint256 validCloseFactor = 3000;

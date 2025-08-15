@@ -35,7 +35,7 @@ contract LockAuctionCollateralTest is TestBaseMarketIsolated {
     }
 
     function test_lockAuctionCollateral_success() public {
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         marketManagerIsolated.lockAuctionCollateral();
         vm.stopPrank();

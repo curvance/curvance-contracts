@@ -179,7 +179,7 @@ contract TestVariables {
     address public user3 = address(1000003);
     address public user4 = address(1000004);
     address public liquidator = address(1000005);
-    address public dappControlUser = address(1000006);
+    address public auctionPermsUser = address(1000006);
     address public harvester = address(1000007);
     uint256 public voteBoostMultiplier = 12000; // 12000 = 120%.
     uint256 public lockBoostMultiplier = 13000; // 13000 = 130%.

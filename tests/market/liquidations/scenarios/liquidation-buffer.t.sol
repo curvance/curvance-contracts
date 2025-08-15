@@ -73,9 +73,9 @@ contract TestLiquidationBuffer is TestBaseMarketIsolated {
     }
 
     function test_success_AuctionLiquidation() public {
-        _prepareUSDC(dappControlUser, 1000e6);
+        _prepareUSDC(auctionPermsUser, 1000e6);
 
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         // Set auction parameters
         uint256 validPenalty = 11500;
@@ -109,7 +109,7 @@ contract TestLiquidationBuffer is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user1), 1000e18 -
             expectedLiquidationValues.collateralLiquidated, " collateral balance should have changed");
         
-        assertEq(borrowableCDAI.balanceOf(dappControlUser), 
+        assertEq(borrowableCDAI.balanceOf(auctionPermsUser), 
             expectedLiquidationValues.collateralLiquidated, " debt balance should have changed");
 
     }

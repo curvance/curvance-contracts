@@ -1083,9 +1083,9 @@ contract MarketManagerIsolated is
         emit PositionManagerUpdated(oldPM, false);
     }
 
-    /// @notice Called from the Auction DappControl as a post hook
-    ///         after liquidations are tried to enable all 
-    ///         collateral to be liquidated outside Auction tx.
+    /// @notice Called from the AuctionHub as a post hook after liquidations
+    ///         are tried to enable all collateral to be liquidated outside
+    ///         an Auction tx.
     function lockAuctionCollateral() external {
         _checkAuctionPermissions();
 
@@ -1095,9 +1095,12 @@ contract MarketManagerIsolated is
         }
     }
 
-    /// @notice Called from the Auction DappControl as a pre hook
-    ///         before liquidations are tried to enforce that 
-    ///         only a specific collateral can be liquidated.
+    /// @notice Called from the AuctionHub as a pre hook before liquidations
+    ///         are tried to enforce that only a specific collateral can be
+    ///         liquidated during a transaction.
+    /// @param collateralToUnlock The address of the cToken to unlock as
+    ///                           liquidatable collateral during
+    ///                           a transaction.
     function unlockAuctionCollateral(address collateralToUnlock) external {
         _checkAuctionPermissions();
 

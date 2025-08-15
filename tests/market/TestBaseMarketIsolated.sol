@@ -130,7 +130,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         // Create a dapp control user.
         vm.startPrank(centralRegistry.daoAddress());
-        centralRegistry.addAuctionPermissions(dappControlUser);
+        centralRegistry.addAuctionPermissions(auctionPermsUser);
         vm.stopPrank();
 
         oracleManagers[chainId].addCTokenSupport(address(borrowableCUSDC));
@@ -758,7 +758,7 @@ contract TestBaseMarketIsolated is TestBase {
         uint256 liquidationPenalty,
         uint256 liquidationCloseFactor
     ) internal {
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(token);
         marketManagerIsolated.setLiquidationConfig(token, liquidationPenalty, liquidationCloseFactor);

@@ -225,6 +225,12 @@ interface ICentralRegistry {
         uint256 era
     ) external view returns (uint256);
 
+    /// @notice Unlocks a market to process auction-based liquidations.
+    /// @param marketToUnlock The address of the market manager to unlock
+    ///                       auction-based liquidations with a specific
+    ///                       liquidation bonus.
+    function unlockAuctionForMarket(address marketToUnlock) external;
+
     /// @notice Checks if a market is unlocked for auction operations.
     /// @return Whether the caller is an unlocked market, approved for
     ///         auction-based liquidations.

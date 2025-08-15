@@ -34,7 +34,7 @@ contract UnlockAuctionCollateralTest is TestBaseMarketIsolated {
     }
 
     function test_unlockAuctionCollateral_success() public {
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
         vm.stopPrank();

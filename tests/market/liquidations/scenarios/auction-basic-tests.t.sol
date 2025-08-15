@@ -20,7 +20,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
 
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
@@ -56,7 +56,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
 
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
@@ -127,7 +127,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
 
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(1));
@@ -150,7 +150,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
 
-        vm.prank(dappControlUser);
+        vm.prank(auctionPermsUser);
         marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
 
         address[] memory usersToLiquidate = new address[](1);   
@@ -170,7 +170,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareLiquidation();
 
         // Set a valid penalty (WAD + 15%)
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));

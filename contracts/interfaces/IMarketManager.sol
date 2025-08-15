@@ -98,6 +98,28 @@ interface IMarketManager {
         uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256
     );
 
+    /// @notice Called from the AuctionHub as a pre hook before liquidations
+    ///         are tried to enforce that only a specific collateral can be
+    ///         liquidated during a transaction.
+    /// @param collateralToUnlock The address of the cToken to unlock as
+    ///                           liquidatable collateral during
+    ///                           a transaction.
+    function unlockAuctionCollateral(address collateralToUnlock) external;
+
+    /// @notice Sets new dynamic close factor and liquidation penalty
+    ///         values in transient storage.
+    /// @dev Transient storage enforces any liquidator outside auction-based
+    ///      liquidations uses the default risk parameters.
+    /// @param cToken The Curvance token to set liquidation incentive and
+    ///               close factor for during an auction-based liquidation.
+    /// @param incentive The auction liquidation incentive value, in `BPS`.
+    /// @param closeFactor The auction close factor value, in `BPS`.
+    function setLiquidationConfig(
+        address cToken,
+        uint256 incentive,
+        uint256 closeFactor
+    ) external;
+
     /// @notice Checks if the account should be allowed to mint tokens
     ///         in the given market.
     /// @param cToken The token to verify mints against.
