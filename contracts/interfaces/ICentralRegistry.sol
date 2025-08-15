@@ -3,8 +3,7 @@ pragma solidity ^0.8.26;
 
 /// TYPES ///
 
-/// @title Chain Data
-/// @notice Struct containing information on a chain's data.
+/// @notice Configuration data for a separately supported blockchain.
 /// @param isSupported Whether the chain is supported or not.
 /// @param messagingChainId Messaging Chain ID where this address authorized.
 /// @param domain Domain for the chain.
@@ -172,15 +171,23 @@ interface ICentralRegistry {
         uint256 chainId
     ) external view returns (ChainConfig memory);
 
-    // Messaging specific ChainId => GETH comparable ChainId.
+    /// @notice Returns the GETH chainId corresponding chainId corresponding
+    ///         to Crosschain Messaging Protocol's `chainId`.
+    /// @param chainId The Crosschain Messaging Protocol's chainId.
+    /// @return The GETH chainId corresponding chainId corresponding to
+    ///         Crosschain Messaging Protocol's `chainId`.
     function messagingToGETHChainId(
         uint16 chainId
     ) external view returns (uint256);
 
-    // GETH comparable ChainId => Messaging specific ChainId.
+    /// @notice Returns the Crosschain Messaging Protocol's ChainId
+    ///         corresponding to the GETH `chainId`.
+    /// @param chainId The GETH chainId.
+    /// @return The Crosschain Messaging Protocol's ChainId
+    ///         corresponding to the GETH `chainId`.
     function GETHToMessagingChainId(
         uint256 chainId
-    ) external view returns (uint16);
+    ) external view returns (uint256);
 
     /// @notice Indicates if an address is a market manager or not.
     function isMarketManager(
