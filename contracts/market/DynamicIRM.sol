@@ -718,7 +718,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
             c.adjustmentVelocity, // `adjustmentVelocity` in `BPS`.
             decay, // `decay` in `multiplier` aka `WAD`.
             util, // `current` in `WAD`.
-            (1e14 * c.increaseThresholdStart) // `start` convert to WAD to match util.
+            1e14 * uint256(c.increaseThresholdStart) // `start` convert to WAD to match util.
         );
 
         // Update and return with adjustment and decay rate applied.
@@ -790,7 +790,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
             decay, // `decay` in `multiplier` aka `WAD`.
             util, // `current` in `WAD`.
             c.vertexStart, // `start` in `WAD`.
-            (1e14 * c.decreaseThresholdEnd) // `end` convert to WAD to match util/vertexStart.
+            1e14 * uint256(c.decreaseThresholdEnd) // `end` convert to WAD to match util/vertexStart.
         );
 
         // Update and return with adjustment and decay rate applied.
@@ -913,8 +913,8 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///         to `WAD`.
     /// @dev Internal helper function for easily converting between scalars.
     /// @param value The value to convert from `BPS` to `WAD`.
-    /// @return The value, in `WAD`.
-    function _bpToWad(uint256 value) internal pure returns (uint256) {
-        return value * 1e14;
+    /// @return result The value, in `WAD`.
+    function _bpToWad(uint256 value) internal pure returns (uint256 result) {
+        result = value * 1e14;
     }
 }
