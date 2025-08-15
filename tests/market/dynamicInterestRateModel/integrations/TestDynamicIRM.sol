@@ -498,8 +498,8 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             ,
             ,
             ,
+            uint256 decayRate,
             ,
-            uint256 vertexMultiplierMax,
         ) = IRM.ratesConfig();
         uint256 adjustmentRate = IRM.ADJUSTMENT_RATE();
 
@@ -517,9 +517,6 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
         _prepareDAI(user, BORROW_AMOUNT_BELOW_VERTEX);
         dai.approve(address(borrowableCDAI), BORROW_AMOUNT_BELOW_VERTEX);
         borrowableCDAI.repay(BORROW_AMOUNT_BELOW_VERTEX);
-
-        // Decay Rate is configured as 1% in this test.
-        uint256 decayRate = 100;
         uint256 currentMultiplier;
 
         // Loop through multiple periods making sure only decay applies.
