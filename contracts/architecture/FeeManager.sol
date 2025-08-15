@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";

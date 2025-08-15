@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";

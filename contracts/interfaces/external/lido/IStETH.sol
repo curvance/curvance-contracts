@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 

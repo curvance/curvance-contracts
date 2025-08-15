@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";

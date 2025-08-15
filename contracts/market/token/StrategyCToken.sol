@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 import { BaseCTokenWithYield, FixedPointMathLib, WAD, IERC20, ICentralRegistry } from "contracts/market/token/BaseCTokenWithYield.sol";
 

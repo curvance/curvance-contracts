@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 import { ActionRegistry, IActionRegistry } from "contracts/libraries/ActionRegistry.sol";
 import { BPS } from "contracts/libraries/ConstantsLib.sol";

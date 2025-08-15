@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 interface IActionRegistry {
     /// @notice Checks whether `user` has transferability enabled or disabled

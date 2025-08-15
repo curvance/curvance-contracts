@@ -1,7 +1,7 @@
 // contracts/Messages.sol
 // SPDX-License-Identifier: Apache 2
 
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 interface IWormhole {
     struct GuardianSet {

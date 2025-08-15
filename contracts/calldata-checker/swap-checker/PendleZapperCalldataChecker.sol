@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
