@@ -1,12 +1,12 @@
-// // SPDX-License-Identifier: UNLICENSED
-// pragma solidity ^0.8.19;
+// // SPDX-License-Identifier: GPL-3.0
+// pragma solidity 0.8.28;
 
 // import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
-// import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
-// import { BASIS_POINTS, WAD } from "contracts/libraries/ConstantsLib.sol";
+// import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
+// import { BPS, WAD } from "contracts/libraries/ConstantsLib.sol";
 
 // contract FuzzVeCVE is StatefulBaseMarket {
-//     RewardsData defaultRewardData;
+//     ClaimAction defaultRewardData;
 //     // uint256.max to represent no locks existing
 //     uint256 NO_LOCKS = type(uint256).max;
 //     // caller address set to address(this) for execution
@@ -14,7 +14,7 @@
 
 //     constructor() {
 //         caller = address(this);
-//         defaultRewardData = RewardsData(false, false, false, false);
+//         defaultRewardData = ClaimAction(false, false, false, false);
 //         // seeds the execution with creating a lock
 //         create_lock_when_not_shutdown(uint(0), false);
 //     }
@@ -43,7 +43,7 @@
 //             veCVE.createLock(
 //                 amount,
 //                 continuousLock,
-//                 RewardsData(false, false, false, false),
+//                 ClaimAction(false, false, false, false),
 //                 bytes(""),
 //                 0
 //             )
@@ -183,7 +183,7 @@
 //                 postCombineUserPoints,
 //                 ((veCVE.balanceOf(caller) * veCVE.CL_POINT_MULTIPLIER())) /
 //                     WAD,
-//                 "VECVE-5 - combineAllLocks() veCVE balance = userPoints * multiplier/BASIS_POINTS failed for all continuous => continuous"
+//                 "VECVE-5 - combineAllLocks() veCVE balance = userPoints * multiplier/BPS failed for all continuous => continuous"
 //             );
 //             _check_continuous_lock_has_no_user_or_chain_points(
 //                 combinedUnlockTime,
@@ -258,7 +258,7 @@
 //                 postCombineUserPoints,
 //                 ((veCVE.balanceOf(caller) * veCVE.CL_POINT_MULTIPLIER())) /
 //                     WAD,
-//                 "VECVE-10 - combineAllLocks() veCVE balance = userPoints * multiplier/BASIS_POINTS failed for all continuous => continuous"
+//                 "VECVE-10 - combineAllLocks() veCVE balance = userPoints * multiplier/BPS failed for all continuous => continuous"
 //             );
 //             // for each existing lock's unique epoch
 //             for (uint i = 0; i < uniqueEpochs.length; i++) {
@@ -474,7 +474,7 @@
 //             veCVE.extendLock(
 //                 lockIndex,
 //                 continuousLock,
-//                 RewardsData(false, true, true, true),
+//                 ClaimAction(false, true, true, true),
 //                 bytes(""),
 //                 0
 //             )
@@ -505,7 +505,7 @@
 //             veCVE.extendLock(
 //                 lockIndex,
 //                 continuousLock,
-//                 RewardsData(false, true, true, true),
+//                 ClaimAction(false, true, true, true),
 //                 bytes(""),
 //                 0
 //             )

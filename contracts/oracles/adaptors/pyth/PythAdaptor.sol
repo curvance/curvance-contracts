@@ -1,8 +1,10 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBalance.sol";
+
+import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
@@ -17,27 +19,24 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// @notice Stores configuration data for Pyth price sources.
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
+    /// @param heartbeat The max amount of time allowed between price updates.
+    ///                  type(uint256).max defaults to using
+    ///                  DEFAULT_HEART_BEAT.
     /// @param priceId The price id of the asset to price.
-    /// @param heartbeat The max amount of time between price updates.
-    ///                  0 defaults to using DEFAULT_HEART_BEAT.
-    /// @param max The maximum valid price of the asset.
-    ///            0 defaults to use proxy max price reduced by ~10%.
-    /// @param min The minimum valid price of the asset.
-    ///            0 defaults to use proxy min price increased by ~10%.
     struct AssetConfig {
         bool isConfigured;
+        uint24 heartbeat;
         bytes32 priceId;
-        uint256 heartbeat;
-        uint256 max;
-        uint256 min;
     }
 
     /// CONSTANTS ///
 
-    /// @notice If zero is specified for a Pyth asset heartbeat,
-    ///         this value is used instead.
+    /// @notice If type(uint256).max is specified for an asset heartbeat,
+    ///         `DEFAULT_HEART_BEAT` is used instead.
     /// @dev    1 days = 24 hours = 1,440 minutes = 86,400 seconds.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days;
+    ///         We use type(uint256).max instead of 0 for trigger as we may
+    ///         want 0 second requirement on redstone pull oracles.
+    uint256 public constant DEFAULT_HEART_BEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
 
     /// STORAGE ///
 
@@ -57,7 +56,6 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     error PythAdaptor__Unauthorized();
     error PythAdaptor__InvalidHeartbeat();
-    error PythAdaptor__InvalidMinMaxConfig();
 
     /// CONSTRUCTOR ///
 
@@ -83,35 +81,30 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
-    /// @param config The adaptor data
+    /// @param heartbeat The max amount of time allowed between price updates.
+    /// @param priceId The price id of the asset to price.
     function addAsset(
         address asset,
         bool inUSD,
-        AssetConfig memory config
+        uint256 heartbeat,
+        bytes32 priceId
     ) external {
         _checkElevatedPermissions();
 
-        if (config.heartbeat != 0) {
-            if (config.heartbeat > DEFAULT_HEART_BEAT) {
+        if (heartbeat != type(uint256).max) {
+            if (heartbeat > DEFAULT_HEART_BEAT) {
                 revert PythAdaptor__InvalidHeartbeat();
             }
         }
 
-        // If the buffered max price is above uint240 its theoretically
-        // possible to get a price which would lose precision on uint240
-        // conversion, which we need to protect against in getPrice() so
-        // we can add a second protective layer here.
-        if (config.max > type(uint240).max) {
-            config.max = type(uint240).max;
-        }
+        // Update `config` and make sure `isSupportedAsset` returns true
+        // for `asset`.
+        AssetConfig storage config = assetConfig[asset][inUSD];
 
-        if (config.min >= config.max) {
-            revert PythAdaptor__InvalidMinMaxConfig();
-        }
-
-        // Save `config` and update mapping that we support `asset` now.
+        config.heartbeat = uint24(heartbeat != type(uint256).max ?
+            heartbeat : DEFAULT_HEART_BEAT);
+        config.priceId = priceId;
         config.isConfigured = true;
-        assetConfig[asset][inUSD] = config;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -163,12 +156,16 @@ contract PythAdaptor is BaseOracleAdaptor {
         }
     }
 
+    /// @notice Updates Pyth prices using native gas tokens for the chain.
+    /// @dev The `priceUpdateData` data should be retrieved
+    /// from Pyth's off-chain Price Service API using the `pyth-evm-js`
+    /// package.
+    /// @param priceUpdateData The calldata representing a price update.
     function updateFeedsWithNative(
         bytes[] calldata priceUpdateData
     ) public payable {
-        // Update the prices to the latest available values and pay the required fee for it. The `priceUpdateData` data
-        // should be retrieved from our off-chain Price Service API using the `pyth-evm-js` package.
-        // See section "How Pyth Works on EVM Chains" below for more information.
+        // Update the prices to the latest available values and pay the
+        // required fee for it. 
         uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
         IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
 
@@ -225,15 +222,13 @@ contract PythAdaptor is BaseOracleAdaptor {
         result.hadError = _verifyData(
             adjustedPrice,
             price.publishTime,
-            config.max,
-            config.min,
             config.heartbeat
         );
-
         result.price = uint240(adjustedPrice);
     }
 
-    /// @notice Wipes supported asset pricing configs from an adaptor.
+    /// @notice Wipes `asset` pricing configurations from this adaptor.
+    /// @param asset The address of the asset to wipe pricing support of.
     function _wipeAssetConfigs(address asset) internal override {
         delete assetConfig[asset][true];
         delete assetConfig[asset][false];

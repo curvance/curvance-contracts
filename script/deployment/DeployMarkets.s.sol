@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { Script } from "forge-std/Script.sol";
 import { Vm } from "forge-std/Vm.sol";
@@ -161,8 +161,8 @@ contract DeployMarkets is Script {
                 config.interestConfig.vertexRatePerYear,
                 config.interestConfig.vertexUtilStart,
                 config.interestConfig.adjustmentVelocity,
-                config.interestConfig.vertexMultiplierMax,
-                config.interestConfig.decayRate
+                config.interestConfig.decayRate,
+                config.interestConfig.vertexMultiplierMax
             );
         emit ContractDeployed(
             address(IRM),

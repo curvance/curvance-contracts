@@ -1,5 +1,5 @@
-// // SPDX-License-Identifier: UNLICENSED
-// pragma solidity ^0.8.19;
+// // SPDX-License-Identifier: GPL-3.0
+// pragma solidity 0.8.28;
 
 // import { IHevm } from "./helpers/Hevm.sol";
 // import { PropertiesAsserts } from "tests/fuzzing/helpers/PropertiesHelper.sol";
@@ -370,8 +370,8 @@
 //             1000, // vertexRatePerYear
 //             5000, // vertexUtilizationStart
 //             1000, // adjustmentVelocity
-//             100000000, // 1000x maximum vertex multiplier
-//             100 // decayRate
+//             100, // decayRate
+//             100000000 // 1000x maximum vertex multiplier
 //         );
 //     }
 

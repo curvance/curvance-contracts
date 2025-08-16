@@ -1,5 +1,6 @@
-// // SPDX-License-Identifier: UNLICENSED
-// pragma solidity ^0.8.19;
+// // SPDX-License-Identifier: GPL-3.0
+// pragma solidity 0.8.28;
+
 // import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 
 // contract TestStatefulDeployments is StatefulBaseMarket {
@@ -29,8 +30,8 @@
 //             "CURV-4: CentralRegistry.genesisEpoch() == 0 failed"
 //         );
 //         assertWithMsg(
-//             centralRegistry.sequencer() == address(0),
-//             "CURV-5: CentralRegistry.sequencer == address(0) failed"
+//             centralRegistry.SEQUENCER_ORACLE() == address(0),
+//             "CURV-5: CentralRegistry.SEQUENCER_ORACLE == address(0) failed"
 //         );
 //         assertWithMsg(
 //             centralRegistry.hasDaoPermissions(address(this)),

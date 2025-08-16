@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
@@ -61,7 +61,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
@@ -72,7 +72,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
             _USDC_ADDRESS,
             address(chainlinkAdaptor)
         );
-        chainlinkEthUsd = new MockV3Aggregator(8, 2700e8, 1e50, 1e6);
+        chainlinkEthUsd = new MockV3Aggregator(8, 2700e8);
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
             true,

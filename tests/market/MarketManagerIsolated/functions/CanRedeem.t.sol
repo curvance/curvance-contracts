@@ -1,7 +1,9 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
@@ -63,13 +65,15 @@ contract CanRedeemTest is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(9e17);
         vm.stopPrank();
 
-        bool hasPosition;
-        (hasPosition, , ) =
-            protocolReader.tokenDataOf(user1, address(strategyCBALRETH));
+        bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(strategyCBALRETH), user1) == 2;
 
         assertTrue(hasPosition);
 
         skip(20 minutes);
+
+        borrowableCUSDC.accrueIfNeeded();
+
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
@@ -81,13 +85,15 @@ contract CanRedeemTest is TestBaseMarketIsolated {
         marketManagerIsolated.notifyBorrow(address(borrowableCUSDC), user1);
 
         skip(20 minutes);
+
+        borrowableCUSDC.accrueIfNeeded();
+
         marketManagerIsolated.canRedeem(address(borrowableCUSDC), 100e6, user1);
     }
 
     function test_canRedeem_success_whenRedeemerHasNoPosition() public {
-        bool hasPosition;
-        (hasPosition, , ) =
-            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
+        bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(borrowableCUSDC), user1) == 2;
 
         assertFalse(hasPosition);
         marketManagerIsolated.canRedeem(address(borrowableCUSDC), 100e6, user1);

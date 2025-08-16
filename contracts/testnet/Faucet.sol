@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
@@ -32,6 +32,21 @@ contract Faucet is Ownable {
 
     function claim(address user, address token, uint256 amount) external {
         _claim(user, token, amount);
+    }
+
+    function multiIsAvailable(
+        address[] calldata tokens,
+        uint256[] calldata amounts
+    ) public view returns (bool[] memory availability) {
+        availability = new bool[](tokens.length);
+        for(uint256 i = 0; i < tokens.length; i++) {
+            address token = tokens[i];
+            uint256 amount = amounts[i];
+            IERC20 ercToken = IERC20(token);
+
+            uint256 balance = ercToken.balanceOf(address(this));
+            availability[i] = balance >= amount;
+        }
     }
 
     function multiClaim(

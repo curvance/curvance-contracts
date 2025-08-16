@@ -1,12 +1,9 @@
-// SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 interface IRedstone {
     /// @notice Returns the DataFeedId of the Redstone price feed.
     function getDataFeedId() external view returns (bytes32);
-
-    /// @notice Returns the current phase's aggregator address.
-    function aggregator() external view returns (address);
 
     /// @notice Returns the number of decimals the aggregator responds with.
     function decimals() external view returns (uint8);

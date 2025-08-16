@@ -1,12 +1,12 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SimpleCToken, IERC20 } from "contracts/market/token/SimpleCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -134,7 +134,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
-        skip(veCVE.epochDuration() + veCVE.RESTRICTION_DURATION() + 1);
+        skip(veCVE.EPOCH_DURATION() + veCVE.RESTRICTION_DURATION() + 1);
 
         uint256 amount = 100e18;
         vm.startPrank(user1);
@@ -143,7 +143,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         veCVE.createLock(
             amount,
             false,
-            RewardsData(false, false, false, false),
+            ClaimAction(false, false, false, false),
             "",
             0
         );
@@ -209,7 +209,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         veCVE.createLock(
             amount,
             false,
-            RewardsData(false, false, false, false),
+            ClaimAction(false, false, false, false),
             "",
             0
         );
@@ -291,7 +291,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         veCVE.createLock(
             amount,
             false,
-            RewardsData(false, false, false, false),
+            ClaimAction(false, false, false, false),
             "",
             0
         );

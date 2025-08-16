@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
@@ -44,6 +44,8 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
     {
         skip(20 minutes);
 
+        borrowableCUSDC.accrueIfNeeded();
+
         centralRegistry.setTransferableStatus(true);
 
         uint256 balance = borrowableCDAI.balanceOf(user1);
@@ -57,6 +59,7 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         public
     {
         skip(20 minutes);
+        borrowableCUSDC.accrueIfNeeded();
 
         vm.startPrank(user1);
         centralRegistry.setCooldown(10 days);
@@ -113,6 +116,8 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
 
         skip(20 minutes);
 
+        borrowableCUSDC.accrueIfNeeded();
+
         vm.startPrank(address(borrowableCDAI));
 
         vm.expectRevert(
@@ -128,6 +133,8 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         uint256 tokensRedeemed = _ONE;
 
         skip(20 minutes);
+
+        borrowableCUSDC.accrueIfNeeded();
 
         uint256 underlyingBalance = dai.balanceOf(user1);
         uint256 totalSupply = borrowableCDAI.totalSupply();
@@ -160,6 +167,8 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         vm.stopPrank();
 
         skip(20 minutes);
+
+        borrowableCUSDC.accrueIfNeeded();
 
         uint256 underlyingBalance = dai.balanceOf(user1);
         uint256 totalSupply = borrowableCDAI.totalSupply();
@@ -200,6 +209,8 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
 
         skip(20 minutes);
 
+        borrowableCUSDC.accrueIfNeeded();
+
         uint256 underlyingBalance = dai.balanceOf(user1);
         uint256 balance = borrowableCDAI.balanceOf(user1);
         uint256 totalSupply = borrowableCDAI.totalSupply();
@@ -235,6 +246,8 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         vm.stopPrank();
 
         skip(20 minutes);
+
+        borrowableCUSDC.accrueIfNeeded();
 
         uint256 underlyingBalance = dai.balanceOf(user1);
         uint256 balance = borrowableCDAI.balanceOf(user1);
@@ -272,6 +285,8 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         vm.stopPrank();
 
         skip(20 minutes);
+
+        borrowableCUSDC.accrueIfNeeded();
 
         uint256 underlyingBalance = dai.balanceOf(user1);
         uint256 balance = borrowableCDAI.balanceOf(user1);

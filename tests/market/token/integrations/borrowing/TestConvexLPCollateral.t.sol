@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { Convex2PoolCToken, IERC20 } from "contracts/market/token/Convex2PoolCToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -43,7 +43,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         // remove STETH pricefeed made in base market setup
         oracleManager.removeAssetPriceFeed(_STETH_ADDRESS, address(chainlinkAdaptor));
 
-        chainlinkStethUsd = new MockV3Aggregator(8, 1500e8, 3000e12, 1000e6);
+        chainlinkStethUsd = new MockV3Aggregator(8, 1500e8);
         chainlinkAdaptor.addAsset(
             _STETH_ADDRESS,
             true,

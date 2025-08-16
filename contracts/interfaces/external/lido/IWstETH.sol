@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { IStETH } from "contracts/interfaces/external/lido/IStETH.sol";
 

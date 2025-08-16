@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { StrategyCToken, SafeTransferLib, ICentralRegistry, IERC20 } from "contracts/market/token/StrategyCToken.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";

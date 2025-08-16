@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
@@ -73,13 +73,13 @@ contract TestLiquidationBuffer is TestBaseMarketIsolated {
     }
 
     function test_success_AuctionLiquidation() public {
-        _prepareUSDC(dappControlUser, 1000e6);
+        _prepareUSDC(auctionPermsUser, 1000e6);
 
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         // Set auction parameters
-        uint256 validPenalty = 1.15e18;
-        uint256 closeFactor = 0.30e18;
+        uint256 validPenalty = 11500;
+        uint256 closeFactor = 3000;
         marketManagerIsolated.setLiquidationConfig(address(borrowableCDAI), validPenalty, closeFactor);
         
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
@@ -109,7 +109,7 @@ contract TestLiquidationBuffer is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user1), 1000e18 -
             expectedLiquidationValues.collateralLiquidated, " collateral balance should have changed");
         
-        assertEq(borrowableCDAI.balanceOf(dappControlUser), 
+        assertEq(borrowableCDAI.balanceOf(auctionPermsUser), 
             expectedLiquidationValues.collateralLiquidated, " debt balance should have changed");
 
     }

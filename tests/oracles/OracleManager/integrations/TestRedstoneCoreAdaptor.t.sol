@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -55,6 +55,19 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         oracleManager.addApprovedAdaptor(address(adaptor));
+    }
+
+    function test_fail_AddAsset__InvalidHeartbeat() public {
+        // Should revert when heartbeat > DEFAULT_HEART_BEAT.
+        uint256 invalidHeartbeat = adaptor.DEFAULT_HEART_BEAT() + 1;
+        
+        vm.expectRevert(RedstoneCoreAdaptor.RedstoneCoreAdaptor__InvalidConfiguration.selector);
+        adaptor.addAsset(
+            _WBTC_ADDRESS,
+            true,
+            8,
+            invalidHeartbeat
+        );
     }
 
     function testAddNewSignersUpdatePriceWithNewSigners() public {

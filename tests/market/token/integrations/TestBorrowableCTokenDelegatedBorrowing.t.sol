@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { BorrowableCToken, IERC20 } from "contracts/market/token/BorrowableCToken.sol";
 import { BorrowableCTokenWithGauge } from "contracts/market/token/withGauge/BorrowableCTokenWithGauge.sol";
@@ -97,7 +97,7 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
 
     function testInitialize() public {
         assertEq(centralRegistry.daoAddress(), dao);
-        assertEq(borrowableCDAI.interestFee(), (marketInterestFee * 1e18) / 10000);
+        assertEq(borrowableCDAI.interestFee(), 1000);
         assertEq(
             borrowableCDAI.interestFee(),
             centralRegistry.protocolInterestFee(address(marketManagerIsolated))

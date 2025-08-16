@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
@@ -54,9 +54,6 @@ contract SetProtocolInterestFeeTest is TestBaseMarketIsolated {
     function test_setProtocolInterestFee_success() public {
         centralRegistry.addMarketManager(newMarket, 5000);
         centralRegistry.setProtocolInterestFee(newMarket, 5000);
-        assertEq(
-            centralRegistry.protocolInterestFee(newMarket),
-            5000 * 1e14
-        );
+        assertEq(centralRegistry.protocolInterestFee(newMarket), 5000);
     }
 }

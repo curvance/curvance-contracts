@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
@@ -89,11 +89,13 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
     function test_fuzzLiquidation(
         uint256 _collateralAmount,
         uint256 _borrowAmount,
-        int256 _oraclePrice
+        int256 _oraclePrice,
+        uint256 _accrualTime
     ) public {
 
         _collateralAmount = bound(_collateralAmount, MINIMUM_COLLATERAL_AMOUNT, MAXIMUM_COLLATERAL_AMOUNT);
         _oraclePrice = int256(bound(uint256(int256(_oraclePrice)), uint256(MINIMUM_COLLATERAL_PRICE), uint256(MAXIMUM_COLLATERAL_PRICE)));
+        _accrualTime = bound(_accrualTime, 20 minutes, 52 weeks);
 
         _prepareBALRETH(borrower, _collateralAmount);
 
@@ -114,9 +116,11 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         borrowableCUSDC.borrow(_borrowAmount, borrower);
         vm.stopPrank();
 
+        skip(_accrualTime);
         mockWethFeed.setMockAnswer(_oraclePrice);
         mockRethFeed.setMockAnswer(_oraclePrice);
-        skip(20 minutes);
+        _refreshMockFeeds();
+        borrowableCUSDC.accrueIfNeeded();
 
         (uint256 lFactorsPreLiquidation,,) = marketManagerIsolated.liquidationStatusOf(borrower, address(strategyCBALRETH), address(borrowableCUSDC));
 

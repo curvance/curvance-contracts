@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
+
+import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 
 contract TestBaseDynamicIRM is TestBaseMarketIsolated {
     DynamicIRM public IRM;

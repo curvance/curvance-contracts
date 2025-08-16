@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
@@ -36,10 +36,10 @@ contract ResetLiquidationConfigTest is TestBaseMarketIsolated {
     }
 
     function test_resetLiquidationConfig_success() public {
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
         
-        uint256 validPenalty = 1.15e18;
-        uint256 validCloseFactor = 0.30e18;
+        uint256 validPenalty = 11500;
+        uint256 validCloseFactor = 3000;
         marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), validPenalty, validCloseFactor);
 
         (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLiquidationConfig();

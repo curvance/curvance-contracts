@@ -1,8 +1,11 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
+
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
+
+import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
-import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 
 contract ExecuteEpochTest is TestBaseMessagingHub {
@@ -18,16 +21,18 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
 
         _init();
 
-        centralRegistry.addChainSupport(
-            srcMessagingHub,
-            srcVotingHub,
-            address(cve),
-            _USDC_ADDRESSES[42161],
-            42161,
-            23,
-            makeAddr("Wormhole Relayer"),
-            3
-        );
+        ChainConfig memory config;
+        config.isSupported = true;
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = srcMessagingHub;
+        config.votingHub = srcVotingHub;
+        config.cveAddress = address(cve);
+        config.feeTokenAddress =  _USDC_ADDRESSES[42161];
+        config.crosschainRelayer = makeAddr("Wormhole Relayer");
+
+        // Support chainId 42161.
+        centralRegistry.addChain(42161, config);
 
         _skipEpochDuration(1);
     }
@@ -35,7 +40,7 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
     function test_executeEpoch_fail_whenCurrentEpochIsEarlierThanNextEpochToDeliver()
         public
     {
-        vm.warp(block.timestamp - rewardManager.epochDuration() * 2);
+        vm.warp(block.timestamp - rewardManager.EPOCH_DURATION() * 2);
 
         PerChainData[] memory perChainData = new PerChainData[](1);
         perChainData[0] = PerChainData(
@@ -55,16 +60,18 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
     }
 
     function test_executeEpoch_fail_whenNumResponseIsMismatch() public {
-        centralRegistry.addChainSupport(
-            address(this),
-            address(this),
-            address(1),
-            _USDC_ADDRESSES[10],
-            10,
-            24,
-            makeAddr("Wormhole Relayer"),
-            2
-        );
+        ChainConfig memory configTwo;
+        configTwo.isSupported = true;
+        configTwo.messagingChainId = 24;
+        configTwo.domain = 2;
+        configTwo.messagingHub = address(this);
+        configTwo.votingHub = address(this);
+        configTwo.cveAddress = address(1);
+        configTwo.feeTokenAddress = _USDC_ADDRESSES[10];
+        configTwo.crosschainRelayer = makeAddr("Wormhole Relayer");
+
+        // Support chainId 10.
+        centralRegistry.addChain(10, configTwo);
 
         PerChainData[] memory perChainData = new PerChainData[](1);
         perChainData[0] = PerChainData(
@@ -190,7 +197,7 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
         deal(address(messagingHub), _ONE);
         _prepareUSDC(address(feeManager), 100e6);
 
-        uint256 compoundingFee = (100e6 *
+        uint256 compoundingFee = (uint256(100e6) *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
 

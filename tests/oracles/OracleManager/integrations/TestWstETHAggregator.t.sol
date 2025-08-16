@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { WstETHAggregator } from "contracts/oracles/adaptors/wrappedAggregators/WstETHAggregator.sol";
 
@@ -26,13 +26,7 @@ contract TestWstETHAggregator is TestBase {
             _CHAINLINK_STETH_USD
         );
     }
-
-    function testMinMaxAnswer() public {
-        int192 maxAnswer = aggregator.maxAnswer();
-        int192 minAnswer = aggregator.minAnswer();
-        assertGt(maxAnswer, minAnswer);
-    }
-
+    
     function testLatestRoundData() public {
         (, int256 wstethPrice, , , ) = aggregator.latestRoundData();
         (, int256 stethPrice, , , ) = IChainlink(_CHAINLINK_STETH_USD)

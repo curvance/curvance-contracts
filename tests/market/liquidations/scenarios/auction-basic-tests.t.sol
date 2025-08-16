@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, WAD_CUBED_BPS_OFFSET,BPS } from "contracts/libraries/ConstantsLib.sol";
 
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 
@@ -20,14 +20,14 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
 
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
         
         // Set auction parameters
-        uint256 validPenalty = 1.15e18;
-        uint256 closeFactor = 0.30e18;
+        uint256 validPenalty = 11500;
+        uint256 closeFactor = 3000;
         marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
         
         vm.stopPrank();
@@ -45,7 +45,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         console2.log("done liquidating");
 
         uint256 liquidatorcTokenBalance = strategyCBALRETH.balanceOf(user3);
-        assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokens(1.15e18), 
+        assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokens(11500), 
         "Liquidator cToken balance should match expected");
 
         uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
@@ -56,7 +56,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
 
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
@@ -75,8 +75,8 @@ contract AuctionBasicTests is TestBaseLiquidations {
             address(borrowableCUSDC)
         );
         
-        uint256 liqBaseIncentive = 1.1e18;
-        uint256 liqCurve = 5e16;
+        uint256 liqBaseIncentive = 11000;
+        uint256 liqCurve = 500;
         
         uint256 incentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
         
@@ -127,7 +127,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
 
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(1));
@@ -150,7 +150,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
 
-        vm.prank(dappControlUser);
+        vm.prank(auctionPermsUser);
         marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
 
         address[] memory usersToLiquidate = new address[](1);   
@@ -170,19 +170,19 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareLiquidation();
 
         // Set a valid penalty (WAD + 15%)
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
-        uint256 validPenalty = 1.15e18; //15%
-        uint256 closeFactor = 0.30e18; // 30%
+        uint256 validPenalty = 11500; //15%
+        uint256 closeFactor = 3000; // 30%
         marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
         vm.stopPrank();
 
         borrowableCUSDC.accrueIfNeeded(); // pull interest forward
         uint256 debtBalance = IBorrowableCToken(address(borrowableCUSDC)).debtBalance(user1);
 
-        uint256 closeBalance = (debtBalance * 0.30e18) / 1e18;
+        uint256 closeBalance = (debtBalance * 3000) / 10000;
 
         _prepareUSDC(user3, debtBalance);
 
@@ -218,7 +218,6 @@ contract AuctionBasicTests is TestBaseLiquidations {
     }
 
     function _calculateExpectedLiquidatedTokensWithDefaultPenalty() internal view returns (uint256) {
-        uint256 WAD = 1e18;
         uint256 WAD_SQUARED = 1e36;
 
         uint256 debtTokenPrice = 2e18; 
@@ -237,8 +236,8 @@ contract AuctionBasicTests is TestBaseLiquidations {
             address(borrowableCUSDC)
         );
 
-        uint256 liqBaseIncentive = 1.1e18;
-        uint256 liqCurve = 5e16;
+        uint256 liqBaseIncentive = 11000; // 10% base, premium BPS
+        uint256 liqCurve = 500; // 5% curve, in BPS
 
         uint256 incentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
 
@@ -246,7 +245,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         uint256 debtDecimals = 10**6;
         uint256 debtAmount = 250e6;
 
-        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_SQUARED) /
+        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_CUBED_BPS_OFFSET) /
             (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
 
         uint256 collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
@@ -280,7 +279,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         uint256 debtDecimals = 10**6;
         uint256 debtAmount = 250e6;
         
-        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_SQUARED) /
+        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_CUBED_BPS_OFFSET) /
             (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
         
         uint256 collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;

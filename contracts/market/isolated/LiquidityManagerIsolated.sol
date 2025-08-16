@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
-import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -21,13 +21,14 @@ abstract contract LiquidityManagerIsolated {
 
     /// @notice Storage structure for Account data involving liquidity
     ///         positions, and pending redemption cooldown.
+    /// @param cooldownTimestamp Timestamp corresponding to when the last time
+    ///                          `account` performed a liquidity focused
+    ///                          action, which activates a cooldown period on
+    ///                          redemptions/repayment/collateral removal.
     /// @param assets Array of account assets.
-    /// @param cooldownTimestamp Last time an account performed an action,
-    ///                          which activates the redeem/repay/exit market
-    ///                          cooldown.
     struct AccountData {
-        address[] assets;
         uint256 cooldownTimestamp;
+        address[] assets;
     }
 
     /// @notice Storage configuration for how a Curvance token should behave
@@ -42,57 +43,57 @@ abstract contract LiquidityManagerIsolated {
     /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
     /// @param collRatio The ratio at which this token can be borrowed against
     ///                  when collateralized.
-    /// @dev In `WAD`, e.g. 0.8e18 = 80% collateral value borrowable.
+    /// @dev In `BPS`, e.g. 0.8e18 = 80% collateral value borrowable.
     /// @param collReqSoft The collateral requirement where dipping below this
     ///                    will cause a soft liquidation.
-    /// @dev In `WAD`, e.g. 1.2e18 = 120% collateral vs debt value.
+    /// @dev In `BPS`, e.g. 1.2e18 = 120% collateral vs debt value.
     /// @param collReqHard The collateral requirement where dipping below
     ///                    this will cause a hard liquidation.
-    /// @dev In `WAD`, e.g. 1.1e18 = 110% collateral vs debt value.
+    /// @dev In `BPS`, e.g. 1.1e18 = 110% collateral vs debt value.
     /// @param liqIncBase The base ratio at which this token will be
     ///                   compensated on soft liquidation.
-    /// @dev In `WAD`, stored as Incentive + WAD e.g. 1.05e18 = 5% incentive.
+    /// @dev In `BPS`, stored as Incentive + BPS e.g. 1.05e18 = 5% incentive.
     /// @param liqIncCurve The liquidation incentive curve length between
     ///                    soft liquidation to hard liquidation.
     ///                    e.g. 5% base incentive with 8% curve length results
     ///                    in 13% liquidation incentive on hard liquidation.
-    /// @dev In `WAD`, e.g. 0.05e18 = 5% maximum additional incentive.
+    /// @dev In `BPS`, e.g. 0.05e18 = 5% maximum additional incentive.
     /// @param liqIncMin The minimum possible liquidation incentive for
     ///                  during an auction.
-    /// @dev In `WAD`, stored as Incentive + WAD e.g. 1.03e18 = 3% incentive.
+    /// @dev In `BPS`, stored as Incentive + BPS e.g. 1.03e18 = 3% incentive.
     /// @param liqIncMax The maximum possible liquidation incentive for
     ///                  during an auction.
-    /// @dev In `WAD`, stored as Incentive + WAD e.g. 1.07e18 = 7% incentive.
+    /// @dev In `BPS`, stored as Incentive + BPS e.g. 1.07e18 = 7% incentive.
     /// @param closeFactorBase Maximum % that a liquidator can repay when soft
     ///                        liquidating an account.
-    /// @dev In `WAD` format, e.g. 0.1e18 = 10% base close factor.
+    /// @dev In `BPS` format, e.g. 0.1e18 = 10% base close factor.
     /// @param closeFactorCurve Curve length between soft liquidation and hard
     ///                         liquidation, should be equal to
     ///                         100% - `closeFactorBase`.
-    /// @dev In `WAD` format, e.g. 0.9e18 = 90% distance between
+    /// @dev In `BPS` format, e.g. 0.9e18 = 90% distance between
     ///      `closeFactorBase`, and 100%.
     /// @param closeFactorMin The minimum possible close factor for during an
     ///                       auction.
-    /// @dev In `WAD` format, e.g. 0.2e18 = 20% minimum close factor.
+    /// @dev In `BPS` format, e.g. 0.2e18 = 20% minimum close factor.
     /// @param closeFactorMax The maximum possible close factor for during an 
     ///                       auction.
-    /// @dev In `WAD` format, e.g. 0.4e18 = 40% maximum close factor.
+    /// @dev In `BPS` format, e.g. 0.4e18 = 40% maximum close factor.
     struct CurvanceToken {
         bool isListed;
         uint8 mintPaused;
         uint8 collateralizationPaused;
         uint8 borrowPaused;
-        uint72 collRatio;
-        uint72 collReqSoft;
-        uint72 collReqHard;
-        uint64 liqIncBase;
-        uint64 liqIncCurve;
-        uint64 liqIncMin;
-        uint64 liqIncMax;
-        uint64 closeFactorBase;
-        uint64 closeFactorCurve;
-        uint64 closeFactorMin;
-        uint64 closeFactorMax;
+        uint24 collRatio;
+        uint24 collReqSoft;
+        uint24 collReqHard;
+        uint16 liqIncBase;
+        uint16 liqIncCurve;
+        uint16 liqIncMin;
+        uint16 liqIncMax;
+        uint16 closeFactorBase;
+        uint16 closeFactorCurve;
+        uint16 closeFactorMin;
+        uint16 closeFactorMax;
     }
 
     /// @notice Data structure containing information on hypothetical action
@@ -282,7 +283,7 @@ abstract contract LiquidityManagerIsolated {
                 maxDebt += _mulDiv(
                     collateralValue,
                     _tokenConfig[snap.asset].collRatio,
-                    WAD
+                    BPS
                 );
             } else {
                 // If they have a debt balance, increment their debt.
@@ -608,8 +609,8 @@ abstract contract LiquidityManagerIsolated {
         // If this is a potential liquidation from an auction, apply the
         // auction buffer to collateral values, discounting collateral values.
         if (tData.auctionBuffer != 0) {
-            r.cSoft = _mulDiv(r.cSoft, tData.auctionBuffer, WAD);
-            r.cHard = _mulDiv(r.cHard, tData.auctionBuffer, WAD);
+            r.cSoft = _mulDiv(r.cSoft, tData.auctionBuffer, BPS);
+            r.cHard = _mulDiv(r.cHard, tData.auctionBuffer, BPS);
         }
 
         lFactor = _getLFactor(r.cSoft, r.cHard, r.debt);
@@ -709,7 +710,7 @@ abstract contract LiquidityManagerIsolated {
     /// @param price The asset's price, in `WAD`.
     /// @param decimals The asset's decimals to adjust redemption value
     ///                 into proper form.
-    /// @param collRatio The collateralization ratio of the asset.
+    /// @param collRatio The collateralization ratio of the asset, in `BPS`.
     /// @return result The calculated collateral value.
     function _collateralValue(
         uint256 amount,
@@ -727,7 +728,7 @@ abstract contract LiquidityManagerIsolated {
                 increasesCollateral
             ),
             collRatio,
-            WAD
+            BPS
         );
     }
 
@@ -790,7 +791,7 @@ abstract contract LiquidityManagerIsolated {
             price,
             decimals,
             true
-        ) * WAD;
+        ) * BPS;
 
         softSum = softSumPrior + (assetValue / collReqSoft);
         hardSum = hardSumPrior + (assetValue / collReqHard);

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { AerodromeStableCToken } from "contracts/market/token/AerodromeStableCToken.sol";
@@ -55,7 +55,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkDaiUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkDaiUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
@@ -66,7 +66,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
             _DAI_ADDRESS,
             address(chainlinkAdaptor)
         );
-        chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,

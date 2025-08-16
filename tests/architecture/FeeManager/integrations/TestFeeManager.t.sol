@@ -1,23 +1,28 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseFeeManager } from "../TestBaseFeeManager.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
-import { WormholeMock } from "tests/utils/WormholeMock.sol";
-import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
+
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
+
+import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
+
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
+
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
+import { TestBaseFeeManager } from "../TestBaseFeeManager.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import { WormholeMock } from "tests/utils/WormholeMock.sol";
 import { Vm } from "forge-std/Vm.sol";
 
 contract TestFeeManager is TestBaseFeeManager {
     uint256 public srcForkId;
     uint256 public dstForkId;
     WormholeHelper public wormholeHelper;
-    RewardsData public rewardsData = RewardsData(true, false, false, false);
+    ClaimAction public action = ClaimAction(true, false, false, false);
 
     function setUp() public override {
         // Fork Ethereum as source chain and select it
@@ -41,16 +46,19 @@ contract TestFeeManager is TestBaseFeeManager {
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
-        centralRegistry.addChainSupport(
-            address(messagingHubs[1]),
-            address(votingHubs[1]),
-            address(cves[1]),
-            _USDC_ADDRESSES[1],
-            1,
-            2,
-            makeAddr("Wormhole Relayer"),
-            0
-        );
+
+        ChainConfig memory config;
+        config.isSupported = true;
+        config.messagingChainId = 2;
+        config.domain = 0;
+        config.messagingHub = address(messagingHubs[1]);
+        config.votingHub = address(votingHubs[1]);
+        config.cveAddress = address(cves[1]);
+        config.feeTokenAddress = _USDC_ADDRESSES[1];
+        config.crosschainRelayer = makeAddr("Wormhole Relayer");
+
+        // Support chainId 1.
+        centralRegistry.addChain(1, config);
 
         _prepareUSDC(address(rewardManager), 100000e6);
         _prepareUSDC(address(this), 100000e6);
@@ -82,17 +90,16 @@ contract TestFeeManager is TestBaseFeeManager {
 
         _prepareCVE(address(this), 100e18);
 
-        centralRegistry.addChainSupport(
-            address(messagingHubs[42161]),
-            address(votingHubs[42161]),
-            address(cves[42161]),
-            _USDC_ADDRESSES[42161],
-            42161,
-            23,
-            makeAddr("Wormhole Relayer"),
-            3
-        );
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = address(messagingHubs[42161]);
+        config.votingHub = address(votingHubs[42161]);
+        config.cveAddress = address(cves[42161]);
+        config.feeTokenAddress = _USDC_ADDRESSES[42161];
+        config.crosschainRelayer = makeAddr("Wormhole Relayer");
 
+        // Support chainId 42161.
+        centralRegistry.addChain(42161, config);
         _createLock();
 
         _recordEpochRewards(1, 1e6 * _ONE);
@@ -152,10 +159,10 @@ contract TestFeeManager is TestBaseFeeManager {
 
         deal(address(messagingHub), _ONE);
 
-        uint256 compoundingFee = (100e6 *
+        uint256 compoundingFee = (uint256(100e6) *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
-        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) *
+        uint256 epochRewardsPerPoint = ((uint256(100e6) - compoundingFee) *
             WAD_SQUARED) / (_ONE * 2);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
@@ -234,7 +241,7 @@ contract TestFeeManager is TestBaseFeeManager {
         uint256 desiredTokenBalance = cve.balanceOf(user1);
 
         vm.prank(user1);
-        rewardManager.claimRewards(rewardsData, abi.encode(swapAction), 0);
+        rewardManager.claimRewards(action, abi.encode(swapAction), 0);
 
         assertEq(
             usdc.balanceOf(address(rewardManager)),
@@ -288,10 +295,10 @@ contract TestFeeManager is TestBaseFeeManager {
 
         deal(address(messagingHub), _ONE);
 
-        uint256 compoundingFee = (100e6 *
+        uint256 compoundingFee = (uint256(100e6) *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
-        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) *
+        uint256 epochRewardsPerPoint = ((uint256(100e6) - compoundingFee) *
             WAD_SQUARED) / (_ONE * 2);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
@@ -374,7 +381,7 @@ contract TestFeeManager is TestBaseFeeManager {
         uint256 desiredTokenBalance = cve.balanceOf(user1);
 
         vm.prank(user1);
-        rewardManager.claimRewards(rewardsData, abi.encode(swapAction), 0);
+        rewardManager.claimRewards(action, abi.encode(swapAction), 0);
 
         assertEq(
             usdc.balanceOf(address(rewardManager)),
@@ -392,7 +399,7 @@ contract TestFeeManager is TestBaseFeeManager {
         _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(_ONE, false, rewardsData, "", 0);
+        veCVE.createLock(_ONE, false, action, "", 0);
 
         vm.stopPrank();
     }

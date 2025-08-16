@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 // In fork environment, it fails to call functions of ArbSys contract
 // which on address 0x0000000000000000000000000000000000000064

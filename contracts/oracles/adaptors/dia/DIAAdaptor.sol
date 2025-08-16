@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
@@ -14,17 +14,11 @@ contract DIAAdaptor is BaseOracleAdaptor {
     ///                     false = unconfigured; true = configured.
     /// @param decimals Returns the number of decimals the aggregator
     ///                 responds with.
-    /// @param max The maximum valid price of the asset.
-    ///            0 defaults to use proxy max price reduced by ~10%.
-    /// @param min The minimum valid price of the asset.
-    ///            0 defaults to use proxy min price increased by ~10%.
-    /// @param heartbeat The max amount of time between price updates.
+    /// @param heartbeat The max amount of time allowed between price updates.
     ///                  0 defaults to using DEFAULT_HEART_BEAT.
     struct AssetConfig {
         bool isConfigured;
         uint256 decimals;
-        uint256 max;
-        uint256 min;
         uint256 heartbeat;
         string key;
     }
@@ -44,7 +38,6 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// ERRORS ///
 
     error DIAAdaptor__InvalidHeartbeat();
-    error DIAAdaptor__InvalidMinMaxConfig();
 
     /// CONSTRUCTOR ///
 
@@ -68,10 +61,6 @@ contract DIAAdaptor is BaseOracleAdaptor {
         AssetConfig memory adaptor
     ) external {
         _checkElevatedPermissions();
-
-        if (adaptor.min >= adaptor.max) {
-            revert DIAAdaptor__InvalidMinMaxConfig();
-        }
 
         // Save `config` and update mapping that we support `asset` now.
         assetConfig[asset][inUSD] = adaptor;
@@ -116,12 +105,11 @@ contract DIAAdaptor is BaseOracleAdaptor {
         if (!assetConfig[asset][inUSD].isConfigured) {
             inUSD = !inUSD;  
         }
-        AssetConfig memory config = assetConfig[asset][inUSD];
+        AssetConfig memory c = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
 
-        (uint128 price, uint128 updatedAt) = IDiaOracle(diaOracle).getValue(
-            config.key
-        );
+        (uint128 price, uint128 updatedAt) =
+            IDiaOracle(diaOracle).getValue(c.key);
 
         // If we got a price of 0 or less, bubble up an error immediately.
         if (price <= 0) {
@@ -133,21 +121,15 @@ contract DIAAdaptor is BaseOracleAdaptor {
             asset,
             inUSD,
             uint256(price),
-            config.decimals
+            c.decimals
         );
 
-        result.hadError = _verifyData(
-            adjustedPrice,
-            updatedAt,
-            config.max,
-            config.min,
-            config.heartbeat
-        );
-
+        result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
         result.price = uint240(adjustedPrice);
     }
 
-    /// @notice Wipes supported asset pricing configs from an adaptor.
+    /// @notice Wipes `asset` pricing configurations from this adaptor.
+    /// @param asset The address of the asset to wipe pricing support of.
     function _wipeAssetConfigs(address asset) internal override {
         delete assetConfig[asset][true];
         delete assetConfig[asset][false];

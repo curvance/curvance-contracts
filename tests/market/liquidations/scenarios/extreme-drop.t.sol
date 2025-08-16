@@ -1,11 +1,14 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidations.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract ExtremeDropTest is TestBaseLiquidations {
+
+    event Repay(uint256 assets, address payer, address account);
+    event BadDebtRecognized(uint256 assets, address liquidator);
     
     function setUp() public override {
         super.setUp();
@@ -14,24 +17,41 @@ contract ExtremeDropTest is TestBaseLiquidations {
         _setUpBorrowerCollateral();
         _setUpBorrowerDebt();
 
+        // set DAI price to almost 0
         mockDaiFeed.setMockAnswer(100);
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
     }
 
     function testLiquidateWithExtremeDrop() public {
 
-        // ExpectedLiquidationValues memory expectedValues = _calculateExpectedLiquidationValues(
-        //     LiquidationParams({
-        //         borrower: user1,
-        //         collateralToken: address(borrowableCDAI),
-        //         borrowedToken: address(borrowableCUSDC),
-        //         isLiquidateExact: false,
-        //         liquidateExactAmount: 0,
-        //         isAuction: false,
-        //         isMultiMarketTest: false,
-        //         marketManagerId: 0
-        //     })
-        // );
+        skip(8 weeks);
+
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
+
+        uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
+        uint256 initialOutstandingDebt = borrowableCUSDC.marketOutstandingDebt();
+        uint256 initialUserCollateralPosted = borrowableCDAI.collateralPosted(user1);
+
+        borrowableCUSDC.accrueIfNeeded();
+
+        uint256 afterTotalAssets = borrowableCUSDC.totalAssets();
+        uint256 afterOutstandingDebt = borrowableCUSDC.marketOutstandingDebt();
+
+        assertEq(afterTotalAssets - initialTotalAssets,afterOutstandingDebt - initialOutstandingDebt, "invariant failed");
+        
+        ExpectedLiquidationValues memory expectedValues = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: user1,
+                collateralToken: address(borrowableCDAI),
+                borrowedToken: address(borrowableCUSDC),
+                isLiquidateExact: false,
+                liquidateExactAmount: 0,
+                isAuction: false,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            })
+        );
 
         address[] memory borrowers = new address[](1);
         borrowers[0] = user1;
@@ -39,7 +59,28 @@ contract ExtremeDropTest is TestBaseLiquidations {
         _prepareUSDC(address(this), 100000e6);
         usdc.approve(address(borrowableCUSDC), 100000e6);
 
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit BadDebtRecognized(
+            expectedValues.badDebt,
+            address(this));
+        emit Repay(expectedValues.debtRepaid + expectedValues.badDebt, address(this), user1);
+
         borrowableCUSDC.liquidate(borrowers, address(borrowableCDAI));
+
+        assertEq(
+            afterOutstandingDebt - (expectedValues.debtRepaid + expectedValues.badDebt),
+            borrowableCUSDC.marketOutstandingDebt()
+        );
+
+        assertEq(
+            (initialUserCollateralPosted - expectedValues.collateralLiquidated),
+            borrowableCUSDC.collateralPosted(user1)
+        );
+
+        assertEq(borrowableCUSDC.collateralPosted(user1), 0);
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), 0);
+        assertEq(borrowableCUSDC.debtBalance(user1), 0);
+        
     }
 
     function _setUpMarketPreLiquidation() internal {

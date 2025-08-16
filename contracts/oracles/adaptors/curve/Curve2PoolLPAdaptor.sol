@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { CurveBaseAdaptor } from "contracts/oracles/adaptors/curve/CurveBaseAdaptor.sol";
 
@@ -402,7 +402,8 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
         bool inUSD
     ) internal view virtual override returns (PricingResult memory result) {}
 
-    /// @notice Wipes supported asset pricing configs from an adaptor.
+    /// @notice Wipes `asset` pricing configurations from this adaptor.
+    /// @param asset The address of the asset to wipe pricing support of.
     function _wipeAssetConfigs(address asset) internal override {
         delete assetConfig[asset];
     }

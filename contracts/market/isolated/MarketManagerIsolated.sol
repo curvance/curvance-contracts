@@ -1,10 +1,11 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
+
 import { LiquidityManagerIsolated, CommonLib, ICToken, IOracleManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
-import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, BPS_SQUARED, WAD, WAD_SQUARED, WAD_CUBED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
@@ -86,30 +87,30 @@ contract MarketManagerIsolated is
     /// CONSTANTS ///
 
     /// @notice Maximum collateral requirement to avoid liquidation.
-    ///         2.34e18 = 234%. Resulting in 1 / (WAD + 2.34 WAD),
-    ///         or ~30% maximum LTV soft liquidation level.
-    uint256 public constant MAX_COLLATERAL_REQUIREMENT = 2.34e18;
+    /// @dev 23400 = 234%. Resulting in 1 / (BPS + 2.34 BPS),
+    ///      or ~30% maximum LTV soft liquidation level.
+    uint256 public constant MAX_COLLATERAL_REQUIREMENT = 23400;
     /// @notice Minimum excess collateral requirement
     ///         on top of liquidation incentive.
-    /// @dev .01e18 = 1.0%.
-    uint256 public constant MIN_EXCESS_COLL_REQUIRED = .01e18;
+    /// @dev 100 = 1.0%.
+    uint256 public constant MIN_EXCESS_COLL_REQUIRED = 100;
     /// @notice Maximum collateralization ratio.
-    /// @dev .975e18 = 97.5%.
-    uint256 public constant MAX_COLLATERALIZATION_RATIO = .975e18;
+    /// @dev 9750 = 97.5%.
+    uint256 public constant MAX_COLLATERALIZATION_RATIO = 9750;
     /// @notice The maximum liquidation incentive.
-    /// @dev .3e18 = 30%.
-    uint256 public constant MAX_LIQUIDATION_INCENTIVE = .3e18;
+    /// @dev 3000 = 30%.
+    uint256 public constant MAX_LIQUIDATION_INCENTIVE = 3000;
     /// @notice Buffer to ensure orderflow auction-based liquidations have
     ///         priority versus basic liquidations.
-    /// @dev 0.999e18 = 99.9%. Multiplied then divided by WAD = 10 bps buffer.
-    uint256 public constant AUCTION_BUFFER = 0.999e18;
+    /// @dev 9999 = 99.9%. Multiplied then divided by `BPS` = 10 bps buffer.
+    uint256 public constant AUCTION_BUFFER = 9999;
     /// @notice The maximum base cFactor.
-    /// @dev .5e18 = 50%. NOTE: This can NEVER be changed to 1e18 or offchain
+    /// @dev 5000 = 50%. NOTE: This can NEVER be changed to 100% or offchain
     ///      parameters can be unintentionally ignored.
-    uint256 public constant MAX_BASE_CFACTOR = .5e18;
+    uint256 public constant MAX_BASE_CFACTOR = 5000;
     /// @notice The minimum base cFactor.
-    /// @dev .1e18 = 10%.
-    uint256 public constant MIN_BASE_CFACTOR = .1e18;
+    /// @dev 1000 = 10%.
+    uint256 public constant MIN_BASE_CFACTOR = 1000;
     /// @notice Minimum hold time to minimize external risks, in seconds.
     /// @dev 20 minutes = 1,200 seconds.
     uint256 public constant MIN_HOLD_PERIOD = 20 minutes;
@@ -249,21 +250,21 @@ contract MarketManagerIsolated is
     /// @return The base ratio at which this token will be
     ///         compensated on soft liquidation.
     /// @return The liquidation incentive curve length between soft
-    ///         liquidation to hard liquidation, in `WAD`. e.g. 5% base
+    ///         liquidation to hard liquidation, in `BPS`. e.g. 5% base
     ///         incentive with 8% curve length results in 13% liquidation
     ///         incentive on hard liquidation.
     /// @return The minimum possible liquidation incentive for during an
-    ///         auction, in `WAD`.
+    ///         auction, in `BPS`.
     /// @return The maximum possible liquidation incentive for during an
-    ///         auction, in `WAD`.
+    ///         auction, in `BPS`.
     /// @return Maximum % that a liquidator can repay when soft
-    ///         liquidating an account, in `WAD`.
+    ///         liquidating an account, in `BPS`.
     /// @return Curve length between soft liquidation and hard liquidation,
-    ///         should be equal to 100% - `closeFactorBase`, in `WAD`.
+    ///         should be equal to 100% - `closeFactorBase`, in `BPS`.
     /// @return The minimum possible close factor for during an auction,
-    ///         in `WAD`.
+    ///         in `BPS`.
     /// @return The maximum possible close factor for during an auction,
-    ///         in `WAD`.
+    ///         in `BPS`.
     function liquidationConfig(address cToken) external view returns (
         uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256
     ) {
@@ -828,20 +829,6 @@ contract MarketManagerIsolated is
         _checkIsListedToken(c.cToken);
         _checkMarketPermissions();
 
-        // Convert the parameters from `BASIS_POINTS` to `WAD` format.
-        // While inefficient, we want to minimize potential human error,
-        // even if it costs a bit extra gas on function call.
-        c.collRatio = _bpToWad(c.collRatio);
-        c.collReqSoft = _bpToWad(c.collReqSoft);
-        c.collReqHard = _bpToWad(c.collReqHard);
-        c.liqIncBase = _bpToWad(c.liqIncBase);
-        c.liqIncHard = _bpToWad(c.liqIncHard);
-        c.liqIncMin = _bpToWad(c.liqIncMin);
-        c.liqIncMax = _bpToWad(c.liqIncMax);
-        c.closeFactorBase = _bpToWad(c.closeFactorBase);
-        c.closeFactorMin = _bpToWad(c.closeFactorMin);
-        c.closeFactorMax = _bpToWad(c.closeFactorMax);
-
         // Validate collateralization ratio is not above the maximum allowed,
         // and that hard liquidation collateral requirement is not above
         // the soft liquidation requirement. Liquidations occur when
@@ -892,7 +879,7 @@ contract MarketManagerIsolated is
 
         // Validate the soft liquidation collateral premium is not stricter
         // than its `collRatio`.
-        if (c.collRatio > (WAD_SQUARED / (WAD + c.collReqSoft))) {
+        if (c.collRatio > (BPS_SQUARED / (BPS + c.collReqSoft))) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -929,33 +916,33 @@ contract MarketManagerIsolated is
         // Set new collateralization ratio.
         // Note that a collateralization ratio of 0 corresponds to
         // no collateralization of `cToken`.
-        ct.collRatio = uint72(c.collRatio);
+        ct.collRatio = uint24(c.collRatio);
 
-        // Store the collateral requirement as a premium above `WAD`,
+        // Store the collateral requirement as a premium above `BPS`,
         // that way we can calculate solvency via division
         // efficiently in _liquidationStatusOf.
-        ct.collReqSoft = uint72(c.collReqSoft + WAD);
-        ct.collReqHard = uint72(c.collReqHard + WAD);
+        ct.collReqSoft = uint24(c.collReqSoft + BPS);
+        ct.collReqHard = uint24(c.collReqHard + BPS);
 
         // We use the liquidation incentive values as a premium in
         // `calculateLiquidatedTokens`, so it needs to be 1 + incentive.
-        ct.liqIncBase = uint64(WAD + c.liqIncBase);
-        ct.liqIncMin = uint64(WAD + c.liqIncMin);
-        ct.liqIncMax = uint64(WAD + c.liqIncMax);
+        ct.liqIncBase = uint16(BPS + c.liqIncBase);
+        ct.liqIncMin = uint16(BPS + c.liqIncMin);
+        ct.liqIncMax = uint16(BPS + c.liqIncMax);
 
         // Store the distance between liquidation incentive A & B,
         // so we can quickly scale between [base, 100%] based on lFactor.
-        ct.liqIncCurve = uint64(c.liqIncHard - c.liqIncBase);
+        ct.liqIncCurve = uint16(c.liqIncHard - c.liqIncBase);
 
         // Assign the base cFactor.
-        ct.closeFactorBase = uint64(c.closeFactorBase);
+        ct.closeFactorBase = uint16(c.closeFactorBase);
         // Store the distance between base cFactor and 100%,
         // that way we can quickly scale between [base, 100%] based on lFactor.
-        ct.closeFactorCurve = uint64(WAD - c.closeFactorBase);
+        ct.closeFactorCurve = uint16(BPS - c.closeFactorBase);
 
         // Assign the min and max effective closeFactor.
-        ct.closeFactorMin = uint64(c.closeFactorMin);
-        ct.closeFactorMax = uint64(c.closeFactorMax);
+        ct.closeFactorMin = uint16(c.closeFactorMin);
+        ct.closeFactorMax = uint16(c.closeFactorMax);
 
         // Assign the collateral posted cap of `c.cToken`.
         collateralCaps[c.cToken] = c.collateralCap;
@@ -1096,9 +1083,9 @@ contract MarketManagerIsolated is
         emit PositionManagerUpdated(oldPM, false);
     }
 
-    /// @notice Called from the Auction DappControl as a post hook
-    ///         after liquidations are tried to enable all 
-    ///         collateral to be liquidated outside Auction tx.
+    /// @notice Called from the AuctionHub as a post hook after liquidations
+    ///         are tried to enable all collateral to be liquidated outside
+    ///         an Auction tx.
     function lockAuctionCollateral() external {
         _checkAuctionPermissions();
 
@@ -1108,9 +1095,12 @@ contract MarketManagerIsolated is
         }
     }
 
-    /// @notice Called from the Auction DappControl as a pre hook
-    ///         before liquidations are tried to enforce that 
-    ///         only a specific collateral can be liquidated.
+    /// @notice Called from the AuctionHub as a pre hook before liquidations
+    ///         are tried to enforce that only a specific collateral can be
+    ///         liquidated during a transaction.
+    /// @param collateralToUnlock The address of the cToken to unlock as
+    ///                           liquidatable collateral during
+    ///                           a transaction.
     function unlockAuctionCollateral(address collateralToUnlock) external {
         _checkAuctionPermissions();
 
@@ -1127,8 +1117,8 @@ contract MarketManagerIsolated is
     ///      liquidations uses the default risk parameters.
     /// @param cToken The Curvance token to set liquidation incentive and
     ///               close factor for during an auction-based liquidation.
-    /// @param incentive The auction liquidation incentive value, in WAD.
-    /// @param closeFactor The auction close factor value, in WAD.
+    /// @param incentive The auction liquidation incentive value, in `BPS`.
+    /// @param closeFactor The auction close factor value, in `BPS`.
     function setLiquidationConfig(
         address cToken,
         uint256 incentive,
@@ -1189,8 +1179,8 @@ contract MarketManagerIsolated is
     ///         transaction.
     /// @dev If a liquidation incentive or close factor is set in
     ///      transient storage, that value is returned (0 if no set value).
-    /// @return incentive The liquidation incentive value, in WAD.
-    /// @return closeFactor The close factor value, in WAD.
+    /// @return incentive The liquidation incentive value, in `BPS`.
+    /// @return closeFactor The close factor value, in `BPS`.
     function getLiquidationConfig() public view returns (
         uint256 incentive,
         uint256 closeFactor
@@ -1481,7 +1471,7 @@ contract MarketManagerIsolated is
 
         // If this liquidation does not have offchain submitted
         // parameters then closeFactorCurve will not be 0. We know this since
-        // closeFactorCurve is WAD - closeFactorBase and closeFactorBase is
+        // closeFactorCurve is BPS - closeFactorBase and closeFactorBase is
         // limited to MAX_BASE_CFACTOR meaning closeFactorCurve cannot ever be
         // 0 unless we did not receive offchain parameters and we need to
         // calculate close factor and liquidation penalty onchain.
@@ -1494,11 +1484,13 @@ contract MarketManagerIsolated is
         
         // Get the exchange rate, and calculate the number of collateralized
         // shares to seize.
+        // Convert liqInc to WAD via `WAD_CUBED_BPS_OFFSET` so we dont run
+        // into precision loss from only multiplying into WAD_SQUARED form.
         uint256 debtToCollateral =
-            (((aData.liqInc * tData.debtUnderlyingPrice * WAD_SQUARED) /
+            (((aData.liqInc * tData.debtUnderlyingPrice * WAD_CUBED_BPS_OFFSET) /
             (tData.collateralUnderlyingPrice * tData.collateralExchangeRate)) *
             tData.collateralDecimals) / tData.debtDecimals;
-        uint256 maxDebt = (aData.closeFactor * aData.debtBalance) / WAD;
+        uint256 maxDebt = (aData.closeFactor * aData.debtBalance) / BPS;
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
         // otherwise liquidate the maximum amount possible.
         if (!liquidateExact) {
@@ -1835,13 +1827,6 @@ contract MarketManagerIsolated is
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
-    }
-
-    /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
-    ///         to WAD.
-    /// @dev Internal helper function for easily converting between scalars.
-    function _bpToWad(uint256 value) internal pure returns (uint256) {
-        return value * 1e14;
     }
 
     /// @dev Returns the Protocol Central Registry contract in interface

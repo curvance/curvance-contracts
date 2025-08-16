@@ -1,7 +1,9 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
@@ -82,9 +84,8 @@ contract CanCollateralizeTest is TestBaseMarketIsolated {
 
         vm.stopPrank();
 
-        bool hasPosition;
-        (hasPosition, , ) =
-            protocolReader.tokenDataOf(user1, address(borrowableCUSDC));
+        bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
+            .accountPositions(address(borrowableCUSDC), user1) == 2;
 
         assertTrue(hasPosition);
     }

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";

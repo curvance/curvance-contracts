@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
@@ -100,6 +100,10 @@ contract LiquidateExactMix is TestBaseLiquidations {
     uint256 lFactorPreLiquidation;
 
     function test_liquidateExactMix() public {
+
+        skip(4 weeks);
+        _refreshMockFeeds();
+        borrowableCUSDC.accrueIfNeeded();
 
         // ===== Cache general liquidation values =====
 

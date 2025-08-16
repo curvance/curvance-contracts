@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { CVE } from "contracts/token/CVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
@@ -27,7 +27,7 @@ import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/B
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD, WAD_SQUARED, WAD_CUBED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -130,7 +130,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         // Create a dapp control user.
         vm.startPrank(centralRegistry.daoAddress());
-        centralRegistry.addAuctionPermissions(dappControlUser);
+        centralRegistry.addAuctionPermissions(auctionPermsUser);
         vm.stopPrank();
 
         oracleManagers[chainId].addCTokenSupport(address(borrowableCUSDC));
@@ -260,39 +260,27 @@ contract TestBaseMarketIsolated is TestBase {
 
         chainlinkEthUsd = chainlinkEthUsds[chainId] = new MockV3Aggregator(
             8,
-            1500e8,
-            1e50,
-            1e6
+            1500e8
         );
         chainlinkUsdcUsd = chainlinkUsdcUsds[chainId] = new MockV3Aggregator(
             8,
-            1e8,
-            1e11,
-            1e6
+            1e8
         );
         chainlinkDaiUsd = chainlinkDaiUsds[chainId] = new MockV3Aggregator(
             8,
-            1e8,
-            1e11,
-            1e6
+            1e8
         );
         chainlinkUsdcEth = chainlinkUsdcEths[chainId] = new MockV3Aggregator(
             18,
-            1e18,
-            1e24,
-            1e13
+            1e18
         );
         chainlinkRethEth = chainlinkRethEths[chainId] = new MockV3Aggregator(
             18,
-            1e18,
-            1e24,
-            1e13
+            1e18
         );
         chainlinkDaiEth = chainlinkDaiEths[chainId] = new MockV3Aggregator(
             18,
-            1e18,
-            1e24,
-            1e13
+            1e18
         );
 
         chainlinkAdaptor = chainlinkAdaptors[chainId] = new ChainlinkAdaptor(
@@ -475,8 +463,8 @@ contract TestBaseMarketIsolated is TestBase {
             1000, // vertexRatePerYear
             5000, // vertexUtilizationStart
             1000, // adjustmentVelocity
-            100000000, // 1000x maximum vertex multiplier
-            100 // decayRate
+            100, // decayRate
+            100000000 // 1000x maximum vertex multiplier
         );
 
         return address(IRMs[block.chainid][underlyingToken]);
@@ -770,7 +758,7 @@ contract TestBaseMarketIsolated is TestBase {
         uint256 liquidationPenalty,
         uint256 liquidationCloseFactor
     ) internal {
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         marketManagerIsolated.unlockAuctionCollateral(token);
         marketManagerIsolated.setLiquidationConfig(token, liquidationPenalty, liquidationCloseFactor);
@@ -782,7 +770,7 @@ contract TestBaseMarketIsolated is TestBase {
     }
 
     function _skipEpochDuration(uint256 numEpochs) internal {
-        skip(rewardManager.epochDuration() * numEpochs);
+        skip(rewardManager.EPOCH_DURATION() * numEpochs);
     }
 
     function _recordEpochRewards(
@@ -992,7 +980,7 @@ contract TestBaseMarketIsolated is TestBase {
             );
 
         uint256 debtBalance = IBorrowableCToken(params.borrowedToken).debtBalance(params.borrower);
-        uint256 maxAmount = (cFactor * debtBalance) / WAD;
+        uint256 maxAmount = (cFactor * debtBalance) / BPS;
         
         expectedLiquidationValues.maxAmountRepaid = maxAmount;
 
@@ -1068,7 +1056,7 @@ contract TestBaseMarketIsolated is TestBase {
         uint256 collateralExchangeRate = ICToken(_collateralToken).exchangeRate();
 
         debtToCollateral = (((data.liqInc *
-            data.debtTokenPrice * WAD_SQUARED) /
+            data.debtTokenPrice * WAD_CUBED_BPS_OFFSET) /
             (data.collateralTokenPrice * collateralExchangeRate)) * 
             data.collateralTokenDecimals) / data.debtTokenDecimals;
             
@@ -1139,7 +1127,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         // Apply auction buffer
         uint256 AUCTION_BUFFER = marketManager_.AUCTION_BUFFER();
-        uint256 adjustedCollateralSoft = (collateralSoft * AUCTION_BUFFER) / WAD;
+        uint256 adjustedCollateralSoft = (collateralSoft * AUCTION_BUFFER) / BPS;
 
         // Recalculate lFactor with buffered collateral
         if (adjustedCollateralSoft == 0) {
@@ -1172,7 +1160,7 @@ contract TestBaseMarketIsolated is TestBase {
         console2.log("Earned BAL:", earnedBAL);
 
         uint256 protocolFee = centralRegistry.protocolHarvestFee();
-        uint256 netHarvestAmount = (earnedBAL * (WAD - protocolFee)) / WAD;
+        uint256 netHarvestAmount = (earnedBAL * (BPS - protocolFee)) / BPS;
         console2.log("Protocol fee:", protocolFee);
         console2.log("Net harvest amount:", netHarvestAmount);
 
@@ -1341,7 +1329,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         // WBTC
 
-        mockWbtcFeed = new MockV3Aggregator(8, 60000e8, 1e50, 1e6);
+        mockWbtcFeed = new MockV3Aggregator(8, 60000e8);
         chainlinkAdaptor.addAsset(
             _WBTC_ADDRESS,
             true,

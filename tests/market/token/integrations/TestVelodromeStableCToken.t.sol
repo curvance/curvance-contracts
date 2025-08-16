@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -67,7 +67,7 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkVELO = new MockV3Aggregator(8, 0.06e8, 1e50, 1e6);
+        chainlinkVELO = new MockV3Aggregator(8, 0.06e8);
         chainlinkAdaptor.addAsset(
             _VELO_ADDRESS,
             true,
@@ -79,7 +79,7 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
             address(chainlinkAdaptor)
         );
 
-        chainlinkUSDC = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkUSDC = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,

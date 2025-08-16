@@ -1,15 +1,15 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract ManageRewardsForTest is TestBaseRewardManager {
     event RewardPaid(address user, address rewardToken, uint256 amount);
 
-    RewardsData public rewardsData = RewardsData(true, false, false, false);
+    ClaimAction public action = ClaimAction(true, false, false, false);
 
     function setUp() public override {
         super.setUp();
@@ -33,7 +33,7 @@ contract ManageRewardsForTest is TestBaseRewardManager {
         _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(100e18, false, rewardsData, "", 0);
+        veCVE.createLock(100e18, false, action, "", 0);
 
         vm.stopPrank();
 

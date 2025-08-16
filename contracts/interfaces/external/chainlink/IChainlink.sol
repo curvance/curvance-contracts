@@ -1,16 +1,7 @@
-// SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 interface IChainlink {
-    /// @notice Returns the maximum value that the aggregator can returned
-    function maxAnswer() external view returns (int192);
-
-    /// @notice Returns the minimum value that the aggregator can returned
-    function minAnswer() external view returns (int192);
-
-    /// @notice Returns the current phase's aggregator address.
-    function aggregator() external view returns (address);
-
     /// @notice Returns the number of decimals the aggregator responds with.
     function decimals() external view returns (uint8);
 

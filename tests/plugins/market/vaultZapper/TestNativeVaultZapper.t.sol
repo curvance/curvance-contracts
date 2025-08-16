@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { NativeVaultZapper } from "contracts/plugins/market/NativeVaultZapper.sol";
@@ -109,6 +109,7 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
         uint256 returnedShares = vaultZapper.swapAndDeposit{value: 100 ether}
         (
             address(simpleCSHMON),
+            false,
             swapAction,
             0,
             false,
@@ -143,6 +144,7 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
 
         uint256 returnedShares = vaultZapper.swapAndDeposit(
             address(simpleCSHMON),
+            false,
             swapAction,
             0,
             false,

@@ -1,24 +1,30 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
+
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
-import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { WormholeMock } from "tests/utils/WormholeMock.sol";
+
+import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
+
+import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
+
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
+import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
+import { WormholeMock } from "tests/utils/WormholeMock.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { Vm } from "forge-std/Vm.sol";
 
 contract TestMessagingHub is TestBaseMessagingHub {
     uint256 public srcForkId;
     uint256 public dstForkId;
     WormholeHelper public wormholeHelper;
-    RewardsData public rewardsData = RewardsData(true, false, false, false);
+    ClaimAction public action = ClaimAction(true, false, false, false);
     VeCVE.BridgeData public bridgeData = VeCVE.BridgeData(42161, 0, false);
 
     function setUp() public override {
@@ -45,16 +51,19 @@ contract TestMessagingHub is TestBaseMessagingHub {
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
-        centralRegistry.addChainSupport(
-            address(messagingHubs[1]),
-            address(votingHubs[1]),
-            address(cves[1]),
-            _USDC_ADDRESSES[1],
-            1,
-            2,
-            _CROSSCHAIN_RELAYERS[1],
-            0
-        );
+
+        ChainConfig memory config;
+        config.isSupported = true;
+        config.messagingChainId = 2;
+        config.domain = 0;
+        config.messagingHub = address(messagingHubs[1]);
+        config.votingHub = address(votingHubs[1]);
+        config.cveAddress = address(cves[1]);
+        config.feeTokenAddress = _USDC_ADDRESSES[1];
+        config.crosschainRelayer = _CROSSCHAIN_RELAYERS[1];
+
+        // Support chainId 1.
+        centralRegistry.addChain(1, config);
 
         _addLiquidityToUniswap();
 
@@ -71,16 +80,17 @@ contract TestMessagingHub is TestBaseMessagingHub {
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
-        centralRegistry.addChainSupport(
-            address(messagingHubs[42161]),
-            address(votingHubs[42161]),
-            address(cves[42161]),
-            _USDC_ADDRESSES[42161],
-            42161,
-            23,
-            _CROSSCHAIN_RELAYERS[42161],
-            3
-        );
+
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = address(messagingHubs[42161]);
+        config.votingHub = address(votingHubs[42161]);
+        config.cveAddress = address(cves[42161]);
+        config.feeTokenAddress = _USDC_ADDRESSES[42161];
+        config.crosschainRelayer = _CROSSCHAIN_RELAYERS[42161];
+
+        // Support chainId 42161.
+        centralRegistry.addChain(42161, config);
 
         _addLiquidityToUniswap();
     }
@@ -108,10 +118,10 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         _prepareUSDC(address(feeManager), 100e6);
 
-        uint256 compoundingFee = (100e6 *
+        uint256 compoundingFee = (uint256(100e6) *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
-        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) *
+        uint256 epochRewardsPerPoint = ((uint256(100e6) - compoundingFee) *
             WAD_SQUARED) / (_ONE * 2);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
@@ -193,7 +203,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         uint256 desiredTokenBalance = cve.balanceOf(user1);
 
         vm.prank(user1);
-        rewardManager.claimRewards(rewardsData, abi.encode(swapAction), 0);
+        rewardManager.claimRewards(action, abi.encode(swapAction), 0);
 
         assertEq(
             usdc.balanceOf(address(rewardManager)),
@@ -243,7 +253,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        uint256 compoundingFee = (1000e6 *
+        uint256 compoundingFee = (uint256(1000e6) *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
         uint256 pullAmount = 1000e6 - compoundingFee;
@@ -289,7 +299,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        uint256 compoundingFee = (1000e6 *
+        uint256 compoundingFee = (uint256(1000e6) *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
         uint256 pullAmount = 1000e6 - compoundingFee;
@@ -396,7 +406,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         veCVE.bridgeLock{ value: messageFee }(
             0,
             bridgeData,
-            rewardsData,
+            action,
             abi.encode(swapAction),
             0
         );
@@ -436,8 +446,8 @@ contract TestMessagingHub is TestBaseMessagingHub {
         assertEq(
             unlockTime,
             centralRegistry.genesisEpoch() +
-                (veCVE.currentEpoch(timestamp) * veCVE.epochDuration()) +
-                veCVE.lockDuration()
+                (veCVE.currentEpoch(timestamp) * veCVE.EPOCH_DURATION()) +
+                veCVE.LOCK_DURATION()
         );
 
         assertEq(veCVE.chainPoints(), _ONE);
@@ -491,7 +501,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(_ONE, false, rewardsData, "", 0);
+        veCVE.createLock(_ONE, false, action, "", 0);
 
         vm.stopPrank();
     }

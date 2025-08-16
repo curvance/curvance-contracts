@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
@@ -20,7 +20,7 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
 
         _skipRestrictionDuration();
 
-        veCVE.createLock(30e18, false, rewardsData, "", 0);
+        veCVE.createLock(30e18, false, action, "", 0);
 
         centralRegistry.transferDaoPermissions(user1);
     }
@@ -29,32 +29,32 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         veCVE.shutdown();
 
         vm.expectRevert(VeCVE.VeCVE__VeCVEShutdown.selector);
-        veCVE.earlyExpireLock(0, rewardsData, "", 0);
+        veCVE.earlyExpireLock(0, action, "", 0);
     }
 
     function test_earlyExpireLock_fail_whenLockIndexExceeds() public {
-        // no need to set rewardsData because it will revert before
+        // no need to set action because it will revert before
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.earlyExpireLock(1, rewardsData, "", 0);
+        veCVE.earlyExpireLock(1, action, "", 0);
     }
 
     function test_earlyExpireLock_fail_whenEarlyUnlockIsDisabled() public {
-        // no need to set rewardsData because it will revert before
+        // no need to set action because it will revert before
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.earlyExpireLock(0, rewardsData, "", 0);
+        veCVE.earlyExpireLock(0, action, "", 0);
     }
 
     function test_earlyExpireLock_fail_expired() public {
-        // no need to set rewardsData because it will revert before
+        // no need to set action because it will revert before
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
 
         for (
             uint256 i = 0;
-            i <= (unlockTime - block.timestamp) / veCVE.epochDuration();
+            i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
             i++
         ) {
             vm.prank(address(messagingHub));
@@ -67,7 +67,7 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
 
         // cannot early expire expired lock
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.earlyExpireLock(0, rewardsData, "", 0);
+        veCVE.earlyExpireLock(0, action, "", 0);
     }
 
     function test_earlyExpireLock_success(
@@ -75,7 +75,7 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         penaltyMultiplier = uint16(bound(penaltyMultiplier, 3000, 9000));
         centralRegistry.setEarlyUnlockPenaltyMultiplier(penaltyMultiplier);
 
@@ -95,7 +95,7 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit UnlockedWithPenalty(address(this), 30e18, penaltyAmount);
 
-        veCVE.earlyExpireLock(0, rewardsData, "", 0);
+        veCVE.earlyExpireLock(0, action, "", 0);
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.getUnlockPenalty(address(this), 0);

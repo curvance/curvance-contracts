@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { BaseZapper, ICentralRegistry, SwapperLib, CommonLib, ICToken } from "contracts/plugins/BaseZapper.sol";
 
@@ -42,7 +42,7 @@ contract SimpleZapper is BaseZapper {
         uint256 expectedShares,
         bool collateralizeFor,
         address receiver
-    ) external payable nonReentrant returns (uint256 outAmount) {
+    ) external virtual payable nonReentrant returns (uint256 outAmount) {
         _prepareSwap(
             swapAction.inputToken,
             swapAction.inputAmount,

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
@@ -14,40 +14,6 @@ abstract contract BaseWrappedAggregator is IChainlink {
     error BaseWrappedAggregator__UintToIntError();
 
     /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Returns the current phase's aggregator address.
-    /// @return The current phase's aggregator address.
-    function aggregator() external view returns (address) {
-        return address(this);
-    }
-
-    /// @notice Returns the maximum value that the aggregator can return.
-    /// @return result The maximum value that the aggregator can return.
-    function maxAnswer() external view returns (int192 result) {
-        uint256 max = uint256(
-            uint192(
-                IChainlink(
-                    IChainlink(underlyingAggregator()).aggregator()
-                ).maxAnswer()
-            )
-        );
-
-        result = _boundAnswer(max);
-    }
-
-    /// @notice Returns the minimum value that the aggregator can returned.
-    /// @return result The minimum value that the aggregator can returned.
-    function minAnswer() external view returns (int192 result) {
-        uint256 min = uint256(
-            uint192(
-                IChainlink(
-                    IChainlink(underlyingAggregator()).aggregator()
-                ).minAnswer()
-            )
-        );
-
-        result = _boundAnswer(min);
-    }
 
     /// @notice Returns the number of decimals the aggregator responds with.
     /// @return The number of decimals the aggregator responds with.
@@ -98,23 +64,6 @@ abstract contract BaseWrappedAggregator is IChainlink {
     function getExchangeRate() public view virtual returns (uint256) {}
 
     /// INTERNAL FUNCTIONS ///
-
-    /// @notice Bounds `answer` between int192 maximum and minimum values.
-    /// @param answer The value to bound.
-    /// @return The bounded answer.
-    function _boundAnswer(uint256 answer) internal view returns (int192){
-        answer = FixedPointMathLib.fullMulDiv(answer, getExchangeRate(), WAD);
-        int256 intAnswer = _toInt256(answer);
-
-        if (intAnswer > type(int192).max) {
-            return type(int192).max;
-        }
-        if (intAnswer < type(int192).min) {
-            return type(int192).min;
-        }
-
-        return _toInt192(intAnswer);
-    }
 
     /// @notice Returns the downcasted int192 from int256, reverting on
     ///         overflow (when the input is less than smallest int192 or

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { BaseZapper } from "contracts/plugins/BaseZapper.sol";

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
@@ -23,8 +23,6 @@ contract MockPythAdaptor is PythAdaptor {
     ///      and if the data is not outdated.
     /// @param value The value that is retrieved from the feed data.
     /// @param timestamp The time at which the value was last updated.
-    /// @param max The maximum limit of the value.
-    /// @param min The minimum limit of the value.
     /// @param heartbeat The maximum allowed time difference between
     ///                  current time and 'timestamp'.
     /// @return A boolean indicating whether the feed data had an error
@@ -32,17 +30,15 @@ contract MockPythAdaptor is PythAdaptor {
     function _verifyData(
         uint256 value,
         uint256 timestamp,
-        uint256 max,
-        uint256 min,
         uint256 heartbeat
     ) internal view override returns (bool) {
-        // Validate `value` is not below the buffered min value allowed.
-        if (value < min) {
+        // Validate `value` is not at or above type(uint240).max.
+        if (value >= _MAXIMUM_PRICE_ALLOWED) {
             return true;
         }
 
-        // Validate `value` is not above the buffered maximum value allowed.
-        if (value > max) {
+        // Validate `value` is not at or below 0.
+        if (value <= 0) {
             return true;
         }
 

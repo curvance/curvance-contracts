@@ -1,8 +1,10 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
+import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IProxy } from "contracts/interfaces/external/api3/IProxy.sol";
@@ -14,7 +16,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
     /// @param proxyFeed The current proxy's feed address.
-    /// @param heartbeat The max amount of time between price updates.
+    /// @param heartbeat The max amount of time allowed between price updates.
     ///                  0 defaults to using DEFAULT_HEART_BEAT.
     /// @param dapiNameHash The bytes32 encoded name hash of the price feed. 
     struct AssetConfig {
@@ -28,7 +30,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
     /// @notice If zero is specified for an Api3 asset heartbeat,
     ///         this value is used instead.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days;
+    uint256 public constant DEFAULT_HEART_BEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
 
     /// STORAGE ///
 
@@ -133,10 +135,10 @@ contract Api3Adaptor is BaseOracleAdaptor {
         if (!assetConfig[asset][inUSD].isConfigured) {
             inUSD = !inUSD;  
         }
-        AssetConfig memory config = assetConfig[asset][inUSD];
+        AssetConfig memory c = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
         
-        (int256 price, uint256 updatedAt) = config.proxyFeed.read();
+        (int256 price, uint256 updatedAt) = c.proxyFeed.read();
 
         // If we got a price of 0 or less, bubble up an error immediately.
         if (price <= 0) {
@@ -144,18 +146,12 @@ contract Api3Adaptor is BaseOracleAdaptor {
             return result;
         }
 
-        result.hadError = _verifyData(
-            uint256(price),
-            updatedAt,
-            _MAXIMUM_PRICE_ALLOWED,
-            0,
-            config.heartbeat
-        );
-
+        result.hadError = _verifyData(uint256(price), updatedAt, c.heartbeat);
         result.price = uint240(uint256(price));
     }
 
-    /// @notice Wipes supported asset pricing configs from an adaptor.
+    /// @notice Wipes `asset` pricing configurations from this adaptor.
+    /// @param asset The address of the asset to wipe pricing support of.
     function _wipeAssetConfigs(address asset) internal override {
         delete assetConfig[asset][true];
         delete assetConfig[asset][false];

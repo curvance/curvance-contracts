@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
@@ -35,7 +35,7 @@ contract LockAuctionCollateralTest is TestBaseMarketIsolated {
     }
 
     function test_lockAuctionCollateral_success() public {
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         marketManagerIsolated.lockAuctionCollateral();
         vm.stopPrank();

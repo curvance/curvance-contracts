@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -18,53 +18,53 @@ contract CreateLockForTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         veCVE.shutdown();
 
         vm.expectRevert(VeCVE.VeCVE__VeCVEShutdown.selector);
-        veCVE.createLockFor(user1, 100e18, true, rewardsData, "", 0);
+        veCVE.createLockFor(user1, 100e18, true, action, "", 0);
     }
 
     function test_createLockFor_fail_whenAmountIsZero(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.createLockFor(user1, 0, true, rewardsData, "", 0);
+        veCVE.createLockFor(user1, 0, true, action, "", 0);
     }
 
     function test_createLockFor_fail_whenRewardManagerIsNotApproved(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.createLockFor(user1, 100e18, true, rewardsData, "", 0);
+        veCVE.createLockFor(user1, 100e18, true, action, "", 0);
     }
 
     function test_createLockFor_fail_whenBalanceIsNotEnough(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         centralRegistry.addLockingPermissions(address(this));
 
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
-        veCVE.createLockFor(user1, 100e18, true, rewardsData, "", 0);
+        veCVE.createLockFor(user1, 100e18, true, action, "", 0);
     }
 
     function test_createLockFor_fail_whenAllowanceIsNotEnough(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         centralRegistry.addLockingPermissions(address(this));
 
         _prepareCVE(address(this), 100e18);
 
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
-        veCVE.createLockFor(user1, 100e18, true, rewardsData, "", 0);
+        veCVE.createLockFor(user1, 100e18, true, action, "", 0);
     }
 
     function test_createLockFor_success_withContinuousLock_fuzzed(
@@ -72,7 +72,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         centralRegistry.addLockingPermissions(address(this));
 
         _prepareCVE(address(this), 100e18);
@@ -89,7 +89,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit Locked(user1, amount);
 
-        veCVE.createLockFor(user1, amount, true, rewardsData, "", 0);
+        veCVE.createLockFor(user1, amount, true, action, "", 0);
 
         assertEq(cve.balanceOf(address(this)), 100e18 - amount);
         assertEq(veCVE.balanceOf(user1), amount);
@@ -120,7 +120,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         centralRegistry.addLockingPermissions(address(this));
 
         _prepareCVE(address(this), 100e18);
@@ -139,7 +139,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit Locked(user1, amount);
 
-        veCVE.createLockFor(user1, amount, false, rewardsData, "", 0);
+        veCVE.createLockFor(user1, amount, false, action, "", 0);
 
         assertEq(cve.balanceOf(address(this)), 100e18 - amount);
         assertEq(veCVE.balanceOf(user1), amount);
@@ -154,8 +154,8 @@ contract CreateLockForTest is TestBaseVeCVE {
         assertEq(
             unlockTime,
             centralRegistry.genesisEpoch() +
-                (veCVE.currentEpoch(timestamp) * veCVE.epochDuration()) +
-                veCVE.lockDuration()
+                (veCVE.currentEpoch(timestamp) * veCVE.EPOCH_DURATION()) +
+                veCVE.LOCK_DURATION()
         );
 
         assertEq(veCVE.chainPoints(), amount);

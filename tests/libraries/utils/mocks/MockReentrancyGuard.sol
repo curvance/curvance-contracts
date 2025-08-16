@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.4;
 
-import {ReentrancyGuard} from "../../../../contracts/libraries/external/ReentrancyGuard.sol";
+import {ReentrancyGuard} from "../../../../contracts/libraries/ReentrancyGuardTransient.sol";
 
 /// @dev WARNING! This mock is strictly intended for testing purposes only.
 /// Do NOT copy anything here into production code unless you really know what you are doing.

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
@@ -43,8 +43,8 @@ contract MixedAuction is TestBaseLiquidations {
     uint256[] collateralAmounts = [1.9e18,1.9e18,1.9e18,1.9e18];
 
     // Auction parameters
-    uint256 validPenalty = 1.04e18;
-    uint256 closeFactor = 0.50e18;
+    uint256 validPenalty = 10400;
+    uint256 closeFactor = 5000;
 
     uint256[] debtBalancesPreLiquidation_auction;
     uint256[] debtBalancesPreLiquidation_regular;
@@ -100,6 +100,9 @@ contract MixedAuction is TestBaseLiquidations {
         vm.stopPrank();
         _createPositions();
 
+        _harvestAuraStrategyRewards(1 weeks);
+        borrowableCUSDC.accrueIfNeeded();
+
         mockWethFeed.setMockAnswer(1300e8);
         mockRethFeed.setMockAnswer(1300e8);
 
@@ -107,7 +110,7 @@ contract MixedAuction is TestBaseLiquidations {
     }
 
     function test_fail_auctionLiquidationBlocksRegularLiquidation_sameTx() public {
-        _prepareUSDC(dappControlUser, 100000e6);
+        _prepareUSDC(auctionPermsUser, 100000e6);
         _prepareUSDC(address(this), 100000e6);
 
         // ===== Cache liquidation values =====
@@ -122,7 +125,7 @@ contract MixedAuction is TestBaseLiquidations {
 
             // ===== Liquidate =====
 
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
         usdc.approve(address(borrowableCUSDC), 100000e6);
 
         marketManagerIsolated.setLiquidationConfig(
@@ -162,9 +165,9 @@ contract MixedAuction is TestBaseLiquidations {
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit BadDebtRecognized(totalBadDebtAuction, dappControlUser);
-        emit Repay(auctionLiqValuesBorrower1.debtRepaid,dappControlUser, auctionBorrowers[0]);
-        emit Repay(auctionLiqValuesBorrower2.debtRepaid,dappControlUser, auctionBorrowers[1]);
+        emit BadDebtRecognized(totalBadDebtAuction, auctionPermsUser);
+        emit Repay(auctionLiqValuesBorrower1.debtRepaid,auctionPermsUser, auctionBorrowers[0]);
+        emit Repay(auctionLiqValuesBorrower2.debtRepaid,auctionPermsUser, auctionBorrowers[1]);
 
         borrowableCUSDC.liquidate(
             auctionBorrowers,
@@ -230,13 +233,13 @@ contract MixedAuction is TestBaseLiquidations {
         );
 
         // Verify liquidator received the expected collateral from auction only
-        uint256 expectedDappControlUserLiquidatorBalance = 
+        uint256 expectedAuctionPermsUserLiquidatorBalance = 
             auctionLiqValuesBorrower1.collateralLiquidated + 
             auctionLiqValuesBorrower2.collateralLiquidated;
 
         assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(dappControlUser),
-            expectedDappControlUserLiquidatorBalance,
+            strategyCBALRETH.balanceOf(auctionPermsUser),
+            expectedAuctionPermsUserLiquidatorBalance,
             1000,
             "Dapp control user didn't receive expected collateral from auction"
         );
@@ -268,8 +271,8 @@ contract MixedAuction is TestBaseLiquidations {
         }
     }
 
-    function test_fail_regularLiquidationThenAuctionLiquidation_sameTx() public {
-        _prepareUSDC(dappControlUser, 100000e6);
+    function test_success_regularLiquidationThenAuctionLiquidation_sameTx() public {
+        _prepareUSDC(auctionPermsUser, 100000e6);
         _prepareUSDC(address(this), 100000e6);
 
         // ===== Cache liquidation values =====
@@ -327,7 +330,7 @@ contract MixedAuction is TestBaseLiquidations {
 
         // ===== Auction Liquidations Second =====
 
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
         usdc.approve(address(borrowableCUSDC), 100000e6);
 
         marketManagerIsolated.setLiquidationConfig(
@@ -367,9 +370,9 @@ contract MixedAuction is TestBaseLiquidations {
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit BadDebtRecognized(totalBadDebtAuction, dappControlUser);
-        emit Repay(auctionLiqValuesBorrower1.debtRepaid,dappControlUser, auctionBorrowers[0]);
-        emit Repay(auctionLiqValuesBorrower2.debtRepaid,dappControlUser, auctionBorrowers[1]);
+        emit BadDebtRecognized(totalBadDebtAuction, auctionPermsUser);
+        emit Repay(auctionLiqValuesBorrower1.debtRepaid,auctionPermsUser, auctionBorrowers[0]);
+        emit Repay(auctionLiqValuesBorrower2.debtRepaid,auctionPermsUser, auctionBorrowers[1]);
 
         borrowableCUSDC.liquidate(
             auctionBorrowers,
@@ -435,7 +438,7 @@ contract MixedAuction is TestBaseLiquidations {
         );
 
         // Verify liquidator received the expected collateral
-        uint256 expectedDappControlUserLiquidatorBalance = 
+        uint256 expectedAuctionPermsUserLiquidatorBalance = 
             auctionLiqValuesBorrower1.collateralLiquidated + 
             auctionLiqValuesBorrower2.collateralLiquidated;
 
@@ -444,8 +447,8 @@ contract MixedAuction is TestBaseLiquidations {
             regularLiqValuesBorrower4.collateralLiquidated;
 
         assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(dappControlUser),
-            expectedDappControlUserLiquidatorBalance,
+            strategyCBALRETH.balanceOf(auctionPermsUser),
+            expectedAuctionPermsUserLiquidatorBalance,
             1000,
             "Dapp control user didn't receive expected collateral"
         );

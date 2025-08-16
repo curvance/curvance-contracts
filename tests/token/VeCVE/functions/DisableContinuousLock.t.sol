@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
@@ -15,33 +15,33 @@ contract DisableContinuousLockTest is TestBaseVeCVE {
 
         _skipRestrictionDuration();
 
-        veCVE.createLock(50e18, true, rewardsData, "", 0);
+        veCVE.createLock(50e18, true, action, "", 0);
 
         _prepareUSDC(address(rewardManager), 200e18);
     }
 
     function test_disableContinuousLock_fail_whenLockIndexIsInvalid() public {
-        // no need to set rewardsData because it will not be called
+        // no need to set action because it will not be called
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.disableContinuousLock(1, rewardsData, "", 0);
+        veCVE.disableContinuousLock(1, action, "", 0);
     }
 
     function test_disableContinuousLock_fail_whenLockIsNotContinousLock(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        veCVE.createLock(30e18, false, rewardsData, "", 0);
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
+        veCVE.createLock(30e18, false, action, "", 0);
 
         vm.expectRevert(VeCVE.VeCVE__LockTypeMismatch.selector);
-        veCVE.disableContinuousLock(1, rewardsData, "", 0);
+        veCVE.disableContinuousLock(1, action, "", 0);
     }
 
     function test_disableContinuousLock_success(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
 
         assertEq(veCVE.chainPoints(), 100e18);
@@ -63,7 +63,7 @@ contract DisableContinuousLockTest is TestBaseVeCVE {
         // verify that rewards are delivered
         vm.expectEmit(true, true, true, true, address(rewardManager));
         emit RewardPaid(address(this), _USDC_ADDRESS, 100e6);
-        veCVE.disableContinuousLock(0, rewardsData, "", 0);
+        veCVE.disableContinuousLock(0, action, "", 0);
 
         (, unlockTime) = veCVE.userLocks(address(this), 0);
 

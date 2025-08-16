@@ -1,7 +1,9 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
+import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IManagementOracle } from "contracts/interfaces/external/chainsight/IManagementOracle.sol";
@@ -14,7 +16,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     ///                     false = unconfigured; true = configured.
     /// @param sender The sender address corresponding to `asset`'s feed
     ///               inside Management Oracle.
-    /// @param heartbeat The max amount of time between price updates.
+    /// @param heartbeat The max amount of time allowed between price updates.
     ///                  0 defaults to using DEFAULT_HEART_BEAT.
     /// @param decimals Returns the number of decimals the Feed Key
     ///                 responds with.
@@ -31,7 +33,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
     /// @notice If zero is specified for a Chainsight asset heartbeat,
     ///         this value is used instead.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days;
+    uint256 public constant DEFAULT_HEART_BEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
 
     IManagementOracle public immutable MANAGEMENT_ORACLE;
 
@@ -169,16 +171,13 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
         if (!assetConfig[asset][inUSD].isConfigured) {
             inUSD = !inUSD;  
         }
-        AssetConfig memory config = assetConfig[asset][inUSD];
+        AssetConfig memory c = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
         
         (
             int256 price,
             uint256 updatedAt
-        ) = MANAGEMENT_ORACLE.readAsInt256WithTimestamp(
-            config.sender,
-            config.feedKey
-        );
+        ) = MANAGEMENT_ORACLE.readAsInt256WithTimestamp(c.sender, c.feedKey);
 
         // If we got a price of 0 or less, bubble up an error immediately.
         if (price <= 0) {
@@ -190,21 +189,15 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
             asset,
             inUSD,
             uint256(price),
-            config.decimals
+            c.decimals
         );
 
-        result.hadError = _verifyData(
-            adjustedPrice,
-            updatedAt,
-            _MAXIMUM_PRICE_ALLOWED,
-            0,
-            config.heartbeat
-        );
-        
+        result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
         result.price = uint240(adjustedPrice);
     }
 
-    /// @notice Wipes supported asset pricing configs from an adaptor.
+    /// @notice Wipes `asset` pricing configurations from this adaptor.
+    /// @param asset The address of the asset to wipe pricing support of.
     function _wipeAssetConfigs(address asset) internal override {
         delete assetConfig[asset][true];
         delete assetConfig[asset][false];

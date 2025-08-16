@@ -1,14 +1,14 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { RescueLib } from "contracts/libraries/RescueLib.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
-import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
+import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.sol";
 
+import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -17,10 +17,11 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
-/// @notice Curvance's cTokens (Curvance Tokens) are ERC4626 compliant. However,
-///         they follow their own design flow modifying underlying mechanisms
-///         such as totalAssets following a vesting mechanism in yield-bearing
-///         scenarios and a direct conversion in basic or "simple" vaults.
+/// @notice Curvance's cTokens (Curvance Tokens) are ERC4626 compliant.
+///         However, they follow their own design modifying underlying
+///         mechanisms such as `totalAssets` following an asset vesting system
+///         in both external strategies and lender interest accrual from
+///         borrowers.
 ///
 ///         The "cToken" employs two different methods of engaging with the
 ///         Curvance protocol. Users can deposit an unlimited amount of assets,
@@ -38,11 +39,12 @@ import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 ///         asset.
 ///
 ///         Each token can have their minting, collateralization, borrowing,
-///         compounding, or redemption functionality paused. Modifying the
-///         maximum mint, deposit, withdrawal, or redemptions possible.
+///         compounding, liquidations, and redemption functionality paused.
+///         Modifying the maximum mint, deposit, withdrawal, or redemptions
+///         possible.
 ///
 ///         View functions are "safe" by introducing reentry and update
-///         protection logic to minimize risks when integrating with Curvance.
+///         protection to minimize risks when integrating with Curvance.
 ///
 /// @dev `Asset()` Positions must have all assets ready for withdraw,
 ///      IE assets can NOT be locked.

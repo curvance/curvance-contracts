@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
-import { BASIS_POINTS } from "contracts/libraries/ConstantsLib.sol";
+import { BPS } from "contracts/libraries/ConstantsLib.sol";
 
 contract VotesTest is TestBaseVeCVE {
     function setUp() public override {
@@ -21,7 +21,7 @@ contract VotesTest is TestBaseVeCVE {
         _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
 
-        veCVE.createLock(amount, false, rewardsData, "", 0);
+        veCVE.createLock(amount, false, action, "", 0);
 
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         vm.warp(unlockTime * 2);
@@ -33,18 +33,18 @@ contract VotesTest is TestBaseVeCVE {
         uint16 boost
     ) public {
         amount = bound(amount, _MIN_FUZZ_AMOUNT, _MAX_FUZZ_AMOUNT);
-        boost = uint16(bound(boost, BASIS_POINTS + 1, type(uint16).max));
+        boost = uint16(bound(boost, BPS + 1, type(uint16).max));
         centralRegistry.setVoteBoostMultiplier(boost);
         _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
 
-        veCVE.createLock(amount, true, rewardsData, "", 0);
+        veCVE.createLock(amount, true, action, "", 0);
         vm.warp(1000);
 
         // current boost is x2
         assertEq(
             veCVE.getVotes(address(this)),
-            (amount * boost) / BASIS_POINTS
+            (amount * boost) / BPS
         );
     }
 
@@ -53,7 +53,7 @@ contract VotesTest is TestBaseVeCVE {
         _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
 
-        veCVE.createLock(amount, false, rewardsData, "", 0);
+        veCVE.createLock(amount, false, action, "", 0);
         vm.warp(timeWarp);
 
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
@@ -61,7 +61,7 @@ contract VotesTest is TestBaseVeCVE {
             assertEq(veCVE.getVotes(address(this)), 0);
             return;
         }
-        uint256 epoch = (unlockTime - block.timestamp) / veCVE.epochDuration();
+        uint256 epoch = (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
         uint256 votes = (amount * epoch) / veCVE.LOCK_DURATION_EPOCHS();
 
         assertEq(veCVE.getVotes(address(this)), votes);

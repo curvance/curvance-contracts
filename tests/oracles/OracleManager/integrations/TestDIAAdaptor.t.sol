@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { DIAAdaptor } from "contracts/oracles/adaptors/dia/DIAAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
@@ -14,7 +14,6 @@ contract TestDIAAdaptor is TestBaseOracleManager {
     function setUp() public override {
         _fork(19422728);
 
-        
         _deployCentralRegistry();
         _deployOracleManager();
 
@@ -26,8 +25,6 @@ contract TestDIAAdaptor is TestBaseOracleManager {
         DIAAdaptor.AssetConfig memory data;
         data.isConfigured = true;
         data.decimals = 8;
-        data.max = 1000000e18;
-        data.min = 0;
         data.heartbeat = 24 hours;
         data.key = "BTC/USD";
         adaptor.addAsset(_WBTC_ADDRESS, true, data);

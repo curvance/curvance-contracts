@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
@@ -51,7 +51,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         _deployChainlinkAdaptors();
         _deployMarketManager();
 
-        chainlinkPendleUsd = new MockV3Aggregator(18, 3.6e18, 3.6e24, 3.6e13);
+        chainlinkPendleUsd = new MockV3Aggregator(18, 3.6e18);
         chainlinkAdaptor.addAsset(
             _PENDLE,
             true,

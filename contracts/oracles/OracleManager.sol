@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
-import { WAD, BASIS_POINTS, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, BPS, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
@@ -76,7 +76,7 @@ contract OracleManager is IOracleManager {
     address public constant native =
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     /// @notice Time to pass before accepting answers when sequencer
-    ///         comes back up.
+    ///         comes back up, in seconds.
     uint256 public constant GRACE_PERIOD_TIME = 3600;
     /// @notice Maximum value that a price divergence flag can be set as
     ///         inside the protocol.
@@ -93,11 +93,11 @@ contract OracleManager is IOracleManager {
     /// STORAGE ///
 
     /// @notice The maximum allowed price feed divergence between prices
-    ///         before `CAUTION` error code is returned, in `BASIS_POINTS`.
+    ///         before `CAUTION` error code is returned, in `BPS`.
     /// @dev 10050 = 0.5% = 50 basis point price feed deviation allowed.
     uint128 public cautionPriceDivergence = 10050;
     /// @notice The maximum allowed price feed divergence between prices
-    ///         before `BAD_SOURCE` error code is returned, in `BASIS_POINTS`.
+    ///         before `BAD_SOURCE` error code is returned, in `BPS`.
     /// @dev 10100 = 1% = 100 basis point price feed deviation allowed.
     uint128 public badSourcePriceDivergence = 10100;
 
@@ -337,8 +337,8 @@ contract OracleManager is IOracleManager {
     ///      If it has two or more oracles, it fetches the price from both
     ///      feeds.
     /// @param asset The address of the asset to retrieve the price for.
-    /// @param inUSD Specifies whether the price format should be in USD (true)
-    ///              or a chain's native token (false).
+    /// @param inUSD Specifies whether the price format should be in
+    ///              USD (true) or a chain's native token (false).
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
     /// @return price The current price of `asset`.
@@ -627,8 +627,8 @@ contract OracleManager is IOracleManager {
         // If the feed denomination is not in the proper form, modify it.
         if (result.inUSD != inUSD) {
             uint256 newPrice;
-            bool nativeUsdLower = inUSD ? getLower : !getLower;
-            (newPrice, result.hadError) = _getNativeUSD(nativeUsdLower);
+            (newPrice, result.hadError) =
+                _getNativeUSD(inUSD ? getLower : !getLower);
             if (result.hadError) {
                 return (0, true);
             }
@@ -680,11 +680,11 @@ contract OracleManager is IOracleManager {
     /// @notice Check whether a sequencer is valid or down.
     /// @return True if sequencer is valid.
     function _isSequencerValid() internal view returns (bool) {
-        address sequencer = centralRegistry.sequencer();
+        address sequencerUptimeFeed = centralRegistry.SEQUENCER_ORACLE();
 
-        if (sequencer != address(0)) {
-            (, int256 answer, uint256 startedAt, , ) = IChainlink(sequencer)
-                .latestRoundData();
+        if (sequencerUptimeFeed != address(0)) {
+            (, int256 answer, uint256 startedAt, , ) =
+                IChainlink(sequencerUptimeFeed).latestRoundData();
 
             // Answer == 0: Sequencer is up.
             // Check that the sequencer is up or the grace period has passed
@@ -745,11 +745,11 @@ contract OracleManager is IOracleManager {
     ) internal view returns (uint256) {
         if (a <= b) {
             // Check if both feeds are within `f.caution` of each other.
-            if (((a * cautionPriceDivergence) / BASIS_POINTS) < b) {
+            if (((a * cautionPriceDivergence) / BPS) < b) {
                 // Notify that the price is dangerous and to treat data as a
                 // bad source because we are outside the accepted range of
                 // divergence.
-                if (((a * badSourcePriceDivergence) / BASIS_POINTS) < b) {
+                if (((a * badSourcePriceDivergence) / BPS) < b) {
                     return BAD_SOURCE;
                 }
 
@@ -762,11 +762,11 @@ contract OracleManager is IOracleManager {
         }
 
         // Check if both feeds are within `f.caution` of each other.
-        if (((b * cautionPriceDivergence) / BASIS_POINTS) < a) {
+        if (((b * cautionPriceDivergence) / BPS) < a) {
             // Notify that the price is dangerous and to treat data as a
             // bad source because we are outside the accepted range of
             // divergence.
-            if (((b * badSourcePriceDivergence) / BASIS_POINTS) < a) {
+            if (((b * badSourcePriceDivergence) / BPS) < a) {
                 return BAD_SOURCE;
             }
 

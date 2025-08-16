@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -11,7 +11,7 @@ import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/P
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { LiquidityManagerIsolated } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, WAD_SQUARED, BPS, WAD_CUBED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
@@ -524,7 +524,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         assertApproxEqRel(borrowableCUSDC.exchangeRate(), 1 ether, 0.01e18);
     }
 
-   function _getLiquidationValuesWithHigherPrecision_NonAuction(
+    function _getLiquidationValuesWithHigherPrecision_NonAuction(
         uint256 debtTokenPrice,
         uint256 collateralTokenPrice,
         uint256 lFactor,
@@ -540,7 +540,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         (uint256 highPrecisionD2C, uint256 closeFactor) = _getDebtToCollateralAndCloseFactor(lFactor, debtTokenPrice, collateralTokenPrice);
                 
-            maxAmount = (closeFactor * borrowAmount) / WAD;
+            maxAmount = (closeFactor * borrowAmount) / BPS;
             
             // Calculate with extra precision
             liquidatedCollateral = (maxAmount * highPrecisionD2C) / (WAD_SQUARED);
@@ -574,8 +574,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         console2.log("collateralTokenPrice", collateralTokenPrice);
         console2.log("cTokenExchangeRate", cTokenExchangeRate);
         
-        // Calculate with extra precision
-        uint256 highPrecisionD2C = (((liqInc * debtTokenPrice * WAD_SQUARED) /
+        uint256 highPrecisionD2C = (((liqInc * debtTokenPrice * WAD_CUBED_BPS_OFFSET) /
             (collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
 
         return (highPrecisionD2C, closeFactor);

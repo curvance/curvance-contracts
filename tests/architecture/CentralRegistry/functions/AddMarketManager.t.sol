@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
@@ -79,10 +79,7 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
             centralRegistry.marketManagers()[marketManagers.length],
             newMarket
         );
-        assertEq(
-            centralRegistry.protocolInterestFee(newMarket),
-            5000 * 1e14
-        );
+        assertEq(centralRegistry.protocolInterestFee(newMarket), 5000);
     }
 
     function testMarketManagerIntegration() public {
@@ -95,7 +92,7 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
         
         // Verify market is registered correctly
         assertTrue(centralRegistry.isMarketManager(address(marketManager)));
-        assertEq(centralRegistry.protocolInterestFee(address(marketManager)), 1000 * 1e14);
+        assertEq(centralRegistry.protocolInterestFee(address(marketManager)), 1000); // 10% interest fee
         
         // Verify market manager's central registry reference
         assertEq(address(marketManager.centralRegistry()), address(centralRegistry));

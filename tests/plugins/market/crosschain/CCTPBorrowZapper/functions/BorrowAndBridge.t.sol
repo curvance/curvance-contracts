@@ -1,11 +1,15 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { CCTPBorrowZapper } from "contracts/plugins/market/crosschain/CCTPBorrowZapper.sol";
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
@@ -14,8 +18,6 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 contract BorrowAndBridgeTest is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
-
-    
 
     CCTPBorrowZapper public CCTPZapper;
 
@@ -67,7 +69,6 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
             address(mockRethFeed),
             0
         );
-
         // start epoch
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
@@ -106,16 +107,18 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
             ICentralRegistry(address(centralRegistry))
         );
 
-        centralRegistry.addChainSupport(
-            address(messagingHub),
-            address(votingHub),
-            address(cve),
-            _USDC_ADDRESS,
-            42161,
-            23,
-            makeAddr("Wormhole Relayer"),
-            3
-        );
+        ChainConfig memory config;
+        config.isSupported = true;
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = address(messagingHub);
+        config.votingHub = address(votingHub);
+        config.cveAddress = address(cve);
+        config.feeTokenAddress = _USDC_ADDRESS;
+        config.crosschainRelayer = makeAddr("Wormhole Relayer");
+
+        // Support chainId 42161.
+        centralRegistry.addChain(42161, config);
 
         _prepareBALRETH(user1, _ONE);
 
@@ -234,6 +237,8 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         borrowableCDAI.borrow(500e18, user1);
 
         vm.stopPrank();
+
+        _harvestAuraStrategyRewards(1 weeks);
 
         assertEq(user1.balance, balance - messageFee);
     }

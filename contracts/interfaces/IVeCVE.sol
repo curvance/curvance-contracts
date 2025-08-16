@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 
 interface IVeCVE {
     /// @notice Locks a given amount of cve tokens on behalf of another user,
@@ -9,14 +9,14 @@ interface IVeCVE {
     /// @param recipient The address to lock tokens for.
     /// @param amount The amount of tokens to lock.
     /// @param continuousLock Indicator of whether the lock should be continuous.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function createLockFor(
         address recipient,
         uint256 amount,
         bool continuousLock,
-        RewardsData memory rewardsData,
+        ClaimAction memory action,
         bytes memory params,
         uint256 aux
     ) external;
@@ -28,7 +28,7 @@ interface IVeCVE {
     /// @param amount The amount to increase the lock by.
     /// @param lockIndex The index of the lock to extend.
     /// @param continuousLock Whether the lock should be continuous or not.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function increaseAmountAndExtendLockFor(
@@ -36,7 +36,7 @@ interface IVeCVE {
         uint256 amount,
         uint256 lockIndex,
         bool continuousLock,
-        RewardsData memory rewardsData,
+        ClaimAction memory action,
         bytes memory params,
         uint256 aux
     ) external;

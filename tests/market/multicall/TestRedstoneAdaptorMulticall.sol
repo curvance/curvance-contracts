@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
@@ -24,7 +24,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
     address public owner;
 
-    MockRedstoneCoreAdaptor public adapter;
+    MockRedstoneCoreAdaptor public adaptor;
     RedstoneAdaptorMulticallChecker public multicallChecker;
 
     SimpleCToken public simpleCWBTC;
@@ -57,25 +57,25 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
         owner = address(this);
 
-        adapter = new MockRedstoneCoreAdaptor(
+        adaptor = new MockRedstoneCoreAdaptor(
             ICentralRegistry(address(centralRegistry)),
             redstoneSigners,
             3,
             "ETH"
         );
 
-        adapter.addAsset(_WBTC_ADDRESS, true, 8, 10 minutes);
-        adapter.addAsset(_WBTC_ADDRESS, false, 18, 10 minutes);
+        adaptor.addAsset(_WBTC_ADDRESS, true, 8, 10 minutes);
+        adaptor.addAsset(_WBTC_ADDRESS, false, 18, 10 minutes);
 
         multicallChecker = new RedstoneAdaptorMulticallChecker(
             ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.setMulticallChecker(
-            address(adapter),
+            address(adaptor),
             address(multicallChecker)
         );
 
-        oracleManager.addApprovedAdaptor(address(adapter));
+        oracleManager.addApprovedAdaptor(address(adaptor));
 
         bytes memory redstonePayload = getRedstonePayload(
             "WBTC:60000:8",
@@ -93,7 +93,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         );
 
         // Securely get oracle value
-        (bool success, ) = address(adapter).call(
+        (bool success, ) = address(adaptor).call(
             encodedFunctionWithRedstonePayload
         );
         assertTrue(success);
@@ -104,14 +104,14 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             address(chainlinkAdaptor)
         );
 
-        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adapter));
+        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
 
         // Start gauge system epoch
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        (success, ) = address(adapter).call(
+        (success, ) = address(adaptor).call(
             encodedFunctionWithRedstonePayload
         );
         assertTrue(success);
@@ -199,7 +199,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         Multicall.MulticallAction[] memory calls = new Multicall.MulticallAction[](
             2
         );
-        calls[0].target = address(adapter);
+        calls[0].target = address(adaptor);
         bytes memory redstonePayload = getRedstonePayload(
             "WBTC:61000:8",
             redstoneSignerKeys
@@ -229,7 +229,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         simpleCWBTC.multicall(calls);
 
         assertEq(simpleCWBTC.balanceOf(user1), 1e8);
-        IOracleAdaptor.PricingResult memory result = adapter.getPrice(
+        IOracleAdaptor.PricingResult memory result = adaptor.getPrice(
             _WBTC_ADDRESS,
             true,
             true
@@ -249,7 +249,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         Multicall.MulticallAction[] memory calls = new Multicall.MulticallAction[](
             2
         );
-        calls[0].target = address(adapter);
+        calls[0].target = address(adaptor);
         bytes memory redstonePayload = getRedstonePayload(
             "WBTC:61000:8",
             redstoneSignerKeys
@@ -267,7 +267,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
         // check if writePrice works
         // vm.prank(user1);
-        // (bool success, ) = address(adapter).call(encodedFunctionWithRedstonePayload);
+        // (bool success, ) = address(adaptor).call(encodedFunctionWithRedstonePayload);
         // assertTrue(success, "writePrice should work");
 
         calls[0].data = encodedFunctionWithRedstonePayload;
@@ -281,7 +281,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         borrowableCUSDC.multicall(calls);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 1e6);
-        IOracleAdaptor.PricingResult memory result = adapter.getPrice(
+        IOracleAdaptor.PricingResult memory result = adaptor.getPrice(
             _WBTC_ADDRESS,
             true,
             true
@@ -336,7 +336,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         Multicall.MulticallAction[] memory calls = new Multicall.MulticallAction[](
             2
         );
-        calls[0].target = address(adapter);
+        calls[0].target = address(adaptor);
         bytes memory redstonePayload = getRedstonePayload(
             "WBTC:61000:8",
             redstoneSignerKeys
@@ -411,7 +411,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             );
             multicallChecker.checkCalldata(
                 address(this),
-                address(adapter),
+                address(adaptor),
                 encodedFunctionWithRedstonePayload
             );
         }

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
@@ -41,7 +41,7 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
     function test_setLiquidationConfig_fail_whenTokenNotListed() public {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
 
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector); 
         marketManagerIsolated.setLiquidationConfig(user1, 1.15e18, 0.30e18);
@@ -49,7 +49,7 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
     }
 
     function test_setLiquidationConfig_fail_whenCollateralizationOff() public {
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedLiquidation.selector); 
         marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), 1.15e18, 0.30e18);
@@ -66,7 +66,7 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
         uint256 tooLowCloseFactor = 1.09e18;
         uint256 validCloseFactor = 0.30e18;
 
-        vm.startPrank(dappControlUser);
+        vm.startPrank(auctionPermsUser);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
         marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), tooLowPenalty, validCloseFactor);
@@ -85,12 +85,12 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
 
     function test_setLiquidationConfig_success() public {
         _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setAuctionConfigs(address(strategyCBALRETH), 1.15e18, 0.30e18);
+        _setAuctionConfigs(address(strategyCBALRETH), 11500, 3000);
 
         // Verify the penalty was set correctly
         (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLiquidationConfig();
-        assertEq(currentPenalty, 1.15e18);
-        assertEq(currentCloseFactor, 0.30e18);
+        assertEq(currentPenalty, 11500);
+        assertEq(currentCloseFactor, 3000);
         vm.stopPrank();
     }
 

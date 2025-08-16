@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { Script } from "forge-std/Script.sol";
 import { Vm } from "forge-std/Vm.sol";
@@ -36,9 +36,7 @@ contract AddMockVaultFeedSupport is Script {
             new MockPermissionV3Aggregator(
                 icr,
                 asset.decimals(),
-                price,
-                type(int192).max,
-                int192(0)
+                price
             )
         );
         emit ContractDeployed(

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -15,10 +15,8 @@ contract MockPermissionV3Aggregator is MockV3Aggregator {
     constructor(
         ICentralRegistry _centralRegistry,
         uint8 _decimals,
-        int256 _initialAnswer,
-        int192 _maxAnswer,
-        int192 _minAnswer
-    ) MockV3Aggregator(_decimals, _initialAnswer, _maxAnswer, _minAnswer) {
+        int256 _initialAnswer
+    ) MockV3Aggregator(_decimals, _initialAnswer) {
         // Leaving this as a note -- super annyoing but address(registry) != address(0)
         // needs to be checked along side hasElevatedPermissions because of MockV3Aggregator initialization
         // happens before registry is set & calls updateAnswer

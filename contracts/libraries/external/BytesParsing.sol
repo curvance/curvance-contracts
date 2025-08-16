@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache 2
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
 library BytesParsing {
   uint256 private constant freeMemoryPtr = 0x40;

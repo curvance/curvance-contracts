@@ -1,4 +1,4 @@
-// pragma solidity 0.8.26;
+// pragma solidity 0.8.28;
 // import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 // import { MockToken } from "contracts/mocks/MockToken.sol";
 // import { IMToken } from "contracts/interfaces/IMToken.sol";

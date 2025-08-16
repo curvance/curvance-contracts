@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 
@@ -30,6 +30,6 @@ contract VotingHubDeploymentTest is TestBaseVotingHub {
             address(votingHub.gaugeManager()),
             address(centralRegistry.gaugeManager())
         );
-        assertEq(votingHub.epochDuration(), centralRegistry.EPOCH_DURATION());
+        assertEq(votingHub.EPOCH_DURATION(), centralRegistry.EPOCH_DURATION());
     }
 }

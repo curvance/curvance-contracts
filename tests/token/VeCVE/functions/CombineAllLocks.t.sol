@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
@@ -16,35 +16,35 @@ contract CombineAllLocksTest is TestBaseVeCVE {
 
         _skipRestrictionDuration();
 
-        veCVE.createLock(_INITIAL_AMOUNT, false, rewardsData, "", 0);
+        veCVE.createLock(_INITIAL_AMOUNT, false, action, "", 0);
     }
 
     function test_combineAllLocks_fail_whenVeCVEIsShutdown(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         _deal(1000000000000013658 + 1524395970892188412);
-        veCVE.createLock(1000000000000013658, true, rewardsData, "", 0);
+        veCVE.createLock(1000000000000013658, true, action, "", 0);
         veCVE.createLock(
             1524395970892188412,
             false,
-            rewardsData,
+            action,
             "",
             31449600
         );
         veCVE.shutdown();
         vm.expectRevert(VeCVE.VeCVE__VeCVEShutdown.selector);
-        veCVE.combineAllLocks(true, rewardsData, "", 0);
+        veCVE.combineAllLocks(true, action, "", 0);
     }
 
     function test_combineAllLocks_fail_whenCombineOneLock(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.combineAllLocks(true, rewardsData, "", 0);
+        veCVE.combineAllLocks(true, action, "", 0);
     }
 
     function test_combineAllLocks_success_withContinuousLock(
@@ -52,7 +52,7 @@ contract CombineAllLocksTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous,
         uint256 amount
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         amount = bound(
             amount,
             _MIN_FUZZ_AMOUNT,
@@ -61,7 +61,7 @@ contract CombineAllLocksTest is TestBaseVeCVE {
         _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
 
-        veCVE.createLock(amount, true, rewardsData, "", 0);
+        veCVE.createLock(amount, true, action, "", 0);
 
         (uint256 lockAmount, uint40 unlockTime) = veCVE.userLocks(
             address(this),
@@ -82,7 +82,7 @@ contract CombineAllLocksTest is TestBaseVeCVE {
             0
         );
 
-        veCVE.combineAllLocks(true, rewardsData, "", 0);
+        veCVE.combineAllLocks(true, action, "", 0);
 
         vm.expectRevert();
         veCVE.userLocks(address(this), 1);
@@ -112,14 +112,14 @@ contract CombineAllLocksTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         _deal(1000000000000013658 + 1524395970892188412);
-        veCVE.extendLock(0, true, rewardsData, "", 0);
-        veCVE.createLock(1000000000000013658, true, rewardsData, "", 0);
-        veCVE.createLock(1524395970892188412, true, rewardsData, "", 0);
+        veCVE.extendLock(0, true, action, "", 0);
+        veCVE.createLock(1000000000000013658, true, action, "", 0);
+        veCVE.createLock(1524395970892188412, true, action, "", 0);
         uint256 preCombine = (veCVE.userPoints(address(this)));
 
-        veCVE.combineAllLocks(true, rewardsData, "", 0);
+        veCVE.combineAllLocks(true, action, "", 0);
 
         uint256 postCombine = (veCVE.userPoints(address(this)));
         assertEq(preCombine, postCombine);
@@ -129,19 +129,19 @@ contract CombineAllLocksTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         _deal(1000000000000013658 + 1524395970892188412);
-        veCVE.createLock(1000000000000013658, true, rewardsData, "", 0);
+        veCVE.createLock(1000000000000013658, true, action, "", 0);
         veCVE.createLock(
             1524395970892188412,
             false,
-            rewardsData,
+            action,
             "",
             31449600
         );
         uint256 preCombine = (veCVE.userPoints(address(this)));
 
-        veCVE.combineAllLocks(true, rewardsData, "", 0);
+        veCVE.combineAllLocks(true, action, "", 0);
 
         uint256 postCombine = (veCVE.userPoints(address(this)));
         assertLt(preCombine, postCombine);
@@ -152,7 +152,7 @@ contract CombineAllLocksTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous,
         uint256 amount
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         amount = bound(
             amount,
             _MIN_FUZZ_AMOUNT,
@@ -160,7 +160,7 @@ contract CombineAllLocksTest is TestBaseVeCVE {
         );
         _deal(amount);
 
-        veCVE.createLock(amount, true, rewardsData, "", 0);
+        veCVE.createLock(amount, true, action, "", 0);
 
         (uint256 lockAmount, uint40 unlockTime) = veCVE.userLocks(
             address(this),
@@ -181,7 +181,7 @@ contract CombineAllLocksTest is TestBaseVeCVE {
             0
         );
 
-        veCVE.combineAllLocks(false, rewardsData, "", 0);
+        veCVE.combineAllLocks(false, action, "", 0);
 
         vm.expectRevert();
         veCVE.userLocks(address(this), 1);

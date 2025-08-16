@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
@@ -14,30 +14,30 @@ contract ExtendLockTest is TestBaseVeCVE {
 
         _skipRestrictionDuration();
 
-        veCVE.createLock(50e18, false, rewardsData, "", 0);
+        veCVE.createLock(50e18, false, action, "", 0);
     }
 
     function test_extendLock_fail_whenVeCVEShutdown() public {
-        // no need to set rewardsData because it will not be called
+        // no need to set action because it will not be called
         veCVE.shutdown();
 
         vm.expectRevert(VeCVE.VeCVE__VeCVEShutdown.selector);
-        veCVE.extendLock(0, true, rewardsData, "", 0);
+        veCVE.extendLock(0, true, action, "", 0);
     }
 
     function test_extendLock_fail_whenLockIndexIsInvalid() public {
-        // no need to set rewardsData because it will not be called
+        // no need to set action because it will not be called
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.extendLock(1, true, rewardsData, "", 0);
+        veCVE.extendLock(1, true, action, "", 0);
     }
 
     function test_extendLock_fail_whenUnlockTimestampIsExpired() public {
-        // no need to set rewardsData because it will not be called
+        // no need to set action because it will not be called
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
 
         for (
             uint256 i = 0;
-            i <= (unlockTime - block.timestamp) / veCVE.epochDuration();
+            i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
             i++
         ) {
             vm.prank(address(messagingHub));
@@ -49,23 +49,23 @@ contract ExtendLockTest is TestBaseVeCVE {
         _skipRestrictionDuration();
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.extendLock(0, true, rewardsData, "", 0);
+        veCVE.extendLock(0, true, action, "", 0);
     }
 
     function test_extendLock_fail_whenContinuousLock() public {
-        // no need to set rewardsData because it will not be called
-        veCVE.createLock(10e18, true, rewardsData, "", 0);
+        // no need to set action because it will not be called
+        veCVE.createLock(10e18, true, action, "", 0);
 
         vm.expectRevert(VeCVE.VeCVE__LockTypeMismatch.selector);
-        veCVE.extendLock(1, true, rewardsData, "", 0);
+        veCVE.extendLock(1, true, action, "", 0);
     }
 
     function test_extendLock_success_withContinuousLock(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        veCVE.extendLock(0, true, rewardsData, "", 0);
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
+        veCVE.extendLock(0, true, action, "", 0);
 
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         assertEq(unlockTime, veCVE.CONTINUOUS_LOCK_VALUE());
@@ -75,8 +75,8 @@ contract ExtendLockTest is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        veCVE.extendLock(0, false, rewardsData, "", 0);
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
+        veCVE.extendLock(0, false, action, "", 0);
 
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         assertEq(unlockTime, veCVE.freshLockTimestamp());

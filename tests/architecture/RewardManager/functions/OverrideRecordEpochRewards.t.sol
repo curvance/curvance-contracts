@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
@@ -36,7 +36,7 @@ contract OverrideRecordEpochRewardsTest is TestBaseRewardManager {
     function test_overrideRecordEpochRewards_success() public {
         vm.warp(
             centralRegistry.genesisEpoch() +
-                (nextEpochToDeliver * rewardManager.epochDuration()) +
+                (nextEpochToDeliver * rewardManager.EPOCH_DURATION()) +
                 1 hours
         );
 

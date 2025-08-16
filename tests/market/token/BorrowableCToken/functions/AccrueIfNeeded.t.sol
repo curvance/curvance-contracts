@@ -1,10 +1,11 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { console2 } from "forge-std/console2.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { BPS } from "contracts/libraries/ConstantsLib.sol";
 
 contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
@@ -431,7 +432,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
             
             // assert protocol fee
             uint256 protocolFeeValue = borrowableCUSDC.convertToAssets(daoSharesIncrease);
-            uint256 expectedProtocolFee = (debtIncrease * borrowableCUSDC.interestFee()) / 1e18;
+            uint256 expectedProtocolFee = (debtIncrease * borrowableCUSDC.interestFee()) / BPS;
             assertEq(protocolFeeValue, expectedProtocolFee, "Protocol fee should be exactly 10% per loop");
             
             // LP value validation with 1-unit tolerance

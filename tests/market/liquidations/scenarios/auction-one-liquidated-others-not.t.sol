@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidations.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
@@ -41,7 +41,7 @@ contract AuctionOneLiquidatedOthersNotTest is TestBaseLiquidations {
 
     function test_success_AuctionOneLiquidatedOthersNot() public {
         // Configure auction.
-        _setAuctionConfigs(address(strategyCBALRETH), 1.10e18, 0.30e18);
+        _setAuctionConfigs(address(strategyCBALRETH), 11000, 3000);
 
         // Cache the expected liquidation values.
         ExpectedLiquidationValues memory expectedLiquidationValuesBorrower1 = _calculateExpectedLiquidationValues(

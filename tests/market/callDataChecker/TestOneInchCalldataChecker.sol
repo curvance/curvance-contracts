@@ -1,9 +1,11 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { OneInchCalldataChecker } from "contracts/calldata-checker/swap-checker/OneInchCalldataChecker.sol";
 import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
+
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+
 import "tests/market/TestBaseMarketIsolated.sol";
 
 contract TestOneInchCalldataChecker is TestBaseMarketIsolated {

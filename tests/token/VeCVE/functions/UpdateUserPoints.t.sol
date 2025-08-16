@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { VeCVE } from "contracts/token/VeCVE.sol";
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
@@ -22,7 +22,7 @@ contract UpdateUserPointsTest is TestBaseVeCVE {
         _prepareCVE(address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(100e18, false, rewardsData, "", 0);
+        veCVE.createLock(100e18, false, action, "", 0);
         assertEq(veCVE.userPoints(address(this)), 100e18);
 
         vm.startPrank(address(rewardManager));

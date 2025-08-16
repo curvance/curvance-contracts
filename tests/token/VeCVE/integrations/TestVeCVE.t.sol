@@ -1,9 +1,12 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
+
+import { VeCVE } from "contracts/token/VeCVE.sol";
+
+import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
-import { VeCVE } from "contracts/token/VeCVE.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 
 contract TestVeCVE is TestBaseVeCVE {
     event Locked(address indexed user, uint256 amount);
@@ -16,16 +19,18 @@ contract TestVeCVE is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        centralRegistry.addChainSupport(
-            address(messagingHub),
-            address(votingHub),
-            address(cve),
-            _USDC_ADDRESS,
-            42161,
-            23,
-            makeAddr("Wormhole Relayer"),
-            3
-        );
+        ChainConfig memory config;
+        config.isSupported = true;
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = address(messagingHub);
+        config.votingHub = address(votingHub);
+        config.cveAddress = address(cve);
+        config.feeTokenAddress = _USDC_ADDRESS;
+        config.crosschainRelayer = makeAddr("Wormhole Relayer");
+
+        // Support chainId 42161.
+        centralRegistry.addChain(42161, config);
 
         _prepareUSDC(address(rewardManager), 1000e6);
         _prepareCVE(address(this), 100e18);
@@ -39,7 +44,7 @@ contract TestVeCVE is TestBaseVeCVE {
     function test_createLockBeforeGenesisStartTime() public {
         uint256 amount = 2e18;
         uint256 penaltyMultiplier = 5000;
-        rewardsData = RewardsData(false, true, true, true);
+        action = ClaimAction(false, true, true, true);
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(penaltyMultiplier);
 
@@ -54,7 +59,7 @@ contract TestVeCVE is TestBaseVeCVE {
         emit Locked(address(this), amount);
 
         vm.warp(centralRegistry.genesisEpoch() - 13 hours);
-        veCVE.createLock(amount, true, rewardsData, "", 0);
+        veCVE.createLock(amount, true, action, "", 0);
 
         assertEq(cve.balanceOf(address(this)), 100e18 - amount);
         assertEq(veCVE.balanceOf(address(this)), amount);
@@ -66,7 +71,7 @@ contract TestVeCVE is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         vm.assume(amount > 1e18 && amount <= 100e18);
 
         penaltyMultiplier = uint16(bound(penaltyMultiplier, 3000, 9000));
@@ -82,7 +87,7 @@ contract TestVeCVE is TestBaseVeCVE {
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit Locked(address(this), amount);
 
-        veCVE.createLock(amount, true, rewardsData, "", 0);
+        veCVE.createLock(amount, true, action, "", 0);
 
         assertEq(cve.balanceOf(address(this)), 100e18 - amount);
         assertEq(veCVE.balanceOf(address(this)), amount);
@@ -131,7 +136,7 @@ contract TestVeCVE is TestBaseVeCVE {
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit UnlockedWithPenalty(address(this), amount, penaltyAmount);
 
-        veCVE.earlyExpireLock(0, rewardsData, "", 0);
+        veCVE.earlyExpireLock(0, action, "", 0);
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.getUnlockPenalty(address(this), 0);
@@ -150,7 +155,7 @@ contract TestVeCVE is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
         vm.assume(amount > 1e18 && amount <= 100e18);
 
         penaltyMultiplier = uint16(bound(penaltyMultiplier, 3000, 9000));
@@ -168,7 +173,7 @@ contract TestVeCVE is TestBaseVeCVE {
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit Locked(address(this), amount);
 
-        veCVE.createLock(amount, false, rewardsData, "", 0);
+        veCVE.createLock(amount, false, action, "", 0);
 
         assertEq(cve.balanceOf(address(this)), 100e18 - amount);
         assertEq(veCVE.balanceOf(address(this)), amount);
@@ -183,8 +188,8 @@ contract TestVeCVE is TestBaseVeCVE {
         assertEq(
             unlockTime,
             centralRegistry.genesisEpoch() +
-                (veCVE.currentEpoch(timestamp) * veCVE.epochDuration()) +
-                veCVE.lockDuration()
+                (veCVE.currentEpoch(timestamp) * veCVE.EPOCH_DURATION()) +
+                veCVE.LOCK_DURATION()
         );
 
         assertEq(veCVE.chainPoints(), amount);
@@ -216,7 +221,7 @@ contract TestVeCVE is TestBaseVeCVE {
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit UnlockedWithPenalty(address(this), amount, penaltyAmount);
 
-        veCVE.earlyExpireLock(0, rewardsData, "", 0);
+        veCVE.earlyExpireLock(0, action, "", 0);
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.getUnlockPenalty(address(this), 0);
@@ -231,7 +236,7 @@ contract TestVeCVE is TestBaseVeCVE {
 
     function test_lockAndUnlockInSameEpoch()
         public
-        setRewardsData(false, false, false)
+        setClaimAction(false, false, false)
     {
         // 1. config poc env
         _prepareUSDC(address(rewardManager), 10000e6);
@@ -249,7 +254,7 @@ contract TestVeCVE is TestBaseVeCVE {
 
         // 2. user00 create the first lock
         vm.prank(user00);
-        veCVE.createLock(1e18, false, rewardsData, "", 0);
+        veCVE.createLock(1e18, false, action, "", 0);
         assertEq(veCVE.userPoints(user00), 1e18);
         assertEq(veCVE.userUnlocksByEpoch(user00, 26), 0);
 
@@ -260,9 +265,9 @@ contract TestVeCVE is TestBaseVeCVE {
 
         // 4. user00 close the first lock and create the second lock within the same epoch
         vm.startPrank(user00);
-        veCVE.processExpiredLock(0, false, false, rewardsData, "", 0);
+        veCVE.processExpiredLock(0, false, false, action, "", 0);
         assertEq(veCVE.userPoints(user00), 1e18);
-        veCVE.createLock(1e18, false, rewardsData, "", 0);
+        veCVE.createLock(1e18, false, action, "", 0);
         assertEq(veCVE.userPoints(user00), 2e18);
         vm.stopPrank();
 
@@ -273,7 +278,7 @@ contract TestVeCVE is TestBaseVeCVE {
         assertEq(rewardManager.nextEpochToDeliver(), 28);
         assertEq(veCVE.userPoints(user00), 2e18);
         vm.prank(user00);
-        rewardManager.claimRewards(rewardsData, "", 0); // Trigger claim to offset points to what should be 0
+        rewardManager.claimRewards(action, "", 0); // Trigger claim to offset points to what should be 0
         assertEq(veCVE.userPoints(user00), 1e18);
     }
 
@@ -281,9 +286,9 @@ contract TestVeCVE is TestBaseVeCVE {
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        veCVE.createLock(30e18, false, rewardsData, "", 0);
-        veCVE.createLock(30e18, true, rewardsData, "", 0);
+    ) public setClaimAction(shouldLock, isFreshLock, isFreshLockContinuous) {
+        veCVE.createLock(30e18, false, action, "", 0);
+        veCVE.createLock(30e18, true, action, "", 0);
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
 
@@ -291,24 +296,24 @@ contract TestVeCVE is TestBaseVeCVE {
 
         uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
-        vm.warp(veCVE.nextEpochStartTime() - veCVE.epochDuration());
+        vm.warp(veCVE.nextEpochStartTime() - veCVE.EPOCH_DURATION());
 
         vm.expectRevert(VeCVE.VeCVE__PostEpochRestriction.selector);
         veCVE.bridgeLock{ value: messageFee }(
             0,
             bridgeData,
-            rewardsData,
+            action,
             "",
             0
         );
 
-        skip(veCVE.epochDuration() - 1);
+        skip(veCVE.EPOCH_DURATION() - 1);
 
         vm.expectRevert(VeCVE.VeCVE__PreEpochRestriction.selector);
         veCVE.bridgeLock{ value: messageFee }(
             0,
             bridgeData,
-            rewardsData,
+            action,
             "",
             0
         );
@@ -325,7 +330,7 @@ contract TestVeCVE is TestBaseVeCVE {
         veCVE.bridgeLock{ value: messageFee }(
             0,
             bridgeData,
-            rewardsData,
+            action,
             "",
             0
         );

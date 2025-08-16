@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { Api3Adaptor } from "contracts/oracles/adaptors/api3/Api3Adaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -68,12 +68,15 @@ contract TestApi3Adaptor is TestBaseOracleManager {
     }
 
     function testRevertAddAsset__InvalidHeartbeat() public {
+        // Should revert when heartbeat > DEFAULT_HEART_BEAT.
+        uint256 invalidHeartbeat = adaptor.DEFAULT_HEART_BEAT() + 1;
+
         vm.expectRevert(Api3Adaptor.Api3Adaptor__InvalidHeartbeat.selector);
         adaptor.addAsset(
             _ARB_ADDRESS,
             true,
             _DAPI_PROXY_ARB_USD,
-            1 days + 1,
+            invalidHeartbeat,
             _ARB_TICKER
         );
     }

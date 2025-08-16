@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -33,14 +33,12 @@ contract TestPythAdaptor is TestBaseOracleManager {
             _WETH_ADDRESS
         );
 
-        PythAdaptor.AssetConfig memory data;
-        data
-            .priceId = 0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43;
-        data.isConfigured = true;
-        data.heartbeat = 24 hours;
-        data.max = 1000000 ether;
-        data.min = 0 ether;
-        adaptor.addAsset(_WBTC_ADDRESS, true, data);
+        adaptor.addAsset(
+            _WBTC_ADDRESS,
+            true,
+            1 days,
+            0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
+        );
         vm.warp(1711335100);
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));

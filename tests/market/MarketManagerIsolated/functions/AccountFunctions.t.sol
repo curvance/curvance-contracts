@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 
@@ -19,15 +19,6 @@ contract AccountFunctionsTest is TestBaseLiquidations {
         assertEq(assets.length, 2);
         assertEq(address(assets[0]), address(strategyCBALRETH));
         assertEq(address(assets[1]), address(borrowableCUSDC));
-    }
-
-    function test_tokenDataOf() public {
-        (bool hasPosition, uint256 balanceOf, uint256 collateralPostedOf) =
-            protocolReader.tokenDataOf(user1, address(strategyCBALRETH));
-        assertEq(hasPosition, true);
-        assertEq(balanceOf, _ONE, "balance of mismatch");
-        assertEq(collateralPostedOf, _ONE - 1, "collateral posted mismatch");
-
     }
 
     function test_statusOf() public {

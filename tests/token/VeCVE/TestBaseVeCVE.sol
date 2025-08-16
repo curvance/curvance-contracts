@@ -1,20 +1,20 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity ^0.8.28;
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 
 contract TestBaseVeCVE is TestBaseMarketIsolated {
-    RewardsData public rewardsData;
+    ClaimAction public action;
     uint256 internal constant _MIN_FUZZ_AMOUNT = 1e18;
     uint256 internal constant _MAX_FUZZ_AMOUNT = 420e24;
 
-    modifier setRewardsData(
+    modifier setClaimAction(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
     ) {
-        rewardsData = RewardsData(
+        action = ClaimAction(
             false,
             shouldLock,
             isFreshLock,
@@ -26,6 +26,6 @@ contract TestBaseVeCVE is TestBaseMarketIsolated {
     function setUp() public virtual override {
         super.setUp();
 
-        rewardsData = RewardsData(false, true, true, true);
+        action = ClaimAction(false, true, true, true);
     }
 }
