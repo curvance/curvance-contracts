@@ -65,18 +65,6 @@ abstract contract BaseWrappedAggregator is IChainlink {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Returns the downcasted int192 from int256, reverting on
-    ///         overflow (when the input is less than smallest int192 or
-    ///         greater than largest int192).
-    /// @param value The int256 value to convert to int192.
-    /// @return downcasted The downcasted int192 value.
-    function _toInt192(int256 value) internal pure returns (int192 downcasted) {
-        downcasted = int192(value);
-        if (downcasted != value) {
-            revert BaseWrappedAggregator__UintToIntError();
-        }
-    }
-
     /// @notice Converts an unsigned uint256 into a signed int256.
     /// @param value The uint256 value to convert to int256.
     /// @return The converted int256 value.
