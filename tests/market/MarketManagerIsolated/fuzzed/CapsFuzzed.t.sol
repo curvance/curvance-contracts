@@ -14,7 +14,7 @@ contract CollateralCapsFuzzed is TestBaseMarketIsolated {
         dai.approve(address(borrowableCDAI), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
     }
 
     function test_fuzz_CollateralCaps(uint256 collateralCap, uint256 depositAmount) public {
@@ -23,7 +23,7 @@ contract CollateralCapsFuzzed is TestBaseMarketIsolated {
         depositAmount = bound(depositAmount, collateralCap / 1000 + 1, collateralCap);
 
         _setCTokenConfigBasic(address(borrowableCDAI), collateralCap, 1_000_000e18);
-        _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000e6, 1_000_000e6);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 10_000_000e6, 1_000_000e6);
 
         vm.startPrank(user1);
 
@@ -40,6 +40,41 @@ contract CollateralCapsFuzzed is TestBaseMarketIsolated {
         borrowableCDAI.depositAsCollateral(depositAmount, user1);
 
         vm.stopPrank();
+
+    }
+
+    function test_fuzz_DebtCaps(uint256 borrowCap, uint256 borrowAmount) public {
+
+        borrowCap = bound(borrowCap, 100_000e18, 1_000_000e18);
+        borrowAmount = bound(borrowAmount, borrowCap / 1000 + 1, borrowCap);
+
+        _setCTokenConfigBasic(address(borrowableCDAI), 1_000_000e18, borrowCap);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 10_000_000e6, 1_000_000e6);
+
+        vm.startPrank(user2);
+        _prepareDAI(user2, 10_000_000e18);
+        dai.approve(address(borrowableCDAI), 10_000_000e18);
+        borrowableCDAI.deposit(10_000_000e18, user2);
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        _prepareUSDC(user1, 10_000_000e6);
+        usdc.approve(address(borrowableCUSDC), 10_000_000e6);
+        borrowableCUSDC.depositAsCollateral(10_000_000e6, user1);
+
+        do {
+            borrowableCDAI.borrow(borrowAmount, user1);
+            skip(20 minutes);
+            _refreshMockFeeds();
+            borrowableCDAI.accrueIfNeeded();
+
+        } while (borrowableCDAI.marketOutstandingDebt() + borrowAmount <= marketManagerIsolated.debtCaps(address(borrowableCDAI)));
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
+        borrowableCDAI.borrow(borrowAmount, user1);
+
+        vm.stopPrank();
+
 
     }
 }
