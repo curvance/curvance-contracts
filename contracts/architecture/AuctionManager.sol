@@ -46,9 +46,6 @@ contract AuctionManager is DAppControl {
     uint32 public solverGasLimit = 6_000_000;
 
     /// OEV ALLOCATION CONFIG
-    /// @notice Share of OEV allocated to the bundler (in basis points, where 10000 = 100%)
-    uint256 public oevShareBundler;
-    
     /// @notice Share of OEV allocated to Fastlane (in basis points, where 10000 = 100%)
     uint256 public oevShareFastlane;
 
@@ -57,6 +54,16 @@ contract AuctionManager is DAppControl {
     
     /// @notice Address where Curvance OEV share is sent
     address public oevAllocationDestinationProtocol;
+
+    /// ACCUMULATED OEV TRACKING
+    /// @notice Total accumulated OEV waiting to be distributed
+    uint256 public totalAccumulatedOEV;
+    
+    /// @notice Accumulated OEV allocated to Fastlane
+    uint256 public accumulatedOEVFastlane;
+    
+    /// @notice Accumulated OEV allocated to the protocol
+    uint256 public accumulatedOEVProtocol;
 
     /// VALIDATION OF AUCTIONEER/USER
     /// @notice Address authorized to sign Atlas user operations, held by Fastlane Labs
@@ -82,22 +89,14 @@ contract AuctionManager is DAppControl {
 
     /**
      * @notice Emitted when OEV is distributed
-     * @param bundler Address of the bundler receiving OEV
      * @param totalOev Total OEV amount captured
-     * @param oevBundler Amount allocated to the bundler
      * @param oevFastlane Amount allocated to Fastlane
      * @param oevProtocol Amount allocated to the protocol
      */
     event CurvanceOevAllocated(
-        address indexed bundler, uint256 totalOev, uint256 oevBundler, uint256 oevFastlane, uint256 oevProtocol
+        uint256 totalOev, uint256 oevFastlane, uint256 oevProtocol
     );
     
-    /**
-     * @notice Emitted when the bundler's OEV share is updated
-     * @param oldBundlerShare Previous bundler share percentage
-     * @param newBundlerShare New bundler share percentage
-     */
-    event OevShareBundlerSet(uint256 oldBundlerShare, uint256 newBundlerShare);
     
     /**
      * @notice Emitted when Fastlane's OEV share is updated
@@ -147,6 +146,20 @@ contract AuctionManager is DAppControl {
      * @param isWhitelisted New allowed status
      */
     event AllowedSelectorWhitelistUpdated(bytes4 indexed selector, bool isWhitelisted);
+    
+    /**
+     * @notice Emitted when accumulated OEV is distributed
+     * @param oevFastlane Amount distributed to Fastlane
+     * @param oevProtocol Amount distributed to the protocol
+     * @param fastlaneDestination Address where Fastlane's OEV was sent
+     * @param protocolDestination Address where protocol's OEV was sent
+     */
+    event AccumulatedOEVDistributed(
+        uint256 oevFastlane, 
+        uint256 oevProtocol, 
+        address fastlaneDestination, 
+        address protocolDestination
+    );
 
     /// ERRORS /// 
 
@@ -193,11 +206,10 @@ contract AuctionManager is DAppControl {
      * @notice Initializes the AuctionManager with Atlas, central registry, and OEV allocation configurations.
      * @param atlas Address of the Atlas contract
      * @param centralRegistry_ Address of the Curvance central registry
-     * @param oevShareBundler_ Initial OEV share for bundlers (in basis points)
      * @param oevShareFastlane_ Initial OEV share for Fastlane (in basis points)
      * @param oevAllocationDestinationFastlane_ Address to receive Fastlane's OEV share
      * @param oevAllocationDestinationProtocol_ Address to receive protocol's OEV share
-     * @dev Total of oevShareBundler_ and oevShareFastlane_ must not exceed OEV_SHARE_SCALE (10,000)
+     * @dev oevShareFastlane_ must not exceed OEV_SHARE_SCALE (10,000)
      * @dev Configures Atlas CallConfig with the following key settings:
      * - requirePreOps: true - Enables pre-operation hook for oracle updates and auctioneer validation
      * - requirePreSolver: true - Enables pre-solver hook for dynamic risk parameter updates and collateral unlocking
@@ -209,7 +221,6 @@ contract AuctionManager is DAppControl {
     constructor(
         address atlas,
         ICentralRegistry centralRegistry_,
-        uint256 oevShareBundler_,
         uint256 oevShareFastlane_,
         address oevAllocationDestinationFastlane_,
         address oevAllocationDestinationProtocol_
@@ -245,10 +256,9 @@ contract AuctionManager is DAppControl {
         CentralRegistryLib._isCentralRegistry(centralRegistry_);
 
         // Configure OEV allocation.
-        if (oevShareBundler_ + oevShareFastlane_ > OEV_SHARE_SCALE) revert InvalidOevShare();
+        if (oevShareFastlane_ > OEV_SHARE_SCALE) revert InvalidOevShare();
         if (oevAllocationDestinationFastlane_ == address(0)) revert InvalidOevAllocationDestination();
         if (oevAllocationDestinationProtocol_ == address(0)) revert InvalidOevAllocationDestination();
-        oevShareBundler = oevShareBundler_;
         oevShareFastlane = oevShareFastlane_;
         oevAllocationDestinationFastlane = oevAllocationDestinationFastlane_;
         oevAllocationDestinationProtocol = oevAllocationDestinationProtocol_;
@@ -261,7 +271,6 @@ contract AuctionManager is DAppControl {
         allowedSelectors[IRedstoneProxy.updateDataFeedsValuesPartial.selector] = true;
         allowedSelectorsCount = 2;
 
-        emit OevShareBundlerSet(0, oevShareBundler_);
         emit OevShareFastlaneSet(0, oevShareFastlane_);
         emit OevAllocationDestinationFastlaneSet(address(0), oevAllocationDestinationFastlane_);
         emit OevAllocationDestinationProtocolSet(address(0), oevAllocationDestinationProtocol_);
@@ -284,24 +293,12 @@ contract AuctionManager is DAppControl {
     /// SETTERS FOR OEV ALLOCATION CONFIG
     
     /**
-     * @notice Updates the bundler's share of OEV
-     * @param oevShareBundler_ New bundler share in basis points (max 10,000)
-     * @dev Combined bundler and Fastlane shares cannot exceed OEV_SHARE_SCALE
-     */
-    function setOevShareBundler(uint256 oevShareBundler_) external onlyGov {
-        if (oevShareBundler_ + oevShareFastlane > OEV_SHARE_SCALE) revert InvalidOevShare();
-        uint256 old = oevShareBundler;
-        oevShareBundler = oevShareBundler_;
-        emit OevShareBundlerSet(old, oevShareBundler_);
-    }
-
-    /**
      * @notice Updates Fastlane's share of OEV
      * @param oevShareFastlane_ New Fastlane share in basis points (max 10,000)
-     * @dev Combined bundler and Fastlane shares cannot exceed OEV_SHARE_SCALE
+     * @dev Cannot exceed OEV_SHARE_SCALE
      */
     function setOevShareFastlane(uint256 oevShareFastlane_) external onlyGov {
-        if (oevShareFastlane_ + oevShareBundler > OEV_SHARE_SCALE) revert InvalidOevShare();
+        if (oevShareFastlane_ > OEV_SHARE_SCALE) revert InvalidOevShare();
         uint256 old = oevShareFastlane;
         oevShareFastlane = oevShareFastlane_;
         emit OevShareFastlaneSet(old, oevShareFastlane_);
@@ -329,6 +326,36 @@ contract AuctionManager is DAppControl {
         address old = oevAllocationDestinationProtocol;
         oevAllocationDestinationProtocol = oevAllocationDestinationProtocol_;
         emit OevAllocationDestinationProtocolSet(old, oevAllocationDestinationProtocol_);
+    }
+
+    /**
+     * @notice Distributes accumulated OEV to Fastlane and protocol destinations
+     * @dev Only callable by governance
+     * @dev Transfers all accumulated OEV to configured destinations and resets counters
+     */
+    function distributeAccumulatedOEV() external onlyGov {
+        uint256 fastlaneAmount = accumulatedOEVFastlane;
+        uint256 protocolAmount = accumulatedOEVProtocol;
+        
+        // Transfer accumulated OEV to destinations
+        if (fastlaneAmount > 0) {
+            SafeTransferLib.safeTransferETH(oevAllocationDestinationFastlane, fastlaneAmount);
+        }
+        if (protocolAmount > 0) {
+            SafeTransferLib.safeTransferETH(oevAllocationDestinationProtocol, protocolAmount);
+        }
+
+        // Reset accumulated amounts
+        totalAccumulatedOEV = 0;
+        accumulatedOEVFastlane = 0;
+        accumulatedOEVProtocol = 0;
+        
+        emit AccumulatedOEVDistributed(
+            fastlaneAmount, 
+            protocolAmount, 
+            oevAllocationDestinationFastlane, 
+            oevAllocationDestinationProtocol
+        );
     }
 
     /// SETTER FOR DAPP CONTROL CONFIGURATION
@@ -500,30 +527,17 @@ contract AuctionManager is DAppControl {
     }
 
     /**
-     * @notice Allocates OEV to bundler, Fastlane, and protocol according to configured shares
-     * @param bidAmount The total OEV amount to allocate
+     * @notice Accumulates OEV for later distribution according to configured shares
+     * @param bidAmount The total OEV amount to accumulate
      * @dev This function is delegatecalled from the Atlas execution environment
-     * @dev Distributes ETH to configured destinations based on share percentages
+     * @dev Accumulates ETH internally to be distributed later by governance
      */
     function _allocateValueCall(bool, address, uint256 bidAmount, bytes calldata) internal virtual override {
         if (bidAmount == 0) return;
 
-        (uint256 bundlerShare, uint256 fastlaneShare, address fastlaneDest, address protocolDest) =
-            AuctionManager(CONTROL).getSharesAndDestinations();
-
-        // Get the OEV share for the bundler and transfer it
-        uint256 _oevShareBundler = bidAmount * bundlerShare / OEV_SHARE_SCALE;
-        if (_oevShareBundler > 0) SafeTransferLib.safeTransferETH(_bundler(), _oevShareBundler);
-
-        // Get the OEV share for Fastlane and transfer it
-        uint256 _oevShareFastlane = bidAmount * fastlaneShare / OEV_SHARE_SCALE;
-        if (_oevShareFastlane > 0) SafeTransferLib.safeTransferETH(fastlaneDest, _oevShareFastlane);
-
-        // Transfer the rest
-        uint256 _oevShareProtocol = bidAmount - _oevShareBundler - _oevShareFastlane;
-        if (_oevShareProtocol > 0) SafeTransferLib.safeTransferETH(protocolDest, _oevShareProtocol);
-
-        emit CurvanceOevAllocated(_bundler(), bidAmount, _oevShareBundler, _oevShareFastlane, _oevShareProtocol);
+        // Since this is delegatecalled, we need to call back to the control contract
+        // to update storage variables
+        AuctionManager(CONTROL).accumulateOEV(bidAmount);
     }
 
     // ---------------------------------------------------- //
@@ -582,6 +596,28 @@ contract AuctionManager is DAppControl {
         CENTRAL_REGISTRY.unlockAuctionForMarket(marketManager);
     }
 
+    /**
+     * @notice Accumulates OEV internally for later distribution
+     * @param bidAmount The total OEV amount to accumulate
+     * @dev Only callable by the authorized execution environment
+     * @dev Calculates shares and updates accumulation balances
+     */
+    function accumulateOEV(uint256 bidAmount) external {
+        if (msg.sender != authorizedExecutionEnv) revert InvalidExecutionEnv();
+        
+        // Calculate OEV shares
+        uint256 _oevShareFastlane = bidAmount * oevShareFastlane / OEV_SHARE_SCALE;
+        uint256 _oevShareProtocol = bidAmount - _oevShareFastlane;
+        
+        // Update accumulated balances
+        totalAccumulatedOEV += bidAmount;
+        accumulatedOEVFastlane += _oevShareFastlane;
+        accumulatedOEVProtocol += _oevShareProtocol;
+        
+        // Emit the proper event with calculated shares
+        emit CurvanceOevAllocated(bidAmount, _oevShareFastlane, _oevShareProtocol);
+    }
+
     // ---------------------------------------------------- //
     //                  Internal Functions                  //
     // ---------------------------------------------------- //
@@ -630,14 +666,27 @@ contract AuctionManager is DAppControl {
 
     /**
      * @notice Returns the current OEV share configuration and destination addresses
-     * @return oevShareBundler The bundler's share of OEV (in basis points)
      * @return oevShareFastlane Fastlane's share of OEV (in basis points)
      * @return oevAllocationDestinationFastlane Address receiving Fastlane's OEV
      * @return oevAllocationDestinationProtocol Address receiving protocol's OEV
      */
     function getSharesAndDestinations() external view returns (
-        uint256, uint256, address, address
+        uint256, address, address
     ) {
-        return (oevShareBundler, oevShareFastlane, oevAllocationDestinationFastlane, oevAllocationDestinationProtocol);
+        return (oevShareFastlane, oevAllocationDestinationFastlane, oevAllocationDestinationProtocol);
+    }
+
+    /**
+     * @notice Returns the current accumulated OEV balances
+     * @return total Total accumulated OEV waiting to be distributed
+     * @return fastlane Accumulated OEV allocated to Fastlane
+     * @return protocol Accumulated OEV allocated to the protocol
+     */
+    function getAccumulatedOEV() external view returns (
+        uint256 total,
+        uint256 fastlane,
+        uint256 protocol
+    ) {
+        return (totalAccumulatedOEV, accumulatedOEVFastlane, accumulatedOEVProtocol);
     }
 }
