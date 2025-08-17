@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
+import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
-import { BaseSwapChecker } from "./BaseSwapChecker.sol";
+
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
+/// @notice Inspects the calldata for a PendleZapper zap action.
 contract PendleZapperCalldataChecker is BaseSwapChecker {
     /// CONSTRUCTOR ///
 

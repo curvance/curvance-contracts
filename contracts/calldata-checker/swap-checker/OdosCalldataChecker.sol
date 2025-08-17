@@ -1,41 +1,18 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseSwapChecker } from "./BaseSwapChecker.sol";
+import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
+
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 import { IOdosRouterV2 } from "contracts/interfaces/external/odos/IOdosRouterV2.sol";
 
-/// @notice WARNING: Currently built for Router V2.
+/// @notice Inspects the calldata for an Odos related swap action.
+/// @dev NOTE: Currently built for Router V2.
 contract OdosCalldataChecker is BaseSwapChecker {
-    /// CONSTANTS ///
-    
-    /// @notice The mask for the one for zero flag
-    uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;
-    /// @notice The mask for the reverse flag
-    uint256 private constant _REVERSE_MASK =
-        0x8000000000000000000000000000000000000000000000000000000000000000;
-
-    /// @dev Address list where addresses can be cached for use when reading from storage is cheaper
-    // than reading from calldata. addressListStart is the storage slot of the first dynamic array element
-    uint256 private constant addressListStart =
-        80084422859880547211683076133703299733277748156566366325829078699459944778998;
-
-    /// STORAGE ///
-
-    /// @notice List of cached addresses used for validating Odos swaps
-    address[] public addressList;
-
     /// CONSTRUCTOR ///
 
-    constructor(
-        address _target,
-        address[] memory addresses
-    ) BaseSwapChecker(_target) {
-        for (uint256 i; i < addresses.length; i++) {
-            addressList.push(addresses[i]);
-        }
-    }
+    constructor(address _target) BaseSwapChecker(_target) {}
 
     /// EXTERNAL FUNCTIONS ///
 

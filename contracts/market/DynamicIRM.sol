@@ -482,7 +482,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     /// @param assetsHeld The amount of underlying assets held in the pool.
     /// @param debt The amount of outstanding debt in the pool.
     /// @param interestFee The current interest rate protocol fee
-    ///                    for the market token.
+    ///                    for the market token, in `BPS`.
     /// @return result The supply interest rate percentage, per second,
     ///                in `WAD`.
     function supplyRate(
@@ -490,18 +490,18 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint256 debt,
         uint256 interestFee
     ) public view returns (uint256 result) {
-        // RateToLenders = (borrowRate * (1 - Interest Fee)) / WAD.
+        // RateToLenders = (borrowRate * (1 - Interest Fee)) / BPS.
         uint256 rateToLenders =  _mulDiv(
             borrowRate(assetsHeld, debt),
-            WAD - interestFee,
-            WAD
+            BPS - interestFee,
+            BPS
         );
 
-        // Supply Rate = (utilizationRate * rateToLenders) / WAD.
+        // Supply Rate = (utilizationRate * rateToLenders) / BPS.
         result = _mulDiv(
             utilizationRate(assetsHeld, debt),
             rateToLenders,
-            WAD
+            BPS
         );
     }
 
