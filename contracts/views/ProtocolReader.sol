@@ -349,17 +349,31 @@ contract ProtocolReader {
 
     function previewAssetImpact(
         address user,
-        address borrowableCToken,
-        uint256 amount
-    ) public view returns (uint256 supply, uint256 borrow, uint256 earn) {
-            IBorrowableCToken bcToken = IBorrowableCToken(address(borrowableCToken));
-            uint256 debt = bcToken.marketOutstandingDebt();
-            IDynamicIRM irm = bcToken.IRM();
+        address collateralCToken,
+        address debtBorrowableCToken,
+        uint256 newCollateralAssets,
+        uint256 newDebtAssets
+    ) public view returns (uint256 supply, uint256 borrow) {
+        ICToken cToken = ICToken(collateralCToken);
+        IBorrowableCToken bcToken;
+        uint256 assetsHeld;
+        uint256 debt = bcToken.marketOutstandingDebt();
+        
+        if (cToken.isBorrowable()) {
+            bcToken = IBorrowableCToken(address(collateralCToken));
+            assetsHeld = bcToken.assetsHeld() + newCollateralAssets;
+            debt = bcToken.marketOutstandingDebt();
+            supply = bcToken.IRM()
+                .supplyRate(assetsHeld, debt, bcToken.interestFee()) * SECONDS_PER_YEAR;
+        }
 
-            uint256 assetsHeld = bcToken.assetsHeld() + amount;
-            borrow =  irm.borrowRate(assetsHeld, debt) * SECONDS_PER_YEAR;
-            supply = irm.supplyRate(assetsHeld, debt, bcToken.interestFee()) * SECONDS_PER_YEAR;
-            earn = supply - borrow;
+        bcToken = IBorrowableCToken(debtBorrowableCToken);
+        if (bcToken.debtBalance(user) != 0) {
+            assetsHeld = bcToken.assetsHeld() - newDebtAssets;
+            debt = bcToken.marketOutstandingDebt();
+            borrow = bcToken.IRM()
+                .borrowRate(assetsHeld, debt) * SECONDS_PER_YEAR;
+        }
     }
 
     /// INTERNAL FUNCTIONS ///
