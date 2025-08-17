@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseSwapChecker } from "./BaseSwapChecker.sol";
+import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 import { IOBRouter } from "contracts/interfaces/external/ooga/IOBRouter.sol";

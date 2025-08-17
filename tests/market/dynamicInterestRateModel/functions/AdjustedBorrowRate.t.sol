@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 
-import { WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD, WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
 
 import { TestBaseDynamicIRM } from "../TestBaseDynamicIRM.sol";
 
@@ -33,7 +33,7 @@ contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
         uint256 timestamp
     ) public {
         vm.assume(assetsHeld < 1e30 && borrows < 1e30);
-        vm.assume(interestFee < WAD);
+        vm.assume(interestFee < BPS);
         vm.assume(timestamp < 2000000000);
 
         vm.warp(timestamp);
@@ -64,9 +64,10 @@ contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
             uint256 predictedBorrowRate = IRM
                 .predictedBorrowRate(assetsHeld, borrows);
 
+            // Utilization is in WAD and interestFee in BPS.
             assertEq(
                 supplyRate,
-                (util * ((borrowRate * (WAD - interestFee)) / WAD)) / WAD
+                (util * ((borrowRate * (BPS - interestFee)) / BPS)) / WAD
             );
 
             vm.prank(address(borrowableCUSDC));
@@ -83,8 +84,7 @@ contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
                         vertexRatePerSecond *
                         vertexMultiplier) /
                         WAD_SQUARED +
-                        (vertexStart * baseRatePerSecond) /
-                        WAD
+                        (vertexStart * baseRatePerSecond) / WAD
                 );
 
                 if (vertexMultiplier == WAD && util < increaseThresholdStart) {

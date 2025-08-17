@@ -762,7 +762,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             );
         }
 
-        // Calculate any protocol fee on `assetsToVest`.
+        // Calculate any protocol fee on `assetsToVest`, in assets.
         uint256 protocolFee = FixedPointMathLib.mulDivUp(
             assetsToVest,
             interestFee,
@@ -770,17 +770,15 @@ contract BorrowableCToken is BaseCTokenWithYield {
         );
         // If theres fees we need to mint new shares for the protocol.
         if (protocolFee > 0) {
-            // Cache total supply/total shares = ts.
-            uint256 ts = totalSupply();
             // We can calculate how many shares the protocol should receive
-            // from assetsToVest fee by using the formula:
-            // (feeInAssets * ts) / (ta + assetsToVest - feeInAssets).
+            // from its fee on assetsToVest by using the formula:
+            // (fee * totalSupply) / (totalAssets + assetsToVest - fee).
             // This means that that shares minted will result in an exchange
             // rate matching the amount of vested assets lenders should
             // benefit from.
             uint256 protocolFeeShares = _mulDiv(
                 protocolFee,
-                ts,
+                totalSupply(),
                 cachedTa + assetsToVest - protocolFee
             );
             // Cache `daoAddress` then mint shares to dao operator address.
