@@ -495,8 +495,8 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
             BPS
         );
 
-        // Supply Rate = (utilizationRate * rateToLenders) / BPS.
-        r = _mulDiv(utilizationRate(assetsHeld, debt), rateToLenders, BPS);
+        // Supply Rate = (utilizationRate * rateToLenders) / WAD.
+        r = _mulDiv(utilizationRate(assetsHeld, debt), rateToLenders, WAD);
     }
 
     /// @notice Calculates the borrow utilization rate of the market.

@@ -84,8 +84,7 @@ contract AdjustedBorrowRateTest is TestBaseDynamicIRM {
                         vertexRatePerSecond *
                         vertexMultiplier) /
                         WAD_SQUARED +
-                        (vertexStart * baseRatePerSecond) /
-                        WAD
+                        (vertexStart * baseRatePerSecond) / WAD
                 );
 
                 if (vertexMultiplier == WAD && util < increaseThresholdStart) {
