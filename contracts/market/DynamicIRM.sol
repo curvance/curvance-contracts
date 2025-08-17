@@ -452,12 +452,11 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///     should not be used for onchain execution.
     /// @param assetsHeld The amount of underlying assets held in the pool.
     /// @param debt The amount of outstanding debt in the pool.
-    /// @return result The borrow interest rate percentage, per second,
-    ///                in `WAD`.
+    /// @return r The borrow interest rate percentage, per second, in `WAD`.
     function borrowRate(
         uint256 assetsHeld,
         uint256 debt
-    ) public view returns (uint256 result) {
+    ) public view returns (uint256 r) {
         uint256 util = utilizationRate(assetsHeld, debt);
         // Cache from storage since we only need to query a new config values.
         RatesConfig storage c = ratesConfig;
@@ -467,7 +466,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
             return _baseRate(util, c.baseRatePerSecond);
         }
 
-        result = _vertexRate(
+        r = _vertexRate(
             util,
             c.baseRatePerSecond,
             c.vertexRatePerSecond,
@@ -483,13 +482,12 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     /// @param debt The amount of outstanding debt in the pool.
     /// @param interestFee The current interest rate protocol fee
     ///                    for the market token, in `BPS`.
-    /// @return result The supply interest rate percentage, per second,
-    ///                in `WAD`.
+    /// @return r The supply interest rate percentage, per second, in `WAD`.
     function supplyRate(
         uint256 assetsHeld,
         uint256 debt,
         uint256 interestFee
-    ) public view returns (uint256 result) {
+    ) public view returns (uint256 r) {
         // RateToLenders = (borrowRate * (1 - Interest Fee)) / BPS.
         uint256 rateToLenders =  _mulDiv(
             borrowRate(assetsHeld, debt),
@@ -498,23 +496,19 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         );
 
         // Supply Rate = (utilizationRate * rateToLenders) / BPS.
-        result = _mulDiv(
-            utilizationRate(assetsHeld, debt),
-            rateToLenders,
-            BPS
-        );
+        r = _mulDiv(utilizationRate(assetsHeld, debt), rateToLenders, BPS);
     }
 
     /// @notice Calculates the borrow utilization rate of the market.
     /// @param assetsHeld The amount of underlying assets held in the pool.
     /// @param debt The amount of outstanding debt in the pool.
-    /// @return result The utilization rate between [0, WAD].
+    /// @return r The utilization rate between [0, WAD].
     function utilizationRate(
         uint256 assetsHeld,
         uint256 debt
-    ) public pure returns (uint256 result) {
+    ) public pure returns (uint256 r) {
         // Utilization rate is 0 when there are no outstanding debt.
-        result = debt == 0 ? 0 : _mulDiv(debt, WAD, assetsHeld + debt);
+        r = debt == 0 ? 0 : _mulDiv(debt, WAD, assetsHeld + debt);
     }
 
     /// @inheritdoc ERC165
