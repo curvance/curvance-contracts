@@ -345,6 +345,13 @@ contract ProtocolReader {
         return cooldowns;
     }
 
+    /// @notice Preview the impact of a new asset deposit on the market
+    /// @param user The user address
+    /// @param collateralCToken The address of the collateral cToken
+    /// @param debtBorrowableCToken The address of the debt borrowable cToken
+    /// @param newCollateralAssets The amount of new collateral assets to deposit
+    /// @return supply The projected supply amount
+    /// @return borrow The projected borrow amount
     function previewAssetImpact(
         address user,
         address collateralCToken,
