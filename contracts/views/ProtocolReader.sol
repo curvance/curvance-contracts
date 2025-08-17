@@ -64,13 +64,11 @@ contract ProtocolReader {
         uint256 totalSupply;
     }
 
-    // TODO: In the JS world we need to have the option to convert tvl,collateral,debt to USD
     struct DynamicMarketData {
         address _address;
         DynamicMarketToken[] tokens;
     }
 
-    // TODO: In the JS world we need to have the option to convert tvl,collateral,debt to USD
     struct DynamicMarketToken {
         address _address;
         uint256 totalSupply;
@@ -110,10 +108,10 @@ contract ProtocolReader {
 
     struct UserMarketToken {
         address _address;
-        uint256 assetAmount;
-        uint256 shareAmount;
-        uint256 collateral;
-        uint256 debt;
+        uint256 userAssetBalance;
+        uint256 userShareBalance;
+        uint256 userCollateral;
+        uint256 userDebt;
     }
 
     /// CONSTANTS ///
@@ -514,10 +512,10 @@ contract ProtocolReader {
         uint256 shares = ctoken.balanceOf(account);
 
         umt._address = tokenAddress;
-        umt.assetAmount = ctoken.convertToAssets(shares);
-        umt.shareAmount = ctoken.balanceOf(account);
-        umt.debt = ctoken.isBorrowable() ? IBorrowableCToken(address(ctoken)).debtBalance(account) : 0;
-        umt.collateral = ctoken.collateralPosted(account);
+        umt.userAssetBalance = ctoken.convertToAssets(shares);
+        umt.userShareBalance = ctoken.balanceOf(account);
+        umt.userDebt = ctoken.isBorrowable() ? IBorrowableCToken(address(ctoken)).debtBalance(account) : 0;
+        umt.userCollateral = ctoken.collateralPosted(account);
     }
 
     function _buildUserMarket(
