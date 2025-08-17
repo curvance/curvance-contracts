@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { UniswapV3Pool } from "contracts/interfaces/external/uniswap/UniswapV3Pool.sol";
-import { BaseSwapChecker } from "./BaseSwapChecker.sol";
+import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
+
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
+import { UniswapV3Pool } from "contracts/interfaces/external/uniswap/UniswapV3Pool.sol";
 import { IAggregationRouterV5 } from "contracts/interfaces/external/1inch/IAggregationRouterV5.sol";
 
-/// @notice WARNING: Currently built for Aggregation Router V5.
+/// @notice Inspects the calldata for a 1inch related swap action.
+/// @dev NOTE: Currently built for Aggregation Router V5.
 contract OneInchCalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
 
