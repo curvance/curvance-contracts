@@ -37,12 +37,12 @@ contract AuctionManager is DAppControl {
     /// @notice Immutable reference to Curvance Central Registry.
     ICentralRegistry public immutable CENTRAL_REGISTRY;
 
+    /// STORAGE ///
+
     /// @notice Liquidation close factor used for Auction-based liquidations,
     ///         in BPS.
     /// @dev 2000 = 20%.
-    uint256 public constant ATLAS_CLOSE_FACTOR = 2000;
-
-    /// STORAGE ///
+    uint256 public atlasCloseFactor;
 
     /// REVENUE INFORMATION
 
@@ -134,6 +134,11 @@ contract AuctionManager is DAppControl {
     /// @param newSolverGasLimit The new solver gas limit.
     event SolverGasLimitSet(uint32 oldSolverGasLimit, uint32 newSolverGasLimit);
 
+    /// @notice Emitted when the Atlas close factor is updated.
+    /// @param oldCloseFactor Previous close factor, in BPS.
+    /// @param newCloseFactor New close factor, in BPS.
+    event AtlasCloseFactorSet(uint256 oldCloseFactor, uint256 newCloseFactor);
+
     /// @notice Emitted when the authorized user operation signer is updated.
     /// @param oldAuthorizedUserOpSigner Previous authorized signer.
     /// @param newAuthorizedUserOpSigner New authorized signer.
@@ -172,6 +177,9 @@ contract AuctionManager is DAppControl {
     
     /// @notice Thrown when revenue allocation destination is zero address.
     error AuctionManager__InvalidDestination();
+
+    /// @notice Thrown when close factor is invalid (zero or exceeds 100%).
+    error AuctionManager__InvalidCloseFactor();
 
     // ORACLE RELATED ERRORS
 
@@ -219,12 +227,15 @@ contract AuctionManager is DAppControl {
     ///                             share.
     /// @param curvanceDestination_ Address to receive Curvance Protocol's
     ///                             revenue share.
+    /// @param atlasCloseFactor_ Initial close factor for auction-based
+    ///                         liquidations, in BPS.
     constructor(
         address atlas,
         ICentralRegistry centralRegistry_,
         uint256 fastlaneSplitBPS_,
         address fastlaneDestination_,
-        address curvanceDestination_
+        address curvanceDestination_,
+        uint256 atlasCloseFactor_
     )
         DAppControl(
             atlas,
@@ -256,13 +267,15 @@ contract AuctionManager is DAppControl {
     {
         CentralRegistryLib._isCentralRegistry(centralRegistry_);
 
-        // Configure OEV allocation.
+        // Configure revenue allocation.
         if (fastlaneSplitBPS_ > BPS) revert AuctionManager__InvalidRevenueConfig();
         if (fastlaneDestination_ == address(0)) revert AuctionManager__InvalidDestination();
         if (curvanceDestination_ == address(0)) revert AuctionManager__InvalidDestination();
+        if (atlasCloseFactor_ == 0 || atlasCloseFactor_ > BPS) revert AuctionManager__InvalidCloseFactor();
         fastlaneSplitBPS = uint16(fastlaneSplitBPS_);
         fastlaneRevenueDestination = fastlaneDestination_;
         curvanceRevenueDestination = curvanceDestination_;
+        atlasCloseFactor = atlasCloseFactor_;
 
         // Set `CENTRAL_REGISTRY`.
         CENTRAL_REGISTRY = centralRegistry_;
@@ -347,6 +360,18 @@ contract AuctionManager is DAppControl {
         emit SolverGasLimitSet(old, solverGasLimit_);
     }
 
+    /// @notice Updates the close factor used for auction-based liquidations.
+    /// @dev Close factor must be greater than 0 and not exceed 100% (BPS).
+    /// @param atlasCloseFactor_ New close factor, in BPS.
+    function setAtlasCloseFactor(uint256 atlasCloseFactor_) external {
+        _checkIsGovernor();
+        
+        if (atlasCloseFactor_ == 0 || atlasCloseFactor_ > BPS) revert AuctionManager__InvalidCloseFactor();
+        uint256 old = atlasCloseFactor;
+        atlasCloseFactor = atlasCloseFactor_;
+        emit AtlasCloseFactorSet(old, atlasCloseFactor_);
+    }
+
     /// @notice Sets the authorized signer for user operations.
     /// @dev This function must be called immediately after deployment to
     ///      initialize the authorizedExecutionEnv.
@@ -404,7 +429,7 @@ contract AuctionManager is DAppControl {
         if (!CENTRAL_REGISTRY.isMarketManager(marketManager)) revert AuctionManager__InvalidMarketManager();
 
         // Set dynamic risk parameters and unlock `cToken` collateral for auction-based liquidation.
-        IMarketManager(marketManager).setTransientLiquidationConfig(cToken, newPenalty, ATLAS_CLOSE_FACTOR);
+        IMarketManager(marketManager).setTransientLiquidationConfig(cToken, newPenalty, atlasCloseFactor);
 
         // Unlock `marketManager`.
         CENTRAL_REGISTRY.unlockAuctionForMarket(marketManager);
