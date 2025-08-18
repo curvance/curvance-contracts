@@ -39,21 +39,20 @@ contract AuctionManager is DAppControl {
 
     /// STORAGE ///
 
-    /// @notice Liquidation close factor used for Auction-based liquidations,
-    ///         in BPS.
-    /// @dev 2000 = 20%.
-    uint256 public atlasCloseFactor;
-
     /// REVENUE INFORMATION
 
-    /// @notice Accumulated revenue for both Fastlane Labs and Curvance
+    /// @notice Accumulated revenue for both Fastlane Labs, and Curvance
     ///         Protocol.
-    uint208 public accumulatedRevenue;
+    uint192 public accumulatedRevenue;
 
     /// @notice Share of revenue allocated to Fastlane Labs, in BPS.
     uint16 public fastlaneSplitBPS;
 
     /// SOLVER CONFIG 
+
+    /// @notice Liquidation close factor used for Auction-based liquidations,
+    ///         in BPS.
+    uint16 public atlasCloseFactor;
 
     /// @notice Maximum gas limit allowed for each solver operation.
     uint32 public solverGasLimit = 6_000_000;
@@ -228,7 +227,7 @@ contract AuctionManager is DAppControl {
     /// @param curvanceDestination_ Address to receive Curvance Protocol's
     ///                             revenue share.
     /// @param atlasCloseFactor_ Initial close factor for auction-based
-    ///                         liquidations, in BPS.
+    ///                          liquidations, in BPS.
     constructor(
         address atlas,
         ICentralRegistry centralRegistry_,

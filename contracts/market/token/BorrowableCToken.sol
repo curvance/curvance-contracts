@@ -23,8 +23,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
     uint256 public constant MAX_INTEREST_ACCRUAL_FEE = 5000;
 
     /// @notice Percentage (%) fee on loan taken during a flashloan, in `BPS`.
-    /// @dev 5 bps = 0.05%.
-    uint256 public constant FLASHLOAN_FEE = 5;
+    /// @dev 4 bps = 0.04%.
+    uint256 public constant FLASHLOAN_FEE = 4;
 
     /// @dev Mask of `VESTING_RATE` entry in `_vestingData`.
     uint256 internal constant _BITMASK_VESTING_RATE = (1 << 96) - 1;
