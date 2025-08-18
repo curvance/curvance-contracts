@@ -416,7 +416,7 @@ contract ProtocolReader {
         t.symbol = cToken.symbol();
         t.decimals = cToken.decimals();
 
-        ERC20 asset = ERC20(cToken.asset());
+        IERC20 asset = IERC20(cToken.asset());
         t.asset._address = address(asset);
         t.asset.name =  asset.name();
         t.asset.symbol = asset.symbol();
