@@ -415,12 +415,13 @@ contract ProtocolReader {
         t.name = cToken.name();
         t.symbol = cToken.symbol();
         t.decimals = cToken.decimals();
-        
-        t.asset._address = cToken.asset();
-        t.asset.name =  cToken.name();
-        t.asset.symbol = cToken.symbol();
-        t.asset.decimals = cToken.decimals();
-        t.asset.totalSupply = cToken.totalSupply();
+
+        ERC20 asset = ERC20(cToken.asset());
+        t.asset._address = address(asset);
+        t.asset.name =  asset.name();
+        t.asset.symbol = asset.symbol();
+        t.asset.decimals = asset.decimals();
+        t.asset.totalSupply = asset.totalSupply();
         
         t.collateralCap = mm.collateralCaps(address(cToken));
         t.debtCap = mm.debtCaps(address(cToken));
