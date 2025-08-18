@@ -401,6 +401,15 @@ contract ProtocolReader {
         positionHealth = (soft * WAD) / debt;
     }
 
+    function _getStaticTokenAsset(ICToken cToken) internal view returns (StaticMarketAsset memory a) {
+        IERC20 asset = IERC20(cToken.asset());
+        a._address = address(asset);
+        a.name =  asset.name();
+        a.symbol = asset.symbol();
+        a.decimals = asset.decimals();
+        a.totalSupply = asset.totalSupply();
+    }
+
     /// @notice Queries static token configuration of `cToken`
     /// @param mm The market manager to pull static token data from.
     /// @param cToken The address of the cToken to pull static token
@@ -415,13 +424,7 @@ contract ProtocolReader {
         t.name = cToken.name();
         t.symbol = cToken.symbol();
         t.decimals = cToken.decimals();
-
-        IERC20 asset = IERC20(cToken.asset());
-        t.asset._address = address(asset);
-        t.asset.name =  asset.name();
-        t.asset.symbol = asset.symbol();
-        t.asset.decimals = asset.decimals();
-        t.asset.totalSupply = asset.totalSupply();
+        t.asset = _getStaticTokenAsset(cToken);
         
         t.collateralCap = mm.collateralCaps(address(cToken));
         t.debtCap = mm.debtCaps(address(cToken));
