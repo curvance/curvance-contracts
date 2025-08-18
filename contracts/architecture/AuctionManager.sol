@@ -260,7 +260,7 @@ contract AuctionManager is DAppControl {
         if (fastlaneSplitBPS_ > BPS) revert AuctionManager__InvalidRevenueConfig();
         if (fastlaneDestination_ == address(0)) revert AuctionManager__InvalidDestination();
         if (curvanceDestination_ == address(0)) revert AuctionManager__InvalidDestination();
-        fastlaneSplitBPS = fastlaneSplitBPS_;
+        fastlaneSplitBPS = uint16(fastlaneSplitBPS_);
         fastlaneRevenueDestination = fastlaneDestination_;
         curvanceRevenueDestination = curvanceDestination_;
 
@@ -295,7 +295,7 @@ contract AuctionManager is DAppControl {
         // Distribute accumulated revenue with `old` Fastlane Labs fee split.
         _distributeRevenue();
 
-        fastlaneSplitBPS = fastlaneSplitBPS_;
+        fastlaneSplitBPS = uint16(fastlaneSplitBPS_);
         emit RevenueShareSet(old, fastlaneSplitBPS_, BPS - old, BPS - fastlaneSplitBPS_);
     }
 
@@ -663,6 +663,10 @@ contract AuctionManager is DAppControl {
     function _distributeRevenue() internal {
         // Cached accumulated revenue value, in native gas tokens.
         uint256 revenue = accumulatedRevenue;
+        if (revenue == 0) {
+            return;
+        }
+        
         uint256 fastlaneSplit = (revenue * fastlaneSplitBPS) / BPS;
         uint256 curvanceSplit = revenue - fastlaneSplit;
         

@@ -98,27 +98,29 @@ interface IMarketManager {
         uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256
     );
 
-    /// @notice Called from the AuctionHub as a pre hook before liquidations
-    ///         are tried to enforce that only a specific collateral can be
-    ///         liquidated during a transaction.
-    /// @param collateralToUnlock The address of the cToken to unlock as
-    ///                           liquidatable collateral during
-    ///                           a transaction.
-    function unlockAuctionCollateral(address collateralToUnlock) external;
-
-    /// @notice Sets new dynamic close factor and liquidation penalty
-    ///         values in transient storage.
+    /// @notice Enables an auction-based liquidation, potentially with a dynamic
+    ///         close factor and liquidation penalty values in transient storage.
     /// @dev Transient storage enforces any liquidator outside auction-based
     ///      liquidations uses the default risk parameters.
-    /// @param cToken The Curvance token to set liquidation incentive and
-    ///               close factor for during an auction-based liquidation.
+    /// @param cToken The Curvance token to configure liquidations for during
+    ///               an auction-based liquidation.
     /// @param incentive The auction liquidation incentive value, in `BPS`.
     /// @param closeFactor The auction close factor value, in `BPS`.
-    function setLiquidationConfig(
+    function setTransientLiquidationConfig(
         address cToken,
         uint256 incentive,
         uint256 closeFactor
     ) external;
+
+    /// @notice Called from the AuctionManager as a post hook after liquidations
+    ///         are tried to enable all collateral to be liquidated outside
+    ///         an Auction tx.
+    /// @notice Resets the liquidation risk parameters in transient storage to
+    ///         zero.
+    /// @dev This is redundant since the transient values will be reset after
+    ///      the liquidation transaction, but can be useful during meta calls
+    ///      with multiple liquidations during a single transaction. 
+    function resetTransientLiquidationConfig() external;
 
     /// @notice Checks if the account should be allowed to mint tokens
     ///         in the given market.
