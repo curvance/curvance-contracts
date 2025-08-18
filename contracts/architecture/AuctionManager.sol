@@ -375,7 +375,7 @@ contract AuctionManager is DAppControl {
 
         // Parameters have already been validated in _preOpsCall
         (bool success,) = oracle.call(callData);
-        if (!success) revert OracleUpdateFailed();
+        if (!success) revert AuctionManager__OracleUpdateFailed();
     }
 
     // ---------------------------------------------------- //
@@ -401,7 +401,7 @@ contract AuctionManager is DAppControl {
     /// @param newPenalty New liquidation penalty to apply.
     function preSolverSetup(address marketManager, address cToken, uint256 newPenalty) external {
         _checkAuthorizedExecutionEnv();
-        if (!CENTRAL_REGISTRY.isMarketManager(marketManager)) revert InvalidMarketManager();
+        if (!CENTRAL_REGISTRY.isMarketManager(marketManager)) revert AuctionManager__InvalidMarketManager();
 
         // Set dynamic risk parameters and unlock `cToken` collateral for auction-based liquidation.
         IMarketManager(marketManager).setTransientLiquidationConfig(cToken, newPenalty, ATLAS_CLOSE_FACTOR);
