@@ -95,10 +95,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ///                     minimum of `minPrice`.
     ///                  2: Indicates an ever increasing maximum of
     ///                     `basePrice` and minimum of `minPrice` continually
-    ///                     growing by `increasePerYear` % per year.
-    /// @param timestampStart When `increasePerYear` should start increasing
-    ///                       `basePrice` raising the maximum price returned
-    ///                       when pricing `asset`.
+    ///                     growing by `ips` % per second.
+    /// @param timestampStart When `ips` should start increasing `basePrice`
+    ///                       raising the maximum price returned when pricing
+    ///                       `asset`.
     /// @param ips The magnitude that `basePrice` should increase overtime
     ///            overtime from `timestampStart`, in `WAD`, in seconds.
     /// @param basePrice The base price that should be the maximum price

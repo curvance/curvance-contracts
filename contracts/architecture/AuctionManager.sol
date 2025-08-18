@@ -422,7 +422,7 @@ contract AuctionManager is DAppControl {
             pendingRevenue = 0;
         }
 
-        accumulatedRevenue = pendingRevenue + bidAmount;
+        accumulatedRevenue = uint208(pendingRevenue + bidAmount);
 
         // Emit that new revenue was allocated from an auction-based
         // liquidation.
@@ -641,9 +641,9 @@ contract AuctionManager is DAppControl {
     ) internal virtual override {
         if (bidAmount == 0) return;
 
-        // Since this is delegateCalled, we need to call back to the `CONTROL` contract
-        // to update storage variables
-        AuctionManager(CONTROL).accumulateOEV(bidAmount);
+        // Since this is delegateCalled, we need to call back to the `CONTROL`
+        // contract to update storage variables
+        AuctionManager(CONTROL).accumulateRevenue(bidAmount);
     }
 
     /// @notice Updates the authorized execution environment based on the user
@@ -666,7 +666,7 @@ contract AuctionManager is DAppControl {
         if (revenue == 0) {
             return;
         }
-        
+
         uint256 fastlaneSplit = (revenue * fastlaneSplitBPS) / BPS;
         uint256 curvanceSplit = revenue - fastlaneSplit;
         
