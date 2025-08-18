@@ -156,9 +156,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     // AUCTION TRANSACTION STORAGE
 
-    // Controls which Market Manager auction liquidators can act inside.
-    bytes32 internal constant _TRANSIENT_MARKET_UNLOCKED_KEY
-        = 0x3456789012345678901234567890123456789012345678901234567890123457;
+    /// Controls which Market Manager auction liquidators can act inside.
+    /// @dev Key value = `uint256(keccak256(_TRANSIENT_MARKET_UNLOCKED_KEY))`.
+    uint256 internal constant _TRANSIENT_MARKET_UNLOCKED_KEY
+        = 0x7cbd46c789962ee73435d84bcd3c0927fb55fd04ce92deedbdae7e783739544c;
 
     // CROSSCHAIN CONFIGURATION DATA
 

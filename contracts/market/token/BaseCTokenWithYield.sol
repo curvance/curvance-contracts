@@ -17,15 +17,15 @@ abstract contract BaseCTokenWithYield is BaseCToken {
 
     /// @dev Internal packed vesting data:
     ///      StrategyCToken Bits Layout:
-    ///      - [0..127]   `vestingRate`.
-    ///      - [128..191] `vestingEnd`.
-    ///      - [192..255] `lastVestingClaim`.
+    ///      - [0..127]   `VESTING_RATE`.
+    ///      - [128..191] `VEST_END`.
+    ///      - [192..255] `LAST_VEST`.
     ///
     ///      BorrowableCToken Bits Layout:
-    ///      - [0..95]   `vestingRate`.
-    ///      - [96..135] `vestingEnd`.
-    ///      - [136..175] `lastVestingClaim`.
-    ///      - [176..255] `marketDebtIndex`.
+    ///      - [0..95]   `VESTING_RATE`.
+    ///      - [96..135] `VEST_END`.
+    ///      - [136..175] `LAST_VEST`.
+    ///      - [176..255] Market `DEBT_INDEX`.
     uint256 internal _vestingData;
 
     /// ERRORS ///

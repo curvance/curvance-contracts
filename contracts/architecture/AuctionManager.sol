@@ -586,11 +586,8 @@ contract AuctionManager is DAppControl {
         if (msg.sender != authorizedExecutionEnv) revert InvalidExecutionEnv();
         if (!CENTRAL_REGISTRY.isMarketManager(marketManager)) revert InvalidMarketManager();
 
-        // Set dynamic risk parameters.
-        IMarketManager(marketManager).setLiquidationConfig(cToken, newPenalty, ATLAS_CLOSE_FACTOR);
-
-        // Unlock cToken collateral liquidation.
-        IMarketManager(marketManager).unlockAuctionCollateral(cToken);
+        // Set dynamic risk parameters and unlock `cToken` collateral for auction-based liquidation.
+        IMarketManager(marketManager).setTransientLiquidationConfig(cToken, newPenalty, ATLAS_CLOSE_FACTOR);
 
         // Unlock `marketManager`.
         CENTRAL_REGISTRY.unlockAuctionForMarket(marketManager);
