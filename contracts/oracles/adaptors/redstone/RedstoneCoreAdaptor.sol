@@ -161,7 +161,7 @@ contract RedstoneCoreAdaptor is
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
-        config.price = price;
+        config.price = uint176(price);
         config.redstoneTimestamp = redstoneTimestamp;
 
         /// @solidity memory-safe-assembly
