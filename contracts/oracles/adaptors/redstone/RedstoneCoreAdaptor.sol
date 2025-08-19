@@ -385,6 +385,7 @@ contract RedstoneCoreAdaptor is
 
         AssetConfig memory config = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
+        
         // Validate the price returned is not stale.
         uint256 timestampInSeconds = config.redstoneTimestamp / 1000;
         if (

@@ -170,8 +170,8 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
             price = (price * price1) / WAD;
         }
 
-        result.inUSD = inUSD;
         result.price = price;
+        result.inUSD = inUSD;
     }
 
     /// @notice Adds pricing support for `asset`, a Curve V2 lp token.

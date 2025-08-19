@@ -146,10 +146,9 @@ contract GMAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-
-        result.inUSD = true;
         // Convert from 30 decimals to standardized 18.
         result.price = uint256(price) / 1e12;
+        result.inUSD = true;
     }
 
     /// @notice Adds pricing support for `asset`, a GMX GM token.

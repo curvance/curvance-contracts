@@ -114,7 +114,6 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-        result.inUSD = inUSD;
         result.price = _getFairPrice(
             reserve0,
             reserve1,
@@ -122,6 +121,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
             price1,
             totalSupply
         );
+        result.inUSD = inUSD;
     }
 
     /// @notice Adds pricing support for `asset`, an lp token for
