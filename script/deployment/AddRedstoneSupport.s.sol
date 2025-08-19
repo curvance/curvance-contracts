@@ -9,11 +9,7 @@ import { RedstoneClassicAdaptor } from "contracts/oracles/adaptors/redstone/Reds
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-contract AddRedstoneSupport is Script {
-    event ContractDeployed(address contractAddress, string contractName);
-
-    DeploymentLogger logger;
-
+contract AddRedstoneSupport is Script, DeploymentLogger {
     struct PullFeed {
         bytes payload;
         uint128 timestamp;
@@ -31,21 +27,13 @@ contract AddRedstoneSupport is Script {
         address adaptor,
         address oracleManager,
         PushFeed memory feed
-    ) external {
-        logger = new DeploymentLogger();
-        vm.recordLogs();
-        vm.startBroadcast();
-
+    ) external recordEvents {
         RedstoneClassicAdaptor adaptor = RedstoneClassicAdaptor(adaptor);
         OracleManager manager = OracleManager(oracleManager);
         IERC20 token = IERC20(asset);
 
         adaptor.addAsset(asset, feed.inUSD, feed.feed, feed.heartbeat, feed.id);
         manager.addAssetPriceFeed(asset, address(adaptor));
-
-        vm.stopBroadcast();
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        logger.saveLogsToDeployment(logs);
     }
 
     function run(
@@ -53,11 +41,7 @@ contract AddRedstoneSupport is Script {
         address adaptor,
         address oracleManager,
         PullFeed memory feed
-    ) external {
-        logger = new DeploymentLogger();
-        vm.recordLogs();
-        vm.startBroadcast();
-
+    ) external recordEvents {
         RedstoneCoreAdaptor adaptor = RedstoneCoreAdaptor(adaptor);
         OracleManager manager = OracleManager(oracleManager);
         IERC20 token = IERC20(asset);
@@ -79,9 +63,5 @@ contract AddRedstoneSupport is Script {
 
         // Finalize oracle support
         manager.addAssetPriceFeed(asset, address(adaptor));
-
-        vm.stopBroadcast();
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        logger.saveLogsToDeployment(logs);
     }
 }

@@ -7,23 +7,10 @@ import { DeploymentLogger } from "../utils/DeploymentLogger.sol";
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract DeployProtocolReader is Script {
-    event ContractDeployed(address contractAddress, string contractName);
-
-    DeploymentLogger logger;
-
-    function run(address registry) external {
-        logger = new DeploymentLogger();
-        vm.recordLogs();
-        vm.startBroadcast();
-
-        // TODO: Update this to ProtocolReader instead of ProtocolReader2 when 2 is done and moves to the normal file
+contract DeployProtocolReader is Script, DeploymentLogger {
+    function run(address registry) external recordEvents {
         ICentralRegistry icr = ICentralRegistry(registry);
         address newContract = address(new ProtocolReader(icr));
         emit ContractDeployed(newContract, "ProtocolReader");
-
-        vm.stopBroadcast();
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        logger.saveLogsToDeployment(logs);
     }
 }

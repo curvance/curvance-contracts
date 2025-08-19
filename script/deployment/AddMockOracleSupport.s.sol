@@ -8,22 +8,14 @@ import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract AddMockOracleSupport is Script {
-    event ContractDeployed(address contractAddress, string contractName);
-
-    DeploymentLogger logger;
-
+contract AddMockOracleSupport is Script, DeploymentLogger {
     function run(
         address registry,
         address mockOracle,
         address[] calldata assets,
         uint240[] calldata usdPrices,
         uint240[] calldata nativePrices
-    ) external {
-        logger = new DeploymentLogger();
-        vm.recordLogs();
-        vm.startBroadcast();
-
+    ) external recordEvents {
         ICentralRegistry cr = ICentralRegistry(registry);
         OracleManager oracleManager = OracleManager(cr.oracleManager());
         MockOracleAdaptor adaptor = MockOracleAdaptor(mockOracle);
@@ -37,9 +29,5 @@ contract AddMockOracleSupport is Script {
             adaptor.setPrice(asset, usdPrice, nativePrice);
             oracleManager.addAssetPriceFeed(asset, address(adaptor));
         }
-
-        vm.stopBroadcast();
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        logger.saveLogsToDeployment(logs);
     }
 }

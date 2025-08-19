@@ -7,16 +7,14 @@ import { DeploymentLogger } from "../utils/DeploymentLogger.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
-import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
-import { VaultZapper } from "contracts/plugins/market/VaultZapper.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { AddPlugins } from "./AddPlugins.s.sol";
 
-contract DeployMarkets is Script {
+contract DeployMarkets is Script, DeploymentLogger, AddPlugins {
     struct DynamicInterestRateConfig {
         uint256 baseRatePerYear;
         uint256 vertexRatePerYear;
@@ -27,23 +25,12 @@ contract DeployMarkets is Script {
         uint256 decayRate;
     }
 
-    struct AvailablePlugins {
-        bool simplePositionManager;
-        bool simpleZapper;
-        bool vaultZapper;
-    }
-
     struct ListConfig {
         address asset;
         bool canBorrow;
         MarketManagerIsolated.TokenConfig tokenConfig;
         DynamicInterestRateConfig interestConfig;
     }
-
-    event ContractDeployed(address contractAddress, string contractName);
-    event ContractMetadata(string jsonIndex, string key, bool value);
-
-    DeploymentLogger logger;
 
     function run(
         address centralRegistry,
@@ -52,11 +39,7 @@ contract DeployMarkets is Script {
         uint256[] memory interestFees,
         address wrappedNative,
         AvailablePlugins[] memory plugins
-    ) external {
-        logger = new DeploymentLogger();
-        vm.recordLogs();
-        vm.startBroadcast();
-
+    ) external recordEvents {
         CentralRegistry registry = CentralRegistry(centralRegistry);
         ICentralRegistry icr = ICentralRegistry(centralRegistry);
         OracleManager router = OracleManager(registry.oracleManager());
@@ -87,10 +70,6 @@ contract DeployMarkets is Script {
             market.updateTokenConfig(tokens[0].tokenConfig);
             market.updateTokenConfig(tokens[1].tokenConfig);
         }
-
-        vm.stopBroadcast();
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        logger.saveLogsToDeployment(logs);
     }
 
     function _deployCTokens(
@@ -191,44 +170,5 @@ contract DeployMarkets is Script {
         asset.approve(cToken, 1 * 10 ** asset.decimals());
 
         return cToken;
-    }
-
-    function _deployPlugins(
-        ICentralRegistry icr,
-        MarketManagerIsolated market,
-        address wrappedNative,
-        string memory marketName,
-        AvailablePlugins memory plugins
-    ) internal {
-        if (plugins.simplePositionManager) {
-            SimplePositionManager simplePositionManager = new SimplePositionManager(
-                    icr,
-                    address(market),
-                    wrappedNative
-                );
-            MarketManagerIsolated(market).addPositionManager(
-                address(simplePositionManager)
-            );
-            emit ContractDeployed(
-                address(simplePositionManager),
-                string.concat(marketName, ".plugins.simplePositionManager")
-            );
-        }
-
-        if (plugins.simpleZapper) {
-            SimpleZapper simpleZapper = new SimpleZapper(icr, wrappedNative);
-            emit ContractDeployed(
-                address(simpleZapper),
-                string.concat(marketName, ".plugins.simpleZapper")
-            );
-        }
-
-        if (plugins.vaultZapper) {
-            VaultZapper vaultZapper = new VaultZapper(icr, wrappedNative);
-            emit ContractDeployed(
-                address(vaultZapper),
-                string.concat(marketName, ".plugins.vaultZapper")
-            );
-        }
     }
 }

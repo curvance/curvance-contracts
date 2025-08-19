@@ -11,22 +11,14 @@ import { MockPermissionV3Aggregator } from "contracts/mocks/MockPermissionV3Aggr
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-contract AddMockVaultFeedSupport is Script {
-    event ContractDeployed(address contractAddress, string contractName);
-
-    DeploymentLogger logger;
-
+contract AddMockVaultFeedSupport is Script, DeploymentLogger {
     function run(
         address registry,
         address[] calldata vaultTokens,
         address assetToken,
         int256 price,
         bool useNativeUnderlying
-    ) external {
-        logger = new DeploymentLogger();
-        vm.recordLogs();
-        vm.startBroadcast();
-
+    ) external recordEvents {
         IERC20 asset = IERC20(assetToken);
         price = int256(price * int256(10 ** asset.decimals()));
         ICentralRegistry icr = ICentralRegistry(registry);
@@ -77,9 +69,5 @@ contract AddMockVaultFeedSupport is Script {
             adaptor.addAsset(vaultToken, true, vaultAgg, 0);
             oracleManager.addAssetPriceFeed(vaultToken, address(adaptor));
         }
-
-        vm.stopBroadcast();
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        logger.saveLogsToDeployment(logs);
     }
 }

@@ -13,7 +13,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { RedstoneAdaptorMulticallChecker } from "contracts/calldata-checker/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
 
-contract DeployBase is Script {
+contract DeployBase is Script, DeploymentLogger {
     struct Config {
         address daoAddress;
         address emergencyCouncil;
@@ -28,19 +28,11 @@ contract DeployBase is Script {
         bool chainlink;
     }
 
-    event ContractDeployed(address contractAddress, string contractName);
-
-    DeploymentLogger logger;
-
     function run(
         Config memory config,
         address harvester,
         Adaptors calldata adaptors
-    ) external {
-        logger = new DeploymentLogger();
-        vm.recordLogs();
-        vm.startBroadcast();
-
+    ) external recordEvents {
         // Deploy CentralRegistry
         CentralRegistry centralRegistry = new CentralRegistry(
             config.daoAddress,
@@ -58,6 +50,7 @@ contract DeployBase is Script {
         centralRegistry.setOracleManager(address(oracleManager));
         emit ContractDeployed(address(oracleManager), "OracleManager");
 
+        // TODO: Change this adaptor code into individual add contracts
         if (adaptors.chainlink) {
             address chainlinkAdaptor = address(new ChainlinkAdaptor(icr));
             oracleManager.addApprovedAdaptor(chainlinkAdaptor);
@@ -99,9 +92,5 @@ contract DeployBase is Script {
             );
             oracleManager.addApprovedAdaptor(redstoneCoreAdaptor);
         }
-
-        vm.stopBroadcast();
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        logger.saveLogsToDeployment(logs);
     }
 }
