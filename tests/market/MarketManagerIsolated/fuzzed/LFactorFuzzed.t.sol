@@ -77,4 +77,18 @@ contract TestLFactorFuzzed is TestBaseMarketIsolated {
 		result = harness.getLFactor(cSoft, cHard, debt);
 		assertEq(result, 1, "lFactor must round up to 1 wei");
 	}
+
+	function test_success_lFactorDoesNotExceedWAD_withHugeNumbers() public view {
+		uint256 cSoft = 1.1e59;
+		uint256 cHard = 2.2e59;
+
+		uint256 nearHardLiquidation = harness.getLFactor(cSoft, cHard, cHard - 1);
+		assertEq(nearHardLiquidation, WAD - 1, "near-hard soft lFactor should be WAD - 1");
+
+		uint256 hardLiquidation = harness.getLFactor(cSoft, cHard, cHard + 1);
+		assertEq(hardLiquidation, WAD, "hard lFactor must equal WAD");
+
+		uint256 maxDebtLiquidation = harness.getLFactor(cSoft, cHard, type(uint256).max);
+		assertEq(maxDebtLiquidation, WAD, "max-debt lFactor must equal WAD");
+	}
 }
