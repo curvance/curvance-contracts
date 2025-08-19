@@ -436,21 +436,21 @@ contract AuctionManager is DAppControl {
 
     /// @notice Accumulates revenue internally for later distribution.
     /// @dev Only callable by the authorized execution environment.
-    /// @param bidAmount The total revenue to accumulate, in native gas token.
-    function accumulateRevenue(uint256 bidAmount) external {
+    ///      Uses msg.value to receive ETH and update accounting atomically.
+    function accumulateRevenue() external payable {
         _checkAuthorizedExecutionEnv();
 
         uint256 pendingRevenue = accumulatedRevenue;
-        if (pendingRevenue + bidAmount > type(uint208).max) {
+        if (pendingRevenue + msg.value > type(uint208).max) {
             _distributeRevenue();
             pendingRevenue = 0;
         }
 
-        accumulatedRevenue = uint208(pendingRevenue + bidAmount);
+        accumulatedRevenue = uint208(pendingRevenue + msg.value);
 
         // Emit that new revenue was allocated from an auction-based
         // liquidation.
-        emit RevenueAllocated(bidAmount);
+        emit RevenueAllocated(msg.value);
     }
 
     // ---------------------------------------------------- //
@@ -665,9 +665,9 @@ contract AuctionManager is DAppControl {
     ) internal virtual override {
         if (bidAmount == 0) return;
 
-        // Since this is delegateCalled, we need to call back to the `CONTROL`
-        // contract to update storage variables
-        AuctionManager(CONTROL).accumulateRevenue(bidAmount);
+        // Single atomic call that transfers ETH and updates accounting
+        // This is delegatecalled, so msg.value will be bidAmount and sender will be ExecutionEnvironment
+        AuctionManager(CONTROL).accumulateRevenue{value: bidAmount}();
     }
 
     /// @notice Updates the authorized execution environment based on the user
