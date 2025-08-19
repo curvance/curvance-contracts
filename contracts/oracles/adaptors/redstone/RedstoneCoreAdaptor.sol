@@ -15,8 +15,6 @@ contract RedstoneCoreAdaptor is
     /// TYPES ///
 
     /// @notice Stores configuration data for Redstone price sources.
-    /// @param isConfigured Whether the asset is configured or not.
-    ///                     false = unconfigured; true = configured.
     /// @param heartbeat The max amount of time allowed between price updates.
     ///                  type(uint256).max defaults to using
     ///                  `DEFAULT_HEART_BEAT`.
@@ -27,11 +25,10 @@ contract RedstoneCoreAdaptor is
     /// @param price The price recorded for an asset, in `WAD`.
     /// @param symbolHash The bytes32 encoded hash of the price feed.
     struct AssetConfig {
-        bool isConfigured;
         uint8 decimals;
         uint16 heartbeat;
         uint48 redstoneTimestamp;
-        uint176 price;
+        uint184 price;
         bytes32 symbolHash;
     }
 
@@ -138,7 +135,9 @@ contract RedstoneCoreAdaptor is
     ) external {
         AssetConfig storage config = assetConfig[asset][inUSD];
 
-        if (!config.isConfigured) {
+        // We can check if `asset` is supposed by checking `decimals` as we
+        // do not allow configuring `decimals` equal to 0.
+        if (config.decimals == 0) {
             revert RedstoneCoreAdaptor__AssetIsNotSupported();
         }
 
@@ -158,11 +157,11 @@ contract RedstoneCoreAdaptor is
 
         // Validate `price` is not at or above the maximum value allowed,
         // and `price` is not truncated or misreported with a 0 value.
-        if (price == 0 || price > type(uint176).max) {
+        if (price == 0 || price > type(uint184).max) {
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
-        config.price = uint176(price);
+        config.price = uint184(price);
         config.redstoneTimestamp = redstoneTimestamp;
 
         /// @solidity memory-safe-assembly
@@ -234,7 +233,6 @@ contract RedstoneCoreAdaptor is
         // If decimals == 0 we use default 8 decimals that
         // Redstone typically provides prices in.
         config.decimals = decimals != 0 ? decimals : 8;
-        config.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -370,15 +368,17 @@ contract RedstoneCoreAdaptor is
     ///                price The price of the asset.
     ///                inUSD Boolean indicating whether `price` is denominated
     ///                      in USD (true) or native token (false).
-    ///                hadError Boolean indicating whether the asset was priced
-    ///                         without running into any issues or not.
+    ///                hadError Boolean indicating whether the asset was
+    ///                         priced without running into any issues or not.
     function _getPrice(
         address asset,
         bool inUSD
     ) internal view override returns (PricingResult memory result) {
-        // Parse data from the format you want if its configured, otherwise
-        // price in the other format and manually convert in Oracle Manager.
-        if (!assetConfig[asset][inUSD].isConfigured) {
+        // We can check if `asset` pricing in `inUSD` is supported by checking
+        // `decimals` as we do not allow configuring `decimals` equal to 0.
+        // If unsupported price in the other denomination and manually convert
+        // in Oracle Manager.
+        if (assetConfig[asset][inUSD].decimals == 0) {
             inUSD = !inUSD; 
         }
 
