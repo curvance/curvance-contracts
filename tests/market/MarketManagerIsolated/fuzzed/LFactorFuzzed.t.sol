@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
+
+import { LiquidityManagerIsolated } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+
+contract LFactorHarness is LiquidityManagerIsolated {
+
+    constructor(address centralRegistry_) LiquidityManagerIsolated(ICentralRegistry(centralRegistry_)){}
+
+	function getLFactor(uint256 cSoft, uint256 cHard, uint256 debt) external pure returns (uint256) {
+		return _getLFactor(cSoft, cHard, debt);
+	}
+}
+
+contract TestLFactorFuzzed is TestBaseMarketIsolated {
+
+    LFactorHarness harness;
+
+    function setUp() public override {
+        super.setUp();
+
+        harness = new LFactorHarness(address(centralRegistry));
+
+    }
+
+    function test_success_whenLFactorCalculated(uint256 cSoft, uint256 gap, uint256 debtDelta) public view {
+
+        // gap between cSoft and cHard
+        gap = bound(gap, 1, 1_000_000e18);
+
+        // bound cSoft and debtDelta to prevent overflows while also testing when debt is above cHard
+
+        // generate collateral soft threshold
+        cSoft = bound(cSoft, 0, type(uint256).max - gap - 1);
+
+        // generate debt above soft threshold
+        debtDelta = bound(debtDelta, 0, gap + 1);
+
+        uint256 cHard = cSoft + gap;
+        uint256 debt = cSoft + debtDelta;
+
+        uint256 expected;
+        // No liquidations
+        if (debt <= cSoft) {
+
+            expected = 0;
+
+        }
+        // hard liquidation 
+        else if (debt >= cHard) {
+
+            expected = WAD;
+
+        } 
+        // soft liquidation
+        else {
+
+            // uses same math in LiquidityManagerIsolated
+            // calculate LFactor
+            uint256 result = FixedPointMathLib.mulDiv(debt - cSoft, WAD, cHard - cSoft);
+            // if result is 0, round up to 1 wei
+            expected = (result == 0) ? 1 : result;
+        }
+
+        uint256 lFactor = harness.getLFactor(cSoft, cHard, debt);
+        assertEq(lFactor, expected, "lFactor mismatch vs expected");
+        assertTrue(lFactor <= WAD, "lFactor out of bounds");
+    }
+
+    // Non-fuzz test to test LFactor rounds up to 1 wei when result is 0
+	function test_success_whenLFactorRoundsUpToOneWei() public view {
+
+		uint256 cSoft = 1e18;
+		uint256 cHard = cSoft + (2 * WAD);
+		uint256 debt = cSoft + 1;
+
+        // 1e18 / 2e18 = 0.5 rounds down to 0
+		uint256 result = FixedPointMathLib.mulDiv(debt - cSoft, WAD, cHard - cSoft);
+		assertEq(result, 0, "result should floor to 0");
+
+		result = harness.getLFactor(cSoft, cHard, debt);
+		assertEq(result, 1, "lFactor must round up to 1 wei");
+	}
+}
