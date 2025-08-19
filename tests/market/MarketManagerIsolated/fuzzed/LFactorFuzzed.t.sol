@@ -54,8 +54,9 @@ contract TestLFactorFuzzed is TestBaseMarketIsolated {
         } 
         // Soft liquidation.
         else {
-            // Replicate the formula in `_getLFactor` to calculate lFactor.
-            uint256 result = FixedPointMathLib.mulDivUp(debt - cSoft, WAD, cHard - cSoft);
+            // Replicate the soft liquidation formula in `_getLFactor` to
+            // calculate lFactor.
+            expected = FixedPointMathLib.mulDivUp(debt - cSoft, WAD, cHard - cSoft);
         }
 
         uint256 lFactor = harness.getLFactor(cSoft, cHard, debt);
