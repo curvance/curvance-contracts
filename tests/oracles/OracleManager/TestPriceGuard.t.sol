@@ -97,7 +97,7 @@ contract PriceGuardTest is TestBaseMarketIsolated {
     function test_fail_whenMinPriceIsHigherThanCurrentPrice() public {
         uint256 timestampStart = block.timestamp - 8 days;
 
-        // minPrice too low: upper bound = 3,300
+        // minPrice too high: upper bound = 3,300
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__MinPriceAboveCurrentPrice.selector);
         chainlinkAdaptor.setGuardedPriceConfig(
             _WETH_ADDRESS,

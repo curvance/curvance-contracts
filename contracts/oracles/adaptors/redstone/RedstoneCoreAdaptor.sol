@@ -44,15 +44,14 @@ contract RedstoneCoreAdaptor is
 
     /// @notice If type(uint256).max is specified for an asset heartbeat,
     ///         `DEFAULT_HEART_BEAT` is used instead.
-    /// @dev    10 minutes = 600 seconds.
-    ///         We use type(uint256).max instead of 0 for trigger as we may
-    ///         want 0 second requirement on redstone pull oracles.
+    /// @dev 10 minutes = 600 seconds.
+    ///      We use type(uint256).max instead of 0 for trigger as we may want
+    ///      0 second requirement on redstone pull oracles.
     uint256 public constant DEFAULT_HEART_BEAT = 10 minutes;
     /// @notice The smallest value that Redstone Core unique signer threshold
     ///         can be inside Curvance.
     uint256 public constant MINIMUM_SIGNERS_THRESHOLD_ALLOWED = 3;
     /// @notice The maximum number of signers allowed inside this adaptor.
-    /// @dev 1.002e4 = 0.2%.
     uint256 public constant MAXIMUM_SIGNERS_ALLOWED = 255;
     /// @notice The maximum timestamp delay from block.timestamp that is
     ///         acceptable.
@@ -60,9 +59,6 @@ contract RedstoneCoreAdaptor is
     /// @notice The maximum timestamp ahead from block.timestamp that is
     ///         acceptable.
     uint256 constant DEFAULT_MAX_DATA_TIMESTAMP_AHEAD_SECONDS = 1 minutes;
-
-    /// @notice Chain's native token symbol metadata.
-    string internal _nativeSymbol;
 
     /// STORAGE ///
 
@@ -74,10 +70,16 @@ contract RedstoneCoreAdaptor is
     ///          a Redstone Core price.
     uint256 internal _uniqueSignersThreshold;
 
+    /// @notice Native token symbol metadata on this chain.
+    string internal _nativeSymbol;
+
     /// @notice Price feed configuration data for an asset.
     /// @dev Token address => inUSD => Price feed configuration for `asset`.
     mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
+    /// @notice Stored price and timestamp from Redstone Core pull feed
+    ///         for `asset`.
+    /// @dev Token address => inUSD => Stored price and timestamp for `asset`.
     mapping(address => mapping(bool => StoredPrice)) internal _storedPrice;
 
     /// @dev A fixed key to use in transient storage for validating that the
