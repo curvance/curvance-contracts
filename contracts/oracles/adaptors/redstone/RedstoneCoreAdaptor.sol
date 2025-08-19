@@ -15,44 +15,35 @@ contract RedstoneCoreAdaptor is
     /// TYPES ///
 
     /// @notice Stores configuration data for Redstone price sources.
-    /// @param isConfigured Whether the asset is configured or not.
-    ///                     false = unconfigured; true = configured.
     /// @param heartbeat The max amount of time allowed between price updates.
     ///                  type(uint256).max defaults to using
-    ///                  DEFAULT_HEART_BEAT.
+    ///                  `DEFAULT_HEARTBEAT`.
     /// @param decimals Returns the number of decimals the Redstone price feed
     ///                 responds with.
-    /// @param symbolHash The bytes32 encoded hash of the price feed.
-    struct AssetConfig {
-        bool isConfigured;
-        uint8 decimals;
-        uint24 heartbeat;
-        bytes32 symbolHash;
-    }
-
-    /// @notice Stores cached price data for Redstone core pulled
-    ///         from msg.data.
-    /// @param price The price recorded for an asset, in `WAD`.
     /// @param redstoneTimestamp The price timestamp reported by Redstone
     ///                          signers, in milliseconds.
-    struct StoredPrice {
-        uint256 price;
-        uint256 redstoneTimestamp;
+    /// @param price The price recorded for an asset, in `WAD`.
+    /// @param symbolHash The bytes32 encoded hash of the price feed.
+    struct AssetConfig {
+        uint8 decimals;
+        uint16 heartbeat;
+        uint48 redstoneTimestamp;
+        uint184 price;
+        bytes32 symbolHash;
     }
 
     /// CONSTANTS ///
 
     /// @notice If type(uint256).max is specified for an asset heartbeat,
-    ///         `DEFAULT_HEART_BEAT` is used instead.
-    /// @dev    10 minutes = 600 seconds.
-    ///         We use type(uint256).max instead of 0 for trigger as we may
-    ///         want 0 second requirement on redstone pull oracles.
-    uint256 public constant DEFAULT_HEART_BEAT = 10 minutes;
+    ///         `DEFAULT_HEARTBEAT` is used instead.
+    /// @dev 10 minutes = 600 seconds.
+    ///      We use type(uint256).max instead of 0 for trigger as we may want
+    ///      0 second requirement on redstone pull oracles.
+    uint256 public constant DEFAULT_HEARTBEAT = 10 minutes;
     /// @notice The smallest value that Redstone Core unique signer threshold
     ///         can be inside Curvance.
     uint256 public constant MINIMUM_SIGNERS_THRESHOLD_ALLOWED = 3;
     /// @notice The maximum number of signers allowed inside this adaptor.
-    /// @dev 1.002e4 = 0.2%.
     uint256 public constant MAXIMUM_SIGNERS_ALLOWED = 255;
     /// @notice The maximum timestamp delay from block.timestamp that is
     ///         acceptable.
@@ -60,9 +51,6 @@ contract RedstoneCoreAdaptor is
     /// @notice The maximum timestamp ahead from block.timestamp that is
     ///         acceptable.
     uint256 constant DEFAULT_MAX_DATA_TIMESTAMP_AHEAD_SECONDS = 1 minutes;
-
-    /// @notice Chain's native token symbol metadata.
-    string internal _nativeSymbol;
 
     /// STORAGE ///
 
@@ -74,16 +62,19 @@ contract RedstoneCoreAdaptor is
     ///          a Redstone Core price.
     uint256 internal _uniqueSignersThreshold;
 
-    /// @notice Price feed configuration data for an asset.
-    /// @dev Token address => inUSD => Price feed configuration for `asset`.
+    /// @notice Native token symbol metadata on this chain.
+    string internal _nativeSymbol;
+
+    /// @notice Price feed configuration and price storage for an asset.
+    /// @dev Token address => inUSD => Price feed configuration and price
+    ///      storage for `asset`.
     mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
-    mapping(address => mapping(bool => StoredPrice)) internal _storedPrice;
-
-    /// @dev A fixed key to use in transient storage for validating that the
-    ///      timestamp provided on price write is accurate.
+    /// @notice A fixed key to use in transient storage for validating that
+    ///         the timestamp proposed on price write is accurate.
+    /// @dev Key value = `uint256(keccak256(_TRANSIENT_REDSTONE_TIMESTAMP_KEY))`.
     bytes32 internal constant _TRANSIENT_REDSTONE_TIMESTAMP_KEY
-        = 0x4567890123456789012345678901234567890123456789012345678901234567;
+        = 0x32997e75db6d43b5797d8a1d45933662e40d99f3c30ca7b506f8782429b6da8e;
 
     /// EVENTS ///
 
@@ -136,17 +127,22 @@ contract RedstoneCoreAdaptor is
     /// @param asset The address of the supported asset to write a price for.
     /// @param inUSD Whether the price is being written in USD,
     ///              or the chain's native token.
+    /// @param redstoneTimestamp The proposed timestamp of the Redstone Core
+    ///                          price feed data, in milliseconds.
     function writePrice(
         address asset,
         bool inUSD,
-        uint128 redstoneTimestamp
+        uint48 redstoneTimestamp
     ) external {
-        AssetConfig memory config = assetConfig[asset][inUSD];
-        if (!config.isConfigured) {
+        AssetConfig storage config = assetConfig[asset][inUSD];
+
+        // We can check if `asset` is supposed by checking `decimals` as we
+        // do not allow configuring `decimals` equal to 0.
+        if (config.decimals == 0) {
             revert RedstoneCoreAdaptor__AssetIsNotSupported();
         }
 
-        if (_storedPrice[asset][inUSD].redstoneTimestamp >= redstoneTimestamp) {
+        if (config.redstoneTimestamp >= redstoneTimestamp) {
             return; // Can skip storing the data since the data is stale.
         }
 
@@ -162,14 +158,12 @@ contract RedstoneCoreAdaptor is
 
         // Validate `price` is not at or above the maximum value allowed,
         // and `price` is not truncated or misreported with a 0 value.
-        if (price == 0 || price >= _MAXIMUM_PRICE_ALLOWED) {
+        if (price == 0 || price > type(uint184).max) {
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
-        _storedPrice[asset][inUSD] = StoredPrice({
-            price: price,
-            redstoneTimestamp: redstoneTimestamp
-        });
+        config.price = uint184(price);
+        config.redstoneTimestamp = redstoneTimestamp;
 
         /// @solidity memory-safe-assembly
         assembly {
@@ -213,7 +207,7 @@ contract RedstoneCoreAdaptor is
         _checkElevatedPermissions();
 
         if (heartbeat != type(uint256).max) {
-            if (heartbeat > DEFAULT_HEART_BEAT) {
+            if (heartbeat > DEFAULT_HEARTBEAT) {
                 revert RedstoneCoreAdaptor__InvalidConfiguration();
             }
         }
@@ -235,12 +229,11 @@ contract RedstoneCoreAdaptor is
         AssetConfig storage config = assetConfig[asset][inUSD];
 
         config.symbolHash = symbolHash;
-        config.heartbeat = uint24(heartbeat != type(uint256).max ?
-            heartbeat : DEFAULT_HEART_BEAT);
+        config.heartbeat = uint16(heartbeat != type(uint256).max ?
+            heartbeat : DEFAULT_HEARTBEAT);
         // If decimals == 0 we use default 8 decimals that
         // Redstone typically provides prices in.
         config.decimals = decimals != 0 ? decimals : 8;
-        config.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -376,31 +369,34 @@ contract RedstoneCoreAdaptor is
     ///                price The price of the asset.
     ///                inUSD Boolean indicating whether `price` is denominated
     ///                      in USD (true) or native token (false).
-    ///                hadError Boolean indicating whether the asset was priced
-    ///                         without running into any issues or not.
+    ///                hadError Boolean indicating whether the asset was
+    ///                         priced without running into any issues or not.
     function _getPrice(
         address asset,
         bool inUSD
     ) internal view override returns (PricingResult memory result) {
-        // Parse data from the format you want if its configured, otherwise
-        // price in the other format and manually convert in Oracle Manager.
-        if (!assetConfig[asset][inUSD].isConfigured) {
+        // We can check if `asset` pricing in `inUSD` is supported by checking
+        // `decimals` as we do not allow configuring `decimals` equal to 0.
+        // If unsupported price in the other denomination and manually convert
+        // in Oracle Manager.
+        if (assetConfig[asset][inUSD].decimals == 0) {
             inUSD = !inUSD; 
         }
 
-        StoredPrice memory storedPrice = _storedPrice[asset][inUSD];
+        AssetConfig memory config = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
+        
         // Validate the price returned is not stale.
-        uint256 timestampInSeconds = storedPrice.redstoneTimestamp / 1000;
+        uint256 timestampInSeconds = config.redstoneTimestamp / 1000;
         if (
             timestampInSeconds < block.timestamp &&
-            block.timestamp - timestampInSeconds > assetConfig[asset][inUSD].heartbeat
+            block.timestamp - timestampInSeconds > config.heartbeat
         ) {
             result.hadError = true;
             return result;
         }
 
-        result.price = uint240(storedPrice.price);
+        result.price = config.price;
     }
 
     /// @dev This logic replicates RedstoneDefaultsLib.validateTimestamp

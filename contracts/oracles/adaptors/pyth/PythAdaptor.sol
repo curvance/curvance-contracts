@@ -21,7 +21,7 @@ contract PythAdaptor is BaseOracleAdaptor {
     ///                     false = unconfigured; true = configured.
     /// @param heartbeat The max amount of time allowed between price updates.
     ///                  type(uint256).max defaults to using
-    ///                  DEFAULT_HEART_BEAT.
+    ///                  `DEFAULT_HEARTBEAT`.
     /// @param priceId The price id of the asset to price.
     struct AssetConfig {
         bool isConfigured;
@@ -32,11 +32,12 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// CONSTANTS ///
 
     /// @notice If type(uint256).max is specified for an asset heartbeat,
-    ///         `DEFAULT_HEART_BEAT` is used instead.
+    ///         `DEFAULT_HEARTBEAT` is used instead.
     /// @dev    1 days = 24 hours = 1,440 minutes = 86,400 seconds.
     ///         We use type(uint256).max instead of 0 for trigger as we may
     ///         want 0 second requirement on redstone pull oracles.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
+    uint256 public constant DEFAULT_HEARTBEAT =
+        1 days + HEARTBEAT_GRACE_PERIOD;
 
     /// STORAGE ///
 
@@ -92,7 +93,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         _checkElevatedPermissions();
 
         if (heartbeat != type(uint256).max) {
-            if (heartbeat > DEFAULT_HEART_BEAT) {
+            if (heartbeat > DEFAULT_HEARTBEAT) {
                 revert PythAdaptor__InvalidHeartbeat();
             }
         }
@@ -102,7 +103,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         AssetConfig storage config = assetConfig[asset][inUSD];
 
         config.heartbeat = uint24(heartbeat != type(uint256).max ?
-            heartbeat : DEFAULT_HEART_BEAT);
+            heartbeat : DEFAULT_HEARTBEAT);
         config.priceId = priceId;
         config.isConfigured = true;
 
@@ -224,7 +225,7 @@ contract PythAdaptor is BaseOracleAdaptor {
             price.publishTime,
             config.heartbeat
         );
-        result.price = uint240(adjustedPrice);
+        result.price = adjustedPrice;
     }
 
     /// @notice Wipes `asset` pricing configurations from this adaptor.

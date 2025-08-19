@@ -155,16 +155,8 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
 
             // We have a route to USD pricing so we can convert
             // the quote token price to USD and return.
-            uint256 newPrice = (twapPrice * quoteTokenDenominator) /
+            result.price = (twapPrice * quoteTokenDenominator) /
                 (10 ** config.quoteDecimals);
-
-            // Validate price will not overflow on conversion to uint240.
-            if (_checkOverflow(newPrice)) {
-                result.hadError = true;
-                return result;
-            }
-
-            result.price = uint240(newPrice);
             return result;
         }
 
@@ -185,29 +177,14 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
                 return result;
             }
 
-            // Adjust decimals if necessary.
-            uint256 newPrice = (twapPrice * quoteTokenDenominator) /
-                (10 ** config.quoteDecimals);
-
-            // Validate price will not overflow on conversion to uint240.
-            if (_checkOverflow(newPrice)) {
-                result.hadError = true;
-                return result;
-            }
-
             // We have a route to ETH pricing so we can convert
             // the quote token price to ETH and return.
-            result.price = uint240(newPrice);
+            result.price = (twapPrice * quoteTokenDenominator) /
+                (10 ** config.quoteDecimals);
             return result;
         }
 
-        // Validate price will not overflow on conversion to uint240.
-        if (_checkOverflow(twapPrice)) {
-            result.hadError = true;
-            return result;
-        }
-
-        result.price = uint240(twapPrice);
+        result.price = twapPrice;
     }
 
     /// @notice Adds pricing support for `asset`, a token inside a Univ3 lp.

@@ -11,7 +11,7 @@ interface IOracleAdaptor {
     /// @param hadError Boolean indicating whether the asset was priced
     ///                 without running into any issues or not.
     struct PricingResult {
-        uint240 price;
+        uint256 price;
         bool inUSD;
         bool hadError;
     }

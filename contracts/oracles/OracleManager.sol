@@ -639,7 +639,7 @@ contract OracleManager is IOracleManager {
             );
         }
 
-        return (uint256(result.price), result.hadError);
+        return (result.price, result.hadError);
     }
 
     /// @notice Queries the current price of a chain's native token in USD
@@ -718,7 +718,7 @@ contract OracleManager is IOracleManager {
     ///                       to USD.
     /// @return The converted price.
     function _convertNativeUSD(
-        uint240 currentPrice,
+        uint256 currentPrice,
         uint256 conversionRate,
         bool currentlyInUSD
     ) internal pure returns (uint256) {

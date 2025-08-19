@@ -7,8 +7,8 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 contract MockOracleAdaptor is BaseOracleAdaptor {
     struct MockPrice {
-        uint240 usdPrice;
-        uint240 nativePrice;
+        uint256 usdPrice;
+        uint256 nativePrice;
     }
 
     /// @notice Hard coded price that will always be returned.
@@ -31,8 +31,8 @@ contract MockOracleAdaptor is BaseOracleAdaptor {
 
     function setPrice(
         address asset,
-        uint240 usdPrice,
-        uint240 nativePrice
+        uint256 usdPrice,
+        uint256 nativePrice
     ) external {
         _checkElevatedPermissions();
         hasSetPrice[asset] = true;

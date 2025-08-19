@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
+import { BaseCTokenWithYield } from "contracts/market/token/BaseCTokenWithYield.sol";
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
@@ -71,6 +72,45 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
             _REWARDER,
             _AURA_BOOSTER,
             1 days
+        );
+    }
+
+    function test_strategyCTokenDeployment_fail_vestingPeriodIs0() public {
+        vm.expectRevert(
+            BaseCTokenWithYield
+                .BaseCTokenWithYield__InvalidVestingPeriod
+                .selector
+        );
+
+        new AuraCToken(
+            ICentralRegistry(address(centralRegistry)),
+            balRETH,
+            address(marketManagerIsolated),
+            109,
+            _REWARDER,
+            _AURA_BOOSTER,
+            0
+        );
+    }
+
+    function test_strategyCTokenDeployment_fail_vestingPeriodIsAboveMaximumVestingPeriod() public {
+        // Pulled from internal constant inside `BaseCTokenWithYield`.
+        uint256 MAXIMUM_VESTING_PERIOD = 3 days;
+
+        vm.expectRevert(
+            BaseCTokenWithYield
+                .BaseCTokenWithYield__InvalidVestingPeriod
+                .selector
+        );
+
+        new AuraCToken(
+            ICentralRegistry(address(centralRegistry)),
+            balRETH,
+            address(marketManagerIsolated),
+            109,
+            _REWARDER,
+            _AURA_BOOSTER,
+            MAXIMUM_VESTING_PERIOD + 1
         );
     }
 

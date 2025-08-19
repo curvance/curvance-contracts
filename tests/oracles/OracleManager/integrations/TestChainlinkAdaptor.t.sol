@@ -62,7 +62,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             assertTrue(isConfigured);
 
             assertEq(decimals, 8);
-            assertEq(heartbeat, chainlinkAdaptor.DEFAULT_HEART_BEAT());
+            assertEq(heartbeat, chainlinkAdaptor.DEFAULT_HEARTBEAT());
         }
 
         // Add native feed
@@ -90,7 +90,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             assertTrue(nativeIsConfigured);
 
             assertEq(nativeDecimals, 8);
-            assertEq(nativeHeartbeat, chainlinkAdaptor.DEFAULT_HEART_BEAT());
+            assertEq(nativeHeartbeat, chainlinkAdaptor.DEFAULT_HEARTBEAT());
         }
 
         // Verify both configurations are still valid
@@ -211,8 +211,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
     }
 
     function test_fail_InvalidHeartbeat() public {
-        // Should revert when heartbeat > DEFAULT_HEART_BEAT.
-        uint256 invalidHeartbeat = chainlinkAdaptor.DEFAULT_HEART_BEAT() + 1;
+        // Should revert when heartbeat > DEFAULT_HEARTBEAT.
+        uint256 invalidHeartbeat = chainlinkAdaptor.DEFAULT_HEARTBEAT() + 1;
         
         vm.expectRevert(ChainlinkAdaptor.ChainlinkAdaptor__InvalidHeartbeat.selector);
         chainlinkAdaptor.addAsset(
@@ -383,8 +383,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         snxUsdPriceFeed.updateRoundData(
             1, 
             150e8, 
-            block.timestamp - chainlinkAdaptor.DEFAULT_HEART_BEAT() - 1
-            , block.timestamp - chainlinkAdaptor.DEFAULT_HEART_BEAT() - 1);
+            block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1
+            , block.timestamp - chainlinkAdaptor.DEFAULT_HEARTBEAT() - 1);
         
         IOracleAdaptor.PricingResult memory result =
             chainlinkAdaptor.getPrice(SNX_ADDRESS, true, false);

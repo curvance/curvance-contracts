@@ -55,7 +55,7 @@ abstract contract BaseCTokenWithYield is BaseCToken {
     /// @notice Validates whether `newPeriod` is a valid value for
     ///         `vestingPeriod`.
     function _checkVestingPeriod(uint256 newPeriod) internal pure {
-         if (newPeriod > _MAXIMUM_VESTING_PERIOD && newPeriod != 0) {
+         if (newPeriod > _MAXIMUM_VESTING_PERIOD || newPeriod == 0) {
             revert BaseCTokenWithYield__InvalidVestingPeriod();
         }
     }

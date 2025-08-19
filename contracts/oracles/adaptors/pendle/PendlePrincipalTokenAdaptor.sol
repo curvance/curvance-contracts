@@ -110,16 +110,8 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
 
         // Multiply the quote asset price by the ptRate
         // to get the Principal Token fair value.
-        price = (price * ptRate) / WAD;
-
-        // Validate price will not overflow on conversion to uint240.
-        if (_checkOverflow(price)) {
-            result.hadError = true;
-            return result;
-        }
-
+        result.price = (price * ptRate) / WAD;
         result.inUSD = inUSD;
-        result.price = uint240(price);
     }
 
     /// @notice Adds pricing support for `asset`, a Pendle principal token.

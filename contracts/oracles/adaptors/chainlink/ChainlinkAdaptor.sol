@@ -19,7 +19,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// @param decimals Returns the number of decimals the proxy denominates
     ///                 asset prices in.
     /// @param heartbeat The max amount of time allowed between price updates.
-    ///                  0 defaults to using DEFAULT_HEART_BEAT.
+    ///                  0 defaults to using `DEFAULT_HEARTBEAT`.
     struct AssetConfig {
         bool isConfigured;
         IChainlink aggregatorProxy;
@@ -32,7 +32,8 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// @notice If zero is specified for a Chainlink asset heartbeat,
     ///         this value is used instead.
     /// @dev    1 days = 24 hours = 1,440 minutes = 86,400 seconds.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
+    uint256 public constant DEFAULT_HEARTBEAT =
+        1 days + HEARTBEAT_GRACE_PERIOD;
 
     /// STORAGE ///
 
@@ -64,7 +65,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// @param aggregatorProxy Chainlink aggregator proxy to use for
     ///                        pricing `asset`.
     /// @param heartbeat Chainlink heartbeat to use when validating prices
-    ///                  for `asset`. 0 = `DEFAULT_HEART_BEAT`.
+    ///                  for `asset`. 0 = `DEFAULT_HEARTBEAT`.
     function addAsset(
         address asset,
         bool inUSD,
@@ -72,11 +73,9 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         uint256 heartbeat
     ) external {
         _checkElevatedPermissions();
-
-        if (heartbeat != 0) {
-            if (heartbeat > DEFAULT_HEART_BEAT) {
-                revert ChainlinkAdaptor__InvalidHeartbeat();
-            }
+        
+        if (heartbeat > DEFAULT_HEARTBEAT) {
+            revert ChainlinkAdaptor__InvalidHeartbeat();
         }
 
         AssetConfig storage config = assetConfig[asset][inUSD];
@@ -85,7 +84,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         // for `asset`.
         config.aggregatorProxy = IChainlink(aggregatorProxy);
         config.decimals = IChainlink(aggregatorProxy).decimals();
-        config.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT);
+        config.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEARTBEAT);
         config.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
@@ -149,7 +148,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         );
 
         result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
-        result.price = uint240(adjustedPrice);
+        result.price = adjustedPrice;
     }
 
     /// @notice Wipes `asset` pricing configurations from this adaptor.
