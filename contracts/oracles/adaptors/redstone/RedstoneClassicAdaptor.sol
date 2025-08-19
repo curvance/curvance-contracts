@@ -18,7 +18,7 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
     /// @param feed The Redstone price feed proxy address.
     /// @param decimals Returns the number of decimals `feed` responds with.
     /// @param heartbeat The max amount of time allowed between price updates.
-    ///                  0 defaults to using DEFAULT_HEART_BEAT.
+    ///                  0 defaults to using `DEFAULT_HEART_BEAT`.
     struct AssetConfig {
         bool isConfigured;
         IRedstone feedProxy;

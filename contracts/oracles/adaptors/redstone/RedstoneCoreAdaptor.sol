@@ -19,7 +19,7 @@ contract RedstoneCoreAdaptor is
     ///                     false = unconfigured; true = configured.
     /// @param heartbeat The max amount of time allowed between price updates.
     ///                  type(uint256).max defaults to using
-    ///                  DEFAULT_HEART_BEAT.
+    ///                  `DEFAULT_HEART_BEAT`.
     /// @param decimals Returns the number of decimals the Redstone price feed
     ///                 responds with.
     /// @param redstoneTimestamp The price timestamp reported by Redstone

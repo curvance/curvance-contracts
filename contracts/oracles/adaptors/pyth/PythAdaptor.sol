@@ -21,7 +21,7 @@ contract PythAdaptor is BaseOracleAdaptor {
     ///                     false = unconfigured; true = configured.
     /// @param heartbeat The max amount of time allowed between price updates.
     ///                  type(uint256).max defaults to using
-    ///                  DEFAULT_HEART_BEAT.
+    ///                  `DEFAULT_HEART_BEAT`.
     /// @param priceId The price id of the asset to price.
     struct AssetConfig {
         bool isConfigured;

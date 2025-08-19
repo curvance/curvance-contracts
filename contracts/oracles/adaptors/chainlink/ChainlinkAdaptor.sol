@@ -19,7 +19,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// @param decimals Returns the number of decimals the proxy denominates
     ///                 asset prices in.
     /// @param heartbeat The max amount of time allowed between price updates.
-    ///                  0 defaults to using DEFAULT_HEART_BEAT.
+    ///                  0 defaults to using `DEFAULT_HEART_BEAT`.
     struct AssetConfig {
         bool isConfigured;
         IChainlink aggregatorProxy;
