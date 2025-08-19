@@ -90,11 +90,9 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
         bytes32 feedKey
     ) external {
         _checkElevatedPermissions();
-
-        if (heartbeat != 0) {
-            if (heartbeat > DEFAULT_HEART_BEAT) {
-                revert ChainsightAdaptor__InvalidHeartbeat();
-            }
+        
+        if (heartbeat > DEFAULT_HEART_BEAT) {
+            revert ChainsightAdaptor__InvalidHeartbeat();
         }
 
         // Validate that the Chainsight sender and feedKey from frontend

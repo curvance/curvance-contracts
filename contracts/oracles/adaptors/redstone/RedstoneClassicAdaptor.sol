@@ -73,11 +73,9 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
         string memory id
     ) external {
         _checkElevatedPermissions();
-
-        if (heartbeat != 0) {
-            if (heartbeat > DEFAULT_HEART_BEAT) {
-                revert RedstoneClassicAdaptor__InvalidHeartbeat();
-            }
+        
+        if (heartbeat > DEFAULT_HEART_BEAT) {
+            revert RedstoneClassicAdaptor__InvalidHeartbeat();
         }
 
         if (Bytes32Helper.toBytes32(id) != IRedstone(feedProxy).getDataFeedId()) {

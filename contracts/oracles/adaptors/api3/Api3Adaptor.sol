@@ -72,11 +72,9 @@ contract Api3Adaptor is BaseOracleAdaptor {
         string memory ticker
     ) external {
         _checkElevatedPermissions();
-
-        if (heartbeat != 0) {
-            if (heartbeat > DEFAULT_HEART_BEAT) {
-                revert Api3Adaptor__InvalidHeartbeat();
-            }
+        
+        if (heartbeat > DEFAULT_HEART_BEAT) {
+            revert Api3Adaptor__InvalidHeartbeat();
         }
 
         bytes32 dapiName = Bytes32Helper.toBytes32(ticker);

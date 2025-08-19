@@ -72,11 +72,9 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         uint256 heartbeat
     ) external {
         _checkElevatedPermissions();
-
-        if (heartbeat != 0) {
-            if (heartbeat > DEFAULT_HEART_BEAT) {
-                revert ChainlinkAdaptor__InvalidHeartbeat();
-            }
+        
+        if (heartbeat > DEFAULT_HEART_BEAT) {
+            revert ChainlinkAdaptor__InvalidHeartbeat();
         }
 
         AssetConfig storage config = assetConfig[asset][inUSD];
