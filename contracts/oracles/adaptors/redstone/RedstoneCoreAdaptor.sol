@@ -72,10 +72,11 @@ contract RedstoneCoreAdaptor is
     /// @dev Token address => inUSD => Price feed configuration for `asset`.
     mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
-    /// @dev A fixed key to use in transient storage for validating that the
-    ///      timestamp provided on price write is accurate.
+    /// @notice A fixed key to use in transient storage for validating that
+    ///         the timestamp proposed on price write is accurate.
+    /// @dev Key value = `uint256(keccak256(_TRANSIENT_REDSTONE_TIMESTAMP_KEY))`.
     bytes32 internal constant _TRANSIENT_REDSTONE_TIMESTAMP_KEY
-        = 0x4567890123456789012345678901234567890123456789012345678901234567;
+        = 0x32997e75db6d43b5797d8a1d45933662e40d99f3c30ca7b506f8782429b6da8e;
 
     /// EVENTS ///
 

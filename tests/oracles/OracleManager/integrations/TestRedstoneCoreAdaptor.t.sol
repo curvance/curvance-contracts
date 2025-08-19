@@ -102,10 +102,10 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         );
 
         bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool,uint128)",
+            "writePrice(address,bool,uint48)",
             _WBTC_ADDRESS,
             true,
-            uint128(block.timestamp * 1000)
+            uint48(block.timestamp * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
@@ -161,10 +161,10 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         );
 
         bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool,uint128)",
+            "writePrice(address,bool,uint48)",
             _WBTC_ADDRESS,
             true,
-            uint128(block.timestamp * 1000)
+            uint48(block.timestamp * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
@@ -189,10 +189,10 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         assertEq(symbolHash, bytes32("WBTC"));
         
         bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool,uint128)",
+            "writePrice(address,bool,uint48)",
             _WBTC_ADDRESS,
             true,
-            uint128(block.timestamp * 1000)
+            uint48(block.timestamp * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
@@ -227,10 +227,10 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         (, , , , , bytes32 symbolHash) = adaptor.assetConfig(_WETH_ADDRESS, true);
         assertEq(symbolHash, bytes32("WETH"));
         bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool,uint128)",
+            "writePrice(address,bool,uint48)",
             _WETH_ADDRESS,
             true,
-            uint128(block.timestamp * 1000)
+            uint48(block.timestamp * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
