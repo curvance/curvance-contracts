@@ -3,13 +3,12 @@ pragma solidity 0.8.28;
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
-import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/ConstantsLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// CONSTANTS ///

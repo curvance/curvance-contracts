@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IStaticOracle } from "contracts/interfaces/external/uniswap/IStaticOracle.sol";
 import { UniswapV3Pool } from "contracts/interfaces/external/uniswap/UniswapV3Pool.sol";
 

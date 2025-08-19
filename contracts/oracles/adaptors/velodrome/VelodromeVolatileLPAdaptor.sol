@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseVolatileLPAdaptor } from "contracts/oracles/adaptors/stableswapBase/BaseVolatileLPAdaptor.sol";
+import { BaseVolatileLPAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/stableswapBase/BaseVolatileLPAdaptor.sol";
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
 contract VelodromeVolatileLPAdaptor is BaseVolatileLPAdaptor {

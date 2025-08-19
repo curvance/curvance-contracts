@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBalance.sol";
 
 import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IWETH } from "contracts/interfaces/IWETH.sol";
+
 import { IPyth } from "contracts/interfaces/external/pyth/IPyth.sol";
 import { PythStructs } from "contracts/interfaces/external/pyth/PythStructs.sol";
-import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 contract PythAdaptor is BaseOracleAdaptor {
     /// TYPES ///

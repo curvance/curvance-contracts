@@ -3,8 +3,6 @@ pragma solidity 0.8.28;
 
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 
 abstract contract BaseWrappedAggregator is IChainlink {

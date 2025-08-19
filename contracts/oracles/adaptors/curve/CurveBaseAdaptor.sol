@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { ICurveRemoveLiquidity } from "contracts/interfaces/external/curve/ICurveReentrancy.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 /// @dev Kudos to Curve Finance/Silo Finance/Chain Security for researching
 ///      specific gas limit values for Pool Reentrancy.

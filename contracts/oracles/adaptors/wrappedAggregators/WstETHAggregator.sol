@@ -6,7 +6,6 @@ import { VaultAggregator, WAD } from "contracts/oracles/adaptors/wrappedAggregat
 import { IWstETH, IStETH } from "contracts/interfaces/external/lido/IWstETH.sol";
 
 contract WstETHAggregator is VaultAggregator {
-
     /// CONSTRUCTOR ///
     
     constructor(

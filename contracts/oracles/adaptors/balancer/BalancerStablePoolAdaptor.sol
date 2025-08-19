@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BalancerBaseAdaptor } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
+import { BalancerBaseAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
@@ -9,7 +9,6 @@ import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { IVault } from "contracts/interfaces/external/balancer/IVault.sol";
 import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerPool.sol";
 import { IRateProvider } from "contracts/interfaces/external/balancer/IRateProvider.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {

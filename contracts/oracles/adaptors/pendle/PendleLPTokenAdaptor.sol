@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
@@ -12,8 +12,6 @@ import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtO
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract PendleLPTokenAdaptor is BaseOracleAdaptor {
     using PendleLpOracleLib for IPMarket;
