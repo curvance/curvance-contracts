@@ -115,7 +115,8 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-        uint256 finalPrice = _getFairPrice(
+        result.inUSD = inUSD;
+        result.price = _getFairPrice(
             reserve0,
             reserve1,
             price0,
@@ -123,14 +124,6 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
             totalSupply
         );
 
-        // Validate price will not overflow on conversion to uint240.
-        if (_checkOverflow(finalPrice)) {
-            result.hadError = true;
-            return result;
-        }
-
-        result.inUSD = inUSD;
-        result.price = uint240(finalPrice);
     }
 
     /// @notice Adds pricing support for `asset`, an lp token for

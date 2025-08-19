@@ -146,7 +146,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
         }
 
         result.hadError = _verifyData(uint256(price), updatedAt, c.heartbeat);
-        result.price = uint240(uint256(price));
+        result.price = uint256(price);
     }
 
     /// @notice Wipes `asset` pricing configurations from this adaptor.

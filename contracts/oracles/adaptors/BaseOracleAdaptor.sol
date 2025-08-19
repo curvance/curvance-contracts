@@ -17,8 +17,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
-    /// @notice The maximum price allowed to be returned by an oracle adaptor.
-    uint256 internal constant _MAXIMUM_PRICE_ALLOWED = type(uint240).max;
     /// @notice The minimum amount of time allowed between `timestampStart`
     ///         and `block.timestamp` on `setGuardedPriceConfig` call.
     uint256 internal constant _MINIMUM_TIMESTAMP_BUFFER = 7 days;
@@ -208,11 +206,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 timestamp,
         uint256 heartbeat
     ) internal view virtual returns (bool) {
-        // Validate `value` is not at or above type(uint240).max.
-        if (value >= _MAXIMUM_PRICE_ALLOWED) {
-            return true;
-        }
-
         // Validate `value` is not at or below 0.
         if (value <= 0) {
             return true;
@@ -290,14 +283,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 price
     ) internal pure returns (uint256 r) {
         r = FixedPointMathLib.mulDiv(price, ((timePassed * ips) + WAD), WAD);
-    }
-
-    /// @notice Helper function to check whether `price` would overflow
-    ///         based on a uint240 maximum.
-    /// @param price The price to check against overflow.
-    /// @return o Whether `price` will overflow on conversion to uint240.
-    function _checkOverflow(uint256 price) internal pure returns (bool o) {
-        o = price > _MAXIMUM_PRICE_ALLOWED;
     }
 
     /// @notice Checks whether `asset` is supported by the adaptor or not.

@@ -125,7 +125,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
         );
 
         result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
-        result.price = uint240(adjustedPrice);
+        result.price = adjustedPrice;
     }
 
     /// @notice Wipes `asset` pricing configurations from this adaptor.

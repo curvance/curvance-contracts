@@ -140,15 +140,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
             return result;
         }
 
-        averagePrice = ((averagePrice / numPrices) * pool.getRate()) / WAD;
-
-        // Validate price will not overflow on conversion to uint240.
-        if (_checkOverflow(averagePrice)) {
-            result.hadError = true;
-            return result;
-        }
-
-        result.price = uint240(averagePrice);
+        result.price = ((averagePrice / numPrices) * pool.getRate()) / WAD;
     }
 
     /// @notice Adds pricing support for `asset`, a new Balancer BPT.

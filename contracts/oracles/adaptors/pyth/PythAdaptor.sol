@@ -225,7 +225,7 @@ contract PythAdaptor is BaseOracleAdaptor {
             price.publishTime,
             config.heartbeat
         );
-        result.price = uint240(adjustedPrice);
+        result.price = adjustedPrice;
     }
 
     /// @notice Wipes `asset` pricing configurations from this adaptor.

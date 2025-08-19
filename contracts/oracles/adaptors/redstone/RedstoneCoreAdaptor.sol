@@ -395,7 +395,7 @@ contract RedstoneCoreAdaptor is
             return result;
         }
 
-        result.price = uint240(config.price);
+        result.price = config.price;
     }
 
     /// @dev This logic replicates RedstoneDefaultsLib.validateTimestamp

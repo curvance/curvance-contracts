@@ -32,11 +32,6 @@ contract MockPythAdaptor is PythAdaptor {
         uint256 timestamp,
         uint256 heartbeat
     ) internal view override returns (bool) {
-        // Validate `value` is not at or above type(uint240).max.
-        if (value >= _MAXIMUM_PRICE_ALLOWED) {
-            return true;
-        }
-
         // Validate `value` is not at or below 0.
         if (value <= 0) {
             return true;
