@@ -83,7 +83,11 @@ contract TestLFactorFuzzed is TestBaseMarketIsolated {
 		uint256 cHard = 2.2e59;
 
 		uint256 nearHardLiquidation = harness.getLFactor(cSoft, cHard, cHard - 1);
-		assertEq(nearHardLiquidation, WAD - 1, "near-hard soft lFactor should be WAD - 1");
+		assertEq(
+            nearHardLiquidation,
+            WAD,
+            "near-hard soft lFactor should be WAD and not round up to WAD + 1"
+        );
 
 		uint256 hardLiquidation = harness.getLFactor(cSoft, cHard, cHard + 1);
 		assertEq(hardLiquidation, WAD, "hard lFactor must equal WAD");
