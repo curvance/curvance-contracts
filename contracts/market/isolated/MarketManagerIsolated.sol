@@ -5,7 +5,7 @@ import { LiquidityManagerIsolated, CommonLib, ICToken, IOracleManager } from "co
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
-import { BPS, BPS_SQUARED, WAD, WAD_SQUARED, WAD_CUBED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD, WAD_SQUARED, WAD_CUBED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
@@ -86,29 +86,33 @@ contract MarketManagerIsolated is
 
     /// CONSTANTS ///
 
-    /// @notice Maximum collateral requirement to avoid liquidation.
+    /// @notice Maximum collateral requirement to avoid liquidation, in `BPS`.
     /// @dev 23400 = 234%. Resulting in 1 / (BPS + 2.34 BPS),
     ///      or ~30% maximum LTV soft liquidation level.
     uint256 public constant MAX_COLLATERAL_REQUIREMENT = 23400;
-    /// @notice Minimum excess collateral requirement
-    ///         on top of liquidation incentive.
+    /// @notice Minimum excess collateral requirement on top of liquidation
+    ///         incentives, in `BPS`.
     /// @dev 100 = 1.0%.
     uint256 public constant MIN_EXCESS_COLL_REQUIRED = 100;
-    /// @notice Maximum collateralization ratio.
-    /// @dev 9750 = 97.5%.
-    uint256 public constant MAX_COLLATERALIZATION_RATIO = 9750;
-    /// @notice The maximum liquidation incentive.
+    /// @notice Minimum excess collateral requirement before soft liquidation
+    ///         can occur, in `BPS`.
+    /// @dev 9900 = (`BPS` - `BUFFER_REQUIRED`) = 1.0% liquidation buffer.
+    uint256 public constant MIN_LIQUIDATION_BUFFER_REQUIRED = 9900;
+    /// @notice Maximum collateralization ratio, in `BPS`.
+    /// @dev 9800 = 98%.
+    uint256 public constant MAX_COLLATERALIZATION_RATIO = 9800;
+    /// @notice The maximum liquidation incentive, in `BPS`.
     /// @dev 3000 = 30%.
     uint256 public constant MAX_LIQUIDATION_INCENTIVE = 3000;
     /// @notice Buffer to ensure orderflow auction-based liquidations have
-    ///         priority versus basic liquidations.
+    ///         priority versus basic liquidations, in `BPS`.
     /// @dev 9990 = 99.9%. Multiplied then divided by `BPS` = 10 bps buffer.
     uint256 public constant AUCTION_BUFFER = 9990;
-    /// @notice The maximum base cFactor.
+    /// @notice The maximum base cFactor, in `BPS`.
     /// @dev 5000 = 50%. NOTE: This can NEVER be changed to 100% or offchain
     ///      parameters can be unintentionally ignored.
     uint256 public constant MAX_BASE_CFACTOR = 5000;
-    /// @notice The minimum base cFactor.
+    /// @notice The minimum base cFactor, in `BPS`.
     /// @dev 1000 = 10%.
     uint256 public constant MIN_BASE_CFACTOR = 1000;
     /// @notice Minimum hold time to minimize external risks, in seconds.
@@ -117,7 +121,7 @@ contract MarketManagerIsolated is
 
     /// @dev Limit for market debt cap to max sure outstanding user debt
     ///      never overflows `outstandingDebt` value inside _debtOf.
-    uint256 internal constant _MAX_DEBT_CAP = type(uint168).max;
+    uint256 internal constant _MAX_DEBT_CAP = type(uint160).max;
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvalidParameter()")))`
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0x65513fc1;
     /// @dev `bytes4(keccak256(bytes("MarketManager__Unauthorized()")))`
@@ -884,8 +888,12 @@ contract MarketManagerIsolated is
         }
 
         // Validate the soft liquidation collateral premium is not stricter
-        // than its `collRatio`.
-        if (c.collRatio > (BPS_SQUARED / (BPS + c.collReqSoft))) {
+        // than its `collRatio` and has a sufficient buffer against
+        // soft liquidation.
+        if (
+            c.collRatio > (MIN_LIQUIDATION_BUFFER_REQUIRED * AUCTION_BUFFER /
+                (BPS + c.collReqSoft))
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 

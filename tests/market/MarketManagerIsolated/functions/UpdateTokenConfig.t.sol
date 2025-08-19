@@ -68,7 +68,7 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
         tokenConfig.cToken = address(strategyCBALRETH);
-        tokenConfig.collRatio = 9950;    // collRatio 99.5% (above max of 97.5)
+        tokenConfig.collRatio = 9900;    // collRatio 99%, above max of 98%
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
         tokenConfig.liqIncBase = 1000;
@@ -365,7 +365,7 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.closeFactorMax = 5000;
         tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 100_000e18;
-        tokenConfig.debtCap = 100e55; // Cap for debt limits in 2^168-1 or 3.74e50.
+        tokenConfig.debtCap = 1e49; // Cap for debt limits in 2^160-1 or 1.4615e48.
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);

@@ -18,9 +18,6 @@ uint256 constant WAD_BPS = 1e22;
 /// @dev Scalar for math. Base precision matching ether.
 uint256 constant WAD = 1e18;
 
-/// @dev Scalar for math. `BPS` * `BPS`.
-uint256 constant BPS_SQUARED = 1e8;
-
 /// @dev Scalar for math. Represents basis points typically used in TradFi.
 uint256 constant BPS = 1e4;
 

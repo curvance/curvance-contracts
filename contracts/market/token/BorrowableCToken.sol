@@ -45,7 +45,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice The amount of `asset` that has been borrowed as outstanding
     ///         debt, in assets.
     /// @dev We do not need to worry about uint240 overflow here since we
-    ///      limit debt caps to type(uint168).max in the Market Manager.
+    ///      limit debt caps to type(uint160).max in the Market Manager.
     uint240 public marketOutstandingDebt;
     /// @notice The portion of interest paid by borrowers that goes to the
     ///         protocol, in `BPS`.
