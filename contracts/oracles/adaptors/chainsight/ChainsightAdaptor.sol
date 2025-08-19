@@ -17,7 +17,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     /// @param sender The sender address corresponding to `asset`'s feed
     ///               inside Management Oracle.
     /// @param heartbeat The max amount of time allowed between price updates.
-    ///                  0 defaults to using `DEFAULT_HEART_BEAT`.
+    ///                  0 defaults to using `DEFAULT_HEARTBEAT`.
     /// @param decimals Returns the number of decimals the Feed Key
     ///                 responds with.
     /// @param feedKey The ICP VRF randomized key for the asset feed.
@@ -33,7 +33,8 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
     /// @notice If zero is specified for a Chainsight asset heartbeat,
     ///         this value is used instead.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
+    uint256 public constant DEFAULT_HEARTBEAT =
+        1 days + HEARTBEAT_GRACE_PERIOD;
 
     IManagementOracle public immutable MANAGEMENT_ORACLE;
 
@@ -79,7 +80,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     /// @param decimals Returns the number of decimals the Feed Key
     ///                 responds with.
     /// @param heartbeat Chainsight heartbeat to use when validating prices
-    ///                  for `asset`. 0 = `DEFAULT_HEART_BEAT`.
+    ///                  for `asset`. 0 = `DEFAULT_HEARTBEAT`.
     /// @param feedKey The ICP VRF randomized key for the asset feed.
     function addAsset(
         address asset,
@@ -91,7 +92,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     ) external {
         _checkElevatedPermissions();
         
-        if (heartbeat > DEFAULT_HEART_BEAT) {
+        if (heartbeat > DEFAULT_HEARTBEAT) {
             revert ChainsightAdaptor__InvalidHeartbeat();
         }
 
@@ -116,7 +117,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
         AssetConfig storage config = assetConfig[asset][inUSD];
 
-        config.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT);
+        config.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEARTBEAT);
 
         if (block.timestamp - readTimestampSigned > heartbeat) {
             revert ChainsightAdaptor__InvalidPriceConfiguration();

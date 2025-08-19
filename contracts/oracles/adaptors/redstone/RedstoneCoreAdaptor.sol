@@ -17,7 +17,7 @@ contract RedstoneCoreAdaptor is
     /// @notice Stores configuration data for Redstone price sources.
     /// @param heartbeat The max amount of time allowed between price updates.
     ///                  type(uint256).max defaults to using
-    ///                  `DEFAULT_HEART_BEAT`.
+    ///                  `DEFAULT_HEARTBEAT`.
     /// @param decimals Returns the number of decimals the Redstone price feed
     ///                 responds with.
     /// @param redstoneTimestamp The price timestamp reported by Redstone
@@ -35,11 +35,11 @@ contract RedstoneCoreAdaptor is
     /// CONSTANTS ///
 
     /// @notice If type(uint256).max is specified for an asset heartbeat,
-    ///         `DEFAULT_HEART_BEAT` is used instead.
+    ///         `DEFAULT_HEARTBEAT` is used instead.
     /// @dev 10 minutes = 600 seconds.
     ///      We use type(uint256).max instead of 0 for trigger as we may want
     ///      0 second requirement on redstone pull oracles.
-    uint256 public constant DEFAULT_HEART_BEAT = 10 minutes;
+    uint256 public constant DEFAULT_HEARTBEAT = 10 minutes;
     /// @notice The smallest value that Redstone Core unique signer threshold
     ///         can be inside Curvance.
     uint256 public constant MINIMUM_SIGNERS_THRESHOLD_ALLOWED = 3;
@@ -65,8 +65,9 @@ contract RedstoneCoreAdaptor is
     /// @notice Native token symbol metadata on this chain.
     string internal _nativeSymbol;
 
-    /// @notice Price feed configuration data for an asset.
-    /// @dev Token address => inUSD => Price feed configuration for `asset`.
+    /// @notice Price feed configuration and price storage for an asset.
+    /// @dev Token address => inUSD => Price feed configuration and price
+    ///      storage for `asset`.
     mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
     /// @notice A fixed key to use in transient storage for validating that
@@ -206,7 +207,7 @@ contract RedstoneCoreAdaptor is
         _checkElevatedPermissions();
 
         if (heartbeat != type(uint256).max) {
-            if (heartbeat > DEFAULT_HEART_BEAT) {
+            if (heartbeat > DEFAULT_HEARTBEAT) {
                 revert RedstoneCoreAdaptor__InvalidConfiguration();
             }
         }
@@ -229,7 +230,7 @@ contract RedstoneCoreAdaptor is
 
         config.symbolHash = symbolHash;
         config.heartbeat = uint16(heartbeat != type(uint256).max ?
-            heartbeat : DEFAULT_HEART_BEAT);
+            heartbeat : DEFAULT_HEARTBEAT);
         // If decimals == 0 we use default 8 decimals that
         // Redstone typically provides prices in.
         config.decimals = decimals != 0 ? decimals : 8;

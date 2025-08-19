@@ -18,7 +18,7 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
     /// @param feed The Redstone price feed proxy address.
     /// @param decimals Returns the number of decimals `feed` responds with.
     /// @param heartbeat The max amount of time allowed between price updates.
-    ///                  0 defaults to using `DEFAULT_HEART_BEAT`.
+    ///                  0 defaults to using `DEFAULT_HEARTBEAT`.
     struct AssetConfig {
         bool isConfigured;
         IRedstone feedProxy;
@@ -32,7 +32,8 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
     ///         this value is used instead, added 60 seconds incase of
     ///         transaction congestion delaying an update.
     /// @dev    1 days = 24 hours = 1,440 minutes = 86,400 seconds.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
+    uint256 public constant DEFAULT_HEARTBEAT =
+        1 days + HEARTBEAT_GRACE_PERIOD;
 
     /// STORAGE ///
 
@@ -63,7 +64,7 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
     ///              or native token (inUSD = false).
     /// @param feedProxy Redstone price feed proxy to use for pricing `asset`.
     /// @param heartbeat Redstone heartbeat to use when validating prices
-    ///                  for `asset`. 0 = `DEFAULT_HEART_BEAT`.
+    ///                  for `asset`. 0 = `DEFAULT_HEARTBEAT`.
     /// @param id The dataFeedId of the token to add pricing for.
     function addAsset(
         address asset,
@@ -74,7 +75,7 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
     ) external {
         _checkElevatedPermissions();
         
-        if (heartbeat > DEFAULT_HEART_BEAT) {
+        if (heartbeat > DEFAULT_HEARTBEAT) {
             revert RedstoneClassicAdaptor__InvalidHeartbeat();
         }
 
@@ -88,7 +89,7 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
         // for `asset`.
         c.feedProxy = IRedstone(feedProxy);
         c.decimals = IRedstone(feedProxy).decimals();
-        c.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT);
+        c.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEARTBEAT);
         c.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.

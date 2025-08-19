@@ -58,8 +58,8 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
     }
 
     function test_fail_AddAsset__InvalidHeartbeat() public {
-        // Should revert when heartbeat > DEFAULT_HEART_BEAT.
-        uint256 invalidHeartbeat = adaptor.DEFAULT_HEART_BEAT() + 1;
+        // Should revert when heartbeat > DEFAULT_HEARTBEAT.
+        uint256 invalidHeartbeat = adaptor.DEFAULT_HEARTBEAT() + 1;
         
         vm.expectRevert(RedstoneCoreAdaptor.RedstoneCoreAdaptor__InvalidConfiguration.selector);
         adaptor.addAsset(
@@ -185,7 +185,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             redstoneSignerKeys
         );
 
-        (, , , , , bytes32 symbolHash) = adaptor.assetConfig(_WBTC_ADDRESS, true);
+        (, , , , bytes32 symbolHash) = adaptor.assetConfig(_WBTC_ADDRESS, true);
         assertEq(symbolHash, bytes32("WBTC"));
         
         bytes memory encodedFunction = abi.encodeWithSignature(
@@ -224,8 +224,9 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             redstoneSignerKeys
         );
 
-        (, , , , , bytes32 symbolHash) = adaptor.assetConfig(_WETH_ADDRESS, true);
+        (, , , , bytes32 symbolHash) = adaptor.assetConfig(_WETH_ADDRESS, true);
         assertEq(symbolHash, bytes32("WETH"));
+
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool,uint48)",
             _WETH_ADDRESS,
