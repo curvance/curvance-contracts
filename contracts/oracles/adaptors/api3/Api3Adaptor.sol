@@ -17,7 +17,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
     ///                     false = unconfigured; true = configured.
     /// @param proxyFeed The current proxy's feed address.
     /// @param heartbeat The max amount of time allowed between price updates.
-    ///                  0 defaults to using DEFAULT_HEART_BEAT.
+    ///                  0 defaults to using DEFAULT_HEARTBEAT.
     /// @param dapiNameHash The bytes32 encoded name hash of the price feed. 
     struct AssetConfig {
         bool isConfigured;
@@ -30,7 +30,8 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
     /// @notice If zero is specified for an Api3 asset heartbeat,
     ///         this value is used instead.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days + HEARTBEAT_GRACE_PERIOD;
+    uint256 public constant DEFAULT_HEARTBEAT =
+        1 days + HEARTBEAT_GRACE_PERIOD;
 
     /// STORAGE ///
 
@@ -62,7 +63,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
     ///              or native token (inUSD = false).
     /// @param proxyFeed Api3 proxy feed to use for pricing `asset`.
     /// @param heartbeat Api3 heartbeat to use when validating prices
-    ///                  for `asset`. 0 = `DEFAULT_HEART_BEAT`.
+    ///                  for `asset`. 0 = `DEFAULT_HEARTBEAT`.
     /// @param ticker The ticker of the token to add pricing for.
     function addAsset(
         address asset,
@@ -72,11 +73,9 @@ contract Api3Adaptor is BaseOracleAdaptor {
         string memory ticker
     ) external {
         _checkElevatedPermissions();
-
-        if (heartbeat != 0) {
-            if (heartbeat > DEFAULT_HEART_BEAT) {
-                revert Api3Adaptor__InvalidHeartbeat();
-            }
+        
+        if (heartbeat > DEFAULT_HEARTBEAT) {
+            revert Api3Adaptor__InvalidHeartbeat();
         }
 
         bytes32 dapiName = Bytes32Helper.toBytes32(ticker);
@@ -89,7 +88,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
         }
 
         AssetConfig storage config = assetConfig[asset][inUSD];
-        config.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT);
+        config.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEARTBEAT);
 
         // Save `config` and update mapping that we support `asset` now.
         config.dapiNameHash = dapiNameHash;
@@ -147,7 +146,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
         }
 
         result.hadError = _verifyData(uint256(price), updatedAt, c.heartbeat);
-        result.price = uint240(uint256(price));
+        result.price = uint256(price);
     }
 
     /// @notice Wipes `asset` pricing configurations from this adaptor.

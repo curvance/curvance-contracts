@@ -625,39 +625,30 @@ abstract contract LiquidityManagerIsolated {
     ///  @param cHard The account's hard collateral value (collateral adjusted
     ///               by hard requirements).
     ///  @param debt The account's total outstanding debt value.
-    ///  @return result The liquidation factor where:
-    ///                 0: No liquidation (account is healthy).
-    ///                 1 to WAD-1: Soft liquidation (partial liquidation
-    ///                             allowed).
-    ///                 WAD: Hard liquidation (full liquidation, possibly
-    ///                      including bad debt).
+    ///  @return The liquidation factor where:
+    ///          0: No liquidation (account is healthy).
+    ///          1 to WAD-1: Soft liquidation (partial liquidation allowed).
+    ///          WAD: Hard liquidation (full liquidation, possibly including
+    ///               bad debt).
     function _getLFactor(
         uint256 cSoft,
         uint256 cHard,
         uint256 debt
-    ) internal pure returns (uint256 result) {
+    ) internal pure returns (uint256) {
         // Indicates no liquidation.
         if (cSoft >= debt) {
-            return result;
+            return 0;
         }
 
         // Indicates hard liquidation.
         if (debt >= cHard) {
-            result = WAD;
-            return result;
+            return WAD;
         }
 
-        // Indicates soft liquidation.
-        result = _mulDiv(debt - cSoft, WAD, cHard - cSoft);
-
-        // Its theoretically possible for lFactor calculation to round
-        // down here, if the delta between the hard and soft collateral
-        // thresholds are significant (> WAD), with a minimal numerator
-        // (~ WAD). For this case we round up on the side of the protocol.
-        if (result == 0) {
-            // Round to 1 wei to trigger a soft liquidation.
-            result = 1;
-        }
+        // Indicates soft liquidation, we round up here in favor of the
+        // protocol, we know that we wont run into a value > WAD due to cHard
+        // being at least 1 higher than debt.
+        return FixedPointMathLib.mulDivUp(debt - cSoft, WAD, cHard - cSoft);
     }
 
     /// @notice Retrieves the prices and account data of multiple assets
