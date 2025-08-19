@@ -22,22 +22,17 @@ contract RedstoneCoreAdaptor is
     ///                  DEFAULT_HEART_BEAT.
     /// @param decimals Returns the number of decimals the Redstone price feed
     ///                 responds with.
+    /// @param redstoneTimestamp The price timestamp reported by Redstone
+    ///                          signers, in milliseconds.
+    /// @param price The price recorded for an asset, in `WAD`.
     /// @param symbolHash The bytes32 encoded hash of the price feed.
     struct AssetConfig {
         bool isConfigured;
         uint8 decimals;
-        uint24 heartbeat;
+        uint16 heartbeat;
+        uint48 redstoneTimestamp;
+        uint176 price;
         bytes32 symbolHash;
-    }
-
-    /// @notice Stores cached price data for Redstone core pulled
-    ///         from msg.data.
-    /// @param price The price recorded for an asset, in `WAD`.
-    /// @param redstoneTimestamp The price timestamp reported by Redstone
-    ///                          signers, in milliseconds.
-    struct StoredPrice {
-        uint256 price;
-        uint256 redstoneTimestamp;
     }
 
     /// CONSTANTS ///
@@ -76,11 +71,6 @@ contract RedstoneCoreAdaptor is
     /// @notice Price feed configuration data for an asset.
     /// @dev Token address => inUSD => Price feed configuration for `asset`.
     mapping(address => mapping(bool => AssetConfig)) public assetConfig;
-
-    /// @notice Stored price and timestamp from Redstone Core pull feed
-    ///         for `asset`.
-    /// @dev Token address => inUSD => Stored price and timestamp for `asset`.
-    mapping(address => mapping(bool => StoredPrice)) internal _storedPrice;
 
     /// @dev A fixed key to use in transient storage for validating that the
     ///      timestamp provided on price write is accurate.
@@ -138,17 +128,20 @@ contract RedstoneCoreAdaptor is
     /// @param asset The address of the supported asset to write a price for.
     /// @param inUSD Whether the price is being written in USD,
     ///              or the chain's native token.
+    /// @param redstoneTimestamp The proposed timestamp of the Redstone Core
+    ///                          price feed data, in milliseconds.
     function writePrice(
         address asset,
         bool inUSD,
-        uint128 redstoneTimestamp
+        uint48 redstoneTimestamp
     ) external {
-        AssetConfig memory config = assetConfig[asset][inUSD];
+        AssetConfig storage config = assetConfig[asset][inUSD];
+
         if (!config.isConfigured) {
             revert RedstoneCoreAdaptor__AssetIsNotSupported();
         }
 
-        if (_storedPrice[asset][inUSD].redstoneTimestamp >= redstoneTimestamp) {
+        if (config.redstoneTimestamp >= redstoneTimestamp) {
             return; // Can skip storing the data since the data is stale.
         }
 
@@ -164,14 +157,12 @@ contract RedstoneCoreAdaptor is
 
         // Validate `price` is not at or above the maximum value allowed,
         // and `price` is not truncated or misreported with a 0 value.
-        if (price == 0 || price >= _MAXIMUM_PRICE_ALLOWED) {
+        if (price == 0 || price > type(uint176).max) {
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
-        _storedPrice[asset][inUSD] = StoredPrice({
-            price: price,
-            redstoneTimestamp: redstoneTimestamp
-        });
+        config.price = price;
+        config.redstoneTimestamp = redstoneTimestamp;
 
         /// @solidity memory-safe-assembly
         assembly {
@@ -237,7 +228,7 @@ contract RedstoneCoreAdaptor is
         AssetConfig storage config = assetConfig[asset][inUSD];
 
         config.symbolHash = symbolHash;
-        config.heartbeat = uint24(heartbeat != type(uint256).max ?
+        config.heartbeat = uint16(heartbeat != type(uint256).max ?
             heartbeat : DEFAULT_HEART_BEAT);
         // If decimals == 0 we use default 8 decimals that
         // Redstone typically provides prices in.
@@ -390,19 +381,19 @@ contract RedstoneCoreAdaptor is
             inUSD = !inUSD; 
         }
 
-        StoredPrice memory storedPrice = _storedPrice[asset][inUSD];
+        AssetConfig memory config = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
         // Validate the price returned is not stale.
-        uint256 timestampInSeconds = storedPrice.redstoneTimestamp / 1000;
+        uint256 timestampInSeconds = config.redstoneTimestamp / 1000;
         if (
             timestampInSeconds < block.timestamp &&
-            block.timestamp - timestampInSeconds > assetConfig[asset][inUSD].heartbeat
+            block.timestamp - timestampInSeconds > config.heartbeat
         ) {
             result.hadError = true;
             return result;
         }
 
-        result.price = uint240(storedPrice.price);
+        result.price = uint240(config.price);
     }
 
     /// @dev This logic replicates RedstoneDefaultsLib.validateTimestamp
