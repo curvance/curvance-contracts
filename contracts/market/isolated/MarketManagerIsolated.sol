@@ -96,8 +96,8 @@ contract MarketManagerIsolated is
     uint256 public constant MIN_EXCESS_COLL_REQUIRED = 100;
     /// @notice Minimum excess collateral requirement before soft liquidation
     ///         can occur, in `BPS`.
-    /// @dev 9900 = (`BPS` - `BUFFER_REQUIRED`) = 1.0% liquidation buffer.
-    uint256 public constant MIN_LIQUIDATION_BUFFER_REQUIRED = 9900;
+    /// @dev 9935 = (`BPS` - `BUFFER_REQUIRED`) = 0.65% liquidation buffer.
+    uint256 public constant MIN_LIQUIDATION_BUFFER_REQUIRED = 9935;
     /// @notice Maximum collateralization ratio, in `BPS`.
     /// @dev 9800 = 98%.
     uint256 public constant MAX_COLLATERALIZATION_RATIO = 9800;
