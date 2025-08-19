@@ -40,8 +40,9 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// ERRORS ///
 
     error BaseOracleAdaptor__Unauthorized();
-    error BaseOracleAdaptor__NoPriceGuard();
     error BaseOracleAdaptor__InvalidConfig();
+    error BaseOracleAdaptor__InvalidTimestamp();
+    error BaseOracleAdaptor__MinPriceAboveCurrentPrice();
     error BaseOracleAdaptor__AssetIsNotSupported();
     
     /// CONSTRUCTOR ///
@@ -89,13 +90,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @param asset The address of the asset to set a PriceGuard data on.
     /// @param inUSD Specifies whether the PriceGuard should be in
     ///              USD (true) or a chain's native token (false).
-    /// @param guardType The type of PriceGuard to set on `asset`. 
-    ///                  Where:
-    ///                  1: Indicates a static maximum of `basePrice` and
-    ///                     minimum of `minPrice`.
-    ///                  2: Indicates an ever increasing maximum of
-    ///                     `basePrice` and minimum of `minPrice` continually
-    ///                     growing by `increasePerYear` % per year.
     /// @param timestampStart When `increasePerYear` should start increasing
     ///                       `basePrice` raising the maximum price returned
     ///                       when pricing `asset`.
@@ -108,7 +102,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     function setGuardedPriceConfig(
         address asset,
         bool inUSD,
-        uint256 guardType,
         uint256 timestampStart,
         uint256 ips,
         uint256 basePrice,
@@ -116,17 +109,12 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ) external {
         _checkMarketPermissions();
 
-        // Validate that the intended guardType actually exists (type 1 / 2).
-        if (guardType == 0 || guardType > 2) {
-            revert BaseOracleAdaptor__InvalidConfig();
-        }
-        
         // Validate the starting timestamp is not in the future or too "now".
         if (
             timestampStart > block.timestamp ||
             block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
         ) {
-            revert BaseOracleAdaptor__InvalidConfig();
+            revert BaseOracleAdaptor__InvalidTimestamp();
         }
 
         // Validate that growth rate will fit in 40 bit slot allocated.
@@ -150,15 +138,20 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         // Having a minimum price above the current price does not make sense,
         // implying that asset price behaves differently than our PriceGuard
         // assumes.
-        if (minPrice > result.price) {
-            revert BaseOracleAdaptor__InvalidConfig();
+        // This will simply return `minPrice` if ips == 0 so can use internal
+        // function to handle both cases.
+        uint256 guardedMinPrice =
+            _guardedPrice(block.timestamp - timestampStart, ips, minPrice);
+
+        if (guardedMinPrice > result.price) {
+            revert BaseOracleAdaptor__MinPriceAboveCurrentPrice();
         }
 
         PriceGuard storage pg = priceGuards[asset][inUSD];
 
         // New `timestampStart` needs to start after the current one.
         if (pg.timestampStart > timestampStart) {
-            revert BaseOracleAdaptor__InvalidConfig();
+            revert BaseOracleAdaptor__InvalidTimestamp();
         }
 
         pg.timestampStart = uint40(timestampStart);
