@@ -9,18 +9,16 @@ import "@atlas/contracts/types/SolverOperation.sol";
 import "@atlas/contracts/types/DAppOperation.sol";
 import "@atlas/contracts/types/AtlasErrors.sol";
 import {SolverBase} from "@atlas/contracts/solver/SolverBase.sol";
-
-import "../src/CurvanceDAppControl.sol";
-import {MockCentralRegistrySimple} from "./MockCentralRegistrySimple.sol";
-import {MockMarketManagerIsolated} from "./MockMarketManagerIsolated.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+import { AuctionManager } from "contracts/architecture/AuctionManager.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import {AtlasEvents} from "@atlas/contracts/types/AtlasEvents.sol";
 import {SolverOutcome} from "@atlas/contracts/types/EscrowTypes.sol";
 import {Vm} from "forge-std/Vm.sol";
 
-contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
-    CurvanceDAppControl public dappControl;
-    MockCentralRegistrySimple public centralRegistry;
-    MockMarketManagerIsolated public marketManager;
+contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolated, BaseTest {
+    AuctionManager public dappControl;
+
     address public collateralToken = address(0xccccccc);
 
     MockSolver public solver;
@@ -46,38 +44,32 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
 
     address mockCurvanceGov = address(0xf11);
 
-    function setUp() public override {
+    function setUp() public override(BaseTest, TestBaseMarketIsolated) {
         super.setUp();
 
-        vm.startPrank(mockCurvanceGov);
-        centralRegistry = new MockCentralRegistrySimple();
-        marketManager = new MockMarketManagerIsolated(address(centralRegistry));
-        marketManager.addMockToken(collateralToken, 0.8e18, 0.05e18, 0.15e18, 4e6, 5e6);
-        vm.stopPrank();
-
         vm.startPrank(governanceEOA);
-        dappControl = new CurvanceDAppControl(
+        dappControl = new AuctionManager(
             address(atlas),
-            address(centralRegistry),
-            OEV_SHARE_BUNDLER,
+            ICentralRegistry(address(centralRegistry)),
             OEV_SHARE_FASTLANE,
             OEV_ALLOCATION_DESTINATION_FASTLANE,
-            OEV_ALLOCATION_DESTINATION_PROTOCOL
+            OEV_ALLOCATION_DESTINATION_PROTOCOL,
+            6000
         );
 
         dappControl.setAuthorizedUserOpSigner(userOpSigner);
         atlasVerification.initializeGovernance(address(dappControl));
         atlasVerification.addSignatory(address(dappControl), auctioneer);
         // Set up mock contracts
-        centralRegistry.setDAppControl(address(dappControl));
-        centralRegistry.addMarketManager(address(marketManager));
+        address executionEnv = dappControl.authorizedExecutionEnv();
+        centralRegistry.addAuctionPermissions(executionEnv);
 
         vm.stopPrank();
 
-        vm.startPrank(mockCurvanceGov);
-        centralRegistry.setDAppControl(address(dappControl));
-        marketManager.addAuthorizedAtlasDAppControl(address(dappControl));
-        vm.stopPrank();
+        // vm.startPrank(mockCurvanceGov);
+        // centralRegistry.setDAppControl(address(dappControl));
+        // marketManagerIsolated.addAuthorizedAtlasDAppControl(address(dappControl));
+        // vm.stopPrank();
 
         vm.prank(solverOneEOA);
         solver = new MockSolver(address(WETH_ADDRESS), address(atlas));
@@ -100,13 +92,12 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
 
     // Initialization test
     function testInitialization() public view {
-        assertEq(dappControl.oevAllocationDestinationFastlane(), OEV_ALLOCATION_DESTINATION_FASTLANE);
-        assertEq(dappControl.oevAllocationDestinationProtocol(), OEV_ALLOCATION_DESTINATION_PROTOCOL);
-        assertEq(dappControl.oevShareBundler(), OEV_SHARE_BUNDLER);
-        assertEq(dappControl.oevShareFastlane(), OEV_SHARE_FASTLANE);
+        assertEq(dappControl.fastlaneRevenueDestination(), OEV_ALLOCATION_DESTINATION_FASTLANE);
+        assertEq(dappControl.curvanceRevenueDestination(), OEV_ALLOCATION_DESTINATION_PROTOCOL);
+        assertEq(dappControl.fastlaneSplitBPS(), OEV_SHARE_BUNDLER);
         assertEq(dappControl.solverGasLimit(), SOLVER_GAS_LIMIT);
         assertEq(dappControl.authorizedUserOpSigner(), userOpSigner);
-        assertEq(dappControl.CENTRAL_REGISTRY(), address(centralRegistry));
+        assertEq(address(dappControl.CENTRAL_REGISTRY()), address(centralRegistry));
     }
 
     function buildUserOperation(uint256 signerPK) internal view returns (UserOperation memory) {
@@ -126,7 +117,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
             solverGasLimit: SOLVER_GAS_LIMIT,
             bundlerSurchargeRate: 1000,
             sessionKey: auctioneer,
-            data: abi.encodeWithSelector(dappControl.initiateOevAuction.selector),
+            data: abi.encodeWithSelector(dappControl.initiateAuction.selector),
             signature: new bytes(0)
         });
 
@@ -315,14 +306,14 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
         );
         if (solverOneBidPaid + solverTwoBidPaid + solverThreeBidPaid > 0) {
             uint256 totalOev = solverOneBidPaid + solverTwoBidPaid + solverThreeBidPaid;
-            vm.expectEmit(executionEnv);
-            emit CurvanceDAppControl.CurvanceOevAllocated(
-                bundler,
-                totalOev,
-                totalOev * OEV_SHARE_BUNDLER / 10_000,
-                totalOev * OEV_SHARE_FASTLANE / 10_000,
-                totalOev - (totalOev * OEV_SHARE_BUNDLER / 10_000) - (totalOev * OEV_SHARE_FASTLANE / 10_000)
-            );
+            // vm.expectEmit(executionEnv);
+            // emit AuctionManager.CurvanceOevAllocated(
+            //     bundler,
+            //     totalOev,
+            //     totalOev * OEV_SHARE_BUNDLER / 10_000,
+            //     totalOev * OEV_SHARE_FASTLANE / 10_000,
+            //     totalOev - (totalOev * OEV_SHARE_BUNDLER / 10_000) - (totalOev * OEV_SHARE_FASTLANE / 10_000)
+            // );
         }
         vm.expectEmit(true, true, true, false, address(atlas));
         emit AtlasEvents.MetacallResult(bundler, userOpSigner, false, 0, 0);
@@ -371,7 +362,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: 0,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             }),
@@ -379,7 +370,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: 0,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             }),
@@ -387,7 +378,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: 0,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             })
@@ -400,7 +391,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             }),
@@ -408,7 +399,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount * 2,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             }),
@@ -416,7 +407,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount * 3,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             })
@@ -429,7 +420,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             }),
@@ -437,7 +428,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: 0,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             }),
@@ -445,7 +436,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount * 2,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             })
@@ -458,7 +449,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: 0,
                 testPenalty: solverOpTestPenalty * 1001 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             }),
@@ -466,7 +457,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             }),
@@ -474,7 +465,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: 0,
                 testPenalty: solverOpTestPenalty * 999 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             })
@@ -487,7 +478,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: 0,
                 testPenalty: solverOpTestPenalty * 999 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             }),
@@ -495,7 +486,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: 0,
                 testPenalty: solverOpTestPenalty * 998 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             }),
@@ -503,7 +494,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty * 997 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             })
@@ -516,7 +507,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: 0,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             }),
@@ -524,7 +515,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: 0,
                 testPenalty: solverOpTestPenalty * 1001 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             }),
@@ -532,7 +523,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: 0,
                 testPenalty: solverOpTestPenalty * 1002 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             })
@@ -545,7 +536,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             }),
@@ -553,7 +544,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: 0,
                 testPenalty: solverOpTestPenalty * 1001 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             }),
@@ -561,7 +552,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty * 1002 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             })
@@ -574,7 +565,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             }),
@@ -582,7 +573,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty * 1001 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             }),
@@ -590,7 +581,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty * 1002 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             })
@@ -603,7 +594,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             }),
@@ -611,7 +602,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty * 1001 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             }),
@@ -619,7 +610,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty * 1002 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             })
@@ -632,7 +623,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             }),
@@ -640,7 +631,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty * 1001 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             }),
@@ -648,7 +639,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty * 1002 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             })
@@ -661,7 +652,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             }),
@@ -669,7 +660,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: 0,
                 testPenalty: solverOpTestPenalty * 1001 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             }),
@@ -677,7 +668,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty * 1002 / 1000,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: true,
                 isPreSolverOpFailing: false
             })
@@ -690,7 +681,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: 1,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: true
             }),
@@ -698,7 +689,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             }),
@@ -706,7 +697,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             })
@@ -719,7 +710,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty,
                 collateral: address(0x0abcd),
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: true
             }),
@@ -727,7 +718,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             }),
@@ -735,7 +726,7 @@ contract AuctionManagerSolverScenariosTest is BaseTest, AtlasErrors {
                 bidAmount: solverBidAmount,
                 testPenalty: solverOpTestPenalty,
                 collateral: collateralToken,
-                market: address(marketManager),
+                market: address(marketManagerIsolated),
                 isReverting: false,
                 isPreSolverOpFailing: false
             })

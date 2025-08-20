@@ -25,6 +25,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
+import { AuctionManager } from "contracts/architecture/AuctionManager.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { BPS, WAD, WAD_SQUARED, WAD_CUBED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
@@ -112,6 +113,7 @@ contract TestBaseMarketIsolated is TestBase {
         _deployChainlinkAdaptors();
 
         _deployMarketManager();
+        _deployAuctionManager();
 
         _deployBorrowableCUSDC();
         _deployBorrowableCDAI();
@@ -150,6 +152,7 @@ contract TestBaseMarketIsolated is TestBase {
         _deployVotingHub();
         _deployFeeManager();
         _deployProtocolReader();
+        _deployAuctionManager();
 
         vm.warp(centralRegistry.genesisEpoch());
         rewardManager.startRewardManager();
@@ -449,6 +452,22 @@ contract TestBaseMarketIsolated is TestBase {
         centralRegistry.addMarketManager(
             address(marketManagerIsolated),
             marketInterestFee
+        );
+    }
+
+    function _deployAuctionManager() internal initMainVariables {
+        address OEV_ALLOCATION_DESTINATION_FASTLANE = address(0x1);
+        address OEV_ALLOCATION_DESTINATION_PROTOCOL = address(0x2);
+        uint256 OEV_SHARE_BUNDLER = 2000; // 20%
+        uint256 OEV_SHARE_FASTLANE = 1000; // 10%
+
+        auctionManager = auctionManagers[block.chainid] = new AuctionManager(
+            address(address(this)),
+            ICentralRegistry(address(centralRegistry)),
+            OEV_SHARE_FASTLANE,
+            OEV_ALLOCATION_DESTINATION_FASTLANE,
+            OEV_ALLOCATION_DESTINATION_PROTOCOL,
+            6000 // 60% CF
         );
     }
 
@@ -759,9 +778,7 @@ contract TestBaseMarketIsolated is TestBase {
         uint256 liquidationCloseFactor
     ) internal {
         vm.startPrank(auctionPermsUser);
-        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.unlockAuctionCollateral(token);
-        marketManagerIsolated.setLiquidationConfig(token, liquidationPenalty, liquidationCloseFactor);
+        auctionManager.preSolverSetup(address(marketManagerIsolated), token, liquidationPenalty);
         vm.stopPrank();
     }
 
@@ -1041,7 +1058,7 @@ contract TestBaseMarketIsolated is TestBase {
             _marketManager.liquidationStatusOf(_borrower, _collateralToken, _debtToken);
 
         if (_isAuction) {
-            (data.liqInc, cFactor) = _marketManager.getLiquidationConfig();
+            (, data.liqInc, cFactor) = _marketManager.getTransientLiquidationConfig();
         } else {
             cFactor = data.closeFactorBase + ((data.closeFactorCurve * data.lFactor) / WAD);
             data.liqInc = data.liqIncBase + ((data.liqIncCurve * data.lFactor) / WAD);
@@ -1059,7 +1076,7 @@ contract TestBaseMarketIsolated is TestBase {
             data.debtTokenPrice * WAD_CUBED_BPS_OFFSET) /
             (data.collateralTokenPrice * collateralExchangeRate)) * 
             data.collateralTokenDecimals) / data.debtTokenDecimals;
-            
+                
     }
 
     function _calculateExpectedBadDebt(

@@ -3,10 +3,12 @@ pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {BaseTest} from "lib/atlas/test/base/BaseTest.t.sol";
-import "../src/CurvanceDAppControl.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { AuctionManager } from "contracts/architecture/AuctionManager.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
 
 contract AuctionManagerBidParamsTest is BaseTest {
-    CurvanceDAppControlTestWrapper public dappControlWrapper;
+    AuctionManagerTestWrapper public dappControlWrapper;
 
     address public constant MOCK_CENTRAL_REGISTRY = address(0x1234);
     uint256 public constant OEV_SHARE_BUNDLER = 2000; // 20%
@@ -17,7 +19,7 @@ contract AuctionManagerBidParamsTest is BaseTest {
     function setUp() public override {
         super.setUp();
 
-        dappControlWrapper = new CurvanceDAppControlTestWrapper(
+        dappControlWrapper = new AuctionManagerTestWrapper(
             address(atlas),
             MOCK_CENTRAL_REGISTRY,
             OEV_SHARE_BUNDLER,
@@ -31,7 +33,7 @@ contract AuctionManagerBidParamsTest is BaseTest {
         // Test with data length less than 96 bytes
         bytes memory malformedData = new bytes(95);
 
-        vm.expectRevert(CurvanceDAppControl.MalformedSolverOperation.selector);
+        vm.expectRevert(AuctionManager.AuctionManager__MalformedSolverOperation.selector);
         dappControlWrapper.getBidParamsFromSolverOpData(malformedData);
     }
 
@@ -258,7 +260,7 @@ contract MockSolverForBidParams {
 }
 
 // Wrapper contract to expose internal function for testing
-contract CurvanceDAppControlTestWrapper is CurvanceDAppControl {
+contract AuctionManagerTestWrapper is AuctionManager {
     constructor(
         address atlas,
         address centralRegistry_,
@@ -267,13 +269,13 @@ contract CurvanceDAppControlTestWrapper is CurvanceDAppControl {
         address oevAllocationDestinationFastlane_,
         address oevAllocationDestinationProtocol_
     )
-        CurvanceDAppControl(
+        AuctionManager(
             atlas,
-            centralRegistry_,
-            oevShareBundler_,
+            ICentralRegistry(centralRegistry_),
             oevShareFastlane_,
             oevAllocationDestinationFastlane_,
-            oevAllocationDestinationProtocol_
+            oevAllocationDestinationProtocol_,
+            6000
         )
     {}
 

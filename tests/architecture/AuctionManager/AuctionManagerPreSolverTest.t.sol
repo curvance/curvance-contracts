@@ -10,18 +10,19 @@ import "@atlas/contracts/types/DAppOperation.sol";
 import "@atlas/contracts/types/AtlasErrors.sol";
 import {SolverBase} from "@atlas/contracts/solver/SolverBase.sol";
 
-import "../src/CurvanceDAppControl.sol";
-import {MockCentralRegistrySimple} from "./MockCentralRegistrySimple.sol";
-import {MockMarketManagerIsolated} from "./MockMarketManagerIsolated.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import {AtlasEvents} from "@atlas/contracts/types/AtlasEvents.sol";
 import {SolverOutcome} from "@atlas/contracts/types/EscrowTypes.sol";
 import {Vm} from "forge-std/Vm.sol";
+import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+import {AuctionManager} from "contracts/architecture/AuctionManager.sol";
 
-contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
-    CurvanceDAppControl public dappControl;
-    MockCentralRegistrySimple public centralRegistry;
-    MockMarketManagerIsolated public marketManager;
-    MockMarketManagerIsolated public unauthorizedMarketManager;
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+
+contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors, TestBaseMarketIsolated {
+
+    MarketManagerIsolated public unauthorizedMarketManager;
 
     address public collateralToken = address(0xccccccc);
     address public invalidCollateral = address(0xbbbbbbb);
@@ -47,44 +48,45 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
 
     address mockCurvanceGov = address(0xf11);
 
-    function setUp() public override {
+    function setUp() public override(BaseTest, TestBaseMarketIsolated) {
         super.setUp();
 
         vm.startPrank(mockCurvanceGov);
-        centralRegistry = new MockCentralRegistrySimple();
+        
+        _prepareDAI(address(this), 77777 * 2);
+        _prepareUSDC(address(this), 77777 * 2);
+        dai.approve(address(borrowableCDAI), 77777);
+        usdc.approve(address(borrowableCUSDC), 77777);
+        marketManagerIsolated.listTokens(address(borrowableCDAI), address(borrowableCUSDC));
+        _setCTokenConfigBasic(address(borrowableCDAI), 1_000_000e18, 1_000_000e18);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000e6, 1_000_000e6);
 
-        // Create authorized market manager
-        marketManager = new MockMarketManagerIsolated(address(centralRegistry));
-        marketManager.addMockToken(collateralToken, 0.8e18, 0.05e18, 0.15e18, 4e6, 5e6);
 
         // Create unauthorized market manager (not registered in central registry)
-        unauthorizedMarketManager = new MockMarketManagerIsolated(address(centralRegistry));
-        unauthorizedMarketManager.addMockToken(collateralToken, 0.8e18, 0.05e18, 0.15e18, 4e6, 5e6);
+        unauthorizedMarketManager = new MarketManagerIsolated(ICentralRegistry(address(centralRegistry)));
+
+        BorrowableCToken phonyCUSDC = _deployBorrowableCToken(address(usdc));
+        BorrowableCToken phonyCDAI = _deployBorrowableCToken(address(dai));
+
+        dai.approve(address(phonyCDAI), 77777);
+        usdc.approve(address(phonyCUSDC), 77777);
+        unauthorizedMarketManager.listTokens(address(phonyCDAI), address(phonyCUSDC));
+
         vm.stopPrank();
 
         vm.startPrank(governanceEOA);
-        dappControl = new CurvanceDAppControl(
-            address(atlas),
-            address(centralRegistry),
-            OEV_SHARE_BUNDLER,
-            OEV_SHARE_FASTLANE,
-            OEV_ALLOCATION_DESTINATION_FASTLANE,
-            OEV_ALLOCATION_DESTINATION_PROTOCOL
-        );
-        dappControl.setAuthorizedUserOpSigner(userOpSigner);
-        atlasVerification.initializeGovernance(address(dappControl));
-        atlasVerification.addSignatory(address(dappControl), auctioneer);
 
-        // Set up mock contracts
-        centralRegistry.setDAppControl(address(dappControl));
-        centralRegistry.addMarketManager(address(marketManager));
+        auctionManager.setAuthorizedUserOpSigner(userOpSigner);
+        atlasVerification.initializeGovernance(address(auctionManager));
+        atlasVerification.addSignatory(address(auctionManager), auctioneer);
 
         // Grant control the user op signer wallet
         vm.stopPrank();
 
-        vm.startPrank(mockCurvanceGov);
-        centralRegistry.setDAppControl(address(dappControl));
-        marketManager.addAuthorizedAtlasDAppControl(address(dappControl));
+        vm.startPrank(governanceEOA);
+        address executionEnv = auctionManager.authorizedExecutionEnv();
+        centralRegistry.addAuctionPermissions(executionEnv);
+
         // Don't authorize the second market manager
         vm.stopPrank();
 
@@ -131,7 +133,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
         emit AtlasEvents.SolverTxResult(
             address(solver),
             solverOneEOA,
-            address(dappControl),
+            address(auctionManager),
             address(0),
             solverBidAmount,
             false, // executed = false (PreSolver failed)
@@ -172,7 +174,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
             solverBidAmount,
             solverOpTestPenalty,
             invalidCollateral, // This collateral is NOT configured in market manager
-            address(marketManager),
+            address(marketManagerIsolated),
             false
         );
 
@@ -194,7 +196,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
         emit AtlasEvents.SolverTxResult(
             address(solver),
             solverOneEOA,
-            address(dappControl),
+            address(auctionManager),
             address(0),
             solverBidAmount,
             false, // executed = false (PreSolver failed due to unauthorized collateral)
@@ -226,14 +228,14 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
 
         // First, configure invalidCollateral in the market manager so it's "valid"
         vm.prank(mockCurvanceGov);
-        marketManager.addMockToken(
-            invalidCollateral,
-            0.8e18, // collRatio - same as collateralToken
-            0.05e18, // liqIncMin
-            0.15e18, // liqIncMax
-            4e6, // closeFactorMin
-            5e6 // closeFactorMax
-        );
+        // marketManager.addMockToken(
+        //     invalidCollateral,
+        //     0.8e18, // collRatio - same as collateralToken
+        //     0.05e18, // liqIncMin
+        //     0.15e18, // liqIncMax
+        //     4e6, // closeFactorMin
+        //     5e6 // closeFactorMax
+        // );
 
         UserOperation memory userOp = buildUserOperation(userOpSignerPK);
 
@@ -241,7 +243,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
         MockSolverWithCollateralMismatch mismatchSolver = new MockSolverWithCollateralMismatch(
             address(WETH_ADDRESS),
             address(atlas),
-            marketManager, // Pass the contract directly, not address
+            marketManagerIsolated, // Pass the contract directly, not address
             collateralToken // This is what it will try to liquidate (different from solver data)
         );
 
@@ -254,7 +256,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
             solverBidAmount,
             solverOpTestPenalty,
             invalidCollateral, // This gets unlocked in preSolverCall
-            address(marketManager),
+            address(marketManagerIsolated),
             false
         );
 
@@ -275,7 +277,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
         emit AtlasEvents.SolverTxResult(
             address(mismatchSolver),
             solverOneEOA,
-            address(dappControl),
+            address(auctionManager),
             address(0),
             solverBidAmount,
             true, // executed = true (preSolver passed, but solver reverted)
@@ -329,7 +331,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
             solverBidAmount,
             penalty, // Use invalid penalty value
             collateralToken,
-            address(marketManager),
+            address(marketManagerIsolated),
             false
         );
 
@@ -350,7 +352,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
         emit AtlasEvents.SolverTxResult(
             address(solver),
             solverOneEOA,
-            address(dappControl),
+            address(auctionManager),
             address(0),
             solverBidAmount,
             false, // executed = false (PreSolver failed)
@@ -389,7 +391,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
             maxFeePerGas: 1_000_000_000,
             deadline: block.number + 100,
             solver: address(solver),
-            control: address(dappControl),
+            control: address(auctionManager),
             userOpHash: userOpHash,
             bidToken: address(0),
             bidAmount: solverBidAmount,
@@ -436,7 +438,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
             solverBidAmount,
             solverOpTestPenalty,
             collateralToken,
-            address(marketManager),
+            address(marketManagerIsolated),
             false
         );
 
@@ -467,7 +469,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
 
     function testPreSolverCall_zeroPenalty_preSolverFails() public {
         UserOperation memory userOp = buildUserOperation(userOpSignerPK);
-        address executionEnv = dappControl.authorizedExecutionEnv();
+        address executionEnv = auctionManager.authorizedExecutionEnv();
 
         bytes32 userOpHash = atlasVerification.getUserOperationHash(userOp);
         SolverOperation memory solverOp = buildSolverOperation(
@@ -477,7 +479,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
             solverBidAmount,
             0, // Zero penalty - should fail validation
             collateralToken,
-            address(marketManager),
+            address(marketManagerIsolated),
             false
         );
 
@@ -497,7 +499,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
         emit AtlasEvents.SolverTxResult(
             address(solver),
             solverOneEOA,
-            address(dappControl),
+            address(auctionManager),
             address(0),
             solverBidAmount,
             false, // executed = false (didn't execute due to PreSolver failure)
@@ -542,7 +544,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
             solverBidAmount,
             type(uint256).max, // Max penalty - should fail validation
             collateralToken,
-            address(marketManager),
+            address(marketManagerIsolated),
             false
         );
 
@@ -562,7 +564,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
         emit AtlasEvents.SolverTxResult(
             address(solver),
             solverOneEOA,
-            address(dappControl),
+            address(auctionManager),
             address(0),
             solverBidAmount,
             false, // executed = false
@@ -595,7 +597,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
             solverBidAmount,
             0.1e18, // Valid penalty (10% - within 5%-15% range)
             collateralToken,
-            address(marketManager),
+            address(marketManagerIsolated),
             false
         );
 
@@ -613,7 +615,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
         emit AtlasEvents.SolverTxResult(
             address(solver),
             solverOneEOA,
-            address(dappControl),
+            address(auctionManager),
             address(0),
             solverBidAmount,
             true, // executed = true
@@ -649,14 +651,14 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
             maxFeePerGas: 1_000_000_000,
             nonce: 1,
             deadline: block.number + 100,
-            dapp: address(dappControl),
-            control: address(dappControl),
-            callConfig: dappControl.CALL_CONFIG(),
+            dapp: address(auctionManager),
+            control: address(auctionManager),
+            callConfig: auctionManager.CALL_CONFIG(),
             dappGasLimit: 2_000_000,
             solverGasLimit: SOLVER_GAS_LIMIT,
             bundlerSurchargeRate: 1000,
             sessionKey: auctioneer,
-            data: abi.encodeWithSelector(dappControl.initiateOevAuction.selector),
+            data: abi.encodeWithSelector(auctionManager.initiateAuction.selector),
             signature: new bytes(0)
         });
 
@@ -692,7 +694,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
             maxFeePerGas: 1_000_000_000,
             deadline: block.number + 100,
             solver: solverContract,
-            control: address(dappControl),
+            control: address(auctionManager),
             userOpHash: userOpHash,
             bidToken: address(0),
             bidAmount: bidAmount,
@@ -716,7 +718,7 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors {
             to: address(atlas),
             nonce: 0,
             deadline: block.number + 100,
-            control: address(dappControl),
+            control: address(auctionManager),
             bundler: givenBundler,
             userOpHash: userOpHash,
             callChainHash: callChainHash,
@@ -746,20 +748,20 @@ contract MockSolver is SolverBase {
 }
 
 // Mock solver that attempts liquidation with different collateral than solver data
-contract MockSolverWithCollateralMismatch is SolverBase {
+contract MockSolverWithCollateralMismatch is SolverBase, TestBaseMarketIsolated {
     fallback() external payable {}
     receive() external payable {}
 
-    MockMarketManagerIsolated public marketManager;
+    MarketManagerIsolated public marketManager;
     address public wrongCollateralToLiquidate; // Different from what's in solver data
 
     constructor(
         address weth,
         address atlas,
-        MockMarketManagerIsolated _marketManager,
+        MarketManagerIsolated _marketManager,
         address _wrongCollateralToLiquidate
     ) SolverBase(weth, atlas, msg.sender) {
-        marketManager = _marketManager;
+        marketManagerIsolated = _marketManager;
         wrongCollateralToLiquidate = _wrongCollateralToLiquidate;
     }
 
@@ -769,14 +771,37 @@ contract MockSolverWithCollateralMismatch is SolverBase {
         // This should trigger the _UNAUTHORIZED_LIQUIDATION_SELECTOR in _checkLiquidationConfig
 
         // First set up a position for liquidation
-        marketManager.createPosition{value: 1000}();
+
+        mockDaiFeed.setMockAnswer(1e8);
+        mockUsdcFeed.setMockAnswer(1e8);
+
+        _prepareDAI(address(this), 77777 + 1_000_000e18);
+        _prepareUSDC(address(this), 77777);
+        dai.approve(address(borrowableCDAI), 77777 + 1_000_000e18);
+        usdc.approve(address(borrowableCUSDC), 77777);
+        marketManagerIsolated.listTokens(address(borrowableCDAI), address(borrowableCUSDC));
+        _setCTokenConfigBasic(address(borrowableCDAI), 1_000_000e18, 1_000_000e18);
+        _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000e6, 1_000_000e6);
+
+        borrowableCDAI.deposit(1_000_000e18, address(this));
+
+        vm.startPrank(user1);
+        _prepareUSDC(user1, 500e6);
+        usdc.approve(address(borrowableCUSDC),500e6);
+        borrowableCUSDC.depositAsCollateral(500e6, user1);
+        borrowableCDAI.borrow(100e18, user1);
+
+        mockDaiFeed.setMockAnswer(1e7);
+
+        address[] memory borrowers;
+        borrowers[0] = user1;
 
         // Now attempt liquidation with the WRONG collateral (not what was unlocked)
-        marketManager.liquidatePosition(
-            address(this), // Liquidate our own position
-            wrongCollateralToLiquidate, // This doesn't match 'collateral' that was unlocked!
-            address(0x456) // dummy debt token
+        borrowableCDAI.liquidate(
+            borrowers,
+            wrongCollateralToLiquidate
         );
+            
     }
 
     function solveRevert(uint256 penalty, address collateral, address market) external pure {

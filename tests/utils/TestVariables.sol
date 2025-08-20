@@ -28,6 +28,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { AuctionManager } from "contracts/architecture/AuctionManager.sol";
 
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
@@ -106,6 +107,7 @@ contract TestVariables {
     ChainlinkAdaptor public chainlinkAdaptor;
     ChainlinkAdaptor public dualChainlinkAdaptor;
     MarketManagerIsolated public marketManagerIsolated;
+    AuctionManager public auctionManager;
     OracleManager public oracleManager;
     ProtocolReader public protocolReader;
     DAOTimelock public daoTimelock;
@@ -150,6 +152,7 @@ contract TestVariables {
     mapping(uint256 => ChainlinkAdaptor) public chainlinkAdaptors;
     mapping(uint256 => ChainlinkAdaptor) public dualChainlinkAdaptors;
     mapping(uint256 => MarketManagerIsolated) public marketManagersIsolated;
+    mapping(uint256 => AuctionManager) public auctionManagers;
     mapping(uint256 => ProtocolReader) public protocolReaders;
     mapping(uint256 => DAOTimelock) public daoTimelocks;
     mapping(uint256 => OracleManager) public oracleManagers;
@@ -409,6 +412,7 @@ contract TestVariables {
         chainlinkAdaptor = chainlinkAdaptors[chainId];
         dualChainlinkAdaptor = dualChainlinkAdaptors[chainId];
         marketManagerIsolated = marketManagersIsolated[chainId];
+        auctionManager = auctionManagers[chainId];
         oracleManager = oracleManagers[chainId];
         protocolReader = protocolReaders[chainId];
         borrowableCUSDC = borrowableCUSDCs[chainId];
