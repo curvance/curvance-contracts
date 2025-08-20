@@ -6,6 +6,7 @@ import { Vm } from "forge-std/Vm.sol";
 import { DeploymentLogger } from "../utils/DeploymentLogger.sol";
 
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
+import { VaultPositionManager } from "contracts/market/position-management/VaultPositionManager.sol";
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { VaultZapper } from "contracts/plugins/market/VaultZapper.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
@@ -14,11 +15,12 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract AddPlugins is Script, DeploymentLogger {
     struct AvailablePlugins {
         bool simplePositionManager;
+        bool vaultPositionManager;
         bool simpleZapper;
         bool vaultZapper;
     }
 
-    struct PluginMarkets {
+    struct PluginMarket {
         address market;
         string marketName;
         AvailablePlugins plugins;
@@ -26,12 +28,12 @@ contract AddPlugins is Script, DeploymentLogger {
 
     function run(
         address registry,
-        PluginMarkets[] memory markets,
+        PluginMarket[] memory markets,
         address wrappedNative
     ) external recordEvents {
         ICentralRegistry icr = ICentralRegistry(registry);
         for(uint256 i; i < markets.length; i++) {
-            PluginMarkets memory pluginMarket = markets[i];
+            PluginMarket memory pluginMarket = markets[i];
             MarketManagerIsolated market = MarketManagerIsolated(pluginMarket.market);
             _deployPlugins(icr, market, wrappedNative, pluginMarket.marketName, pluginMarket.plugins);
         }
@@ -56,6 +58,21 @@ contract AddPlugins is Script, DeploymentLogger {
             emit ContractDeployed(
                 address(simplePositionManager),
                 string.concat(marketName, ".plugins.simplePositionManager")
+            );
+        }
+
+        if (plugins.vaultPositionManager) {
+            VaultPositionManager vaultPositionManager = new VaultPositionManager(
+                    icr,
+                    address(market),
+                    wrappedNative
+                );
+            MarketManagerIsolated(market).addPositionManager(
+                address(vaultPositionManager)
+            );
+            emit ContractDeployed(
+                address(vaultPositionManager),
+                string.concat(marketName, ".plugins.vaultPositionManager")
             );
         }
 
