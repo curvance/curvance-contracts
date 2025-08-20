@@ -12,21 +12,13 @@ import { VeCVE } from "contracts/token/VeCVE.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 
-contract DeployTGE is Script {
-    event ContractDeployed(address contractAddress, string contractName);
-
-    DeploymentLogger logger;
-
+contract DeployTGE is Script, DeploymentLogger {
     function run(
         address centralRegistry,
         uint256 lockBoostMultiplier,
         address teamAddress,
         uint256 baseEmissionsPerEpoch
-    ) external {
-        logger = new DeploymentLogger();
-        vm.recordLogs();
-        vm.startBroadcast();
-
+    ) external recordEvents {
         CentralRegistry registry = CentralRegistry(centralRegistry);
         ICentralRegistry icr = ICentralRegistry(centralRegistry);
         registry.setLockBoostMultiplier(lockBoostMultiplier);
@@ -53,9 +45,5 @@ contract DeployTGE is Script {
         registry.setVotingHub(address(votingHub));
         registry.setEraTargetEmissions(baseEmissionsPerEpoch);
         emit ContractDeployed(address(votingHub), "VotingHub");
-
-        vm.stopBroadcast();
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        logger.saveLogsToDeployment(logs);
     }
 }

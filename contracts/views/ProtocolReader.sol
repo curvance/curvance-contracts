@@ -64,16 +64,14 @@ contract ProtocolReader {
         uint256 totalSupply;
     }
 
-    // TODO: In the JS world we need to have the option to convert tvl,collateral,debt to USD
     struct DynamicMarketData {
         address _address;
         DynamicMarketToken[] tokens;
     }
 
-    // TODO: In the JS world we need to have the option to convert tvl,collateral,debt to USD
     struct DynamicMarketToken {
         address _address;
-        uint256 tvl;
+        uint256 totalSupply;
         uint256 collateral;
         uint256 debt;
         uint256 sharePrice;
@@ -110,10 +108,10 @@ contract ProtocolReader {
 
     struct UserMarketToken {
         address _address;
-        uint256 assetAmount;
-        uint256 shareAmount;
-        uint256 collateral;
-        uint256 debt;
+        uint256 userAssetBalance;
+        uint256 userShareBalance;
+        uint256 userCollateral;
+        uint256 userDebt;
     }
 
     /// CONSTANTS ///
@@ -347,6 +345,42 @@ contract ProtocolReader {
         return cooldowns;
     }
 
+    /// @notice Preview the impact of a new asset deposit on the market
+    /// @param user The user address
+    /// @param collateralCToken The address of the collateral cToken
+    /// @param debtBorrowableCToken The address of the debt borrowable cToken
+    /// @param newCollateralAssets The amount of new collateral assets to deposit
+    /// @return supply The projected supply amount
+    /// @return borrow The projected borrow amount
+    function previewAssetImpact(
+        address user,
+        address collateralCToken,
+        address debtBorrowableCToken,
+        uint256 newCollateralAssets,
+        uint256 newDebtAssets
+    ) public view returns (uint256 supply, uint256 borrow) {
+        ICToken cToken = ICToken(collateralCToken);
+        IBorrowableCToken bcToken;
+        uint256 assetsHeld;
+        uint256 debt = bcToken.marketOutstandingDebt();
+        
+        if (cToken.isBorrowable()) {
+            bcToken = IBorrowableCToken(address(collateralCToken));
+            assetsHeld = bcToken.assetsHeld() + newCollateralAssets;
+            debt = bcToken.marketOutstandingDebt();
+            supply = bcToken.IRM()
+                .supplyRate(assetsHeld, debt, bcToken.interestFee()) * SECONDS_PER_YEAR;
+        }
+
+        bcToken = IBorrowableCToken(debtBorrowableCToken);
+        if (bcToken.debtBalance(user) != 0) {
+            assetsHeld = bcToken.assetsHeld() - newDebtAssets;
+            debt = bcToken.marketOutstandingDebt();
+            borrow = bcToken.IRM()
+                .borrowRate(assetsHeld, debt) * SECONDS_PER_YEAR;
+        }
+    }
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Gets the health factor of a user's position in a market
@@ -367,6 +401,15 @@ contract ProtocolReader {
         positionHealth = (soft * WAD) / debt;
     }
 
+    function _getStaticTokenAsset(ICToken cToken) internal view returns (StaticMarketAsset memory a) {
+        IERC20 asset = IERC20(cToken.asset());
+        a._address = address(asset);
+        a.name =  asset.name();
+        a.symbol = asset.symbol();
+        a.decimals = asset.decimals();
+        a.totalSupply = asset.totalSupply();
+    }
+
     /// @notice Queries static token configuration of `cToken`
     /// @param mm The market manager to pull static token data from.
     /// @param cToken The address of the cToken to pull static token
@@ -381,12 +424,7 @@ contract ProtocolReader {
         t.name = cToken.name();
         t.symbol = cToken.symbol();
         t.decimals = cToken.decimals();
-        
-        t.asset._address = cToken.asset();
-        t.asset.name =  cToken.name();
-        t.asset.symbol = cToken.symbol();
-        t.asset.decimals = cToken.decimals();
-        t.asset.totalSupply = cToken.totalSupply();
+        t.asset = _getStaticTokenAsset(cToken);
         
         t.collateralCap = mm.collateralCaps(address(cToken));
         t.debtCap = mm.debtCaps(address(cToken));
@@ -485,10 +523,10 @@ contract ProtocolReader {
         uint256 shares = ctoken.balanceOf(account);
 
         umt._address = tokenAddress;
-        umt.assetAmount = ctoken.convertToAssets(shares);
-        umt.shareAmount = ctoken.balanceOf(account);
-        umt.debt = ctoken.isBorrowable() ? IBorrowableCToken(address(ctoken)).debtBalance(account) : 0;
-        umt.collateral = ctoken.collateralPosted(account);
+        umt.userAssetBalance = ctoken.convertToAssets(shares);
+        umt.userShareBalance = ctoken.balanceOf(account);
+        umt.userDebt = ctoken.isBorrowable() ? IBorrowableCToken(address(ctoken)).debtBalance(account) : 0;
+        umt.userCollateral = ctoken.collateralPosted(account);
     }
 
     function _buildUserMarket(
@@ -520,19 +558,23 @@ contract ProtocolReader {
         dmt.assetPriceLower = getPriceOnly(address(asset), true, true);
         dmt.sharePrice = getPriceOnly(address(ctoken), true, false);
         dmt.sharePriceLower = getPriceOnly(address(ctoken), true, true);
-        dmt.tvl = IERC20(asset).balanceOf(address(ctoken));
+        dmt.totalSupply = ctoken.totalSupply();
         dmt.collateral = ctoken.marketCollateralPosted();
 
         if(ctoken.isBorrowable()) {
             IBorrowableCToken bcToken = IBorrowableCToken(address(ctoken));
+            uint256 assetsHeld = bcToken.assetsHeld();
             IDynamicIRM irm = bcToken.IRM();
 
             dmt.debt = bcToken.marketOutstandingDebt();
-            dmt.liquidity = dmt.tvl - dmt.debt;
-            dmt.borrowRate = irm.borrowRate(dmt.tvl, dmt.debt) * SECONDS_PER_YEAR;
-            dmt.predictedBorrowRate = irm.predictedBorrowRate(dmt.tvl, dmt.debt) * SECONDS_PER_YEAR;
-            dmt.utilizationRate = irm.utilizationRate(dmt.tvl, dmt.debt) * SECONDS_PER_YEAR;
-            dmt.supplyRate = irm.supplyRate(dmt.tvl, dmt.debt, bcToken.interestFee()) * SECONDS_PER_YEAR;
+            dmt.liquidity = assetsHeld - dmt.debt;
+
+            // All of these values are multiplied depending on the time frame you are looking for.
+            // For example you might multiply this by SECONDS_PER_YEAR to get an annualized rate.
+            dmt.borrowRate = irm.borrowRate(assetsHeld, dmt.debt);
+            dmt.predictedBorrowRate = irm.predictedBorrowRate(assetsHeld, dmt.debt);
+            dmt.utilizationRate = irm.utilizationRate(assetsHeld, dmt.debt);
+            dmt.supplyRate = irm.supplyRate(assetsHeld, dmt.debt, bcToken.interestFee());
         }
     }
 
