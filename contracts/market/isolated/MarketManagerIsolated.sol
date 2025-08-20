@@ -332,79 +332,13 @@ contract MarketManagerIsolated is
     /// @return The total market value of `account`'s collateral offset
     ///         by hard liquidation requirements.
     /// @return The total outstanding debt value of `account`.
+    /// @return The value that determines liquidation severity.
     function liquidationValuesOf(
         address account
-    ) external view returns (uint256, uint256, uint256) {
-        (AccountLiqResult memory result, , , )
-            = _liquidationValuesOf(account, address(0), address(0));
-        return (result.cSoft, result.cHard, result.debt);
-    }
-
-    /// @notice Determine whether `account` can be liquidated,
-    ///         by calculating their lFactor, based on their
-    ///         collateral versus outstanding debt.
-    /// @param account The account to check liquidation status for.
-    /// @param collateralToken The address of the Curvance token to be seized
-    ///                        during in the liquidation.
-    /// @param debtToken The address of the Curvance token to be repaid during
-    ///                  the liquidation.
-    /// @return lfactor `account`'s current lFactor, an lFactor at or above 1
-    ///                 indicates a soft liquidation, with a value of
-    ///                 1e18 (WAD) indicating a hard liquidation.
-    /// @return collateralPrice Current price for `collateralToken`.
-    /// @return debtPrice Current price for `debtToken`.
-    function liquidationStatusOf(
-        address account,
-        address collateralToken,
-        address debtToken
-    ) public view returns (
-        uint256 lfactor,
-        uint256 collateralPrice,
-        uint256 debtPrice
-    ) {
-        (, lfactor, collateralPrice, debtPrice) =
-            _liquidationValuesOf(account, collateralToken, debtToken);
-    }
-
-    /// @notice Determine what the account liquidity would be if
-    ///         the given amounts were redeemed/borrowed.
-    /// @dev Will natively revert if a hypothetical borrow will result in a
-    ///      loan less than `MIN_ACTIVE_LOAN_SIZE`, set in `LiquidityManager`.
-    /// @param account The account to determine liquidity for.
-    /// @param cTokenModified The token to hypothetically redeem/borrow.
-    /// @param redemptionShares The number of shares to hypothetically redeem.
-    /// @param borrowAssets The amount of underlying assets to hypothetically
-    ///                     borrow.
-    /// @return Hypothetical account liquidity in excess of collateral
-    ///         requirements.
-    /// @return Hypothetical account liquidity deficit below collateral
-    ///         requirements.
-    function hypotheticalLiquidityOf(
-        address account,
-        address cTokenModified,
-        uint256 redemptionShares, // in Shares.
-        uint256 borrowAssets // in Assets.
-    ) external view returns (uint256, uint256, bool[] memory) {
-        // Make sure they are not trying to hypothetically borrow
-        // a token they are collateralizing.
-        if (
-            ICToken(cTokenModified).collateralPosted(account) > 0 &&
-            borrowAssets > 0
-            ) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        (HypotheticalResult memory r, bool[] memory positionsToClose) =
-            _hypotheticalLiquidityOf(
-                account,
-                HypotheticalAction({
-                    cTokenModified: cTokenModified,
-                    redemptionShares: redemptionShares,
-                    borrowAssets: borrowAssets,
-                    errorCodeBreakpoint: 2
-                })
-            );
-        return (r.collateralSurplus, r.liquidityDeficit, positionsToClose);
+    ) external view returns (uint256, uint256, uint256, uint256) {
+        (AccountLiqResult memory result, uint256 lFactor)
+            = _liquidationValuesOf(account);
+        return (result.cSoft, result.cHard, result.debt, lFactor);
     }
 
     /// @notice Checks if the account should be allowed to mint tokens

@@ -309,6 +309,14 @@ interface IMarketManager {
     ///         in assets.
     function debtCaps(address cToken) external view returns (uint256);
 
+    /// @notice Returns whether `addressToCheck` is an approved position
+    ///         manager or not.
+    /// @param addressToCheck Address to check for position management
+    ///                       authority.
+    function isPositionManager(
+        address addressToCheck
+    ) external view returns (bool);
+
     /// @notice Returns the assets an account has entered.
     /// @param account The address of the account to pull assets for.
     /// @return A dynamic list with the assets `account` has entered.
@@ -327,42 +335,16 @@ interface IMarketManager {
         address account
     ) external view returns (uint256, uint256, uint256);
 
-    /// @notice Determine whether `account` can be liquidated,
-    ///         by calculating their lFactor, based on their
-    ///         collateral versus outstanding debt.
-    /// @param account The account to check liquidation status for.
-    /// @param collateralToken The address of the Curvance token to be seized
-    ///                        during in the liquidation.
-    /// @param debtToken The address of the Curvance token to be repaid during
-    ///                  the liquidation.
-    /// @return lfactor `account`'s current lFactor, an lFactor at or above 1
-    ///                 indicates a soft liquidation, with a value of
-    ///                 1e18 (WAD) indicating a hard liquidation.
-    /// @return collateralPrice Current price for `collateralToken`.
-    /// @return debtPrice Current price for `debtToken`.
-    function liquidationStatusOf(
-        address account,
-        address collateralToken,
-        address debtToken
-    ) external view returns (uint256, uint256, uint256);
-
-    /// @notice Returns whether `addressToCheck` is an approved position
-    ///         manager or not.
-    /// @param addressToCheck Address to check for position management
-    ///                       authority.
-    function isPositionManager(
-        address addressToCheck
-    ) external view returns (bool);
-
     /// @notice Determine `account`'s current collateral and debt values
     ///         in the market.
     /// @param account The account to calculate liquidation values for.
     /// @return The total market value of `account`'s collateral offset
-    /// by soft liquidation requirements.
+    ///         by soft liquidation requirements.
     /// @return The total market value of `account`'s collateral offset
-    /// by hard liquidation requirements.
+    ///         by hard liquidation requirements.
     /// @return The total outstanding debt value of `account`.
+    /// @return The value that determines liquidation severity.
     function liquidationValuesOf(
         address account
-    ) external view returns (uint256, uint256, uint256);
+    ) external view returns (uint256, uint256, uint256, uint256);
 }

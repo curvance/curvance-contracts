@@ -11,10 +11,9 @@ library Bytes32Helper {
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Converts `data`, a string memory value, to bytes32 form.
-    /// @dev This will trim the output value to 32 bytes,
-    ///      even if the bytes value is > 32 bytes.
-    ///      Also accepts an empty `data` giving you 32 bytes of all zeroes.
-    /// @return r The bytes32 converted form of `data`.
+    /// @dev Will trim the output to 32 bytes, even if the bytes length is
+    ///      > 32 bytes. Accepts empty `data` giving 32 bytes of all zeroes.
+    /// @return r The bytes32 converted form of `data` string.
     function toBytes32(string memory data) public pure returns (bytes32 r) {
         /// @solidity memory-safe-assembly
         assembly {

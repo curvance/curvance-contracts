@@ -124,6 +124,12 @@ contract ProtocolReader {
 
     ICentralRegistry public immutable centralRegistry;
 
+    /// ERRORS ///
+
+    error ProtocolReader__PriceError();
+    error ProtocolReader__TokenNotListed();
+    error ProtocolReader__NonCollateralizable();
+
     /// CONSTRUCTOR ///
 
     constructor(ICentralRegistry cr) {
@@ -213,6 +219,24 @@ contract ProtocolReader {
         }
     }
 
+    /// @notice Gets the health factor of a user's position in a market
+    /// @param mm The market manager to pull data from.
+    /// @param account The user address to get the health factor for.
+    /// @return positionHealth The healthiness of `account`'s position.
+    function getPositionHealth(
+        IMarketManager mm,
+        address account
+    ) public view returns (uint256 positionHealth) {
+        (uint256 soft, , uint256 debt, ) = mm.liquidationValuesOf(account);
+
+        // No debt means infinite position health.
+        if (debt == 0) {
+            return type(uint256).max; 
+        }
+
+        positionHealth = (soft * WAD) / debt;
+    }
+
     function getUserData(
         address account
     ) public view returns (UserData memory data) {
@@ -265,10 +289,16 @@ contract ProtocolReader {
 
         // Validate we got a price for `cToken`.
         if (errorCode != 0) {
-            revert();
+            revert ProtocolReader__PriceError();
         }
 
-        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) = mm.statusOf(account);
+        // Validate `cToken` and `borrowableCToken` are properly listed.
+        if (!mm.isListed(borrowableCToken)) {
+            revert ProtocolReader__TokenNotListed();
+        }
+
+        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
+            mm.statusOf(account);
 
         {
             uint256 newCollateral = _mulDiv(
@@ -282,7 +312,7 @@ contract ProtocolReader {
             // leverage check will result in 0 meaning nothing new to leverage
             // against.
             if (collRatio == 0) {
-                revert();
+                revert ProtocolReader__NonCollateralizable();
             }
 
             sumCollateral += newCollateral;
@@ -382,24 +412,6 @@ contract ProtocolReader {
     }
 
     /// INTERNAL FUNCTIONS ///
-
-    /// @notice Gets the health factor of a user's position in a market
-    /// @param mm The market manager to pull data from.
-    /// @param account The user address to get the health factor for.
-    /// @return positionHealth The healthiness of `account`'s position.
-    function _getPositionHealth(
-        IMarketManager mm,
-        address account
-    ) internal view returns (uint256 positionHealth) {
-        (uint256 soft, , uint256 debt) = mm.liquidationValuesOf(account);
-
-        // No debt means infinite position health.
-        if (debt == 0) {
-            return type(uint256).max; 
-        }
-
-        positionHealth = (soft * WAD) / debt;
-    }
 
     function _getStaticTokenAsset(ICToken cToken) internal view returns (StaticMarketAsset memory a) {
         IERC20 asset = IERC20(cToken.asset());
@@ -543,7 +555,7 @@ contract ProtocolReader {
         
         (um.collateral, um.maxDebt, um.debt) = mm.statusOf(account);
         um._address = address(mm);
-        um.positionHealth = _getPositionHealth(mm, account);
+        um.positionHealth = getPositionHealth(mm, account);
         um.cooldown = mm.accountAssets(account) + MARKET_COOLDOWN_LENGTH;
         um.tokens = tokens;
     }

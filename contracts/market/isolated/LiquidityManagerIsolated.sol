@@ -459,31 +459,16 @@ abstract contract LiquidityManagerIsolated {
     ///         health and liquidation parameters.
     /// @param account The address of the account being evaluated for
     ///                liquidation.
-    /// @param collateralToken The address of the Curvance token (cToken)
-    ///                        collateralized by `account`.
-    /// @param debtToken The address of the Curvance token (cToken) that
-    ///                  `account` has outstanding debt in.
     /// @return result Hypothetical results for an action containing:
     ///                cSoft The account's soft collateral value (collateral
     ///                      adjusted by soft requirements).
     ///                cHard The account's hard collateral value (collateral
     ///                      adjusted by hard requirements).
     ///                debt The account's total debt value.
-    /// @return lFactor The liquidation factor determining liquidation
-    ///                 severity.
-    /// @return collateralUnderlyingPrice The price of the underlying asset of
-    ///                                   `collateralToken`.
-    /// @return debtUnderlyingPrice The price of the underlying asset of
-    ///                             `debtToken`.
-    function _liquidationValuesOf(
-        address account,
-        address collateralToken,
-        address debtToken
-    ) internal view returns (
+    /// @return lFactor The value that determines liquidation severity.
+    function _liquidationValuesOf(address account) internal view returns (
         AccountLiqResult memory result,
-        uint256 lFactor,
-        uint256 collateralUnderlyingPrice,
-        uint256 debtUnderlyingPrice
+        uint256 lFactor
     ) {
         (
             AccountSnapshot[] memory snapshots,
@@ -496,10 +481,6 @@ abstract contract LiquidityManagerIsolated {
             snap = snapshots[i];
 
             if (snap.isCollateral) {
-                if (snap.asset == collateralToken) {
-                    collateralUnderlyingPrice = underlyingPrices[i];
-                }
-
                 (result.cSoft, result.cHard) = _addLiquidationValues(
                     snap,
                     account,
@@ -508,10 +489,6 @@ abstract contract LiquidityManagerIsolated {
                     result.cHard
                 );
             } else {
-                if (snap.asset == debtToken) {
-                    debtUnderlyingPrice = underlyingPrices[i];
-                }
-
                 // If they have a debt balance,
                 // we need to document collateral requirements.
                 if (snap.debtBalance > 0) {
