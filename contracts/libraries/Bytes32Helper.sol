@@ -8,21 +8,14 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 /// @dev Provides functions to convert strings to bytes32 and to create standardized 
 ///      bytes32 representations of token symbols with optional suffixes
 library Bytes32Helper {
-    /// ERRORS ///
-
-    error Bytes32Helper__ZeroLengthString();
-
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Converts `data`, a string memory value, to bytes32 form.
     /// @dev This will trim the output value to 32 bytes,
     ///      even if the bytes value is > 32 bytes.
+    ///      Also accepts an empty `data` giving you 32 bytes of all zeroes.
     /// @return r The bytes32 converted form of `data`.
     function toBytes32(string memory data) public pure returns (bytes32 r) {
-        if (bytes(data).length == 0) {
-            revert Bytes32Helper__ZeroLengthString();
-        }
-
         /// @solidity memory-safe-assembly
         assembly {
             r := mload(add(data, 32))
@@ -48,9 +41,7 @@ library Bytes32Helper {
         address token,
         string memory tokenSymbol
     ) internal view returns (bytes32 result) {
-        result = toBytes32(
-            string.concat(string.concat(_symbol(token), "/"), tokenSymbol)
-        );
+        result = toBytes32(string.concat(_symbol(token), "/", tokenSymbol));
     }
 
     /// @notice Converts `token` to bytes32 based on its ERC20 symbol,
