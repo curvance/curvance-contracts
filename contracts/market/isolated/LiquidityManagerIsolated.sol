@@ -502,6 +502,11 @@ abstract contract LiquidityManagerIsolated {
             }
         }
 
+        if (AUCTION_BUFFER != 0) {
+            result.cSoft = _mulDiv(result.cSoft, AUCTION_BUFFER, BPS);
+            result.cHard = _mulDiv(result.cHard, AUCTION_BUFFER, BPS);
+        }
+
         lFactor = _getLFactor(result.cSoft, result.cHard, result.debt);
     }
 
