@@ -7,12 +7,30 @@ import { VmSafe } from "forge-std/Vm.sol";
 
 contract DeploymentLogger is Script {
     string constant DEPLOYMENT_FILE = "/broadcast/deployment.json";
+    
+    event ContractDeployed(address contractAddress, string contractName);
+    event ContractMetadata(string jsonIndex, string key, bool value);
+
+    /**
+     * @notice Record events during deployment
+     * @dev This modifier starts the broadcast and records logs for JS to pickup later.    
+    */
+    modifier recordEvents() virtual {
+        vm.recordLogs();
+        vm.startBroadcast();
+        
+        _;
+
+        vm.stopBroadcast();
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        _saveLogsToDeployment(logs);
+    }
 
     /**
      * @notice Save recorded logs to deployment.json (appends to existing)
      * @param logs Array of logs from vm.getRecordedLogs()
      */
-    function saveLogsToDeployment(Vm.Log[] memory logs) public {
+    function _saveLogsToDeployment(Vm.Log[] memory logs) internal {
         if (logs.length == 0) return;
 
         string memory outputPath = string.concat(
@@ -21,11 +39,11 @@ contract DeploymentLogger is Script {
         );
 
         // Serialize and save all logs
-        string memory json = serializeLogs(logs);
+        string memory json = _serializeLogs(logs);
         vm.writeFile(outputPath, json);
     }
 
-    function serializeLogs(
+    function _serializeLogs(
         Vm.Log[] memory logs
     ) internal returns (string memory) {
         if (logs.length == 0) {
@@ -37,13 +55,13 @@ contract DeploymentLogger is Script {
             if (i > 0) {
                 json = string.concat(json, ",");
             }
-            json = string.concat(json, serializeLog(logs[i], i));
+            json = string.concat(json, _serializeLog(logs[i], i));
         }
         json = string.concat(json, "]");
         return json;
     }
 
-    function serializeLog(
+    function _serializeLog(
         Vm.Log memory log,
         uint256 index
     ) internal returns (string memory) {

@@ -8,10 +8,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-contract AddChainLinkSupport is Script {
-    event ContractDeployed(address contractAddress, string contractName);
-
-    DeploymentLogger logger;
+contract AddChainLinkSupport is Script, DeploymentLogger {
     struct PullFeed {
         address aggregator;
         uint256 heartbeat;
@@ -23,20 +20,12 @@ contract AddChainLinkSupport is Script {
         address adaptor,
         address oracleManager,
         PullFeed memory feed
-    ) external {
-        logger = new DeploymentLogger();
-        vm.recordLogs();
-        vm.startBroadcast();
-
+    ) external recordEvents {
         ChainlinkAdaptor adaptor = ChainlinkAdaptor(adaptor);
         OracleManager manager = OracleManager(oracleManager);
         IERC20 token = IERC20(asset);
 
         adaptor.addAsset(asset, feed.inUSD, feed.aggregator, feed.heartbeat);
         manager.addAssetPriceFeed(asset, address(adaptor));
-
-        vm.stopBroadcast();
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        logger.saveLogsToDeployment(logs);
     }
 }

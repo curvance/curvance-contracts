@@ -10,11 +10,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { Faucet } from "contracts/testnet/Faucet.sol";
 
-contract DeployTestTokens is Script {
-    event ContractDeployed(address contractAddress, string contractName);
-
-    DeploymentLogger logger;
-
+contract DeployTestTokens is Script, DeploymentLogger {
     function run(
         string[] memory names,
         string[] memory symbols,
@@ -22,11 +18,7 @@ contract DeployTestTokens is Script {
         uint256[] memory initialBalances,
         uint256[] memory prices,
         address registry
-    ) external {
-        logger = new DeploymentLogger();
-        vm.recordLogs();
-        vm.startBroadcast();
-
+    ) external recordEvents {
         ICentralRegistry cr = ICentralRegistry(registry);
         OracleManager oracleManager = OracleManager(cr.oracleManager());
 
@@ -62,9 +54,5 @@ contract DeployTestTokens is Script {
                 );
             }
         }
-
-        vm.stopBroadcast();
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        logger.saveLogsToDeployment(logs);
     }
 }
