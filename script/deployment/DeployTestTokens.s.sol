@@ -16,7 +16,7 @@ contract DeployTestTokens is Script, DeploymentLogger {
         string[] memory symbols,
         uint8[] memory decimals,
         uint256[] memory initialBalances,
-        uint240[] memory prices,
+        uint256[] memory prices,
         address registry
     ) external recordEvents {
         ICentralRegistry cr = ICentralRegistry(registry);
@@ -44,7 +44,7 @@ contract DeployTestTokens is Script, DeploymentLogger {
             token.transfer(address(faucet), initialBalances[i]);
 
             // Setup fake oracle feed
-            uint240 price = prices[i];
+            uint256 price = prices[i];
             if (price != 0) {
                 adaptor.addAsset(address(token));
                 adaptor.setPrice(address(token), price, price);

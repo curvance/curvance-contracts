@@ -78,7 +78,7 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             assertTrue(isConfigured);
 
             assertEq(decimals, 8);
-            assertEq(heartbeat, redstoneClassicAdaptor.DEFAULT_HEART_BEAT());
+            assertEq(heartbeat, redstoneClassicAdaptor.DEFAULT_HEARTBEAT());
         }
 
         redstoneClassicAdaptor.addAsset(
@@ -106,7 +106,7 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             assertTrue(nativeIsConfigured);
 
             assertEq(nativeDecimals, 8);
-            assertEq(nativeHeartbeat, redstoneClassicAdaptor.DEFAULT_HEART_BEAT());
+            assertEq(nativeHeartbeat, redstoneClassicAdaptor.DEFAULT_HEARTBEAT());
         }
 
         // Verify both configurations are still valid
@@ -230,8 +230,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
     }
 
     function test_fail_InvalidHeartbeat() public {
-        // Should revert when heartbeat > DEFAULT_HEART_BEAT
-        uint256 invalidHeartbeat = redstoneClassicAdaptor.DEFAULT_HEART_BEAT() + 1;
+        // Should revert when heartbeat > DEFAULT_HEARTBEAT
+        uint256 invalidHeartbeat = redstoneClassicAdaptor.DEFAULT_HEARTBEAT() + 1;
         
         vm.expectRevert(abi.encodeWithSelector(
             RedstoneClassicAdaptor.RedstoneClassicAdaptor__InvalidHeartbeat.selector
@@ -409,8 +409,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
         
         mockEthxUsdPriceFeed.updateRoundData(
             100e8,
-            block.timestamp - redstoneClassicAdaptor.DEFAULT_HEART_BEAT() - 1,
-            block.timestamp - redstoneClassicAdaptor.DEFAULT_HEART_BEAT() - 1
+            block.timestamp - redstoneClassicAdaptor.DEFAULT_HEARTBEAT() - 1,
+            block.timestamp - redstoneClassicAdaptor.DEFAULT_HEARTBEAT() - 1
         );
 
         IOracleAdaptor.PricingResult memory result =

@@ -15,7 +15,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// @param decimals Returns the number of decimals the aggregator
     ///                 responds with.
     /// @param heartbeat The max amount of time allowed between price updates.
-    ///                  0 defaults to using DEFAULT_HEART_BEAT.
+    ///                  0 defaults to using `DEFAULT_HEARTBEAT`.
     struct AssetConfig {
         bool isConfigured;
         uint256 decimals;
@@ -125,7 +125,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
         );
 
         result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
-        result.price = uint240(adjustedPrice);
+        result.price = adjustedPrice;
     }
 
     /// @notice Wipes `asset` pricing configurations from this adaptor.

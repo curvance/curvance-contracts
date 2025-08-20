@@ -13,8 +13,8 @@ contract AddMockOracleSupport is Script, DeploymentLogger {
         address registry,
         address mockOracle,
         address[] calldata assets,
-        uint240[] calldata usdPrices,
-        uint240[] calldata nativePrices
+        uint256[] calldata usdPrices,
+        uint256[] calldata nativePrices
     ) external recordEvents {
         ICentralRegistry cr = ICentralRegistry(registry);
         OracleManager oracleManager = OracleManager(cr.oracleManager());
@@ -22,8 +22,8 @@ contract AddMockOracleSupport is Script, DeploymentLogger {
 
         for (uint256 i = 0; i < assets.length; i++) {
             address asset = assets[i];
-            uint240 usdPrice = usdPrices[i];
-            uint240 nativePrice = nativePrices[i];
+            uint256 usdPrice = usdPrices[i];
+            uint256 nativePrice = nativePrices[i];
 
             adaptor.addAsset(asset);
             adaptor.setPrice(asset, usdPrice, nativePrice);

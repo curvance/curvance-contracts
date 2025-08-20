@@ -109,16 +109,8 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
 
         // Multiply the quote asset price by the lpRate
         // to get the Lp Token fair value.
-        price = (price * lpRate) / WAD;
-
-        // Validate price will not overflow on conversion to uint240.
-        if (_checkOverflow(price)) {
-            result.hadError = true;
-            return result;
-        }
-
+        result.price = (price * lpRate) / WAD;
         result.inUSD = inUSD;
-        result.price = uint240(price);
     }
 
     /// @notice Adds pricing support for `asset`, a pendle lp token.

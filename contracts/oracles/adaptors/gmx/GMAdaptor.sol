@@ -147,16 +147,8 @@ contract GMAdaptor is BaseOracleAdaptor {
         }
 
         // Convert from 30 decimals to standardized 18.
-        uint256 newPrice = uint256(price) / 1e12;
-
-        // Validate price will not overflow on conversion to uint240.
-        if (_checkOverflow(newPrice)) {
-            result.hadError = true;
-            return result;
-        }
-
+        result.price = uint256(price) / 1e12;
         result.inUSD = true;
-        result.price = uint240(newPrice);
     }
 
     /// @notice Adds pricing support for `asset`, a GMX GM token.
