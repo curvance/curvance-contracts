@@ -72,8 +72,4 @@ abstract contract BaseCTokenWithYield is BaseCToken {
     ///      it returns 0.
     /// @return The calculated pending assets to vest.
     function _assetsToVest() internal view virtual returns (uint256);
-
-    /// @notice Returns whether the current vesting period has ended,
-    ///         based on the last vest timestamp.
-    function _checkVestingFinished(uint256) internal pure virtual returns (bool) {}
 }

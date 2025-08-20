@@ -711,7 +711,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         uint256 vestingData = _vestingData;
         uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
 
-        // If no time has passed since the last vest can exit immediately.
+        // If no time has passed since `lastVestingClaim` can exit immediately.
         if (block.timestamp == lastVestingClaim) {
             return;
         }
@@ -728,8 +728,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
             lastVestingClaim
         );
 
-        // Update `lastVestingClaim`, stopping at vesting end if current
-        // vesting period is over.
+        // Update `lastVestingClaim`, stopping at `vestingEnd` if current
+        // vesting period has ended.
         lastVestingClaim = block.timestamp > vestingEnd ?
             vestingEnd : block.timestamp;
 
@@ -930,8 +930,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
         );
     }
 
-        /// @notice Calculates pending yield that has been vested.
-    /// @dev If there are no pending yield or the vesting period has ended,
+    /// @notice Calculates pending assets that have been vested.
+    /// @dev If there are no pending assets or the vesting period has ended,
     ///      it returns 0.
     /// @return assets The calculated pending assets to vest.
     function _assetsToVest(
@@ -942,12 +942,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ) internal view returns (uint256 assets) {
         // Check whether there are pending assets vesting.
         if (vestingRate > 0 && lastVestingClaim < vestingEnd) {
-            // When calculating pending yield:
-            // assets =
-            // If the vesting period has not ended:
-            // PY = vestingRate * (block.timestamp - lastTimeVestClaimed).
+            // When calculating pending assets to vest, if the vesting period
+            // has not ended:
+            // assets = vestingRate * (block.timestamp - lastVestingClaim).
             // If the vesting period has ended:
-            // PY = vestingRate * (vestingEnd - lastTimeVestClaimed)).
+            // assets = vestingRate * (vestingEnd - lastVestingClaim).
             // Then in either case:
             // Divide the pending yield by `WAD` (1e18) for precision.
             assets = _mulDiv(

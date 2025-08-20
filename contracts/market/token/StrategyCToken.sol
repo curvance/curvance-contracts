@@ -176,12 +176,11 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     ) internal view returns (uint256 assets) {
         // Check whether there are pending yield vesting.
         if (vestingRate > 0 && lastVestingClaim < vestingEnd) {
-            // When calculating pending yield:
-            // assets =
-            // If the vesting period has not ended:
-            // PY = vestingRate * (block.timestamp - lastTimeVestClaimed).
+            // When calculating pending assets to vest, if the vesting period
+            // has not ended:
+            // assets = vestingRate * (block.timestamp - lastVestingClaim).
             // If the vesting period has ended:
-            // PY = vestingRate * (vestingEnd - lastTimeVestClaimed)).
+            // assets = vestingRate * (vestingEnd - lastVestingClaim).
             // Then in either case:
             // Divide the pending yield by `WAD` (1e18) for precision.
             assets =
@@ -252,7 +251,7 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     ///                vesting period has ended or not.
     function _checkVestingFinished(
         uint256 vestingData
-    ) internal pure override returns (bool result) {
+    ) internal pure returns (bool result) {
         result =  uint40(vestingData >> _BITPOS_LAST_VEST) >=
             uint40(vestingData >> _BITPOS_VEST_END);
     }

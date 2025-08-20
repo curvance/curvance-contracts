@@ -372,9 +372,9 @@ contract ProtocolReader {
         uint256 timestamp
     ) public view returns (uint256 debtBalance) {
         IBorrowableCToken bcToken = IBorrowableCToken(borrowableCToken);
-
         debtBalance = bcToken.debtBalance(account);
 
+        // If `account` has no debt its still going to be 0 at `timestamp`.
         if (debtBalance == 0) {
             return 0;
         }
@@ -383,26 +383,26 @@ contract ProtocolReader {
         (uint256 rate, uint256 vestingEnd, uint256 lastVestingClaim) =
             bcToken.getYieldInformation();
 
-        // If timestamp is before block.timestamp, use current timestamp.
+        // If `timestamp` is before block.timestamp, use `block.timestamp`.
         timestamp = timestamp < block.timestamp ? block.timestamp : timestamp;
 
-        // If no time has passed since the last vest can exit immediately.
+        // If no time has passed since `lastVestingClaim` can return
+        // `debtBalance`.
         if (timestamp == lastVestingClaim) {
             return debtBalance;
         }
 
         uint256 newDebt;
 
-        // Check whether there are pending assets vesting.
+        // Check whether there is pending debt owed.
         if (rate > 0 && lastVestingClaim < vestingEnd) {
-            // When calculating pending yield:
-            // assets =
-            // If the vesting period has not ended:
-            // PY = vestingRate * (timestamp - lastTimeVestClaimed).
+            // When calculating pending debt owed, if the vesting period
+            // has not ended:
+            // newDebt = rate * (timestamp - lastVestingClaim).
             // If the vesting period has ended:
-            // PY = vestingRate * (vestingEnd - lastTimeVestClaimed)).
+            // newDebt = rate * (vestingEnd - lastVestingClaim)).
             // Then in either case:
-            // Divide the pending yield by `WAD` (1e18) for precision.
+            // Divide the pending debt by `WAD` (1e18) for precision.
             newDebt = _mulDiv(
                 timestamp < vestingEnd
                     ? rate * (timestamp - lastVestingClaim)
@@ -412,8 +412,8 @@ contract ProtocolReader {
             );
         }
 
-        // Update `lastVestingClaim`, stopping at vesting end if current
-        // vesting period is over.
+        // Update `lastVestingClaim`, stopping at `vestingEnd` if current
+        // vesting period has ended.
         lastVestingClaim = timestamp > vestingEnd ? vestingEnd : timestamp;
 
         // Check if it is time to start a new vesting period.
