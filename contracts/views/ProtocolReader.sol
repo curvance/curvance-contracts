@@ -568,10 +568,13 @@ contract ProtocolReader {
 
             dmt.debt = bcToken.marketOutstandingDebt();
             dmt.liquidity = assetsHeld - dmt.debt;
-            dmt.borrowRate = irm.borrowRate(assetsHeld, dmt.debt) * SECONDS_PER_YEAR;
-            dmt.predictedBorrowRate = irm.predictedBorrowRate(assetsHeld, dmt.debt) * SECONDS_PER_YEAR;
-            dmt.utilizationRate = irm.utilizationRate(assetsHeld, dmt.debt) * SECONDS_PER_YEAR;
-            dmt.supplyRate = irm.supplyRate(assetsHeld, dmt.debt, bcToken.interestFee()) * SECONDS_PER_YEAR;
+
+            // All of these values are multiplied depending on the time frame you are looking for.
+            // For example you might multiply this by SECONDS_PER_YEAR to get an annualized rate.
+            dmt.borrowRate = irm.borrowRate(assetsHeld, dmt.debt);
+            dmt.predictedBorrowRate = irm.predictedBorrowRate(assetsHeld, dmt.debt);
+            dmt.utilizationRate = irm.utilizationRate(assetsHeld, dmt.debt);
+            dmt.supplyRate = irm.supplyRate(assetsHeld, dmt.debt, bcToken.interestFee());
         }
     }
 
