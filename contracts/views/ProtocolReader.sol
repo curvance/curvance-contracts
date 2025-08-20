@@ -357,6 +357,83 @@ contract ProtocolReader {
         }
     }
 
+    /// @notice Returns the debt balance of `account` at `timestamp`.
+    /// @dev This function is intended for frontend data querying and should
+    ///      not be used for onchain execution.
+    /// @param account The address whose debt balance should be calculated.
+    /// @param borrowableCToken The token that `account`'s debt balance
+    ///                         will be checked for.
+    /// @param timestamp The unix timestamp to calculate account debt
+    ///                  balance with.
+    /// @return debtBalance The debt balance of `account` at `timestamp`.
+    function debtBalanceAtTimestamp(
+        address account,
+        address borrowableCToken,
+        uint256 timestamp
+    ) public view returns (uint256 debtBalance) {
+        IBorrowableCToken bcToken = IBorrowableCToken(borrowableCToken);
+
+        debtBalance = bcToken.debtBalance(account);
+
+        if (debtBalance == 0) {
+            return 0;
+        }
+
+        // Pull latest yield information.
+        (uint256 rate, uint256 vestingEnd, uint256 lastVestingClaim) =
+            bcToken.getYieldInformation();
+
+        // If timestamp is before block.timestamp, use current timestamp.
+        timestamp = timestamp < block.timestamp ? block.timestamp : timestamp;
+
+        // If no time has passed since the last vest can exit immediately.
+        if (timestamp == lastVestingClaim) {
+            return debtBalance;
+        }
+
+        uint256 newDebt;
+
+        // Check whether there are pending assets vesting.
+        if (rate > 0 && lastVestingClaim < vestingEnd) {
+            // When calculating pending yield:
+            // assets =
+            // If the vesting period has not ended:
+            // PY = vestingRate * (timestamp - lastTimeVestClaimed).
+            // If the vesting period has ended:
+            // PY = vestingRate * (vestingEnd - lastTimeVestClaimed)).
+            // Then in either case:
+            // Divide the pending yield by `WAD` (1e18) for precision.
+            newDebt = _mulDiv(
+                timestamp < vestingEnd
+                    ? rate * (timestamp - lastVestingClaim)
+                    : rate * (vestingEnd - lastVestingClaim),
+                debtBalance,
+                WAD
+            );
+        }
+
+        // Update `lastVestingClaim`, stopping at vesting end if current
+        // vesting period is over.
+        lastVestingClaim = timestamp > vestingEnd ? vestingEnd : timestamp;
+
+        // Check if it is time to start a new vesting period.
+        if (timestamp >= vestingEnd) {
+            uint256 assetsHeld = bcToken.assetsHeld();
+            uint256 outstandingDebt = bcToken.marketOutstandingDebt();
+            // Calculate the new interest rate for borrowers, in seconds.
+            rate = bcToken.IRM().predictedBorrowRate(assetsHeld, outstandingDebt);
+            debtBalance = debtBalance + newDebt;
+
+            newDebt = _mulDiv(
+                rate * (timestamp - lastVestingClaim),
+                debtBalance,
+                WAD
+            );
+        }
+
+        debtBalance += newDebt;
+    }
+
     /// @notice Returns the cooldown periods for multiple markets for a user
     /// @param markets The list of market addresses
     /// @param user The user address
