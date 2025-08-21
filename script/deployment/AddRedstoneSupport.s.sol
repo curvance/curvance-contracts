@@ -12,7 +12,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 contract AddRedstoneSupport is Script, DeploymentLogger {
     struct PullFeed {
         bytes payload;
-        uint128 timestamp;
+        uint48 timestamp;
     }
 
     struct PushFeed {
@@ -52,7 +52,7 @@ contract AddRedstoneSupport is Script, DeploymentLogger {
 
         // Push the first price on-chain
         bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool,uint128)",
+            "writePrice(address,bool,uint48)",
             asset,
             true,
             feed.timestamp

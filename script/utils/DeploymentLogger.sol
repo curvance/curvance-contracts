@@ -38,6 +38,12 @@ contract DeploymentLogger is Script {
             DEPLOYMENT_FILE
         );
 
+        // Ensure the broadcast directory exists
+        string memory broadcastDir = string.concat(vm.projectRoot(), "/broadcast");
+        if (!vm.exists(broadcastDir)) {
+            vm.createDir(broadcastDir, false);
+        }
+
         // Serialize and save all logs
         string memory json = _serializeLogs(logs);
         vm.writeFile(outputPath, json);
