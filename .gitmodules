@@ -13,3 +13,6 @@
 [submodule "lib/solady"]
 	path = lib/solady
 	url = https://github.com/Vectorized/solady
+[submodule "lib/redstone"]
+	path = lib/redstone
+	url = https://github.com/redstone-finance/redstone-oracles-monorepo
