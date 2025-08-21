@@ -411,21 +411,6 @@ contract TestBaseMarketIsolated is TestBase {
             _RETH_ADDRESS,
             address(dualChainlinkAdaptor)
         );
-
-        assetConfig.poolId = _BAL_WETH_RETH_POOLID;
-        assetConfig.poolDecimals = 18;
-        assetConfig.rateProviderDecimals[0] = 18;
-        assetConfig.rateProviders[
-            0
-        ] = 0x1a8F81c256aee9C640e14bB0453ce247ea0DFE6F;
-        assetConfig.underlyingOrConstituent[0] = _RETH_ADDRESS;
-        assetConfig.underlyingOrConstituent[1] = _WETH_ADDRESS;
-        balRETHAdapter.addAsset(_BAL_WETH_RETH_ADDRESS, assetConfig);
-        oracleManager.addApprovedAdaptor(address(balRETHAdapter));
-        oracleManager.addAssetPriceFeed(
-            _BAL_WETH_RETH_ADDRESS,
-            address(balRETHAdapter)
-        );
     }
 
     function _deployGaugeManager() internal initMainVariables {
