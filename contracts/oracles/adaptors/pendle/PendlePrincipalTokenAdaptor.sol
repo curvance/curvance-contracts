@@ -178,11 +178,8 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
     /// @param market The address of the Pendle LP.
     /// @param twapDuration The twap duration to use when pricing.
     function _checkPtTwap(address market, uint32 twapDuration) internal view {
-        (
-            bool increaseCardinalityRequired,
-            ,
-            bool oldestObservationSatisfied
-        ) = ptOracle.getOracleState(market, twapDuration);
+        (bool increaseCardinalityRequired, , bool oldestObservationSatisfied)
+            = ptOracle.getOracleState(market, twapDuration);
 
         if (increaseCardinalityRequired) {
             revert PendlePrincipalTokenAdaptor__CallIncreaseCardinality();
