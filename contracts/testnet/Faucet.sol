@@ -7,6 +7,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 // solhint-enable max-line-length
 
+// solhint-disable gas-custom-errors
 contract Faucet is Ownable {
     struct FaucetToken {
         address tokenAddress;
