@@ -405,7 +405,6 @@ contract TestVariables {
         feeManager = feeManagers[chainId];
         messagingHub = messagingHubs[chainId];
         votingHub = votingHubs[chainId];
-        balRETHAdapter = balRETHAdapters[chainId];
         chainlinkAdaptor = chainlinkAdaptors[chainId];
         dualChainlinkAdaptor = dualChainlinkAdaptors[chainId];
         marketManagerIsolated = marketManagersIsolated[chainId];
