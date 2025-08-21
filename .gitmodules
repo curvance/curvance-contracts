@@ -1,9 +1,6 @@
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "lib/openzeppelin-contracts"]
-	path = lib/openzeppelin-contracts
-	url = https://github.com/OpenZeppelin/openzeppelin-contracts
 [submodule "lib/pigeon"]
 	path = lib/pigeon
 	url = https://github.com/exp-table/pigeon
@@ -16,3 +13,7 @@
 [submodule "lib/redstone"]
 	path = lib/redstone
 	url = https://github.com/redstone-finance/redstone-oracles-monorepo
+[submodule "lib/openzeppelin-contracts"]
+	path = lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+	branch = release-v5.1
