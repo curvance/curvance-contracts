@@ -29,7 +29,7 @@ contract LockAuctionCollateralTest is TestBaseMarketIsolated {
         vm.startPrank(user1);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManagerIsolated.lockAuctionCollateral();
+        marketManagerIsolated.resetTransientLiquidationConfig();
         
         vm.stopPrank();
     }
@@ -37,7 +37,7 @@ contract LockAuctionCollateralTest is TestBaseMarketIsolated {
     function test_lockAuctionCollateral_success() public {
         vm.startPrank(auctionPermsUser);
 
-        marketManagerIsolated.lockAuctionCollateral();
+        marketManagerIsolated.resetTransientLiquidationConfig();
         vm.stopPrank();
     }
 

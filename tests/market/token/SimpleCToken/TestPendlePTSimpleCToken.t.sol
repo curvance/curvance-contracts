@@ -466,8 +466,8 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // cache liquidation values
 
-        (uint256 lFactor, uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(user1, address(pendleCTokenPTSTETH), address(borrowableCUSDC));
+        (, uint256 collateralTokenPrice, uint256 debtTokenPrice, uint256 lFactor) = 
+            marketManagerIsolated.liquidationValuesOf(user1);
 
         (uint256 maxAmount, uint256 liquidatedCollateral, uint256 collateralRequired) = _getLiquidationValuesWithHigherPrecision_NonAuction(
             debtTokenPrice,

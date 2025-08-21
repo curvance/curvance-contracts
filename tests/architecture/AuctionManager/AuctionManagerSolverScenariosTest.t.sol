@@ -25,8 +25,8 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
     MockSolver public solver2;
     MockSolver public solver3;
 
-    address public constant OEV_ALLOCATION_DESTINATION_FASTLANE = address(0x1);
-    address public constant OEV_ALLOCATION_DESTINATION_PROTOCOL = address(0x2);
+    address public constant OEV_ALLOCATION_DESTINATION_FASTLANE = address(0x4111);
+    address public constant OEV_ALLOCATION_DESTINATION_PROTOCOL = address(0x5111);
     uint256 public constant OEV_SHARE_BUNDLER = 2000; // 20%
     uint256 public constant OEV_SHARE_FASTLANE = 1000; // 10%
     uint32 public constant SOLVER_GAS_LIMIT = 6_000_000;
@@ -306,14 +306,13 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
         );
         if (solverOneBidPaid + solverTwoBidPaid + solverThreeBidPaid > 0) {
             uint256 totalOev = solverOneBidPaid + solverTwoBidPaid + solverThreeBidPaid;
-            // vm.expectEmit(executionEnv);
-            // emit AuctionManager.CurvanceOevAllocated(
-            //     bundler,
-            //     totalOev,
-            //     totalOev * OEV_SHARE_BUNDLER / 10_000,
-            //     totalOev * OEV_SHARE_FASTLANE / 10_000,
-            //     totalOev - (totalOev * OEV_SHARE_BUNDLER / 10_000) - (totalOev * OEV_SHARE_FASTLANE / 10_000)
-            // );
+            vm.expectEmit(executionEnv);
+            emit AuctionManager.RevenueDistributed(
+                totalOev * OEV_SHARE_FASTLANE / 10_000,
+                totalOev - (totalOev * OEV_SHARE_FASTLANE / 10_000),
+                OEV_ALLOCATION_DESTINATION_FASTLANE,
+                OEV_ALLOCATION_DESTINATION_PROTOCOL
+            );
         }
         vm.expectEmit(true, true, true, false, address(atlas));
         emit AtlasEvents.MetacallResult(bundler, userOpSigner, false, 0, 0);

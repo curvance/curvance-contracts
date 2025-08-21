@@ -33,7 +33,7 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
         vm.startPrank(user1);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), 1.15e18, 0.30e18);
+        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), 1.15e18, 0.30e18);
         
         vm.stopPrank();
     }
@@ -44,7 +44,7 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
         vm.startPrank(auctionPermsUser);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector); 
-        marketManagerIsolated.setLiquidationConfig(user1, 1.15e18, 0.30e18);
+        marketManagerIsolated.setTransientLiquidationConfig(user1, 1.15e18, 0.30e18);
         vm.stopPrank();
     }
 
@@ -52,7 +52,7 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
         vm.startPrank(auctionPermsUser);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedLiquidation.selector); 
-        marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), 1.15e18, 0.30e18);
+        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), 1.15e18, 0.30e18);
         vm.stopPrank();
     }
 
@@ -69,16 +69,16 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
         vm.startPrank(auctionPermsUser);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), tooLowPenalty, validCloseFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), tooLowPenalty, validCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), tooHighPenalty, validCloseFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), tooHighPenalty, validCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), validPenalty, tooHighCloseFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), validPenalty, tooHighCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), validPenalty, tooLowCloseFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), validPenalty, tooLowCloseFactor);
 
         vm.stopPrank();
     }
@@ -88,7 +88,7 @@ contract SetLiquidationConfigTest is TestBaseMarketIsolated {
         _setAuctionConfigs(address(strategyCBALRETH), 11500, 3000);
 
         // Verify the penalty was set correctly
-        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLiquidationConfig();
+        (, uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getTransientLiquidationConfig();
         assertEq(currentPenalty, 11500);
         assertEq(currentCloseFactor, 3000);
         vm.stopPrank();

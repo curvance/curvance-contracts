@@ -128,14 +128,8 @@ contract MixedAuction is TestBaseLiquidations {
         vm.startPrank(auctionPermsUser);
         usdc.approve(address(borrowableCUSDC), 100000e6);
 
-        marketManagerIsolated.setLiquidationConfig(
-            address(borrowableCUSDC),  
-            validPenalty,
-            closeFactor
-        );
-
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
+        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
 
         ExpectedLiquidationValues memory auctionLiqValuesBorrower1 = _calculateExpectedLiquidationValues(
             LiquidationParams({
@@ -173,8 +167,6 @@ contract MixedAuction is TestBaseLiquidations {
             auctionBorrowers,
             address(strategyCBALRETH)
         );
-        marketManagerIsolated.lockAuctionCollateral();
-        marketManagerIsolated.resetLiquidationConfig();
         vm.stopPrank();
 
         usdc.approve(address(borrowableCUSDC), 100000e6);
@@ -250,22 +242,14 @@ contract MixedAuction is TestBaseLiquidations {
         // Verify lFactors
         // Auction borrowers should still have lFactor > 0 (partial liquidation)
         for(uint i = 0; i < 2; i++) {
-            (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
-                auctionBorrowers[i],
-                address(borrowableCUSDC),
-                address(strategyCBALRETH)
-            );
+            (, , , uint256 lFactorAfter) = marketManagerIsolated.liquidationValuesOf(auctionBorrowers[i]);
 
             assertGt(lFactorAfter, 0, "Auction borrower should still have lFactor > 0");
         }
 
         // Regular borrowers should still be liquidatable (their liquidation was prevented by auction state)
         for(uint i = 0; i < 2; i++) {
-            (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
-                regularBorrowers[i],
-                address(borrowableCUSDC),
-                address(strategyCBALRETH)
-            );
+            (, , , uint256 lFactorAfter) = marketManagerIsolated.liquidationValuesOf(regularBorrowers[i]);
 
             assertEq(lFactorAfter, WAD, "Regular borrower should still be liquidatable");
         }
@@ -333,14 +317,8 @@ contract MixedAuction is TestBaseLiquidations {
         vm.startPrank(auctionPermsUser);
         usdc.approve(address(borrowableCUSDC), 100000e6);
 
-        marketManagerIsolated.setLiquidationConfig(
-            address(borrowableCUSDC),  
-            validPenalty,
-            closeFactor
-        );
-
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
+        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
 
         ExpectedLiquidationValues memory auctionLiqValuesBorrower1 = _calculateExpectedLiquidationValues(
             LiquidationParams({
@@ -378,8 +356,8 @@ contract MixedAuction is TestBaseLiquidations {
             auctionBorrowers,
             address(strategyCBALRETH)
         );
-        marketManagerIsolated.lockAuctionCollateral();
-        marketManagerIsolated.resetLiquidationConfig();
+
+        marketManagerIsolated.resetTransientLiquidationConfig();
         vm.stopPrank();
 
         // ===== Validate =====
@@ -465,21 +443,13 @@ contract MixedAuction is TestBaseLiquidations {
         // Regular borrowers should have lFactor since fully liquidated
 
         for(uint i = 0; i < 2; i++) {
-            (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
-                auctionBorrowers[i],
-                address(borrowableCUSDC),
-                address(strategyCBALRETH)
-            );
+            (, , , uint256 lFactorAfter) = marketManagerIsolated.liquidationValuesOf(auctionBorrowers[i]);
 
             assertGt(lFactorAfter, 0, "Auction borrower should still have lFactor > 0");
         }
 
         for(uint i = 0; i < 2; i++) {
-            (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
-                regularBorrowers[i],
-                address(borrowableCUSDC),
-                address(strategyCBALRETH)
-            );
+            (, , , uint256 lFactorAfter) = marketManagerIsolated.liquidationValuesOf(regularBorrowers[i]);
 
             assertEq(lFactorAfter, 0, "Regular borrower should have lFactor = 0");
         }

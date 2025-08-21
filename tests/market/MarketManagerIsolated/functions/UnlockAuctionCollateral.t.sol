@@ -28,7 +28,7 @@ contract UnlockAuctionCollateralTest is TestBaseMarketIsolated {
         vm.startPrank(user1);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
+        centralRegistry.unlockAuctionForMarket(address(strategyCBALRETH));
         
         vm.stopPrank();
     }
@@ -36,7 +36,8 @@ contract UnlockAuctionCollateralTest is TestBaseMarketIsolated {
     function test_unlockAuctionCollateral_success() public {
         vm.startPrank(auctionPermsUser);
 
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
+        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), 1000, 2000);
+        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         vm.stopPrank();
     }
 

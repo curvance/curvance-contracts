@@ -951,13 +951,11 @@ contract TestBaseMarketIsolated is TestBase {
 
         if(params.isMultiMarketTest) {
             marketManager_ = marketManagersIsolated[params.marketManagerId];
-            (lFactor,,) = 
-                marketManagersIsolated[params.marketManagerId].liquidationStatusOf(params.borrower, params.collateralToken, params.borrowedToken);
+            (, , , lFactor) = marketManager_.liquidationValuesOf(params.borrower);
 
         } else {
             marketManager_ = marketManagerIsolated;
-            (lFactor,,) = 
-                marketManagerIsolated.liquidationStatusOf(params.borrower, params.collateralToken, params.borrowedToken);
+            (, , , lFactor) = marketManager_.liquidationValuesOf(params.borrower);
         }
 
         // Handle auction scenarios where lFactor=0 but auction buffer makes it liquidatable
@@ -1054,8 +1052,10 @@ contract TestBaseMarketIsolated is TestBase {
         (data.liqIncBase, data.liqIncCurve,,, data.closeFactorBase, data.closeFactorCurve,,)
             = _marketManager.liquidationConfig(address(_collateralToken));
 
-        (data.lFactor, data.collateralTokenPrice, data.debtTokenPrice) = 
-            _marketManager.liquidationStatusOf(_borrower, _collateralToken, _debtToken);
+        (, , , data.lFactor) = _marketManager.liquidationValuesOf(_borrower);
+
+        (data.collateralTokenPrice, data.debtTokenPrice) =
+            oracleManager.getPriceIsolatedPair(_collateralToken, _debtToken, 2);
 
         if (_isAuction) {
             (, data.liqInc, cFactor) = _marketManager.getTransientLiquidationConfig();
@@ -1139,7 +1139,7 @@ contract TestBaseMarketIsolated is TestBase {
         MarketManagerIsolated marketManager_
     ) internal view returns (uint256) {
         // Get collateral and debt values
-        (uint256 collateralSoft,, uint256 debt) =
+        (uint256 collateralSoft,, uint256 debt,) =
             marketManager_.liquidationValuesOf(params.borrower);
 
         // Apply auction buffer

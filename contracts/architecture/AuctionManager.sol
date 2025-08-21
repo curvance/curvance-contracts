@@ -274,7 +274,7 @@ contract AuctionManager is DAppControl {
         fastlaneSplitBPS = uint16(fastlaneSplitBPS_);
         fastlaneRevenueDestination = fastlaneDestination_;
         curvanceRevenueDestination = curvanceDestination_;
-        atlasCloseFactor = atlasCloseFactor_;
+        atlasCloseFactor = uint16(atlasCloseFactor_);
 
         // Set `CENTRAL_REGISTRY`.
         CENTRAL_REGISTRY = centralRegistry_;
@@ -367,7 +367,7 @@ contract AuctionManager is DAppControl {
         
         if (atlasCloseFactor_ == 0 || atlasCloseFactor_ > BPS) revert AuctionManager__InvalidCloseFactor();
         uint256 old = atlasCloseFactor;
-        atlasCloseFactor = atlasCloseFactor_;
+        atlasCloseFactor = uint16(atlasCloseFactor_);
         emit AtlasCloseFactorSet(old, atlasCloseFactor_);
     }
 
@@ -446,7 +446,7 @@ contract AuctionManager is DAppControl {
             pendingRevenue = 0;
         }
 
-        accumulatedRevenue = uint208(pendingRevenue + msg.value);
+        accumulatedRevenue = uint192(pendingRevenue + msg.value);
 
         // Emit that new revenue was allocated from an auction-based
         // liquidation.

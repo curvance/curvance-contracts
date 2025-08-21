@@ -30,7 +30,7 @@ contract ResetLiquidationConfigTest is TestBaseMarketIsolated {
         vm.startPrank(user1);
         
         vm.expectRevert();
-        marketManagerIsolated.resetLiquidationConfig();
+        marketManagerIsolated.resetTransientLiquidationConfig();
         
         vm.stopPrank();
     }
@@ -40,16 +40,16 @@ contract ResetLiquidationConfigTest is TestBaseMarketIsolated {
         
         uint256 validPenalty = 11500;
         uint256 validCloseFactor = 3000;
-        marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), validPenalty, validCloseFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), validPenalty, validCloseFactor);
 
-        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLiquidationConfig();
+        (, uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getTransientLiquidationConfig();
         assertEq(currentPenalty, validPenalty);
         assertEq(currentCloseFactor, validCloseFactor);
         
-        marketManagerIsolated.resetLiquidationConfig();
+        marketManagerIsolated.resetTransientLiquidationConfig();
         
         // uint256 defaultPenalty = 1.10e18; // Not used anymore because getLiquidationConfig does not return default penalties anymore.
-        (currentPenalty, currentCloseFactor) = marketManagerIsolated.getLiquidationConfig();
+        (, currentPenalty, currentCloseFactor) = marketManagerIsolated.getTransientLiquidationConfig();
         assertEq(currentPenalty, 0);
         assertEq(currentCloseFactor, 0);
         

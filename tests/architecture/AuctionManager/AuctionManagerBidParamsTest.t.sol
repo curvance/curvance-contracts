@@ -13,8 +13,8 @@ contract AuctionManagerBidParamsTest is BaseTest {
     address public constant MOCK_CENTRAL_REGISTRY = address(0x1234);
     uint256 public constant OEV_SHARE_BUNDLER = 2000; // 20%
     uint256 public constant OEV_SHARE_FASTLANE = 1000; // 10%
-    address public constant OEV_ALLOCATION_DESTINATION_FASTLANE = address(0x1);
-    address public constant OEV_ALLOCATION_DESTINATION_PROTOCOL = address(0x2);
+    address public constant OEV_ALLOCATION_DESTINATION_FASTLANE = address(0x4111);
+    address public constant OEV_ALLOCATION_DESTINATION_PROTOCOL = address(0x5111);
 
     function setUp() public override {
         super.setUp();

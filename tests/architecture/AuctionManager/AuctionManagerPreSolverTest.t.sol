@@ -29,8 +29,8 @@ contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors, TestBaseMarketIso
 
     MockSolver public solver;
 
-    address public constant OEV_ALLOCATION_DESTINATION_FASTLANE = address(0x1);
-    address public constant OEV_ALLOCATION_DESTINATION_PROTOCOL = address(0x2);
+    address public constant OEV_ALLOCATION_DESTINATION_FASTLANE = address(0x4111);
+    address public constant OEV_ALLOCATION_DESTINATION_PROTOCOL = address(0x5111);
     uint256 public constant OEV_SHARE_BUNDLER = 2000; // 20%
     uint256 public constant OEV_SHARE_FASTLANE = 1000; // 10%
     uint32 public constant SOLVER_GAS_LIMIT = 6_000_000;

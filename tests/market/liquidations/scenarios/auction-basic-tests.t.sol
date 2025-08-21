@@ -23,12 +23,11 @@ contract AuctionBasicTests is TestBaseLiquidations {
         vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
         
         // Set auction parameters
         uint256 validPenalty = 11500;
         uint256 closeFactor = 3000;
-        marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
         
         vm.stopPrank();
         
@@ -59,21 +58,12 @@ contract AuctionBasicTests is TestBaseLiquidations {
         vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
 
         vm.stopPrank();
 
-        (, uint256 cTokenPrice, ) = marketManagerIsolated.liquidationStatusOf(
-            user1,
-            address(strategyCBALRETH),
-            address(borrowableCUSDC)
-        );
+        (uint256 cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
         
-        (uint256 lFactor,,) = marketManagerIsolated.liquidationStatusOf(
-            user1,
-            address(strategyCBALRETH),
-            address(borrowableCUSDC)
-        );
+        (, , , uint256 lFactor) = marketManagerIsolated.liquidationValuesOf(user1);
         
         uint256 liqBaseIncentive = 11000;
         uint256 liqCurve = 500;
@@ -129,8 +119,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
         vm.startPrank(auctionPermsUser);
 
-        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.unlockAuctionCollateral(address(1));
+        centralRegistry.unlockAuctionForMarket(address(1));
         vm.stopPrank();
 
         address[] memory usersToLiquidate = new address[](1);   
@@ -151,7 +140,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareUSDC(user3, 250e6);
 
         vm.prank(auctionPermsUser);
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
+        centralRegistry.unlockAuctionForMarket(address(strategyCBALRETH));
 
         address[] memory usersToLiquidate = new address[](1);   
         usersToLiquidate[0] = user1;
@@ -173,10 +162,10 @@ contract AuctionBasicTests is TestBaseLiquidations {
         vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
+        
         uint256 validPenalty = 11500; //15%
         uint256 closeFactor = 3000; // 30%
-        marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
         vm.stopPrank();
 
         borrowableCUSDC.accrueIfNeeded(); // pull interest forward
@@ -224,17 +213,9 @@ contract AuctionBasicTests is TestBaseLiquidations {
         uint256 cTokenPrice;
         uint256 exchangeRate = strategyCBALRETH.exchangeRate();
 
-        (, cTokenPrice, ) = marketManagerIsolated.liquidationStatusOf(
-            user1,
-            address(strategyCBALRETH),
-            address(borrowableCUSDC)
-        );
+        (cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
 
-        (uint256 lFactor,,) = marketManagerIsolated.liquidationStatusOf(
-            user1,
-            address(strategyCBALRETH),
-            address(borrowableCUSDC)
-        );
+        (, , , uint256 lFactor) = marketManagerIsolated.liquidationValuesOf(user1);
 
         uint256 liqBaseIncentive = 11000; // 10% base, premium BPS
         uint256 liqCurve = 500; // 5% curve, in BPS
@@ -269,11 +250,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         uint256 cTokenPrice;
         uint256 exchangeRate = strategyCBALRETH.exchangeRate();
         
-        (, cTokenPrice, ) = marketManagerIsolated.liquidationStatusOf(
-            user1,
-            address(strategyCBALRETH),
-            address(borrowableCUSDC)
-        );
+        (cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
         
         uint256 collateralDecimals = 10**18;
         uint256 debtDecimals = 10**6;
