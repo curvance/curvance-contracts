@@ -20,7 +20,7 @@ contract Faucet is Ownable {
     /// user => token => last claimed timestamp
     mapping(address => mapping(address => uint256)) public userLastClaimed;
 
-    constructor() Ownable() {}
+    constructor() Ownable(msg.sender) {}
 
     function setMaxClaimAmounts(
         uint256 amountERC20,
