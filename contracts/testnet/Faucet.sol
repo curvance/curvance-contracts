@@ -25,13 +25,21 @@ contract Faucet is Ownable {
         }
     }
 
-    function claim(address token) external {
-        _claim(token);
-    }
-
-    function multiClaim(address[] calldata tokens) external {
+    function claim(address[] calldata tokens) external {
         for (uint256 i = 0; i < tokens.length; i++) {
             _claim(tokens[i]);
+        }
+    }
+
+    function tokensAvailable(
+        address[] calldata tokens
+    ) external view returns (bool[] memory tokenAvailability) {
+        tokenAvailability = new bool[](tokens.length);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            IERC20 token = IERC20(tokens[i]);
+            FaucetToken memory faucetToken = _getFaucetToken(tokens[i]);
+            tokenAvailability[i] = 
+                token.balanceOf(address(this)) >= faucetToken.maxClaimAmount;
         }
     }
 
