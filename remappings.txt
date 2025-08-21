@@ -2,3 +2,4 @@
 @pendle/=lib/pendle-core-v2-public/contracts/
 @pigeon/=lib/pigeon/
 @atlas/=lib/atlas/src/
+@redstone/=lib/packages/evm-connector/contracts/

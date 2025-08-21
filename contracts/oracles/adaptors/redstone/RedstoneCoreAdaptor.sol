@@ -5,7 +5,7 @@ import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/
 
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 
-import { PrimaryProdDataServiceConsumerBase } from "contracts/libraries/external/redstone/PrimaryProdDataServiceConsumerBase.sol";
+import { PrimaryProdDataServiceConsumerBase } from "@redstone/data-services/PrimaryProdDataServiceConsumerBase.sol";
 
 contract RedstoneCoreAdaptor is
     BaseOracleAdaptor,
