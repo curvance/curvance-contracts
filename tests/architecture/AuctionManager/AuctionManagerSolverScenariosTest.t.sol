@@ -23,7 +23,7 @@ import { Test } from "forge-std/Test.sol";
 import { Vm } from "forge-std/Vm.sol";
 
 contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolated, BaseTest {
-    AuctionManager public auctionManager;
+    AuctionManager public testAuctionManager;
 
     address public collateralToken = address(0xccccccc);
 
@@ -54,7 +54,7 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
         super.setUp();
 
         vm.startPrank(governanceEOA);
-        auctionManager = new AuctionManager(
+        testAuctionManager = new AuctionManager(
             address(atlas),
             ICentralRegistry(address(centralRegistry)),
             OEV_SHARE_FASTLANE,
@@ -63,18 +63,18 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
             6000
         );
 
-        auctionManager.setAuthorizedUserOpSigner(userOpSigner);
-        atlasVerification.initializeGovernance(address(auctionManager));
-        atlasVerification.addSignatory(address(auctionManager), auctioneer);
+        testAuctionManager.setAuthorizedUserOpSigner(userOpSigner);
+        atlasVerification.initializeGovernance(address(testAuctionManager));
+        atlasVerification.addSignatory(address(testAuctionManager), auctioneer);
         // Set up mock contracts
-        address executionEnv = auctionManager.authorizedExecutionEnv();
+        address executionEnv = testAuctionManager.authorizedExecutionEnv();
         centralRegistry.addAuctionPermissions(executionEnv);
 
         vm.stopPrank();
 
         // vm.startPrank(mockCurvanceGov);
-        // centralRegistry.setDAppControl(address(auctionManager));
-        // marketManagerIsolated.addAuthorizedAtlasDAppControl(address(auctionManager));
+        // centralRegistry.setDAppControl(address(testAuctionManager));
+        // marketManagerIsolated.addAuthorizedAtlasDAppControl(address(testAuctionManager));
         // vm.stopPrank();
 
         vm.prank(solverOneEOA);
@@ -98,12 +98,12 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
 
     // Initialization test
     function testInitialization() public view {
-        assertEq(auctionManager.fastlaneRevenueDestination(), OEV_ALLOCATION_DESTINATION_FASTLANE);
-        assertEq(auctionManager.curvanceRevenueDestination(), OEV_ALLOCATION_DESTINATION_PROTOCOL);
-        assertEq(auctionManager.fastlaneSplitBPS(), OEV_SHARE_BUNDLER);
-        assertEq(auctionManager.solverGasLimit(), SOLVER_GAS_LIMIT);
-        assertEq(auctionManager.authorizedUserOpSigner(), userOpSigner);
-        assertEq(address(auctionManager.CENTRAL_REGISTRY()), address(centralRegistry));
+        assertEq(testAuctionManager.fastlaneRevenueDestination(), OEV_ALLOCATION_DESTINATION_FASTLANE);
+        assertEq(testAuctionManager.curvanceRevenueDestination(), OEV_ALLOCATION_DESTINATION_PROTOCOL);
+        assertEq(testAuctionManager.fastlaneSplitBPS(), OEV_SHARE_BUNDLER);
+        assertEq(testAuctionManager.solverGasLimit(), SOLVER_GAS_LIMIT);
+        assertEq(testAuctionManager.authorizedUserOpSigner(), userOpSigner);
+        assertEq(address(testAuctionManager.CENTRAL_REGISTRY()), address(centralRegistry));
     }
 
     function buildUserOperation(uint256 signerPK) internal view returns (UserOperation memory) {
@@ -116,14 +116,14 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
             maxFeePerGas: 1_000_000_000,
             nonce: 1,
             deadline: block.number + 100,
-            dapp: address(auctionManager),
-            control: address(auctionManager),
-            callConfig: auctionManager.CALL_CONFIG(),
+            dapp: address(testAuctionManager),
+            control: address(testAuctionManager),
+            callConfig: testAuctionManager.CALL_CONFIG(),
             dappGasLimit: 2_000_000,
             solverGasLimit: SOLVER_GAS_LIMIT,
             bundlerSurchargeRate: 1000,
             sessionKey: auctioneer,
-            data: abi.encodeWithSelector(auctionManager.initiateAuction.selector),
+            data: abi.encodeWithSelector(testAuctionManager.initiateAuction.selector),
             signature: new bytes(0)
         });
 
@@ -159,7 +159,7 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
             maxFeePerGas: 1_000_000_000,
             deadline: block.number + 100,
             solver: solverContract,
-            control: address(auctionManager),
+            control: address(testAuctionManager),
             userOpHash: userOpHash,
             bidToken: address(0),
             bidAmount: bidAmount,
@@ -183,7 +183,7 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
             to: address(atlas),
             nonce: 0,
             deadline: block.number + 100,
-            control: address(auctionManager),
+            control: address(testAuctionManager),
             bundler: givenBundler,
             userOpHash: userOpHash,
             callChainHash: callChainHash,
@@ -210,7 +210,7 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
         SolverBidPattern memory solverThree
     ) public {
         UserOperation memory userOp = buildUserOperation(userOpSignerPK);
-        address executionEnv = auctionManager.authorizedExecutionEnv();
+        address executionEnv = testAuctionManager.authorizedExecutionEnv();
 
         bytes32 userOpHash = atlasVerification.getUserOperationHash(userOp);
         SolverOperation memory solverOp1 = buildSolverOperation(
@@ -281,7 +281,7 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
         emit AtlasEvents.SolverTxResult(
             address(solver),
             solverOneEOA,
-            address(auctionManager),
+            address(testAuctionManager),
             address(0),
             solverOne.bidAmount,
             !solverOne.isPreSolverOpFailing,
@@ -292,7 +292,7 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
         emit AtlasEvents.SolverTxResult(
             address(solver2),
             solverTwoEOA,
-            address(auctionManager),
+            address(testAuctionManager),
             address(0),
             solverTwo.bidAmount,
             !solverTwo.isPreSolverOpFailing,
@@ -303,7 +303,7 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
         emit AtlasEvents.SolverTxResult(
             address(solver3),
             solverThreeEOA,
-            address(auctionManager),
+            address(testAuctionManager),
             address(0),
             solverThree.bidAmount,
             !solverThree.isPreSolverOpFailing,
