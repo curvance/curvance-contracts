@@ -5,7 +5,7 @@ import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/
 
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 
-import { PrimaryProdDataServiceConsumerBase } from "@redstone/data-services/PrimaryProdDataServiceConsumerBase.sol";
+import { PrimaryProdDataServiceConsumerBase } from "@redstone/evm-connector/data-services/PrimaryProdDataServiceConsumerBase.sol";
 
 contract RedstoneCoreAdaptor is
     BaseOracleAdaptor,
@@ -69,6 +69,11 @@ contract RedstoneCoreAdaptor is
     ///      storage for `asset`.
     mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
+    /// @notice Indicates whether an address is authorised inside the Redstone
+    ///         Core system.
+    /// @dev Address => index they are authorised under inside Redstone.
+    mapping(address => uint256) internal _isAuthorisedSigner;
+
     /// @notice A fixed key to use in transient storage for validating that
     ///         the timestamp proposed on price write is accurate.
     /// @dev Key value = `uint256(keccak256(_TRANSIENT_REDSTONE_TIMESTAMP_KEY))`.
@@ -95,7 +100,7 @@ contract RedstoneCoreAdaptor is
         address[] memory signers,
         uint256 uniqueSignersThreshold_,
         string memory nativeSymbol
-    ) BaseOracleAdaptor(cr) PrimaryProdDataServiceConsumerBase(signers) {
+    ) BaseOracleAdaptor(cr) PrimaryProdDataServiceConsumerBase() {
         _nativeSymbol = nativeSymbol;
 
         // Validate that unique signer threshold is within acceptable limits.
@@ -114,6 +119,20 @@ contract RedstoneCoreAdaptor is
         // Validate that the number of signers is below the maximum allowed.
         if (MAXIMUM_SIGNERS_ALLOWED < numSigners) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
+        }
+
+        for (uint256 i; i < numSigners; ++i) {
+            address signer = signers[i];
+
+            /// Validate that `signer` is not already authorised.
+            if (_isAuthorisedSigner[signer] != 0) {
+                revert RedstoneCoreAdaptor__InvalidConfiguration();
+            }
+
+            _isAuthorisedSigner[signer] = i + 1;
+            authorisedSigners.push(signer);
+
+            emit SignerUpdated(signer, true);
         }
 
         _uniqueSignersThreshold = uniqueSignersThreshold_;
@@ -351,6 +370,20 @@ contract RedstoneCoreAdaptor is
 
     /// PUBLIC FUNCTIONS ///
 
+    function getAuthorisedSignerIndex(
+        address signerAddress
+    ) public view override returns (uint8) {
+        uint256 index = _isAuthorisedSigner[signerAddress];
+
+        /// Validate that `signerAddress` is authorised.
+        if (index == 0) {
+            revert SignerNotAuthorised(signerAddress);
+        }
+
+        // Return authorised signer index.
+        return uint8(index);
+    }
+
     /// @notice The minimum number of signer messages to be validated
     ///         for onchain oracle pricing to validate a price feed.
     function getUniqueSignersThreshold() public view override returns (uint8) {
@@ -425,29 +458,6 @@ contract RedstoneCoreAdaptor is
             DEFAULT_MAX_DATA_TIMESTAMP_DELAY_SECONDS
         ) {
             revert RedstoneCoreAdaptor__StalePrice();
-        }
-    }
-
-    /// @notice Adds new supported signers for redstone core msg.data
-    ///         field validation.
-    /// @param signers Array containing the new addresses to be authorised
-    ///                inside the Redstone Core system.
-    function _storeAuthorisedSigners(
-        address[] memory signers
-    ) internal override {
-        uint256 numSigners = signers.length;
-
-        for (uint256 i; i < numSigners; ++i) {
-            address signer = signers[i];
-            /// Validate that `signer` is not already authorised.
-            if (_isAuthorisedSigner[signer] != 0) {
-                revert RedstoneCoreAdaptor__InvalidConfiguration();
-            }
-
-            _isAuthorisedSigner[signer] = i + 1;
-            authorisedSigners.push(signer);
-
-            emit SignerUpdated(signer, true);
         }
     }
 
