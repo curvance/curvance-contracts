@@ -21,7 +21,6 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -103,7 +102,6 @@ contract TestVariables {
     FeeManager public feeManager;
     MessagingHub public messagingHub;
     VotingHub public votingHub;
-    BalancerStablePoolAdaptor public balRETHAdapter;
     ChainlinkAdaptor public chainlinkAdaptor;
     ChainlinkAdaptor public dualChainlinkAdaptor;
     MarketManagerIsolated public marketManagerIsolated;
@@ -148,7 +146,6 @@ contract TestVariables {
     mapping(uint256 => FeeManager) public feeManagers;
     mapping(uint256 => MessagingHub) public messagingHubs;
     mapping(uint256 => VotingHub) public votingHubs;
-    mapping(uint256 => BalancerStablePoolAdaptor) public balRETHAdapters;
     mapping(uint256 => ChainlinkAdaptor) public chainlinkAdaptors;
     mapping(uint256 => ChainlinkAdaptor) public dualChainlinkAdaptors;
     mapping(uint256 => MarketManagerIsolated) public marketManagersIsolated;

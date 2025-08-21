@@ -22,8 +22,6 @@ import { PendleZapperCalldataChecker } from "contracts/calldata-checker/swap-che
 import { VelodromeZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/VelodromeZapperCalldataChecker.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
-import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 import { AuctionManager } from "contracts/architecture/AuctionManager.sol";
 
@@ -414,13 +412,6 @@ contract TestBaseMarketIsolated is TestBase {
             address(dualChainlinkAdaptor)
         );
 
-        balRETHAdapter = balRETHAdapters[
-            chainId
-        ] = new BalancerStablePoolAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            IVault(_BAL_VAULT_ADDRESS)
-        );
-        BalancerStablePoolAdaptor.AssetConfig memory assetConfig;
         assetConfig.poolId = _BAL_WETH_RETH_POOLID;
         assetConfig.poolDecimals = 18;
         assetConfig.rateProviderDecimals[0] = 18;

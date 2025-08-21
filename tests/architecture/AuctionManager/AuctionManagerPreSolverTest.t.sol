@@ -1,24 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {Test} from "forge-std/Test.sol";
-import {BaseTest} from "lib/atlas/test/base/BaseTest.t.sol";
-import "@atlas/contracts/libraries/CallVerification.sol";
-import "@atlas/contracts/types/UserOperation.sol";
-import "@atlas/contracts/types/SolverOperation.sol";
-import "@atlas/contracts/types/DAppOperation.sol";
-import "@atlas/contracts/types/AtlasErrors.sol";
-import {SolverBase} from "@atlas/contracts/solver/SolverBase.sol";
+
+
+import { CallVerification } from "@atlas/contracts/libraries/CallVerification.sol";
+import { UserOperation } from "@atlas/contracts/types/UserOperation.sol";
+import { SolverOperation } from "@atlas/contracts/types/SolverOperation.sol";
+import { DAppOperation } from "@atlas/contracts/types/DAppOperation.sol";
+import { AtlasErrors } from "@atlas/contracts/types/AtlasErrors.sol";
+import { AtlasEvents } from "@atlas/contracts/types/AtlasEvents.sol";
+import { SolverOutcome } from "@atlas/contracts/types/EscrowTypes.sol";
+import { SolverBase } from "@atlas/contracts/solver/SolverBase.sol";
+import { BaseTest } from "lib/atlas/test/base/BaseTest.t.sol";
+
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { AuctionManager } from "contracts/architecture/AuctionManager.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import {AtlasEvents} from "@atlas/contracts/types/AtlasEvents.sol";
-import {SolverOutcome} from "@atlas/contracts/types/EscrowTypes.sol";
-import {Vm} from "forge-std/Vm.sol";
-import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
-import {AuctionManager} from "contracts/architecture/AuctionManager.sol";
-
-import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import { Test } from "forge-std/Test.sol";
+import { Vm } from "forge-std/Vm.sol";
 
 contract AuctionManagerPreSolverTest is BaseTest, AtlasErrors, TestBaseMarketIsolated {
 

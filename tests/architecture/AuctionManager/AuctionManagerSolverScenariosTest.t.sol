@@ -1,23 +1,29 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {Test} from "forge-std/Test.sol";
-import {BaseTest} from "lib/atlas/test/base/BaseTest.t.sol";
-import "@atlas/contracts/libraries/CallVerification.sol";
-import "@atlas/contracts/types/UserOperation.sol";
-import "@atlas/contracts/types/SolverOperation.sol";
-import "@atlas/contracts/types/DAppOperation.sol";
-import "@atlas/contracts/types/AtlasErrors.sol";
-import {SolverBase} from "@atlas/contracts/solver/SolverBase.sol";
-import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+
+
+import { CallVerification } from "@atlas/contracts/libraries/CallVerification.sol";
+import { UserOperation } from "@atlas/contracts/types/UserOperation.sol";
+import { SolverOperation } from "@atlas/contracts/types/SolverOperation.sol";
+import { DAppOperation } from "@atlas/contracts/types/DAppOperation.sol";
+import { AtlasErrors } from "@atlas/contracts/types/AtlasErrors.sol";
+import { AtlasEvents } from "@atlas/contracts/types/AtlasEvents.sol";
+import { SolverOutcome } from "@atlas/contracts/types/EscrowTypes.sol";
+import { SolverBase } from "@atlas/contracts/solver/SolverBase.sol";
+import { BaseTest } from "lib/atlas/test/base/BaseTest.t.sol";
+
 import { AuctionManager } from "contracts/architecture/AuctionManager.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
-import {AtlasEvents} from "@atlas/contracts/types/AtlasEvents.sol";
-import {SolverOutcome} from "@atlas/contracts/types/EscrowTypes.sol";
-import {Vm} from "forge-std/Vm.sol";
+
+import { Test } from "forge-std/Test.sol";
+import { Vm } from "forge-std/Vm.sol";
 
 contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolated, BaseTest {
-    AuctionManager public dappControl;
+    AuctionManager public auctionManager;
 
     address public collateralToken = address(0xccccccc);
 
@@ -48,7 +54,7 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
         super.setUp();
 
         vm.startPrank(governanceEOA);
-        dappControl = new AuctionManager(
+        auctionManager = new AuctionManager(
             address(atlas),
             ICentralRegistry(address(centralRegistry)),
             OEV_SHARE_FASTLANE,
@@ -57,18 +63,18 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
             6000
         );
 
-        dappControl.setAuthorizedUserOpSigner(userOpSigner);
-        atlasVerification.initializeGovernance(address(dappControl));
-        atlasVerification.addSignatory(address(dappControl), auctioneer);
+        auctionManager.setAuthorizedUserOpSigner(userOpSigner);
+        atlasVerification.initializeGovernance(address(auctionManager));
+        atlasVerification.addSignatory(address(auctionManager), auctioneer);
         // Set up mock contracts
-        address executionEnv = dappControl.authorizedExecutionEnv();
+        address executionEnv = auctionManager.authorizedExecutionEnv();
         centralRegistry.addAuctionPermissions(executionEnv);
 
         vm.stopPrank();
 
         // vm.startPrank(mockCurvanceGov);
-        // centralRegistry.setDAppControl(address(dappControl));
-        // marketManagerIsolated.addAuthorizedAtlasDAppControl(address(dappControl));
+        // centralRegistry.setDAppControl(address(auctionManager));
+        // marketManagerIsolated.addAuthorizedAtlasDAppControl(address(auctionManager));
         // vm.stopPrank();
 
         vm.prank(solverOneEOA);
@@ -92,12 +98,12 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
 
     // Initialization test
     function testInitialization() public view {
-        assertEq(dappControl.fastlaneRevenueDestination(), OEV_ALLOCATION_DESTINATION_FASTLANE);
-        assertEq(dappControl.curvanceRevenueDestination(), OEV_ALLOCATION_DESTINATION_PROTOCOL);
-        assertEq(dappControl.fastlaneSplitBPS(), OEV_SHARE_BUNDLER);
-        assertEq(dappControl.solverGasLimit(), SOLVER_GAS_LIMIT);
-        assertEq(dappControl.authorizedUserOpSigner(), userOpSigner);
-        assertEq(address(dappControl.CENTRAL_REGISTRY()), address(centralRegistry));
+        assertEq(auctionManager.fastlaneRevenueDestination(), OEV_ALLOCATION_DESTINATION_FASTLANE);
+        assertEq(auctionManager.curvanceRevenueDestination(), OEV_ALLOCATION_DESTINATION_PROTOCOL);
+        assertEq(auctionManager.fastlaneSplitBPS(), OEV_SHARE_BUNDLER);
+        assertEq(auctionManager.solverGasLimit(), SOLVER_GAS_LIMIT);
+        assertEq(auctionManager.authorizedUserOpSigner(), userOpSigner);
+        assertEq(address(auctionManager.CENTRAL_REGISTRY()), address(centralRegistry));
     }
 
     function buildUserOperation(uint256 signerPK) internal view returns (UserOperation memory) {
@@ -110,14 +116,14 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
             maxFeePerGas: 1_000_000_000,
             nonce: 1,
             deadline: block.number + 100,
-            dapp: address(dappControl),
-            control: address(dappControl),
-            callConfig: dappControl.CALL_CONFIG(),
+            dapp: address(auctionManager),
+            control: address(auctionManager),
+            callConfig: auctionManager.CALL_CONFIG(),
             dappGasLimit: 2_000_000,
             solverGasLimit: SOLVER_GAS_LIMIT,
             bundlerSurchargeRate: 1000,
             sessionKey: auctioneer,
-            data: abi.encodeWithSelector(dappControl.initiateAuction.selector),
+            data: abi.encodeWithSelector(auctionManager.initiateAuction.selector),
             signature: new bytes(0)
         });
 
@@ -153,7 +159,7 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
             maxFeePerGas: 1_000_000_000,
             deadline: block.number + 100,
             solver: solverContract,
-            control: address(dappControl),
+            control: address(auctionManager),
             userOpHash: userOpHash,
             bidToken: address(0),
             bidAmount: bidAmount,
@@ -177,7 +183,7 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
             to: address(atlas),
             nonce: 0,
             deadline: block.number + 100,
-            control: address(dappControl),
+            control: address(auctionManager),
             bundler: givenBundler,
             userOpHash: userOpHash,
             callChainHash: callChainHash,
@@ -204,7 +210,7 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
         SolverBidPattern memory solverThree
     ) public {
         UserOperation memory userOp = buildUserOperation(userOpSignerPK);
-        address executionEnv = dappControl.authorizedExecutionEnv();
+        address executionEnv = auctionManager.authorizedExecutionEnv();
 
         bytes32 userOpHash = atlasVerification.getUserOperationHash(userOp);
         SolverOperation memory solverOp1 = buildSolverOperation(
@@ -275,7 +281,7 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
         emit AtlasEvents.SolverTxResult(
             address(solver),
             solverOneEOA,
-            address(dappControl),
+            address(auctionManager),
             address(0),
             solverOne.bidAmount,
             !solverOne.isPreSolverOpFailing,
@@ -286,7 +292,7 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
         emit AtlasEvents.SolverTxResult(
             address(solver2),
             solverTwoEOA,
-            address(dappControl),
+            address(auctionManager),
             address(0),
             solverTwo.bidAmount,
             !solverTwo.isPreSolverOpFailing,
@@ -297,7 +303,7 @@ contract AuctionManagerSolverScenariosTest is AtlasErrors, TestBaseMarketIsolate
         emit AtlasEvents.SolverTxResult(
             address(solver3),
             solverThreeEOA,
-            address(dappControl),
+            address(auctionManager),
             address(0),
             solverThree.bidAmount,
             !solverThree.isPreSolverOpFailing,

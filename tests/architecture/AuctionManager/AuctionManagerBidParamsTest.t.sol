@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {Test} from "forge-std/Test.sol";
-import {BaseTest} from "lib/atlas/test/base/BaseTest.t.sol";
-import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+
+import { BaseTest } from "lib/atlas/test/base/BaseTest.t.sol";
+
 import { AuctionManager } from "contracts/architecture/AuctionManager.sol";
-import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { Test } from "forge-std/Test.sol";
 
 contract AuctionManagerBidParamsTest is BaseTest {
-    AuctionManagerTestWrapper public dappControlWrapper;
+    AuctionManagerTestWrapper public auctionManagerWrapper;
 
     address public constant MOCK_CENTRAL_REGISTRY = address(0x1234);
     uint256 public constant OEV_SHARE_BUNDLER = 2000; // 20%
@@ -19,7 +23,7 @@ contract AuctionManagerBidParamsTest is BaseTest {
     function setUp() public override {
         super.setUp();
 
-        dappControlWrapper = new AuctionManagerTestWrapper(
+        auctionManagerWrapper = new AuctionManagerTestWrapper(
             address(atlas),
             MOCK_CENTRAL_REGISTRY,
             OEV_SHARE_BUNDLER,
@@ -34,7 +38,7 @@ contract AuctionManagerBidParamsTest is BaseTest {
         bytes memory malformedData = new bytes(95);
 
         vm.expectRevert(AuctionManager.AuctionManager__MalformedSolverOperation.selector);
-        dappControlWrapper.getBidParamsFromSolverOpData(malformedData);
+        auctionManagerWrapper.getBidParamsFromSolverOpData(malformedData);
     }
 
     function testGetBidParamsFromSolverOpData_exactMinimumLength() public {
@@ -52,7 +56,7 @@ contract AuctionManagerBidParamsTest is BaseTest {
             mstore(add(dataPtr, 64), expectedMarket)
         }
 
-        (uint256 penalty, address collateral, address market) = dappControlWrapper.getBidParamsFromSolverOpData(minData);
+        (uint256 penalty, address collateral, address market) = auctionManagerWrapper.getBidParamsFromSolverOpData(minData);
 
         assertEq(penalty, expectedPenalty);
         assertEq(collateral, expectedCollateral);
@@ -82,7 +86,7 @@ contract AuctionManagerBidParamsTest is BaseTest {
         }
 
         (uint256 penalty, address collateral, address market) =
-            dappControlWrapper.getBidParamsFromSolverOpData(dataWithPrefix);
+            auctionManagerWrapper.getBidParamsFromSolverOpData(dataWithPrefix);
 
         assertEq(penalty, expectedPenalty);
         assertEq(collateral, expectedCollateral);
@@ -104,7 +108,7 @@ contract AuctionManagerBidParamsTest is BaseTest {
             mstore(add(dataPtr, 64), expectedMarket)
         }
 
-        (uint256 penalty, address collateral, address market) = dappControlWrapper.getBidParamsFromSolverOpData(data);
+        (uint256 penalty, address collateral, address market) = auctionManagerWrapper.getBidParamsFromSolverOpData(data);
 
         assertEq(penalty, expectedPenalty);
         assertEq(collateral, expectedCollateral);
@@ -115,7 +119,7 @@ contract AuctionManagerBidParamsTest is BaseTest {
         // Test with zero values
         bytes memory data = new bytes(96);
 
-        (uint256 penalty, address collateral, address market) = dappControlWrapper.getBidParamsFromSolverOpData(data);
+        (uint256 penalty, address collateral, address market) = auctionManagerWrapper.getBidParamsFromSolverOpData(data);
 
         assertEq(penalty, 0);
         assertEq(collateral, address(0));
@@ -140,7 +144,7 @@ contract AuctionManagerBidParamsTest is BaseTest {
         }
 
         (uint256 penalty, address collateral, address market) =
-            dappControlWrapper.getBidParamsFromSolverOpData(largeData);
+            auctionManagerWrapper.getBidParamsFromSolverOpData(largeData);
 
         assertEq(penalty, expectedPenalty);
         assertEq(collateral, expectedCollateral);
@@ -162,7 +166,7 @@ contract AuctionManagerBidParamsTest is BaseTest {
             mstore(add(dataPtr, 64), expectedMarket)
         }
 
-        (uint256 penalty, address collateral, address market) = dappControlWrapper.getBidParamsFromSolverOpData(data);
+        (uint256 penalty, address collateral, address market) = auctionManagerWrapper.getBidParamsFromSolverOpData(data);
 
         assertEq(penalty, expectedPenalty);
         assertEq(collateral, expectedCollateral);
@@ -199,7 +203,7 @@ contract AuctionManagerBidParamsTest is BaseTest {
         }
 
         (uint256 actualPenalty, address actualCollateral, address actualMarket) =
-            dappControlWrapper.getBidParamsFromSolverOpData(data);
+            auctionManagerWrapper.getBidParamsFromSolverOpData(data);
 
         assertEq(actualPenalty, penalty);
         assertEq(actualCollateral, expectedCollateral);
@@ -218,7 +222,7 @@ contract AuctionManagerBidParamsTest is BaseTest {
             abi.encodeWithSelector(mockSolver.solve.selector, expectedPenalty, expectedCollateral, expectedMarket);
 
         (uint256 penalty, address collateral, address market) =
-            dappControlWrapper.getBidParamsFromSolverOpData(realFormatData);
+            auctionManagerWrapper.getBidParamsFromSolverOpData(realFormatData);
 
         assertEq(penalty, expectedPenalty);
         assertEq(collateral, expectedCollateral);
@@ -244,7 +248,7 @@ contract AuctionManagerBidParamsTest is BaseTest {
         }
 
         (uint256 actualPenalty, address actualCollateral, address actualMarket) =
-            dappControlWrapper.getBidParamsFromSolverOpData(data);
+            auctionManagerWrapper.getBidParamsFromSolverOpData(data);
 
         assertEq(actualPenalty, penalty);
         assertEq(actualCollateral, collateral);
