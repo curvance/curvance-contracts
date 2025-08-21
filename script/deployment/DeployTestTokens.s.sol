@@ -15,22 +15,20 @@ contract DeployTestTokens is Script, DeploymentLogger {
         string[] memory names,
         string[] memory symbols,
         uint8[] memory decimals,
-        uint256[] memory initialBalances,
+        uint256[] memory faucetInitialBalances,
+        uint256[] memory faucetClaimAmounts,
         uint256[] memory prices,
         address registry
     ) external recordEvents {
         ICentralRegistry cr = ICentralRegistry(registry);
         OracleManager oracleManager = OracleManager(cr.oracleManager());
 
-        Faucet faucet = new Faucet();
-        emit ContractDeployed(address(faucet), "Faucet");
-
         MockOracleAdaptor adaptor = new MockOracleAdaptor(cr);
         oracleManager.addApprovedAdaptor(address(adaptor));
         emit ContractDeployed(address(adaptor), string.concat("MockOracle"));
 
+        address[] memory faucetTokens = new address[](names.length);
         for (uint256 i = 0; i < names.length; i++) {
-            // Create fake test token
             string memory symbol = symbols[i];
             TestnetToken token = new TestnetToken(
                 names[i],
@@ -38,12 +36,8 @@ contract DeployTestTokens is Script, DeploymentLogger {
                 decimals[i]
             );
             emit ContractDeployed(address(token), symbol);
+            faucetTokens[i] = address(token);
 
-            // Load faucet
-            token.mint(initialBalances[i]);
-            token.transfer(address(faucet), initialBalances[i]);
-
-            // Setup fake oracle feed
             uint256 price = prices[i];
             if (price != 0) {
                 adaptor.addAsset(address(token));
@@ -53,6 +47,17 @@ contract DeployTestTokens is Script, DeploymentLogger {
                     address(adaptor)
                 );
             }
+        }
+        
+        address faucet = address(
+            new Faucet(faucetTokens, faucetClaimAmounts)
+        );
+        emit ContractDeployed(faucet, "Faucet");
+
+        for(uint256 i; i < faucetTokens.length; i++) {
+            TestnetToken token = TestnetToken(faucetTokens[i]);
+            token.mint(faucetInitialBalances[i]);
+            token.transfer(faucet, faucetInitialBalances[i]);
         }
     }
 }
