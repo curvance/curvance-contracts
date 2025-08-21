@@ -3,30 +3,69 @@ on:
   push:
 
 jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install Forge dependencies
+        run: forge install
+
+      - name: Compile contracts
+        run: forge build
+
+      - name: Check contract sizes
+        run: |
+          forge build && \
+          for file in out/*.sol/*.json; do
+              # Skip test files and script files
+              if [[ "$file" == *".t.sol"* || "$file" == *".s.sol"* ]]; then
+                  continue
+              fi
+              # Extract contract name from the file path
+              contract_name=$(basename $(dirname $file))
+              # Check if the source file for the contract exists anywhere within contracts/
+              if ! find contracts/ -type f -name "${contract_name}.sol" | grep -q .; then
+                  continue
+              fi
+              # Calculate the size of the deployed bytecode
+              size=$(cat "$file" | jq '.deployedBytecode.object' | wc -c | awk '{print int(($1-2)/2)}')
+              # Check if size exceeds the limit
+              if [ $size -gt 24576 ]; then
+                  echo "Contract in $file exceeds max size of 24576 bytes (Size: $size bytes)"
+                  exit 1
+              fi
+          done
+
   test:
-    runs-on: macos-latest
-    env:
-      ETH_NODE_URI_MAINNET: ${{ secrets.ETH_NODE_URI_MAINNET }}
-      ETH_NODE_URI_ARBITRUM: ${{ secrets.ETH_NODE_URI_ARBITRUM }}
-      ETH_NODE_URI_OPTIMISM: ${{ secrets.ETH_NODE_URI_OPTIMISM }}
-      ETH_NODE_URI_POLYGON: ${{ secrets.ETH_NODE_URI_POLYGON }}
-      ETH_NODE_URI_BASE: ${{ secrets.ETH_NODE_URI_BASE }}
-      ETH_NODE_URI_MONAD: ${{ secrets.ETH_NODE_URI_MONAD }}
+    needs: ["build"]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
 
-      - name: Install dependencies
+      - name: Install Yarn dependencies
         run: yarn install --immutable || true
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: stable
 
-      - name: Install deps
+      - name: Install Forge dependencies
         run: forge install
 
-      - name: Run forge tests
+      - name: Compile contracts
+        run: forge build
+
+      - name: Run test harness
         run: forge test --ffi
+        env:
+          ETH_NODE_URI_MAINNET: ${{ secrets.ETH_NODE_URI_MAINNET }}
+          ETH_NODE_URI_ARBITRUM: ${{ secrets.ETH_NODE_URI_ARBITRUM }}
+          ETH_NODE_URI_OPTIMISM: ${{ secrets.ETH_NODE_URI_OPTIMISM }}
+          ETH_NODE_URI_BASE: ${{ secrets.ETH_NODE_URI_BASE }}
+          ETH_NODE_URI_MONAD: ${{ secrets.ETH_NODE_URI_MONAD }}
