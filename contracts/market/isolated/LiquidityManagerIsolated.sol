@@ -211,6 +211,10 @@ abstract contract LiquidityManagerIsolated {
 
     /// CONSTANTS ///
 
+    /// @notice Buffer to ensure orderflow auction-based liquidations have
+    ///         priority versus basic liquidations, in `BPS`.
+    /// @dev 9990 = 99.9%. Multiplied then divided by `BPS` = 10 bps buffer.
+    uint256 public constant AUCTION_BUFFER = 9990;
     /// @notice Minimum loan size allowed inside Curvance that can be created
     ///         from a new line of credit inside a market.
     /// @dev This restriction is to minimize the potential of debt positions

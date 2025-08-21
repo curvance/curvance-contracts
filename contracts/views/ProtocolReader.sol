@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
-import { WAD, WAD_SQUARED, SECONDS_PER_YEAR } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, SECONDS_PER_YEAR } from "contracts/libraries/ConstantsLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -199,12 +199,19 @@ contract ProtocolReader {
         }
     }
 
-    function getPriceOnly(
+    function getPriceSafely(
         address asset,
         bool inUSD,
-        bool getLower
-    ) public view returns (uint256 price) {
-        (price, ) = getPrice(asset, inUSD, getLower);
+        bool getLower,
+        uint256 errorCodeBreakpoint
+    ) public view returns (uint256) {
+        (uint256 price, uint256 errorCode) = _getOracleManager()
+            .getPrice(asset, inUSD, getLower);
+        if (errorCode >= errorCodeBreakpoint) {
+            revert ProtocolReader__PriceError();
+        }
+
+        return price;
     }
 
     function getDynamicMarketData()
@@ -284,17 +291,19 @@ contract ProtocolReader {
         uint256 assets
     ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
         IMarketManager mm = ICToken(borrowableCToken).marketManager();
-        (uint256 price, uint256 errorCode) =
-            getPrice(address(cToken), true, true);
-
-        // Validate we got a price for `cToken`.
-        if (errorCode != 0) {
-            revert ProtocolReader__PriceError();
-        }
+        uint256 price = getPriceSafely(address(cToken), true, true, 1);
 
         // Validate `cToken` and `borrowableCToken` are properly listed.
-        if (!mm.isListed(borrowableCToken)) {
+        if (!mm.isListed(borrowableCToken) || !mm.isListed(cToken)) {
             revert ProtocolReader__TokenNotListed();
+        }
+
+        (uint256 collRatio, ,) = mm.collConfig(address(cToken));
+        // If the collateral token cannot be borrowed against the hypothetical
+        // leverage check will result in 0 meaning nothing new to leverage
+        // against.
+        if (collRatio == 0) {
+            revert ProtocolReader__NonCollateralizable();
         }
 
         (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
@@ -307,17 +316,11 @@ contract ProtocolReader {
                 10 ** ICToken(cToken).decimals()
             );
 
-            (uint256 collRatio, ,) = mm.collConfig(address(cToken));
-            // If the collateral token cannot be borrowed against the hypothetical
-            // leverage check will result in 0 meaning nothing new to leverage
-            // against.
-            if (collRatio == 0) {
-                revert ProtocolReader__NonCollateralizable();
-            }
-
             sumCollateral += newCollateral;
             maxDebt += _mulDiv(newCollateral, collRatio, WAD);
         }
+
+        price = getPriceSafely(address(borrowableCToken), true, false, 1);
 
         // We can calculate terminal leverage by calculating the infinite
         // series of swapping to maximum LTV over and over, which results
@@ -334,13 +337,6 @@ contract ProtocolReader {
             sumCollateral,
             sumCollateral - maxDebt
         );
-
-        (price, errorCode) = getPrice(address(borrowableCToken), true, false);
-
-        // Validate we got a price for `borrowableCToken`.
-        if (errorCode != 0) {
-            revert();
-        }
 
         maxDebtBorrowable = _mulDiv(
             _mulDiv(maxLeverage, WAD, price),
@@ -643,10 +639,10 @@ contract ProtocolReader {
         address asset = ctoken.asset();
 
         dmt._address = address(ctoken);
-        dmt.assetPrice = getPriceOnly(address(asset), true, false);
-        dmt.assetPriceLower = getPriceOnly(address(asset), true, true);
-        dmt.sharePrice = getPriceOnly(address(ctoken), true, false);
-        dmt.sharePriceLower = getPriceOnly(address(ctoken), true, true);
+        dmt.assetPrice = getPriceSafely(address(asset), true, false, 3);
+        dmt.assetPriceLower = getPriceSafely(address(asset), true, true, 3);
+        dmt.sharePrice = getPriceSafely(address(ctoken), true, false, 3);
+        dmt.sharePriceLower = getPriceSafely(address(ctoken), true, true, 3);
         dmt.totalSupply = ctoken.totalSupply();
         dmt.collateral = ctoken.marketCollateralPosted();
 

@@ -104,10 +104,6 @@ contract MarketManagerIsolated is
     /// @notice The maximum liquidation incentive, in `BPS`.
     /// @dev 3000 = 30%.
     uint256 public constant MAX_LIQUIDATION_INCENTIVE = 3000;
-    /// @notice Buffer to ensure orderflow auction-based liquidations have
-    ///         priority versus basic liquidations, in `BPS`.
-    /// @dev 9990 = 99.9%. Multiplied then divided by `BPS` = 10 bps buffer.
-    uint256 public constant AUCTION_BUFFER = 9990;
     /// @notice The maximum base cFactor, in `BPS`.
     /// @dev 5000 = 50%. NOTE: This can NEVER be changed to 100% or offchain
     ///      parameters can be unintentionally ignored.
