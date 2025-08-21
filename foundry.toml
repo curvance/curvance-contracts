@@ -27,13 +27,11 @@ auto_detect_solc = false
 
 via-ir = true
 optimizer = true
-optimizer_runs = 10
-
-# TODO: Remove this once tests are fixed
-allow_internal_expect_revert = true
+optimizer_runs = 8
 
 # Suppress common linting notes
 [profile.lint]
+
 # Disable specific lint rules to reduce noise
 exclude_lints = [
     "screaming-snake-case-const",
