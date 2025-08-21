@@ -28,10 +28,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 /**
- * @title SafeMath
+ * @title SafeMathMem
  * @dev Math operations with safety checks that throw on error
  */
-library SafeMath {
+library SafeMathMem {
 
     /**
      * @dev Multiplies two numbers, throws on overflow.
