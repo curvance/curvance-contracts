@@ -7,21 +7,32 @@ abstract contract BaseCTokenWithYield is BaseCToken {
     /// CONSTANTS ///
 
     /// @notice The maximum length of time between vesting periods.
+    /// @dev Though this is inherited by both `BorrowableCToken` and
+    ///      `StrategyCToken` it is only primarily interacted with by
+    ///      `StrategyCToken` this is because `vestingPeriod` is equal to
+    ///      `ADJUSTMENT_RATE` inside the attached `dynamicIRM` which is
+    ///      currently set to always be 10 minutes. This means we have this
+    ///      maximum value check and `vestingPeriod` mainly to create a
+    ///      consistent interface for frontends or other data aggregators
+    ///      to query.
     uint256 internal constant _MAXIMUM_VESTING_PERIOD = 3 days;
 
     /// STORAGE ///
 
     /// @notice The period of time harvested rewards are vested over,
     ///         in seconds.
+    /// @dev See `_MAXIMUM_VESTING_PERIOD` dev comment for information on how
+    ///      this is only interacted with by `StrategyCToken` and not
+    ///      `BorrowableCToken`.
     uint256 public vestingPeriod;
 
     /// @dev Internal packed vesting data:
-    ///      StrategyCToken Bits Layout:
+    ///      `StrategyCToken` Bits Layout:
     ///      - [0..127]   `VESTING_RATE`.
     ///      - [128..191] `VEST_END`.
     ///      - [192..255] `LAST_VEST`.
     ///
-    ///      BorrowableCToken Bits Layout:
+    ///      `BorrowableCToken` Bits Layout:
     ///      - [0..95]   `VESTING_RATE`.
     ///      - [96..135] `VEST_END`.
     ///      - [136..175] `LAST_VEST`.

@@ -51,30 +51,6 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
         );
     }
 
-    function test_strategyCTokenDeployment_fail_whenUnderlyingTotalSupplyExceedsMaximum()
-        public
-    {
-        stdstore
-            .target(_BAL_WETH_RETH_ADDRESS)
-            .sig(IERC20.totalSupply.selector)
-            .checked_write(type(uint232).max);
-
-        vm.expectRevert(
-            BaseCToken
-                .BaseCToken__UnsupportedAsset
-                .selector
-        );
-        new AuraCToken(
-            ICentralRegistry(address(centralRegistry)),
-            balRETH,
-            address(marketManagerIsolated),
-            109,
-            _REWARDER,
-            _AURA_BOOSTER,
-            1 days
-        );
-    }
-
     function test_strategyCTokenDeployment_fail_vestingPeriodIs0() public {
         vm.expectRevert(
             BaseCTokenWithYield

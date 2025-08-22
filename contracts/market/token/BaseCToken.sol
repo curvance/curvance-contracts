@@ -114,7 +114,6 @@ abstract contract BaseCToken is
     error BaseCToken__InsufficientLiquidity();
     error BaseCToken__Unauthorized();
     error BaseCToken__UnsupportedChain();
-    error BaseCToken__UnsupportedAsset();
     error BaseCToken__InvalidMarketManager();
 
     /// CONSTRUCTOR ///
@@ -137,12 +136,6 @@ abstract contract BaseCToken is
         // Protocol Central Registry.
         if (!centralRegistry.isMarketManager(mm)) {
             revert BaseCToken__InvalidMarketManager();
-        }
-
-        // Sanity check of `asset_` so that we know users will not need to
-        // mint anywhere close to causing an overflow.
-        if (asset_.totalSupply() >= type(uint216).max) {
-            revert BaseCToken__UnsupportedAsset();
         }
 
         // Set `marketManager`.
