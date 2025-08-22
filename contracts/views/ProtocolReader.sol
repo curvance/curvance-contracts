@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
-import { WAD, SECONDS_PER_YEAR } from "contracts/libraries/ConstantsLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -448,13 +448,18 @@ contract ProtocolReader {
         return cooldowns;
     }
 
-    /// @notice Preview the impact of a new asset deposit on the market
-    /// @param user The user address
-    /// @param collateralCToken The address of the collateral cToken
+    /// @notice Preview the impact of a new asset deposit or borrow on market
+    ///         interest rates.
+    /// @param user The address of the user account to preview asset impact
+    ///             of.
+    /// @param collateralCToken The address of the collateral cToken.
     /// @param debtBorrowableCToken The address of the debt borrowable cToken
-    /// @param newCollateralAssets The amount of new collateral assets to deposit
-    /// @return supply The projected supply amount
-    /// @return borrow The projected borrow amount
+    /// @param newCollateralAssets The amount of new collateral asset to
+    ///                            deposit, in assets.
+    /// @param newDebtAssets The amount of new debt asset to borrow,
+    ///                      in assets.
+    /// @return supply The projected supply rate, in `WAD` seconds.
+    /// @return borrow The projected borrow amount, in `WAD` seconds.
     function previewAssetImpact(
         address user,
         address collateralCToken,
@@ -464,23 +469,22 @@ contract ProtocolReader {
     ) public view returns (uint256 supply, uint256 borrow) {
         ICToken cToken = ICToken(collateralCToken);
         IBorrowableCToken bcToken;
+        uint256 outstandingDebt;
         uint256 assetsHeld;
-        uint256 debt = bcToken.marketOutstandingDebt();
         
         if (cToken.isBorrowable()) {
             bcToken = IBorrowableCToken(address(collateralCToken));
+            outstandingDebt = bcToken.marketOutstandingDebt();
             assetsHeld = bcToken.assetsHeld() + newCollateralAssets;
-            debt = bcToken.marketOutstandingDebt();
             supply = bcToken.IRM()
-                .supplyRate(assetsHeld, debt, bcToken.interestFee()) * SECONDS_PER_YEAR;
+                .supplyRate(assetsHeld, outstandingDebt, bcToken.interestFee());
         }
 
         bcToken = IBorrowableCToken(debtBorrowableCToken);
         if (bcToken.debtBalance(user) != 0) {
+            outstandingDebt = bcToken.marketOutstandingDebt();
             assetsHeld = bcToken.assetsHeld() - newDebtAssets;
-            debt = bcToken.marketOutstandingDebt();
-            borrow = bcToken.IRM()
-                .borrowRate(assetsHeld, debt) * SECONDS_PER_YEAR;
+            borrow = bcToken.IRM().borrowRate(assetsHeld, outstandingDebt);
         }
     }
 
@@ -654,8 +658,9 @@ contract ProtocolReader {
             dmt.debt = bcToken.marketOutstandingDebt();
             dmt.liquidity = assetsHeld - dmt.debt;
 
-            // All of these values are multiplied depending on the time frame you are looking for.
-            // For example you might multiply this by SECONDS_PER_YEAR to get an annualized rate.
+            // Values are given in seconds, and should be multiplied depending
+            // on the time frame needed. For example, you might multiply these
+            // by SECONDS_PER_YEAR to get an annualized rate.
             dmt.borrowRate = irm.borrowRate(assetsHeld, dmt.debt);
             dmt.predictedBorrowRate = irm.predictedBorrowRate(assetsHeld, dmt.debt);
             dmt.utilizationRate = irm.utilizationRate(assetsHeld, dmt.debt);
