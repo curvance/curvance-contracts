@@ -4,9 +4,6 @@
 [submodule "lib/pigeon"]
 	path = lib/pigeon
 	url = https://github.com/exp-table/pigeon
-[submodule "lib/atlas"]
-	path = lib/atlas
-	url = https://github.com/FastLane-Labs/atlas
 [submodule "lib/solady"]
 	path = lib/solady
 	url = https://github.com/Vectorized/solady
