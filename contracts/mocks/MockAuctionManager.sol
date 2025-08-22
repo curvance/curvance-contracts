@@ -26,7 +26,7 @@ import { IRedstoneProxy } from "contracts/interfaces/external/redstone/IRedstone
 ///      ordering, applies risk parameter updates using Atlas preSolver hook,
 ///      handles OEV distribution between relevant parties.
 ///
-contract AuctionManager {
+contract MockAuctionManager {
 
     /// CONSTANTS ///
 
