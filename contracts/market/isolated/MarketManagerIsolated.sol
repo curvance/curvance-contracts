@@ -100,6 +100,7 @@ contract MarketManagerIsolated is
     uint256 public constant MIN_LIQUIDATION_BUFFER_REQUIRED = 9935;
     /// @notice Maximum collateralization ratio, in `BPS`.
     /// @dev 9800 = 98%.
+    ///      Maximum 50x leverage (1 / (1 - Collateralization Ratio)).
     uint256 public constant MAX_COLLATERALIZATION_RATIO = 9800;
     /// @notice The maximum liquidation incentive, in `BPS`.
     /// @dev 3000 = 30%.
@@ -113,6 +114,9 @@ contract MarketManagerIsolated is
     uint256 public constant MIN_BASE_CFACTOR = 1000;
     /// @notice Minimum hold time to minimize external risks, in seconds.
     /// @dev 20 minutes = 1,200 seconds.
+    ///      The 20 minute holding period is intentionally set so that every
+    ///      borrower experiences a minimum 2 interest rate adjustments from a
+    ///      standard borrow action (10 minute interest rate adjustment rate).
     uint256 public constant MIN_HOLD_PERIOD = 20 minutes;
 
     /// @dev Limit for market debt cap to max sure outstanding user debt

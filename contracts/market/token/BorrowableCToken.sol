@@ -19,8 +19,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// @notice Maximum percentage fee that can be taken from interest accrued
     ///         from outstanding debt, in `basis points`.
-    /// @dev 5000 = 50%.
-    uint256 public constant MAX_INTEREST_ACCRUAL_FEE = 5000;
+    /// @dev 6000 = 60%.
+    uint256 public constant MAX_INTEREST_ACCRUAL_FEE = 6000;
 
     /// @notice Percentage (%) fee on loan taken during a flashloan, in `BPS`.
     /// @dev 4 bps = 0.04%.

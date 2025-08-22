@@ -592,7 +592,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Sets the fee taken by Curvance DAO on interest generated.
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
-    ///      can only have a maximum value of 75%.
+    ///      can only have a maximum value of 60%.
     ///      Emits an {InterestFeeSet} event.
     /// @param market The address of the market manager to configure
     ///               interest fees of.
@@ -601,8 +601,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
     function setProtocolInterestFee(address market, uint256 value) external {
         _checkElevatedPermissions();
 
-        // Interest fee cannot be more than 75%.
-        if (value > 7500) {
+        // Interest fee cannot be more than 60%.
+        if (value > 6000) {
             revert CentralRegistry__InvalidParameter();
         }
 
@@ -880,13 +880,9 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Adds a new Market Manager and corresponding interest fee
     ///         configurations.
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
-    ///      can only have a maximum value of 50% interest fee.
+    ///      can only have a maximum value of 60% interest fee.
     ///      Cannot be a supported Market Manager contract prior.
     ///      Emits a {PermissionsUpdated} and {InterestFeeSet} events.
-    ///      This has a lower limit than `setProtocolInterestFee` because
-    ///      in specific cases it could make sense to start assigning a high
-    ///      interest rate take rate to push people to a new market
-    ///      implementation.
     /// @param newMarket The new Market Manager contract to support for use
     ///                  in Curvance.
     /// @param marketInterestFee The portion of interest paid by borrowers
@@ -913,8 +909,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
             revert CentralRegistry__InvalidParameter();
         }
 
-        /// Interest fee cannot be more than 50%.
-        if (marketInterestFee > 5000) {
+        /// Interest fee cannot be more than 60%.
+        if (marketInterestFee > 6000) {
             revert CentralRegistry__InvalidParameter();
         }
 

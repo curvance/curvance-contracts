@@ -57,7 +57,7 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
-        centralRegistry.addMarketManager(newMarket, 5001);
+        centralRegistry.addMarketManager(newMarket, 6001);
     }
 
     function test_addMarketManager_success() public {
