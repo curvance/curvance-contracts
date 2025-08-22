@@ -1,20 +1,15 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { DAppControl } from "@atlas/contracts/dapp/DAppControl.sol";
-import { CallConfig } from "@atlas/contracts/types/ConfigTypes.sol";
-import { UserOperation } from "@atlas/contracts/types/UserOperation.sol";
-import { SolverOperation } from "@atlas/contracts/types/SolverOperation.sol";
-import { IAtlas } from "@atlas/contracts/interfaces/IAtlas.sol";
-
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { BPS } from "contracts/libraries/ConstantsLib.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IRedstoneProxy } from "contracts/interfaces/external/redstone/IRedstoneProxy.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+
+import { IRedstoneProxy } from "contracts/interfaces/external/redstone/IRedstoneProxy.sol";
 
 /// @title AuctionManager
 /// @author Fastlane Labs
@@ -31,10 +26,11 @@ import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 ///      ordering, applies risk parameter updates using Atlas preSolver hook,
 ///      handles OEV distribution between relevant parties.
 ///
-contract AuctionManager is DAppControl {
+contract AuctionManager {
+
     /// CONSTANTS ///
 
-    /// @notice Immutable reference to Curvance Central Registry.
+    /// @notice Curvance DAO hub.
     ICentralRegistry public immutable CENTRAL_REGISTRY;
 
     /// STORAGE ///
@@ -62,6 +58,8 @@ contract AuctionManager is DAppControl {
     
     /// @notice Address where Curvance Protocol's revenue share is sent.
     address public curvanceRevenueDestination;
+
+    address public governance;
 
     /// AUTHORIZATION VALIDATION (AUCTIONEER/USER)
 
@@ -203,21 +201,6 @@ contract AuctionManager is DAppControl {
 
     /// @notice Initializes the AuctionManager with Atlas, Central Registry,
     ///         and revenue allocation configurations.
-    /// @dev Configures Atlas CallConfig with the following key settings:
-    /// - requirePreOps: true - Enables pre-operation hook for oracle updates
-    ///                         and auctioneer validation.
-    /// - requirePreSolver: true - Enables pre-solver hook for dynamic risk
-    ///                            parameter updates and collateral unlocking.
-    /// - zeroSolvers: false - Allows oracle updates without solvers
-    ///                        (no OEV capture).
-    /// - userAuctioneer: false - Restricts auctioneers to those whitelisted
-    ///                           via AtlasVerification.
-    /// - requireFulfillment: false - Ensures oracle updates proceed even if
-    ///                               all solvers fail.
-    /// - multipleSuccessfulSolvers: true - Enables app-specific ordering
-    ///                                     rules for parallel solver
-    ///                                     execution.
-    /// @param atlas Address of the Atlas contract.
     /// @param centralRegistry_ Address of the Curvance Central Registry.
     /// @param fastlaneSplitBPS_ Initial revenue share for Fastlane Labs,
     ///                          in `BPS`.
@@ -229,43 +212,14 @@ contract AuctionManager is DAppControl {
     /// @param atlasCloseFactor_ Initial close factor for auction-based
     ///                          liquidations, in BPS.
     constructor(
-        address atlas,
         ICentralRegistry centralRegistry_,
+        address governance_,
         uint256 fastlaneSplitBPS_,
         address fastlaneDestination_,
         address curvanceDestination_,
         uint256 atlasCloseFactor_
-    )
-        DAppControl(
-            atlas,
-            msg.sender,
-            CallConfig({
-                userNoncesSequential: false,
-                dappNoncesSequential: false,
-                requirePreOps: true,
-                trackPreOpsReturnData: false,
-                trackUserReturnData: false,
-                delegateUser: false,
-                requirePreSolver: true,
-                requirePostSolver: false,
-                zeroSolvers: false,
-                reuseUserOp: true,
-                userAuctioneer: false,
-                solverAuctioneer: false,
-                unknownAuctioneer: false,
-                verifyCallChainHash: true,
-                forwardReturnData: false,
-                requireFulfillment: false,
-                trustedOpHash: false,
-                invertBidValue: false,
-                exPostBids: false,
-                multipleSuccessfulSolvers: true,
-                checkMetacallGasLimit: false
-            })
-        )
-    {
-        CentralRegistryLib._isCentralRegistry(centralRegistry_);
-
+    ) {
+        authorizedExecutionEnv = msg.sender;
         // Configure revenue allocation.
         if (fastlaneSplitBPS_ > BPS) revert AuctionManager__InvalidRevenueConfig();
         if (fastlaneDestination_ == address(0)) revert AuctionManager__InvalidDestination();
@@ -278,6 +232,7 @@ contract AuctionManager is DAppControl {
 
         // Set `CENTRAL_REGISTRY`.
         CENTRAL_REGISTRY = centralRegistry_;
+        governance = governance_;
 
         // Set Oracle related configurations.
         allowedSelectors[IRedstoneProxy.updateDataFeedsValues.selector] = true;
@@ -371,20 +326,6 @@ contract AuctionManager is DAppControl {
         emit AtlasCloseFactorSet(old, atlasCloseFactor_);
     }
 
-    /// @notice Sets the authorized signer for user operations.
-    /// @dev This function must be called immediately after deployment to
-    ///      initialize the authorizedExecutionEnv.
-    /// @param authorizedUserOpSigner_ Address authorized to sign user
-    ///                                operations.
-    function setAuthorizedUserOpSigner(address authorizedUserOpSigner_) external {
-        _checkIsGovernor();
-        
-        address old = authorizedUserOpSigner;
-        authorizedUserOpSigner = authorizedUserOpSigner_;
-        _updateAuthorizedExecutionEnv(authorizedUserOpSigner_);
-        emit AuthorizedUserOpSignerSet(old, authorizedUserOpSigner_);
-    }
-
     // ---------------------------------------------------- //
     //                    UserOp Function Option 1          //
     // ---------------------------------------------------- //
@@ -411,7 +352,7 @@ contract AuctionManager is DAppControl {
     ///      Intentionally empty, used for liquidations triggered by interest
     ///      accrual rather than price changes, meaning we can skip oracle
     ///      update.
-    function initiateAuction() external {
+    function initiateAuction() external view {
         _checkAuthorizedExecutionEnv();
     }
 
@@ -553,25 +494,14 @@ contract AuctionManager is DAppControl {
     ///      as the bid token.
     /// @return bidToken Address of the bid token, address(0) for native gas
     ///                  token.
-    function getBidFormat(
-        UserOperation calldata
-    ) public pure override returns (address bidToken) {
+    function getBidFormat() public pure returns (address bidToken) {
         bidToken = address(0); // Native gas token is bid token.
-    }
-
-    /// @notice Extracts the bid value from a solver operation.
-    /// @dev Overridden from `DAppControl`, returns the solver's bid amount.
-    /// @return The bid amount in native gas token.
-    function getBidValue(
-        SolverOperation calldata solverOp
-    ) public pure override returns (uint256) {
-        return solverOp.bidAmount;
     }
 
     /// @notice Returns the configured gas limit for solver operations.
     /// @dev Overridden from `DAppControl`.
     /// @return The maximum gas limit allowed for solvers.
-    function getSolverGasLimit() public view override returns (uint32) {
+    function getSolverGasLimit() public view returns (uint32) {
         return solverGasLimit;
     }
 
@@ -597,89 +527,6 @@ contract AuctionManager is DAppControl {
         // decode the tail bid data into (penaltyBid, collateralBid, market)
         (penaltyBid, collateralBid, market) =
             abi.decode(solverOpData[solverOpData.length - 96:], (uint256, address, address));
-    }
-
-    // ---------------------------------------------------- //
-    //                  Atlas Hook Overrides                //
-    // ---------------------------------------------------- //
-
-    /// @notice Pre-operation hook called before user operations are executed,
-    ///         validates the user operation and optionally triggers oracle
-    ///         updates.
-    /// @dev This function is delegateCalled from the authorized execution
-    ///      environment.
-    /// @param userOp The user operation to validate and process.
-    /// @return Empty bytes as return data.
-    function _preOpsCall(
-        UserOperation calldata userOp
-    ) internal override returns (bytes memory) {
-        // The userOp dapp must be `CONTROL` contract.
-        if (userOp.dapp != CONTROL) revert AuctionManager__InvalidUserOpDapp();
-        // The user must be the authorized user op signer.
-        if (userOp.from != AuctionManager(CONTROL).authorizedUserOpSigner()) revert AuctionManager__InvalidUserOpFrom();
-
-        // If the userOp contains a RedStone feed update perform it.
-        if (bytes4(userOp.data) == bytes4(AuctionManager.update.selector)) {
-            (address _oracle, bytes memory _updateCallData) =
-                abi.decode(userOp.data[4:], (address, bytes));
-
-            // The called oracle must be whitelisted.
-            AuctionManager(CONTROL).verifyOracleWhitelist(_oracle);
-
-            // The update call data must be a valid function call.
-            AuctionManager(CONTROL).verifyAllowedSelector(bytes4(_updateCallData));
-        }
-
-        // Else if UserOp does not contain a RedStone update, continue as no-op UserOp
-        // This case is for liquidations triggered by interest accrual, not the oracle.
-
-        // Return empty bytes.
-        return "";
-    }
-
-    /// @notice Pre-solver hook called before each solver operations is
-    ///         executed. Extracts bid parameters, unlocks relevant market and
-    ///         collateral, and updates risk parameters.
-    /// @dev This function is delegateCalled from the Atlas execution
-    ///      environment.
-    /// @param solverOp The solver operation containing bid parameters. 
-    function _preSolverCall(
-        SolverOperation calldata solverOp,
-        bytes calldata
-    ) internal override {
-        (uint256 newPenalty, address collateralBid, address market) =
-            _getBidParamsFromSolverOpData(solverOp.data);
-        AuctionManager(CONTROL).preSolverSetup(market, collateralBid, newPenalty);
-    }
-
-    /// @notice Accumulates revenue in native gas tokens for later
-    ///         distribution according to configured revenue split.
-    /// @dev This function is delegateCalled from the Atlas execution
-    ///      environment.
-    /// @param bidAmount The total revenue to accumulate.
-    function _allocateValueCall(
-        bool,
-        address,
-        uint256 bidAmount,
-        bytes calldata
-    ) internal virtual override {
-        if (bidAmount == 0) return;
-
-        // Single atomic call that transfers ETH and updates accounting
-        // This is delegatecalled, so msg.value will be bidAmount and sender will be ExecutionEnvironment
-        AuctionManager(CONTROL).accumulateRevenue{value: bidAmount}();
-    }
-
-    /// @notice Updates the authorized execution environment based on the user
-    ///         operation signer.
-    /// @dev Called internally whenever authorizedUserOpSigner is updated.
-    ///      Retrieves the execution environment from Atlas for the given
-    ///      signer.
-    /// @param newAuthedUserOpSigner Address of the new authorized user
-    ///                              operation signer.
-    function _updateAuthorizedExecutionEnv(address newAuthedUserOpSigner) internal {
-        (authorizedExecutionEnv, , ) = IAtlas(ATLAS)
-            .getExecutionEnvironment(newAuthedUserOpSigner, address(this));
     }
 
     /// @notice Distributes accumulated revenue to Fastlane Labs and Curvance

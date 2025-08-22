@@ -23,7 +23,6 @@ import { VelodromeZapperCalldataChecker } from "contracts/calldata-checker/swap-
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
-import { AuctionManager } from "contracts/architecture/AuctionManager.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { BPS, WAD, WAD_SQUARED, WAD_CUBED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
@@ -50,7 +49,7 @@ import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.s
 import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-
+import { MockAuctionManager } from "contracts/mocks/MockAuctionManager.sol";
 
 contract TestBaseMarketIsolated is TestBase {
     // Chain Data
@@ -437,9 +436,9 @@ contract TestBaseMarketIsolated is TestBase {
         uint256 OEV_SHARE_BUNDLER = 2000; // 20%
         uint256 OEV_SHARE_FASTLANE = 1000; // 10%
 
-        auctionManager = auctionManagers[block.chainid] = new AuctionManager(
-            address(address(this)),
+        auctionManager = auctionManagers[block.chainid] = new MockAuctionManager(
             ICentralRegistry(address(centralRegistry)),
+            address(this),
             OEV_SHARE_FASTLANE,
             OEV_ALLOCATION_DESTINATION_FASTLANE,
             OEV_ALLOCATION_DESTINATION_PROTOCOL,
