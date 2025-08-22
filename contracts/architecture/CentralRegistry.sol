@@ -131,19 +131,25 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Protocol slippage limit for `swapSafe`.
     /// @dev 1000 = 10%.
+    ///      This slippage configurable variable is not for an end all be all
+    ///      slippage check, any external swap natively includes slippage and
+    ///      only acts as a protective layer against secondary actions such as
+    ///      providing liquidity into an LP token or from untrusted executed
+    ///      like a harvester that could at some point be compromised.
     uint16 public slippageLimit = 1000;
 
     // PROTOCOL VALUES
 
-    /// @notice Fee on yield generated for compounding vaults, in `BPS`.
+    /// @notice Fee on yield generated from strategies to pay for network gas
+    ///         costs, in `BPS`.
     /// @dev 100 = 1%.
     uint16 public protocolCompoundFee = 100;
-    /// @notice Fee on yield generated in vaults distributed to veCVE lockers,
-    ///         in `BPS`.
+    /// @notice Fee on yield generated from strategies distributed to veCVE
+    ///         lockers, in `BPS`.
     /// @dev 1500 = 15%.
     uint16 public protocolYieldFee = 1500;
-    /// @notice Joint fee value so that we can perform one less external call
-    ///         in vault contracts, in `BPS`.
+    /// @notice Joint strategy fee value so that we can perform one less
+    ///         external call in strategy contracts, in `BPS`.
     /// @dev 1600 = 16%.
     uint16 public protocolHarvestFee = protocolCompoundFee + protocolYieldFee;
     /// @notice Protocol fee on leverage usage, in `BPS`.
