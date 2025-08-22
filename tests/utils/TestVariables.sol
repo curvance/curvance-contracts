@@ -124,10 +124,12 @@ contract TestVariables {
 
     MockV3Aggregator public chainlinkUsdcUsd;
     MockV3Aggregator public chainlinkUsdcEth;
-    MockV3Aggregator public chainlinkRethEth;
-    MockV3Aggregator public chainlinkEthUsd;
     MockV3Aggregator public chainlinkDaiUsd;
     MockV3Aggregator public chainlinkDaiEth;
+    MockV3Aggregator public chainlinkEthUsd;
+    MockV3Aggregator public chainlinkRethEth;
+    MockV3Aggregator public chainlinkBalEthReth;
+    
 
     address[] public redstoneSigners;
     bytes32[] public redstoneSignerKeys;
@@ -162,10 +164,11 @@ contract TestVariables {
 
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcEths;
-    mapping(uint256 => MockV3Aggregator) public chainlinkRethEths;
-    mapping(uint256 => MockV3Aggregator) public chainlinkEthUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkDaiUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkDaiEths;
+    mapping(uint256 => MockV3Aggregator) public chainlinkEthUsds;
+    mapping(uint256 => MockV3Aggregator) public chainlinkRethEths;
+    mapping(uint256 => MockV3Aggregator) public chainlinkBalEthReths;
 
     mapping(uint256 => mapping(address => DynamicIRM)) public IRMs;
 

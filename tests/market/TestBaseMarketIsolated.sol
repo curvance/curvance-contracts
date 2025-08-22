@@ -274,11 +274,15 @@ contract TestBaseMarketIsolated is TestBase {
             18,
             1e18
         );
+        chainlinkDaiEth = chainlinkDaiEths[chainId] = new MockV3Aggregator(
+            18,
+            1e18
+        );
         chainlinkRethEth = chainlinkRethEths[chainId] = new MockV3Aggregator(
             18,
             1e18
         );
-        chainlinkDaiEth = chainlinkDaiEths[chainId] = new MockV3Aggregator(
+        chainlinkBalEthReth = chainlinkBalEthReths[chainId] = new MockV3Aggregator(
             18,
             1e18
         );
@@ -328,6 +332,12 @@ contract TestBaseMarketIsolated is TestBase {
             address(chainlinkRethEth),
             0
         );
+        chainlinkAdaptor.addAsset(
+            _BAL_WETH_RETH_ADDRESS,
+            false,
+            address(chainlinkBalEthReth),
+            0
+        );
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
@@ -348,6 +358,10 @@ contract TestBaseMarketIsolated is TestBase {
         );
         oracleManager.addAssetPriceFeed(
             _RETH_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+        oracleManager.addAssetPriceFeed(
+            _BAL_WETH_RETH_ADDRESS,
             address(chainlinkAdaptor)
         );
 
@@ -393,6 +407,12 @@ contract TestBaseMarketIsolated is TestBase {
             address(chainlinkRethEth),
             0
         );
+        dualChainlinkAdaptor.addAsset(
+            _BAL_WETH_RETH_ADDRESS,
+            false,
+            address(chainlinkBalEthReth),
+            0
+        );
         oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
             _WETH_ADDRESS,
@@ -408,6 +428,10 @@ contract TestBaseMarketIsolated is TestBase {
         );
         oracleManager.addAssetPriceFeed(
             _RETH_ADDRESS,
+            address(dualChainlinkAdaptor)
+        );
+        oracleManager.addAssetPriceFeed(
+            _BAL_WETH_RETH_ADDRESS,
             address(dualChainlinkAdaptor)
         );
     }
