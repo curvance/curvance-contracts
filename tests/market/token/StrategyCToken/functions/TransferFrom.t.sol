@@ -52,8 +52,8 @@ contract TransferFromTest is TestBaseStrategyCToken {
         vm.prank(user1);
         strategyCBALRETH.transferFrom(address(this), user1, 100e18);
 
-        assertEq(strategyCBALRETH.balanceOf(address(this)), balance - 100e6);
-        assertEq(strategyCBALRETH.balanceOf(user1), user1Balance + 100e6);
+        assertEq(strategyCBALRETH.balanceOf(address(this)), balance - 100e18);
+        assertEq(strategyCBALRETH.balanceOf(user1), user1Balance + 100e18);
     }
 
     function test_strategyCTokenTransferFrom_success_withMaxApproval() public {
@@ -70,8 +70,8 @@ contract TransferFromTest is TestBaseStrategyCToken {
         vm.prank(user1);
         strategyCBALRETH.transferFrom(address(this), user1, 100e18);
 
-        assertEq(strategyCBALRETH.balanceOf(address(this)), balance - 100e6);
-        assertEq(strategyCBALRETH.balanceOf(user1), user1Balance + 100e6);
+        assertEq(strategyCBALRETH.balanceOf(address(this)), balance - 100e18);
+        assertEq(strategyCBALRETH.balanceOf(user1), user1Balance + 100e18);
         assertEq(strategyCBALRETH.allowance(address(this), user1), type(uint256).max);
     }
 }

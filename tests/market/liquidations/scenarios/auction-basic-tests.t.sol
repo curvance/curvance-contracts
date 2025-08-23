@@ -270,7 +270,6 @@ contract AuctionBasicTests is TestBaseLiquidations {
         uint256 WAD_SQUARED = 1e36;
         uint256 debtTokenPrice = 2e18; 
         uint256 cTokenPrice;
-        uint256 exchangeRate = strategyCBALRETH.exchangeRate();
         
         (cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
         
@@ -278,8 +277,9 @@ contract AuctionBasicTests is TestBaseLiquidations {
         uint256 debtDecimals = 10**6;
         uint256 debtAmount = 250e6;
         
-        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
-            (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
+        uint256 debtToCollateralMultiplier =
+            (((incentive * debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
+                cTokenPrice) * collateralDecimals) / debtDecimals;
         
         uint256 collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
         

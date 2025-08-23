@@ -1091,7 +1091,7 @@ contract TestBaseMarketIsolated is TestBase {
         uint256 collateralTokenExchangeRate = ICToken(_collateralToken).exchangeRate();
 
         uint256 collateralAvailable = ICToken(_collateralToken).collateralPosted(_borrower);
-        (uint256 collateralTokenUnderlyingPrice, uint256 debtTokenUnderlyingPrice) = oracleManager.getPriceIsolatedPair(
+        (uint256 collateralTokenPrice, uint256 debtTokenUnderlyingPrice) = oracleManager.getPriceIsolatedPair(
             _collateralToken,
             _debtToken,
             2
@@ -1102,7 +1102,7 @@ contract TestBaseMarketIsolated is TestBase {
         console2.log("debtBalance", debtBalance);
         console2.log("debtTokenUnderlyingPrice", debtTokenUnderlyingPrice);
         console2.log("collateralTokenExchangeRate", collateralTokenExchangeRate);
-        console2.log("collateralTokenUnderlyingPrice", collateralTokenUnderlyingPrice);
+        console2.log("collateralTokenPrice", collateralTokenPrice);
         console2.log("collateralAvailable", collateralAvailable);
         console2.log("collateralRequired", _collateralRequired);
         console2.log("collateralLiquidated", _collateralLiquidated);
