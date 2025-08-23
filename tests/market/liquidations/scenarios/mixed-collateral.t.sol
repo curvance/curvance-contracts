@@ -106,8 +106,12 @@ contract MixedCollateral is TestBaseLiquidations {
         console2.log("Borrower 3 lFactor", lFactorsPreLiquidation[2]);
         console2.log("Borrower 4 lFactor", lFactorsPreLiquidation[3]);
 
-        (, uint256 collateralTokenPrice, uint256 debtTokenPrice, ) = 
-            marketManagerIsolated.liquidationValuesOf(borrowers[0]);
+        (uint256 collateralTokenPrice,uint256 debtTokenPrice) =
+            oracleManager.getPriceIsolatedPair(
+                address(strategyCBALRETH),
+                address(borrowableCUSDC),
+                2
+            );
 
         console2.log("debtTokenPrice", debtTokenPrice);
         console2.log("collateralTokenPrice", collateralTokenPrice);
