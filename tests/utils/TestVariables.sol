@@ -192,12 +192,14 @@ contract TestVariables {
     IWormhole.Signature[] public signatures;
 
     MockDataFeed public mockUsdcFeed;
+    MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
+    MockDataFeed public mockBalEthRethFeed;
+    MockDataFeed public mockStethFeed;
     MockDataFeed public mockBALFeed;
     MockDataFeed public mockAURAFeed;
-    MockDataFeed public mockDaiFeed;
-    MockDataFeed public mockStethFeed;
+    
     MockV3Aggregator public mockWbtcFeed;
     
     address public _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;
