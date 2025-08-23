@@ -11,7 +11,7 @@ import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/P
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { LiquidityManagerIsolated } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { WAD, WAD_SQUARED, BPS, WAD_CUBED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, WAD_SQUARED, BPS, WAD_SQUARED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
@@ -560,8 +560,6 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
     }
 
     function _getDebtToCollateralAndCloseFactor(uint256 lFactor, uint256 debtTokenPrice, uint256 collateralTokenPrice) internal view returns (uint256, uint256) {
-        uint256 cTokenExchangeRate = pendleCTokenPTSTETH.exchangeRate();
-
         (uint256 liqIncBase, uint256 liqIncCurve,,, uint256 closeFactorBase, uint256 closeFactorCurve,,)
             =  marketManagerIsolated.liquidationConfig(address(pendleCTokenPTSTETH));
 
@@ -570,12 +568,12 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         uint256 liqInc = liqIncBase + ((liqIncCurve * lFactor) / WAD);
 
         console2.log("liqIncentive", liqInc);
-        console2.log("debtTokenPrice", debtTokenPrice);
-        console2.log("collateralTokenPrice", collateralTokenPrice);
-        console2.log("cTokenExchangeRate", cTokenExchangeRate);
-        
-        uint256 highPrecisionD2C = (((liqInc * debtTokenPrice * WAD_CUBED_BPS_OFFSET) /
-            (collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
+        console2.log("debtUnderlyingPrice", debtTokenPrice);
+        console2.log("collateralSharesPrice", collateralTokenPrice);
+
+        uint256 highPrecisionD2C =
+            (((liqInc * debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
+                collateralTokenPrice) * 1e18) / 1e6;
 
         return (highPrecisionD2C, closeFactor);
     }

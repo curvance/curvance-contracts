@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-import { WAD, WAD_CUBED_BPS_OFFSET,BPS } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, WAD_SQUARED_BPS_OFFSET, BPS } from "contracts/libraries/ConstantsLib.sol";
 
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 
@@ -233,7 +233,6 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
         uint256 debtTokenPrice = 2e18; 
         uint256 cTokenPrice;
-        uint256 exchangeRate = strategyCBALRETH.exchangeRate();
 
         (cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
 
@@ -248,8 +247,9 @@ contract AuctionBasicTests is TestBaseLiquidations {
         uint256 debtDecimals = 10**6;
         uint256 debtAmount = 250e6;
 
-        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_CUBED_BPS_OFFSET) /
-            (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
+        uint256 debtToCollateralMultiplier =
+            (((incentive * debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
+                cTokenPrice) * collateralDecimals) / debtDecimals;
 
         uint256 collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
 
@@ -278,7 +278,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         uint256 debtDecimals = 10**6;
         uint256 debtAmount = 250e6;
         
-        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_CUBED_BPS_OFFSET) /
+        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
             (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
         
         uint256 collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;

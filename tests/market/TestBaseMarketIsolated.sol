@@ -25,7 +25,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { BPS, WAD, WAD_SQUARED, WAD_CUBED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD, WAD_SQUARED, WAD_SQUARED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -1071,11 +1071,8 @@ contract TestBaseMarketIsolated is TestBase {
         data.collateralTokenDecimals = 10 ** ICToken(_collateralToken).decimals();
         data.debtTokenDecimals = 10 ** ICToken(_debtToken).decimals();
 
-        uint256 collateralExchangeRate = ICToken(_collateralToken).exchangeRate();
-
         debtToCollateral = (((data.liqInc *
-            data.debtTokenPrice * WAD_CUBED_BPS_OFFSET) /
-            (data.collateralTokenPrice * collateralExchangeRate)) * 
+            (data.debtTokenPrice * WAD_SQUARED_BPS_OFFSET) / data.collateralTokenPrice) * 
             data.collateralTokenDecimals) / data.debtTokenDecimals;
                 
     }
