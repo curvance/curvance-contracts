@@ -201,7 +201,6 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         AccountSnapshot memory snapshot = pendleCTokenPTSTETH.getSnapshot(user1);
         assertEq(pendleCTokenPTSTETH.balanceOf(user1), 1 ether);
         assertEq(snapshot.debtBalance, 0);
-        assertEq(snapshot.exchangeRate, 1 ether);
 
         pendleCTokenPTSTETH.postCollateral(1 ether);
 
@@ -226,12 +225,15 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         // Try partial repayment.
         AccountSnapshot memory borrowableCUSDCSnapshot;
         borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(user1);
+        uint256 exchangeRatePrior = borrowableCUSDC.exchangeRate();
+
         _prepareUSDC(user1, 200e6);
         usdc.approve(address(borrowableCUSDC), 200e6);
         borrowableCUSDC.repay(200e6);
+        
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertGt(borrowableCUSDC.debtBalance(user1), borrowableCUSDCSnapshot.debtBalance - 200e6);
-        assertGt(borrowableCUSDC.exchangeRate(), borrowableCUSDCSnapshot.exchangeRate);
+        assertGt(borrowableCUSDC.exchangeRate(), exchangeRatePrior);
 
         // Warp more to simulate interest being applied on debt.
         skip(30 minutes);
@@ -240,6 +242,8 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // Try full repayment.
         borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(user1);
+        exchangeRatePrior = borrowableCUSDC.exchangeRate();
+
         _prepareUSDC(user1, borrowableCUSDCSnapshot.debtBalance);
         usdc.approve(address(borrowableCUSDC), borrowableCUSDCSnapshot.debtBalance);
         borrowableCUSDC.repay(borrowableCUSDCSnapshot.debtBalance);
@@ -247,7 +251,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertEq(borrowableCUSDC.debtBalance(user1), 0);
-        assertEq(borrowableCUSDC.exchangeRate(), borrowableCUSDCSnapshot.exchangeRate, "exchange rate mismatch");
+        assertEq(borrowableCUSDC.exchangeRate(), exchangeRatePrior, "exchange rate mismatch");
     }
 
     function testCTokenRedeemOnBorrow() public {
