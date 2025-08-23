@@ -19,17 +19,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
     function test_success_LiquidateExactWithAuctionAndDynamicPenalty() public {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
-
-        vm.startPrank(auctionPermsUser);
-
-        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        
-        // Set auction parameters
-        uint256 validPenalty = 11500;
-        uint256 closeFactor = 3000;
-        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
-        
-        vm.stopPrank();
+        _setAuctionConfigs(address(strategyCBALRETH), 11500, 3000);
         
         vm.startPrank(user3);
         address[] memory usersToLiquidate = new address[](1);   
@@ -54,21 +44,21 @@ contract AuctionBasicTests is TestBaseLiquidations {
     function test_success_LiquidateExactWithAuctionAndDefaultPenalty() public {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
-
-        vm.startPrank(auctionPermsUser);
-
-        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-
-        vm.stopPrank();
-
+        
         (uint256 cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
         
         (, , , uint256 lFactor) = marketManagerIsolated.liquidationValuesOf(user1);
         
-        uint256 liqBaseIncentive = 11000;
+        // Calculate default penalty and close factor.
+        uint256 liqIncBase = 11000;
         uint256 liqCurve = 500;
-        
-        uint256 incentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
+        uint256 incentive = liqIncBase + ((liqCurve * lFactor) / WAD);
+
+        uint256 closeFactorBase = 2000;
+        uint256 closeFactorCurve = 8000;
+        uint256 closeFactor = closeFactorBase + ((closeFactorCurve * lFactor) / WAD);
+
+        _setAuctionConfigs(address(strategyCBALRETH), incentive, closeFactor);
         
         vm.startPrank(user3);
         address[] memory usersToLiquidate = new address[](1);   
@@ -92,7 +82,6 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
     function test_success_LiquidationWithDefaultPenalty() public {
         _prepareLiquidation();
-
         _prepareUSDC(user3, 250e6);
 
         vm.startPrank(user3);
