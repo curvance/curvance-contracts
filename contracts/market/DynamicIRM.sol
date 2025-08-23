@@ -491,15 +491,19 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint256 debt,
         uint256 interestFee
     ) public view returns (uint256 r) {
-        // RateToLenders = (borrowRate * (1 - Interest Fee)) / BPS.
-        uint256 rateToLenders =  _mulDiv(
+        // feeAdjustedBorrowRate = (borrowRate * (1 - Interest Fee)) / BPS.
+        uint256 feeAdjustedBorrowRate =  _mulDiv(
             borrowRate(assetsHeld, debt),
             BPS - interestFee,
             BPS
         );
 
-        // Supply Rate = (utilizationRate * rateToLenders) / WAD.
-        r = _mulDiv(utilizationRate(assetsHeld, debt), rateToLenders, WAD);
+        // Supply Rate = (utilizationRate * feeAdjustedBorrowRate) / WAD.
+        r = _mulDiv(
+            utilizationRate(assetsHeld, debt),
+            feeAdjustedBorrowRate,
+            WAD
+        );
     }
 
     /// @notice Calculates the borrow utilization rate of the market.

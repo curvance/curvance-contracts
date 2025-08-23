@@ -1118,11 +1118,7 @@ abstract contract BaseCToken is
     /// @param amount The spent amount of the allowance.
     function _updateAllowance(address owner, uint256 amount) internal {
         if (msg.sender != owner) {
-            uint256 allowed = allowance(owner, msg.sender);
-
-            if (allowed != type(uint256).max) {
-                _spendAllowance(owner, msg.sender, amount);
-            }
+          _spendAllowance(owner, msg.sender, amount);
         }
     }
 
