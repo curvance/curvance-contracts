@@ -230,7 +230,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         _prepareUSDC(user1, 200e6);
         usdc.approve(address(borrowableCUSDC), 200e6);
         borrowableCUSDC.repay(200e6);
-        
+
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertGt(borrowableCUSDC.debtBalance(user1), borrowableCUSDCSnapshot.debtBalance - 200e6);
         assertGt(borrowableCUSDC.exchangeRate(), exchangeRatePrior);
@@ -470,8 +470,9 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // cache liquidation values
 
-        (, uint256 collateralTokenPrice, uint256 debtTokenPrice, uint256 lFactor) = 
-            marketManagerIsolated.liquidationValuesOf(user1);
+        (, , , uint256 lFactor) = marketManagerIsolated.liquidationValuesOf(user1);
+        (uint256 collateralTokenPrice,uint256 debtTokenPrice) =
+            oracleManager.getPriceIsolatedPair(_collateralToken, _debtToken, 2);
 
         (uint256 maxAmount, uint256 liquidatedCollateral, uint256 collateralRequired) = _getLiquidationValuesWithHigherPrecision_NonAuction(
             debtTokenPrice,
@@ -488,8 +489,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
             collateralRequired,
             liquidatedCollateral,
             collateralTokenPrice,
-            debtTokenPrice,
-            pendleCTokenPTSTETH.exchangeRate()
+            debtTokenPrice
         );
         
 
@@ -516,7 +516,6 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
             "balance of user1 mismatch"
         );
         assertEq(snapshot.debtBalance, 0);
-        assertEq(snapshot.exchangeRate, 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertApproxEqRel(
@@ -588,20 +587,16 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         uint256 _collateralAvailable,
         uint256 _collateralRequired,
         uint256 _collateralLiquidated,
-        uint256 _collateralTokenUnderlyingPrice,
-        uint256 _debtTokenUnderlyingPrice,
-        uint256 _cTokenExchangeRate
+        uint256 _collateralTokenPrice,
+        uint256 _debtTokenUnderlyingPrice
     ) internal pure returns (uint256 badDebt) {
-
         if(_collateralRequired > _collateralAvailable) {
-    
-        badDebt = (_debtBalance - _debtAmount) -
-        FixedPointMathLib.mulDivUp(
-            ((_collateralAvailable - _collateralLiquidated) * _cTokenExchangeRate) / WAD,
-            _collateralTokenUnderlyingPrice,
-            (_debtTokenUnderlyingPrice * WAD) / 1e6
-        );
-
+            badDebt = (_debtBalance - _debtAmount) -
+            FixedPointMathLib.mulDivUp(
+                _collateralAvailable - _collateralLiquidated,
+                _collateralTokenPrice,
+                (_debtTokenUnderlyingPrice * WAD) / 1e6
+            );
         } else {
             return 0;
         }
