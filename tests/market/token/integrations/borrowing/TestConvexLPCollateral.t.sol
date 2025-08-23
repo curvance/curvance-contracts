@@ -44,7 +44,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
 
         chainlinkStethUsd = new MockV3Aggregator(8, 1500e8);
         chainlinkAdaptor.addAsset(
-            CONVEX_STETH_ETH_POOL,
+            address(CONVEX_STETH_ETH_POOL),
             true,
             address(chainlinkStethUsd),
             0
