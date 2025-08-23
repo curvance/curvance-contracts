@@ -44,6 +44,25 @@ contract AuctionBasicTests is TestBaseLiquidations {
     function test_success_LiquidateExactWithAuctionAndDefaultPenalty() public {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
+
+        // Override closeFactorMax to 100% close factor so we can pass default
+        // penalty based on lFactor.
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 7000;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 10;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.closeFactorBase = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 10000;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 0;
+
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
         
         (uint256 cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
         
