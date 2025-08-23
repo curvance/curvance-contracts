@@ -390,7 +390,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
         result.asset = address(this);
         result.decimals = decimals();
         result.isCollateral = outstandingDebt > 0 ? false : true;
-        result.exchangeRate = _convertToAssets(WAD, _getTotalAssets());
         result.collateralPosted = collateralPosted[account];
         result.debtBalance = outstandingDebt;
     }

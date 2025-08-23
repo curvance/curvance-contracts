@@ -455,7 +455,6 @@ abstract contract BaseCToken is
         result.decimals = decimals();
         // Can only be true for non-BorrowableCTokens.
         result.isCollateral = true;
-        result.exchangeRate = _convertToAssets(WAD, _getTotalAssets());
         result.collateralPosted = collateralPosted[account];
         // result.debtBalance is 0 for non-BorrowableCTokens, no need to set.
     }
