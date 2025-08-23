@@ -6,16 +6,6 @@ import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 interface IOracleManager {
     /// TYPES ///
 
-    /// @notice Stored data to facilitate pricing Curvance tokens (cTokens).
-    /// @param isCToken Used to indicate if the provided address is a
-    ///                 Curvance token or not.
-    /// @param underlying Address of the underlying asset for the Curvance
-    ///                   token.
-    struct CToken {
-        bool isCToken;
-        address underlying;
-    }
-
     /// @notice Retrieves the price of a specified asset from either single
     ///         or dual oracles.
     /// @dev If the asset has one oracle, it fetches the price from a single feed.
@@ -83,14 +73,16 @@ interface IOracleManager {
         address asset
     ) external view returns(address[] memory);
 
-    /// @notice Returns the token data of `cToken`.
-    /// @param cToken The address of the cToken to get data of.
-    function getCToken(address cToken) external view returns(CToken memory);
-
     /// @notice Address => Adaptor approval status.
     /// @param adaptor The address of the adaptor to check.
     /// @return True if the adaptor is supported, false otherwise.
     function isApprovedAdaptor(address adaptor) external view returns (bool);
+
+    /// @notice Whether a token is recognized as a Curvance token or not,
+    ///         if it is, will return its underlying asset address instead
+    ///         of address (0).
+    /// @return The cToken's underlying asset, or address(0) if not a cToken.
+    function cTokens(address cToken) external view returns (address);
 
     /// @notice Checks if a given asset is supported by the Oracle Manager.
     /// @dev An asset is considered supported if it has one

@@ -604,9 +604,9 @@ contract ProtocolReader {
         address asset,
         IOracleManager om
     ) internal view returns (uint256, uint256) {
-        IOracleManager.CToken memory cToken = om.getCToken(asset);
-        if (cToken.isCToken) {
-            asset = cToken.underlying;
+        address cTokenUnderlying = om.cTokens(asset);
+        if (cTokenUnderlying != address(0)) {
+            asset = cTokenUnderlying;
         }
 
         address[] memory feeds = om.getPriceFeeds(asset);
