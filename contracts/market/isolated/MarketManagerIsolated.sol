@@ -1422,12 +1422,12 @@ contract MarketManagerIsolated is
         
         // Get the exchange rate, and calculate the number of collateralized
         // shares to seize.
-        // Convert liqInc to WAD via `WAD_CUBED_BPS_OFFSET` so we dont run
+        // Convert liqInc to WAD via `WAD_SQUARED_BPS_OFFSET` so we dont run
         // into precision loss from only multiplying into WAD_SQUARED form.
         uint256 debtToCollateral =
-            (((aData.liqInc * tData.debtUnderlyingPrice * WAD_CUBED_BPS_OFFSET) /
-            (tData.collateralUnderlyingPrice * tData.collateralExchangeRate)) *
-            tData.collateralDecimals) / tData.debtDecimals;
+            (((aData.liqInc * tData.debtUnderlyingPrice * WAD_SQUARED_BPS_OFFSET) /
+                tData.collateralSharesPrice) * tData.collateralDecimals) /
+                    tData.debtDecimals;
         uint256 maxDebt = (aData.closeFactor * aData.debtBalance) / BPS;
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
         // otherwise liquidate the maximum amount possible.
@@ -1569,13 +1569,12 @@ contract MarketManagerIsolated is
 
         // Liquidations are only blocked if an error code of 2 (NO_SOURCE)
         // is calculated.
-        (tData.collateralUnderlyingPrice, tData.debtUnderlyingPrice) =
+        (tData.collateralSharesPrice, tData.debtUnderlyingPrice) =
             CommonLib._oracleManager(centralRegistry)
                 .getPriceIsolatedPair(collateralToken, debtToken, 2);
 
         // Cache all variables needed for computing liquidation levels.
         tData.collateralToken = collateralToken;
-        tData.collateralExchangeRate = ICToken(collateralToken).exchangeRate();
         tData.collateralReqSoft = c.collReqSoft;
         tData.collateralReqHard = c.collReqHard;
         tData.collateralDecimals = 10 ** IERC20(collateralToken).decimals();

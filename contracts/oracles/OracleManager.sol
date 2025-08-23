@@ -408,7 +408,7 @@ contract OracleManager is IOracleManager {
     ) {
         uint256 errorCode;
         (collateralUnderlyingPrice, errorCode) = getPrice(
-            cTokens[collateralToken].underlying,
+            collateralToken,
             true,
             true
         );
@@ -428,6 +428,9 @@ contract OracleManager is IOracleManager {
 
     /// @notice Retrieves the prices and account data of multiple assets
     ///         inside a Curvance Market.
+    /// @dev If the asset is being used as collateral the users liquidity is
+    ///      priced in shares, if theyre borrowing the outstanding debt is
+    ///      measured in assets (underlying).
     /// @param account The account to retrieve data for.
     /// @param assets An array of asset addresses to retrieve the prices for.
     /// @param errorCodeBreakpoint The error code that will cause liquidity
@@ -447,7 +450,7 @@ contract OracleManager is IOracleManager {
         uint256 numAssets = assets.length;
 
         AccountSnapshot[] memory snapshots = new AccountSnapshot[](numAssets);
-        uint256[] memory underlyingPrices = new uint256[](numAssets);
+        uint256[] memory prices = new uint256[](numAssets);
         uint256 errorCode;
 
         address asset;
@@ -455,8 +458,11 @@ contract OracleManager is IOracleManager {
             asset = assets[i];
             snapshots[i] = ICToken(asset).getSnapshot(account);
 
-            (underlyingPrices[i], errorCode) = getPrice(
-                cTokens[asset].underlying,
+            // If the asset is being used as collateral the users liquidity is
+            // priced in shares, if theyre borrowing the outstanding debt is
+            // measured in assets (underlying).
+            (prices[i], errorCode) = getPrice(
+                snapshots[i].isCollateral ? asset : cTokens[asset].underlying,
                 true,
                 snapshots[i].isCollateral
             );
@@ -466,7 +472,7 @@ contract OracleManager is IOracleManager {
             }
         }
 
-        return (snapshots, underlyingPrices, numAssets);
+        return (snapshots, prices, numAssets);
     }
 
     /// INTERNAL FUNCTIONS ///

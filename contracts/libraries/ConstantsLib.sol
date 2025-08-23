@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-/// @dev Scalar for math. `WAD` * `WAD` * `WAD` / `BPS`.
-///      1e18 * 1e18 * 1e18 / 1e4
-uint256 constant WAD_CUBED_BPS_OFFSET = 1e50;
-
 /// @dev Scalar for math. `WAD` * `WAD`.
 uint256 constant WAD_SQUARED = 1e36;
+
+/// @dev Scalar for math. `WAD` * `WAD` / `BPS`.
+///      1e18 * 1e18 / 1e4
+uint256 constant WAD_SQUARED_BPS_OFFSET = 1e32;
 
 /// @dev Scalar for math. Increased precision when WAD is insufficient
 ///      but WAD_SQUARED runs the risk of overflow.
