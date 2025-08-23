@@ -795,7 +795,6 @@ contract TestBaseMarketIsolated is TestBase {
         vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.unlockAuctionCollateral(token);
         marketManagerIsolated.setTransientLiquidationConfig(token, liquidationIncentive, liquidationCloseFactor);
 
         vm.stopPrank();
