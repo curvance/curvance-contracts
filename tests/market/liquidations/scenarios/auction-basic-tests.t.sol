@@ -121,7 +121,11 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
         // We unlock borrowableCUSDC when we will try to liquidate strategyCBALRETH.
-        marketManagerIsolated.setTransientLiquidationConfig(borrowableCUSDC, 11500, 3000);
+        marketManagerIsolated.setTransientLiquidationConfig(
+            address(borrowableCUSDC),
+            11500,
+            3000
+        );
 
         vm.stopPrank();
 
@@ -145,7 +149,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         vm.startPrank(auctionPermsUser);
 
         marketManagerIsolated.setTransientLiquidationConfig(
-            borrowableCUSDC,
+            address(strategyCBALRETH),
             11500,
             3000
         );
