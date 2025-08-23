@@ -168,6 +168,8 @@ contract MixedAuction is TestBaseLiquidations {
             auctionBorrowers,
             address(strategyCBALRETH)
         );
+
+        marketManagerIsolated.resetTransientLiquidationConfig();
         vm.stopPrank();
 
         usdc.approve(address(borrowableCUSDC), 100000e6);
