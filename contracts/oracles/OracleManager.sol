@@ -389,14 +389,14 @@ contract OracleManager is IOracleManager {
         }
     }
 
-    /// @notice Retrieves the prices of a collateral token and debt token
-    ///         underlyings.
+    /// @notice Retrieves the prices of a collateral token, and debt token
+    ///         underlying.
     /// @param collateralToken The cToken currently collateralized to price.
-    /// @param debtToken The cToken borrowed from to price.
+    /// @param debtToken The borrowableCToken borrowed from to price
+    ///                  underlying of.
     /// @param errorCodeBreakpoint The error code that will cause liquidity
     ///                            operations to revert.
-    /// @return collateralUnderlyingPrice The current price of
-    ///                                   `collateralToken` underlying.
+    /// @return collateralSharesPrice The current price of `collateralToken`.
     /// @return debtUnderlyingPrice The current price of `debtToken`
     ///                             underlying.
     function getPriceIsolatedPair(
@@ -404,11 +404,11 @@ contract OracleManager is IOracleManager {
         address debtToken,
         uint256 errorCodeBreakpoint
     ) external view returns (
-        uint256 collateralUnderlyingPrice,
+        uint256 collateralSharesPrice,
         uint256 debtUnderlyingPrice
     ) {
         uint256 errorCode;
-        (collateralUnderlyingPrice, errorCode) = getPrice(
+        (collateralSharesPrice, errorCode) = getPrice(
             collateralToken,
             true,
             true

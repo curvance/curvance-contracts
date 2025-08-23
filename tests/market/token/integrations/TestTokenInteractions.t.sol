@@ -624,17 +624,17 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             address(mockWethFeed),
             0
         );
-        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
+        mockBalEthRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
         chainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
+            _BAL_WETH_RETH_ADDRESS,
             false,
-            address(mockRethFeed),
+            address(mockBalEthRethFeed),
             0
         );
         dualChainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
+            _BAL_WETH_RETH_ADDRESS,
             false,
-            address(mockRethFeed),
+            address(mockBalEthRethFeed),
             0
         );
 
@@ -644,9 +644,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
+        mockBalEthRethFeed.setMockUpdatedAt(block.timestamp);
 
-        (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
+        (, int256 ethPrice, , , ) = mockBalEthRethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
 
         console2.log("ethPrice", ethPrice);
@@ -702,17 +702,17 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             address(mockWethFeed),
             0
         );
-        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
+        mockBalEthRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
         chainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
+            _BAL_WETH_RETH_ADDRESS,
             false,
-            address(mockRethFeed),
+            address(mockBalEthRethFeed),
             0
         );
         dualChainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
+            _BAL_WETH_RETH_ADDRESS,
             false,
-            address(mockRethFeed),
+            address(mockBalEthRethFeed),
             0
         );
 
@@ -722,9 +722,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
+        mockBalEthRethFeed.setMockUpdatedAt(block.timestamp);
 
-        (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
+        (, int256 ethPrice, , , ) = mockBalEthRethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
 
         console2.log("ethPrice", ethPrice);
