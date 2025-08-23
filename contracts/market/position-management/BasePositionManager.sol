@@ -480,12 +480,13 @@ abstract contract BasePositionManager is
     ) public view returns (uint256 result) {
         (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
             marketManager.statusOf(account);
+        address debtAsset = ICToken(borrowableCToken).asset();
 
         (uint256 price, uint256 errorCode) =
             CommonLib._oracleManager(centralRegistry)
-                .getPrice(address(borrowableCToken), true, false);
+                .getPrice(debtAsset, true, false);
 
-        // Validate we got a price for `borrowableCToken`.
+        // Validate we got a price for `borrowableCToken`'s underlying asset.
         if (errorCode != 0) {
             revert BasePositionManager__InvalidTokenPrice();
         }
@@ -506,9 +507,11 @@ abstract contract BasePositionManager is
             sumCollateral - maxDebt
         );
 
+        // Convert maxLeverage, currently in WAD $, to `debtAsset` assets
+        // denomination.
         result = _mulDiv(
             _mulDiv(maxLeverage, WAD, price),
-            10 ** IERC20(borrowableCToken).decimals(),
+            10 ** IERC20(debtAsset).decimals(),
             WAD
         );
     }

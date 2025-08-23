@@ -272,55 +272,77 @@ contract ProtocolReader {
     /// @dev NOTE: This can overestimate maximum executeable leverage when
     ///            swapping due to AMM fees and slippage.
     /// @param account The account to query maximum borrow amount for.
+    /// @param cToken The token that `account` will deposit to leverage
+    ///               against.
     /// @param borrowableCToken The token that `account` will borrow assets
     ///                         from to achieve leverage.
-    /// @param cToken The token that `account` will deposit to
-    ///                        leverage against.
-    /// @param assets The amount of `cToken` underlying that
-    ///               `account` will deposit to leverage against.
+    /// @param assets The amount of `cToken` underlying that `account` will
+    ///               deposit to leverage against.
+    /// @return currentLeverage Returns the current leverage multiplier of
+    ///                         `account`, in `WAD`.
+    /// @return adjustedMaxLeverage Returns the maximum leverage multiplier of
+    ///                             `account` after a hypothetical deposit
+    ///                             action, adjusted by liquidity constraints,
+    ///                             in `WAD`.
+    /// @return maxLeverage Returns the maximum leverage multiplier of
+    ///                     `account` after a hypothetical deposit action,
+    ///                     in `WAD`.
     /// @return maxDebtBorrowable Returns the maximum remaining borrow amount
     ///                           allowed from `borrowableCToken`, measured in
     ///                           underlying token amount, after the new
     ///                           hypothetical deposit.
-    /// @return isOffset Whether the maximum borrowable debt amount returned
-    ///                  has been offset due to available liquidity or not.
-    function hypotheticalMaxRemainingLeverageOf(
+    function hypotheticalLeverageOf(
         address account,
-        address borrowableCToken,
         address cToken,
+        address borrowableCToken,
         uint256 assets
-    ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
+    ) public view returns (
+        uint256 currentLeverage,
+        uint256 adjustedMaxLeverage,
+        uint256 maxLeverage,
+        uint256 maxDebtBorrowable
+    ) {
         IMarketManager mm = ICToken(borrowableCToken).marketManager();
-        uint256 price = getPriceSafely(address(cToken), true, true, 1);
 
         // Validate `cToken` and `borrowableCToken` are properly listed.
         if (!mm.isListed(borrowableCToken) || !mm.isListed(cToken)) {
             revert ProtocolReader__TokenNotListed();
         }
 
-        (uint256 collRatio, ,) = mm.collConfig(address(cToken));
-        // If the collateral token cannot be borrowed against the hypothetical
-        // leverage check will result in 0 meaning nothing new to leverage
-        // against.
-        if (collRatio == 0) {
-            revert ProtocolReader__NonCollateralizable();
-        }
-
         (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
             mm.statusOf(account);
+        
+        // If the account is insolvent or we can immediately return with 0 for
+        // everything.
+        if (sumDebt > sumCollateral) {
+            return (0, 0, 0, 0);
+        }
+
+        if (sumDebt == 0 || sumCollateral == 0) {
+            currentLeverage = WAD;
+        } else {
+            currentLeverage =
+                _mulDiv(sumCollateral, WAD, sumCollateral - sumDebt);
+        }
 
         {
+            (uint256 collRatio, ,) = mm.collConfig(address(cToken));
+            // If the collateral token cannot be borrowed against the hypothetical
+            // leverage check will result in 0 meaning nothing new to leverage
+            // against.
+            if (collRatio == 0) {
+                revert ProtocolReader__NonCollateralizable();
+            }
+
             uint256 newCollateral = _mulDiv(
                 ICToken(cToken).previewDeposit(assets),
-                price,
+                getPriceSafely(address(cToken), true, true, 1), // Price the collateralToken.
                 10 ** ICToken(cToken).decimals()
             );
 
             sumCollateral += newCollateral;
             maxDebt += _mulDiv(newCollateral, collRatio, WAD);
         }
-
-        price = getPriceSafely(address(borrowableCToken), true, false, 1);
 
         // We can calculate terminal leverage by calculating the infinite
         // series of swapping to maximum LTV over and over, which results
@@ -332,24 +354,40 @@ contract ProtocolReader {
         // just extrapolated for an account's collateral vs debt.
         /// NOTE: This can overestimate maximum executeable leverage when
         ///       swapping due to AMM fees and slippage.
-        uint256 maxLeverage = _mulDiv(
-            maxDebt - sumDebt,
-            sumCollateral,
-            sumCollateral - maxDebt
-        );
-
         maxDebtBorrowable = _mulDiv(
-            _mulDiv(maxLeverage, WAD, price),
-            10 ** IERC20(borrowableCToken).decimals(),
+            _mulDiv(
+                _mulDiv(maxDebt - sumDebt, sumCollateral, sumCollateral - maxDebt),
+                WAD,
+                getPriceSafely(ICToken(borrowableCToken).asset(), true, false, 1) // Price the debt token.
+            ),
+            10 ** IERC20(ICToken(borrowableCToken).asset()).decimals(),
             WAD
         );
 
-        uint256 liquidityAvailable = IERC20(ICToken(borrowableCToken).asset())
-            .balanceOf(borrowableCToken);
+        // Calculate the theoretical maximum leverage.
+        maxLeverage = _mulDiv(
+            sumCollateral + maxDebtBorrowable,
+            WAD,
+            sumCollateral - sumDebt
+        );
 
-        if (liquidityAvailable < maxDebtBorrowable) {
-            maxDebtBorrowable = liquidityAvailable;
-            isOffset = true;
+        // Calculate the maximum debt borrowable currently.
+        maxDebtBorrowable = _adjustForLimitations(
+            mm,
+            cToken,
+            ICToken(cToken).previewDeposit(assets),
+            borrowableCToken,
+            maxDebtBorrowable
+        );
+
+        // If theres no ability to borrow then can return adjusted leverage of 0.
+        if (maxDebtBorrowable > 0) {
+            // Calculate the real maximum leverage.
+            adjustedMaxLeverage = _mulDiv(
+                sumCollateral + maxDebtBorrowable,
+                WAD,
+                sumCollateral - sumDebt
+            );
         }
     }
 
@@ -682,6 +720,64 @@ contract ProtocolReader {
 
         dmd._address = address(mm);
         dmd.tokens = tokens;
+    }
+
+    /// @notice Calculates the debt borrowable from `debtCToken` based on
+    ///         any current restrictions.
+    /// @param mm The market manager to pull token config from.
+    /// @param collateralCToken The token that `account` will deposit to
+    ///                         leverage against.
+    /// @param collateralShares The amount of `cToken` shares that `account`
+    ///                          will deposit to leverage against.
+    /// @param debtCToken The token that `account` will borrow assets
+    ///                   from to achieve leverage.
+    /// @param debtAssets The amount of `debtCToken` underlying that
+    ///               `account` will borrow to leverage up.
+    function _adjustForLimitations(
+        IMarketManager mm,
+        address collateralCToken,
+        uint256 collateralShares,
+        address debtCToken,
+        uint256 debtAssets
+    ) internal view returns (uint256) {
+        uint256 collateralCap = mm.collateralCaps(collateralCToken);
+        uint256 marketCollateral = ICToken(collateralCToken).marketCollateralPosted();
+        uint256 debtCap = mm.debtCaps(debtCToken);
+        uint256 marketDebt = IBorrowableCToken(debtCToken).marketOutstandingDebt();
+        uint256 cTokenPrice = getPriceSafely(address(collateralCToken), true, true, 1);
+        uint256 debtTokenPrice = getPriceSafely(ICToken(debtCToken).asset(), true, false, 1);
+        uint256 debtAssetsInCollateral =
+            ((debtAssets * debtTokenPrice * (10 ** ICToken(collateralCToken).decimals())) /
+                (cTokenPrice * (10 ** ICToken(debtCToken).decimals())));
+
+        // If theres insufficient collateral room left we will need to adjust collateral
+        // and debt down proportionally.
+        if (marketCollateral + collateralShares + debtAssetsInCollateral > collateralCap) {
+            // If the user cannot collateralize the shares they want to deposit
+            // can bubble up that leverage is not possible.
+            if (marketCollateral + collateralShares > collateralCap) {
+                return 0;
+            }
+
+            uint256 collateralShortfall = marketCollateral + collateralShares
+                + debtAssetsInCollateral - collateralCap;
+            debtAssets = _mulDiv(
+                debtAssets,
+                debtAssetsInCollateral - collateralShortfall,
+                debtAssetsInCollateral
+            );
+        }
+
+        if (marketDebt + debtAssets > debtCap) {
+            debtAssets = _mulDiv(debtAssets, debtCap - marketDebt, debtAssets);
+        }
+
+        uint256 liquidityAvailable = IBorrowableCToken(debtCToken).assetsHeld();
+        if (liquidityAvailable < debtAssets) {
+            debtAssets = liquidityAvailable;
+        }
+
+        return debtAssets;
     }
 
     /// @dev Returns `floor(x * y / d)`.
