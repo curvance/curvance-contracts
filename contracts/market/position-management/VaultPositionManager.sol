@@ -6,6 +6,37 @@ import { SimplePositionManager } from "contracts/market/position-management/Simp
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
 
+/// @title Curvance Vault Position Manager.
+/// @notice Vault-specific contract for executing leverage related actions.
+/// @dev Curvance Position Manager contracts enshrine actions that
+///      usually would require multiple sequential actions to facilitate,
+///      specifically leveraging a position up or deleveraging it for
+///      withdrawal.
+///
+///      Curvance token contracts facilitate these operations through
+///      enshrined integrations with Position Manager callback functions.
+///
+///      Typical workflow for:
+///      Leverage -> borrow assets from a borrowableCToken -> swap debt assets
+///      into collateral assets -> deposit collateral assets and collateralize
+///      received shares -> check that there is no liquidity shortfall from
+///      the initial assets borrowed versus the new collateralized shares.
+///
+///      Deleverage -> redeem collateralized shares from a cToken for assets
+///      -> swap collateral assets for debt assets -> repay outstanding debt
+///      with debt assets -> check that there is no liquidity shortfall from
+///      the initial shares redeemed versus the newly decreased outstanding
+///      debt.
+///
+///      The "Vault" contract is the position manager for working with
+///      generic non-native erc4626 tokens such as sFRAX. No type specific
+///      "_swapCollateralAssetToDebtAsset" is written as execution is intended
+///      to be the same as the "simple" position manager where collateral is
+///      simply swapped via dex aggregator. The expectation is that if the
+///      best path is erc4626 redemption versus general swapping a mature
+///      chain's dex aggregator will support redemption via erc4626 vault
+///      contract.
+///
 contract VaultPositionManager is SimplePositionManager {
     /// CONSTRUCTOR ///
 

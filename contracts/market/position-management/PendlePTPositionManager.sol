@@ -10,6 +10,32 @@ import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincip
 import { IPYieldToken } from "contracts/interfaces/external/pendle/IPYieldToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 
+/// @title Curvance Pendle Principal Token Position Manager.
+/// @notice Pendle Principal token-specific contract for executing leverage related
+///         actions.
+/// @dev Curvance Position Manager contracts enshrine actions that
+///      usually would require multiple sequential actions to facilitate,
+///      specifically leveraging a position up or deleveraging it for
+///      withdrawal.
+///
+///      Curvance token contracts facilitate these operations through
+///      enshrined integrations with Position Manager callback functions.
+///
+///      Typical workflow for:
+///      Leverage -> borrow assets from a borrowableCToken -> swap debt assets
+///      into collateral assets -> deposit collateral assets and collateralize
+///      received shares -> check that there is no liquidity shortfall from
+///      the initial assets borrowed versus the new collateralized shares.
+///
+///      Deleverage -> redeem collateralized shares from a cToken for assets
+///      -> swap collateral assets for debt assets -> repay outstanding debt
+///      with debt assets -> check that there is no liquidity shortfall from
+///      the initial shares redeemed versus the newly decreased outstanding
+///      debt.
+///
+///      The "PendlePT" contract is the position manager for working with
+///      Pendle principal tokens such as sUSDe-PT-dec-31-2025.
+///
 contract PendlePTPositionManager is BasePositionManager {
     /// STORAGE /// 
 

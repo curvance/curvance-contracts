@@ -21,12 +21,31 @@ import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
+/// @title Curvance Base Position Manager.
+/// @notice Base contract for executing leverage related actions.
 /// @dev Curvance Position Manager contracts enshrine actions that
 ///      usually would require multiple sequential actions to facilitate,
-///      namely leveraging a position up or deleveraging it for withdrawal.
+///      specifically leveraging a position up or deleveraging it for
+///      withdrawal.
 ///
 ///      Curvance token contracts facilitate these operations through
 ///      enshrined integrations with Position Manager callback functions.
+///
+///      Typical workflow for:
+///      Leverage -> borrow assets from a borrowableCToken -> swap debt assets
+///      into collateral assets -> deposit collateral assets and collateralize
+///      received shares -> check that there is no liquidity shortfall from
+///      the initial assets borrowed versus the new collateralized shares.
+///
+///      Deleverage -> redeem collateralized shares from a cToken for assets
+///      -> swap collateral assets for debt assets -> repay outstanding debt
+///      with debt assets -> check that there is no liquidity shortfall from
+///      the initial shares redeemed versus the newly decreased outstanding
+///      debt.
+///
+///      The "base" contract is the basis on which all position manager are
+///      built on top of.
+///
 abstract contract BasePositionManager is
     IPositionManager,
     PluginDelegable,
@@ -465,15 +484,17 @@ abstract contract BasePositionManager is
 
     /// @notice Calculates the maximum amount of `borrowableCToken` `account`
     ///         can borrow for maximum leverage.
-    /// @dev NOTE: This can overestimate maximum executeable leverage when
-    ///            swapping due to AMM fees and slippage.
+    /// @dev This can overestimate maximum executeable leverage when swapping
+    ///      due to AMM fees and slippage. Risk management limitations such as
+    ///      collateral/debt caps, and available liquidity are not factored in
+    ///      and should be manually adjusted on the frontend.
     /// @param account The account to calculate the maximum amount of
     ///                `borrowableCToken` that can be borrowed for maximum
     ///                leverage.
     /// @param borrowableCToken The token that `account` will borrow assets
     ///                         from to achieve leverage.
     /// @return result The maximum remaining debt amount allowed from
-    ///                `borrowableCToken`, measured in debt assets.
+    ///                `borrowableCToken`, measured in underlying debt assets.
     function maxRemainingLeverageOf(
         address account,
         address borrowableCToken
