@@ -104,6 +104,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Central Registry contract.
+    /// @param borrowableCToken The address of the borrowable cToken.
     constructor(
         ICentralRegistry cr,
         address borrowableCToken

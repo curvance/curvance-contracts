@@ -84,12 +84,11 @@ contract LiquidateExactMix is TestBaseLiquidations {
         strategyCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
 
-        mockWethFeed.setMockAnswer(2000e8);
-        mockRethFeed.setMockAnswer(2000e8);
+        mockBalEthRethFeed.setMockAnswer(2000e8);
+
         _createPositions();
 
-        mockWethFeed.setMockAnswer(1300e8);
-        mockRethFeed.setMockAnswer(1300e8);
+        mockBalEthRethFeed.setMockAnswer(1300e8);
 
         console2.log("SETUP COMPLETE");
     }

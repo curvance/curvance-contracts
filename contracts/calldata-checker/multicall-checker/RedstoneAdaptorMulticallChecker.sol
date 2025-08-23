@@ -9,6 +9,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract RedstoneAdaptorMulticallChecker is BaseMulticallChecker {
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Central Registry contract.
     constructor(ICentralRegistry cr) BaseMulticallChecker(cr) {}
 
     /// EXTERNAL FUNCTIONS ///

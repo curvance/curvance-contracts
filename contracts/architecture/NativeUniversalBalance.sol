@@ -42,6 +42,9 @@ contract NativeUniversalBalance is UniversalBalance {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Central Registry contract.
+    /// @param borrowableCToken The address of the borrowable cToken.
+    /// @param wNative The address of the wrapped native token.
     constructor(
         ICentralRegistry cr,
         address borrowableCToken,

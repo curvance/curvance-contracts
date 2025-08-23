@@ -263,8 +263,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
         });
 
         // Price of ETH drops and balRETH collateral goes below required collateral ratio
-        mockWethFeed.setMockAnswer(1000e8);
-        mockRethFeed.setMockAnswer(1000e8);
+        mockBalEthRethFeed.setMockAnswer(1000e8);
 
         vm.prank(address(borrowableCUSDC));
 

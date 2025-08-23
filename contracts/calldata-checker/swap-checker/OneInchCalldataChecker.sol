@@ -21,6 +21,7 @@ contract OneInchCalldataChecker is BaseSwapChecker {
 
     /// CONSTRUCTOR ///
 
+    /// @param _target The address of the 1inch Aggregation Router V5 contract.
     constructor(address _target) BaseSwapChecker(_target) {}
 
     /// EXTERNAL FUNCTIONS ///

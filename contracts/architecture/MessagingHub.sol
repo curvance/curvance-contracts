@@ -95,6 +95,7 @@ contract MessagingHub is QueryResponse {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Central Registry contract.
     constructor(ICentralRegistry cr) QueryResponse(address(cr.crosschainCore())) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;

@@ -57,6 +57,7 @@ abstract contract BaseSwapChecker is
 
     /// CONSTRUCTOR ///
 
+    /// @param _target The address of the target swap contract.
     constructor(address _target) {
         target = _target;
     }

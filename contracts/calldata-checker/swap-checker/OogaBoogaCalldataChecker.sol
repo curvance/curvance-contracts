@@ -18,6 +18,7 @@ contract OogaBoogaCalldataChecker is BaseSwapChecker {
 
     /// CONSTRUCTOR ///
 
+    /// @param _target The address of the Ooga Booga Router V1 contract.
     constructor(address _target) BaseSwapChecker(_target) {}
 
     /// EXTERNAL FUNCTIONS ///

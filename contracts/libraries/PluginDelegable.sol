@@ -45,6 +45,7 @@ abstract contract PluginDelegable is IPluginDelegable {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Central Registry contract.
     constructor(ICentralRegistry cr) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;

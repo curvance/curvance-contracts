@@ -87,8 +87,11 @@ abstract contract ActionRegistry is IActionRegistry {
 
     /// CONSTRUCTOR ///
 
+    /// @notice Base constructor for `ActionRegistry`; does not initialize state.
+    /// @dev Intentionally no-op. Present for clarity and future extensibility;
+    ///      inheriting contracts may call `super` if they add initialization.
     constructor() {}
-
+    
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Sets token transferability unlock cooldown.

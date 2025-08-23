@@ -98,13 +98,14 @@ contract MixedAuction is TestBaseLiquidations {
         balRETH.approve(address(strategyCBALRETH), 10e18);
         strategyCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
+
+        mockBalEthRethFeed.setMockAnswer(2000e8);
         _createPositions();
 
         _harvestAuraStrategyRewards(1 weeks);
         borrowableCUSDC.accrueIfNeeded();
 
-        mockWethFeed.setMockAnswer(1300e8);
-        mockRethFeed.setMockAnswer(1300e8);
+        mockBalEthRethFeed.setMockAnswer(1300e8);
 
         console2.log("SETUP COMPLETE");
     }

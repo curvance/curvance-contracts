@@ -91,8 +91,7 @@ contract VaryingHealthFactors is TestBaseLiquidations {
 
         _createPositions();
 
-        mockWethFeed.setMockAnswer(1100e8);
-        mockRethFeed.setMockAnswer(1100e8);
+        mockBalEthRethFeed.setMockAnswer(1100e8);
 
         // vm.warp(block.timestamp + 20 minutes); skipping so no interest accrues which keeps it simple
     }
