@@ -1071,9 +1071,10 @@ contract TestBaseMarketIsolated is TestBase {
         data.collateralTokenDecimals = 10 ** ICToken(_collateralToken).decimals();
         data.debtTokenDecimals = 10 ** ICToken(_debtToken).decimals();
 
-        debtToCollateral = (((data.liqInc *
-            (data.debtTokenPrice * WAD_SQUARED_BPS_OFFSET) / data.collateralTokenPrice) * 
-            data.collateralTokenDecimals) / data.debtTokenDecimals;
+        debtToCollateral =
+            (((data.liqInc * data.debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
+                data.collateralTokenPrice) *
+                    data.collateralTokenDecimals) / data.debtTokenDecimals;
                 
     }
 
