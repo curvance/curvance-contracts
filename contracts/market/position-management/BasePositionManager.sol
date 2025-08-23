@@ -353,6 +353,7 @@ abstract contract BasePositionManager is
         // Unwrap leverage instructions for collateral deposit.
         address collateralAsset = cToken.asset();
 
+        // Swap borrowed assets into collateral asset underlying.
         _swapDebtAssetToCollateralAsset(action, owner);
 
         uint256 amount = IERC20(collateralAsset).balanceOf(address(this));
@@ -419,6 +420,7 @@ abstract contract BasePositionManager is
             collateralAsset
         );
 
+        // Swap redeemed `collateralAsset` assets into debt token assets.
         _swapCollateralAssetToDebtAsset(action);
 
         // We do not need to check whether `borrowableCToken` is listed
