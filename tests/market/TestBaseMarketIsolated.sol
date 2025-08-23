@@ -413,6 +413,7 @@ contract TestBaseMarketIsolated is TestBase {
             address(chainlinkBalEthReth),
             0
         );
+
         oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
             _WETH_ADDRESS,
@@ -598,24 +599,6 @@ contract TestBaseMarketIsolated is TestBase {
             )
         );
         return velodromeZapper;
-    }
-
-    function _addSinglePriceFeed() internal initMainVariables {
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
-            _USDC_ADDRESS,
-            address(chainlinkAdaptor)
-        );
-    }
-
-    function _addDualPriceFeed() internal initMainVariables {
-        _addSinglePriceFeed();
-
-        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
-            _USDC_ADDRESS,
-            address(dualChainlinkAdaptor)
-        );
     }
 
     function _setRedstoneSigners() internal initMainVariables {
@@ -1183,12 +1166,8 @@ contract TestBaseMarketIsolated is TestBase {
         IBooster(_AURA_BOOSTER).earmarkRewards(109);
 
         skip(time);
-
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-        mockBALFeed.setMockUpdatedAt(block.timestamp);
-        mockAURAFeed.setMockUpdatedAt(block.timestamp);
+        // Update mock feeds
+        _refreshMockFeeds();
 
         IBaseRewardPool rewarder = IBaseRewardPool(_REWARDERS[1]);
         uint256 earnedBAL = rewarder.earned(address(strategyCBALRETH));
@@ -1233,11 +1212,7 @@ contract TestBaseMarketIsolated is TestBase {
             skip(vestingPeriod);
             
             // Update mock feeds
-            mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-            mockWethFeed.setMockUpdatedAt(block.timestamp);
-            mockRethFeed.setMockUpdatedAt(block.timestamp);
-            mockBALFeed.setMockUpdatedAt(block.timestamp);
-            mockAURAFeed.setMockUpdatedAt(block.timestamp);
+            _refreshMockFeeds();
             
             // Accrue the vested yield
             strategyCBALRETH.accrueIfNeeded();
@@ -1251,7 +1226,6 @@ contract TestBaseMarketIsolated is TestBase {
     }
 
     function _setMockFeedsInitial() internal {
-
         /// STABLECOINS
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
         chainlinkAdaptor.addAsset(
@@ -1297,6 +1271,8 @@ contract TestBaseMarketIsolated is TestBase {
             0
         );
 
+        /// RETH
+
         mockRethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
@@ -1308,6 +1284,22 @@ contract TestBaseMarketIsolated is TestBase {
             _RETH_ADDRESS,
             true,
             address(mockRethFeed),
+            0
+        );
+
+        /// BalRETHETH
+
+        mockBalEthRethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
+        chainlinkAdaptor.addAsset(
+            _BAL_WETH_RETH_ADDRESS,
+            true,
+            address(mockBalEthRethFeed),
+            0
+        );
+        dualChainlinkAdaptor.addAsset(
+            _BAL_WETH_RETH_ADDRESS,
+            true,
+            address(mockBalEthRethFeed),
             0
         );
 
@@ -1389,11 +1381,12 @@ contract TestBaseMarketIsolated is TestBase {
 
     function _refreshMockFeeds() internal {
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
+        mockBalEthRethFeed.setMockUpdatedAt(block.timestamp);
         mockStethFeed.setMockUpdatedAt(block.timestamp);
         mockBALFeed.setMockUpdatedAt(block.timestamp);
         mockAURAFeed.setMockUpdatedAt(block.timestamp);
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
     }
 }
