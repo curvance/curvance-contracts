@@ -81,6 +81,7 @@ contract MockV3Aggregator is IChainlink {
         external
         view
         override
+        virtual
         returns (
             uint80 roundId,
             int256 answer,

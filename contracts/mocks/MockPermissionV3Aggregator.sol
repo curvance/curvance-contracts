@@ -44,4 +44,26 @@ contract MockPermissionV3Aggregator is MockV3Aggregator {
         }
         super.updateRoundData(_roundId, _answer, _timestamp, _startedAt);
     }
+
+    function latestRoundData()
+        external
+        view
+        override
+        returns (
+            uint80 roundId,
+            int256 answer,
+            uint256 startedAt,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        )
+    {
+        // Send back current timestamp to avoid heartbeat getting rekt
+        return (
+            uint80(latestRound),
+            getAnswer[latestRound],
+            block.timestamp,
+            block.timestamp,
+            uint80(latestRound)
+        );
+    }
 }
