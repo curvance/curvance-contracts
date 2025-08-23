@@ -128,6 +128,12 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Accrue interest if needed.
         _accrueIfNeeded();
 
+        // Validate that the adjustment rate has not changed from the previous
+        // one, which would go against user assumptions.
+        if (IDynamicIRM(newIRM).ADJUSTMENT_RATE() != vestingPeriod) {
+            revert BaseCTokenWithYield__InvalidVestingPeriod();
+        }
+
         _setIRM(IDynamicIRM(newIRM));
     }
 

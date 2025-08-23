@@ -161,6 +161,28 @@ contract RedeemTest is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.totalSupply(), totalSupply - collateralRedeemed);
     }
 
+    function test_borrowableCTokenRedeem_success_User2WithMaxApproval() public {
+        skip(20 minutes);
+
+        uint256 underlyingBalance = dai.balanceOf(user1);
+        uint256 balance = borrowableCDAI.balanceOf(user1);
+        uint256 totalSupply = borrowableCDAI.totalSupply();
+        uint256 collateralRedeemed = 0.5e18;
+
+        vm.startPrank(user1);
+        borrowableCDAI.approve(user2, type(uint256).max);
+        vm.stopPrank();
+        
+        vm.startPrank(user2);
+        uint256 assets = borrowableCDAI.redeem(collateralRedeemed, user2, user1);
+        vm.stopPrank();
+
+        assertEq(dai.balanceOf(user2), underlyingBalance + assets);
+        assertEq(borrowableCDAI.balanceOf(user1), balance - collateralRedeemed);
+        assertEq(borrowableCDAI.totalSupply(), totalSupply - collateralRedeemed);
+        assertEq(borrowableCDAI.allowance(user1, user2), type(uint256).max);
+    }
+
     function test_borrowableCTokenRedeem_success_redeemNonCollateralWhenCollateralIsInUse() public {
         uint256 newTokensDeposited = 500e18;
         uint256 tokensRedeemed = 500e18;
