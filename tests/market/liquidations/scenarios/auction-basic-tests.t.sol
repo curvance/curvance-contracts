@@ -119,7 +119,10 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
         vm.startPrank(auctionPermsUser);
 
-        centralRegistry.unlockAuctionForMarket(address(1));
+        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
+        // We unlock borrowableCUSDC when we will try to liquidate strategyCBALRETH.
+        marketManagerIsolated.setTransientLiquidationConfig(borrowableCUSDC, 11500, 3000);
+
         vm.stopPrank();
 
         address[] memory usersToLiquidate = new address[](1);   
@@ -139,8 +142,15 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
 
-        vm.prank(auctionPermsUser);
-        centralRegistry.unlockAuctionForMarket(address(strategyCBALRETH));
+        vm.startPrank(auctionPermsUser);
+
+        marketManagerIsolated.setTransientLiquidationConfig(
+            borrowableCUSDC,
+            11500,
+            3000
+        );
+
+        vm.stopPrank();
 
         address[] memory usersToLiquidate = new address[](1);   
         usersToLiquidate[0] = user1;

@@ -6,7 +6,7 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract UnlockAuctionCollateralTest is TestBaseMarketIsolated {
+contract UnlockAuctionForMarketTest is TestBaseMarketIsolated {
 
     function setUp() public override {
         super.setUp();
@@ -24,7 +24,7 @@ contract UnlockAuctionCollateralTest is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
     }
 
-    function test_unlockAuctionCollateral_fail_whenUnauthorized() public {
+    function test_unlockAuctionForMarket_fail_whenUnauthorized() public {
         // // Non-dapp control user should not be able to set penalty
         vm.startPrank(user1);
         
@@ -34,11 +34,16 @@ contract UnlockAuctionCollateralTest is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function test_unlockAuctionCollateral_success() public {
+    function test_unlockAuctionForMarket_success() public {
         vm.startPrank(auctionPermsUser);
 
-        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), 1000, 2000);
+        marketManagerIsolated.setTransientLiquidationConfig(
+            address(strategyCBALRETH),
+            11500,
+            3000
+        );
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
+
         vm.stopPrank();
     }
 
