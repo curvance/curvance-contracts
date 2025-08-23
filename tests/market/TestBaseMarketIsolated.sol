@@ -771,13 +771,33 @@ contract TestBaseMarketIsolated is TestBase {
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
+    /// @dev This is effectively `_setAuctionConfigs` but through the mock
+    ///      auction manager.
+    function _setPreSolverSetup(
+        address token,
+        uint256 liquidationIncentive
+    ) internal {
+        // Call as address(this) which is the governor on mock auction manager
+        // deployment.
+        // 
+        auctionManager.preSolverSetup(
+            address(marketManagerIsolated),
+            token,
+            liquidationIncentive
+        );
+    }
+
     function _setAuctionConfigs(
         address token,
-        uint256 liquidationPenalty,
+        uint256 liquidationIncentive,
         uint256 liquidationCloseFactor
     ) internal {
         vm.startPrank(auctionPermsUser);
-        auctionManager.preSolverSetup(address(marketManagerIsolated), token, liquidationPenalty);
+
+        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
+        marketManagerIsolated.unlockAuctionCollateral(token);
+        marketManagerIsolated.setTransientLiquidationConfig(token, liquidationIncentive, liquidationCloseFactor);
+
         vm.stopPrank();
     }
 
