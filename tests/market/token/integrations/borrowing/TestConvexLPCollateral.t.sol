@@ -44,10 +44,15 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
 
         chainlinkStethUsd = new MockV3Aggregator(8, 1500e8);
         chainlinkAdaptor.addAsset(
-            _STETH_ADDRESS,
+            CONVEX_STETH_ETH_POOL,
             true,
             address(chainlinkStethUsd),
             0
+        );
+
+        oracleManager.addAssetPriceFeed(
+            address(CONVEX_STETH_ETH_POOL),
+            address(chainlinkAdaptor)
         );
 
         _refreshMockFeeds();
@@ -137,6 +142,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
 
     function testConvexLPCollateralRepayDebt() public {
         testBorrowWithConvexLPCollateral();
+
         uint256 prevBalance = usdc.balanceOf(address(borrowableCUSDC));
         // User1 needs more funds to be able to repay debt with interest
         usdc.transfer(user1, 1000e6);
@@ -173,6 +179,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
 
     function testConvexLPCollateralRedemption() public {
         testConvexLPCollateralRepayDebt();
+
         IERC20 cvxPool = CONVEX_STETH_ETH_POOL;
         assertEq(cvxPool.balanceOf(user1), 9_000e18);
 
