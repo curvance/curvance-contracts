@@ -472,7 +472,11 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         (, , , uint256 lFactor) = marketManagerIsolated.liquidationValuesOf(user1);
         (uint256 collateralTokenPrice,uint256 debtTokenPrice) =
-            oracleManager.getPriceIsolatedPair(_collateralToken, _debtToken, 2);
+            oracleManager.getPriceIsolatedPair(
+                address(pendleCTokenPTSTETH),
+                address(borrowableCUSDC),
+                2
+            );
 
         (uint256 maxAmount, uint256 liquidatedCollateral, uint256 collateralRequired) = _getLiquidationValuesWithHigherPrecision_NonAuction(
             debtTokenPrice,
