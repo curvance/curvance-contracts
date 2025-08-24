@@ -144,3 +144,9 @@ git merge development
 ```
 
 This process will probably change later on.
+
+## Additional Information
+
+*Last updated: 8/24/2025*
+
+*Maintained by: Curvance Core Team*

@@ -1,6 +1,6 @@
 <p style="text-align: center;width:100%"> <img src="https://pbs.twimg.com/profile_banners/1445781144125857796/1752160592"/></p>
 
-<h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> Curvance Contracts</h1>
+<h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> Contracts</h1>
 
 ## Overview
 
@@ -142,6 +142,7 @@ Core lending infrastructure that implements Curvance's unique Dynamic Liquidatio
 - When adding new files, place them in the appropriate subdirectory based on their purpose.
 - Maintain the directory structure to ensure project organization remains consistent.
 - Reference this document when onboarding new team members.
+
 
 *Last updated: 3/14/2025*
 
