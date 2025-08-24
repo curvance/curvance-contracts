@@ -522,7 +522,9 @@ contract ProtocolReader {
         bcToken = IBorrowableCToken(debtBorrowableCToken);
         if (bcToken.debtBalance(user) != 0) {
             outstandingDebt = bcToken.marketOutstandingDebt();
-            assetsHeld = bcToken.assetsHeld() - newDebtAssets;
+            assetsHeld = bcToken.assetsHeld() > newDebtAssets 
+                ? bcToken.assetsHeld() - newDebtAssets 
+                : 0;
             borrow = bcToken.IRM().borrowRate(assetsHeld, outstandingDebt);
         }
     }
