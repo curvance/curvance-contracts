@@ -54,7 +54,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param cr The address of central registry.
+    /// @param cr The address of the Protocol Central Registry.
     /// @param proxy The proxy address location for Chainsight's oracles.
     constructor(ICentralRegistry cr,address proxy) BaseOracleAdaptor(cr) {
         // Sanity checks calls to `proxy` to make sure its Chainsight's proxy.

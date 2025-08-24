@@ -292,6 +292,16 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// CONSTRUCTOR ///
 
+    /// @param dao The address of `daoAddress`, DAO multisig, the primary
+    ///            address that the Curvance Collective operates from.
+    /// @param ec The address of `emergencyCouncil`, Multi-protocol multisig,
+    ///           intended to be used only for emergencies.
+    /// @param genesisEpoch_ Genesis Epoch timestamp, in unix seconds.
+    /// @param sequencer_ The address of the Chainlink aggregator proxy for
+    ///                   identifying if a sequencer has recently been down
+    ///                   for grace period calculations.
+    /// @param feeToken_ Address of fee token which Curvance Protocol
+    ///                  compounds strategy fees into.
     constructor(
         address dao,
         address ec,

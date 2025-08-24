@@ -49,6 +49,7 @@ contract DAOTimelock is TimelockController, ERC165 {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
     constructor(ICentralRegistry cr) TimelockController(
         MINIMUM_DELAY,
         new address[](0),

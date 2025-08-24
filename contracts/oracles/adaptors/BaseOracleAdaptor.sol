@@ -44,6 +44,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
     constructor(ICentralRegistry cr) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;

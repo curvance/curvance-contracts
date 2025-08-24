@@ -50,7 +50,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param cr The address of central registry.
+    /// @param cr The address of the Protocol Central Registry.
     constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
 
     /// EXTERNAL FUNCTIONS ///

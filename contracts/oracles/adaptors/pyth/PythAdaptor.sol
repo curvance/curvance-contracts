@@ -60,7 +60,8 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param cr The address of central registry.
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param wNative The address of wrapped native token.
     constructor(
         ICentralRegistry cr,
         address nativeUniversalBalance_,

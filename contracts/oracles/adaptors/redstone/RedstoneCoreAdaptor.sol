@@ -58,10 +58,10 @@ contract RedstoneCoreAdaptor is
     address[] public authorisedSigners;
 
     /// @notice The minimum number of unique signers required to accept
-    ///          a Redstone Core price.
+    ///         a Redstone Core price.
     uint256 internal _uniqueSignersThreshold;
 
-    /// @notice Native token symbol metadata on this chain.
+    /// @notice Native token symbol metadata.
     string internal _nativeSymbol;
 
     /// @notice Price feed configuration and price storage for an asset.
@@ -94,7 +94,13 @@ contract RedstoneCoreAdaptor is
 
     /// CONSTRUCTOR ///
 
-    /// @param cr The address of central registry.
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param signers Array containing addresses authorised inside the
+    ///                Redstone Core system.
+    /// @param uniqueSignersThreshold_ The minimum number of unique signers
+    ///                                required to accept a Redstone Core
+    ///                                price.
+    /// @param nativeSymbol Native token symbol metadata.
     constructor(
         ICentralRegistry cr,
         address[] memory signers,

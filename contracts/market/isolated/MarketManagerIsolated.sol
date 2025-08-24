@@ -205,6 +205,7 @@ contract MarketManagerIsolated is
     
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
     constructor(ICentralRegistry cr) LiquidityManagerIsolated(cr) {}
 
     /// EXTERNAL FUNCTIONS ///

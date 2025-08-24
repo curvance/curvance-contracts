@@ -28,6 +28,8 @@ import { IVault } from "contracts/interfaces/IVault.sol";
 contract VaultZapper is SimpleZapper {
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param wNative The address of wrapped native token.
     constructor(ICentralRegistry cr, address wNative) SimpleZapper(cr, wNative) {}
 
     /// EXTERNAL FUNCTIONS ///

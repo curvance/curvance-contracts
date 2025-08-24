@@ -8,7 +8,7 @@ import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol
 contract VelodromeVolatileLPAdaptor is BaseVolatileLPAdaptor {
     /// CONSTRUCTOR ///
 
-    /// @param cr The address of central registry.
+    /// @param cr The address of the Protocol Central Registry.
     constructor(ICentralRegistry cr) BaseVolatileLPAdaptor(cr) {}
 
     /// EXTERNAL FUNCTIONS ///

@@ -60,7 +60,8 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param cr The address of central registry.
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param ptOracle_ The address of the PT twap oracle.
     constructor(
         ICentralRegistry cr,
         IPendlePTOracle ptOracle_

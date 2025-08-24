@@ -45,6 +45,8 @@ abstract contract BaseZapper is ReentrancyGuard {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param wNative The address of wrapped native token.
     constructor(ICentralRegistry cr, address wNative) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;

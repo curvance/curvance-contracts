@@ -27,6 +27,8 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 contract NativeVaultZapper is SimpleZapper {
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param wNative The address of wrapped native token.
     constructor(ICentralRegistry cr, address wNative) SimpleZapper(cr, wNative) {}
 
     /// EXTERNAL FUNCTIONS ///

@@ -245,6 +245,7 @@ abstract contract LiquidityManagerIsolated {
 
     error LiquidityManager__InsufficientLoanSize();
 
+    /// @param cr The address of the Protocol Central Registry.
     constructor(ICentralRegistry cr) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;

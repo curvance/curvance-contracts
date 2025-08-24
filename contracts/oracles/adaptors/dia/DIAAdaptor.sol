@@ -40,7 +40,9 @@ contract DIAAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param cr The address of central registry.
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param dia The address of the proxy contract containing all dia price
+    ///            feeds on this chain.
     constructor(ICentralRegistry cr, address dia) BaseOracleAdaptor(cr) {
         diaOracle = dia;
     }
