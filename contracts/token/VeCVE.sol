@@ -1,16 +1,17 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
-import { WAD, DENOMINATOR } from "contracts/libraries/Constants.sol";
-import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+import { WAD, BPS } from "contracts/libraries/ConstantsLib.sol";
+import { RescueLib } from "contracts/libraries/RescueLib.sol";
+import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.sol";
+
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { IRewardManager, ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 import { IMessagingHub } from "contracts/interfaces/IMessagingHub.sol";
 
 /// @title Curvance Voting Escrow CVE token.
@@ -116,15 +117,22 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @notice The unix timestamp `unlockTime` will be set to when a lock
     //          is set on continuous lock (CL) mode.
     uint40 public constant CONTINUOUS_LOCK_VALUE = type(uint40).max;
-    /// @notice The length of state change restriction pre/post epoch, in weeks.
+    /// @notice The length of state change restriction pre/post epoch,
+    ///         in weeks.
     uint256 public constant RESTRICTION_DURATION = 12 hours;
     /// @notice The length of a fresh voting escrow CVE position, in epochs.
     uint256 public constant LOCK_DURATION_EPOCHS = 26;
-    /// @notice The length of a fresh voting escrow CVE position, in weeks.
-    uint256 public constant LOCK_DURATION = 52 weeks;
     /// @notice Point multiplier for a continuous lock.
     /// @dev 2 = 200%.
     uint256 public constant CL_POINT_MULTIPLIER = 2;
+
+    /// @notice The length of one protocol epoch, in seconds.
+    uint256 public immutable EPOCH_DURATION;
+    /// @notice The length of a fresh voting escrow token position,
+    ///         in seconds.
+    uint256 public immutable LOCK_DURATION;
+    /// @notice Curvance DAO hub.
+    ICentralRegistry public immutable centralRegistry;
 
     /// @dev `bytes4(keccak256(bytes("VeCVE__Unauthorized()")))`
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x32c4d25d;
@@ -132,16 +140,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
     uint256 internal constant _INVALID_LOCK_SELECTOR = 0x21d223d9;
     /// @dev `bytes4(keccak256(bytes("VeCVE__VeCVEShutdown()")))`
     uint256 internal constant _VECVE_SHUTDOWN_SELECTOR = 0x3ad2450b;
-
-    /// @notice The length of one protocol epoch, in seconds.
-    uint256 public immutable epochDuration;
-    /// @notice Curvance DAO hub.
-    ICentralRegistry public immutable centralRegistry;
-
-    /// @notice veCVE name metadata.
-    bytes32 private immutable _name;
-    /// @notice veCVE symbol metadata.
-    bytes32 private immutable _symbol;
 
     /// STORAGE ///
 
@@ -196,29 +194,17 @@ contract VeCVE is ERC20, ReentrancyGuard {
     error VeCVE__PostEpochRestriction();
     error VeCVE__EpochNotDelivered();
     error VeCVE__VeCVEShutdown();
-    error VeCVE__ParametersAreInvalid();
     error VeCVE__InvariantError();
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) {
-        _name = "Vote Escrowed CVE";
-        _symbol = "veCVE";
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
 
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert VeCVE__ParametersAreInvalid();
-        }
-
-        centralRegistry = centralRegistry_;
-
-        // Query epoch and token configuration directly to minimize potential
-        // human error.
-        epochDuration = centralRegistry.EPOCH_DURATION();
+        // Query epoch duration directly to minimize potential human error.
+        EPOCH_DURATION = centralRegistry.EPOCH_DURATION();
+        LOCK_DURATION = EPOCH_DURATION * LOCK_DURATION_EPOCHS;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -231,25 +217,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        address daoOperator = centralRegistry.daoAddress();
-
-        if (token == address(0)) {
-            if (amount == 0) {
-                amount = address(this).balance;
-            }
-
-            SafeTransferLib.safeTransferETH(daoOperator, amount);
-        } else {
-            if (token == _getCVE()) {
-                revert VeCVE__NonTransferrable();
-            }
-
-            if (amount == 0) {
-                amount = IERC20(token).balanceOf(address(this));
-            }
-
-            SafeTransferLib.safeTransfer(token, daoOperator, amount);
+        if (token == _getCVE()) {
+            revert VeCVE__NonTransferrable();
         }
+
+        RescueLib._rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Shuts down the contract, unstakes all tokens,
@@ -268,13 +240,13 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @dev Emits a {Locked} event.
     /// @param amount The amount of tokens to lock.
     /// @param continuousLock Indicator of whether the lock should be continuous.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function createLock(
         uint256 amount,
         bool continuousLock,
-        RewardsData calldata rewardsData,
+        ClaimAction calldata action,
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
@@ -288,7 +260,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         );
 
         // Claim any pending rewards.
-        _claimRewards(msg.sender, rewardsData, params, aux);
+        _claimRewards(msg.sender, action, params, aux);
 
         _lock(msg.sender, amount, continuousLock);
     }
@@ -299,14 +271,14 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @param recipient The address to lock tokens for.
     /// @param amount The amount of tokens to lock.
     /// @param continuousLock Indicator of whether the lock should be continuous.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function createLockFor(
         address recipient,
         uint256 amount,
         bool continuousLock,
-        RewardsData calldata rewardsData,
+        ClaimAction calldata action,
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
@@ -324,7 +296,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         );
 
         // Claim any pending rewards.
-        _claimRewards(recipient, rewardsData, params, aux);
+        _claimRewards(recipient, action, params, aux);
 
         _lock(recipient, amount, continuousLock);
     }
@@ -333,20 +305,20 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///         and processes any pending rewards.
     /// @param lockIndex The index of the lock to extend.
     /// @param continuousLock Indicator of whether the lock should be continuous.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function extendLock(
         uint256 lockIndex,
         bool continuousLock,
-        RewardsData calldata rewardsData,
+        ClaimAction calldata action,
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
         _canModifyLocks();
 
         // Claim any pending rewards.
-        _claimRewards(msg.sender, rewardsData, params, aux);
+        _claimRewards(msg.sender, action, params, aux);
 
         // Need to cache after _claimRewards as the user could have
         // created or modified their locks with their pending rewards.
@@ -398,14 +370,14 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @param amount The amount to increase the lock by.
     /// @param lockIndex The index of the lock to extend.
     /// @param continuousLock Whether the lock should be continuous or not.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function increaseAmountAndExtendLock(
         uint256 amount,
         uint256 lockIndex,
         bool continuousLock,
-        RewardsData calldata rewardsData,
+        ClaimAction calldata action,
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
@@ -419,7 +391,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         );
 
         // Claim any pending rewards.
-        _claimRewards(msg.sender, rewardsData, params, aux);
+        _claimRewards(msg.sender, action, params, aux);
 
         _increaseAmountAndExtendLockFor(
             msg.sender,
@@ -437,7 +409,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @param amount The amount to increase the lock by.
     /// @param lockIndex The index of the lock to extend.
     /// @param continuousLock Whether the lock should be continuous or not.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function increaseAmountAndExtendLockFor(
@@ -445,7 +417,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         uint256 amount,
         uint256 lockIndex,
         bool continuousLock,
-        RewardsData calldata rewardsData,
+        ClaimAction calldata action,
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
@@ -463,7 +435,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         );
 
         // Claim any pending rewards.
-        _claimRewards(recipient, rewardsData, params, aux);
+        _claimRewards(recipient, action, params, aux);
 
         _increaseAmountAndExtendLockFor(
             recipient,
@@ -491,16 +463,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bool isContinuousLock
     ) external {
         _canLock(amount);
+        _validateCallbackFromRewardManager();
 
-        IRewardManager rewardManager = _getRewardManager();
-
-        // Validate that its actually a callback from the Reward Manager as
-        // any other caller opens the protocol up to reentry.
-        if (msg.sender != address(rewardManager)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        uint256 epochs = rewardManager.epochsToClaim(recipient);
+        uint256 epochs = _getRewardManager().epochsToClaim(recipient);
 
         // Validate that user has already claimed all outstanding rewards
         // from the previous reward claim that triggers this callback.
@@ -530,19 +495,19 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @notice Disables a continuous lock for the user at the specified
     ///         lock index, and processes any pending rewards.
     /// @param lockIndex The index of the lock to be disabled.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function disableContinuousLock(
         uint256 lockIndex,
-        RewardsData calldata rewardsData,
+        ClaimAction calldata action,
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
         _canModifyState();
 
         // Claim any pending rewards.
-        _claimRewards(msg.sender, rewardsData, params, aux);
+        _claimRewards(msg.sender, action, params, aux);
 
         // Need to cache after _claimRewards as the user could have
         // created or modifier their locks with their pending rewards.
@@ -570,19 +535,19 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///         and processes any pending rewards.
     /// @param continuousLock Whether the combined lock should be continuous
     ///                       or not.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function combineAllLocks(
         bool continuousLock,
-        RewardsData calldata rewardsData,
+        ClaimAction calldata action,
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
         _canModifyLocks();
 
         // Claim any pending rewards.
-        _claimRewards(msg.sender, rewardsData, params, aux);
+        _claimRewards(msg.sender, action, params, aux);
 
         // Need to cache after _claimRewards as the user could have
         // created or modifier their locks with their pending rewards.
@@ -694,21 +659,21 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @param relock Whether the expired lock should be relocked in a fresh lock.
     /// @param continuousLock Whether the relocked fresh lock should be
     ///                       continuous or not.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function processExpiredLock(
         uint256 lockIndex,
         bool relock,
         bool continuousLock,
-        RewardsData calldata rewardsData,
+        ClaimAction calldata action,
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
         _canModifyState();
 
         // Claim any pending rewards.
-        _claimRewards(msg.sender, rewardsData, params, aux);
+        _claimRewards(msg.sender, action, params, aux);
 
         // Need to cache after _claimRewards as the user could have
         // created or modified their locks with their pending rewards.
@@ -796,20 +761,20 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///                                  continuous or not.
     ///                   gasLimit Gas limit with which to call on destination
     ///                            chain.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function bridgeLock(
         uint256 lockIndex,
         BridgeData calldata bridgeData,
-        RewardsData calldata rewardsData,
+        ClaimAction calldata action,
         bytes calldata params,
         uint256 aux
     ) external payable nonReentrant {
         _canModifyLocks();
 
         // Claim any pending rewards.
-        _claimRewards(msg.sender, rewardsData, params, aux);
+        _claimRewards(msg.sender, action, params, aux);
 
         // Need to cache after _claimRewards as the user could have
         // created or modifier their locks with their pending rewards.
@@ -867,19 +832,19 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @notice Processes an active lock as if its expired, for a penalty,
     ///         and processes any pending rewards.
     /// @param lockIndex The index of the lock to process.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function earlyExpireLock(
         uint256 lockIndex,
-        RewardsData calldata rewardsData,
+        ClaimAction calldata action,
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
         _canModifyLocks();
 
         // Claim any pending rewards.
-        _claimRewards(msg.sender, rewardsData, params, aux);
+        _claimRewards(msg.sender, action, params, aux);
 
         // Need to cache after _claimRewards as the user could have
         // created or modifier their locks with their pending rewards.
@@ -954,14 +919,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///      here.
     function updateUserPoints(address user, uint256 epoch) external {
         _canModifyState();
-
-        address rewardManager = address(_getRewardManager());
-        assembly {
-            if iszero(eq(caller(), rewardManager)) {
-                mstore(0x00, _UNAUTHORIZED_SELECTOR)
-                revert(0x1c, 0x04)
-            }
-        }
+        _validateCallbackFromRewardManager();
 
         userPoints[user] = userPoints[user] - userUnlocksByEpoch[user][epoch];
         delete userUnlocksByEpoch[user][epoch];
@@ -969,17 +927,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
     /// @notice Updates chain points by reducing the amount that gets unlocked
     ///         in a specific epoch.
-    /// @param epoch The epoch from which the unlock amount will be reduced.
     /// @dev This function is only called when chainUnlocksByEpoch[epoch] > 0
     ///      so we do not need for equal 0 here.
+    /// @param epoch The epoch from which the unlock amount will be reduced.
     function updateChainPoints(uint256 epoch) external {
-        address rewardManager = address(_getRewardManager());
-        assembly {
-            if iszero(eq(caller(), rewardManager)) {
-                mstore(0x00, _UNAUTHORIZED_SELECTOR)
-                revert(0x1c, 0x04)
-            }
-        }
+        _validateCallbackFromRewardManager();
 
         chainPoints = chainPoints - chainUnlocksByEpoch[epoch];
     }
@@ -988,9 +940,10 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
     /// @notice Returns whether state changes are allowed or not based on epoch
     ///         status.
+    /// @return Whether state changes are allowed.
     function canModifyState() external view returns (bool) {
         uint256 nextEpochTimestamp = nextEpochStartTime();
-        uint256 currentEpochTimestamp = nextEpochTimestamp - epochDuration;
+        uint256 currentEpochTimestamp = nextEpochTimestamp - EPOCH_DURATION;
 
         if (
             currentEpochTimestamp <= block.timestamp &&
@@ -1044,7 +997,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         uint256 voteBoost = centralRegistry.voteBoostMultiplier();
-        voteBoost = voteBoost == 0 ? DENOMINATOR : voteBoost;
+        voteBoost = voteBoost == 0 ? BPS : voteBoost;
         uint256 votes;
 
         for (uint256 i; i < numLocks; ) {
@@ -1060,27 +1013,28 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// PUBLIC FUNCTIONS ///
 
     /// @dev Returns the name of the token.
-    function name() public view override returns (string memory) {
-        return string(abi.encodePacked(_name));
+    /// @return The name of the token.
+    function name() public pure override returns (string memory) {
+        return "Vote Escrowed CVE";
     }
 
     /// @dev Returns the symbol of the token.
-    function symbol() public view override returns (string memory) {
-        return string(abi.encodePacked(_symbol));
+    /// @return The symbol of the token.
+    function symbol() public pure override returns (string memory) {
+        return "veCVE";
     }
 
     /// @notice Returns the current epoch for the given time.
-    /// @param time The timestamp for which to calculate the epoch.
+    /// @param timestamp The timestamp for which to calculate the epoch.
     /// @return The current epoch.
-    function currentEpoch(uint256 time) public view returns (uint256) {
-        uint256 genesisEpoch = centralRegistry.genesisEpoch();
-
-        if (time < genesisEpoch) {
-            return 0;
-        }
+    function currentEpoch(uint256 timestamp) public view returns (uint256) {
+        uint256 cachedGenesisEpoch = centralRegistry.genesisEpoch();
 
         // Rounds down intentionally.
-        return ((time - genesisEpoch) / epochDuration);
+        return
+            timestamp < cachedGenesisEpoch
+                ? 0
+                : (timestamp - cachedGenesisEpoch) / EPOCH_DURATION;
     }
 
     /// @notice Returns the timestamp of when the next epoch begins.
@@ -1095,7 +1049,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         uint256 timestampOffset = (currentEpoch(block.timestamp) + 1) *
-            epochDuration;
+            EPOCH_DURATION;
         return (genesisEpoch + timestampOffset);
     }
 
@@ -1113,7 +1067,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         return
             uint40(
                 _genesisEpoch() +
-                    (currentEpoch(block.timestamp) * epochDuration) +
+                    (currentEpoch(block.timestamp) * EPOCH_DURATION) +
                     LOCK_DURATION
             );
     }
@@ -1192,31 +1146,35 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
         if (lock.unlockTime == CONTINUOUS_LOCK_VALUE) {
             unchecked {
-                return ((lock.amount * voteBoost) / DENOMINATOR);
+                return ((lock.amount * voteBoost) / BPS);
             }
         }
 
         // Equal to:
-        // epochsLeft = (lock.unlockTime - time) / epochDuration
+        // epochsLeft = (lock.unlockTime - time) / EPOCH_DURATION
         // votes = (lock.amount * epochsLeft) / LOCK_DURATION_EPOCHS.
         return
             (lock.amount *
-                ((lock.unlockTime - block.timestamp) / epochDuration)) /
+                ((lock.unlockTime - block.timestamp) / EPOCH_DURATION)) /
             LOCK_DURATION_EPOCHS;
     }
 
     /// @notice Claims rewards for any unclaimed reward epochs.
     /// @param user The address of the user claiming rewards.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param action Rewards data for desired Reward Manager action.
     /// @param params Swap data for token swapping rewards to cve,
     ///               if necessary.
     /// @param aux Auxiliary data for veCVE.
     function _claimRewards(
         address user,
-        RewardsData memory rewardsData,
+        ClaimAction memory action,
         bytes memory params,
         uint256 aux
     ) internal {
+        if (userLocks[msg.sender].length == 0) {
+            return;
+        }
+
         IRewardManager rewardManager = _getRewardManager();
         uint256 epochs = rewardManager.epochsToClaim(user);
 
@@ -1224,7 +1182,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             rewardManager.claimRewardsFor(
                 user,
                 epochs,
-                rewardsData,
+                action,
                 params,
                 aux
             );
@@ -1290,14 +1248,14 @@ contract VeCVE is ERC20, ReentrancyGuard {
         uint256 lockIndex,
         bool continuousLock
     ) internal {
-        Lock[] storage user = userLocks[recipient];
+        Lock[] storage locks = userLocks[recipient];
 
         // Length is index + 1 so has to be less than array length.
-        if (lockIndex >= user.length) {
+        if (lockIndex >= locks.length) {
             _revert(_INVALID_LOCK_SELECTOR);
         }
 
-        uint40 unlockTimestamp = user[lockIndex].unlockTime;
+        uint40 unlockTimestamp = locks[lockIndex].unlockTime;
 
         if (unlockTimestamp == CONTINUOUS_LOCK_VALUE) {
             if (!continuousLock) {
@@ -1308,7 +1266,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
             _incrementPoints(recipient, _getCLPoints(amount));
 
             // Update the lock value to include the new locked tokens.
-            user[lockIndex].amount = uint216(user[lockIndex].amount + amount);
+            locks[lockIndex].amount = uint216(
+                locks[lockIndex].amount + amount
+            );
         } else {
             // User was not continuous locked prior so we will need
             // to clean up their unlock data.
@@ -1316,12 +1276,12 @@ contract VeCVE is ERC20, ReentrancyGuard {
                 _revert(_INVALID_LOCK_SELECTOR);
             }
 
-            uint256 previousAmount = user[lockIndex].amount;
+            uint256 previousAmount = locks[lockIndex].amount;
             uint256 newAmount = previousAmount + amount;
-            uint256 priorEpoch = currentEpoch(user[lockIndex].unlockTime);
+            uint256 priorEpoch = currentEpoch(locks[lockIndex].unlockTime);
 
             if (continuousLock) {
-                user[lockIndex].unlockTime = CONTINUOUS_LOCK_VALUE;
+                locks[lockIndex].unlockTime = CONTINUOUS_LOCK_VALUE;
 
                 // Decrement their previous non-continuous lock value
                 // and increase points by the continuous lock value.
@@ -1332,7 +1292,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
                     previousAmount
                 );
             } else {
-                user[lockIndex].unlockTime = freshLockTimestamp();
+                locks[lockIndex].unlockTime = freshLockTimestamp();
 
                 // Update unlock data removing the old lock amount from
                 // old epoch and add the new lock amount to the new epoch.
@@ -1348,7 +1308,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
                 _incrementPoints(recipient, amount);
             }
 
-            user[lockIndex].amount = uint216(newAmount);
+            locks[lockIndex].amount = uint216(newAmount);
         }
 
         _mint(recipient, amount);
@@ -1357,16 +1317,16 @@ contract VeCVE is ERC20, ReentrancyGuard {
     }
 
     /// @notice Removes a lock from `user`.
-    /// @param user An array of locks for `user`.
+    /// @param locks An array of locks for `user`.
     /// @param lockIndex The index of the lock to be removed.
-    function _removeLock(Lock[] storage user, uint256 lockIndex) internal {
-        uint256 lastLockIndex = user.length - 1;
+    function _removeLock(Lock[] storage locks, uint256 lockIndex) internal {
+        uint256 lastLockIndex = locks.length - 1;
 
         if (lockIndex != lastLockIndex) {
-            user[lockIndex] = user[lastLockIndex];
+            locks[lockIndex] = locks[lastLockIndex];
         }
 
-        user.pop();
+        locks.pop();
     }
 
     /// @notice Increment token points.
@@ -1438,16 +1398,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         uint256 previousPoints,
         uint256 points
     ) internal {
-        chainUnlocksByEpoch[previousEpoch] =
-            chainUnlocksByEpoch[previousEpoch] -
-            previousPoints;
-        userUnlocksByEpoch[user][previousEpoch] =
-            userUnlocksByEpoch[user][previousEpoch] -
-            previousPoints;
-        chainUnlocksByEpoch[epoch] = chainUnlocksByEpoch[epoch] + points;
-        userUnlocksByEpoch[user][epoch] =
-            userUnlocksByEpoch[user][epoch] +
-            points;
+        _reduceTokenUnlocks(user, previousEpoch, previousPoints);
+        _incrementTokenUnlocks(user, epoch, points);
     }
 
     /// @notice Update token data from continuous lock on.
@@ -1463,12 +1415,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         uint256 points,
         uint256 unlocks
     ) internal {
-        chainPoints = chainPoints + points;
-        chainUnlocksByEpoch[epoch] = chainUnlocksByEpoch[epoch] - unlocks;
-        userPoints[user] = userPoints[user] + points;
-        userUnlocksByEpoch[user][epoch] =
-            userUnlocksByEpoch[user][epoch] -
-            unlocks;
+        _incrementPoints(user, points);
+        _reduceTokenUnlocks(user, epoch, unlocks);
     }
 
     /// @notice Update token data from an early expired lock.
@@ -1515,22 +1463,23 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // down to 0.
         // If the lock mode is continuous, we know its a full penalty unlock.
         if (unlockTime == CONTINUOUS_LOCK_VALUE) {
-            return (amount * penalty) / DENOMINATOR;
+            return (amount * penalty) / BPS;
         }
 
         return
             (amount *
                 ((penalty * (unlockTime - block.timestamp)) / LOCK_DURATION)) /
-            DENOMINATOR;
+            BPS;
     }
 
-    /// @notice Returns the genesis epoch.
-    /// @return The genesis epoch.
+    /// @notice Returns the genesis epoch timestamp.
+    /// @return The genesis epoch timestamp.
     function _genesisEpoch() internal view returns (uint256) {
         return centralRegistry.genesisEpoch();
     }
 
     /// @notice Returns the current CVE address.
+    /// @return The current CVE address.
     function _getCVE() internal view returns (address) {
         return centralRegistry.cve();
     }
@@ -1554,7 +1503,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///      structure or not.
     function _canModifyState() internal view {
         uint256 nextEpochTimestamp = nextEpochStartTime();
-        uint256 currentEpochTimestamp = nextEpochTimestamp - epochDuration;
+        uint256 currentEpochTimestamp = nextEpochTimestamp - EPOCH_DURATION;
 
         if (
             currentEpochTimestamp <= block.timestamp &&
@@ -1578,10 +1527,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///      is allowed.
     ///      Requires a minimum lock size of 1 CVE, in `WAD`.
     function _canLock(uint256 amount) internal view {
+        /// @solidity memory-safe-assembly
         assembly {
             if lt(amount, WAD) {
                 mstore(0x0, _INVALID_LOCK_SELECTOR)
-                // return bytes 29-32 for the selector
+                // Return bytes 29-32 for the selector.
                 revert(0x1c, 0x04)
             }
         }
@@ -1597,5 +1547,19 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         _canModifyState();
+    }
+
+    /// @dev Validate that its actually a callback from the Reward Manager as
+    ///      any other caller opens the protocol up to reentry.
+    function _validateCallbackFromRewardManager() internal view {
+        address rewardManager = address(_getRewardManager());
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            if iszero(eq(caller(), rewardManager)) {
+                mstore(0x00, _UNAUTHORIZED_SELECTOR)
+                revert(0x1c, 0x04)
+            }
+        }
     }
 }

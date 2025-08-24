@@ -1,21 +1,25 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
 /// @title Curvance Plugin Delegation Manager.
 /// @notice Facilitates delegated actions on behalf of a user inside Curvance.
 /// @dev `PluginDelegable` allows the Curvance Protocol to be a modular system
 ///      that plugins can be built on top of. By delegating action authority
-///      to a secondary address users can utilize potential third-party
+///      to an address or addresses users can utilize potential third-party
 ///      features such as limit orders, crosschain actions, reward auto
 ///      compounding, chained (multiple sequential) actions, etc.
-abstract contract PluginDelegable {
-    /// STORAGE ///
-
+abstract contract PluginDelegable is IPluginDelegable {
+    /// CONSTANTS ///
+    
     /// @notice Curvance DAO Hub.
     ICentralRegistry public immutable centralRegistry;
+
+    /// STORAGE ///
 
     /// @notice Status of whether a user or contract has the ability to act
     ///         on behalf of an account.
@@ -35,39 +39,19 @@ abstract contract PluginDelegable {
 
     /// ERRORS ///
 
-    error PluginDelegable__InvalidCentralRegistry();
+    error PluginDelegable__Unauthorized();
     error PluginDelegable__DelegatingDisabled();
+    error PluginDelegable_InvalidParameter();
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert PluginDelegable__InvalidCentralRegistry();
-        }
-
-        centralRegistry = centralRegistry_;
+    /// @param cr The address of the Central Registry contract.
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
     }
 
     /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Returns whether a user or contract has the ability to act
-    ///         on behalf of an account.
-    /// @param user The address to check whether `delegate` has delegation
-    ///             permissions.
-    /// @param delegate The address that will be approved or restricted
-    ///                 from delegated actions on behalf of the caller.
-    /// @return Returns whether `delegate` is an approved delegate of `user`.
-    function isDelegate(
-        address user,
-        address delegate
-    ) public view returns (bool) {
-        return _isDelegate[user][getUserApprovalIndex(user)][delegate];
-    }
 
     /// @notice Approves or restricts `delegate`'s authority to operate
     ///         on the caller's behalf.
@@ -80,41 +64,73 @@ abstract contract PluginDelegable {
     /// @param isApproved Whether `delegate` is being approved or restricted
     ///                   of authority to operate on behalf of caller.
     function setDelegateApproval(address delegate, bool isApproved) external {
-        if (checkDelegationDisabled(msg.sender)) {
+        if (delegate == msg.sender) {
+            revert PluginDelegable_InvalidParameter();
+        }
+
+        if (centralRegistry.checkDelegationDisabled(msg.sender)) {
             revert PluginDelegable__DelegatingDisabled();
         }
 
-        uint256 approvalIndex = getUserApprovalIndex(msg.sender);
-        _isDelegate[msg.sender][approvalIndex][delegate] = isApproved;
+        uint256 currentIndex = centralRegistry.userApprovalIndex(msg.sender);
+        _isDelegate[msg.sender][currentIndex][delegate] = isApproved;
 
-        emit DelegateApproval(
-            msg.sender,
-            delegate,
-            approvalIndex,
-            isApproved
-        );
+        emit DelegateApproval(msg.sender, delegate, currentIndex, isApproved);
     }
 
-    /// PUBLIC FUNCTIONS ///
-
-    /// @notice Returns `user`'s approval index.
+    /// @notice Returns `user`'s current approval index value.
     /// @dev The approval index is a way to revoke approval on all tokens,
     ///      and features at once if a malicious delegation was allowed by
     ///      `user`.
     /// @param user The user to check delegated approval index for.
-    /// @return `User`'s approval index.
-    function getUserApprovalIndex(
+    /// @return result The `user`'s current approval index value.
+    function userApprovalIndex(
         address user
-    ) public view returns (uint256) {
-        return centralRegistry.getUserApprovalIndex(user);
+    ) external view returns (uint256 result) {
+        result = centralRegistry.userApprovalIndex(user);
+    }
+
+    /// @notice Returns whether `delegate` has the ability to act on behalf of
+    ///         `user`.
+    /// @param user The address to check whether `delegate` has delegation
+    ///             permissions for.
+    /// @param delegate The address to check delegation permissions of `user`.
+    /// @return result Indicates whether `delegate` is an approved delegate or
+    ///                not of `user`, true = is a delegate, false = is not
+    ///                a delegate.
+    function isDelegate(
+        address user,
+        address delegate
+    ) external view returns (bool result) {
+        result = _isDelegate[user][centralRegistry
+            .userApprovalIndex(user)][delegate];
     }
 
     /// @notice Returns whether a user has delegation disabled.
     /// @dev This is not a silver bullet for phishing attacks, but, adds
     ///      an additional wall of defense.
     /// @param user The user to check delegation status for.
-    /// @return Whether the user has new delegation disabled or not.
-    function checkDelegationDisabled(address user) public view returns (bool) {
-        return centralRegistry.checkDelegationDisabled(user);
+    /// @return result Indicates whether `user` has delegation disabled
+    ///                or not, true = disabled, false = not disabled.
+    function checkDelegationDisabled(
+        address user
+    ) external view returns (bool result) {
+        result = centralRegistry.checkDelegationDisabled(user);
+    }
+
+    /// INTERNAL FUNCTIONS ///
+
+    /// @notice Checks whether `delegate` has the ability to act on behalf of
+    ///         `user`, reverts if they do not.
+    /// @param user The address to check whether `delegate` has delegation
+    ///             permissions for.
+    /// @param delegate The address to check delegation permissions of `user`.
+    function _checkDelegate(address user, address delegate) internal view {
+        if (
+            !_isDelegate[user][centralRegistry
+                .userApprovalIndex(user)][delegate]
+        ) {
+            revert PluginDelegable__Unauthorized();
+        }
     }
 }

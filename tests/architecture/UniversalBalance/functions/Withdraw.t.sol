@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
@@ -10,15 +10,46 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
         address indexed to,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        bool lendingRedemption
     );
+
+    function test_universalBalanceWithdraw_fail_whenTransferIsDisabled()
+        public
+    {
+        vm.startPrank(user1);
+
+        centralRegistry.setTransferableStatus(true);
+
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__Unauthorized.selector
+        );
+        universalBalance.withdraw(1e6, false, address(this));
+
+        vm.stopPrank();
+    }
+
+    function test_universalBalanceWithdraw_fail_whenCooldownIsNotEnded()
+        public
+    {
+        vm.startPrank(user1);
+
+        centralRegistry.setCooldown(10 days);
+        centralRegistry.setCooldown(5 days);
+
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__Unauthorized.selector
+        );
+        universalBalance.withdraw(1e6, false, address(this));
+
+        vm.stopPrank();
+    }
 
     function test_universalBalanceWithdraw_fail_whenExceedsLentBalance_fuzzed(
         uint256 amount
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(_USDC_ADDRESS, user1, amount);
+        _prepareUSDC(user1, amount);
 
         vm.startPrank(user1);
 
@@ -35,7 +66,7 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(_USDC_ADDRESS, user1, amount);
+        _prepareUSDC(user1, amount);
 
         vm.startPrank(user1);
 
@@ -65,7 +96,7 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
         );
         vm.assume(0 < withdrawAmount && withdrawAmount <= depositAmount);
 
-        deal(_USDC_ADDRESS, user1, depositAmount * 2);
+        _prepareUSDC(user1, depositAmount * 2);
 
         vm.startPrank(user1);
 
@@ -74,16 +105,16 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
 
         vm.stopPrank();
 
-        uint256 redeemAmount = eUSDC.convertToShares(withdrawAmount);
+        uint256 redeemAmount = borrowableCUSDC.convertToShares(withdrawAmount);
         uint256 ethBalance = address(universalBalance).balance;
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user2);
 
         vm.prank(user1);
 
-        vm.expectEmit();
-        emit Withdraw(user1, user2, user1, withdrawAmount, redeemAmount);
+        vm.expectEmit(true, true, true, true, address(universalBalance));
+        emit Withdraw(user1, user2, user1, withdrawAmount, true);
 
         universalBalance.withdraw(withdrawAmount, true, user2);
 
@@ -95,8 +126,8 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
         assertEq(address(universalBalance).balance, ethBalance);
         assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
         assertEq(
-            eUSDC.balanceOf(address(universalBalance)),
-            eUSDCBalance - redeemAmount
+            borrowableCUSDC.balanceOf(address(universalBalance)),
+            borrowableCUSDCBalance - redeemAmount
         );
         assertEq(usdc.balanceOf(user2), userUSDCBalance + withdrawAmount);
     }
@@ -110,7 +141,7 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
         );
         vm.assume(0 < withdrawAmount && withdrawAmount <= depositAmount);
 
-        deal(_USDC_ADDRESS, user1, depositAmount * 2);
+        _prepareUSDC(user1, depositAmount * 2);
 
         vm.startPrank(user1);
 
@@ -121,11 +152,11 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
 
         uint256 ethBalance = address(universalBalance).balance;
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
-        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 borrowableCUSDCBalance = borrowableCUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user2);
 
-        vm.expectEmit();
-        emit Withdraw(user1, user2, user1, withdrawAmount, withdrawAmount);
+        vm.expectEmit(true, true, true, true, address(universalBalance));
+        emit Withdraw(user1, user2, user1, withdrawAmount, false);
 
         vm.prank(user1);
         universalBalance.withdraw(withdrawAmount, false, user2);
@@ -140,7 +171,7 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
             usdc.balanceOf(address(universalBalance)),
             usdcBalance - withdrawAmount
         );
-        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(borrowableCUSDC.balanceOf(address(universalBalance)), borrowableCUSDCBalance);
         assertEq(usdc.balanceOf(user2), userUSDCBalance + withdrawAmount);
     }
 }

@@ -16,6 +16,7 @@
 **/node_modules
 **/out
 **/output
+/coverage_report
 
 # files
 **/.DS_Store
@@ -43,3 +44,5 @@ src/types/factories/*
 cache/
 out/
 broadcast/
+.vscode
+tests/austin.t.sol

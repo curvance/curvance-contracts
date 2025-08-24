@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
-pragma solidity ^0.8.19;
+// Original authors: https://github.com/summa-tx/memview-sol
+pragma solidity 0.8.28;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import { SafeMathMem } from "./SafeMathMem.sol";
 
 library TypedMemView {
-    using SafeMath for uint256;
+    using SafeMathMem for uint256;
 
     // Why does this exist?
     // the solidity `bytes memory` type has a few weaknesses.

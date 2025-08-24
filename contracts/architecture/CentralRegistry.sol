@@ -1,80 +1,66 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
-import { DENOMINATOR } from "contracts/libraries/Constants.sol";
+import { ActionRegistry, IActionRegistry } from "contracts/libraries/ActionRegistry.sol";
+import { BPS } from "contracts/libraries/ConstantsLib.sol";
 
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { LockableRegistry } from "contracts/libraries/LockableRegistry.sol";
 
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
-import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICentralRegistry, ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
-import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
-import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
-import { IMessageTransmitter } from "contracts/interfaces/external/wormhole/IMessageTransmitter.sol";
-import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IVotingHub } from "contracts/interfaces/IVotingHub.sol";
 
 /// @title Curvance DAO Central Registry.
 /// @notice Manages permissions and protocol contract registration
 ///         within the Curvance Protocol.
-/// @dev The Central Registry acts a single source of truth for the Curvance
+/// @dev The Central Registry acts as a single source of truth for the Curvance
 ///      Protocol. This covers everything from multichain operations, to
 ///      contract locations, to protocol fees, to protocol multipliers
 ///      associated with various actions.
 ///
-///      Permissions inside Curvance has two tiers:
+///      Permissions inside Curvance have two tiers:
 ///      - Standard DAO permissions: This is associated with actions that
-///        reduce risk inside the Curvance system, or need to continually
+///        reduce risk inside the Curvance system, or need to be continually
 ///        managed by the DAO elected operating team.
 ///      - Elevated DAO permissions: This is associated with actions that
 ///        increase risk inside the Curvance system, the most sensitive of
-///        controls. This requires a 7-day delay from the DAO elected
+///        controls. This requires a 5-day delay from the DAO elected
 ///        operating team for any action, or the "Emergency Council" made up
 ///        of both Curvance Collective members and external stakeholders.
 ///
 ///      All values inside Curvance are entered in basis point form. However,
-///      Fees are recorded internally in `WAD` format, or 1e18, rather than
-///      basis points, or 1e4. This is for greater precision in computations.
+///      Fees are recorded internally in `WAD` format, or 1e18. Rather than
+///      `BPS`, or 1e4, for improved precision in calculations.
 ///      As a result, you will see multiplier values stored in 1e4 form,
 ///      and fees stored in 1e18 form.
 ///
-///      The Central Registry also manages the delegation system, creating
-///      a new primitive as an alternative to the standard approval system.
-///      Users can "delegate" specific actions or contracts to any address.
-///      Providing that address authority on behalf of the user in the
-///      contract. Approvals can also be mass revoked via the "approval index"
-///      system. By incrementing one's approval index, a user can revoke all
-///      approved address' delegation privileges at the same time.
+///      The Central Registry manages the plugin system, creating a new
+///      primitive allowing for "delegation" of specific actions to any
+///      address, providing that address authority on behalf of the user in
+///      the smart contract. Approvals can also be mass revoked via the
+///      "approval index" system. By incrementing one's approval index, a user
+///      can revoke all approved address' delegation privileges at the same
+///      time. This facilitates better management of approvals inside
+///      Curvance versus conventional implementations on top of the EVM.
 ///
-contract CentralRegistry is ERC165, LockableRegistry {
-    /// TYPES ///
-    struct DelegationConfig {
-        uint208 approvalIndex;
-        uint40 delegationEnabledTimestamp;
-        bool delegationDisabled;
-    }
-
+///      The Central Registry also manages the locking system,
+///      which operates as an optional 2FA setting to reduce the potential of
+///      a successful phishing attempt on a user. A cooldown can be set for
+///      token transfers and plugin delegation that activates after an action
+///      lock is enabled.
+///
+contract CentralRegistry is ERC165, ActionRegistry {
     /// CONSTANTS ///
 
     /// @notice The length of one protocol epoch, in seconds.
     uint256 public constant EPOCH_DURATION = 2 weeks;
 
-    /// @notice Sequencer uptime oracle feed address for L2s.
-    address public immutable sequencer;
-    /// @notice Address of fee token.
-    address public immutable feeToken;
-
-    /// @dev bytes4(keccak256(bytes("CentralRegistry__ParametersMisconfigured()")))
-    uint256 internal constant _PARAMETERS_MISCONFIGURED_SELECTOR = 0xa5bb570d;
-    /// @dev bytes4(keccak256(bytes("CentralRegistry__Unauthorized()")))
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xe675838a;
-    /// @dev bytes4(keccak256(bytes("CentralRegistry__EpochHasStarted()")))
-    uint256 internal constant _EPOCH_HAS_STARTED_SELECTOR = 0xffb4e740;
+    /// @notice Sequencer uptime oracle on this chain (for L2s).
+    address public immutable SEQUENCER_ORACLE;
 
     /// STORAGE ///
 
@@ -83,248 +69,288 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     // DAO GOVERNANCE OPERATORS
 
-    /// @notice DAO multisig.
+    /// @notice DAO multisig, the primary address that the Curvance
+    ///         Collective operates from.
     address public daoAddress;
     /// @notice DAO multisig, with an execution time delay.
     address public timelock;
-    /// @notice Multi-protocol multisig, only for emergencies.
+    /// @notice Multi-protocol multisig, intended to be used only for
+    ///         emergencies.
     address public emergencyCouncil;
 
-    // CURVANCE TOKEN CONTRACTS
+    // TOKEN CONTRACTS
 
-    /// @notice CVE contract address.
+    /// @notice Address of fee token which Curvance Protocol compounds
+    ///         strategy fees into.
+    address public feeToken;
+    /// @notice CVE contract address on this chain.
     address public cve;
-    /// @notice veCVE contract address.
+    /// @notice veCVE contract address on this chain.
     address public veCVE;
 
-    // DAO CONTRACTS DATA
+    // PROTOCOL CONTRACTS
 
-    /// @notice Reward Manager contract address.
+    /// @notice Reward Manager contract address, distributes rewards in
+    ///         `feeToken` to token lockers every epoch.
     address public rewardManager;
-    /// @notice Gauge Manager contract address.
+    /// @notice Gauge Manager contract address, distributes native token
+    ///         rewards to depositors and lenders inside the Curvance
+    ///         Protocol based on decentralized governance outcomes.
     address public gaugeManager;
-    /// @notice Voting Hub contract address.
-    address public votingHub;
-    /// @notice Messaging Hub contract address.
-    address public messagingHub;
-    /// @notice Oracle Manager contract address.
+    /// @notice Oracle Manager contract address, manages oracle prices
+    ///         for supported assets.
     address public oracleManager;
-    /// @notice Fee Manager contract address.
+    /// @notice Fee Manager contract address, manages fees for decentralized
+    ///         strategies for distribution.
     address public feeManager;
+    /// @notice Messaging Hub contract address, processes crosschain messages
+    ///         across all supported blockchains.
+    address public messagingHub;
+    /// @notice Voting Hub contract address, receives decentralized governance
+    ///         vote outcomes to update onchain across all blockchains.
+    address public votingHub;
 
-    // CROSS-CHAIN MESSAGING DATA
-
-    /// @notice Address of Wormhole core contract.
-    IWormhole public wormholeCore;
-    /// @notice Address of Wormhole Relayer.
-    IWormholeRelayer public wormholeRelayer;
-
-    /// @notice Address of Circle Token Messenger.
-    ITokenMessenger public circleTokenMessenger;
-
-    /// @notice Address of Circle Token Messenger.
-    IMessageTransmitter public circleMessageTransmitter;
-
-    /// @notice Wormhole TokenBridge.
-    ITokenBridge public tokenBridge;
-
-    /// @notice CCTP Domain.
-    uint32 public cctpDomain;
-
-    // PROTOCOL FEE VALUES
-
-    // Values are always set in `Basis Points` (1e4), fee values are converted
-    // and stored in `WAD` while multipliers stay in `DENOMINATOR`.
-
-    /// @notice Fee on yield generated for compounding vaults.
-    uint256 public protocolCompoundFee = 100 * 1e14;
-    /// @notice Fee on yield generated in vaults distributed to veCVE lockers.
-    uint256 public protocolYieldFee = 1500 * 1e14;
-    /// @notice Joint fee value so that we can perform one less external call
-    ///         in vault contracts.
-    uint256 public protocolHarvestFee = protocolCompoundFee + protocolYieldFee;
-    /// @notice Protocol fee on leverage usage.
-    uint256 public protocolLeverageFee;
-    /// @notice Protocol slippage limit for safe swap.
-    uint256 public slippageLimit = 1000 * 1e14;
+    /// @notice Array of all the addresses for all Curvance market managers
+    ///         on this chain.
+    address[] internal _marketManagers;
 
     // ACTION MULTIPLIER VALUES
+    // @dev We save these in uint256 slots since they are accessed separately.
 
-    /// @notice Penalty multiplier for unlocking a veCVE lock early.
+    /// @notice Penalty multiplier for unlocking a veCVE lock early,
+    ///         in `BPS`.
     uint256 public earlyUnlockPenaltyMultiplier;
-    /// @notice Voting power multiplier for Continuous Lock mode.
+    /// @notice Voting power multiplier for Continuous Lock mode,
+    ///         in `BPS`.
     uint256 public voteBoostMultiplier;
-    /// @notice Gauge rewards multiplier for locking gauge emissions.
+    /// @notice Rewards multiplier for locking gauge emissions as veCVE,
+    ///         in `BPS`.
     uint256 public lockBoostMultiplier;
 
-    // PROTOCOL INTEREST RATE FEES
+    // SLIPPAGE VALUES
 
-    /// @notice Debt token fee on interest generated.
-    /// @dev Market Manager => Protocol Interest Factor, in `WAD`.
-    mapping(address => uint256) public protocolInterestFactor;
+    /// @notice Protocol slippage limit for `swapSafe`.
+    /// @dev 1000 = 10%.
+    ///      This slippage configurable variable is not for an end all be all
+    ///      slippage check, any external swap natively includes slippage and
+    ///      only acts as a protective layer against secondary actions such as
+    ///      providing liquidity into an LP token or from untrusted executed
+    ///      like a harvester that could at some point be compromised.
+    uint16 public slippageLimit = 1000;
 
-    /// USER DELEGATION ///
+    // PROTOCOL VALUES
 
-    /// @notice Contains a user's configuration values for delegated actions
-    ///         inside Curvance.
-    /// @dev By incrementing their approval index, a user's delegates will all
-    ///      have their delegation authority revoked across all Curvance
-    ///      contracts.
-    ///      User => User delegation configuration values.
-    mapping(address => DelegationConfig) public delegationConfig;
+    /// @notice Fee on yield generated from strategies to pay for network gas
+    ///         costs, in `BPS`.
+    /// @dev 100 = 1%.
+    uint16 public protocolCompoundFee = 100;
+    /// @notice Fee on yield generated from strategies distributed to veCVE
+    ///         lockers, in `BPS`.
+    /// @dev 1500 = 15%.
+    uint16 public protocolYieldFee = 1500;
+    /// @notice Joint strategy fee value so that we can perform one less
+    ///         external call in strategy contracts, in `BPS`.
+    /// @dev 1600 = 16%.
+    uint16 public protocolHarvestFee = protocolCompoundFee + protocolYieldFee;
+    /// @notice Protocol fee on leverage usage, in `BPS`.
+    uint16 public protocolLeverageFee;
 
-    // DAO PERMISSION DATA
+    /// @notice % fee on accrued interest payments from borrowers inside
+    ///         permissionless Curvance Markets.
+    /// @dev Market Manager => Protocol Accrued interest fee, in `BPS`.
+    mapping(address => uint256) public protocolInterestFee;
 
-    /// @notice Whether an address has DAO permissioning or not.
+    // AUCTION TRANSACTION STORAGE
+
+    /// Controls which Market Manager auction liquidators can act inside.
+    /// @dev Key value = `uint256(keccak256(_TRANSIENT_MARKET_UNLOCKED_KEY))`.
+    uint256 internal constant _TRANSIENT_MARKET_UNLOCKED_KEY
+        = 0x7cbd46c789962ee73435d84bcd3c0927fb55fd04ce92deedbdae7e783739544c;
+
+    // CROSSCHAIN CONFIGURATION DATA
+
+    /// @notice Address of Crosschain Core contract on this chain.
+    address public crosschainCore;
+    /// @notice Address of Crosschain Relayer contract on this chain.
+    address public crosschainRelayer;
+    /// @notice Address of Token Messenger contract on this chain.
+    address public tokenMessager;
+    /// @notice Address of Message Transmitter contract on this chain.
+    address public messageTransmitter;
+    /// @notice Domain value on this chain.
+    uint32 public domain;
+    /// @notice The number of chains supported by the Curvance Protocol.
+    /// @dev Stored redundantly to reduce gas overhead.
+    uint256 public supportedChains;
+
+    /// @notice Array of Chain IDs recorded in the Crosschain Protocol's Chain
+    ///         ID format.
+    /// @dev Stored redundantly to reduce gas overhead.
+    uint256[] internal _foreignChainIds;
+    
+    /// @notice Configuration data for a separately supported blockchain.
+    mapping(uint256 => ChainConfig) public chainConfig;
+    /// @notice Returns the GETH chainId corresponding chainId corresponding
+    ///         to Crosschain Messaging Protocol's `chainId`.
+    /// @dev Messaging ChainId => GETH ChainId.
+    mapping(uint16 => uint256) public messagingToGETHChainId;
+
+    /// @notice Indicates the amount of token rewards allocated on this chain,
+    ///         for an epoch.
+    /// @dev Epoch # => Token rewards allocated.
+    mapping(uint256 => uint256) public emissionsAllocatedByEpoch;
+
+    /// @notice Indicates the amount of token rewards allocated across all
+    ///         chains, for an era. An era is a particular period in time in
+    ///         which rewards are constant, before a halvening event moves the
+    ///         protocol to a new era.
+    /// @dev Era # => Token rewards allocated.
+    mapping(uint256 => uint256) public targetEmissionAllocationByEra;
+
+    // CONTRACT MAPPINGS
+    
+    /// @notice Indicates if an address is a market manager or not.
+    /// @dev Address => Market Manager status.
+    mapping(address => bool) public isMarketManager;
+    /// @notice Indicates if an address is a multicall provider or not.
+    /// @dev Address => Multicall provider status.
+    mapping(address => bool) public isMulticallProvider;
+
+    /// @notice Maps an intent target address to the contract that will
+    ///         inspect provided external calldata.
+    /// @dev Address => External calldata checker address.
+    mapping(address => address) public externalCalldataChecker;
+    /// @notice Maps a Multicall target address to the contract that will
+    ///         inspect provided multicall calldata.
+    /// @dev Address => Multicall checker address.
+    mapping(address => address) public multicallChecker;
+
+    // PERMISSION MAPPINGS
+
+    /// @notice Indicates if address has DAO permissions or not.
     /// @dev Address => DAO permission status.
     mapping(address => bool) public hasDaoPermissions;
-    /// @notice Whether an address has Elevated DAO permissioning or not.
+    /// @notice Indicates if address has elevated DAO permissions or not.
     /// @dev Address => Elevated DAO permission status.
     mapping(address => bool) public hasElevatedPermissions;
-    /// @notice Whether an address has lock creation permissioning or not.
+    /// @notice Indicates if address has lock creation permissions or not.
     /// @dev Address => Lock creation permission status.
     mapping(address => bool) public hasLockingPermissions;
-
-    // MULTICHAIN CONFIGURATION DATA
-
-    // We store this data redundantly so that we can quickly get whatever
-    // output we need, with low gas overhead.
-
-    /// @notice Number of chains supported.
-    uint256 public supportedChains;
-    /// @notice Array of Chain IDs recorded in the Messaging Layers Chain ID
-    ///         format.
-    uint256[] public foreignChainIds;
-    /// @notice Address array for all Curvance markets on this chain.
-    address[] public marketManagers;
-
-    /// @notice ChainId => 2 = supported; 1 = unsupported.
-    mapping(uint256 => ChainData) public supportedChainData;
-
-    mapping(uint16 => uint256) public messagingToGETHChainId;
-    mapping(uint256 => uint16) public GETHToMessagingChainId;
-
-    // DAO CONTRACT MAPPINGS
-
-    mapping(address => bool) public isHarvester;
-    mapping(address => bool) public isMarketManager;
-    mapping(address => address) public externalCalldataChecker;
-    mapping(address => bool) public isMulticallProvider;
-    mapping(address => address) public multicallChecker;
+    /// @notice Indicates if an address has auction permissions or not.
+    /// @dev Address => Auction permission status.
+    mapping(address => bool) public hasAuctionPermissions;
+    /// @notice Indicates if an address has market permissions or not.
+    /// @dev Market Perms double as a check for `hasElevatedPermissions` in
+    ///      many cases as long as a "risk council" contract is not explicitly
+    ///      hooked up to the a particular permissioned function.
+    ///      Address => Market permission status.
+    mapping(address => bool) public hasMarketPermissions;
+    /// @notice Indicates if an address has harvest permissions or not.
+    /// @dev Address => Harvest permission status.
+    mapping(address => bool) public hasHarvestPermissions;
 
     /// EVENTS ///
 
-    event GenesisEpochSet(uint256 newGenesisEpoch);
+    event GenesisEpochUpdated(uint256 newGenesisEpoch);
     event FeeSet(string indexed fee, uint256 newFee);
-    event SlippageLimit(uint256 newSlippage);
+    event FeeTokenSet(address newAddress);
     event InterestFeeSet(address indexed market, uint256 newFee);
     event MultiplierSet(string indexed multiplier, uint256 newMultiplier);
-    event ApprovalIndexIncremented(address indexed user, uint256 newIndex);
-    event DelegableStatusSet(
-        address indexed user,
-        bool delegable,
-        uint256 delegationEnabledTimestamp
-    );
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
-    event NewTimelockConfiguration(
-        address indexed previousTimelock,
-        address indexed newTimelock
-    );
-    event EmergencyCouncilTransferred(
-        address indexed previousEmergencyCouncil,
-        address indexed newEmergencyCouncil
-    );
-    event CoreContractSet(string indexed contractType, address newAddress);
-    event NewCurvanceContract(string indexed contractType, address newAddress);
-    event RemovedCurvanceContract(
+    event SlippageLimit(uint256 newSlippage);
+    event CoreContractUpdated(string indexed coreType, address core);
+    event ContractUpdated(
         string indexed contractType,
-        address removedAddress
+        address addressUpdated,
+        bool isAdded
     );
-    event WormholeCoreSet(address newAddress);
-    event WormholeRelayerSet(address newAddress);
-    event CircleTokenMessengerSet(address newAddress);
-    event MessageTransmitterSet(address newAddress);
-    event TokenBridgeSet(address newAddress);
-    event CCTPDomainSet(uint32 newDomain);
-    event NewChainAdded(uint256 chainId, address relayer);
-    event RemovedChain(
-        uint256 chainId,
-        address messagingHub,
-        address votingHub
+    event PermissionsTransferred(
+        string indexed permissionsType,
+        address previousAddress,
+        address newAddress
     );
+    event PermissionsUpdated(
+        string indexed permissionsType,
+        address addressUpdated,
+        bool isAdded
+    );
+    event DomainSet(uint32 newDomain);
+    event NewChain(uint256 chainId, ChainConfig config);
+    event RemovedChain(uint256 chainId, address messagingHub, address votingHub);
     event CalldataCheckerSet(
         string indexed calldataType,
         address targetAddress,
         address calldataChecker
     );
-    event MulticallProviderSet(address provider, bool supportedStatus);
+    event MulticallProviderSet(address provider, bool isSupported);
+    event EraEmissionsAllotmentSet(uint256 epochEmissionAllotment);
 
     /// ERRORS ///
 
-    error CentralRegistry__InvalidFeeToken();
-    error CentralRegistry__ParametersMisconfigured();
+    error CentralRegistry__InvalidParameter();
     error CentralRegistry__Unauthorized();
     error CentralRegistry__EpochHasStarted();
 
     /// CONSTRUCTOR ///
 
+    /// @param dao The address of `daoAddress`, DAO multisig, the primary
+    ///            address that the Curvance Collective operates from.
+    /// @param ec The address of `emergencyCouncil`, Multi-protocol multisig,
+    ///           intended to be used only for emergencies.
+    /// @param genesisEpoch_ Genesis Epoch timestamp, in unix seconds.
+    /// @param sequencer_ The address of the Chainlink aggregator proxy for
+    ///                   identifying if a sequencer has recently been down
+    ///                   for grace period calculations.
+    /// @param feeToken_ Address of fee token which Curvance Protocol
+    ///                  compounds strategy fees into.
     constructor(
-        address daoAddress_,
-        address timelock_,
-        address emergencyCouncil_,
+        address dao,
+        address ec,
         uint256 genesisEpoch_,
         address sequencer_,
         address feeToken_
     ) {
-        if (feeToken_ == address(0)) {
-            revert CentralRegistry__InvalidFeeToken();
+        if (dao == address(0)) {
+            dao = msg.sender;
         }
 
-        if (daoAddress_ == address(0)) {
-            daoAddress_ = msg.sender;
+        if (ec == address(0)) {
+            ec = msg.sender;
         }
 
-        if (timelock_ == address(0)) {
-            timelock_ = msg.sender;
-        }
-
-        if (emergencyCouncil_ == address(0)) {
-            emergencyCouncil_ = msg.sender;
+        // Check to make sure that genesis epoch is at least at the beginning
+        // of 2022 (Jan 1 12:00 EST) so we know the value is not accidently
+        // misconverted or missing with a value of 0.
+        if (genesisEpoch_ < 1640926800) {
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Configure DAO permission data.
-        daoAddress = daoAddress_;
-        timelock = timelock_;
-        emergencyCouncil = emergencyCouncil_;
+        daoAddress = dao;
+        emergencyCouncil = ec;
 
-        // Provide base dao permissioning to `daoAddress`,
-        // `timelock`, `emergencyCouncil`.
-        hasDaoPermissions[daoAddress] = true;
-        hasDaoPermissions[timelock] = true;
-        hasDaoPermissions[emergencyCouncil] = true;
+        emit PermissionsTransferred("DAO Permissions", address(0), dao);
+        emit PermissionsTransferred("Emergency Council", address(0), ec);
 
-        // Provide elevated dao permissioning to `timelock`,
-        // `emergencyCouncil`.
-        hasElevatedPermissions[timelock] = true;
-        hasElevatedPermissions[emergencyCouncil] = true;
+        // Provide base dao permissions to `dao`,
+        // and `ec`.
+        hasDaoPermissions[dao] = true;
+        hasDaoPermissions[ec] = true;
+
+        // Provide market and elevated dao permissions to `emergencyCouncil`.
+        hasMarketPermissions[ec] = true;
+        hasElevatedPermissions[ec] = true;
+
+        emit PermissionsUpdated("Market", ec, true);
 
         genesisEpoch = genesisEpoch_;
-        sequencer = sequencer_;
-
+        SEQUENCER_ORACLE = sequencer_;
         feeToken = feeToken_;
-
-        emit OwnershipTransferred(address(0), daoAddress_);
-        emit NewTimelockConfiguration(address(0), timelock_);
-        emit EmergencyCouncilTransferred(address(0), emergencyCouncil_);
     }
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Withdraw fee token from central registry.
-    function withdrawFee() external {
+    /// @notice Withdraw fees in `feeToken` from this central registry.
+    function withdrawFees() external {
         _checkDaoPermissions();
 
         SafeTransferLib.safeTransfer(
@@ -334,511 +360,430 @@ contract CentralRegistry is ERC165, LockableRegistry {
         );
     }
 
-    /// @notice Withdraws all protocol reserve fees from a eToken
-    ///         from interest generated and liquidations.
-    /// @param eTokens Array of eToken addresses to withdraw fees from.
-    function withdrawReservesMulti(address[] calldata eTokens) external {
-        // Match permissioning check to normal withdrawReserves().
-        _checkDaoPermissions();
-
-        uint256 numTokens = eTokens.length;
-        if (numTokens == 0) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        IMToken eToken;
-
-        for (uint256 i; i < numTokens; ) {
-            eToken = IMToken(eTokens[i++]);
-            // Revert if somehow a misconfigured token made it in here.
-            if (eToken.isPToken()) {
-                _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-            }
-
-            eToken.processWithdrawReserves();
-        }
-    }
-
     /// @notice Sets a new genesis epoch.
     /// @dev Only callable by the Emergency Council.
-    ///      Emits a {GenesisEpochSet} event.
+    ///      Emits a {GenesisEpochUpdated} event.
     /// @param newGenesisEpoch The new genesis epoch.
     function setGenesisEpoch(uint256 newGenesisEpoch) external {
+        // Its not possible for `genesisEpoch` to be 0 based on constructor
+        // restrictions, so we do not need to check for 0 input here as this
+        // check would catch `newGenesisEpoch` == 0.
         if (newGenesisEpoch < genesisEpoch) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         _checkElevatedPermissions();
-        _checkGenesisEpochHasNotStarted();
+        if (genesisEpoch <= block.timestamp) {
+            revert CentralRegistry__EpochHasStarted();
+        }
 
         genesisEpoch = newGenesisEpoch;
 
-        emit GenesisEpochSet(newGenesisEpoch);
+        emit GenesisEpochUpdated(newGenesisEpoch);
     }
 
-    /// @notice Sets a CVE contract address.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Only settable once. Emits a {CoreContractSet} event.
+    /// @notice Sets the fee token address.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Only settable once. Emits a {FeeTokenSet} event.
+    /// @param newFeeToken The new address of fee token.
+    function setFeeToken(address newFeeToken) external {
+        _checkCanSetCoreContract(feeToken);
+        _checkElevatedPermissions();
+
+        feeToken = newFeeToken;
+        emit FeeTokenSet(newFeeToken);
+    }
+
+    /// @notice Sets the CVE contract address.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Only settable once. Emits a {CoreContractUpdated} event.
     /// @param newCVE The new address of cve.
     function setCVE(address newCVE) external {
-        if (cve != address(0)) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
+        _checkCanSetCoreContract(cve);
         _checkElevatedPermissions();
-        _checkGenesisEpochHasNotStarted();
 
         cve = newCVE;
-        emit CoreContractSet("CVE", newCVE);
+        emit CoreContractUpdated("CVE", newCVE);
     }
 
-    /// @notice Sets a veCVE contract address.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Only settable once. Emits a {CoreContractSet} event.
+    /// @notice Sets the veCVE contract address.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Only settable once. Emits a {CoreContractUpdated} event.
     /// @param newVeCVE The new address of veCVE.
     function setVeCVE(address newVeCVE) external {
-        if (veCVE != address(0)) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
+        _checkCanSetCoreContract(veCVE);
         _checkElevatedPermissions();
-        _checkGenesisEpochHasNotStarted();
 
         veCVE = newVeCVE;
-        emit CoreContractSet("VeCVE", newVeCVE);
+        emit CoreContractUpdated("VeCVE", newVeCVE);
     }
 
-    /// @notice Sets a new Reward Manager contract address.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CoreContractSet} event.
+    /// @notice Sets the Reward Manager contract address.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Emits a {CoreContractUpdated} event.
+    ///      Can only be set once.
     /// @param newRewardManager The new address of rewardManager.
     function setRewardManager(address newRewardManager) external {
-        if (rewardManager != address(0)) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
+        _checkCanSetCoreContract(rewardManager);
         _checkElevatedPermissions();
-        _checkGenesisEpochHasNotStarted();
 
         rewardManager = newRewardManager;
-        emit CoreContractSet("Reward Manager", newRewardManager);
+        emit CoreContractUpdated("Reward Manager", newRewardManager);
     }
 
-    /// @notice Sets a new Reward Manager contract address.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CoreContractSet} event.
+    /// @notice Sets the Gauge Manager contract address.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Emits a {CoreContractUpdated} event.
+    ///      Can only be set once.
     /// @param newGaugeManager The new address of Gauge Manager.
     function setGaugeManager(address newGaugeManager) external {
-        if (gaugeManager != address(0)) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
+        _checkCanSetCoreContract(gaugeManager);
         _checkElevatedPermissions();
 
         gaugeManager = newGaugeManager;
-        emit CoreContractSet("Gauge Manager", newGaugeManager);
+        emit CoreContractUpdated("Gauge Manager", newGaugeManager);
     }
 
-    /// @notice Sets a new voting hub contract address.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CoreContractSet} event.
+    /// @notice Sets the voting hub contract address.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Emits a {CoreContractUpdated} event.
     /// @param newVotingHub The new address of votingHub.
     function setVotingHub(address newVotingHub) external {
         _checkElevatedPermissions();
 
         votingHub = newVotingHub;
-        emit CoreContractSet("Voting Hub", newVotingHub);
+        emit CoreContractUpdated("Voting Hub", newVotingHub);
     }
 
-    /// @notice Sets a new messaging hub contract address.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CoreContractSet} event.
+    /// @notice Sets the messaging hub contract address.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Emits a {CoreContractUpdated} event.
     /// @param newMessagingHub The new address of messagingHub.
     function setMessagingHub(address newMessagingHub) external {
         _checkElevatedPermissions();
 
         messagingHub = newMessagingHub;
-        emit CoreContractSet("Messaging Hub", newMessagingHub);
+        emit CoreContractUpdated("Messaging Hub", newMessagingHub);
     }
 
-    /// @notice Sets a new Oracle Manager contract address.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CoreContractSet} event.
+    /// @notice Sets the Oracle Manager contract address.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Emits a {CoreContractUpdated} event.
     /// @param newOracleManager The new address of oracleManager.
     function setOracleManager(address newOracleManager) external {
         _checkElevatedPermissions();
 
         oracleManager = newOracleManager;
-        emit CoreContractSet("Oracle Manager", newOracleManager);
+        emit CoreContractUpdated("Oracle Manager", newOracleManager);
     }
 
-    /// @notice Sets a new Fee Manager contract address.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CoreContractSet} event.
+    /// @notice Sets the Fee Manager contract address.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Emits a {CoreContractUpdated} event.
     /// @param newFeeManager The new address of feeManager.
     function setFeeManager(address newFeeManager) external {
         _checkElevatedPermissions();
 
         feeManager = newFeeManager;
-        emit CoreContractSet("Fee Manager", newFeeManager);
+        emit CoreContractUpdated("Fee Manager", newFeeManager);
     }
 
-    /// @notice Sets a new Wormhole Core contract address.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {WormholeCoreSet} event.
-    /// @param newWormholeCore The new address of WormholeCore.
-    function setWormholeCore(address newWormholeCore) external {
+    /// @notice Sets the Crosschain Core contract address.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Emits a {CoreContractUpdated} event.
+    /// @param newCrosschainCore The new Crosschain Core address.
+    function setCrosschainCore(address newCrosschainCore) external {
         _checkElevatedPermissions();
 
-        wormholeCore = IWormhole(newWormholeCore);
-        emit WormholeCoreSet(newWormholeCore);
+        crosschainCore = newCrosschainCore;
+        emit CoreContractUpdated("Crosschain Core", newCrosschainCore);
     }
 
-    /// @notice Sets a new WormholeRelayer contract address.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {WormholeRelayerSet} event.
-    /// @param newWormholeRelayer The new address of wormholeRelayer.
-    function setWormholeRelayer(address newWormholeRelayer) external {
+    /// @notice Sets the Crosschain Relayer contract address.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Emits a {CoreContractUpdated} event.
+    /// @param newCrosschainRelayer The new crosschainRelayer address.
+    function setCrosschainRelayer(address newCrosschainRelayer) external {
         _checkElevatedPermissions();
 
-        wormholeRelayer = IWormholeRelayer(newWormholeRelayer);
-        emit WormholeRelayerSet(newWormholeRelayer);
+        crosschainRelayer = newCrosschainRelayer;
+        emit CoreContractUpdated("Crosschain Relayer", newCrosschainRelayer);
     }
 
-    /// @notice Sets an address of Circle TokenMessenger contract.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CircleTokenMessengerSet} event.
-    /// @param newCircleTokenMessenger The new address of Circle TokenMessenger.
-    function setCircleTokenMessenger(
-        address newCircleTokenMessenger
-    ) external {
+    /// @notice Sets the Token Messager contract address.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Emits a {CoreContractUpdated} event.
+    /// @param newTokenMessager The new Token Messager address.
+    function setTokenMessager(address newTokenMessager) external {
         _checkElevatedPermissions();
 
-        circleTokenMessenger = ITokenMessenger(newCircleTokenMessenger);
-        emit CircleTokenMessengerSet(newCircleTokenMessenger);
+        tokenMessager = newTokenMessager;
+        emit CoreContractUpdated("Token Messager", newTokenMessager);
     }
 
-    /// @notice Sets an address of Circle MessageTransmitter contract.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {MessageTransmitterSet} event.
-    /// @param newMessageTransmitter The new address of Circle MessageTransmitter.
-    function setMessageTransmitter(address newMessageTransmitter) external {
+    /// @notice Sets the Message Transmitter contract address.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Emits a {CoreContractUpdated} event.
+    /// @param newTransmitter The new Message Transmitter address.
+    function setMessageTransmitter(address newTransmitter) external {
         _checkElevatedPermissions();
 
-        circleMessageTransmitter = IMessageTransmitter(newMessageTransmitter);
-        emit MessageTransmitterSet(newMessageTransmitter);
+        messageTransmitter = newTransmitter;
+        emit CoreContractUpdated("Message Transmitter", newTransmitter);
     }
 
-    /// @notice Sets an address of Wormhole TokenBridge contract.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {TokenBridgeSet} event.
-    /// @param newTokenBridge The new address of Wormhole TokenBridge.
-    function setTokenBridge(address newTokenBridge) external {
+    /// @notice Sets the domain.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Emits a {DomainsSet} event.
+    /// @param newDomain The new domain value.
+    function setDomain(uint32 newDomain) external {
         _checkElevatedPermissions();
 
-        tokenBridge = ITokenBridge(newTokenBridge);
-        emit TokenBridgeSet(newTokenBridge);
-    }
-
-    /// @notice Registers CCTP domain.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CCTPDomainsSet} event.
-    /// @param newDomain CCTP domain.
-    function setCCTPDomain(uint32 newDomain) external {
-        _checkElevatedPermissions();
-
-        cctpDomain = newDomain;
-
-        emit CCTPDomainSet(newDomain);
+        domain = newDomain;
+        emit DomainSet(newDomain);
     }
 
     /// @notice Sets the fee from yield by Curvance DAO to use as gas
     ///         to compound rewards for users.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council,
+    /// @dev Only callable on a 5-day delay or by the Emergency Council,
     ///      can only have a maximum value of 5%.
     ///      Emits a {FeeSet} event.
     /// @param value The new fee to take on compound to fund future
-    ///              auto compounding, in `basis points`.
+    ///              auto compounding, in `BPS`.
     function setProtocolCompoundFee(uint256 value) external {
         _checkElevatedPermissions();
 
         // Compound fee cannot be more than 5%.
         if (value > 500) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
-        // Convert the parameters from basis points to `WAD` format
-        // while inefficient we want to minimize potential human error
-        // as much as possible, even if it costs a bit extra gas on config.
-        protocolCompoundFee = _bpToWad(value);
 
-        // Update vault harvest fee with new yield fee.
-        protocolHarvestFee = protocolYieldFee + _bpToWad(value);
-
+        // Update `protocolCompoundFee` and `protocolHarvestFee`
+        // with new fee.
+        protocolCompoundFee = uint16(value);
+        protocolHarvestFee = uint16(protocolYieldFee + value);
         emit FeeSet("Compound", value);
     }
 
-    /// @notice Sets the fee taken by Curvance DAO on all generated
+    /// @notice Sets the fee taken by Curvance DAO on all yield generated
     ///         by the protocol.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council,
+    /// @dev Only callable on a 5-day delay or by the Emergency Council,
     ///      can only have a maximum value of 50%.
     ///      Emits a {FeeSet} event.
     /// @param value The new fee to take on compound to distribute to veCVE
-    ///              lockers, in `basis points`.
+    ///              lockers, in `BPS`.
     function setProtocolYieldFee(uint256 value) external {
         _checkElevatedPermissions();
 
         // Compound fee cannot be more than 50%.
         if (value > 5000) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
-        // Convert the parameters from basis points to `WAD` format
-        // while inefficient we want to minimize potential human error
-        // as much as possible, even if it costs a bit extra gas on config.
-        protocolYieldFee = _bpToWad(value);
 
-        // Update vault harvest fee with new yield fee.
-        protocolHarvestFee = _bpToWad(value) + protocolCompoundFee;
-
+        // Update `protocolYieldFee` and `protocolHarvestFee`
+        // with new fee.
+        protocolYieldFee = uint16(value);
+        protocolHarvestFee = uint16(protocolCompoundFee + value);
         emit FeeSet("Yield", value);
     }
 
     /// @notice Sets the fee taken by Curvance DAO on leverage/deleverage
-    ///         via position folding.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council,
+    ///         via position managers.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council,
     ///      can only have a maximum value of 2%.
     ///      Emits a {FeeSet} event.
     /// @param value The new fee to take on leverage/deleverage when done
-    ///              by position folding, in `basis points`.
+    ///              by position managers, in `BPS`.
     function setProtocolLeverageFee(uint256 value) external {
         _checkElevatedPermissions();
 
         // Leverage fee cannot be more than 2%.
         if (value > 200) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
-        // Convert the parameters from basis points to `WAD` format
-        // while inefficient we want to minimize potential human error
-        // as much as possible, even if it costs a bit extra gas on config.
-        protocolLeverageFee = _bpToWad(value);
 
+        protocolLeverageFee = uint16(value);
         emit FeeSet("Leverage", value);
     }
 
-    /// @notice Sets the fee taken by Curvance DAO on leverage/deleverage
-    ///         via position folding.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council,
-    ///      can only have a maximum value of 2%.
-    ///      Emits a {FeeSet} event.
-    /// @param value The new fee to take on leverage/deleverage when done
-    ///              by position folding, in `basis points`.
-    function setSlippageLimit(uint256 value) external {
-        _checkElevatedPermissions();
-
-        // Convert the parameters from basis points to `WAD` format
-        // while inefficient we want to minimize potential human error
-        // as much as possible, even if it costs a bit extra gas on config.
-        slippageLimit = _bpToWad(value);
-
-        emit SlippageLimit(value);
-    }
-
-    /// @notice Sets the fee taken by Curvance DAO from interest generated.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council,
-    ///      can only have a maximum value of 50%.
+    /// @notice Sets the fee taken by Curvance DAO on interest generated.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council,
+    ///      can only have a maximum value of 60%.
     ///      Emits an {InterestFeeSet} event.
     /// @param market The address of the market manager to configure
     ///               interest fees of.
     /// @param value The new fee to take on interest generated
-    ///              by a debt token, in `basis points`.
-    function setProtocolInterestRateFee(
-        address market,
-        uint256 value
-    ) external {
+    ///              by a debt token, in `BPS`.
+    function setProtocolInterestFee(address market, uint256 value) external {
         _checkElevatedPermissions();
 
-        // Interest fee cannot be more than 50%.
-        if (value > 5000) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        // Interest fee cannot be more than 60%.
+        if (value > 6000) {
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Validate that you're setting the fee for an actual market manager.
         if (!isMarketManager[market]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
-        // Convert the parameters from basis points to `WAD` format
-        // while inefficient we want to minimize potential human error
-        // as much as possible, even if it costs a bit extra gas on config.
-        protocolInterestFactor[market] = _bpToWad(value);
-
+        protocolInterestFee[market] = value;
         emit InterestFeeSet(market, value);
     }
 
-    /// @notice Sets the early unlock penalty value for when users want to
-    ///         unlock their veCVE early.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council,
+    /// @notice Sets the early unlock penalty value for when users unlock
+    ///         their veCVE early.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council,
     ///      must be between 30% and 90%, or off, with a value of 0%.
     ///      Emits a {MultiplierSet} event.
     /// @param value The new penalty on early expiring a vote escrowed
-    ///              cve position, in `basis points`.
+    ///              cve position, in `BPS`.
     function setEarlyUnlockPenaltyMultiplier(uint256 value) external {
         _checkElevatedPermissions();
 
         // Early unlock penalty cannot be more than 90%.
         if (value > 9000) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Early unlock penalty cannot be less than 30%,
         // unless its being turned off.
         if (value < 3000 && value != 0) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            revert CentralRegistry__InvalidParameter();
         }
 
         earlyUnlockPenaltyMultiplier = value;
-
         emit MultiplierSet("Early Unlock Penalty", value);
     }
 
     /// @notice Sets the voting power boost received by locks using
     ///         Continuous Lock mode.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council,
+    /// @dev Only callable on a 5-day delay or by the Emergency Council,
     ///      must be a positive boost i.e. > 1.01 or greater multiplier.
     ///      Emits a {MultiplierSet} event.
     /// @param value The new voting power boost for continuous lock mode
-    ///              vote escrowed cve positions, in `basis points`.
+    ///              vote escrowed cve positions, in `BPS`.
     function setVoteBoostMultiplier(uint256 value) external {
         _checkElevatedPermissions();
 
-        // Voting power boost cannot be less than 1,
-        // unless its being turned off.
-        if (value < DENOMINATOR && value != 0) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        // Voting power boost cannot be less than or equal to 1,
+        // unless its being turned off, which is represented with a
+        // value of 0.
+        if (value <= BPS && value != 0) {
+            revert CentralRegistry__InvalidParameter();
         }
 
         voteBoostMultiplier = value;
-
         emit MultiplierSet("Vote Boost", value);
     }
 
-    /// @notice Sets the emissions boost received by choosing
-    ///         to lock emissions at veCVE.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council,
+    /// @notice Sets the emissions boost received by choosing to lock
+    ///         emissions in veCVE.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council,
     ///      must be a positive boost i.e. > 1.01 or greater multiplier.
     ///      Emits a {MultiplierSet} event.
     /// @param value The new emissions boost for opting to take emissions
     ///              in a vote escrowed cve position instead of liquid CVE,
-    ///              in `basis points`.
+    ///              in `BPS`.
     function setLockBoostMultiplier(uint256 value) external {
         _checkElevatedPermissions();
 
-        // Emissions boost cannot be less than 1, unless its being turned off.
-        if (value < DENOMINATOR && value != 0) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        // Locking emissions boost cannot be less than or equal to 1,
+        // unless its being turned off, which is represented with a
+        // value of 0.
+        if (value <= BPS && value != 0) {
+            revert CentralRegistry__InvalidParameter();
         }
 
         lockBoostMultiplier = value;
-
         emit MultiplierSet("Lock Boost", value);
     }
 
-    /// USER DELEGATION PLUGIN MANAGEMENT ///
+    /// @notice Sets the maximum slippage users can input with swap
+    ///         instructions.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council,
+    ///      must have a minimum value of 4%.
+    ///      Emits a {SlippageLimit} event.
+    /// @param value The new slippage limit users can input on swap
+    ///              instructions, in `BPS`.
+    function setSlippageLimit(uint256 value) external {
+        _checkElevatedPermissions();
 
-    /// @notice Checks whether `user` has delegation enabled or disabled
-    ///         for user actions inside Curvance.
-    /// @return Returns true if the user has delegation disabled.
-    function checkDelegationDisabled(
-        address user
-    ) external view returns (bool) {
-        DelegationConfig memory userConfig = delegationConfig[user];
-        return (
-            userConfig.delegationDisabled ||
-            userConfig.delegationEnabledTimestamp > block.timestamp
-        );
-    }
-
-    /// @notice Returns `user`'s approval index.
-    /// @dev The approval index is a way to revoke approval on all tokens,
-    ///      and features at once if a malicious delegation was allowed by
-    ///      `user`.
-    /// @param user The user to check delegated approval index for.
-    /// @return `User`'s approval index.
-    function getUserApprovalIndex(
-        address user
-    ) external view returns (uint256) {
-        return delegationConfig[user].approvalIndex;
-    }
-
-    /// @notice Increments a caller's approval index.
-    /// @dev By incrementing their approval index, a user's delegates will all
-    ///      have their delegation authority revoked across all Curvance
-    ///      contracts.
-    ///      Emits an {ApprovalIndexIncremented} event.
-    function incrementApprovalIndex() external {
-        DelegationConfig storage userConfig = delegationConfig[msg.sender];
-        uint256 newIndex = userConfig.approvalIndex + 1;
-        userConfig.approvalIndex = uint208(newIndex);
-
-        emit ApprovalIndexIncremented(msg.sender, newIndex);
-    }
-
-    /// @notice Sets a callers status for whether to allow new delegation
-    ///         or not.
-    /// @param delegable Whether caller wants to allow new delegation or not.
-    ///      Emits a {DelegableStatusSet} event.
-    function setDelegable(bool delegable) external {
-        DelegationConfig storage userConfig = delegationConfig[msg.sender];
-
-        // Validates that user is intending on flipping their delegation
-        // status, even though we could assume they want to flip
-        // by calling this function, it helps to validate for human error.
-        if (delegable == userConfig.delegationDisabled) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        // Slippage limit cannot be less than 4%.
+        if (value < 400) {
+            revert CentralRegistry__InvalidParameter();
         }
 
-        uint256 enableTimestamp;
+        slippageLimit = uint16(value);
+        emit SlippageLimit(value);
+    }
 
-        // If the user is trying to enable delegation again,
-        // add their cooldown period, an added layer against phishing
-        // attempts.
-        if (!delegable) {
-            // Validate the user did not recently reduce their cooldown,
-            // triggering their transfer cooldown.
-            if (userConfig.delegationEnabledTimestamp > block.timestamp) {
-                _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-            }
+    /// EMISSIONS LOGIC
 
-            enableTimestamp = userTransferConfig[
-                msg.sender
-            ].transferCooldown + block.timestamp;
-            userConfig.delegationEnabledTimestamp = uint40(enableTimestamp);
+    /// @notice Sets the amount of token rewards allocated on this chain,
+    ///         for an epoch.
+    /// @dev Only callable by the Voting Hub.
+    /// @param epoch The epoch having its token emission values set.
+    /// @param emissionsAllocated The amount of token rewards allocated on
+    ///                           this chain, for an epoch.
+    function setEmissionsAllocatedByEpoch(
+        uint256 epoch,
+        uint256 emissionsAllocated
+    ) external {
+        if (msg.sender != votingHub) {
+            revert CentralRegistry__Unauthorized();
         }
 
-        userConfig.delegationDisabled = delegable;
+        emissionsAllocatedByEpoch[epoch] = emissionsAllocated;
+    }
 
-        emit DelegableStatusSet(msg.sender, delegable, enableTimestamp);
+    /// @notice Sets the target token emissions for each Protocol Era.
+    /// @dev Only callable by the Emergency Council.
+    /// @param epochEmissions The initial token emissions value that the
+    ///                       protocol should allocate, per epoch.
+    function setEraTargetEmissions(uint256 epochEmissions) external {
+        _checkElevatedPermissions();
+
+        uint256 numEras = IVotingHub(votingHub).protocolRewardEras();
+
+        for (uint256 i; i < numEras; ++i) {
+            targetEmissionAllocationByEra[i] = epochEmissions;
+            epochEmissions = epochEmissions / 2;
+        }
+
+        emit EraEmissionsAllotmentSet(epochEmissions);
     }
 
     /// OWNERSHIP LOGIC
 
-    /// @notice Sets DAO ownership to a new address.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {OwnershipTransferred} event.
-    /// @param newDaoAddress The new DAO address.
-    function transferDaoOwnership(address newDaoAddress) public virtual {
+    /// @notice Transfers DAO permissions to another address.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Emits a {PermissionsTransferred} event.
+    /// @param newDaoAddress The new DAO steward address.
+    function transferDaoPermissions(address newDaoAddress) public virtual {
         _checkElevatedPermissions();
 
-        // Cache old dao address for event emission.
+        // Cache old dao address.
         address previousDaoAddress = daoAddress;
         daoAddress = newDaoAddress;
 
-        // Delete permission data.
-        delete hasDaoPermissions[previousDaoAddress];
+        // Delete permission data only if the old dao address does not also
+        // have Timelock or Emergency Council permissions.
+        if (previousDaoAddress != emergencyCouncil) {
+            if (previousDaoAddress != timelock) {
+                delete hasDaoPermissions[previousDaoAddress];
+            }
+        }
+
         // Add new permission data.
         hasDaoPermissions[newDaoAddress] = true;
-        emit OwnershipTransferred(previousDaoAddress, newDaoAddress);
+        emit PermissionsTransferred(
+            "DAO Permissions",
+            previousDaoAddress,
+            newDaoAddress
+        );
 
-        // Notify Timelock Controller of a DAO address update.
+        // Notify Timelock of a DAO address update.
         if (timelock != address(0)) {
             if (
                 ERC165Checker.supportsInterface(
@@ -846,23 +791,31 @@ contract CentralRegistry is ERC165, LockableRegistry {
                     type(ITimelock).interfaceId
                 )
             ) {
-                ITimelock(timelock).updateDaoAddress();
+                ITimelock(timelock).updateRoles();
             }
         }
     }
 
-    /// @notice Sets timelock ownership to a new address.
+    /// @notice Transfers Timelock permissions to another address.
     /// @dev Only callable by the Emergency Council.
-    ///      Emits a {NewTimelockConfiguration} event.
+    ///      Emits a {PermissionsTransferred} event.
     /// @param newTimelock The new timelock address.
-    function migrateTimelockConfiguration(address newTimelock) external {
+    function transferTimelockPermissions(address newTimelock) external {
         _checkEmergencyCouncilPermissions();
 
-        // Cache old timelock for event emission.
+        if (
+            !ERC165Checker.supportsInterface(
+                newTimelock,
+                type(ITimelock).interfaceId
+            )
+        ) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        // Cache old timelock.
         address previousTimelock = timelock;
         timelock = newTimelock;
 
-        // Delete permission data.
         // If the previous Timelock also has Emergency Council permissions
         // for some reason, do not remove their elevated permissioning.
         if (previousTimelock != emergencyCouncil) {
@@ -872,24 +825,36 @@ contract CentralRegistry is ERC165, LockableRegistry {
             // for some reason, do not remove their permissioning.
             if (previousTimelock != daoAddress) {
                 delete hasDaoPermissions[previousTimelock];
+                delete hasMarketPermissions[previousTimelock];
+                emit PermissionsUpdated("Market", previousTimelock, false);
             }
         }
 
         // Add new permission data.
         hasDaoPermissions[newTimelock] = true;
         hasElevatedPermissions[newTimelock] = true;
+        emit PermissionsTransferred(
+            "Timelock",
+            previousTimelock,
+            newTimelock
+        );
 
-        emit NewTimelockConfiguration(previousTimelock, newTimelock);
+        // Assign market permissions only if the new address does
+        // not already have them.
+        if (!hasMarketPermissions[newTimelock]) {
+            hasMarketPermissions[newTimelock] = true;
+            emit PermissionsUpdated("Market", newTimelock, true);
+        }
     }
 
-    /// @notice Sets emergency council ownership to a new address.
+    /// @notice Transfers Emergency Council permissions to another address.
     /// @dev Only callable by the Emergency Council.
-    ///      Emits a {NewTimelockConfiguration} event.
+    ///      Emits a {PermissionsTransferred} event.
     /// @param newEmergencyCouncil The new emergency council address.
     function transferEmergencyCouncil(address newEmergencyCouncil) external {
         _checkEmergencyCouncilPermissions();
 
-        // Cache old emergency council for event emission.
+        // Cache old emergency council.
         address previousEmergencyCouncil = emergencyCouncil;
         emergencyCouncil = newEmergencyCouncil;
 
@@ -902,201 +867,448 @@ contract CentralRegistry is ERC165, LockableRegistry {
             // for some reason, do not remove their permissioning.
             if (previousEmergencyCouncil != daoAddress) {
                 delete hasDaoPermissions[previousEmergencyCouncil];
+                delete hasMarketPermissions[previousEmergencyCouncil];
+                emit PermissionsUpdated(
+                    "Market",
+                    previousEmergencyCouncil,
+                    false
+                );
             }
         }
 
         // Add new permission data.
         hasDaoPermissions[newEmergencyCouncil] = true;
         hasElevatedPermissions[newEmergencyCouncil] = true;
-
-        emit EmergencyCouncilTransferred(
+        emit PermissionsTransferred(
+            "Emergency Council",
             previousEmergencyCouncil,
             newEmergencyCouncil
         );
+
+        // Assign market permissions only if the new address does
+        // not already have them.
+        if (!hasMarketPermissions[newEmergencyCouncil]) {
+            hasMarketPermissions[newEmergencyCouncil] = true;
+            emit PermissionsUpdated("Market", newEmergencyCouncil, true);
+        }
+    }
+
+    /// @notice Adds a new Market Manager and corresponding interest fee
+    ///         configurations.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council,
+    ///      can only have a maximum value of 60% interest fee.
+    ///      Cannot be a supported Market Manager contract prior.
+    ///      Emits a {PermissionsUpdated} and {InterestFeeSet} events.
+    /// @param newMarket The new Market Manager contract to support for use
+    ///                  in Curvance.
+    /// @param marketInterestFee The portion of interest paid by borrowers
+    ///                          that goes to the protocol, for this Market
+    ///                          Manager.
+    function addMarketManager(
+        address newMarket,
+        uint256 marketInterestFee
+    ) external virtual {
+        _checkElevatedPermissions();
+
+        // Validate `newMarket` is not currently supported.
+        if (isMarketManager[newMarket]) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        // Ensure that `newMarket` is a market manager.
+        if (
+            !ERC165Checker.supportsInterface(
+                newMarket,
+                type(IMarketManager).interfaceId
+            )
+        ) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        /// Interest fee cannot be more than 60%.
+        if (marketInterestFee > 6000) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        // We store supported markets semi redundantly for offchain querying.
+        _marketManagers.push(newMarket);
+        protocolInterestFee[newMarket] = marketInterestFee;
+        isMarketManager[newMarket] = true;
+
+        emit PermissionsUpdated("Market Manager", newMarket, true);
+        emit InterestFeeSet(newMarket, marketInterestFee);
+    }
+
+    /// @notice Removes a current market manager from Curvance.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Has to be a supported Market Manager contract prior.
+    ///      Emits a {PermissionsUpdated} event.
+    /// @param marketApproved The supported Market Manager contract to remove
+    ///                       from Curvance.
+    function removeMarketManager(address marketApproved) public virtual {
+        _checkElevatedPermissions();
+
+        // Validate `marketApproved` is currently supported.
+        if (!isMarketManager[marketApproved]) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        delete isMarketManager[marketApproved];
+
+        // Cache market list.
+        uint256 numMarkets = _marketManagers.length;
+        uint256 marketIndex = numMarkets;
+
+        for (uint256 i; i < numMarkets; ++i) {
+            if (_marketManagers[i] == marketApproved) {
+                marketIndex = i;
+                break;
+            }
+        }
+
+        // Validate we found the market and remove 1 from numMarkets
+        // so it corresponds to last element index now (starting at index 0).
+        // This is an additional runtime invariant check for extra security.
+        if (marketIndex >= numMarkets--) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        // Copy last `_marketManagers` slot to `marketIndex` slot.
+        _marketManagers[marketIndex] = _marketManagers[numMarkets];
+        // Remove the last element to remove `marketApproved`
+        // from _marketManagers list.
+        _marketManagers.pop();
+        emit PermissionsUpdated("Market Manager", marketApproved, false);
     }
 
     /// @notice Adds an approved address to create locks for other
     ///         addresses inside Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Cannot have locking permissions prior.
-    ///      Emits a {NewCurvanceContract} event.
-    /// @param newApprovedAddress The new address to approve lock
-    ///                           creation authority inside Curvance.
-    function addLockingPermissions(address newApprovedAddress) external {
+    ///      Emits a {PermissionsUpdated} event.
+    /// @param newAddress The new address to approve lock creation authority
+    ///                   inside Curvance.
+    function addLockingPermissions(address newAddress) external {
         _checkElevatedPermissions();
 
-        // Validate `newApprovedAddress` is not currently supported.
-        if (hasLockingPermissions[newApprovedAddress]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        // Validate `newAddress` is not currently supported.
+        if (hasLockingPermissions[newAddress]) {
+            revert CentralRegistry__InvalidParameter();
         }
 
-        hasLockingPermissions[newApprovedAddress] = true;
-
-        emit NewCurvanceContract("Locking Permissions", newApprovedAddress);
+        hasLockingPermissions[newAddress] = true;
+        emit PermissionsUpdated("Locking", newAddress, true);
     }
 
     /// @notice Removes an approved address to create locks for other
     ///         addresses inside Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Has to have locking permissions prior.
-    ///      Emits a {RemovedCurvanceContract} event.
-    /// @param currentApprovedAddress The approved address to remove lock
-    ///                               creation authority inside Curvance.
-    function removeLockingPermissions(
-        address currentApprovedAddress
-    ) external {
+    ///      Emits a {PermissionsUpdated} event.
+    /// @param addressApproved The approved address to remove lock
+    ///                        creation authority inside Curvance.
+    function removeLockingPermissions(address addressApproved) external {
         _checkElevatedPermissions();
 
-        // Validate `currentApprovedAddress` is currently supported.
-        if (!hasLockingPermissions[currentApprovedAddress]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        // Validate `addressApproved` is currently supported.
+        if (!hasLockingPermissions[addressApproved]) {
+            revert CentralRegistry__InvalidParameter();
         }
 
-        delete hasLockingPermissions[currentApprovedAddress];
-
-        emit RemovedCurvanceContract(
-            "Locking Permissions",
-            currentApprovedAddress
-        );
+        delete hasLockingPermissions[addressApproved];
+        emit PermissionsUpdated("Locking", addressApproved, false);
     }
 
-    /// MULTICHAIN SUPPORT LOGIC
+    /// @notice Authorizes an address to manage auction process.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Cannot be a supported Atlas controller address prior.
+    ///      Emits a {AtlasControlAuthorized} event.
+    /// @param newAddress The address to add auction permissions to
+    ///                   inside Curvance.
+    function addAuctionPermissions(address newAddress) external {
+        _checkElevatedPermissions();
+
+        // Validate `newAddress` is not currently supported.
+        if (hasAuctionPermissions[newAddress]) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        hasAuctionPermissions[newAddress] = true;
+        emit PermissionsUpdated("Auction", newAddress, true);
+    }
+
+    /// @notice Deauthorizes an address to manage auction process.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Cannot be a supported Atlas controller address prior.
+    ///      Emits a {AtlasControlAuthorized} event.
+    /// @param addressApproved The address to remove auction permissions from
+    ///                        inside Curvance.
+    function removeAuctionPermissions(address addressApproved) external {
+        _checkElevatedPermissions();
+
+        // Validate `addressApproved` is currently supported.
+        if (!hasAuctionPermissions[addressApproved]) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        delete hasAuctionPermissions[addressApproved];
+        emit PermissionsUpdated("Auction", addressApproved, false);
+    }
+
+    //// @notice Authorizes an address to manage markets.
+    /// @notice Adds a Harvester contract for use in Curvance.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Cannot be a supported Harvester contract prior.
+    ///      Emits a {PermissionsUpdated} event.
+    /// @param newAddress The address to add market permissions to
+    ///                   inside Curvance.
+    function addMarketPermissions(address newAddress) external {
+        _checkElevatedPermissions();
+
+        // Validate `newAddress` is not currently supported.
+        if (hasMarketPermissions[newAddress]) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        hasMarketPermissions[newAddress] = true;
+        emit PermissionsUpdated("Market", newAddress, true);
+    }
+
+    //// @notice Deauthorizes an address to manage markets.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Has to be a supported Harvester contract prior.
+    ///      Emits a {PermissionsUpdated} event.
+    /// @param addressApproved The address to remove market permissions from
+    ///                        inside Curvance.
+    function removeMarketPermissions(address addressApproved) external {
+        _checkElevatedPermissions();
+
+        // Validate `addressApproved` is currently supported.
+        if (!hasMarketPermissions[addressApproved]) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        delete hasMarketPermissions[addressApproved];
+        emit PermissionsUpdated("Market", addressApproved, false);
+    }
+
+    //// @notice Authorizes an address to manage harvest process.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Cannot be a supported Harvester contract prior.
+    ///      Emits a {PermissionsUpdated} event.
+    /// @param newAddress The address to add harvest permissions to
+    ///                   inside Curvance.
+    function addHarvestPermissions(address newAddress) external {
+        _checkElevatedPermissions();
+
+        // Validate `newAddress` is not currently supported.
+        if (hasHarvestPermissions[newAddress]) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        hasHarvestPermissions[newAddress] = true;
+        emit PermissionsUpdated("Harvest", newAddress, true);
+    }
+
+    //// @notice Deauthorizes an address to manage harvest process.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Has to be a supported Harvester contract prior.
+    ///      Emits a {PermissionsUpdated} event.
+    /// @param addressApproved The address to remove harvest permissions from
+    ///                        from inside Curvance.
+    function removeHarvestPermissions(address addressApproved) external {
+        _checkElevatedPermissions();
+
+        // Validate `addressApproved` is currently supported.
+        if (!hasHarvestPermissions[addressApproved]) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        delete hasHarvestPermissions[addressApproved];
+        emit PermissionsUpdated("Harvest", addressApproved, false);
+    }
+
+    /// CROSSCHAIN SUPPORT LOGIC
 
     /// @notice Adds support for a new chain.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Emits a {NewChainAdded} event.
-    /// @param remoteMessagingHub Address for new chain's Messaging Hub.
-    /// @param remoteVotingHub Address for new chain's Voting Hub.
-    /// @param feeTokenAddress Fee token address on the chain. (USDC)
-    /// @param cveAddress CVE address on the chain.
-    /// @param chainId GETH Chain ID where this address authorized.
-    /// @param messagingChainId Messaging Chain ID where this address authorized.
-    /// @param relayer Wormhole relayer address on the chain.
-    /// @param domain CCTP domain for the chain.
-    function addChainSupport(
-        address remoteMessagingHub,
-        address remoteVotingHub,
-        address cveAddress,
-        address feeTokenAddress,
+    /// @param chainId GETH Chain ID of the chain to support.
+    /// @param config ChainConfig struct for new chain to support.
+    ///               Containing:
+    ///               isSupported Whether `chainId` is currently supported
+    ///                           or not.
+    ///               messagingChainId Messaging Chain ID where this address
+    ///                         authorized.
+    ///               domain Domain for the chain.
+    ///               messagingHub Address for new chain's Messaging Hub.
+    ///               votingHub Address for new chain's Voting Hub.
+    ///               cveAddress CVE address on the chain.
+    ///               feeTokenAddress Fee token address on the chain.
+    ///               crosschainRelayer Crosschain relayer address on the chain.
+    function addChain(
         uint256 chainId,
-        uint16 messagingChainId,
-        address relayer,
-        uint32 domain
+        ChainConfig memory config
     ) external {
         _checkElevatedPermissions();
 
-        // Validate this "new" chain is not currently supported.
-        if (supportedChainData[chainId].isSupported == 2) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        // Validate `chainId` is not currently supported, and `config`
+        // is configured properly to support `chainId`.
+        if (chainConfig[chainId].isSupported || !config.isSupported) {
+            revert CentralRegistry__InvalidParameter();
         }
 
-        supportedChainData[chainId] = ChainData({
-            isSupported: 2,
-            messagingHub: remoteMessagingHub,
-            votingHub: remoteVotingHub,
-            cveAddress: cveAddress,
-            feeTokenAddress: feeTokenAddress,
-            messagingChainId: messagingChainId,
-            wormholeRelayer: relayer,
-            cctpDomain: domain
-        });
-
-        messagingToGETHChainId[messagingChainId] = chainId;
-        GETHToMessagingChainId[chainId] = messagingChainId;
+        chainConfig[chainId] = config;
+        messagingToGETHChainId[config.messagingChainId] = chainId;
+        _foreignChainIds.push(chainId);
         ++supportedChains;
-        foreignChainIds.push(chainId);
 
-        emit NewChainAdded(chainId, relayer);
+        emit NewChain(chainId, config);
     }
 
     /// @notice Removes support for a chain.
     /// @dev Callable by an address with DAO Authority or higher.
     ///      Emits a {RemovedChain} event.
+    /// @param chainId GETH Chain ID where `currentMessagingHub` is
+    ///                authorized.
     /// @param expectedMessagingHub Expected Address for `chainId` Messaging
     ///                             Hub.
     /// @param expectedVotingHub Expected Address for `chainId` Voting Hub.
-    /// @param chainId GETH Chain ID where `currentMessagingHub` is
-    ///                authorized.
-    function removeChainSupport(
+    function removeChain(
+        uint256 chainId,
         address expectedMessagingHub,
-        address expectedVotingHub,
-        uint256 chainId
+        address expectedVotingHub
     ) external {
         // Lower permissioning on removing chains as it will reduce risk to
         // the system.
         _checkDaoPermissions();
 
-        ChainData memory chainDataToRemove = supportedChainData[chainId];
+        ChainConfig memory c = chainConfig[chainId];
 
-        // Validate that `expectedMessagingHub` is currently supported.
-        if (chainDataToRemove.messagingHub != expectedMessagingHub) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        // Validate that `expectedVotingHub` is currently supported.
-        if (chainDataToRemove.votingHub != expectedVotingHub) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        // Validate that `chainId` is currently supported.
-        if (chainDataToRemove.isSupported < 2) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        // Validate that `chainId` is currently supported and parameters
+        // are correct.
+        if (!c.isSupported || c.messagingHub != expectedMessagingHub ||
+            c.votingHub != expectedVotingHub
+        ) {
+            revert CentralRegistry__InvalidParameter();
         }
 
         // Remove chain support from protocol.
-        supportedChainData[chainId].isSupported = 1;
+        delete chainConfig[chainId];
+        // Remove messagingChainId <> GETH chainId mapping table reference.
+        delete messagingToGETHChainId[c.messagingChainId];
         // Decrease supportedChains.
         --supportedChains;
-        // Remove messagingChainId <> GETH chainId mapping table references.
-        delete GETHToMessagingChainId[
-            messagingToGETHChainId[chainDataToRemove.messagingChainId]
-        ];
-        delete messagingToGETHChainId[chainDataToRemove.messagingChainId];
 
-        _removeForeignChainId(chainId);
+        uint256 numForeignChainIds = _foreignChainIds.length;
+        uint256 i;
+        for (; i < numForeignChainIds; ++i) {
+            if (_foreignChainIds[i] == chainId) {
+                break;
+            }
+        }
 
+        numForeignChainIds--;
+
+        for (; i < numForeignChainIds; ++i) {
+            _foreignChainIds[i] = _foreignChainIds[i + 1];
+        }
+
+        _foreignChainIds.pop();
         emit RemovedChain(chainId, expectedMessagingHub, expectedVotingHub);
+    }
+
+    /// @notice Returns the Crosschain Messaging Protocol's internal ChainId
+    ///         corresponding to GETH's `chainId`.
+    /// @param chainId The GETH chainId.
+    /// @return The Crosschain Messaging Protocol's internal ChainId
+    ///         corresponding to GETH's `chainId`.
+    function GETHToMessagingChainId(
+        uint256 chainId
+    ) external view returns(uint256) {
+        return chainConfig[chainId].messagingChainId;
+    }
+
+    /// AUCTION CONFIGURATION LOGIC
+
+    /// @notice Unlocks a market to process auction-based liquidations.
+    /// @param marketToUnlock The address of the market manager to unlock
+    ///                       auction-based liquidations with a specific
+    ///                       liquidation bonus.
+    function unlockAuctionForMarket(address marketToUnlock) external {
+        if (!hasAuctionPermissions[msg.sender]) {
+            revert CentralRegistry__Unauthorized();
+        }
+
+        // Validate that you're unlocking an approved market manager.
+        if (!isMarketManager[marketToUnlock]) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        uint256 marketToUnlockUint = uint256(uint160(marketToUnlock));
+        /// @solidity memory-safe-assembly
+        assembly {
+            tstore(_TRANSIENT_MARKET_UNLOCKED_KEY, marketToUnlockUint)
+        }
+    }
+
+    /// @notice Returns whether the caller is approved to execute
+    ///         auction-based liquidations with a specific liquidation bonus.
+    function isMarketUnlocked() public view returns (bool isUnlocked) {
+        uint256 result;
+        /// @solidity memory-safe-assembly
+        assembly {
+            result := tload(_TRANSIENT_MARKET_UNLOCKED_KEY)
+        }
+
+        // CASE: This is not an Auction tx, so allow all markets,
+        // and return false, the caller is not approved for auction-based
+        // liquidations. 
+        if (result == 0) {
+            return isUnlocked;
+        }
+
+        // True if the caller is approved for auction-based liquidations,
+        // otherwise false.
+        isUnlocked = uint256(uint160(msg.sender)) == result;
     }
 
     /// CONTRACT MAPPING LOGIC
 
     /// @notice Sets an external calldata checker contract.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Emits a {CalldataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as 1Inch V5.
-    /// @param calldataChecker The contract that will check calldata prior
-    ///                        to execution in `target`.
+    /// @param checker The contract that will check calldata prior to
+    ///                execution in `target`.
     function setExternalCalldataChecker(
         address target,
-        address calldataChecker
+        address checker
     ) external {
         _checkElevatedPermissions();
 
-        externalCalldataChecker[target] = calldataChecker;
-        emit CalldataCheckerSet("External", target, calldataChecker);
+        externalCalldataChecker[target] = checker;
+        emit CalldataCheckerSet("External", target, checker);
     }
 
     /// @notice Sets a multicall calldata checker contract.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Emits a {CalldataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as Pyth or Redstone.
-    /// @param calldataChecker The contract that will check calldata prior
-    ///                        to execution in `target`.
-    function setMulticallChecker(
-        address target,
-        address calldataChecker
-    ) external {
+    /// @param checker The contract that will check calldata prior to
+    ///                execution in `target`.
+    function setMulticallChecker(address target, address checker) external {
         _checkElevatedPermissions();
 
-        multicallChecker[target] = calldataChecker;
-        emit CalldataCheckerSet("Multicall", target, calldataChecker);
+        multicallChecker[target] = checker;
+        emit CalldataCheckerSet("Multicall", target, checker);
     }
 
     /// @notice Sets multicall provider contracts, either enabling,
     ///         or disabling support inside the Curvance Protocol.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Emits one or many {MulticallProviderSet} events.
     /// @param providers Array containing the addresses of multicall provider
     ///                  contracts such as collateral or debt token contracts.
@@ -1108,160 +1320,31 @@ contract CentralRegistry is ERC165, LockableRegistry {
         _checkElevatedPermissions();
 
         uint256 numProviders = providers.length;
-        address provider;
+        address cachedProvider;
 
         for (uint256 i; i < numProviders; ++i) {
-            provider = providers[i];
-            if (isMulticallProvider[provider] == supported) {
-                _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            cachedProvider = providers[i];
+            if (isMulticallProvider[cachedProvider] == supported) {
+                revert CentralRegistry__InvalidParameter();
             }
 
-            isMulticallProvider[provider] = supported;
-            emit MulticallProviderSet(provider, supported);
+            isMulticallProvider[cachedProvider] = supported;
+            emit MulticallProviderSet(cachedProvider, supported);
         }
     }
 
-    /// @notice Adds a Harvester contract for use in Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Cannot be a supported Harvester contract prior.
-    ///      Emits a {NewCurvanceContract} event.
-    /// @param newHarvester The new Harvester contract to support for use
-    ///                     in Curvance.
-    function addHarvester(address newHarvester) external {
-        _checkElevatedPermissions();
-
-        // Validate `newHarvester` is not currently supported.
-        if (isHarvester[newHarvester]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        isHarvester[newHarvester] = true;
-
-        emit NewCurvanceContract("Harvestor", newHarvester);
-    }
-
-    /// @notice Removes a Harvester contract from Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Has to be a supported Harvester contract prior.
-    ///      Emits a {RemovedCurvanceContract} event.
-    /// @param currentHarvester The supported Harvester contract to remove
-    ///                         from Curvance.
-    function removeHarvester(address currentHarvester) external {
-        _checkElevatedPermissions();
-
-        // Validate `currentHarvester` is currently supported.
-        if (!isHarvester[currentHarvester]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        delete isHarvester[currentHarvester];
-
-        emit RemovedCurvanceContract("Harvestor", currentHarvester);
-    }
-
-    /// @notice Returns an array of Chain IDs recorded in the Messaging Layers
-    ///         Chain ID format.
-    function getForeignChainIds() external view returns (uint256[] memory) {
-        return foreignChainIds;
+    /// @notice Returns an array of Chain IDs recorded in the Crosschain
+    /// Protocol's Chain ID format.
+    function foreignChainIds() external view returns (uint256[] memory) {
+        return _foreignChainIds;
     }
 
     /// @notice Returns an array of Curvance markets on this chain.
-    function getMarketManagers() external view returns (address[] memory) {
-        return marketManagers;
+    function marketManagers() external view returns (address[] memory) {
+        return _marketManagers;
     }
 
     /// PUBLIC FUNCTIONS ///
-
-    /// @notice Adds a new Market Manager and associated fee configurations.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council,
-    ///      can only have a maximum value of 50% interest fee.
-    ///      Cannot be a supported Market Manager contract prior.
-    ///      Emits a {NewCurvanceContract} and {InterestFeeSet} events.
-    /// @param newMarketManager The new Market Manager contract to support
-    ///                         for use in Curvance.
-    /// @param marketInterestFactor The interest factor associated with
-    ///                             the market manager.
-    function addMarketManager(
-        address newMarketManager,
-        uint256 marketInterestFactor
-    ) public virtual {
-        _checkElevatedPermissions();
-
-        // Validate `newMarketManager` is not currently supported.
-        if (isMarketManager[newMarketManager]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        // Ensure that `newMarketManager` is a market manager.
-        if (
-            !ERC165Checker.supportsInterface(
-                newMarketManager,
-                type(IMarketManager).interfaceId
-            )
-        ) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        /// Interest fee cannot be more than 50%.
-        if (marketInterestFactor > 5000) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        isMarketManager[newMarketManager] = true;
-        // We store supported markets semi redundantly for offchain querying.
-        marketManagers.push(newMarketManager);
-        // Convert interest factor parameter from basis points to `WAD`
-        // for precision calculations.
-        protocolInterestFactor[newMarketManager] = _bpToWad(
-            marketInterestFactor
-        );
-
-        emit NewCurvanceContract("Market Manager", newMarketManager);
-        emit InterestFeeSet(newMarketManager, marketInterestFactor);
-    }
-
-    /// @notice Removes a current market manager from Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Has to be a supported Market Manager contract prior.
-    ///      Emits a {RemovedCurvanceContract} event.
-    /// @param currentMarketManager The supported Market Manager contract
-    ///                             to remove from Curvance.
-    function removeMarketManager(address currentMarketManager) public virtual {
-        _checkElevatedPermissions();
-
-        // Validate `currentMarketManager` is currently supported.
-        if (!isMarketManager[currentMarketManager]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        delete isMarketManager[currentMarketManager];
-
-        // Cache market list.
-        uint256 numMarkets = marketManagers.length;
-        uint256 marketIndex = numMarkets;
-
-        for (uint256 i; i < numMarkets; ++i) {
-            if (marketManagers[i] == currentMarketManager) {
-                marketIndex = i;
-                break;
-            }
-        }
-
-        // Validate we found the market and remove 1 from numMarkets
-        // so it corresponds to last element index now (starting at index 0).
-        // This is an additional runtime invariant check for extra security.
-        if (marketIndex >= numMarkets--) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        // Copy last `marketManagers` slot to `marketIndex` slot.
-        marketManagers[marketIndex] = marketManagers[numMarkets];
-        // Remove the last element to remove `currentMarketManager`
-        // from marketManagers list.
-        marketManagers.pop();
-
-        emit RemovedCurvanceContract("Market Manager", currentMarketManager);
-    }
 
     /// @notice Returns true if this contract implements the interface defined
     ///         by `interfaceId`.
@@ -1272,72 +1355,43 @@ contract CentralRegistry is ERC165, LockableRegistry {
     ) public view virtual override returns (bool) {
         return
             interfaceId == type(ICentralRegistry).interfaceId ||
+            interfaceId == type(IActionRegistry).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Remove Chain ID from foreign chain id array.
-    /// @param chainId Chain ID to remove.
-    function _removeForeignChainId(uint256 chainId) internal {
-        uint256 i;
-        uint256 numForeignChainIds = foreignChainIds.length;
-
-        for (; i < numForeignChainIds; ++i) {
-            if (foreignChainIds[i] == chainId) {
-                break;
-            }
-        }
-
-        numForeignChainIds--;
-
-        for (; i < numForeignChainIds; ++i) {
-            foreignChainIds[i] = foreignChainIds[i + 1];
-        }
-
-        foreignChainIds.pop();
-    }
-
-    /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
-    ///         to WAD.
-    /// @dev Internal helper function for easily converting between scalars.
-    function _bpToWad(uint256 value) internal pure returns (uint256) {
-        return value * 1e14;
-    }
-
-    /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x00, s)
-            revert(0x1c, 0x04)
-        }
-    }
-
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkEmergencyCouncilPermissions() internal view {
         if (msg.sender != emergencyCouncil) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert CentralRegistry__Unauthorized();
         }
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkDaoPermissions() internal view {
         if (!hasDaoPermissions[msg.sender]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert CentralRegistry__Unauthorized();
         }
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkElevatedPermissions() internal view {
         if (!hasElevatedPermissions[msg.sender]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert CentralRegistry__Unauthorized();
         }
     }
 
-    function _checkGenesisEpochHasNotStarted() internal view {
+    /// @notice Checks whether a core contract should be allowed to be set.
+    /// @dev If the contract is already set and needs to be updated, make sure
+    ///      reward system as not already started, ossifying contracts.
+    function _checkCanSetCoreContract(address coreContract) internal view {
+        if (coreContract == address(0)) {
+            return;
+        }
+
         if (genesisEpoch <= block.timestamp) {
-            _revert(_EPOCH_HAS_STARTED_SELECTOR);
+            revert CentralRegistry__EpochHasStarted();
         }
     }
 }

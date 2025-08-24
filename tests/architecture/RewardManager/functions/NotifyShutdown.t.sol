@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
@@ -15,7 +15,7 @@ contract NotifyShutdownTest is TestBaseRewardManager {
     function test_notifyShutdown_success_fromVeCVE() public {
         assertEq(rewardManager.isShutdown(), 1);
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.notifyShutdown();
 
         assertEq(rewardManager.isShutdown(), 2);

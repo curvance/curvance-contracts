@@ -1,9 +1,11 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
-import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 
 interface IOracleManager {
+    /// TYPES ///
+
     /// @notice Retrieves the price of a specified asset from either single
     ///         or dual oracles.
     /// @dev If the asset has one oracle, it fetches the price from a single feed.
@@ -12,8 +14,9 @@ interface IOracleManager {
     /// @param inUSD Whether the price should be returned in USD or ETH.
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
-    /// @return price The price of the asset.
-    /// @return errorCode An error code related to fetching the price.
+    /// @return price The current price of `asset`.
+    /// @return errorCode An error code related to fetching the price:
+    ///                   '0' indicates no error fetching price.
     ///                   '1' indicates that price should be taken with
     ///                   caution.
     ///                   '2' indicates a complete failure in receiving
@@ -22,23 +25,23 @@ interface IOracleManager {
         address asset,
         bool inUSD,
         bool getLower
-    ) external view returns (uint256, uint256);
+    ) external view returns (uint256 price, uint256 errorCode);
 
-    /// @notice Retrieves the prices of multiple assets.
-    /// @param assets An array of asset addresses to retrieve the prices for.
-    /// @param inUSD An array of bools indicating whether the price should be
-    ///              returned in USD or ETH.
-    /// @param getLower An array of bools indiciating whether the lower
-    ///                 or higher price should be returned if two feeds
-    ///                 are available.
-    /// @return Two arrays. The first one contains prices for each asset,
-    ///         and the second one contains corresponding error
-    ///         flags (if any).
-    function getPrices(
-        address[] calldata assets,
-        bool[] calldata inUSD,
-        bool[] calldata getLower
-    ) external view returns (uint256[] memory, uint256[] memory);
+    /// @notice Retrieves the prices of a collateral token and debt token
+    ///         underlyings.
+    /// @param collateralToken The cToken currently collateralized to price.
+    /// @param debtToken The cToken borrowed from to price.
+    /// @param errorCodeBreakpoint The error code that will cause liquidity
+    ///                            operations to revert.
+    /// @return collateralUnderlyingPrice The current price of
+    ///                                   `collateralToken` underlying.
+    /// @return debtUnderlyingPrice The current price of `debtToken`
+    ///                             underlying.
+    function getPriceIsolatedPair(
+        address collateralToken,
+        address debtToken,
+        uint256 errorCodeBreakpoint
+    ) external view returns (uint256, uint256);
 
     /// @notice Retrieves the prices and account data of multiple assets
     ///         inside a Curvance Market.
@@ -51,7 +54,7 @@ interface IOracleManager {
     /// @return uint256 The number of assets `account` is in.
     function getPricesForMarket(
         address account,
-        IMToken[] calldata assets,
+        address[] calldata assets,
         uint256 errorCodeBreakpoint
     )
         external
@@ -64,10 +67,22 @@ interface IOracleManager {
     /// @param asset The address of the asset.
     function notifyFeedRemoval(address asset) external;
 
+    /// @notice Returns the price feeds for `asset`.
+    /// @param asset The address of the asset to get price feeds of.
+    function getPriceFeeds(
+        address asset
+    ) external view returns(address[] memory);
+
     /// @notice Address => Adaptor approval status.
     /// @param adaptor The address of the adaptor to check.
     /// @return True if the adaptor is supported, false otherwise.
     function isApprovedAdaptor(address adaptor) external view returns (bool);
+
+    /// @notice Whether a token is recognized as a Curvance token or not,
+    ///         if it is, will return its underlying asset address instead
+    ///         of address (0).
+    /// @return The cToken's underlying asset, or address(0) if not a cToken.
+    function cTokens(address cToken) external view returns (address);
 
     /// @notice Checks if a given asset is supported by the Oracle Manager.
     /// @dev An asset is considered supported if it has one

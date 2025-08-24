@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: Apache 2
-
-pragma solidity ^0.8.4;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity ^0.8.28;
 
 // @dev QueryTest is a library to build Cross Chain Query (CCQ) responses for testing purposes.
 library QueryTest {

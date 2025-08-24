@@ -1,38 +1,35 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
+
+import { VotingHub } from "contracts/architecture/VotingHub.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { TestBaseVotingHub } from "../TestBaseVotingHub.sol";
-import { VotingHub } from "contracts/architecture/VotingHub.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract VotingHubDeploymentTest is TestBaseVotingHub {
     function test_votingHubDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
+        // No selector here since it will fail on
+        // centralRegistry_.crosschainCore() call before selector error is hit.
         vm.expectRevert();
-        new VotingHub(ICentralRegistry(address(1)), _ONE);
+        new VotingHub(ICentralRegistry(address(1)));
     }
 
     function test_votingHubDeployment_success() public {
-        votingHub = new VotingHub(
-            ICentralRegistry(address(centralRegistry)),
-            _ONE
-        );
+        votingHub = new VotingHub(ICentralRegistry(address(centralRegistry)));
 
         assertEq(
             address(votingHub.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(address(votingHub.cve()), address(cve));
-        assertEq(address(votingHub.veCVE()), address(veCVE));
-
-        uint256 numEras = votingHub.PROTOCOL_REWARD_ERAS();
-
-        for (uint256 i; i < numEras; i++) {
-            assertEq(
-                votingHub.targetEmissionAllocationByEra(i),
-                _ONE / (2 ** i)
-            );
-        }
+        assertEq(
+            address(votingHub.gaugeManager()),
+            address(centralRegistry.gaugeManager())
+        );
+        assertEq(votingHub.EPOCH_DURATION(), centralRegistry.EPOCH_DURATION());
     }
 }

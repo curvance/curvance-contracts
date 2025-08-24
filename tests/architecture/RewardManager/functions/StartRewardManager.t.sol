@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
@@ -10,8 +10,7 @@ contract StartRewardManagerTest is TestBaseRewardManager {
         super.setUp();
 
         rewardManager = new RewardManager(
-            ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS
+            ICentralRegistry(address(centralRegistry))
         );
     }
 
@@ -35,11 +34,9 @@ contract StartRewardManagerTest is TestBaseRewardManager {
 
     function test_startRewardManager_success() public {
         assertEq(rewardManager.rewardManagerStarted(), 1);
-        assertEq(address(rewardManager.veCVE()), address(0));
 
         rewardManager.startRewardManager();
 
         assertEq(rewardManager.rewardManagerStarted(), 2);
-        assertEq(address(rewardManager.veCVE()), centralRegistry.veCVE());
     }
 }

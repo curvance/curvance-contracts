@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: Apache 2
-
-pragma solidity ^0.8.4;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
@@ -99,6 +98,9 @@ abstract contract QueryResponse {
     uint8 public constant QT_SOL_PDA = 5;
     uint8 public constant QT_MAX = 6; // Keep this last
 
+    /// @notice Initializes the parser with the Wormhole core bridge.
+    /// @dev Sets immutable `wormhole` and reverts {EmptyWormholeAddress} if `_wormhole` is zero.
+    /// @param _wormhole Address of the Wormhole core bridge used for quorum and signature verification.
     constructor(address _wormhole) {
         if (_wormhole == address(0)) {
             revert EmptyWormholeAddress();

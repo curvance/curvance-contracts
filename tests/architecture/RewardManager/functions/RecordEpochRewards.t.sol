@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
@@ -13,7 +13,9 @@ contract RecordEpochRewardsTest is TestBaseRewardManager {
         nextEpochToDeliver = rewardManager.nextEpochToDeliver();
     }
 
-    function test_recordEpochRewards_fail_whenCallerIsNotFeeManager() public {
+    function test_recordEpochRewards_fail_whenCallerIsNotMessagingHub()
+        public
+    {
         vm.expectRevert(RewardManager.RewardManager__Unauthorized.selector);
         rewardManager.recordEpochRewards(1e6 * _ONE);
     }

@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetGenesisEpochTest is TestBaseMarket {
-    event GenesisEpochSet(uint256 newGenesisEpoch);
+contract SetGenesisEpochTest is TestBaseMarketIsolated {
+    event GenesisEpochUpdated(uint256 newGenesisEpoch);
 
     function setUp() public override {
         super.setUp();
@@ -13,7 +13,7 @@ contract SetGenesisEpochTest is TestBaseMarket {
         vm.warp(centralRegistry.genesisEpoch() - 1);
     }
 
-    function test_setGenesisEpoch_fail_whenUnauthorized() public {
+    function test_setGenesisEpoch_fail_whenCallerIsNotAuthorized() public {
         uint256 newGenesisEpoch = centralRegistry.genesisEpoch() + 1;
 
         vm.prank(address(0));
@@ -41,7 +41,7 @@ contract SetGenesisEpochTest is TestBaseMarket {
         vm.prank(address(0));
 
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.setGenesisEpoch(newGenesisEpoch);
     }
@@ -50,7 +50,7 @@ contract SetGenesisEpochTest is TestBaseMarket {
         uint256 newGenesisEpoch = centralRegistry.genesisEpoch() + 1;
 
         vm.expectEmit(true, true, true, true);
-        emit GenesisEpochSet(newGenesisEpoch);
+        emit GenesisEpochUpdated(newGenesisEpoch);
 
         centralRegistry.setGenesisEpoch(newGenesisEpoch);
 

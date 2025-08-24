@@ -1,26 +1,29 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
+
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
+
+import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
-import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
-import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
 contract SendFeesTest is TestBaseMessagingHub {
-    using stdStorage for StdStorage;
 
     function setUp() public override {
         super.setUp();
 
-        centralRegistry.addChainSupport(
-            address(this),
-            address(this),
-            address(cve),
-            _USDC_ADDRESS,
-            42161,
-            23,
-            makeAddr("Wormhole Relayer"),
-            3
-        );
+        ChainConfig memory config;
+        config.isSupported = true;
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = address(this);
+        config.votingHub = address(this);
+        config.cveAddress = address(cve);
+        config.feeTokenAddress = _USDC_ADDRESS;
+        config.crosschainRelayer = makeAddr("Wormhole Relayer");
+
+        // Support chainId 42161.
+        centralRegistry.addChain(42161, config);
     }
 
     function test_sendFees_fail_whenMessagingHubIsPaused() public {
@@ -40,12 +43,7 @@ contract SendFeesTest is TestBaseMessagingHub {
     }
 
     function test_sendFees_fail_whenChainIdIsNotSupported() public {
-        stdstore
-            .target(address(centralRegistry))
-            .sig("supportedChainData(uint256)")
-            .with_key(42161)
-            .depth(0)
-            .checked_write(1);
+        centralRegistry.removeChain(42161, address(this), address(this));
 
         vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
         messagingHub.sendFees(42161, 10e6, 0);
@@ -54,7 +52,7 @@ contract SendFeesTest is TestBaseMessagingHub {
     function test_sendFees_fail_whenHasNoEnoughNativeAssetForMessageFee()
         public
     {
-        deal(_USDC_ADDRESS, address(feeManager), _ONE);
+        _prepareUSDC(address(feeManager), _ONE);
 
         vm.expectRevert(
             MessagingHub.MessagingHub__InsufficientGasToken.selector
@@ -71,9 +69,9 @@ contract SendFeesTest is TestBaseMessagingHub {
 
     function test_sendFees_fail_whenCCTPIsNotConfigured() public {
         deal(address(messagingHub), _ONE);
-        deal(_USDC_ADDRESS, address(feeManager), _ONE);
+        _prepareUSDC(address(feeManager), _ONE);
 
-        centralRegistry.setCircleTokenMessenger(address(0));
+        centralRegistry.setTokenMessager(address(0));
 
         vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
         messagingHub.sendFees(42161, 10e6, 0);
@@ -81,7 +79,7 @@ contract SendFeesTest is TestBaseMessagingHub {
 
     function test_sendFees_success() public {
         deal(address(messagingHub), _ONE);
-        deal(_USDC_ADDRESS, address(feeManager), _ONE);
+        _prepareUSDC(address(feeManager), _ONE);
 
         assertEq(usdc.balanceOf(address(feeManager)), _ONE);
 

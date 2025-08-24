@@ -1,14 +1,11 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
-import { PrimaryProdDataServiceConsumerBase } from "contracts/libraries/external/redstone/PrimaryProdDataServiceConsumerBase.sol";
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { PrimaryProdDataServiceConsumerBase } from "@redstone/evm-connector/contracts/data-services/PrimaryProdDataServiceConsumerBase.sol";
 
 contract RedstoneCoreAdaptor is
     BaseOracleAdaptor,
@@ -17,30 +14,42 @@ contract RedstoneCoreAdaptor is
     /// TYPES ///
 
     /// @notice Stores configuration data for Redstone price sources.
-    /// @param isConfigured Whether the asset is configured or not.
-    ///                     false = unconfigured; true = configured.
-    /// @param symbolHash The bytes32 encoded hash of the price feed.
-    /// @param max The max valid price of the asset.
+    /// @param heartbeat The max amount of time allowed between price updates.
+    ///                  type(uint256).max defaults to using
+    ///                  `DEFAULT_HEARTBEAT`.
     /// @param decimals Returns the number of decimals the Redstone price feed
-    ///                 responds with. We save this as a uint256 so we do not
-    ///                 need to convert from uint8 -> uint256 at runtime.
-    struct AdaptorData {
-        bool isConfigured;
+    ///                 responds with.
+    /// @param redstoneTimestamp The price timestamp reported by Redstone
+    ///                          signers, in milliseconds.
+    /// @param price The price recorded for an asset, in `WAD`.
+    /// @param symbolHash The bytes32 encoded hash of the price feed.
+    struct AssetConfig {
+        uint8 decimals;
+        uint16 heartbeat;
+        uint48 redstoneTimestamp;
+        uint184 price;
         bytes32 symbolHash;
-        uint256 max;
-        uint256 decimals;
-        uint256 heartbeat;
     }
 
     /// CONSTANTS ///
 
-    /// @notice If zero is specified for a Pyth asset heartbeat,
-    ///         this value is used instead.
-    /// @dev    1 days = 24 hours = 1,440 minutes = 86,400 seconds.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days;
+    /// @notice If type(uint256).max is specified for an asset heartbeat,
+    ///         `DEFAULT_HEARTBEAT` is used instead.
+    /// @dev 10 minutes = 600 seconds.
+    ///      We use type(uint256).max instead of 0 for trigger as we may want
+    ///      0 second requirement on redstone pull oracles.
+    uint256 public constant DEFAULT_HEARTBEAT = 10 minutes;
     /// @notice The smallest value that Redstone Core unique signer threshold
     ///         can be inside Curvance.
-    uint256 public constant MINIMUM_SIGNER_THRESHOLD_ALLOWED = 2;
+    uint256 public constant MINIMUM_SIGNERS_THRESHOLD_ALLOWED = 3;
+    /// @notice The maximum number of signers allowed inside this adaptor.
+    uint256 public constant MAXIMUM_SIGNERS_ALLOWED = 255;
+    /// @notice The maximum timestamp delay from block.timestamp that is
+    ///         acceptable.
+    uint256 constant DEFAULT_MAX_DATA_TIMESTAMP_DELAY_SECONDS = 3 minutes;
+    /// @notice The maximum timestamp ahead from block.timestamp that is
+    ///         acceptable.
+    uint256 constant DEFAULT_MAX_DATA_TIMESTAMP_AHEAD_SECONDS = 1 minutes;
 
     /// STORAGE ///
 
@@ -49,58 +58,87 @@ contract RedstoneCoreAdaptor is
     address[] public authorisedSigners;
 
     /// @notice The minimum number of unique signers required to accept
-    ///          a Redstone Core price.
+    ///         a Redstone Core price.
     uint256 internal _uniqueSignersThreshold;
 
-    /// @notice Adaptor configuration data for pricing an asset in gas token.
-    /// @dev Redstone Adaptor Data for pricing in gas token.
-    mapping(address => AdaptorData) public adaptorDataNonUSD;
+    /// @notice Native token symbol metadata.
+    string internal _nativeSymbol;
 
-    /// @notice Adaptor configuration data for pricing an asset in USD.
-    /// @dev Redstone Adaptor Data for pricing in USD.
-    mapping(address => AdaptorData) public adaptorDataUSD;
+    /// @notice Price feed configuration and price storage for an asset.
+    /// @dev Token address => inUSD => Price feed configuration and price
+    ///      storage for `asset`.
+    mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
-    mapping(address => mapping(bool => uint256)) private overriddenPrice;
-    mapping(address => mapping(bool => uint256))
-        private overriddenPriceUpdatedAt;
+    /// @notice Indicates whether an address is authorised inside the Redstone
+    ///         Core system.
+    /// @dev Address => index they are authorised under inside Redstone.
+    mapping(address => uint256) internal _isAuthorisedSigner;
+
+    /// @notice A fixed key to use in transient storage for validating that
+    ///         the timestamp proposed on price write is accurate.
+    /// @dev Key value = `uint256(keccak256(_TRANSIENT_REDSTONE_TIMESTAMP_KEY))`.
+    bytes32 internal constant _TRANSIENT_REDSTONE_TIMESTAMP_KEY
+        = 0x32997e75db6d43b5797d8a1d45933662e40d99f3c30ca7b506f8782429b6da8e;
 
     /// EVENTS ///
 
-    event RedstoneCoreAssetAdded(
-        address asset,
-        AdaptorData assetConfig,
-        bool isUpdate
-    );
-    event RedstoneCoreAssetRemoved(address asset);
-    event RedstoneCoreSignerAdded(address signer);
-    event RedstoneCoreSignerRemoved(address signer);
+    event AssetAdded(address asset, AssetConfig config, bool isUpdate);
+    event SignerUpdated(address signer, bool addPerms);
 
     /// ERRORS ///
 
     error RedstoneCoreAdaptor__InvalidConfiguration();
     error RedstoneCoreAdaptor__AssetIsNotSupported();
-    error RedstoneCoreAdaptor__SymbolHashError();
-    error RedstoneCoreAdaptor__InvalidHeartbeat();
+    error RedstoneCoreAdaptor__InvalidPrice();
+    error RedstoneCoreAdaptor__StalePrice();
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param signers Array containing addresses authorised inside the
+    ///                Redstone Core system.
+    /// @param uniqueSignersThreshold_ The minimum number of unique signers
+    ///                                required to accept a Redstone Core
+    ///                                price.
+    /// @param nativeSymbol Native token symbol metadata.
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address[] memory signers,
-        uint256 uniqueSignersThreshold_
-    )
-        BaseOracleAdaptor(centralRegistry_)
-        PrimaryProdDataServiceConsumerBase(signers)
-    {
+        uint256 uniqueSignersThreshold_,
+        string memory nativeSymbol
+    ) BaseOracleAdaptor(cr) PrimaryProdDataServiceConsumerBase() {
+        _nativeSymbol = nativeSymbol;
+
         // Validate that unique signer threshold is within acceptable limits.
-        if (MINIMUM_SIGNER_THRESHOLD_ALLOWED > uniqueSignersThreshold_) {
+        if (MINIMUM_SIGNERS_THRESHOLD_ALLOWED > uniqueSignersThreshold_) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
         }
 
+        uint256 numSigners = signers.length;
+
         // Validate unique signer threshold is possible to reach based
         // on signers authorised.
-        if (uniqueSignersThreshold_ > signers.length) {
+        if (uniqueSignersThreshold_ > numSigners) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
+        }
+
+        // Validate that the number of signers is below the maximum allowed.
+        if (MAXIMUM_SIGNERS_ALLOWED < numSigners) {
+            revert RedstoneCoreAdaptor__InvalidConfiguration();
+        }
+
+        for (uint256 i; i < numSigners; ++i) {
+            address signer = signers[i];
+
+            /// Validate that `signer` is not already authorised.
+            if (_isAuthorisedSigner[signer] != 0) {
+                revert RedstoneCoreAdaptor__InvalidConfiguration();
+            }
+
+            _isAuthorisedSigner[signer] = i + 1;
+            authorisedSigners.push(signer);
+
+            emit SignerUpdated(signer, true);
         }
 
         _uniqueSignersThreshold = uniqueSignersThreshold_;
@@ -108,30 +146,72 @@ contract RedstoneCoreAdaptor is
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Retrieves the price of a given asset.
-    /// @dev Uses Redstone Core oracles to fetch the price data.
-    ///      Price is returned in USD or a chain's native token depending on
-    ///      'inUSD' parameter.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @param inUSD Specifies whether the price format should be in USD (true)
-    ///              or a chain's native token (false).
-    /// @return PriceReturnData A structure containing the price, error status,
-    ///                         and the quote format of the price.
-    function getPrice(
+    /// @notice Writes a Redstone Core price to this adaptor contract to be
+    ///         queried later by Curvance Protocol or external users.
+    /// @param asset The address of the supported asset to write a price for.
+    /// @param inUSD Whether the price is being written in USD,
+    ///              or the chain's native token.
+    /// @param redstoneTimestamp The proposed timestamp of the Redstone Core
+    ///                          price feed data, in milliseconds.
+    function writePrice(
         address asset,
         bool inUSD,
-        bool
-    ) external view override returns (PriceReturnData memory) {
-        // Validate we support pricing `asset`.
-        if (!isSupportedAsset[asset]) {
+        uint48 redstoneTimestamp
+    ) external {
+        AssetConfig storage config = assetConfig[asset][inUSD];
+
+        // We can check if `asset` is supposed by checking `decimals` as we
+        // do not allow configuring `decimals` equal to 0.
+        if (config.decimals == 0) {
             revert RedstoneCoreAdaptor__AssetIsNotSupported();
         }
 
-        if (inUSD) {
-            return _getPriceInUSD(asset);
+        if (config.redstoneTimestamp >= redstoneTimestamp) {
+            return; // Can skip storing the data since the data is stale.
         }
 
-        return _getPriceInNative(asset);
+        _validateTimestamp(redstoneTimestamp);
+        /// @solidity memory-safe-assembly
+        assembly {
+            tstore(_TRANSIENT_REDSTONE_TIMESTAMP_KEY, redstoneTimestamp)
+        }
+
+        uint256 price = getOracleNumericValueFromTxMsg(config.symbolHash);
+        // Adjust price pulled if necessary.
+        price = _adjustPrice(asset, inUSD, price, config.decimals);
+
+        // Validate `price` is not at or above the maximum value allowed,
+        // and `price` is not truncated or misreported with a 0 value.
+        if (price == 0 || price > type(uint184).max) {
+            revert RedstoneCoreAdaptor__InvalidPrice();
+        }
+
+        config.price = uint184(price);
+        config.redstoneTimestamp = redstoneTimestamp;
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            tstore(_TRANSIENT_REDSTONE_TIMESTAMP_KEY, 0)
+        }
+    }
+
+    /// @notice Validate the timestamp of a Redstone signed price data
+    ///         package.
+    /// @param receivedTimestampMilliseconds Data package timestamp in
+    ///                                      milliseconds.
+    /// @dev Internally called in `updatePrice` for every signed data package
+    ///      in the payload.
+    function validateTimestamp(
+        uint256 receivedTimestampMilliseconds
+    ) public view virtual override {
+        uint256 redstoneTimestampProposed;
+        assembly {
+            redstoneTimestampProposed := tload(_TRANSIENT_REDSTONE_TIMESTAMP_KEY)
+        }
+
+        if (receivedTimestampMilliseconds != redstoneTimestampProposed){
+            revert RedstoneCoreAdaptor__StalePrice();
+        }
     }
 
     /// @notice Add a Redstone Core Price Feed as an asset.
@@ -150,9 +230,9 @@ contract RedstoneCoreAdaptor is
     ) external {
         _checkElevatedPermissions();
 
-        if (heartbeat != 0) {
-            if (heartbeat > DEFAULT_HEART_BEAT) {
-                revert RedstoneCoreAdaptor__InvalidHeartbeat();
+        if (heartbeat != type(uint256).max) {
+            if (heartbeat > DEFAULT_HEARTBEAT) {
+                revert RedstoneCoreAdaptor__InvalidConfiguration();
             }
         }
 
@@ -162,39 +242,22 @@ contract RedstoneCoreAdaptor is
             // denominated feeds, so we use toBytes32 here.
             symbolHash = Bytes32Helper._toBytes32(asset);
         } else {
-            // Redstone Core appends "/ETH" at the end of ETH denominated
-            // feeds, so we use toBytes32WithETH here.
-            symbolHash = Bytes32Helper._toBytes32WithETH(asset);
+            // Redstone Core appends "/" + the native chain token's symbol at
+            // the end of native denominated feeds, so we can compute the
+            // output with `toBytes32Symbol`.
+            symbolHash = Bytes32Helper._toBytes32Symbol(asset, _nativeSymbol);
         }
 
-        AdaptorData storage data;
+        // Update `config` and make sure `isSupportedAsset` returns true
+        // for `asset`.
+        AssetConfig storage config = assetConfig[asset][inUSD];
 
-        if (inUSD) {
-            data = adaptorDataUSD[asset];
-        } else {
-            data = adaptorDataNonUSD[asset];
-        }
-
-        // If decimals == 0 we want default 8 decimals that
-        // redstone typically returns in.
-        if (decimals == 0) {
-            data.decimals = 8;
-        } else {
-            // Otherwise coerce uint8 to uint256 for cheaper
-            // runtime conversion.
-            data.decimals = uint256(decimals);
-        }
-
-        // Add a ~10% buffer to maximum price allowed from redstone can stop
-        // updating its price before/above the min/max price.
-        // We use a maximum buffered price of 2^192 - 1 since redstone core
-        // reports pricing in 8 decimal format, requiring multiplication by
-        // 10e10 to standardize to 18 decimal format, which could overflow
-        // when trying to save the final value into an uint240.
-        data.max = uint192((uint256(type(uint192).max) * 9) / 10);
-        data.symbolHash = symbolHash;
-        data.heartbeat = heartbeat;
-        data.isConfigured = true;
+        config.symbolHash = symbolHash;
+        config.heartbeat = uint16(heartbeat != type(uint256).max ?
+            heartbeat : DEFAULT_HEARTBEAT);
+        // If decimals == 0 we use default 8 decimals that
+        // Redstone typically provides prices in.
+        config.decimals = decimals != 0 ? decimals : 8;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -203,60 +266,7 @@ contract RedstoneCoreAdaptor is
         }
 
         isSupportedAsset[asset] = true;
-        emit RedstoneCoreAssetAdded(asset, data, isUpdate);
-    }
-
-    /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Manager to notify it of its removal.
-    ///      Requires that `asset` is currently supported.
-    /// @param asset The address of the supported asset to remove from
-    ///              the adaptor.
-    function removeAsset(address asset) external override {
-        _checkElevatedPermissions();
-
-        // Validate that `asset` is currently supported.
-        if (!isSupportedAsset[asset]) {
-            revert RedstoneCoreAdaptor__AssetIsNotSupported();
-        }
-
-        // Wipe config mapping entries for a gas refund.
-        // Notify the adaptor to stop supporting the asset.
-        delete isSupportedAsset[asset];
-        delete adaptorDataUSD[asset];
-        delete adaptorDataNonUSD[asset];
-
-        // Notify the Oracle Manager that we are going to stop supporting
-        // the asset.
-        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
-            asset
-        );
-
-        emit RedstoneCoreAssetRemoved(asset);
-    }
-
-    /// @notice Writes a Redstone Core price to this adaptor contract to be
-    ///         queried later by Curvance Protocol or external users.
-    /// @param asset The address of the supported asset to write a price for.
-    /// @param inUSD Whether the price is being written in USD,
-    ///              or the chain's native token.
-    function writePrice(address asset, bool inUSD) external {
-        if (inUSD) {
-            if (!adaptorDataUSD[asset].isConfigured) {
-                revert RedstoneCoreAdaptor__AssetIsNotSupported();
-            }
-            overriddenPrice[asset][inUSD] = _extractPrice(
-                adaptorDataUSD[asset].symbolHash
-            );
-            overriddenPriceUpdatedAt[asset][inUSD] = block.timestamp;
-        } else {
-            if (!adaptorDataNonUSD[asset].isConfigured) {
-                revert RedstoneCoreAdaptor__AssetIsNotSupported();
-            }
-            overriddenPrice[asset][inUSD] = _extractPrice(
-                adaptorDataNonUSD[asset].symbolHash
-            );
-            overriddenPriceUpdatedAt[asset][inUSD] = block.timestamp;
-        }
+        emit AssetAdded(asset, config, isUpdate);
     }
 
     /// @notice Adds a new supported signer for redstone core msg.data
@@ -281,6 +291,12 @@ contract RedstoneCoreAdaptor is
         }
 
         uint256 signerIndex = authorisedSigners.length;
+        // Its not intended to ever get close to 255 signers but this is
+        // theoretically the maximum for the uint8 storage value, so a
+        // sanity check is made.
+        if (signerIndex >= MAXIMUM_SIGNERS_ALLOWED) {
+            revert RedstoneCoreAdaptor__InvalidConfiguration();
+        }
 
         // Add `newSigner` to quick access address mapping.
         _isAuthorisedSigner[newSigner] = signerIndex + 1;
@@ -291,7 +307,7 @@ contract RedstoneCoreAdaptor is
             _uniqueSignersThreshold++;
         }
 
-        emit RedstoneCoreSignerAdded(newSigner);
+        emit SignerUpdated(newSigner, true);
     }
 
     /// @notice Remove a current authorised signer for redstone core msg.data
@@ -316,14 +332,18 @@ contract RedstoneCoreAdaptor is
         }
 
         // Remove `currentSigner` from quick access address mapping.
-        _isAuthorisedSigner[currentSigner] == 0;
-
-        uint256 lastSignerIndex = authorisedSigners.length - 1;
+        delete _isAuthorisedSigner[currentSigner];
+        uint256 lastSignerIndex = authorisedSigners.length;
 
         // Switch array locations on authorised signer so we can pop
         // `currentSigner` from the end.
         if (index != lastSignerIndex) {
-            authorisedSigners[index] = authorisedSigners[lastSignerIndex];
+            _isAuthorisedSigner[
+                authorisedSigners[lastSignerIndex - 1]
+            ]= index;
+            authorisedSigners[index - 1] = authorisedSigners[
+                lastSignerIndex - 1
+            ];
         }
 
         // Remove `currentSigner` from authorised signer list.
@@ -333,24 +353,42 @@ contract RedstoneCoreAdaptor is
             // Make sure that decreasing the signer threshold would not pushed
             // signer requirement below minimum allowed inside the Curvance
             // Protocol.
-            if (_uniqueSignersThreshold == MINIMUM_SIGNER_THRESHOLD_ALLOWED) {
+            if (_uniqueSignersThreshold == MINIMUM_SIGNERS_THRESHOLD_ALLOWED) {
                 revert RedstoneCoreAdaptor__InvalidConfiguration();
             }
 
             _uniqueSignersThreshold--;
+        } else {
+            if (authorisedSigners.length < _uniqueSignersThreshold) {
+                revert RedstoneCoreAdaptor__InvalidConfiguration();
+            }
         }
 
-        emit RedstoneCoreSignerRemoved(currentSigner);
+        emit SignerUpdated(currentSigner, false);
     }
 
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
     function adaptorType() external pure override returns (uint256) {
-        return 1;
+        return 2;
     }
 
     /// PUBLIC FUNCTIONS ///
+
+    function getAuthorisedSignerIndex(
+        address signerAddress
+    ) public view override returns (uint8) {
+        uint256 index = _isAuthorisedSigner[signerAddress];
+
+        /// Validate that `signerAddress` is authorised.
+        if (index == 0) {
+            revert SignerNotAuthorised(signerAddress);
+        }
+
+        // Return authorised signer index.
+        return uint8(index);
+    }
 
     /// @notice The minimum number of signer messages to be validated
     ///         for onchain oracle pricing to validate a price feed.
@@ -360,139 +398,79 @@ contract RedstoneCoreAdaptor is
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Retrieves the price of a given asset in USD.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (USD).
-    function _getPriceInUSD(
-        address asset
-    ) internal view returns (PriceReturnData memory) {
-        if (adaptorDataUSD[asset].isConfigured) {
-            return _parseData(asset, adaptorDataUSD[asset], true);
-        }
-
-        return _parseData(asset, adaptorDataNonUSD[asset], false);
-    }
-
-    /// @notice Retrieves the price of a given asset in the chain's native
-    ///         gas token.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (native).
-    function _getPriceInNative(
-        address asset
-    ) internal view returns (PriceReturnData memory) {
-        if (adaptorDataNonUSD[asset].isConfigured) {
-            return _parseData(asset, adaptorDataNonUSD[asset], false);
-        }
-
-        return _parseData(asset, adaptorDataUSD[asset], true);
-    }
-
-    /// @notice Extracts the Redstone Core feed data for pricing of an asset.
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
     /// @dev Extracts price from Redstone Core attached msg.data to get
     ///      the latest data. Natively validates staleness.
-    /// @param data Redstone Core feed details.
-    /// @param inUSD A boolean to denote if the price is in USD.
-    /// @return pData A structure containing the price, error status,
-    ///               and the currency of the price.
-    function _parseData(
+    /// @param asset The address of the asset for which the price is needed.
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was
+    ///                         priced without running into any issues or not.
+    function _getPrice(
         address asset,
-        AdaptorData memory data,
         bool inUSD
-    ) internal view returns (PriceReturnData memory pData) {
-        uint256 price = overriddenPrice[asset][inUSD];
-        if (price == 0) {
-            revert RedstoneCoreAdaptor__AssetIsNotSupported();
+    ) internal view override returns (PricingResult memory result) {
+        // We can check if `asset` pricing in `inUSD` is supported by checking
+        // `decimals` as we do not allow configuring `decimals` equal to 0.
+        // If unsupported price in the other denomination and manually convert
+        // in Oracle Manager.
+        if (assetConfig[asset][inUSD].decimals == 0) {
+            inUSD = !inUSD; 
         }
 
-        // Cache decimals value.
-        uint256 quoteDecimals = data.decimals;
-        if (quoteDecimals != 18) {
-            // Decimals are < 18 so we need to multiply up to coerce to
-            // 18 decimals.
-            if (quoteDecimals < 18) {
-                price = price * (10 ** (18 - quoteDecimals));
-            } else {
-                // Decimals are > 18 so we need to multiply down to coerce to
-                // 18 decimals.
-                price = price / (10 ** (quoteDecimals - 18));
-            }
-        }
-
-        pData.hadError = _verifyData(
-            price,
-            overriddenPriceUpdatedAt[asset][inUSD],
-            data.max,
-            data.heartbeat
-        );
-
-        if (!pData.hadError) {
-            pData.inUSD = inUSD;
-            pData.price = uint240(price);
-        }
-    }
-
-    /// @notice Validates the feed data based on various constraints.
-    /// @dev Checks if the value is within a specific range
-    ///      and if the data is not outdated.
-    /// @param value The value that is retrieved from the feed data.
-    /// @param max The maximum limit of the value.
-    /// @return A boolean indicating whether the feed data had an error
-    ///         (true = error, false = no error).
-    function _verifyData(
-        uint256 value,
-        uint256 timestamp,
-        uint256 max,
-        uint256 heartbeat
-    ) internal view returns (bool) {
-        // Validate `value` is not above the buffered maximum value allowed.
-        if (value > max) {
-            return true;
-        }
-
-        // If we got a price of 0, bubble up an error immediately.
-        if (value == 0) {
-            return true;
-        }
-
+        AssetConfig memory config = assetConfig[asset][inUSD];
+        result.inUSD = inUSD;
+        
         // Validate the price returned is not stale.
-        if (block.timestamp - timestamp > heartbeat) {
-            return true;
+        uint256 timestampInSeconds = config.redstoneTimestamp / 1000;
+        if (
+            timestampInSeconds < block.timestamp &&
+            block.timestamp - timestampInSeconds > config.heartbeat
+        ) {
+            result.hadError = true;
+            return result;
         }
 
-        // We typically check for feed data staleness through a heartbeat
-        // check, but redstone naturally checks timestamp through its msg.data
-        // read, so we do not need to check again here.
-
-        return false;
+        result.price = config.price;
     }
 
-    /// @notice Extracts price stored in msg.data with the transaction,
-    ///         can be called multiple times in one transaction.
-    function _extractPrice(
-        bytes32 symbolHash
-    ) internal view returns (uint256) {
-        return getOracleNumericValueFromTxMsg(symbolHash);
-    }
+    /// @dev This logic replicates RedstoneDefaultsLib.validateTimestamp
+    ///      which we've replaced in the Redstone library for more
+    ///      efficient timestamp validation.
+    function _validateTimestamp(
+        uint256 receivedTimestampMilliseconds
+    ) internal view {
+        // Getting data timestamp from future seems quite unlikely
+        // But we've already spent too much time with different cases
+        // Where block.timestamp was less than dataPackage.timestamp.
+        // Some blockchains may case this problem as well.
+        // That's why we add MAX_BLOCK_TIMESTAMP_DELAY
+        // and allow data "from future" but with a small delay
+        uint256 receivedTimestampSeconds = receivedTimestampMilliseconds /
+            1000;
 
-    /// @notice Adds new supported signers for redstone core msg.data
-    ///         field validation.
-    /// @param signers Array containing the new addresses to be authorised
-    ///                inside the Redstone Core system.
-    function _storeAuthorisedSigners(
-        address[] memory signers
-    ) internal override {
-        uint256 numSigners = signers.length;
-        address signer;
-
-        for (uint256 i; i < numSigners; ++i) {
-            signer = signers[i];
-
-            _isAuthorisedSigner[signer] = i + 1;
-            authorisedSigners.push(signer);
-
-            emit RedstoneCoreSignerAdded(signer);
+        if (block.timestamp < receivedTimestampSeconds) {
+            if (
+                (receivedTimestampSeconds - block.timestamp) >
+                DEFAULT_MAX_DATA_TIMESTAMP_AHEAD_SECONDS
+            ) {
+                revert RedstoneCoreAdaptor__StalePrice();
+            }
+        } else if (
+            (block.timestamp - receivedTimestampSeconds) >
+            DEFAULT_MAX_DATA_TIMESTAMP_DELAY_SECONDS
+        ) {
+            revert RedstoneCoreAdaptor__StalePrice();
         }
+    }
+
+    /// @notice Wipes `asset` pricing configurations from this adaptor.
+    /// @param asset The address of the asset to wipe pricing support of.
+    function _wipeAssetConfigs(address asset) internal override {
+        delete assetConfig[asset][true];
+        delete assetConfig[asset][false];
     }
 }

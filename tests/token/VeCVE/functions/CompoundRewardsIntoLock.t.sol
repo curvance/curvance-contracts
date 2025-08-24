@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
@@ -8,9 +8,9 @@ contract CompoundRewardsIntoLockTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
-        deal(address(cve), address(rewardManager), 30e18);
-        deal(address(cve), user1, 100e18);
+        _prepareUSDC(address(rewardManager), 10000e6);
+        _prepareCVE(address(rewardManager), 30e18);
+        _prepareCVE(user1, 100e18);
 
         _skipRestrictionDuration();
 
@@ -20,7 +20,7 @@ contract CompoundRewardsIntoLockTest is TestBaseVeCVE {
         vm.startPrank(user1);
 
         cve.approve(address(veCVE), 100e18);
-        veCVE.createLock(50e18, false, rewardsData, "", 0);
+        veCVE.createLock(50e18, false, action, "", 0);
 
         vm.stopPrank();
     }
@@ -96,7 +96,7 @@ contract CompoundRewardsIntoLockTest is TestBaseVeCVE {
 
         for (
             uint256 i = 0;
-            i <= (unlockTime - block.timestamp) / veCVE.epochDuration();
+            i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
             i++
         ) {
             vm.prank(address(messagingHub));
@@ -132,7 +132,7 @@ contract CompoundRewardsIntoLockTest is TestBaseVeCVE {
                 unlockTime,
                 centralRegistry.genesisEpoch() +
                     (veCVE.currentEpoch(block.timestamp) *
-                        veCVE.epochDuration()) +
+                        veCVE.EPOCH_DURATION()) +
                     veCVE.LOCK_DURATION()
             );
         } else {

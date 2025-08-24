@@ -1,73 +1,60 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
+/// @title Bytes32 Helper
+/// @notice A utility library for converting between strings and bytes32 values
+/// @dev Provides functions to convert strings to bytes32 and to create standardized 
+///      bytes32 representations of token symbols with optional suffixes
 library Bytes32Helper {
-    /// ERRORS ///
-
-    error Bytes32Helper__ZeroLengthString();
-
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice Converts `stringData`, a string memory value, to bytes32 form.
-    /// @dev This will trim the output value to 32 bytes,
-    ///      even if the bytes value is > 32 bytes.
-    /// @return result The bytes32 converted form of `stringData`.
-    function stringToBytes32(
-        string memory stringData
-    ) public pure returns (bytes32 result) {
-        bytes memory bytesData = bytes(stringData);
-        if (bytesData.length == 0) {
-            revert Bytes32Helper__ZeroLengthString();
-        }
-
+    /// @notice Converts `data`, a string memory value, to bytes32 form.
+    /// @dev Will trim the output to 32 bytes, even if the bytes length is
+    ///      > 32 bytes. Accepts empty `data` giving 32 bytes of all zeroes.
+    /// @return r The bytes32 converted form of `data` string.
+    function toBytes32(string memory data) public pure returns (bytes32 r) {
         /// @solidity memory-safe-assembly
         assembly {
-            result := mload(add(stringData, 32))
+            r := mload(add(data, 32))
         }
     }
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Converts `tokenAddress` to bytes32 based on its ERC20 symbol.
-    /// @param tokenAddress Address of desired token to pull ERC20 symbol from.
-    function _toBytes32(address tokenAddress) internal view returns (bytes32) {
-        string memory concatString = string.concat(_getSymbol(tokenAddress));
-        return stringToBytes32(concatString);
+    /// @notice Converts `token` to bytes32 based on its ERC20 symbol.
+    /// @param token Address of desired token to pull ERC20 symbol from.
+    /// @return r The bytes 32 output of `token`'s ERC20 symbol.
+    function _toBytes32(address token) internal view returns (bytes32 r) {
+        r = toBytes32(string.concat(_symbol(token)));
     }
 
-    /// @notice Converts `tokenAddress` to bytes32 based on its ERC20 symbol,
-    ///         and "/ETH" appended.
-    /// @param tokenAddress Address of desired token to pull ERC20 symbol from.
-    function _toBytes32WithETH(
-        address tokenAddress
-    ) internal view returns (bytes32) {
-        string memory concatString = string.concat(
-            _getSymbol(tokenAddress),
-            "/ETH"
-        );
-        return stringToBytes32(concatString);
+    /// @notice Converts `token` to bytes32 based on its ERC20 symbol,
+    ///         and "/`tokenSymbol`" appended.
+    /// @param token Address of desired token to pull append symbol to.
+    /// @param tokenSymbol Symbol to append with `token`'s symbol.
+    /// @return result The bytes32 result of `token`'s symbol with
+    ///                "/`tokenSymbol`".
+    function _toBytes32Symbol(
+        address token,
+        string memory tokenSymbol
+    ) internal view returns (bytes32 result) {
+        result = toBytes32(string.concat(_symbol(token), "/", tokenSymbol));
     }
 
-    /// @notice Converts `tokenAddress` to bytes32 based on its ERC20 symbol,
+    /// @notice Converts `token` to bytes32 based on its ERC20 symbol,
     ///         and "/USD" appended.
-    /// @param tokenAddress Address of desired token to pull ERC20 symbol from.
-    function _toBytes32WithUSD(
-        address tokenAddress
-    ) internal view returns (bytes32) {
-        string memory concatString = string.concat(
-            _getSymbol(tokenAddress),
-            "/USD"
-        );
-        return stringToBytes32(concatString);
+    /// @param token Address of desired token to pull ERC20 symbol from.
+    /// @return r The bytes32 result of `token`'s symbol with "/USD" appended.
+    function _toBytes32USD(address token) internal view returns (bytes32 r) {
+        r = toBytes32(string.concat(_symbol(token), "/USD"));
     }
 
-    /// @notice Returns `tokenAddress`'s ERC20 symbol as a string.
-    /// @param tokenAddress Address of desired token to pull ERC20 symbol from.
-    function _getSymbol(
-        address tokenAddress
-    ) internal view returns (string memory) {
-        return IERC20(tokenAddress).symbol();
+    /// @notice Returns `token`'s ERC20 symbol as a string.
+    /// @param token Address of desired token to pull ERC20 symbol from.
+    /// @return r The erc20 symbol of `token` in string form.
+    function _symbol(address token) internal view returns (string memory r) {
+        r = IERC20(token).symbol();
     }
 }

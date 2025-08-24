@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
@@ -17,7 +17,7 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
 
     function test_addAssetPriceFeed_fail_whenAdaptorIsNotApproved() public {
         vm.expectRevert(
-            OracleManager.OracleManager__InvalidParameter.selector
+            OracleManager.OracleManager__AdaptorIsNotApproved.selector
         );
         oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,

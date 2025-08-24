@@ -1,19 +1,23 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
+
+import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
-import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
     function test_universalBalanceDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
         vm.expectRevert(
-            PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
+                .selector
         );
-        new UniversalBalance(ICentralRegistry(address(1)), address(eUSDC));
+        new UniversalBalance(ICentralRegistry(address(1)), address(borrowableCUSDC));
     }
 
     function test_universalBalanceDeployment_fail_whenTokenIsPToken() public {
@@ -22,24 +26,24 @@ contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
         );
         new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(pBALRETH)
+            address(strategyCBALRETH)
         );
     }
 
     function test_universalBalanceDeployment_success() public {
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eUSDC)
+            address(borrowableCUSDC)
         );
 
         assertEq(
             address(universalBalance.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(address(universalBalance.linkedEToken()), address(eUSDC));
+        assertEq(address(universalBalance.linkedToken()), address(borrowableCUSDC));
         assertEq(universalBalance.underlying(), _USDC_ADDRESS);
         assertEq(
-            usdc.allowance(address(universalBalance), address(eUSDC)),
+            usdc.allowance(address(universalBalance), address(borrowableCUSDC)),
             type(uint256).max
         );
     }

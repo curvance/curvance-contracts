@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetProtocolYieldFeeTest is TestBaseMarket {
-    function test_setProtocolYieldFee_fail_whenUnauthorized() public {
+contract SetProtocolYieldFeeTest is TestBaseMarketIsolated {
+    function test_setProtocolYieldFee_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(
@@ -18,7 +18,7 @@ contract SetProtocolYieldFeeTest is TestBaseMarket {
         public
     {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.setProtocolYieldFee(5001);
 
@@ -27,7 +27,7 @@ contract SetProtocolYieldFeeTest is TestBaseMarket {
 
     function test_setProtocolYieldFee_success() public {
         centralRegistry.setProtocolYieldFee(100);
-        uint256 newProtocolYieldFee = 100 * 1e14;
+        uint256 newProtocolYieldFee = 100;
         assertEq(centralRegistry.protocolYieldFee(), newProtocolYieldFee);
         uint256 newProtocolHarvestFee = centralRegistry.protocolCompoundFee() +
             newProtocolYieldFee;

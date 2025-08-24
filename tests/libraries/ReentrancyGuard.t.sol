@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.4;
 
 import "./utils/SoladyTest.sol";
-import {ReentrancyGuard} from "../../contracts/libraries/external/ReentrancyGuard.sol";
+import {ReentrancyGuard} from "../../contracts/libraries/ReentrancyGuardTransient.sol";
 
 import {MockReentrancyGuard, ReentrancyAttack} from "./utils/mocks/MockReentrancyGuard.sol";
 

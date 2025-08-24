@@ -1,16 +1,22 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { ERC20 } from "contracts/libraries/external/ERC20.sol";
+import { BPS, WAD } from "contracts/libraries/ConstantsLib.sol";
 
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
+/// @title Curvance Velodrome Library.
+/// @notice Helper Library for working with Velodrome LP tokens. Supports both
+///         creating and exiting LP positions for better composability.
+///         NOTE: This library does not currently support slipstream LPs at
+///               this time, but may in the future.
 library VelodromeLib {
     /// ERRORS ///
 
@@ -28,17 +34,18 @@ library VelodromeLib {
     ///      100 = 1%.
     uint256 public constant VELODROME_ADD_LIQUIDITY_SLIPPAGE = 100;
 
-    /// FUNCTIONS ///
+    /// INTERNAL FUNCTIONS ///
 
-    /// @notice Enter a Velodrome position.
-    /// @param router The Velodrome router address.
+    /// @notice Enters a Velodrome position based on parameters.
+    /// @param router The Velodrome router address to enter through.
     /// @param factory The Velodrome factory address.
-    /// @param lpToken The Velodrome lp token address.
-    /// @param amount0 The amount of `token0`.
-    /// @param amount1 The amount of `token1`.
-    /// @param lpMinOutAmount The minimum output amount acceptable.
-    /// @return lpOutAmount The output amount of Velodrome lp received.
-    function enterVelodrome(
+    /// @param lpToken The Velodrome lp token address to enter.
+    /// @param amount0 The amount of `token0` to enter through.
+    /// @param amount1 The amount of `token1`to enter through.
+    /// @param lpMinOutAmount The minimum output amount of `lpToken` that is
+    ///                       acceptable for execution.
+    /// @return lpOutAmount The amount of `lpToken` received.
+    function _enterVelodrome(
         address router,
         address factory,
         address lpToken,
@@ -60,8 +67,8 @@ library VelodromeLib {
                 amount0,
                 r0,
                 r1,
-                10 ** ERC20(token0).decimals(),
-                10 ** ERC20(token1).decimals(),
+                10 ** IERC20(token0).decimals(),
+                10 ** IERC20(token1).decimals(),
                 stable
             );
 
@@ -90,7 +97,7 @@ library VelodromeLib {
             lpOutAmount += newLpOutAmount;
         }
 
-        amount1 = CommonLib.getTokenBalance(token1);
+        amount1 = CommonLib._balanceOf(token1);
 
         // Check if we are entering through token1 leg.
         if (amount1 > 0) {
@@ -102,8 +109,8 @@ library VelodromeLib {
                 amount1,
                 r1,
                 r0,
-                10 ** ERC20(token1).decimals(),
-                10 ** ERC20(token0).decimals(),
+                10 ** IERC20(token1).decimals(),
+                10 ** IERC20(token0).decimals(),
                 stable
             );
 
@@ -141,11 +148,11 @@ library VelodromeLib {
         }
     }
 
-    /// @notice Exit a Velodrome position.
-    /// @param router The Velodrome router address.
-    /// @param lpToken The Velodrome lp token address.
-    /// @param lpAmount The Velodrome lp amount to exit.
-    function exitVelodrome(
+    /// @notice Exits a Velodrome position based on parameters.
+    /// @param router The Velodrome router address to exit through.
+    /// @param lpToken The Velodrome lp token address to exit.
+    /// @param lpAmount The amount of `lpToken` to exit.
+    function _exitVelodrome(
         address router,
         address lpToken,
         uint256 lpAmount
@@ -155,7 +162,7 @@ library VelodromeLib {
         bool stable = IVeloPool(lpToken).stable();
 
         // Approve Velodrome lp token.
-        SwapperLib._approveTokenIfNeeded(lpToken, router, lpAmount);
+        SwapperLib._approveIfNeeded(lpToken, router, lpAmount);
 
         // Exit Velodrome position.
         IVeloRouter(router).removeLiquidity(
@@ -170,15 +177,18 @@ library VelodromeLib {
         );
     }
 
-    /// @notice Adds `token0` and `token1` into a Velodrome LP.
-    /// @param router The Velodrome router address.
-    /// @param token0 The first token of the pair.
-    /// @param token1 The second token of the pair.
+    /// @notice Adds liquidity in `token0` and `token1` into a Velodrome
+    ///         liquidity pool.
+    /// @param router The Velodrome router address to add liquidity through.
+    /// @param token0 The first token of the pair to add liquidity in.
+    /// @param token1 The second token of the pair to add liquidity in.
     /// @param stable Whether the Velodrome lp token is stable or volatile.
-    /// @param amount0 The amount of `token0`.
-    /// @param amount1 The amount of `token1`.
-    /// @param slippage The slippage percent, in `basis points`.
-    /// @return liquidity The amount of LP tokens received.
+    /// @param amount0 The amount of `token0` to add as liquidity.
+    /// @param amount1 The amount of `token1` to add as liquidity.
+    /// @param slippage The maximum percentage slippage to allow,
+    ///                 in `basis points`.
+    /// @return liquidity The amount of LP tokens received from adding
+    ///                   liquidity.
     function _addLiquidity(
         address router,
         address token0,
@@ -189,8 +199,8 @@ library VelodromeLib {
         uint256 slippage
     ) internal returns (uint256 liquidity) {
         // Approve Router to take token0 and token1.
-        SwapperLib._approveTokenIfNeeded(token0, router, amount0);
-        SwapperLib._approveTokenIfNeeded(token1, router, amount1);
+        SwapperLib._approveIfNeeded(token0, router, amount0);
+        SwapperLib._approveIfNeeded(token1, router, amount1);
 
         // Deposit liquidity into Velodrome.
         (, , liquidity) = IVeloRouter(router).addLiquidity(
@@ -199,8 +209,8 @@ library VelodromeLib {
             stable,
             amount0,
             amount1,
-            amount0 - (amount0 * slippage) / 10000,
-            amount1 - (amount1 * slippage) / 10000,
+            amount0 - (amount0 * slippage) / BPS,
+            amount1 - (amount1 * slippage) / BPS,
             address(this),
             block.timestamp
         );
@@ -210,7 +220,7 @@ library VelodromeLib {
         SwapperLib._removeApprovalIfNeeded(token1, router);
     }
 
-    /// @notice Calculates the optimal amount of TokenA to swap to TokenB
+    /// @notice Calculates the optimal amount of Token0 to swap to Token1
     ///         for a perfect LP deposit for a stable pair.
     /// @param factory The Velodrome factory address.
     /// @param lpToken The Velodrome lp token address.
@@ -220,7 +230,7 @@ library VelodromeLib {
     /// @param decimals0 The decimals of `token0`.
     /// @param decimals1 The decimals of `token1`.
     /// @param stable Whether the Velodrome lp token is stable or volatile.
-    /// @return The optimal amount of TokenA to swap.
+    /// @return The optimal amount of Token0 to swap.
     function _optimalDeposit(
         address factory,
         address lpToken,
@@ -237,25 +247,27 @@ library VelodromeLib {
 
         // sAMM deposit calculation.
         if (stable) {
-            a = (((amount0 * 10000) / (10000 - swapFee)) * 1e18) / decimals0;
+            a =
+                (((amount0 * BPS) / (BPS - swapFee)) * WAD) /
+                decimals0;
 
-            uint256 x = (reserve0 * 1e18) / decimals0;
-            uint256 y = (reserve1 * 1e18) / decimals1;
-            uint256 x2 = (x * x) / 1e18;
-            uint256 y2 = (y * y) / 1e18;
-            uint256 p = (y * (((x2 * 3 + y2) * 1e18) / (y2 * 3 + x2))) / x;
+            uint256 x = (reserve0 * WAD) / decimals0;
+            uint256 y = (reserve1 * WAD) / decimals1;
+            uint256 x2 = (x * x) / WAD;
+            uint256 y2 = (y * y) / WAD;
+            uint256 p = (y * (((x2 * 3 + y2) * WAD) / (y2 * 3 + x2))) / x;
 
             uint256 num = a * y;
-            uint256 den = ((a + x) * p) / 1e18 + y;
+            uint256 den = ((a + x) * p) / WAD + y;
 
-            return ((num / den) * decimals0) / 1e18;
+            return ((num / den) * decimals0) / WAD;
         }
 
         // vAMM deposit calculation.
-        uint256 swapFeeFactor = 10000 - swapFee;
+        uint256 swapFeeFactor = BPS - swapFee;
 
-        a = (10000 + swapFeeFactor) * reserve0;
-        uint256 b = amount0 * 10000 * reserve0 * 4 * swapFeeFactor;
+        a = (BPS + swapFeeFactor) * reserve0;
+        uint256 b = amount0 * BPS * reserve0 * 4 * swapFeeFactor;
         uint256 c = FixedPointMathLib.sqrt(a * a + b);
         uint256 d = swapFeeFactor * 2;
         return (c - a) / d;
@@ -278,7 +290,7 @@ library VelodromeLib {
         bool stable
     ) internal returns (uint256) {
         // Approve Router to take `tokenIn`.
-        SwapperLib._approveTokenIfNeeded(tokenIn, router, amount);
+        SwapperLib._approveIfNeeded(tokenIn, router, amount);
 
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = tokenIn;

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.4;
 
 /// @dev WARNING! This mock is strictly intended for testing purposes only.

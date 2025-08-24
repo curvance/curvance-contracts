@@ -1,12 +1,14 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { DENOMINATOR } from "contracts/libraries/Constants.sol";
+import { BPS } from "contracts/libraries/ConstantsLib.sol";
 
-contract SetLockBoostMultiplierTest is TestBaseMarket {
-    function test_setLockBoostMultiplier_fail_whenUnauthorized() public {
+contract SetLockBoostMultiplierTest is TestBaseMarketIsolated {
+    function test_setLockBoostMultiplier_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
 
         vm.expectRevert(
@@ -19,12 +21,12 @@ contract SetLockBoostMultiplierTest is TestBaseMarket {
         public
     {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
-        centralRegistry.setLockBoostMultiplier(DENOMINATOR - 1);
+        centralRegistry.setLockBoostMultiplier(BPS);
 
         centralRegistry.setLockBoostMultiplier(0);
-        centralRegistry.setLockBoostMultiplier(DENOMINATOR);
+        centralRegistry.setLockBoostMultiplier(BPS + 1);
     }
 
     function test_setLockBoostMultiplier_success() public {

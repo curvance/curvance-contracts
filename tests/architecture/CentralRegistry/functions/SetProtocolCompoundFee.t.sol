@@ -1,11 +1,13 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetProtocolCompoundFeeTest is TestBaseMarket {
-    function test_setProtocolCompoundFee_fail_whenUnauthorized() public {
+contract SetProtocolCompoundFeeTest is TestBaseMarketIsolated {
+    function test_setProtocolCompoundFee_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
 
         vm.expectRevert(
@@ -18,7 +20,7 @@ contract SetProtocolCompoundFeeTest is TestBaseMarket {
         public
     {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.setProtocolCompoundFee(501);
 
@@ -27,9 +29,9 @@ contract SetProtocolCompoundFeeTest is TestBaseMarket {
 
     function test_setProtocolCompoundFee_success() public {
         centralRegistry.setProtocolCompoundFee(100);
-        assertEq(centralRegistry.protocolCompoundFee(), 100 * 1e14);
-        uint256 newProtocolHarvestFee = centralRegistry.protocolYieldFee() +
-            (100 * 1e14);
+        assertEq(centralRegistry.protocolCompoundFee(), 100);
+        uint256 newProtocolHarvestFee =
+            centralRegistry.protocolYieldFee() + 100;
         assertEq(centralRegistry.protocolHarvestFee(), newProtocolHarvestFee);
     }
 }

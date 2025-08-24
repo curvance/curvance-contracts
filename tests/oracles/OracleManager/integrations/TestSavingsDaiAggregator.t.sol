@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBase } from "tests/utils/TestBase.sol";
 
@@ -22,12 +22,6 @@ contract TestSavingsDaiAggregator is TestBase {
             _DAI_ADDRESS,
             _CHAINLINK_DAI_USD
         );
-    }
-
-    function testMinMaxAnswer() public {
-        int192 maxAnswer = aggregator.maxAnswer();
-        int192 minAnswer = aggregator.minAnswer();
-        assertGt(maxAnswer, minAnswer);
     }
 
     function testLatestRoundData() public {

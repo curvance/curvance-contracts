@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
@@ -11,7 +11,7 @@ contract RescueTokenTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(veCVE), 100e8);
+        _prepareUSDC(address(veCVE), 100e8);
     }
 
     function test_rescueToken_fail_whenCallerIsNotAuthorized() public {

@@ -1,15 +1,15 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetFeeManagerTest is TestBaseMarket {
-    event CoreContractSet(string indexed contractType, address newAddress);
+contract SetFeeManagerTest is TestBaseMarketIsolated {
+    event CoreContractUpdated(string indexed contractType, address newAddress);
 
     address public newFeeManager = makeAddr("Fee Manager");
 
-    function test_setFeeManager_fail_whenUnauthorized() public {
+    function test_setFeeManager_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(
@@ -22,7 +22,7 @@ contract SetFeeManagerTest is TestBaseMarket {
         assertEq(centralRegistry.feeManager(), address(feeManager));
 
         vm.expectEmit(true, true, true, true);
-        emit CoreContractSet("Fee Manager", newFeeManager);
+        emit CoreContractUpdated("Fee Manager", newFeeManager);
 
         centralRegistry.setFeeManager(newFeeManager);
 

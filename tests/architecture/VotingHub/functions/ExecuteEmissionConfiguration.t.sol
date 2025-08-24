@@ -1,13 +1,17 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseVotingHub } from "../TestBaseVotingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
+
 import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
+import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
+
+import { TestBaseVotingHub } from "../TestBaseVotingHub.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 
-// FIX: Test
 contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
     address public srcMessagingHub;
     address public srcVotingHub;
@@ -20,20 +24,22 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
 
         srcMessagingHub = makeAddr("SrcMessagingHub");
         srcVotingHub = makeAddr("SrcVotingHub");
-        _WORMHOLE_CORES[block.chainid] = address(new WormholeMock());
+        _CROSSCHAIN_CORES[block.chainid] = address(new WormholeMock());
 
         _init();
 
-        centralRegistry.addChainSupport(
-            srcMessagingHub,
-            srcVotingHub,
-            address(cve),
-            _USDC_ADDRESSES[42161],
-            42161,
-            23,
-            makeAddr("Wormhole Relayer"),
-            3
-        );
+        ChainConfig memory config;
+        config.isSupported = true;
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = srcMessagingHub;
+        config.votingHub = srcVotingHub;
+        config.cveAddress = address(cve);
+        config.feeTokenAddress = _USDC_ADDRESSES[42161];
+        config.crosschainRelayer = makeAddr("Wormhole Relayer");
+
+        // Support chainId 42161.
+        centralRegistry.addChain(42161, config);
 
         deal(address(messagingHub), _ONE);
 
@@ -66,7 +72,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             abi.encodeWithSignature("queryEmissionsAllocated()")
         );
 
-        votingHub.setEraTargetEmissions(_ONE * 3);
+        centralRegistry.setEraTargetEmissions(_ONE * 3);
 
         vm.prank(user1);
 
@@ -97,7 +103,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             abi.encodeWithSignature("queryEmissionsAllocated()")
         );
 
-        votingHub.setEraTargetEmissions(_ONE * 3);
+        centralRegistry.setEraTargetEmissions(_ONE * 3);
 
         _emissionData.emissions = new uint256[](2);
         _emissionData.emissions[0] = _ONE;
@@ -170,7 +176,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             abi.encodeWithSignature("queryEmissionsAllocated()")
         );
 
-        votingHub.setEraTargetEmissions(_ONE * 3);
+        centralRegistry.setEraTargetEmissions(_ONE * 3);
 
         uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugeManager));
 
@@ -194,4 +200,84 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
         assertEq(totalWeights, _ONE);
         assertEq(poolWeight, _ONE);
     }
+
+    function test_executeEmissionConfiguration_fail_EmptyParams() public {
+        _skipEpochDuration(1);
+
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
+            block.number,
+            uint64(block.timestamp * 1000000),
+            srcVotingHub,
+            abi.encode(_ONE)
+        );
+
+        _prepareResponseAndSignatures(
+            perChainData,
+            abi.encodeWithSignature("queryEmissionsAllocated()")
+        );
+
+        centralRegistry.setEraTargetEmissions(_ONE * 3);
+
+        uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugeManager));
+
+        bytes memory zeroResponse = new bytes(0);
+
+        vm.expectRevert();
+        votingHub.executeEmissionConfiguration(
+            zeroResponse, // zero response data
+            signatures,
+            gasLimit,
+            _emissionData,
+            _remoteEmissionData
+        );
+
+        IWormhole.Signature[] memory zeroSigs = new IWormhole.Signature[](0);
+
+        vm.expectRevert();
+        votingHub.executeEmissionConfiguration(
+            response,
+            zeroSigs, // zero signatures
+            gasLimit,
+            _emissionData,
+            _remoteEmissionData
+        );
+
+        uint256[] memory zeroGasLimit = new uint256[](0);
+
+        vm.expectRevert();
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            zeroGasLimit, // zero gas limit
+            _emissionData,
+            _remoteEmissionData
+        );
+
+        EmissionData memory zeroEmissionData;
+
+        vm.expectRevert();
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            gasLimit,
+            zeroEmissionData, // zero emission data
+            _remoteEmissionData
+        );
+
+        EmissionData[] memory zeroRemoteEmissionData = new EmissionData[](0);
+
+        vm.expectRevert();
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            gasLimit,
+            _emissionData,
+            zeroRemoteEmissionData // zero remote emission data
+        );
+
+
+    }
+
 }

@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
@@ -14,14 +14,15 @@ contract Market {
     }
 }
 
-contract RemoveMarketManagerTest is TestBaseMarket {
+contract RemoveMarketManagerTest is TestBaseMarketIsolated {
     using stdStorage for StdStorage;
 
     address public newMarket;
 
-    event RemovedCurvanceContract(
-        string indexed contractType,
-        address removedAddress
+    event PermissionsUpdated(
+        string indexed permissionsType,
+        address addressUpdated,
+        bool isAdded
     );
 
     function setUp() public virtual override {
@@ -30,7 +31,7 @@ contract RemoveMarketManagerTest is TestBaseMarket {
         newMarket = address(new Market());
     }
 
-    function test_removeMarketManager_fail_whenUnauthorized() public {
+    function test_removeMarketManager_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(
@@ -43,7 +44,7 @@ contract RemoveMarketManagerTest is TestBaseMarket {
         public
     {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.removeMarketManager(user1);
 
@@ -54,7 +55,7 @@ contract RemoveMarketManagerTest is TestBaseMarket {
             .checked_write(true);
 
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
         centralRegistry.removeMarketManager(user1);
     }
@@ -63,7 +64,7 @@ contract RemoveMarketManagerTest is TestBaseMarket {
         centralRegistry.addMarketManager(newMarket, 5000);
 
         vm.expectEmit(true, true, true, true);
-        emit RemovedCurvanceContract("Market Manager", newMarket);
+        emit PermissionsUpdated("Market Manager", newMarket, false);
 
         centralRegistry.removeMarketManager(newMarket);
         assertFalse(centralRegistry.isMarketManager(newMarket));

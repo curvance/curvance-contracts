@@ -1,6 +1,6 @@
-<p style="text-align: center;width:100%"> <img src="https://pbs.twimg.com/profile_banners/1445781144125857796/1663645591/1500x500"/></p>
+<p style="text-align: center;width:100%"> <img src="https://pbs.twimg.com/profile_banners/1445781144125857796/1752160592"/></p>
 
-<h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> curvance contracts</h1>
+<h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> Curvance Protocol</h1>
 
 Main dependencies:
 
@@ -21,18 +21,34 @@ Main dependencies:
 
 ## Internal code guidelines
 
+### Imports order
+
+1. Internally-Developed Contracts; At the top of the contract
+2. Internally-Developed Libraries
+3. Externally-Developed Libraries
+4. Internally-Developed Interfaces
+5. Externally-Developed Interfaces
+6. Internally-Developed Test Contracts
+7. Externally-Developed Test Contracts
+8. Internally-Developed Mocks
+9. Externally-Developed Mocks; At the bottom of the contract
+
 ### Smart contract order
 
-1. Types at the top of the contract
+1. Types; At the top of the contract
 2. Constants
 3. Storage
 4. Events
 5. Errors
 6. Constructor
-7. External
-8. Public
-9. Internal
-10. Private as the end of the contract
+7. External Functions
+8. Public Functions
+9. Internal Functions
+10. Private Functions; At the bottom of the contract
+
+### Custom Struct Types
+
+In cases of custom structs used for storing permanent data such as token or oracle configurations we try to pack the data as tightly as possible to reduce runtime SLOAD costs, while runtime local memory structs always use full size e.g. uint256 to save on converting local values back and forth from uint256.
 
 ### A/B state variables
 
@@ -40,13 +56,17 @@ Instead of booleans, we use 0, 1, 2 (0 for false, 1/2 for true) in hotpath areas
 
 ### Precompiled selectors
 
-In instances of 3 or more calls to a specific custom error, uint256 selectors are pre calculated and stored as documented constants with direct reversion to minimize runtime gas costs, while also decreasing smart contract size.
+For contracts close to the Spurious Dragon contract size limit we store specific custom error selectors. In instances of 3 or more calls to a specific custom error, uint256 selectors are pre calculated and stored as documented constants with direct reversion to minimize runtime gas costs, while also decreasing smart contract size.
 
 ### Permissioned function validation
 
 Rather than modifiers we utilize internal functions with direct action control checks as we'd prefer an extra JUMP call than having to inline many instances of permissioning checks, this is to decrease smart contract size.
 
 For adding new risk to the system (e.g. adding a new asset), elevated permissioning is required, while removing risk from the system (pausing a market function) has standard dao permissioning.
+
+### Solidity Versioning
+
+Currently, Curvance Protocol is developed on 0.8.26 to make use of transient storage opcodes.
 
 ### Linting
 
@@ -99,7 +119,7 @@ If you think something needs to be changed in the code, please require changes. 
 
 ### Assignment
 
-Github will automatically assign 2 developers in round robin manner, counted against to how many pull request reviews
+Github will automatically assign 2 developers in a round robin structure, counted against to how many pull request reviews
 they are already assigned to.
 
 ## Branching strategy
@@ -124,3 +144,9 @@ git merge development
 ```
 
 This process will probably change later on.
+
+## Additional Information
+
+*Last updated: 8/24/2025*
+
+*Maintained by: Curvance Core Team*

@@ -1,13 +1,15 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetExternalCalldataCheckerTest is TestBaseMarket {
+contract SetExternalCalldataCheckerTest is TestBaseMarketIsolated {
     address public externalCalldataChecker = makeAddr("Calldata Checker");
 
-    function test_setExternalCalldataChecker_fail_whenUnauthorized() public {
+    function test_setExternalCalldataChecker_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
 
         vm.expectRevert(

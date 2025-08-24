@@ -1,23 +1,25 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract ManageRewardsForTest is TestBaseRewardManager {
     event RewardPaid(address user, address rewardToken, uint256 amount);
 
-    RewardsData public rewardsData = RewardsData(true, false, false, false);
+    ClaimAction public action = ClaimAction(true, false, false, false);
 
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
+        _prepareUSDC(address(rewardManager), 10000e6);
     }
 
     function test_manageRewardsFor_fail_whenNotDelegated() public {
-        vm.expectRevert(RewardManager.RewardManager__Unauthorized.selector);
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
         rewardManager.manageRewardsFor(user1);
     }
 
@@ -28,10 +30,10 @@ contract ManageRewardsForTest is TestBaseRewardManager {
 
         rewardManager.setDelegateApproval(address(this), true);
 
-        deal(address(cve), user1, 100e18);
+        _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(100e18, false, rewardsData, "0x", 0);
+        veCVE.createLock(100e18, false, action, "", 0);
 
         vm.stopPrank();
 

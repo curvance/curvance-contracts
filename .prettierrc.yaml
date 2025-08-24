@@ -10,3 +10,4 @@ overrides:
   - files: "*.sol"
     options:
       tabWidth: 4
+      parser: solidity

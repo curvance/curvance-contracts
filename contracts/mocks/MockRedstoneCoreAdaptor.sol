@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
@@ -7,10 +7,11 @@ import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/Redston
 contract MockRedstoneCoreAdaptor is RedstoneCoreAdaptor {
 
     constructor(
-        ICentralRegistry centralRegistry_,
+        ICentralRegistry cr,
         address[] memory signers,
-        uint256 _uniqueSignersThreshold
-    ) RedstoneCoreAdaptor(centralRegistry_, signers, _uniqueSignersThreshold) {}
+        uint256 signersThreshold,
+        string memory nativeTokenSymbol
+    ) RedstoneCoreAdaptor(cr, signers, signersThreshold, nativeTokenSymbol) {}
 
     function validateTimestamp(
         uint256 receivedTimestampMilliseconds

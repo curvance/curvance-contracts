@@ -1,8 +1,7 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseSimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
-import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
+import { TestBaseSimpleRewardZapper, BaseZapper, SimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
 
 contract RemoveAuthorizedRewardTokenTest is TestBaseSimpleRewardZapper {
     function test_removeAuthorizedRewardToken_fail_whenCallerIsNotAuthorized()
@@ -11,7 +10,7 @@ contract RemoveAuthorizedRewardTokenTest is TestBaseSimpleRewardZapper {
         vm.prank(address(1));
 
         vm.expectRevert(
-            SimpleRewardZapper.SimpleRewardZapper__Unauthorized.selector
+            BaseZapper.BaseZapper__Unauthorized.selector
         );
         simpleRewardZapper.removeAuthorizedOutputToken(_USDC_ADDRESS);
     }

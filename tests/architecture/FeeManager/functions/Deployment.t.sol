@@ -1,16 +1,21 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
+
+import { FeeManager } from "contracts/architecture/FeeManager.sol";
+
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { TestBaseFeeManager } from "../TestBaseFeeManager.sol";
-import { FeeManager } from "contracts/architecture/FeeManager.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract FeeManagerDeploymentTest is TestBaseFeeManager {
     function test_feeManagerDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
         vm.expectRevert(
-            FeeManager.FeeManager__InvalidCentralRegistry.selector
+            CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
+                .selector
         );
         new FeeManager(ICentralRegistry(address(0)));
     }
@@ -24,11 +29,6 @@ contract FeeManagerDeploymentTest is TestBaseFeeManager {
             address(feeManager.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(
-            address(feeManager.getOracleManager()),
-            centralRegistry.oracleManager()
-        );
-        assertEq(feeManager.feeToken(), _USDC_ADDRESS);
         assertEq(
             feeManager.vaultCompoundFee(),
             centralRegistry.protocolCompoundFee()

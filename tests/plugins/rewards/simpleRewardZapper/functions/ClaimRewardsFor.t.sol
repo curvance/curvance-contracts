@@ -1,18 +1,17 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
-
-import { TestBaseSimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
-import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
+import { TestBaseSimpleRewardZapper, BaseZapper, SimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+
 contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
-    RewardsData public rewardsData = RewardsData(false, false, false, false);
-    SwapperLib.Swap public swapData;
+    ClaimAction public action = ClaimAction(false, false, false, false);
+    SwapperLib.Swap public swapAction;
     address[] public path;
 
     function setUp() public override {
@@ -21,11 +20,11 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
         path.push(_USDC_ADDRESS);
         path.push(_WETH_ADDRESS);
 
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.inputAmount = 1e18;
-        swapData.outputToken = _WETH_ADDRESS;
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.call = abi.encodeWithSignature(
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.inputAmount = 1e18;
+        swapAction.outputToken = _WETH_ADDRESS;
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             1e18,
             0,
@@ -39,7 +38,7 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
 
-        deal(_USDC_ADDRESS, address(rewardManager), 1e18);
+        _prepareUSDC(address(rewardManager), 1e18);
     }
 
     function test_claimRewardsFor_fail_whenCallerIsNotVeCVE() public {
@@ -49,14 +48,14 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
 
         vm.startPrank(user1);
 
-        deal(address(cve), user1, 100e18);
+        _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(1e18, false, rewardsData, "0x", 0);
+        veCVE.createLock(1e18, false, action, "", 0);
 
         vm.stopPrank();
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         uint256 epochs = rewardManager.epochsToClaim(user1);
@@ -65,8 +64,8 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
         rewardManager.claimRewardsFor(
             user1,
             epochs,
-            rewardsData,
-            abi.encode(swapData),
+            action,
+            abi.encode(swapAction),
             0
         );
     }
@@ -80,24 +79,24 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
 
         vm.startPrank(user1);
 
-        deal(address(cve), user1, 100e18);
+        _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(amount, false, rewardsData, "0x", 0);
+        veCVE.createLock(amount, false, action, "", 0);
 
         vm.stopPrank();
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         uint256 rewards = amount /= 1e12;
 
         _recordEpochRewards(2, 1e6 * _ONE);
 
-        deal(_USDC_ADDRESS, address(rewardManager), rewards);
+        _prepareUSDC(address(rewardManager), rewards);
 
-        swapData.inputAmount = rewards;
-        swapData.call = abi.encodeWithSignature(
+        swapAction.inputAmount = rewards;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
             0,
@@ -115,7 +114,7 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
 
         vm.prank(user1);
-        simpleRewardZapper.claimAndSwap(swapData, user2);
+        simpleRewardZapper.claimAndSwap(swapAction, user2);
 
         assertEq(
             usdc.balanceOf(address(rewardManager)),

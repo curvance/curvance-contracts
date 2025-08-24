@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CVE } from "contracts/token/RemoteCVE.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract TestBaseRemoteCVE is TestBaseMarket {
+contract TestBaseRemoteCVE is TestBaseMarketIsolated {
     CVE public remoteCVE;
 
     function _deployCVE() internal override initMainVariables {

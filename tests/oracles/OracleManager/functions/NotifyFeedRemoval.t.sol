@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
@@ -8,7 +8,7 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
     function test_notifyFeedRemoval_fail_whenCallerIsNotApprovedAdaptor()
         public
     {
-        vm.expectRevert(OracleManager.OracleManager__Unauthorized.selector);
+        vm.expectRevert(OracleManager.OracleManager__AdaptorIsNotApproved.selector);
         oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
     }
 

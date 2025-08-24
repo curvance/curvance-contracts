@@ -1,11 +1,13 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CVEBase } from "contracts/token/CVEBase.sol";
 
-contract SetPendingContributorAddressTest is TestBaseMarket {
-    function test_setPendingContributorAddress_fail_whenUnauthorized() public {
+contract SetPendingContributorAddressTest is TestBaseMarketIsolated {
+    function test_setPendingContributorAddress_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
 
         vm.expectRevert(CVEBase.CVE__Unauthorized.selector);

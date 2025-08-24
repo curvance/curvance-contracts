@@ -1,18 +1,16 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
+
+import { BaseMulticallChecker } from "contracts/calldata-checker/multicall-checker/BaseMulticallChecker.sol";
+import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
-import { OracleManager, IOracleAdaptor } from "contracts/oracles/OracleManager.sol";
-
-import { BaseMulticallChecker } from "./BaseMulticallChecker.sol";
 
 contract RedstoneAdaptorMulticallChecker is BaseMulticallChecker {
     /// CONSTRUCTOR ///
 
-    constructor(
-        address _centralRegistry
-    ) BaseMulticallChecker(_centralRegistry) {}
+    /// @param cr The address of the Central Registry contract.
+    constructor(ICentralRegistry cr) BaseMulticallChecker(cr) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -28,25 +26,11 @@ contract RedstoneAdaptorMulticallChecker is BaseMulticallChecker {
         address target,
         bytes memory data
     ) external view override {
-        OracleManager oracleManager = OracleManager(
-            ICentralRegistry(centralRegistry).oracleManager()
-        );
+        // Validate `target` is actually a Redstone Core adaptor. This will
+        // also fail if `target` does not properly implement `IOracleAdaptor`.
+        _checkIsApprovedAdaptor(target, 2);
 
-        // Validate that target contract is actually approved inside the
-        // oracle manager.
-        if (!oracleManager.isApprovedAdaptor(target)) {
-            revert MulticallChecker__TargetError();
-        }
-
-        // Validate that target contract is actually a Redstone oracle
-        // adaptor. This will also fail if the target does not properly follow
-        // protocol adaptor design which includes an adaptor type function.
-        if (IOracleAdaptor(target).adaptorType() != 1) {
-            revert MulticallChecker__TargetError();
-        }
-
-        bytes4 functionSig = _getFuncSigHash(data);
-        if (functionSig != RedstoneCoreAdaptor.writePrice.selector) {
+        if (_getFuncSigHash(data) != RedstoneCoreAdaptor.writePrice.selector) {
             revert MulticallChecker__InvalidFuncSig();
         }
     }

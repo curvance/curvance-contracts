@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetCVETest is TestBaseMarket {
-    event CoreContractSet(string indexed contractType, address newAddress);
+contract SetCVETest is TestBaseMarketIsolated {
+    event CoreContractUpdated(string indexed contractType, address newAddress);
 
     address public newCVE = makeAddr("CVE");
 
@@ -15,14 +15,13 @@ contract SetCVETest is TestBaseMarket {
         centralRegistry = new CentralRegistry(
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
-            _ZERO_ADDRESS,
             block.timestamp + 1,
             address(0),
             _USDC_ADDRESS
         );
     }
 
-    function test_setCVE_fail_whenUnauthorized() public {
+    function test_setCVE_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(
@@ -32,6 +31,8 @@ contract SetCVETest is TestBaseMarket {
     }
 
     function test_setCVE_fail_whenEpochAlreadyStarted() public {
+        centralRegistry.setCVE(newCVE);
+
         vm.warp(centralRegistry.genesisEpoch());
 
         vm.expectRevert(
@@ -40,23 +41,23 @@ contract SetCVETest is TestBaseMarket {
         centralRegistry.setCVE(newCVE);
     }
 
-    function test_setCVE_fail_whenCVEIsAlreadySet() public {
-        centralRegistry.setCVE(newCVE);
-
-        vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
-        );
-        centralRegistry.setCVE(newCVE);
-    }
-
     function test_setCVE_success() public {
         assertEq(centralRegistry.cve(), _ZERO_ADDRESS);
 
         vm.expectEmit(true, true, true, true);
-        emit CoreContractSet("CVE", newCVE);
+        emit CoreContractUpdated("CVE", newCVE);
 
         centralRegistry.setCVE(newCVE);
 
         assertEq(centralRegistry.cve(), newCVE);
+
+        vm.warp(centralRegistry.genesisEpoch() - 1);
+
+        address newCVE1 = makeAddr("CVE1");
+
+        vm.expectEmit(true, true, true, true);
+        emit CoreContractUpdated("CVE", newCVE1);
+
+        centralRegistry.setCVE(newCVE1);
     }
 }

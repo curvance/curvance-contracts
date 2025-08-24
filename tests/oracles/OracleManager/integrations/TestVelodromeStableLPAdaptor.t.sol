@@ -1,12 +1,16 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeStableLPAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { BaseStableLPAdaptor } from "contracts/oracles/adaptors/stableswapBase/BaseStableLPAdaptor.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
 contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
@@ -18,7 +22,7 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
 
     function setUp() public override {
         _fork("ETH_NODE_URI_OPTIMISM", 110333246);
-
+        
         _deployCentralRegistry();
         _deployOracleManager();
 
@@ -31,9 +35,24 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
         );
         adaptor.addAsset(_VELODROME_DAI_USDC);
 
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, _CHAINLINK_DAI_USD, 0, true);
-        chainlinkAdaptor.addAsset(_USDC_ADDRESS, _CHAINLINK_USDC_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _DAI_ADDRESS,
+            true,
+            _CHAINLINK_DAI_USD,
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            _CHAINLINK_USDC_USD,
+            0
+        );
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
@@ -80,9 +99,7 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
 
     function testRevertAddAsset__AssetIsNotStableLP() public {
         vm.expectRevert(
-            VelodromeStableLPAdaptor
-                .VelodromeStableLPAdaptor__AssetIsNotStableLP
-                .selector
+            BaseStableLPAdaptor.BaseStableLPAdaptor__InvalidAssetType.selector
         );
         adaptor.addAsset(0x0493Bf8b6DBB159Ce2Db2E0E8403E753Abd1235b);
     }
@@ -105,7 +122,7 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
 
         // try large swap (500K _USDC_ADDRESS)
         uint256 amount = 500000e6;
-        deal(_USDC_ADDRESS, address(this), amount);
+        _prepareUSDC(address(this), amount);
         VelodromeLib._swapExactTokensForTokens(
             _VELO_ROUTER,
             _VELODROME_DAI_USDC,
@@ -141,7 +158,7 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
 
         // try large swap (5M _USDC_ADDRESS)
         uint256 amount = 5000000e6;
-        deal(_USDC_ADDRESS, address(this), amount);
+        _prepareUSDC(address(this), amount);
         VelodromeLib._swapExactTokensForTokens(
             _VELO_ROUTER,
             _VELODROME_DAI_USDC,
@@ -167,18 +184,14 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
 
     function testRevertGetPrice__AssetIsNotSupported() public {
         vm.expectRevert(
-            BaseStableLPAdaptor
-                .BaseStableLPAdaptor__AssetIsNotSupported
-                .selector
+            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.getPrice(address(0), true, false);
     }
 
     function testRevertRemoveAsset__AssetIsNotSupported() public {
         vm.expectRevert(
-            BaseStableLPAdaptor
-                .BaseStableLPAdaptor__AssetIsNotSupported
-                .selector
+            BaseOracleAdaptor.BaseOracleAdaptor__AssetIsNotSupported.selector
         );
         adaptor.removeAsset(address(0));
     }

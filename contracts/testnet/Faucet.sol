@@ -1,101 +1,137 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity ^0.8.28;
 
+// solhint-disable max-line-length
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
-
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+// solhint-enable max-line-length
 
+// solhint-disable gas-custom-errors
 contract Faucet is Ownable {
-    using Strings for uint256;
+    struct FaucetToken {
+        address tokenAddress;
+        uint256 maxClaimAmount;
+    }
 
-    /// Maximum faucet erc20 claim amount
-    uint256 public maxClaim = 1000;
-    mapping(address => uint256) public overrideMaxClaim;
-
-    /// /// Maximum faucet sepETH claim amount
-    uint256 public maxSepETHClaim = 0.1 ether;
-    /// user => token => last claimed timestamp
+    FaucetToken[] public faucetTokens;
     mapping(address => mapping(address => uint256)) public userLastClaimed;
 
-    constructor() Ownable() {}
-
-    function setMaxClaimAmounts(
-        uint256 amountERC20,
-        uint256 amountSepETH
-    ) external onlyOwner {
-        maxClaim = amountERC20;
-        maxSepETHClaim = amountSepETH;
-    }
-
-    function claim(address user, address token, uint256 amount) external {
-        _claim(user, token, amount);
-    }
-
-    function multiClaim(
-        address user,
-        address[] calldata tokens,
-        uint256[] calldata amounts
-    ) external {
-        require(
-            tokens.length == amounts.length,
-            "Not enough tokens OR amounts provided"
-        );
-
-        for (uint256 i = 0; i < tokens.length; i++) {
-            address token = tokens[i];
-            uint256 amount = amounts[i];
-
-            _claim(user, token, amount);
+    constructor(
+        address[] memory tokens, 
+        uint256[] memory claimAmounts
+    ) Ownable(msg.sender) {
+        for (uint256 i; i < tokens.length; i++) {
+            _addFaucetToken(tokens[i], claimAmounts[i]);
         }
     }
 
-    function _claim(address user, address token, uint256 amount) internal {
-        uint256 tokenMaxClaim = _getMaxClaim(token);
-        require(
-            userLastClaimed[user][token] + 24 hours <= block.timestamp,
-            "Wait 24 hours"
-        );
+    function claim(address[] calldata tokens) external {
+        uint256 numTokens = tokens.length;
+        for (uint256 i; i < numTokens; i++) {
+            _claim(tokens[i]);
+        }
+    }
 
-        if (token == address(0)) {
-            require(amount < maxSepETHClaim, "Excessive desired claim amount");
-            require(address(this).balance >= amount, "Not enough ETH");
-            SafeTransferLib.safeTransferETH(user, amount);
-        } else {
-            require(
-                amount <= tokenMaxClaim,
-                string.concat(
-                    "Excessive desired claim amount, cannot claim more than: ",
-                    tokenMaxClaim.toString()
-                )
-            );
-            require(
-                IERC20(token).balanceOf(address(this)) >= amount,
-                "Not enough Token"
-            );
-            SafeTransferLib.safeTransfer(token, user, amount);
+    function tokensAvailable(
+        address[] calldata tokens
+    ) external view returns (bool[] memory tokenAvailability) {
+        uint256 numTokens = tokens.length;
+        tokenAvailability = new bool[](numTokens);
+        for (uint256 i; i < numTokens; i++) {
+            IERC20 token = IERC20(tokens[i]);
+            FaucetToken memory faucetToken = _getFaucetToken(tokens[i]);
+            tokenAvailability[i] = 
+                token.balanceOf(address(this)) >= faucetToken.maxClaimAmount;
+        }
+    }
+
+    function multiLastClaimed(
+        address account,
+        address[] calldata tokens
+    ) public view returns (uint256[] memory) {
+        uint256[] memory lastClaimed = new uint256[](tokens.length);
+        for (uint256 i; i < tokens.length; ++i) {
+            lastClaimed[i] = userLastClaimed[account][tokens[i]];
+        }
+        return lastClaimed;
+    }
+    
+    function addFaucetToken(
+        address tokenAddress, 
+        uint256 maxClaimAmount
+    ) external onlyOwner {
+        _addFaucetToken(tokenAddress, maxClaimAmount);
+    }
+
+    function modifyFaucetTokenAmount(
+        address tokenAddress,
+        uint256 newMaxClaimAmount
+    ) external onlyOwner {
+        for (uint256 i = 0; i < faucetTokens.length; i++) {
+            if (faucetTokens[i].tokenAddress == tokenAddress) {
+                faucetTokens[i].maxClaimAmount = newMaxClaimAmount;
+                return;
+            }
+        }
+        require(false, "Invalid token address");
+    }
+
+    function removeFaucetToken(address tokenAddress) external onlyOwner {
+        FaucetToken[] memory newFaucetTokens = 
+            new FaucetToken[](faucetTokens.length - 1);
+        bool found = false;
+        for(uint256 i; i < faucetTokens.length; i++) {
+            if(faucetTokens[i].tokenAddress == tokenAddress) {
+                found = true;
+                continue;
+            }
+            newFaucetTokens[i] = faucetTokens[i];
+        }
+        require(found, "Invalid token address");
+        
+        delete faucetTokens;
+        for(uint256 i; i < newFaucetTokens.length; i++) {
+            faucetTokens.push(newFaucetTokens[i]);
+        }
+    }
+
+    function _addFaucetToken(
+        address tokenAddress, 
+        uint256 maxClaimAmount
+    ) internal {
+        faucetTokens.push(FaucetToken(tokenAddress, maxClaimAmount));
+    }
+    
+    function _getFaucetToken(
+        address token
+    ) internal view returns (FaucetToken memory) {
+        for(uint256 i; i < faucetTokens.length; i++) {
+            if(faucetTokens[i].tokenAddress == token) {
+                return faucetTokens[i];
+            }
         }
 
-        userLastClaimed[user][token] = block.timestamp;
+        revert("Token not found");
     }
 
-    function setMaxClaimAmounts(
-        address token,
-        uint256 amount
-    ) external onlyOwner {
-        overrideMaxClaim[token] = amount;
-    }
+    function _claim(address token) internal {
+        require(
+            userLastClaimed[msg.sender][token] + 24 hours < block.timestamp,
+            "Claim cooldown active (24 hours)"
+        );
+        FaucetToken memory faucetToken = _getFaucetToken(token);
 
-    // By default users can claim 1000 of a specific token -- unless overriden by the owner
-    function _getMaxClaim(address token) internal view returns (uint256) {
-        uint256 decimal = IERC20(token).decimals();
-        uint256 default_claim = maxClaim * (10 ** decimal);
-
-        return
-            overrideMaxClaim[token] == 0
-                ? default_claim
-                : overrideMaxClaim[token];
+        IERC20 erc20Token = IERC20(token);
+        require(
+            erc20Token.balanceOf(address(this)) >= faucetToken.maxClaimAmount,
+            "Insufficient balance in faucet"
+        );
+        SafeTransferLib.safeTransfer(
+            token, msg.sender,
+            faucetToken.maxClaimAmount
+        );
+        
+        userLastClaimed[msg.sender][token] = block.timestamp;
     }
 }

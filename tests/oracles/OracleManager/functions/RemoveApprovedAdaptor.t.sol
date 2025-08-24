@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
@@ -16,7 +16,7 @@ contract RemoveApprovedAdaptorTest is TestBaseOracleManager {
 
     function test_removeApprovedAdaptor_fail_whenAdaptorDoesNotExist() public {
         vm.expectRevert(
-            OracleManager.OracleManager__InvalidParameter.selector
+            OracleManager.OracleManager__AdaptorIsNotApproved.selector
         );
         oracleManager.removeApprovedAdaptor(address(chainlinkAdaptor));
     }

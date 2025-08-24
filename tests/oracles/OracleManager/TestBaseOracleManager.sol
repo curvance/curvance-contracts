@@ -1,59 +1,76 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
-contract TestBaseOracleManager is TestBaseMarket {
+import { console2 } from "forge-std/console2.sol";
+
+contract TestBaseOracleManager is TestBaseMarketIsolated {
     MockDataFeed public sequencer;
 
     function setUp() public virtual override {
         _fork(18031848);
-
+        
         _deployCentralRegistry();
+        _deployDAOTimelock();
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
         _deployOracleManager();
         _deployGaugeManager();
         _deployMarketManager();
-        _deployEUSDC();
+        _deployBorrowableCUSDC();
 
         chainlinkAdaptor = chainlinkAdaptors[
             block.chainid
-        ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
+        ] = new ChainlinkAdaptor(ICentralRegistry(
+            address(centralRegistry))
+        );
         dualChainlinkAdaptor = dualChainlinkAdaptors[
             block.chainid
-        ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
+        ] = new ChainlinkAdaptor(ICentralRegistry(
+            address(centralRegistry))
+        );
 
-        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            true,
+            _CHAINLINK_ETH_USD,
+            0
+        );
         dualChainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
+            true,
             _CHAINLINK_ETH_USD,
-            0,
-            true
+            0
         );
-        chainlinkAdaptor.addAsset(_USDC_ADDRESS, _CHAINLINK_USDC_USD, 0, true);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
-            _CHAINLINK_USDC_ETH,
-            0,
-            false
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
+            true,
             _CHAINLINK_USDC_USD,
-            0,
-            true
+            0
+        );
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            false,
+            _CHAINLINK_USDC_ETH,
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
+            true,
+            _CHAINLINK_USDC_USD,
+            0
+        );
+        dualChainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            false,
             _CHAINLINK_USDC_ETH,
-            0,
-            false
+            0
         );
 
         vm.warp(centralRegistry.genesisEpoch());
@@ -68,12 +85,29 @@ contract TestBaseOracleManager is TestBaseMarket {
         ] = new CentralRegistry(
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
-            _ZERO_ADDRESS,
             block.timestamp + 1,
             address(sequencer),
             _USDC_ADDRESS
         );
         centralRegistry.transferEmergencyCouncil(address(this));
         centralRegistry.setSlippageLimit(6000);
+    }
+
+    function _addSinglePriceFeed() internal initMainVariables {
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        oracleManager.addAssetPriceFeed(
+            _USDC_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+    }
+
+    function _addDualPriceFeed() internal initMainVariables {
+        _addSinglePriceFeed();
+
+        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
+        oracleManager.addAssetPriceFeed(
+            _USDC_ADDRESS,
+            address(dualChainlinkAdaptor)
+        );
     }
 }

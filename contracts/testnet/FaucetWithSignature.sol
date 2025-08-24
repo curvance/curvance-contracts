@@ -1,15 +1,16 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract FaucetWithSignature is Ownable {
-    using ECDSA for bytes32;
+    using MessageHashUtils for bytes32;
 
     /// Maximum faucet erc20 claim amount
     uint256 public maxClaim = 10 ether;
@@ -23,7 +24,7 @@ contract FaucetWithSignature is Ownable {
 
     mapping(bytes => bool) public isSignatureUsed;
 
-    constructor(address _signer) Ownable() {
+    constructor(address _signer) Ownable(msg.sender) {
         signer = _signer;
     }
 
@@ -85,6 +86,6 @@ contract FaucetWithSignature is Ownable {
         bytes32 hash = keccak256(
             abi.encodePacked(user, token, amount, expireAt)
         );
-        return ECDSA.toEthSignedMessageHash(hash);
+        return hash.toEthSignedMessageHash();
     }
 }

@@ -1,36 +1,29 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
+
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 
 contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
     /// @notice Stores configuration data for Chainlink price sources.
-    /// @param aggregator The current phase's aggregator address.
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
-    /// @param decimals Returns the number of decimals the aggregator
-    ///                 responds with.
-    /// @param heartbeat The max amount of time between price updates.
-    ///                  0 defaults to using DEFAULT_HEART_BEAT.
-    /// @param max The maximum valid price of the asset.
-    ///            0 defaults to use proxy max price reduced by ~10%.
-    /// @param min The minimum valid price of the asset.
-    ///            0 defaults to use proxy min price increased by ~10%.
-    struct AdaptorData {
-        IChainlink aggregator;
+    /// @param aggregatorProxy Chainlink aggregator proxy to use for
+    ///                        pricing `asset`.
+    /// @param decimals Returns the number of decimals the proxy denominates
+    ///                 asset prices in.
+    /// @param heartbeat The max amount of time allowed between price updates.
+    ///                  0 defaults to using `DEFAULT_HEARTBEAT`.
+    struct AssetConfig {
         bool isConfigured;
-        uint256 decimals;
-        uint256 heartbeat;
-        uint256 max;
-        uint256 min;
+        IChainlink aggregatorProxy;
+        uint8 decimals;
+        uint24 heartbeat;
     }
 
     /// CONSTANTS ///
@@ -38,139 +31,60 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// @notice If zero is specified for a Chainlink asset heartbeat,
     ///         this value is used instead.
     /// @dev    1 days = 24 hours = 1,440 minutes = 86,400 seconds.
-    uint256 public constant DEFAULT_HEART_BEAT = 1 days;
+    uint256 public constant DEFAULT_HEARTBEAT =
+        1 days + HEARTBEAT_GRACE_PERIOD;
 
     /// STORAGE ///
 
-    /// @notice Adaptor configuration data for pricing an asset in gas token.
-    /// @dev Chainlink Adaptor Data for pricing in gas token.
-    mapping(address => AdaptorData) public adaptorDataNonUSD;
-
-    /// @notice Adaptor configuration data for pricing an asset in USD.
-    /// @dev Chainlink Adaptor Data for pricing in USD.
-    mapping(address => AdaptorData) public adaptorDataUSD;
+    /// @notice Price feed configuration data for an asset.
+    /// @dev Token address => inUSD => Price feed configuration for `asset`.
+    mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
     /// EVENTS ///
 
-    event ChainlinkAssetAdded(
-        address asset,
-        AdaptorData assetConfig,
-        bool isUpdate
-    );
-    event ChainlinkAssetRemoved(address asset);
+    event AssetAdded(address asset, AssetConfig config, bool isUpdate);
 
     /// ERRORS ///
 
-    error ChainlinkAdaptor__AssetIsNotSupported();
     error ChainlinkAdaptor__InvalidHeartbeat();
-    error ChainlinkAdaptor__InvalidMinMaxConfig();
 
     /// CONSTRUCTOR ///
 
-    /// @param centralRegistry_ The address of central registry.
-    constructor(
-        ICentralRegistry centralRegistry_
-    ) BaseOracleAdaptor(centralRegistry_) {}
+    /// @param cr The address of the Protocol Central Registry.
+    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
 
     /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Retrieves the price of a given asset.
-    /// @dev Uses Chainlink oracles to fetch the price data.
-    ///      Price is returned in USD or a chain's native token depending on
-    ///      'inUSD' parameter.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @param inUSD Specifies whether the price format should be in USD (true)
-    ///              or a chain's native token (false).
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price.
-    function getPrice(
-        address asset,
-        bool inUSD,
-        bool /* getLower */
-    ) external view override returns (PriceReturnData memory) {
-        // Validate we support pricing `asset`.
-        if (!isSupportedAsset[asset]) {
-            revert ChainlinkAdaptor__AssetIsNotSupported();
-        }
-
-        // Check whether we want the pricing in USD first,
-        // otherwise price in terms of the gas token.
-        if (inUSD) {
-            return _getPriceInUSD(asset);
-        }
-
-        return _getPriceInNative(asset);
-    }
 
     /// @notice Adds pricing support for `asset` via a new Chainlink feed.
     /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
-    /// @param aggregator Chainlink aggregator to use for pricing `asset`.
-    /// @param heartbeat Chainlink heartbeat to use when validating prices
-    ///                  for `asset`. 0 = `DEFAULT_HEART_BEAT`.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
+    /// @param aggregatorProxy Chainlink aggregator proxy to use for
+    ///                        pricing `asset`.
+    /// @param heartbeat Chainlink heartbeat to use when validating prices
+    ///                  for `asset`. 0 = `DEFAULT_HEARTBEAT`.
     function addAsset(
         address asset,
-        address aggregator,
-        uint256 heartbeat,
-        bool inUSD
+        bool inUSD,
+        address aggregatorProxy,
+        uint256 heartbeat
     ) external {
         _checkElevatedPermissions();
-
-        if (heartbeat != 0) {
-            if (heartbeat > DEFAULT_HEART_BEAT) {
-                revert ChainlinkAdaptor__InvalidHeartbeat();
-            }
+        
+        if (heartbeat > DEFAULT_HEARTBEAT) {
+            revert ChainlinkAdaptor__InvalidHeartbeat();
         }
 
-        // Use Chainlink to get the min and max of the asset.
-        IChainlink feedAggregator = IChainlink(
-            IChainlink(aggregator).aggregator()
-        );
+        AssetConfig storage config = assetConfig[asset][inUSD];
 
-        // Query Max and Min feed prices from Chainlink aggregator.
-        uint256 maxFromChainlink = uint256(
-            uint192(feedAggregator.maxAnswer())
-        );
-        uint256 minFromChainklink = uint256(
-            uint192(feedAggregator.minAnswer())
-        );
-
-        // Add a ~10% buffer to minimum and maximum price from Chainlink
-        // because Chainlink can stop updating its price before/above
-        // the min/max price.
-        uint256 bufferedMaxPrice = (maxFromChainlink * 9) / 10;
-        uint256 bufferedMinPrice = (minFromChainklink * 11) / 10;
-
-        // If the buffered max price is above uint240 its theoretically
-        // possible to get a price which would lose precision on uint240
-        // conversion, which we need to protect against in getPrice() so
-        // we can add a second protective layer here.
-        if (bufferedMaxPrice > type(uint240).max) {
-            bufferedMaxPrice = type(uint240).max;
-        }
-
-        if (bufferedMinPrice >= bufferedMaxPrice) {
-            revert ChainlinkAdaptor__InvalidMinMaxConfig();
-        }
-
-        AdaptorData storage data;
-
-        if (inUSD) {
-            data = adaptorDataUSD[asset];
-        } else {
-            data = adaptorDataNonUSD[asset];
-        }
-
-        // Save adaptor data and update mapping that we support `asset` now.
-        data.decimals = feedAggregator.decimals();
-        data.max = bufferedMaxPrice;
-        data.min = bufferedMinPrice;
-        data.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
-        data.aggregator = IChainlink(aggregator);
-        data.isConfigured = true;
+        // Update `config` and make sure `isSupportedAsset` returns true
+        // for `asset`.
+        config.aggregatorProxy = IChainlink(aggregatorProxy);
+        config.decimals = IChainlink(aggregatorProxy).decimals();
+        config.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEARTBEAT);
+        config.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -179,148 +93,67 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit ChainlinkAssetAdded(asset, data, isUpdate);
-    }
-
-    /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Manager to notify it of its removal.
-    ///      Requires that `asset` is currently supported.
-    /// @param asset The address of the supported asset to remove from
-    ///              the adaptor.
-    function removeAsset(address asset) external override {
-        _checkElevatedPermissions();
-
-        // Validate that `asset` is currently supported.
-        if (!isSupportedAsset[asset]) {
-            revert ChainlinkAdaptor__AssetIsNotSupported();
-        }
-
-        // Notify the adaptor to stop supporting the asset.
-        delete isSupportedAsset[asset];
-
-        // Wipe config mapping entries for a gas refund.
-        delete adaptorDataUSD[asset];
-        delete adaptorDataNonUSD[asset];
-
-        // Notify the Oracle Manager that we are going to stop supporting
-        // the asset.
-        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
-            asset
-        );
-        emit ChainlinkAssetRemoved(asset);
+        emit AssetAdded(asset, config, isUpdate);
     }
 
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
+    /// @return The adaptor's type.
     function adaptorType() external pure override returns (uint256) {
-        return 3;
+        return 1;
     }
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Retrieves the price of a given asset in USD.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (USD).
-    function _getPriceInUSD(
-        address asset
-    ) internal view returns (PriceReturnData memory) {
-        if (adaptorDataUSD[asset].isConfigured) {
-            return _parseData(adaptorDataUSD[asset], true);
-        }
-
-        return _parseData(adaptorDataNonUSD[asset], false);
-    }
-
-    /// @notice Retrieves the price of a given asset in the chain's native
-    ///         gas token.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (native).
-    function _getPriceInNative(
-        address asset
-    ) internal view returns (PriceReturnData memory) {
-        if (adaptorDataNonUSD[asset].isConfigured) {
-            return _parseData(adaptorDataNonUSD[asset], false);
-        }
-
-        return _parseData(adaptorDataUSD[asset], true);
-    }
-
-    /// @notice Parses the chainlink feed data for pricing of an asset.
+    /// @notice Retrieves the price of a given asset in `inUSD` price form.
     /// @dev Calls latestRoundData() from Chainlink to get the latest data
     ///      for pricing and staleness.
-    /// @param data Chainlink feed details.
-    /// @param inUSD A boolean to denote if the price is in USD.
-    /// @return pData A structure containing the price, error status,
-    ///               and the currency of the price.
-    function _parseData(
-        AdaptorData memory data,
+    /// @param asset The address of the asset for which the price is needed.
+    /// @param inUSD Whether `asset` should be priced in USD or native tokens.
+    /// @return result Return data for a priced asset containing:
+    ///                price The price of the asset.
+    ///                inUSD Boolean indicating whether `price` is denominated
+    ///                      in USD (true) or native token (false).
+    ///                hadError Boolean indicating whether the asset was priced
+    ///                         without running into any issues or not.
+    function _getPrice(
+        address asset,
         bool inUSD
-    ) internal view returns (PriceReturnData memory pData) {
-        pData.inUSD = inUSD;
-        if (
-            !IOracleManager(centralRegistry.oracleManager()).isSequencerValid()
-        ) {
-            pData.hadError = true;
-            return pData;
+    ) internal view override returns (PricingResult memory result) {
+        // Parse data from the format you want if its configured, otherwise
+        // price in the other format and manually convert in Oracle Manager.
+        if (!assetConfig[asset][inUSD].isConfigured) {
+            inUSD = !inUSD;  
         }
 
-        (, int256 price, , uint256 updatedAt, ) = IChainlink(data.aggregator)
+        AssetConfig memory c = assetConfig[asset][inUSD];
+        result.inUSD = inUSD;
+        
+        (, int256 price,, uint256 updatedAt, ) = IChainlink(c.aggregatorProxy)
             .latestRoundData();
 
         // If we got a price of 0 or less, bubble up an error immediately.
         if (price <= 0) {
-            pData.hadError = true;
-            return pData;
+            result.hadError = true;
+            return result;
         }
 
-        uint256 newPrice = (uint256(price) * WAD) / (10 ** data.decimals);
-
-        pData.price = uint240(newPrice);
-        pData.hadError = _verifyData(
+        uint256 adjustedPrice = _adjustPrice(
+            asset,
+            inUSD,
             uint256(price),
-            updatedAt,
-            data.max,
-            data.min,
-            data.heartbeat
+            c.decimals
         );
+
+        result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
+        result.price = adjustedPrice;
     }
 
-    /// @notice Validates the feed data based on various constraints.
-    /// @dev Checks if the value is within a specific range
-    ///      and if the data is not outdated.
-    /// @param value The value that is retrieved from the feed data.
-    /// @param timestamp The time at which the value was last updated.
-    /// @param max The maximum limit of the value.
-    /// @param min The minimum limit of the value.
-    /// @param heartbeat The maximum allowed time difference between
-    ///                  current time and 'timestamp'.
-    /// @return A boolean indicating whether the feed data had an error
-    ///         (true = error, false = no error).
-    function _verifyData(
-        uint256 value,
-        uint256 timestamp,
-        uint256 max,
-        uint256 min,
-        uint256 heartbeat
-    ) internal view returns (bool) {
-        // Validate `value` is not below the buffered min value allowed.
-        if (value < min) {
-            return true;
-        }
-
-        // Validate `value` is not above the buffered maximum value allowed.
-        if (value > max) {
-            return true;
-        }
-
-        // Validate the price returned is not stale.
-        if (block.timestamp - timestamp > heartbeat) {
-            return true;
-        }
-
-        return false;
+    /// @notice Wipes `asset` pricing configurations from this adaptor.
+    /// @param asset The address of the asset to wipe pricing support of.
+    function _wipeAssetConfigs(address asset) internal override {
+        delete assetConfig[asset][true];
+        delete assetConfig[asset][false];
     }
 }

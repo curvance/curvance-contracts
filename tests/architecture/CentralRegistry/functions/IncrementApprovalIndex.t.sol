@@ -1,22 +1,28 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract IncrementApprovalIndexTest is TestBaseMarket {
+contract IncrementApprovalIndexTest is TestBaseMarketIsolated {
     event ApprovalIndexIncremented(address indexed user, uint256 newIndex);
 
     function test_incrementApprovalIndex_success() public {
-        assertEq(centralRegistry.getUserApprovalIndex(user1), 0);
+        assertEq(centralRegistry.userApprovalIndex(user1), 0);
 
-        vm.prank(user1);
+        vm.startPrank(user1);
+
+        strategyCBALRETH.setDelegateApproval(user2, true);
+
+        assert(strategyCBALRETH.isDelegate(user1, user2));
 
         vm.expectEmit(true, true, true, true);
         emit ApprovalIndexIncremented(user1, 1);
 
         centralRegistry.incrementApprovalIndex();
 
-        assertEq(centralRegistry.getUserApprovalIndex(user1), 1);
+        assert(!strategyCBALRETH.isDelegate(user1, user2)); // Ensure delegation is reset
+
+        assertEq(centralRegistry.userApprovalIndex(user1), 1);
     }
 }

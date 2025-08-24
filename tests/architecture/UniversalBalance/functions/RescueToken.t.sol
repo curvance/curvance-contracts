@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
@@ -11,7 +11,7 @@ contract UniversalBalanceRescueTokenTest is TestBaseUniversalBalance {
     function setUp() public override {
         super.setUp();
 
-        deal(_DAI_ADDRESS, address(universalBalance), 100e18);
+        _prepareDAI(address(universalBalance), 100e18);
         deal(address(universalBalance), 100e18);
     }
 
@@ -59,15 +59,20 @@ contract UniversalBalanceRescueTokenTest is TestBaseUniversalBalance {
     function test_universalBalanceRescueToken_success_withNativeAsset_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(amount > 0 && amount <= 100e18);
+        vm.assume(0 <= amount && amount <= 100e18);
 
         uint256 balance = address(universalBalance).balance;
         uint256 holding = address(this).balance;
 
         universalBalance.rescueToken(address(0), amount);
 
-        assertEq(address(universalBalance).balance, balance - amount);
-        assertEq(address(this).balance, holding + amount);
+        uint256 withdrawalAmount = amount == 0 ? balance : amount;
+
+        assertEq(
+            address(universalBalance).balance,
+            balance - withdrawalAmount
+        );
+        assertEq(address(this).balance, holding + withdrawalAmount);
     }
 
     function test_universalBalanceRescueToken_success_withNonNativeAsset_withWithdrawAll()
@@ -85,14 +90,19 @@ contract UniversalBalanceRescueTokenTest is TestBaseUniversalBalance {
     function test_universalBalanceRescueToken_success_withNonNativeAsset_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(amount > 0 && amount <= 100e18);
+        vm.assume(0 <= amount && amount <= 100e18);
 
         uint256 balance = dai.balanceOf(address(universalBalance));
         uint256 holding = dai.balanceOf(address(this));
 
         universalBalance.rescueToken(_DAI_ADDRESS, amount);
 
-        assertEq(dai.balanceOf(address(universalBalance)), balance - amount);
-        assertEq(dai.balanceOf(address(this)), holding + amount);
+        uint256 withdrawalAmount = amount == 0 ? balance : amount;
+
+        assertEq(
+            dai.balanceOf(address(universalBalance)),
+            balance - withdrawalAmount
+        );
+        assertEq(dai.balanceOf(address(this)), holding + withdrawalAmount);
     }
 }

@@ -1,22 +1,37 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldataChecker.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { LowLevelCallsHelper } from "contracts/libraries/LowLevelCallsHelper.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
-import { NO_ERROR, WAD } from "contracts/libraries/Constants.sol";
+import { NO_ERROR, BPS, WAD } from "contracts/libraries/ConstantsLib.sol";
 
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldataChecker.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+
+/// @title Curvance Swapper Library.
+/// @notice Helper Library for performing composable swaps with varying
+///         degrees of slippage tolerance. "Unsafe" swaps perform a standard
+///         slippage check whereas "safe" swaps not only check for standard
+///         slippage but also check against the Oracle Manager's prices as
+///         well.
+///         NOTE: This library does not intend to provide support for fee on
+///               transfer tokens though support may be built in the future.
 library SwapperLib {
     /// TYPES ///
-    /// @notice Used to execute a swap, which is selling one token for another.
+
+    /// @notice Instructions to execute a swap, selling `inputToken` for
+    ///         `outputToken`.
     /// @param inputToken Address of input token to swap from.
     /// @param inputAmount The amount of `inputToken` to swap.
     /// @param outputToken Address of token to swap into.
     /// @param target Address of the swapper, usually an aggregator.
+    /// @param slippage The amount of value-loss acceptable from swapping
+    ///                 between tokens.
     /// @param call Swap instruction calldata.
     struct Swap {
         address inputToken;
@@ -33,18 +48,26 @@ library SwapperLib {
     error SwapperLib__TokenPrice(address inputToken);
     error SwapperLib__Slippage(uint256 slippage);
 
-    /// FUNCTIONS ///
+    /// INTERNAL FUNCTIONS ///
 
-    /// @notice Swaps `swapData.inputToken` into a `swapData.outputToken`. (unsafe)
-    /// @param swapData The swap instruction data to execute.
-    /// @return The output amount received from swapping.
-    function swapUnsafe(
-        ICentralRegistry centralRegistry,
-        Swap memory swapData
-    ) internal returns (uint256) {
-        address callDataChecker = centralRegistry.externalCalldataChecker(
-            swapData.target
-        );
+    /// @notice Swaps `action.inputToken` into a `action.outputToken`
+    ///         without an extra slippage check.
+    /// @param cr The address of the Protocol Central Registry to pull
+    ///           addresses from.
+    /// @param action Instructions for a swap action containing:
+    ///               inputToken Address of input token to swap from.
+    ///               inputAmount The amount of `inputToken` to swap.
+    ///               outputToken Address of token to swap into.
+    ///               target Address of the swapper, usually an aggregator.
+    ///               slippage The amount of value-loss acceptable from
+    ///                        swapping between tokens.
+    ///               call Swap instruction calldata.
+    /// @return outAmount The output amount received from swapping.
+    function _swapUnsafe(
+        ICentralRegistry cr,
+        Swap memory action
+    ) internal returns (uint256 outAmount) {
+        address callDataChecker = cr.externalCalldataChecker(action.target);
 
         // Validate we know how to verify this calldata.
         if (callDataChecker == address(0)) {
@@ -52,151 +75,106 @@ library SwapperLib {
         }
 
         // Verify calldata integrity.
-        IExternalCalldataChecker(callDataChecker).checkCalldata(
-            swapData,
-            address(this)
-        );
+        IExternalCalldataChecker(callDataChecker)
+            .checkCalldata(action, address(this));
 
-        // Approve `swapData.inputToken` to target contract, if necessary.
-        _approveTokenIfNeeded(
-            swapData.inputToken,
-            swapData.target,
-            swapData.inputAmount
-        );
+        // Approve `action.inputToken` to target contract, if necessary.
+        _approveIfNeeded(action.inputToken, action.target, action.inputAmount);
 
         // Cache output token from struct for easier querying.
-        address outputToken = swapData.outputToken;
-        uint256 balance = CommonLib.getTokenBalance(outputToken);
+        address outputToken = action.outputToken;
+        uint256 balanceBefore = CommonLib._balanceOf(outputToken);
 
-        uint256 value = CommonLib.isETH(swapData.inputToken)
-            ? swapData.inputAmount
-            : 0;
+        uint256 callValue = CommonLib._isNative(action.inputToken) ?
+            action.inputAmount : 0;
 
         // Execute the swap.
         LowLevelCallsHelper._callWithNative(
-            swapData.target,
-            swapData.call,
-            value
+            action.target,
+            action.call,
+            callValue
         );
 
         // Remove any excess approval.
-        _removeApprovalIfNeeded(swapData.inputToken, swapData.target);
+        _removeApprovalIfNeeded(action.inputToken, action.target);
 
-        return CommonLib.getTokenBalance(outputToken) - balance;
+        outAmount = CommonLib._balanceOf(outputToken) - balanceBefore;
     }
 
-    /// @notice Swaps `swapData.inputToken` into a `swapData.outputToken`. (safe: check slippage)
-    /// @param swapData The swap instruction data to execute.
+    /// @notice Swaps `action.inputToken` into a `action.outputToken`
+    ///         with an extra slippage check.
+    /// @param cr The address of the Protocol Central Registry to pull
+    ///           addresses from.
+    /// @param action Instructions for a swap action containing:
+    ///                   inputToken Address of input token to swap from.
+    ///                   inputAmount The amount of `inputToken` to swap.
+    ///                   outputToken Address of token to swap into.
+    ///                   target Address of the swapper, usually an
+    ///                          aggregator.
+    ///                   slippage The amount of value-loss acceptable from
+    ///                            swapping between tokens.
+    ///                   call Swap instruction calldata.
     /// @return outAmount The output amount received from swapping.
-    function swapSafe(
-        ICentralRegistry centralRegistry,
-        Swap memory swapData
+    function _swapSafe(
+        ICentralRegistry cr,
+        Swap memory action
     ) internal returns (uint256 outAmount) {
-        {
-            address callDataChecker = centralRegistry.externalCalldataChecker(
-                swapData.target
-            );
+        outAmount = _swapUnsafe(cr, action);
 
-            // Validate we know how to verify this calldata.
-            if (callDataChecker == address(0)) {
-                revert SwapperLib__UnknownCalldata();
-            }
+        IOracleManager om = CommonLib._oracleManager(cr);
+        uint256 valueIn = _getValue(om, action.inputToken, action.inputAmount);
+        uint256 valueOut = _getValue(om, action.outputToken, outAmount);
 
-            // Verify calldata integrity.
-            IExternalCalldataChecker(callDataChecker).checkCalldata(
-                swapData,
-                address(this)
-            );
-
-            // Approve `swapData.inputToken` to target contract, if necessary.
-            _approveTokenIfNeeded(
-                swapData.inputToken,
-                swapData.target,
-                swapData.inputAmount
-            );
-
-            // Cache output token from struct for easier querying.
-            uint256 balance = CommonLib.getTokenBalance(swapData.outputToken);
-
-            uint256 value = CommonLib.isETH(swapData.inputToken)
-                ? swapData.inputAmount
-                : 0;
-
-            LowLevelCallsHelper._callWithNative(
-                swapData.target,
-                swapData.call,
-                value
-            );
-
-            // Remove any excess approval.
-            _removeApprovalIfNeeded(swapData.inputToken, swapData.target);
-
-            outAmount =
-                CommonLib.getTokenBalance(swapData.outputToken) -
-                balance;
+        // Check if swap received positive slippage.
+        if (valueOut > valueIn) {
+            return outAmount;
         }
 
-        {
-            IOracleManager oracleManager = IOracleManager(
-                centralRegistry.oracleManager()
-            );
-            (uint256 inputTokenPrice, uint256 errorCode) = oracleManager
-                .getPrice(swapData.inputToken, true, true);
-            if (errorCode != NO_ERROR) {
-                revert SwapperLib__TokenPrice(swapData.inputToken);
-            }
+        // Calculate % slippage from executed swap.
+        uint256 slippage = FixedPointMathLib.mulDiv(
+            valueIn - valueOut,
+            BPS,
+            valueIn
+        );
 
-            uint256 outputTokenPrice;
-            (outputTokenPrice, errorCode) = oracleManager.getPrice(
-                swapData.outputToken,
-                true,
-                true
-            );
-            if (errorCode != NO_ERROR) {
-                revert SwapperLib__TokenPrice(swapData.outputToken);
-            }
-
-            uint256 inputValue = (inputTokenPrice * swapData.inputAmount) /
-                (10 **
-                    (
-                        CommonLib.isETH(swapData.inputToken)
-                            ? 18
-                            : IERC20(swapData.inputToken).decimals()
-                    ));
-            uint256 outputValue = (outputTokenPrice * outAmount) /
-                (10 **
-                    (
-                        CommonLib.isETH(swapData.outputToken)
-                            ? 18
-                            : IERC20(swapData.outputToken).decimals()
-                    ));
-
-            // Check if swap received positive slippage.
-            if (outputValue > inputValue) {
-                return outAmount;
-            }
-
-            // Calculate % slippage from executed swap.
-            uint256 slippage = ((inputValue - outputValue) * WAD) / inputValue;
-            if (
-                slippage > swapData.slippage ||
-                slippage > centralRegistry.slippageLimit()
-            ) {
-                revert SwapperLib__Slippage(slippage);
-            }
+        if (slippage > action.slippage || slippage > cr.slippageLimit()) {
+            revert SwapperLib__Slippage(slippage);
         }
+    }
+
+    /// @notice Get the value of a token amount.
+    /// @notice Approves `token` spending allowance, if needed.
+    /// @param om The Oracle Manager address to call for pricing `token`.
+    /// @param token The token address to get the value of.
+    /// @param amount The amount of `token` to get the value of.
+    function _getValue(
+        IOracleManager om,
+        address token,
+        uint256 amount
+    ) internal view returns (uint256 result) {
+        (uint256 price, uint256 errorCode) = om.getPrice(token, true, true);
+        if (errorCode != NO_ERROR) {
+            revert SwapperLib__TokenPrice(token);
+        }
+
+        // Return price in WAD form.
+        result = FixedPointMathLib.mulDiv(
+            price,
+            amount,
+            10 ** (CommonLib._isNative(token) ? 18 : IERC20(token).decimals())
+        );
     }
 
     /// @notice Approves `token` spending allowance, if needed.
     /// @param token The token address to approve.
     /// @param spender The spender address.
     /// @param amount The approval amount.
-    function _approveTokenIfNeeded(
+    function _approveIfNeeded(
         address token,
         address spender,
         uint256 amount
     ) internal {
-        if (!CommonLib.isETH(token)) {
+        if (!CommonLib._isNative(token)) {
             SafeTransferLib.safeApprove(token, spender, amount);
         }
     }
@@ -205,7 +183,7 @@ library SwapperLib {
     /// @param token The token address to remove approval.
     /// @param spender The spender address.
     function _removeApprovalIfNeeded(address token, address spender) internal {
-        if (!CommonLib.isETH(token)) {
+        if (!CommonLib._isNative(token)) {
             if (IERC20(token).allowance(address(this), spender) > 0) {
                 SafeTransferLib.safeApprove(token, spender, 0);
             }

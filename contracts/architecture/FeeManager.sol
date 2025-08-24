@@ -1,10 +1,12 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
 
-import { WAD } from "contracts/libraries/Constants.sol";
+import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.sol";
+
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
@@ -42,6 +44,9 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract FeeManager is ReentrancyGuard {
     /// TYPES ///
 
+    /// @title Reward Token Data
+    /// @notice Manages and tracks reward tokens, including their eligibility
+    ///         for DAO OTC transactions.
     /// @param isRewardToken Whether an address is the reward token or not.
     ///                      2 = yes; 0 or 1 = no.
     /// @param forOTC Whether a token should be held back for DAO OTC or not.
@@ -53,19 +58,14 @@ contract FeeManager is ReentrancyGuard {
 
     /// CONSTANTS ///
 
-    /// @notice Address of fee token.
-    address public immutable feeToken;
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
-    /// @notice Fee token decimal unit.
-    uint256 internal immutable _feeTokenDecimals;
-
     /// STORAGE ///
 
-    /// @notice We store token data semi redundantly to save gas
-    ///         on daily operations and to help with gelato network structure
-    ///         Used for Gelato Network bots to check what tokens to swap.
+    /// @notice Used for offchain bots to check what tokens to swap.
+    /// @dev    We store token data semi redundantly to save gas.
+    ///         on daily operations and to help with offchain bot structure.
     address[] public rewardTokens;
 
     /// @notice Token Address => RewardToken data.
@@ -74,22 +74,21 @@ contract FeeManager is ReentrancyGuard {
     /// ERRORS ///
 
     error FeeManager__Unauthorized();
-    error FeeManager__InvalidCentralRegistry();
-    error FeeManager__SwapDataAndTokenLengthMismatch(
-        uint256 numSwapData,
+    error FeeManager__SwapActionsAndTokenLengthMismatch(
+        uint256 numSwapActions,
         uint256 numTokens
     );
-    error FeeManager__SwapDataInputTokenIsNotCurrentToken(
+    error FeeManager__SwapActionsInputTokenIsNotCurrentToken(
         uint256 index,
         address inputToken,
         address currentToken
     );
-    error FeeManager__SwapDataOutputTokenIsNotFeeToken(
+    error FeeManager__SwapActionsOutputTokenIsNotFeeToken(
         uint256 index,
         address inputToken,
         address currentToken
     );
-    error FeeManager__SwapDataCurrentTokenIsNotRewardToken(
+    error FeeManager__SwapActionsCurrentTokenIsNotRewardToken(
         uint256 index,
         address currentToken
     );
@@ -101,26 +100,19 @@ contract FeeManager is ReentrancyGuard {
     error FeeManager__RemovalTokenDoesNotExist();
     error FeeManager__OTCExecutionTermsFailed();
 
-    receive() external payable {}
-
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert FeeManager__InvalidCentralRegistry();
-        }
-
-        centralRegistry = centralRegistry_;
-        feeToken = centralRegistry.feeToken();
-        _feeTokenDecimals = 10 ** IERC20(feeToken).decimals();
+    /// @param cr The address of the Central Registry contract.
+    constructor(ICentralRegistry cr) {
+        CentralRegistryLib._isCentralRegistry(cr);
+        centralRegistry = cr;
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Allows the contract to receive native gas tokens for
+    ///         cross-chain operations and fee collection.
+    receive() external payable {}
 
     /// @notice Performs multiple token swaps in a single transaction, converting
     ///      the provided tokens to fee token on behalf of Curvance DAO.
@@ -131,18 +123,18 @@ contract FeeManager is ReentrancyGuard {
         bytes calldata data,
         address[] calldata tokens
     ) external nonReentrant {
-        if (!centralRegistry.isHarvester(msg.sender)) {
+        if (!centralRegistry.hasHarvestPermissions(msg.sender)) {
             revert FeeManager__Unauthorized();
         }
 
-        SwapperLib.Swap[] memory swapDataArray = abi.decode(
+        SwapperLib.Swap[] memory swapActions = abi.decode(
             data,
             (SwapperLib.Swap[])
         );
 
-        uint256 numTokens = swapDataArray.length;
+        uint256 numTokens = swapActions.length;
         if (numTokens != tokens.length) {
-            revert FeeManager__SwapDataAndTokenLengthMismatch(
+            revert FeeManager__SwapActionsAndTokenLengthMismatch(
                 numTokens,
                 tokens.length
             );
@@ -157,35 +149,35 @@ contract FeeManager is ReentrancyGuard {
             }
 
             if (rewardTokenInfo[currentToken].isRewardToken != 2) {
-                revert FeeManager__SwapDataCurrentTokenIsNotRewardToken(
+                revert FeeManager__SwapActionsCurrentTokenIsNotRewardToken(
                     i,
                     currentToken
                 );
             }
 
-            if (swapDataArray[i].inputToken != currentToken) {
-                revert FeeManager__SwapDataInputTokenIsNotCurrentToken(
+            if (swapActions[i].inputToken != currentToken) {
+                revert FeeManager__SwapActionsInputTokenIsNotCurrentToken(
                     i,
-                    swapDataArray[i].inputToken,
+                    swapActions[i].inputToken,
                     currentToken
                 );
             }
 
-            if (swapDataArray[i].outputToken != feeToken) {
-                revert FeeManager__SwapDataOutputTokenIsNotFeeToken(
+            if (swapActions[i].outputToken != _getFeeToken()) {
+                revert FeeManager__SwapActionsOutputTokenIsNotFeeToken(
                     i,
-                    swapDataArray[i].outputToken,
-                    feeToken
+                    swapActions[i].outputToken,
+                    _getFeeToken()
                 );
             }
 
             // Swap from token to output token (fee token).
-            // Note: Because this is ran directly from Gelato Network we know
-            //       we will not have a malicious actor on swap routing.
-            //       We route liquidity to 1Inch with tight slippage
-            //       requirement, meaning we do not need to separately check
-            //       for slippage here.
-            SwapperLib.swapSafe(centralRegistry, swapDataArray[i]);
+            // Note: Because this is called from permissioned offchain
+            //       operators we know we will not have a malicious actor on
+            //       swap routing. We route liquidity to 1Inch with tight
+            //       slippage requirement, meaning we do not need to
+            //       separately check for slippage here.
+            SwapperLib._swapSafe(centralRegistry, swapActions[i]);
         }
     }
 
@@ -223,19 +215,15 @@ contract FeeManager is ReentrancyGuard {
             revert FeeManager__OTCExecutionTermsFailed();
         }
 
-
         // Cache router to save gas.
-        IOracleManager oracleManager = IOracleManager(
-            centralRegistry.oracleManager()
-        );
+        IOracleManager om = CommonLib._oracleManager(centralRegistry);
 
-        (uint256 OTCTokenPrice, uint256 errorCodeSwap) = oracleManager.getPrice(
-            tokenToOTC,
-            true,
-            true
-        );
-        (uint256 feeTokenPrice, uint256 errorCodeFeeToken) = oracleManager
-            .getPrice(feeToken, true, true);
+        address feeToken = _getFeeToken();
+
+        (uint256 OTCTokenPrice, uint256 errorCodeSwap) =
+            om.getPrice(tokenToOTC, true, true);
+        (uint256 feeTokenPrice, uint256 errorCodeFeeToken) =
+            om.getPrice(feeToken, true, true);
 
         // Validate we have fresh, functional prices.
         if (errorCodeFeeToken == 2 || errorCodeSwap == 2) {
@@ -246,15 +234,16 @@ contract FeeManager is ReentrancyGuard {
         // Oracle Manager always returns in 1e18 (WAD) format,
         // so we only need to worry about token decimal differences here.
         uint256 feeTokenRequiredForOTC = (
-            ((OTCTokenPrice * amountToOTC * _feeTokenDecimals) / feeTokenPrice)
+            ((OTCTokenPrice *
+                amountToOTC *
+                10 ** IERC20(feeToken).decimals()) / feeTokenPrice)
         ) / 10 ** IERC20(tokenToOTC).decimals();
 
         // Check if Curvance DAO is paying more than anticipated.
         if (expectedFeeTokens < feeTokenRequiredForOTC) {
-            uint256 slippage = ((
-                feeTokenRequiredForOTC - expectedFeeTokens 
-            ) * WAD) / expectedFeeTokens;
-            
+            uint256 slippage = ((feeTokenRequiredForOTC - expectedFeeTokens) *
+                WAD) / expectedFeeTokens;
+
             if (slippage > slippageLimit) {
                 revert FeeManager__OTCExecutionTermsFailed();
             }
@@ -271,6 +260,37 @@ contract FeeManager is ReentrancyGuard {
         SafeTransferLib.safeTransfer(tokenToOTC, daoAddress, amountToOTC);
     }
 
+    /// @notice Pulls fees and sends them to the DAO, used pending governance
+    ///         proposals.
+    /// @dev Only callable by DAO permissioned operators.
+    /// @param amount The amount of `feeToken` to transfer.
+    /// @return The amount of transferred fee tokens to the DAO address.
+    function pullFeesAsDAO(uint256 amount) external returns (uint256) {
+        _checkDaoPermissions();
+
+        address feeToken = _getFeeToken();
+
+        uint256 feeTokens = IERC20(feeToken).balanceOf(address(this));
+
+        // If the amount desired is greater than what is available,
+        // move all fees.
+        feeTokens = amount > feeTokens ? feeTokens : amount;
+
+        // If there are no fees collected, revert.
+        if (feeTokens == 0) {
+            revert FeeManager__ConfigurationError();
+        }
+
+        // Transfer desired fees to DAO address.
+        SafeTransferLib.safeTransfer(
+            feeToken,
+            centralRegistry.daoAddress(),
+            feeTokens
+        );
+
+        return feeTokens;
+    }
+
     /// @notice Sends collected fee tokens ex compounding bot stipend to the
     ///         Messaging Hub.
     /// @dev Only callable by the Messaging Hub. Does not fail if fees
@@ -284,9 +304,11 @@ contract FeeManager is ReentrancyGuard {
             revert FeeManager__Unauthorized();
         }
 
+        address feeToken = _getFeeToken();
         uint256 feeTokens = IERC20(feeToken).balanceOf(address(this));
 
-        // If the amount desired is greater than what is available, move all fees.
+        // If the amount desired is greater than what is available,
+        // move all fees.
         feeTokens = amount > feeTokens ? feeTokens : amount;
 
         // If there are no fees collected, can just return.
@@ -332,7 +354,7 @@ contract FeeManager is ReentrancyGuard {
         uint256 tokenBalance;
 
         // Send remaining fee tokens to new fee manager, if any.
-        for (uint256 i; i < numTokens; ) {
+        for (uint256 i; i < numTokens; ++i) {
             tokenBalance = IERC20(currentRewardTokens[i]).balanceOf(
                 address(this)
             );
@@ -343,13 +365,10 @@ contract FeeManager is ReentrancyGuard {
                     newFeeManager,
                     tokenBalance
                 );
-            }
-
-            unchecked {
-                ++i;
-            }
+            }   
         }
 
+        address feeToken = _getFeeToken();
         tokenBalance = IERC20(feeToken).balanceOf(address(this));
 
         // Send remaining fee token to new fee manager, if any.
@@ -370,7 +389,7 @@ contract FeeManager is ReentrancyGuard {
         rewardTokenInfo[token].forOTC = state ? 2 : 1;
     }
 
-    /// @notice Adds multiple reward tokens to the contract for Gelato Network
+    /// @notice Adds multiple reward tokens to the contract for offchain bots
     ///         to read.
     /// @dev Does not fail on duplicate token, merely skips it and continues.
     /// @param newTokens Array of token addresses to be added as reward
@@ -395,8 +414,8 @@ contract FeeManager is ReentrancyGuard {
         }
     }
 
-    /// @notice Removes a reward token from the contract data that
-    ///         Gelato Network reads.
+    /// @notice Removes a reward token from the contract data that offchain
+    ///         bots read.
     /// @dev Will revert on unsupported token address.
     /// @param rewardTokenToRemove The address of the token to be removed.
     function removeRewardToken(address rewardTokenToRemove) external {
@@ -413,14 +432,11 @@ contract FeeManager is ReentrancyGuard {
         uint256 numTokens = currentTokens.length;
         uint256 tokenIndex = numTokens;
 
-        for (uint256 i; i < numTokens; ) {
+        for (uint256 i; i < numTokens; ++i) {
             if (currentTokens[i] == rewardTokenToRemove) {
                 // We found the token so break out of the loop.
                 tokenIndex = i;
                 break;
-            }
-            unchecked {
-                ++i;
             }
         }
 
@@ -444,6 +460,7 @@ contract FeeManager is ReentrancyGuard {
 
     /// @notice Retrieves the balances of all reward tokens currently held by
     ///         the Fee Manager.
+    /// @dev Used by bots and governance; cost scales with token count.
     /// @return tokenBalances An array of uint256 values,
     ///         representing the current balances of each reward token.
     function getRewardTokenBalances()
@@ -455,14 +472,10 @@ contract FeeManager is ReentrancyGuard {
         uint256 numTokens = currentTokens.length;
         uint256[] memory tokenBalances = new uint256[](numTokens);
 
-        for (uint256 i; i < numTokens; ) {
+        for (uint256 i; i < numTokens; ++i) {
             tokenBalances[i] = IERC20(currentTokens[i]).balanceOf(
                 address(this)
             );
-
-            unchecked {
-                ++i;
-            }
         }
 
         return tokenBalances;
@@ -470,15 +483,10 @@ contract FeeManager is ReentrancyGuard {
 
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice Fetches the current Oracle Manager from the central registry.
-    /// @return Current OracleManager interface address.
-    function getOracleManager() public view returns (IOracleManager) {
-        return IOracleManager(centralRegistry.oracleManager());
-    }
-
     /// @notice Vault compound fee represented in basis point form (100 = 1%).
     /// @dev Returns the vaults current amount of yield used
     ///      for compounding rewards.
+    /// @return The vault's current compound fee.
     function vaultCompoundFee() public view returns (uint256) {
         return centralRegistry.protocolCompoundFee();
     }
@@ -487,14 +495,20 @@ contract FeeManager is ReentrancyGuard {
     /// @dev Returns the vaults current protocol fee for yield generated
     ///      inside the Curvance Protocol. This is equal to
     ///      Protocol Compounding Fee + Protocol Yield Fee.
+    /// @return The vault's current harvest fee.
     function vaultHarvestFee() public view returns (uint256) {
         return centralRegistry.protocolHarvestFee();
     }
 
     /// INTERNAL FUNCTIONS ///
 
+    /// @notice Returns the current fee token address.
+    function _getFeeToken() internal view returns (address) {
+        return centralRegistry.feeToken();
+    }
+
     /// @notice Adds `newToken` to `rewardTokens` array and
-    ///         rewardTokenInfo mapping so gelato network knows a new token
+    ///         rewardTokenInfo mapping so offchain bots knows a new token
     ///         has been added.
     function _addRewardToken(address newToken) internal {
         rewardTokens.push() = newToken;

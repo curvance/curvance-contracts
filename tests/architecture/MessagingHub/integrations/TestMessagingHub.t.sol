@@ -1,31 +1,37 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity 0.8.28;
 
-import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
+
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
-import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { WAD_SQUARED } from "contracts/libraries/Constants.sol";
-import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
-import { WormholeMock } from "tests/utils/WormholeMock.sol";
+import { WAD_SQUARED } from "contracts/libraries/ConstantsLib.sol";
+
+import { ChainConfig } from "contracts/interfaces/ICentralRegistry.sol";
+import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
+
+import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
+
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
+import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
+import { WormholeMock } from "tests/utils/WormholeMock.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { Vm } from "forge-std/Vm.sol";
 
 contract TestMessagingHub is TestBaseMessagingHub {
     uint256 public srcForkId;
     uint256 public dstForkId;
     WormholeHelper public wormholeHelper;
-    RewardsData public rewardsData = RewardsData(true, false, false, false);
+    ClaimAction public action = ClaimAction(true, false, false, false);
     VeCVE.BridgeData public bridgeData = VeCVE.BridgeData(42161, 0, false);
 
     function setUp() public override {
         // Fork Ethereum as source chain and select it
         srcForkId = _fork(19140000);
 
-        _WORMHOLE_CORES[block.chainid] = address(new WormholeMock());
+        _CROSSCHAIN_CORES[block.chainid] = address(new WormholeMock());
 
         // Deploy contracts on forked Ethereum
         _init();
@@ -38,23 +44,26 @@ contract TestMessagingHub is TestBaseMessagingHub {
         // Deploy contracts on forked Arbitrum
         _deployBaseContracts();
 
-        deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
+        _prepareUSDC(address(rewardManager), 100000e6);
 
         centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
         centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
-        centralRegistry.addChainSupport(
-            address(messagingHubs[1]),
-            address(votingHubs[1]),
-            address(cves[1]),
-            _USDC_ADDRESSES[1],
-            1,
-            2,
-            _WORMHOLE_RELAYERS[1],
-            0
-        );
+
+        ChainConfig memory config;
+        config.isSupported = true;
+        config.messagingChainId = 2;
+        config.domain = 0;
+        config.messagingHub = address(messagingHubs[1]);
+        config.votingHub = address(votingHubs[1]);
+        config.cveAddress = address(cves[1]);
+        config.feeTokenAddress = _USDC_ADDRESSES[1];
+        config.crosschainRelayer = _CROSSCHAIN_RELAYERS[1];
+
+        // Support chainId 1.
+        centralRegistry.addChain(1, config);
 
         _addLiquidityToUniswap();
 
@@ -63,24 +72,25 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         _initMainVariables();
 
-        deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
+        _prepareUSDC(address(rewardManager), 100000e6);
         deal(address(messagingHub), _ONE);
-        deal(address(cve), address(this), 100e18);
+        _prepareCVE(address(this), 100e18);
 
         centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
-        centralRegistry.addChainSupport(
-            address(messagingHubs[42161]),
-            address(votingHubs[42161]),
-            address(cves[42161]),
-            _USDC_ADDRESSES[42161],
-            42161,
-            23,
-            _WORMHOLE_RELAYERS[42161],
-            3
-        );
+
+        config.messagingChainId = 23;
+        config.domain = 3;
+        config.messagingHub = address(messagingHubs[42161]);
+        config.votingHub = address(votingHubs[42161]);
+        config.cveAddress = address(cves[42161]);
+        config.feeTokenAddress = _USDC_ADDRESSES[42161];
+        config.crosschainRelayer = _CROSSCHAIN_RELAYERS[42161];
+
+        // Support chainId 42161.
+        centralRegistry.addChain(42161, config);
 
         _addLiquidityToUniswap();
     }
@@ -106,13 +116,13 @@ contract TestMessagingHub is TestBaseMessagingHub {
             abi.encodeWithSignature("queryLockPoints()")
         );
 
-        deal(_USDC_ADDRESS, address(feeManager), 100e6);
+        _prepareUSDC(address(feeManager), 100e6);
 
-        uint256 compoundingFee = (100e6 *
+        uint256 compoundingFee = (uint256(100e6) *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
-        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) *
-            WAD_SQUARED) / _ONE;
+        uint256 epochRewardsPerPoint = ((uint256(100e6) - compoundingFee) *
+            WAD_SQUARED) / (_ONE * 2);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeManager)), 100e6);
@@ -151,7 +161,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
             2,
             dstForkId,
             address(messagingHub),
-            _WORMHOLE_RELAYER,
+            _CROSSCHAIN_RELAYER,
             _CIRCLE_MESSAGE_TRANSMITTER,
             logs
         );
@@ -168,17 +178,17 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), rewards);
 
-        SwapperLib.Swap memory swapData;
+        SwapperLib.Swap memory swapAction;
         address[] memory path = new address[](2);
 
         path[0] = _USDC_ADDRESS;
         path[1] = address(cve);
 
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.outputToken = address(cve);
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = rewards;
-        swapData.call = abi.encodeWithSignature(
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.outputToken = address(cve);
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.inputAmount = rewards;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             rewards,
             0,
@@ -193,7 +203,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         uint256 desiredTokenBalance = cve.balanceOf(user1);
 
         vm.prank(user1);
-        rewardManager.claimRewards(rewardsData, abi.encode(swapData), 0);
+        rewardManager.claimRewards(action, abi.encode(swapAction), 0);
 
         assertEq(
             usdc.balanceOf(address(rewardManager)),
@@ -206,12 +216,16 @@ contract TestMessagingHub is TestBaseMessagingHub {
     function test_executeOTC_sendFees_success() public {
         feeManager.setEarmarked(_WETH_ADDRESS, true);
 
-        deal(_USDC_ADDRESS, address(this), 10000e6);
-        deal(_WETH_ADDRESS, address(feeManager), _ONE);
+        _prepareUSDC(address(this), 10000e6);
+        _prepareWETH(address(feeManager), _ONE);
         uint256 feeBalanceBefore = usdc.balanceOf(address(this));
 
         assertEq(weth.balanceOf(address(this)), 0);
         assertEq(usdc.balanceOf(address(centralRegistry)), 0);
+
+        mockWethFeed.setMockAnswer(1500e8);
+        mockUsdcFeed.setMockAnswer(1e8);
+        _refreshMockFeeds();
 
         usdc.approve(address(feeManager), 10000e6);
 
@@ -239,7 +253,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        uint256 compoundingFee = (1000e6 *
+        uint256 compoundingFee = (uint256(1000e6) *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
         uint256 pullAmount = 1000e6 - compoundingFee;
@@ -255,7 +269,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         rewardManager.notifyShutdown();
 
-        deal(_USDC_ADDRESS, address(messagingHub), pullAmount);
+        _prepareUSDC(address(messagingHub), pullAmount);
 
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 0);
 
@@ -264,7 +278,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
             2,
             dstForkId,
             address(messagingHub),
-            _WORMHOLE_RELAYER,
+            _CROSSCHAIN_RELAYER,
             _CIRCLE_MESSAGE_TRANSMITTER,
             logs
         );
@@ -274,7 +288,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
     function test_sendFees_multiple_success() public {
         deal(address(messagingHub), _ONE);
-        deal(_USDC_ADDRESS, address(feeManager), _ONE);
+        _prepareUSDC(address(feeManager), _ONE);
 
         uint256 daoBalance = usdc.balanceOf(address(this));
         uint256 usdcBalance = usdc.balanceOf(address(feeManager));
@@ -285,7 +299,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        uint256 compoundingFee = (1000e6 *
+        uint256 compoundingFee = (uint256(1000e6) *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
         uint256 pullAmount = 1000e6 - compoundingFee;
@@ -301,7 +315,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         rewardManager.notifyShutdown();
 
-        deal(_USDC_ADDRESS, address(messagingHub), pullAmount);
+        _prepareUSDC(address(messagingHub), pullAmount);
 
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 0);
 
@@ -310,7 +324,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
             2,
             dstForkId,
             address(messagingHub),
-            _WORMHOLE_RELAYER,
+            _CROSSCHAIN_RELAYER,
             _CIRCLE_MESSAGE_TRANSMITTER,
             logs
         );
@@ -338,7 +352,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         _initMainVariables();
 
-        deal(_USDC_ADDRESS, address(messagingHub), pullAmount);
+        _prepareUSDC(address(messagingHub), pullAmount);
 
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), pullAmount);
 
@@ -347,7 +361,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
             2,
             dstForkId,
             address(messagingHub),
-            _WORMHOLE_RELAYER,
+            _CROSSCHAIN_RELAYER,
             _CIRCLE_MESSAGE_TRANSMITTER,
             logs
         );
@@ -367,17 +381,17 @@ contract TestMessagingHub is TestBaseMessagingHub {
         uint256 veCVEBalance = veCVE.balanceOf(user1);
         uint256 cveTotalSupply = cve.totalSupply();
 
-        SwapperLib.Swap memory swapData;
+        SwapperLib.Swap memory swapAction;
         address[] memory path = new address[](2);
 
         path[0] = _USDC_ADDRESS;
         path[1] = address(cve);
 
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.outputToken = address(cve);
-        swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = 200e6;
-        swapData.call = abi.encodeWithSignature(
+        swapAction.inputToken = _USDC_ADDRESS;
+        swapAction.outputToken = address(cve);
+        swapAction.target = _UNISWAP_V2_ROUTER;
+        swapAction.inputAmount = 200e6;
+        swapAction.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             200e6,
             0,
@@ -392,8 +406,8 @@ contract TestMessagingHub is TestBaseMessagingHub {
         veCVE.bridgeLock{ value: messageFee }(
             0,
             bridgeData,
-            rewardsData,
-            abi.encode(swapData),
+            action,
+            abi.encode(swapAction),
             0
         );
 
@@ -420,7 +434,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         uint256 timestamp = block.timestamp;
 
         // Simulate wormhole cross-chain messaging with payloadType 4
-        wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
+        wormholeHelper.help(2, dstForkId, _CROSSCHAIN_RELAYER, logs);
 
         (lockAmounts, lockTimestamps) = veCVE.queryUserLocks(user1);
         (, uint40 unlockTime) = veCVE.userLocks(user1, 0);
@@ -432,7 +446,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         assertEq(
             unlockTime,
             centralRegistry.genesisEpoch() +
-                (veCVE.currentEpoch(timestamp) * veCVE.epochDuration()) +
+                (veCVE.currentEpoch(timestamp) * veCVE.EPOCH_DURATION()) +
                 veCVE.LOCK_DURATION()
         );
 
@@ -454,7 +468,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
     function test_cve_bridge_success() public {
         deal(user1, _ONE);
-        deal(address(cve), user1, _ONE);
+        _prepareCVE(user1, _ONE);
 
         uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
@@ -474,7 +488,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         assertEq(cve.balanceOf(user1), 0);
 
-        wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
+        wormholeHelper.help(2, dstForkId, _CROSSCHAIN_RELAYER, logs);
 
         assertEq(cve.balanceOf(user1), _ONE);
     }
@@ -484,17 +498,17 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         vm.startPrank(user1);
 
-        deal(address(cve), user1, 100e18);
+        _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(_ONE, false, rewardsData, "0x", 0);
+        veCVE.createLock(_ONE, false, action, "", 0);
 
         vm.stopPrank();
     }
 
     function _addLiquidityToUniswap() internal {
-        deal(_USDC_ADDRESS, user2, 1000000e6);
-        deal(address(cve), user2, 1000e18);
+        _prepareUSDC(user2, 1000000e6);
+        _prepareCVE(user2, 1000e18);
 
         vm.startPrank(user2);
 
