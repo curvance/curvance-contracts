@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { Script } from "forge-std/Script.sol";
-import { Vm } from "forge-std/Vm.sol";
-import { DeploymentLogger } from "../utils/DeploymentLogger.sol";
+import { DeployScript } from "../utils/DeployScript.sol";
+
 import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract AddMockOracleSupport is Script, DeploymentLogger {
+contract AddMockOracleSupport is DeployScript {
     function run(
         address registry,
         address mockOracle,

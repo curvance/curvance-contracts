@@ -1,6 +1,6 @@
 <p style="text-align: center;width:100%"> <img src="https://pbs.twimg.com/profile_banners/1445781144125857796/1752160592"/></p>
 
-<h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> curvance contracts</h1>
+<h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> Curvance Protocol</h1>
 
 Main dependencies:
 
@@ -144,3 +144,9 @@ git merge development
 ```
 
 This process will probably change later on.
+
+## Additional Information
+
+*Last updated: 8/24/2025*
+
+*Maintained by: Curvance Core Team*

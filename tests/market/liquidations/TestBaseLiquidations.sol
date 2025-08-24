@@ -16,8 +16,6 @@ contract TestBaseLiquidations is TestBaseMarketIsolated {
         _prepareDAI(address(this), _ONE);
         _prepareBALRETH(address(this), _ONE);
 
-        
-
         SafeTransferLib.safeApprove(_USDC_ADDRESS, address(borrowableCUSDC), _ONE);
         SafeTransferLib.safeApprove(_DAI_ADDRESS, address(borrowableCDAI), _ONE);
         SafeTransferLib.safeApprove(

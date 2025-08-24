@@ -131,19 +131,25 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Protocol slippage limit for `swapSafe`.
     /// @dev 1000 = 10%.
+    ///      This slippage configurable variable is not for an end all be all
+    ///      slippage check, any external swap natively includes slippage and
+    ///      only acts as a protective layer against secondary actions such as
+    ///      providing liquidity into an LP token or from untrusted executed
+    ///      like a harvester that could at some point be compromised.
     uint16 public slippageLimit = 1000;
 
     // PROTOCOL VALUES
 
-    /// @notice Fee on yield generated for compounding vaults, in `BPS`.
+    /// @notice Fee on yield generated from strategies to pay for network gas
+    ///         costs, in `BPS`.
     /// @dev 100 = 1%.
     uint16 public protocolCompoundFee = 100;
-    /// @notice Fee on yield generated in vaults distributed to veCVE lockers,
-    ///         in `BPS`.
+    /// @notice Fee on yield generated from strategies distributed to veCVE
+    ///         lockers, in `BPS`.
     /// @dev 1500 = 15%.
     uint16 public protocolYieldFee = 1500;
-    /// @notice Joint fee value so that we can perform one less external call
-    ///         in vault contracts, in `BPS`.
+    /// @notice Joint strategy fee value so that we can perform one less
+    ///         external call in strategy contracts, in `BPS`.
     /// @dev 1600 = 16%.
     uint16 public protocolHarvestFee = protocolCompoundFee + protocolYieldFee;
     /// @notice Protocol fee on leverage usage, in `BPS`.
@@ -156,9 +162,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     // AUCTION TRANSACTION STORAGE
 
-    // Controls which Market Manager auction liquidators can act inside.
-    bytes32 internal constant _TRANSIENT_MARKET_UNLOCKED_KEY
-        = 0x3456789012345678901234567890123456789012345678901234567890123457;
+    /// Controls which Market Manager auction liquidators can act inside.
+    /// @dev Key value = `uint256(keccak256(_TRANSIENT_MARKET_UNLOCKED_KEY))`.
+    uint256 internal constant _TRANSIENT_MARKET_UNLOCKED_KEY
+        = 0x7cbd46c789962ee73435d84bcd3c0927fb55fd04ce92deedbdae7e783739544c;
 
     // CROSSCHAIN CONFIGURATION DATA
 
@@ -285,6 +292,16 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// CONSTRUCTOR ///
 
+    /// @param dao The address of `daoAddress`, DAO multisig, the primary
+    ///            address that the Curvance Collective operates from.
+    /// @param ec The address of `emergencyCouncil`, Multi-protocol multisig,
+    ///           intended to be used only for emergencies.
+    /// @param genesisEpoch_ Genesis Epoch timestamp, in unix seconds.
+    /// @param sequencer_ The address of the Chainlink aggregator proxy for
+    ///                   identifying if a sequencer has recently been down
+    ///                   for grace period calculations.
+    /// @param feeToken_ Address of fee token which Curvance Protocol
+    ///                  compounds strategy fees into.
     constructor(
         address dao,
         address ec,
@@ -591,7 +608,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Sets the fee taken by Curvance DAO on interest generated.
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
-    ///      can only have a maximum value of 75%.
+    ///      can only have a maximum value of 60%.
     ///      Emits an {InterestFeeSet} event.
     /// @param market The address of the market manager to configure
     ///               interest fees of.
@@ -600,8 +617,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
     function setProtocolInterestFee(address market, uint256 value) external {
         _checkElevatedPermissions();
 
-        // Interest fee cannot be more than 75%.
-        if (value > 7500) {
+        // Interest fee cannot be more than 60%.
+        if (value > 6000) {
             revert CentralRegistry__InvalidParameter();
         }
 
@@ -879,13 +896,9 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Adds a new Market Manager and corresponding interest fee
     ///         configurations.
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
-    ///      can only have a maximum value of 50% interest fee.
+    ///      can only have a maximum value of 60% interest fee.
     ///      Cannot be a supported Market Manager contract prior.
     ///      Emits a {PermissionsUpdated} and {InterestFeeSet} events.
-    ///      This has a lower limit than `setProtocolInterestFee` because
-    ///      in specific cases it could make sense to start assigning a high
-    ///      interest rate take rate to push people to a new market
-    ///      implementation.
     /// @param newMarket The new Market Manager contract to support for use
     ///                  in Curvance.
     /// @param marketInterestFee The portion of interest paid by borrowers
@@ -912,8 +925,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
             revert CentralRegistry__InvalidParameter();
         }
 
-        /// Interest fee cannot be more than 50%.
-        if (marketInterestFee > 5000) {
+        /// Interest fee cannot be more than 60%.
+        if (marketInterestFee > 6000) {
             revert CentralRegistry__InvalidParameter();
         }
 

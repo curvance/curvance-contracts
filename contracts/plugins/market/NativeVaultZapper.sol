@@ -7,9 +7,33 @@ import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
+
+/// @title Curvance Native Vault Zapper.
+/// @notice Native Vault-specific contract for executing zap related
+///         actions.
+/// @dev Curvance zapper contracts enshrine actions that
+///      usually would require multiple sequential actions to facilitate,
+///      specifically swapping, depositing, redemptions, and repayments.
+///
+///      Curvance token contracts facilitate these operations through our
+///      standard contract interfaces and the plugin system.
+///
+///      Actions that include collateralization require plugin approval to the
+///      corresponding zapper contract, to collateralize on behalf of another
+///      user via a zapper both the zapper and the caller must have plugin
+///      approval from the account being collateralized on behalf of.
+///
+///      The "Native Vault" contract is the zapper for working with
+///      native-token based erc4626 tokens such as shMON or aprMON. No type
+///      specific "redeemAnd" is written as execution is intended to be the
+///      as the "simple" zappers where redemptions are done directly on the
+///      corresponding cToken.
+///
 contract NativeVaultZapper is SimpleZapper {
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param wNative The address of wrapped native token.
     constructor(ICentralRegistry cr, address wNative) SimpleZapper(cr, wNative) {}
 
     /// EXTERNAL FUNCTIONS ///

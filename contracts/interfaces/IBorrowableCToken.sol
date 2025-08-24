@@ -39,6 +39,17 @@ interface IBorrowableCToken {
     /// @return The address of the underlying asset.
     function asset() external view returns (address);
 
+    /// @notice Returns the current vesting yield information.
+    /// @return vestingRate % per second in `asset()`.
+    /// @return vestingEnd When the current vesting period ends and interest
+    ///                    rates paid will update.
+    /// @return lastVestingClaim Last time pending vested yield was claimed.
+    function getYieldInformation() external view returns (
+        uint256 vestingRate,
+        uint256 vestingEnd,
+        uint256 lastVestingClaim
+    );
+
     /// @notice Get a snapshot of `account` data in this Curvance token.
     /// @dev Used by marketManager to more efficiently perform
     ///      liquidity checks.

@@ -22,18 +22,12 @@ contract RemoveCTokenSupportTest is TestBaseOracleManager {
     function test_removeCTokenSupport_success() public {
         oracleManager.addCTokenSupport(address(borrowableCUSDC));
 
-        (bool isCToken, address underlying) = oracleManager.cTokens(
-            address(borrowableCUSDC)
-        );
-
-        assertTrue(isCToken);
+        address underlying = oracleManager.cTokens(address(borrowableCUSDC));
         assertEq(underlying, _USDC_ADDRESS);
 
         oracleManager.removeCTokenSupport(address(borrowableCUSDC));
 
-        (isCToken, underlying) = oracleManager.cTokens(address(borrowableCUSDC));
-
-        assertFalse(isCToken);
+        underlying = oracleManager.cTokens(address(borrowableCUSDC));
         assertEq(underlying, address(0));
     }
 }

@@ -84,12 +84,11 @@ contract LiquidateExactMix is TestBaseLiquidations {
         strategyCBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
 
-        mockWethFeed.setMockAnswer(2000e8);
-        mockRethFeed.setMockAnswer(2000e8);
+        mockBalEthRethFeed.setMockAnswer(2000e8);
+
         _createPositions();
 
-        mockWethFeed.setMockAnswer(1300e8);
-        mockRethFeed.setMockAnswer(1300e8);
+        mockBalEthRethFeed.setMockAnswer(1300e8);
 
         console2.log("SETUP COMPLETE");
     }
@@ -275,11 +274,7 @@ contract LiquidateExactMix is TestBaseLiquidations {
         assertLt(outstandingDebtAfter, outstandingDebtBefore, "Total outstanding debt should have decreased");
 
         // Verify the position is no longer liquidatable.
-        (uint256 lFactorFinal,,) = marketManagerIsolated.liquidationStatusOf(
-            borrower1,
-            address(strategyCBALRETH),
-            address(borrowableCUSDC)
-        );
+        (, , , uint256 lFactorFinal) = marketManagerIsolated.liquidationValuesOf(borrower1);
         assertEq(lFactorFinal, 0, "Position should no longer be liquidatable");
 
         // Verify remaining debt calculation was correct
@@ -297,11 +292,7 @@ contract LiquidateExactMix is TestBaseLiquidations {
     }
 
     function _getLFactorPreLiquidation(address _borrower) internal view returns (uint256 lFactor) {
-            (lFactor,,) = marketManagerIsolated.liquidationStatusOf(
-                _borrower,
-                address(strategyCBALRETH),
-                address(borrowableCUSDC)
-            );
+        (, , , lFactor) = marketManagerIsolated.liquidationValuesOf(_borrower);
 
         return lFactor;
     }

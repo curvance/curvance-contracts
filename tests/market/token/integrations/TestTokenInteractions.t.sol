@@ -345,8 +345,6 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         _assertDebtReduction(250e18, expectedLiquidationValues.badDebt, currentDebtBalance);
 
         assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
-
-
     }
 
     function testLiquidation() public {
@@ -456,19 +454,11 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // skip min hold period
         skip(20 minutes);
 
-        (uint256 balRETHPrice, ) = oracleManager.getPrice(
-            address(balRETH),
-            true,
-            true
-        );
+        mockDaiFeed.setMockAnswer(1.3e8);
 
-        uint256 debtBalance = borrowableCDAI.debtBalanceUpdated(user1);
-
-        uint256 daiPrice = ((balRETHPrice * 1e8 * 1e18) / debtBalance) /
-            1.4e18 +
-            1;
-
-        mockDaiFeed.setMockAnswer(int256(daiPrice));
+        uint256 debtBefore = borrowableCDAI.debtBalanceUpdated(user1);
+        console2.log("debtBefore", debtBefore);
+        console2.log("collateralBefore", strategyCBALRETH.balanceOf(user1));
 
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
             LiquidationParams({
@@ -498,13 +488,14 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         assertEq(
             strategyCBALRETH.balanceOf(user1), 
-            _ONE - expectedLiquidationValues.collateralLiquidated
+            _ONE - expectedLiquidationValues.collateralLiquidated,
+            "strategyCBALRETH balance of user1 should be reduced by collateral liquidated"
         );
-        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
+        assertEq(strategyCBALRETH.exchangeRate(), _ONE, "strategyCBALRETH exchange rate should be 1");
 
-        assertEq(borrowableCDAI.balanceOf(user1), 0);
-        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 1000e18 - expectedLiquidationValues.debtRepaid, 0.01e18);
-        assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
+        assertEq(borrowableCDAI.balanceOf(user1), 0, "borrowableCDAI balance of user1 should be 0");
+        assertApproxEqRel(borrowableCDAI.debtBalance(user1), debtBefore - expectedLiquidationValues.debtRepaid, 0.01e18, "borrowableCDAI debt balance should be reduced by debt repaid");
+        assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18, "borrowableCDAI exchange rate should be 1");
     }
 
     function testRevertBorrowAndLiquidateWithZeroCollRatio() public {
@@ -624,17 +615,17 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             address(mockWethFeed),
             0
         );
-        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
+        mockBalEthRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
         chainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
+            _BAL_WETH_RETH_ADDRESS,
             false,
-            address(mockRethFeed),
+            address(mockBalEthRethFeed),
             0
         );
         dualChainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
+            _BAL_WETH_RETH_ADDRESS,
             false,
-            address(mockRethFeed),
+            address(mockBalEthRethFeed),
             0
         );
 
@@ -644,9 +635,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
+        mockBalEthRethFeed.setMockUpdatedAt(block.timestamp);
 
-        (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
+        (, int256 ethPrice, , , ) = mockBalEthRethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
 
         console2.log("ethPrice", ethPrice);
@@ -702,17 +693,17 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             address(mockWethFeed),
             0
         );
-        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
+        mockBalEthRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
         chainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
+            _BAL_WETH_RETH_ADDRESS,
             false,
-            address(mockRethFeed),
+            address(mockBalEthRethFeed),
             0
         );
         dualChainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
+            _BAL_WETH_RETH_ADDRESS,
             false,
-            address(mockRethFeed),
+            address(mockBalEthRethFeed),
             0
         );
 
@@ -722,9 +713,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
+        mockBalEthRethFeed.setMockUpdatedAt(block.timestamp);
 
-        (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
+        (, int256 ethPrice, , , ) = mockBalEthRethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
 
         console2.log("ethPrice", ethPrice);

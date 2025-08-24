@@ -36,7 +36,7 @@ contract DepositNativeForTest is TestBaseNativeUniversalBalance {
         );
     }
 
-    function test_depositNativeFor_fail_whenHasNoEnoughETH_fuzzed(
+    function test_depositNativeFor_fail_whenHasNotEnoughETH_fuzzed(
         uint256 amount
     ) public {
         vm.assume(amount < type(uint256).max);

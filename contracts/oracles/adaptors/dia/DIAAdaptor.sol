@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IDiaOracle } from "contracts/interfaces/external/dia/IDiaOracle.sol";
 
 contract DIAAdaptor is BaseOracleAdaptor {
@@ -41,7 +40,9 @@ contract DIAAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param cr The address of central registry.
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param dia The address of the proxy contract containing all dia price
+    ///            feeds on this chain.
     constructor(ICentralRegistry cr, address dia) BaseOracleAdaptor(cr) {
         diaOracle = dia;
     }

@@ -21,13 +21,13 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { MockAuctionManager } from "contracts/mocks/MockAuctionManager.sol";
 
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
@@ -102,10 +102,10 @@ contract TestVariables {
     FeeManager public feeManager;
     MessagingHub public messagingHub;
     VotingHub public votingHub;
-    BalancerStablePoolAdaptor public balRETHAdapter;
     ChainlinkAdaptor public chainlinkAdaptor;
     ChainlinkAdaptor public dualChainlinkAdaptor;
     MarketManagerIsolated public marketManagerIsolated;
+    MockAuctionManager public auctionManager;
     OracleManager public oracleManager;
     ProtocolReader public protocolReader;
     DAOTimelock public daoTimelock;
@@ -124,10 +124,12 @@ contract TestVariables {
 
     MockV3Aggregator public chainlinkUsdcUsd;
     MockV3Aggregator public chainlinkUsdcEth;
-    MockV3Aggregator public chainlinkRethEth;
-    MockV3Aggregator public chainlinkEthUsd;
     MockV3Aggregator public chainlinkDaiUsd;
     MockV3Aggregator public chainlinkDaiEth;
+    MockV3Aggregator public chainlinkEthUsd;
+    MockV3Aggregator public chainlinkRethEth;
+    MockV3Aggregator public chainlinkBalEthReth;
+    
 
     address[] public redstoneSigners;
     bytes32[] public redstoneSignerKeys;
@@ -146,10 +148,10 @@ contract TestVariables {
     mapping(uint256 => FeeManager) public feeManagers;
     mapping(uint256 => MessagingHub) public messagingHubs;
     mapping(uint256 => VotingHub) public votingHubs;
-    mapping(uint256 => BalancerStablePoolAdaptor) public balRETHAdapters;
     mapping(uint256 => ChainlinkAdaptor) public chainlinkAdaptors;
     mapping(uint256 => ChainlinkAdaptor) public dualChainlinkAdaptors;
     mapping(uint256 => MarketManagerIsolated) public marketManagersIsolated;
+    mapping(uint256 => MockAuctionManager) public auctionManagers;
     mapping(uint256 => ProtocolReader) public protocolReaders;
     mapping(uint256 => DAOTimelock) public daoTimelocks;
     mapping(uint256 => OracleManager) public oracleManagers;
@@ -162,10 +164,11 @@ contract TestVariables {
 
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcEths;
-    mapping(uint256 => MockV3Aggregator) public chainlinkRethEths;
-    mapping(uint256 => MockV3Aggregator) public chainlinkEthUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkDaiUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkDaiEths;
+    mapping(uint256 => MockV3Aggregator) public chainlinkEthUsds;
+    mapping(uint256 => MockV3Aggregator) public chainlinkRethEths;
+    mapping(uint256 => MockV3Aggregator) public chainlinkBalEthReths;
 
     mapping(uint256 => mapping(address => DynamicIRM)) public IRMs;
 
@@ -189,12 +192,14 @@ contract TestVariables {
     IWormhole.Signature[] public signatures;
 
     MockDataFeed public mockUsdcFeed;
+    MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
+    MockDataFeed public mockBalEthRethFeed;
+    MockDataFeed public mockStethFeed;
     MockDataFeed public mockBALFeed;
     MockDataFeed public mockAURAFeed;
-    MockDataFeed public mockDaiFeed;
-    MockDataFeed public mockStethFeed;
+    
     MockV3Aggregator public mockWbtcFeed;
     
     address public _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;
@@ -405,10 +410,10 @@ contract TestVariables {
         feeManager = feeManagers[chainId];
         messagingHub = messagingHubs[chainId];
         votingHub = votingHubs[chainId];
-        balRETHAdapter = balRETHAdapters[chainId];
         chainlinkAdaptor = chainlinkAdaptors[chainId];
         dualChainlinkAdaptor = dualChainlinkAdaptors[chainId];
         marketManagerIsolated = marketManagersIsolated[chainId];
+        auctionManager = auctionManagers[chainId];
         oracleManager = oracleManagers[chainId];
         protocolReader = protocolReaders[chainId];
         borrowableCUSDC = borrowableCUSDCs[chainId];

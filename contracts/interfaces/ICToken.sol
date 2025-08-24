@@ -10,7 +10,6 @@ struct AccountSnapshot {
     address asset;
     uint8 decimals;
     bool isCollateral;
-    uint256 exchangeRate;
     uint256 collateralPosted;
     uint256 debtBalance;
 }

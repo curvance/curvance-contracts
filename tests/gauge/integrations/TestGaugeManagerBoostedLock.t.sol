@@ -1,11 +1,13 @@
 // // SPDX-License-Identifier: GPL-3.0
-// pragma solidity ^0.8.15;
+// pragma solidity 0.8.28;
 
-// import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
-// import { TestBaseGaugeManager } from "tests/gauge/TestBaseGaugeManager.sol";
 // import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
+
 // import { ClaimAction } from "contracts/interfaces/IRewardManager.sol";
 // import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+// import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
+
+// import { TestBaseGaugeManager } from "tests/gauge/TestBaseGaugeManager.sol";
 
 // contract User {}
 

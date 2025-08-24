@@ -3,8 +3,6 @@ pragma solidity 0.8.28;
 
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 
 abstract contract BaseWrappedAggregator is IChainlink {
@@ -54,14 +52,14 @@ abstract contract BaseWrappedAggregator is IChainlink {
     /// @notice Returns the underlying aggregator address.
     /// @dev Overridden in implemented wrapped oracle aggregators.
     /// @return The underlying aggregator address.
-    function underlyingAggregator() public view virtual returns (address) {}
+    function underlyingAggregator() public view virtual returns (address);
 
     /// @notice Returns the current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.
     /// @dev Overridden in implemented wrapped oracle aggregators.
     /// @return The current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.
-    function getExchangeRate() public view virtual returns (uint256) {}
+    function getExchangeRate() public view virtual returns (uint256);
 
     /// INTERNAL FUNCTIONS ///
 

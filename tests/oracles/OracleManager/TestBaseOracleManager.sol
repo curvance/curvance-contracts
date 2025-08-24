@@ -92,4 +92,22 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
         centralRegistry.transferEmergencyCouncil(address(this));
         centralRegistry.setSlippageLimit(6000);
     }
+
+    function _addSinglePriceFeed() internal initMainVariables {
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        oracleManager.addAssetPriceFeed(
+            _USDC_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+    }
+
+    function _addDualPriceFeed() internal initMainVariables {
+        _addSinglePriceFeed();
+
+        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
+        oracleManager.addAssetPriceFeed(
+            _USDC_ADDRESS,
+            address(dualChainlinkAdaptor)
+        );
+    }
 }

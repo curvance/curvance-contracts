@@ -129,6 +129,9 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
 
     /// @notice The interval at which interest rates are adjusted, in seconds.
     /// @dev 10 minutes = 600 seconds.
+    ///      The 10 minute adjustment rate is intentionally set so that every
+    ///      borrower experiences a minimum 2 interest rate adjustments from a
+    ///      standard borrow action (20 minute minimum holding period).
     uint256 public constant ADJUSTMENT_RATE = 10 minutes;
     
     /// @notice Curvance DAO hub.
@@ -488,15 +491,19 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint256 debt,
         uint256 interestFee
     ) public view returns (uint256 r) {
-        // RateToLenders = (borrowRate * (1 - Interest Fee)) / BPS.
-        uint256 rateToLenders =  _mulDiv(
+        // feeAdjustedBorrowRate = (borrowRate * (1 - Interest Fee)) / BPS.
+        uint256 feeAdjustedBorrowRate =  _mulDiv(
             borrowRate(assetsHeld, debt),
             BPS - interestFee,
             BPS
         );
 
-        // Supply Rate = (utilizationRate * rateToLenders) / WAD.
-        r = _mulDiv(utilizationRate(assetsHeld, debt), rateToLenders, WAD);
+        // Supply Rate = (utilizationRate * feeAdjustedBorrowRate) / WAD.
+        r = _mulDiv(
+            utilizationRate(assetsHeld, debt),
+            feeAdjustedBorrowRate,
+            WAD
+        );
     }
 
     /// @notice Calculates the borrow utilization rate of the market.

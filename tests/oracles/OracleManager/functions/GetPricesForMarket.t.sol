@@ -112,7 +112,6 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
                 "balanceOf"
             );
             assertEq(snapshots[i].debtBalance, 0, "debtBalance");
-            assertEq(snapshots[i].exchangeRate, 1e18, "exchangeRate");
         }
     }
 }

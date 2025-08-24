@@ -11,6 +11,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 contract VelodromeZapperCalldataChecker is BaseSwapChecker {
     /// CONSTRUCTOR ///
 
+    /// @param _target The address of the Velodrome Router contract.
     constructor(address _target) BaseSwapChecker(_target) {}
 
     /// EXTERNAL FUNCTIONS ///

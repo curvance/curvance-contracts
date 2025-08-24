@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-import { WAD, WAD_CUBED_BPS_OFFSET,BPS } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, WAD_SQUARED_BPS_OFFSET, BPS } from "contracts/libraries/ConstantsLib.sol";
 
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 
@@ -19,18 +19,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
     function test_success_LiquidateExactWithAuctionAndDynamicPenalty() public {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
-
-        vm.startPrank(auctionPermsUser);
-
-        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
-        
-        // Set auction parameters
-        uint256 validPenalty = 11500;
-        uint256 closeFactor = 3000;
-        marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
-        
-        vm.stopPrank();
+        _setAuctionConfigs(address(strategyCBALRETH), 11500, 3000);
         
         vm.startPrank(user3);
         address[] memory usersToLiquidate = new address[](1);   
@@ -56,29 +45,39 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
 
-        vm.startPrank(auctionPermsUser);
+        // Override closeFactorMax to 100% close factor so we can pass default
+        // penalty based on lFactor.
+        MarketManagerIsolated.TokenConfig memory tokenConfig;
+        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.collRatio = 7000;
+        tokenConfig.collReqSoft = 4000;
+        tokenConfig.collReqHard = 3000;
+        tokenConfig.liqIncBase = 1000;
+        tokenConfig.liqIncHard = 1500;
+        tokenConfig.liqIncMin = 10;
+        tokenConfig.liqIncMax = 2000;
+        tokenConfig.closeFactorBase = 2000;
+        tokenConfig.closeFactorMin = 2000;
+        tokenConfig.closeFactorMax = 10000;
+        tokenConfig.collateralCap = 100_000e18;
+        tokenConfig.debtCap = 0;
 
-        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
-
-        vm.stopPrank();
-
-        (, uint256 cTokenPrice, ) = marketManagerIsolated.liquidationStatusOf(
-            user1,
-            address(strategyCBALRETH),
-            address(borrowableCUSDC)
-        );
+        marketManagerIsolated.updateTokenConfig(tokenConfig);
         
-        (uint256 lFactor,,) = marketManagerIsolated.liquidationStatusOf(
-            user1,
-            address(strategyCBALRETH),
-            address(borrowableCUSDC)
-        );
+        (uint256 cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
         
-        uint256 liqBaseIncentive = 11000;
+        (, , , uint256 lFactor) = marketManagerIsolated.liquidationValuesOf(user1);
+        
+        // Calculate default penalty and close factor.
+        uint256 liqIncBase = 11000;
         uint256 liqCurve = 500;
-        
-        uint256 incentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);
+        uint256 incentive = liqIncBase + ((liqCurve * lFactor) / WAD);
+
+        uint256 closeFactorBase = 2000;
+        uint256 closeFactorCurve = 8000;
+        uint256 closeFactor = closeFactorBase + ((closeFactorCurve * lFactor) / WAD);
+
+        _setAuctionConfigs(address(strategyCBALRETH), incentive, closeFactor);
         
         vm.startPrank(user3);
         address[] memory usersToLiquidate = new address[](1);   
@@ -102,7 +101,6 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
     function test_success_LiquidationWithDefaultPenalty() public {
         _prepareLiquidation();
-
         _prepareUSDC(user3, 250e6);
 
         vm.startPrank(user3);
@@ -130,7 +128,13 @@ contract AuctionBasicTests is TestBaseLiquidations {
         vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.unlockAuctionCollateral(address(1));
+        // We unlock borrowableCUSDC when we will try to liquidate strategyCBALRETH.
+        marketManagerIsolated.setTransientLiquidationConfig(
+            address(borrowableCUSDC),
+            11500,
+            3000
+        );
+
         vm.stopPrank();
 
         address[] memory usersToLiquidate = new address[](1);   
@@ -150,8 +154,15 @@ contract AuctionBasicTests is TestBaseLiquidations {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
 
-        vm.prank(auctionPermsUser);
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
+        vm.startPrank(auctionPermsUser);
+
+        marketManagerIsolated.setTransientLiquidationConfig(
+            address(strategyCBALRETH),
+            11500,
+            3000
+        );
+
+        vm.stopPrank();
 
         address[] memory usersToLiquidate = new address[](1);   
         usersToLiquidate[0] = user1;
@@ -173,10 +184,10 @@ contract AuctionBasicTests is TestBaseLiquidations {
         vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.unlockAuctionCollateral(address(strategyCBALRETH));
+        
         uint256 validPenalty = 11500; //15%
         uint256 closeFactor = 3000; // 30%
-        marketManagerIsolated.setLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
         vm.stopPrank();
 
         borrowableCUSDC.accrueIfNeeded(); // pull interest forward
@@ -222,19 +233,10 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
         uint256 debtTokenPrice = 2e18; 
         uint256 cTokenPrice;
-        uint256 exchangeRate = strategyCBALRETH.exchangeRate();
 
-        (, cTokenPrice, ) = marketManagerIsolated.liquidationStatusOf(
-            user1,
-            address(strategyCBALRETH),
-            address(borrowableCUSDC)
-        );
+        (cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
 
-        (uint256 lFactor,,) = marketManagerIsolated.liquidationStatusOf(
-            user1,
-            address(strategyCBALRETH),
-            address(borrowableCUSDC)
-        );
+        (, , , uint256 lFactor) = marketManagerIsolated.liquidationValuesOf(user1);
 
         uint256 liqBaseIncentive = 11000; // 10% base, premium BPS
         uint256 liqCurve = 500; // 5% curve, in BPS
@@ -245,8 +247,9 @@ contract AuctionBasicTests is TestBaseLiquidations {
         uint256 debtDecimals = 10**6;
         uint256 debtAmount = 250e6;
 
-        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_CUBED_BPS_OFFSET) /
-            (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
+        uint256 debtToCollateralMultiplier =
+            (((incentive * debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
+                cTokenPrice) * collateralDecimals) / debtDecimals;
 
         uint256 collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
 
@@ -267,20 +270,16 @@ contract AuctionBasicTests is TestBaseLiquidations {
         uint256 WAD_SQUARED = 1e36;
         uint256 debtTokenPrice = 2e18; 
         uint256 cTokenPrice;
-        uint256 exchangeRate = strategyCBALRETH.exchangeRate();
         
-        (, cTokenPrice, ) = marketManagerIsolated.liquidationStatusOf(
-            user1,
-            address(strategyCBALRETH),
-            address(borrowableCUSDC)
-        );
+        (cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
         
         uint256 collateralDecimals = 10**18;
         uint256 debtDecimals = 10**6;
         uint256 debtAmount = 250e6;
         
-        uint256 debtToCollateralMultiplier = (((incentive * debtTokenPrice * WAD_CUBED_BPS_OFFSET) /
-            (cTokenPrice * exchangeRate)) * collateralDecimals) / debtDecimals;
+        uint256 debtToCollateralMultiplier =
+            (((incentive * debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
+                cTokenPrice) * collateralDecimals) / debtDecimals;
         
         uint256 collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
         

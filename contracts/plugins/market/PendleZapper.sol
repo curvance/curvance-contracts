@@ -8,6 +8,25 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
+/// @title Curvance Pendle Zapper.
+/// @notice Pendle Asset-specific contract for executing zap related
+///         actions.
+/// @dev Curvance zapper contracts enshrine actions that
+///      usually would require multiple sequential actions to facilitate,
+///      specifically swapping, depositing, redemptions, and repayments.
+///
+///      Curvance token contracts facilitate these operations through our
+///      standard contract interfaces and the plugin system.
+///
+///      Actions that include collateralization require plugin approval to the
+///      corresponding zapper contract, to collateralize on behalf of another
+///      user via a zapper both the zapper and the caller must have plugin
+///      approval from the account being collateralized on behalf of.
+///
+///      The "Pendle" contract is the zapper for working with Pendle native
+///      erc20 tokens such as sUSDe/sUSDe-PT-dec-31-2025 LP tokens,
+///      or sUSDe-PT-dec-31-2025 PT tokens.
+///
 contract PendleZapper is BaseZapper {
     /// TYPES ///
 
@@ -33,6 +52,8 @@ contract PendleZapper is BaseZapper {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param wNative The address of wrapped native token.
     constructor(ICentralRegistry cr, address wNative) BaseZapper(cr, wNative) {}
 
     /// EXTERNAL FUNCTIONS ///

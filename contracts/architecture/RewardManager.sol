@@ -98,6 +98,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Central Registry contract.
     constructor(ICentralRegistry cr) PluginDelegable(cr) {
         // Query epoch and token configuration directly to minimize potential
         // human error.

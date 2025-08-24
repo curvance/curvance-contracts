@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 import { Convex2PoolCToken, IERC20 } from "contracts/market/token/Convex2PoolCToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -45,34 +44,19 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
 
         chainlinkStethUsd = new MockV3Aggregator(8, 1500e8);
         chainlinkAdaptor.addAsset(
-            _STETH_ADDRESS,
+            address(CONVEX_STETH_ETH_POOL),
             true,
             address(chainlinkStethUsd),
             0
         );
 
-        _refreshMockFeeds();
-    
-        Curve2PoolLPAdaptor crvAdaptor = new Curve2PoolLPAdaptor(
-            ICentralRegistry(address(centralRegistry))
-        );
-        crvAdaptor.setReentrancyConfig(2, 50_000);
-
-        Curve2PoolLPAdaptor.AssetConfig memory data;
-        data.pool = address(CONVEX_STETH_ETH_POOL);
-        data.underlying0 = _ETH_ADDRESS;
-        data.underlying1 = _STETH_ADDRESS;
-        data.divideRate0 = true;
-        data.divideRate1 = true;
-        data.isCorrelated = true;
-        data.upperBound = 10200;
-        data.lowerBound = 10000;
-        crvAdaptor.addAsset(address(CONVEX_STETH_ETH_POOL), data);
-        oracleManager.addApprovedAdaptor(address(crvAdaptor));
         oracleManager.addAssetPriceFeed(
             address(CONVEX_STETH_ETH_POOL),
-            address(crvAdaptor)
+            address(chainlinkAdaptor)
         );
+
+        _refreshMockFeeds();
+
         oracleManager.addCTokenSupport(address(cSTETH));
 
         // Ensure STETH/USD, ETH/USD, and USDC/USD feeds are not stale
@@ -158,6 +142,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
 
     function testConvexLPCollateralRepayDebt() public {
         testBorrowWithConvexLPCollateral();
+
         uint256 prevBalance = usdc.balanceOf(address(borrowableCUSDC));
         // User1 needs more funds to be able to repay debt with interest
         usdc.transfer(user1, 1000e6);
@@ -194,6 +179,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
 
     function testConvexLPCollateralRedemption() public {
         testConvexLPCollateralRepayDebt();
+
         IERC20 cvxPool = CONVEX_STETH_ETH_POOL;
         assertEq(cvxPool.balanceOf(user1), 9_000e18);
 

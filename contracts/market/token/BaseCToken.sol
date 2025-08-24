@@ -114,7 +114,6 @@ abstract contract BaseCToken is
     error BaseCToken__InsufficientLiquidity();
     error BaseCToken__Unauthorized();
     error BaseCToken__UnsupportedChain();
-    error BaseCToken__UnsupportedAsset();
     error BaseCToken__InvalidMarketManager();
 
     /// CONSTRUCTOR ///
@@ -137,12 +136,6 @@ abstract contract BaseCToken is
         // Protocol Central Registry.
         if (!centralRegistry.isMarketManager(mm)) {
             revert BaseCToken__InvalidMarketManager();
-        }
-
-        // Sanity check of `asset_` so that we know users will not need to
-        // mint anywhere close to causing an overflow.
-        if (asset_.totalSupply() >= type(uint216).max) {
-            revert BaseCToken__UnsupportedAsset();
         }
 
         // Set `marketManager`.
@@ -435,17 +428,25 @@ abstract contract BaseCToken is
         RescueLib._rescueToken(centralRegistry, token, amount);
     }
 
+    /// @notice Returns share -> asset exchange rate, in `WAD`, safely.
+    /// @dev Oracle Manager calculates cToken value from this exchange rate.
+    /// @return r The share -> asset exchange rate, in `WAD`.
+    function exchangeRateSafe() external view nonReadReentrant returns (
+        uint256 r
+    ) {
+        r = _convertToAssets(WAD, _getTotalAssets());
+    }
+
     /// @notice Returns share -> asset exchange rate, in `WAD`.
     /// @dev Oracle Manager calculates cToken value from this exchange rate.
     /// @return r The share -> asset exchange rate, in `WAD`.
-    function exchangeRate() external view nonReadReentrant returns (uint256 r) {
+    function exchangeRate() external view returns (uint256 r) {
         r = _convertToAssets(WAD, _getTotalAssets());
     }
 
     /// @notice Returns a snapshot of the cToken and `account` data.
     /// @dev Used by MarketManager to efficiently perform liquidity checks.
-    /// NOTE: debtBalance always return 0 to runtime gas in MarketManager
-    ///       since it is unused.
+    /// NOTE: debtBalance always return 0 except in `borrowableCToken`.
     /// @return result The snapshot of the cToken and `account` data.
     function getSnapshot(
         address account
@@ -454,7 +455,6 @@ abstract contract BaseCToken is
         result.decimals = decimals();
         // Can only be true for non-BorrowableCTokens.
         result.isCollateral = true;
-        result.exchangeRate = _convertToAssets(WAD, _getTotalAssets());
         result.collateralPosted = collateralPosted[account];
         // result.debtBalance is 0 for non-BorrowableCTokens, no need to set.
     }
@@ -1125,11 +1125,7 @@ abstract contract BaseCToken is
     /// @param amount The spent amount of the allowance.
     function _updateAllowance(address owner, uint256 amount) internal {
         if (msg.sender != owner) {
-            uint256 allowed = allowance(owner, msg.sender);
-
-            if (allowed != type(uint256).max) {
-                _spendAllowance(owner, msg.sender, amount);
-            }
+            _spendAllowance(owner, msg.sender, amount);
         }
     }
 

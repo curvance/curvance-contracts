@@ -54,6 +54,7 @@ abstract contract BaseMulticallChecker is
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Central Registry contract.
     constructor(ICentralRegistry cr) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
@@ -74,6 +75,10 @@ abstract contract BaseMulticallChecker is
 
     /// INTERNAL FUNCTIONS ///
 
+    /// @notice Checks if the adaptor is approved and of the expected type.
+    /// @dev Will revert if the adaptor is not approved or of the wrong type.
+    /// @param adaptor The address of the adaptor to check.
+    /// @param adaptorType The type of adaptor expected.
     function _checkIsApprovedAdaptor(
         address adaptor,
         uint256 adaptorType

@@ -7,7 +7,6 @@ import { IPotLike } from "contracts/interfaces/external/maker/IPotLike.sol";
 import { ISavingsDai } from "contracts/interfaces/external/maker/ISavingsDai.sol";
 
 contract SavingsDaiAggregator is VaultAggregator {
-
     /// CONSTRUCTOR ///
 
     constructor(

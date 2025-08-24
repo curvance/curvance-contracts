@@ -50,4 +50,23 @@ contract BorrowableCTokenTransferFromTest is TestBaseBorrowableCToken {
         assertEq(borrowableCUSDC.balanceOf(address(this)), balance - 100e6);
         assertEq(borrowableCUSDC.balanceOf(user1), user1Balance + 100e6);
     }
+
+    function test_borrowableCTokenTransferFrom_success_withMaxApproval() public {
+        deal(address(borrowableCUSDC), address(this), 100e6);
+
+        uint256 balance = borrowableCUSDC.balanceOf(address(this));
+        uint256 user1Balance = borrowableCUSDC.balanceOf(user1);
+
+        borrowableCUSDC.approve(user1, type(uint256).max);
+
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit Transfer(address(this), user1, 100e6);
+
+        vm.prank(user1);
+        borrowableCUSDC.transferFrom(address(this), user1, 100e6);
+
+        assertEq(borrowableCUSDC.balanceOf(address(this)), balance - 100e6);
+        assertEq(borrowableCUSDC.balanceOf(user1), user1Balance + 100e6);
+        assertEq(borrowableCUSDC.allowance(address(this), user1), type(uint256).max);
+    }
 }

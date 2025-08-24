@@ -11,7 +11,7 @@ import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/P
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { LiquidityManagerIsolated } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { WAD, WAD_SQUARED, BPS, WAD_CUBED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, WAD_SQUARED, BPS, WAD_SQUARED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
@@ -201,7 +201,6 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         AccountSnapshot memory snapshot = pendleCTokenPTSTETH.getSnapshot(user1);
         assertEq(pendleCTokenPTSTETH.balanceOf(user1), 1 ether);
         assertEq(snapshot.debtBalance, 0);
-        assertEq(snapshot.exchangeRate, 1 ether);
 
         pendleCTokenPTSTETH.postCollateral(1 ether);
 
@@ -226,12 +225,15 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         // Try partial repayment.
         AccountSnapshot memory borrowableCUSDCSnapshot;
         borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(user1);
+        uint256 exchangeRatePrior = borrowableCUSDC.exchangeRate();
+
         _prepareUSDC(user1, 200e6);
         usdc.approve(address(borrowableCUSDC), 200e6);
         borrowableCUSDC.repay(200e6);
+
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertGt(borrowableCUSDC.debtBalance(user1), borrowableCUSDCSnapshot.debtBalance - 200e6);
-        assertGt(borrowableCUSDC.exchangeRate(), borrowableCUSDCSnapshot.exchangeRate);
+        assertGt(borrowableCUSDC.exchangeRate(), exchangeRatePrior);
 
         // Warp more to simulate interest being applied on debt.
         skip(30 minutes);
@@ -240,6 +242,8 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // Try full repayment.
         borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(user1);
+        exchangeRatePrior = borrowableCUSDC.exchangeRate();
+
         _prepareUSDC(user1, borrowableCUSDCSnapshot.debtBalance);
         usdc.approve(address(borrowableCUSDC), borrowableCUSDCSnapshot.debtBalance);
         borrowableCUSDC.repay(borrowableCUSDCSnapshot.debtBalance);
@@ -247,7 +251,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertEq(borrowableCUSDC.debtBalance(user1), 0);
-        assertEq(borrowableCUSDC.exchangeRate(), borrowableCUSDCSnapshot.exchangeRate, "exchange rate mismatch");
+        assertEq(borrowableCUSDC.exchangeRate(), exchangeRatePrior, "exchange rate mismatch");
     }
 
     function testCTokenRedeemOnBorrow() public {
@@ -282,6 +286,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
     function testBorrowableCTokenRedeemOnBorrow() public {
         // Try deposit().
         _preparePT(user1, 1 ether);
+        
         vm.startPrank(user1);
         pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
         pendleCTokenPTSTETH.deposit(1 ether, user1);
@@ -352,6 +357,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
     function testBorrowableCTokenTransferOnBorrow() public {
         // Try deposit().
         _preparePT(user1, 1 ether);
+
         vm.startPrank(user1);
         pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
         pendleCTokenPTSTETH.deposit(1 ether, user1);
@@ -466,26 +472,29 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // cache liquidation values
 
-        (uint256 lFactor, uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(user1, address(pendleCTokenPTSTETH), address(borrowableCUSDC));
+        (, , , uint256 lFactor) = marketManagerIsolated.liquidationValuesOf(user1);
+        (uint256 collateralTokenPrice,uint256 debtTokenPrice) =
+            oracleManager.getPriceIsolatedPair(
+                address(pendleCTokenPTSTETH),
+                address(borrowableCUSDC),
+                2
+            );
+
+        uint256 debtBefore = borrowableCUSDC.debtBalance(user1);
 
         (uint256 maxAmount, uint256 liquidatedCollateral, uint256 collateralRequired) = _getLiquidationValuesWithHigherPrecision_NonAuction(
             debtTokenPrice,
             collateralTokenPrice,
             lFactor,
-            pendleCTokenPTSTETH.balanceOf(user1),
-            borrowableCUSDC.debtBalance(user1)
+            pendleCTokenPTSTETH.collateralPosted(user1),
+            debtBefore
         );
 
         uint256 expectedBadDebt = _calculateBadDebt(
-            borrowableCUSDC.debtBalance(user1),
+            debtBefore,
             maxAmount,
-            pendleCTokenPTSTETH.balanceOf(user1),
-            collateralRequired,
-            liquidatedCollateral,
-            collateralTokenPrice,
-            debtTokenPrice,
-            pendleCTokenPTSTETH.exchangeRate()
+            pendleCTokenPTSTETH.collateralPosted(user1),
+            collateralRequired
         );
         
 
@@ -512,12 +521,29 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
             "balance of user1 mismatch"
         );
         assertEq(snapshot.debtBalance, 0);
-        assertEq(snapshot.exchangeRate, 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
+
+        (uint256 debtToCollateral, ) = _getDebtToCollateralAndCloseFactor(
+            lFactor,
+            debtTokenPrice,
+            collateralTokenPrice
+        );
+
+        console2.log("debtToCollateral", debtToCollateral);
+
+        uint256 seizedShares = 1 ether - snapshot.collateralPosted;
+        uint256 repayFromSeized = FixedPointMathLib.mulDivUp(
+            seizedShares,
+            WAD_SQUARED,
+            debtToCollateral
+        );
+
+        console2.log("repayFromSeized", repayFromSeized);
+
         assertApproxEqRel(
             borrowableCUSDC.debtBalance(user1),
-            1000e6 - (maxAmount + expectedBadDebt),
+            debtBefore - (repayFromSeized + expectedBadDebt),
             0.01e18, 
             "debt balance of user1 mismatch"
         );
@@ -536,33 +562,47 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         uint256 collateralRequired
     ) {
 
-            if (lFactor == 0) return (0, 0, 0);
+        if (lFactor == 0) return (0, 0, 0);
 
-        (uint256 highPrecisionD2C, uint256 closeFactor) = _getDebtToCollateralAndCloseFactor(lFactor, debtTokenPrice, collateralTokenPrice);
+        (uint256 highPrecisionD2C, uint256 closeFactor) = _getDebtToCollateralAndCloseFactor(
+            lFactor,
+            debtTokenPrice,
+            collateralTokenPrice
+        );
                 
-            maxAmount = (closeFactor * borrowAmount) / BPS;
-            
-            // Calculate with extra precision
-            liquidatedCollateral = (maxAmount * highPrecisionD2C) / (WAD_SQUARED);
-            
-            if (liquidatedCollateral > collateralAmount) {
-                // Use the contract's exact formula
-                maxAmount = FixedPointMathLib.mulDivUp(
-                    maxAmount,
-                    collateralAmount,
-                    liquidatedCollateral
-                );
-                liquidatedCollateral = collateralAmount;
-            }
-            
+        maxAmount = (closeFactor * borrowAmount) / BPS;
+        
+        // Calculate with extra precision
+        liquidatedCollateral = (maxAmount * highPrecisionD2C) / (WAD_SQUARED);
+        
+        if (liquidatedCollateral > collateralAmount) {
             // Use the contract's exact formula
-            collateralRequired = (borrowAmount * highPrecisionD2C) / (WAD_SQUARED);
+            maxAmount = FixedPointMathLib.mulDivUp(
+                maxAmount,
+                collateralAmount,
+                liquidatedCollateral
+            );
+            liquidatedCollateral = collateralAmount;
+        }
+        
+        // Use the contract's exact formula
+        collateralRequired = (borrowAmount * highPrecisionD2C) / (WAD_SQUARED);
     }
 
-    function _getDebtToCollateralAndCloseFactor(uint256 lFactor, uint256 debtTokenPrice, uint256 collateralTokenPrice) internal view returns (uint256, uint256) {
-        uint256 cTokenExchangeRate = pendleCTokenPTSTETH.exchangeRate();
-
-        (uint256 liqIncBase, uint256 liqIncCurve,,, uint256 closeFactorBase, uint256 closeFactorCurve,,)
+    function _getDebtToCollateralAndCloseFactor(
+        uint256 lFactor,
+        uint256 debtTokenPrice,
+        uint256 collateralTokenPrice
+    ) internal view returns (uint256, uint256) {
+        (
+            uint256 liqIncBase,
+            uint256 liqIncCurve,
+            ,
+            ,
+            uint256 closeFactorBase,
+            uint256 closeFactorCurve,
+            ,
+        )
             =  marketManagerIsolated.liquidationConfig(address(pendleCTokenPTSTETH));
 
         // Follow the contract's exact calculations but with higher precision
@@ -570,12 +610,12 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         uint256 liqInc = liqIncBase + ((liqIncCurve * lFactor) / WAD);
 
         console2.log("liqIncentive", liqInc);
-        console2.log("debtTokenPrice", debtTokenPrice);
-        console2.log("collateralTokenPrice", collateralTokenPrice);
-        console2.log("cTokenExchangeRate", cTokenExchangeRate);
-        
-        uint256 highPrecisionD2C = (((liqInc * debtTokenPrice * WAD_CUBED_BPS_OFFSET) /
-            (collateralTokenPrice * cTokenExchangeRate)) * 1e18) / 1e6;
+        console2.log("debtUnderlyingPrice", debtTokenPrice);
+        console2.log("collateralSharesPrice", collateralTokenPrice);
+
+        uint256 highPrecisionD2C =
+            (((liqInc * debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
+                collateralTokenPrice) * WAD) / 1e6;
 
         return (highPrecisionD2C, closeFactor);
     }
@@ -584,26 +624,29 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         uint256 _debtBalance,
         uint256 _debtAmount,
         uint256 _collateralAvailable,
-        uint256 _collateralRequired,
-        uint256 _collateralLiquidated,
-        uint256 _collateralTokenUnderlyingPrice,
-        uint256 _debtTokenUnderlyingPrice,
-        uint256 _cTokenExchangeRate
+        uint256 _collateralRequired
     ) internal pure returns (uint256 badDebt) {
+        if (_collateralRequired > _collateralAvailable) {
+            badDebt = FixedPointMathLib.fullMulDiv(
+                FixedPointMathLib.mulDiv(
+                    _debtAmount,
+                    _collateralRequired,
+                    _collateralAvailable
+                ),
+                WAD_SQUARED - FixedPointMathLib.mulDiv(
+                    WAD_SQUARED,
+                    _collateralAvailable,
+                    _collateralRequired
+                ),
+                WAD_SQUARED
+            );
 
-        if(_collateralRequired > _collateralAvailable) {
-    
-        badDebt = (_debtBalance - _debtAmount) -
-        FixedPointMathLib.mulDivUp(
-            ((_collateralAvailable - _collateralLiquidated) * _cTokenExchangeRate) / WAD,
-            _collateralTokenUnderlyingPrice,
-            (_debtTokenUnderlyingPrice * WAD) / 1e6
-        );
-
+            if (badDebt + _debtAmount > _debtBalance) {
+                badDebt = _debtBalance - _debtAmount;
+            }
         } else {
             return 0;
         }
-        
     }
 
 }

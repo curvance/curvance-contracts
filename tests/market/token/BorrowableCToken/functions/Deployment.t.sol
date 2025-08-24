@@ -62,24 +62,6 @@ contract BorrowableCTokenDeploymentTest is TestBaseBorrowableCToken {
         );
     }
 
-    function test_borrowableCTokenDeployment_fail_whenUnderlyingTotalSupplyExceedsMaximum()
-        public
-    {
-        stdstore
-            .target(_USDC_ADDRESS)
-            .sig(IERC20.totalSupply.selector)
-            .checked_write(type(uint232).max);
-        vm.expectRevert(
-           BaseCToken.BaseCToken__UnsupportedAsset.selector
-        );
-        new BorrowableCToken(
-            ICentralRegistry(address(centralRegistry)),
-            IERC20(_USDC_ADDRESS),
-            address(marketManagerIsolated),
-            address(IRM)
-        );
-    }
-
     function test_borrowableCTokenDeployment_success() public {
         vm.expectEmit(true, true, true, true);
         uint256 newInterestFee = centralRegistry.protocolInterestFee(

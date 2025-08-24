@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
-import { WAD, WAD_SQUARED, SECONDS_PER_YEAR } from "contracts/libraries/ConstantsLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -124,8 +124,15 @@ contract ProtocolReader {
 
     ICentralRegistry public immutable centralRegistry;
 
+    /// ERRORS ///
+
+    error ProtocolReader__PriceError();
+    error ProtocolReader__TokenNotListed();
+    error ProtocolReader__NonCollateralizable();
+
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
     constructor(ICentralRegistry cr) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
@@ -193,12 +200,19 @@ contract ProtocolReader {
         }
     }
 
-    function getPriceOnly(
+    function getPriceSafely(
         address asset,
         bool inUSD,
-        bool getLower
-    ) public view returns (uint256 price) {
-        (price, ) = getPrice(asset, inUSD, getLower);
+        bool getLower,
+        uint256 errorCodeBreakpoint
+    ) public view returns (uint256) {
+        (uint256 price, uint256 errorCode) = _getOracleManager()
+            .getPrice(asset, inUSD, getLower);
+        if (errorCode >= errorCodeBreakpoint) {
+            revert ProtocolReader__PriceError();
+        }
+
+        return price;
     }
 
     function getDynamicMarketData()
@@ -211,6 +225,24 @@ contract ProtocolReader {
         for (uint256 i; i < markets.length; i++) {
             data[i] = _buildDynamicMarketData(IMarketManager(markets[i]));
         }
+    }
+
+    /// @notice Gets the health factor of a user's position in a market
+    /// @param mm The market manager to pull data from.
+    /// @param account The user address to get the health factor for.
+    /// @return positionHealth The healthiness of `account`'s position.
+    function getPositionHealth(
+        IMarketManager mm,
+        address account
+    ) public view returns (uint256 positionHealth) {
+        (uint256 soft, , uint256 debt, ) = mm.liquidationValuesOf(account);
+
+        // No debt means infinite position health.
+        if (debt == 0) {
+            return type(uint256).max; 
+        }
+
+        positionHealth = (soft * WAD) / debt;
     }
 
     function getUserData(
@@ -241,49 +273,73 @@ contract ProtocolReader {
     /// @dev NOTE: This can overestimate maximum executeable leverage when
     ///            swapping due to AMM fees and slippage.
     /// @param account The account to query maximum borrow amount for.
+    /// @param cToken The token that `account` will deposit to leverage
+    ///               against.
     /// @param borrowableCToken The token that `account` will borrow assets
     ///                         from to achieve leverage.
-    /// @param cToken The token that `account` will deposit to
-    ///                        leverage against.
-    /// @param assets The amount of `cToken` underlying that
-    ///               `account` will deposit to leverage against.
+    /// @param assets The amount of `cToken` underlying that `account` will
+    ///               deposit to leverage against.
+    /// @return currentLeverage Returns the current leverage multiplier of
+    ///                         `account`, in `WAD`.
+    /// @return adjustedMaxLeverage Returns the maximum leverage multiplier of
+    ///                             `account` after a hypothetical deposit
+    ///                             action, adjusted by liquidity constraints,
+    ///                             in `WAD`.
+    /// @return maxLeverage Returns the maximum leverage multiplier of
+    ///                     `account` after a hypothetical deposit action,
+    ///                     in `WAD`.
     /// @return maxDebtBorrowable Returns the maximum remaining borrow amount
     ///                           allowed from `borrowableCToken`, measured in
     ///                           underlying token amount, after the new
     ///                           hypothetical deposit.
-    /// @return isOffset Whether the maximum borrowable debt amount returned
-    ///                  has been offset due to available liquidity or not.
-    function hypotheticalMaxRemainingLeverageOf(
+    function hypotheticalLeverageOf(
         address account,
-        address borrowableCToken,
         address cToken,
+        address borrowableCToken,
         uint256 assets
-    ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
+    ) public view returns (
+        uint256 currentLeverage,
+        uint256 adjustedMaxLeverage,
+        uint256 maxLeverage,
+        uint256 maxDebtBorrowable
+    ) {
         IMarketManager mm = ICToken(borrowableCToken).marketManager();
-        (uint256 price, uint256 errorCode) =
-            getPrice(address(cToken), true, true);
 
-        // Validate we got a price for `cToken`.
-        if (errorCode != 0) {
-            revert();
+        // Validate `cToken` and `borrowableCToken` are properly listed.
+        if (!mm.isListed(borrowableCToken) || !mm.isListed(cToken)) {
+            revert ProtocolReader__TokenNotListed();
         }
 
-        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) = mm.statusOf(account);
+        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
+            mm.statusOf(account);
+        
+        // If the account is insolvent or we can immediately return with 0 for
+        // everything.
+        if (sumDebt > sumCollateral) {
+            return (0, 0, 0, 0);
+        }
+
+        if (sumDebt == 0 || sumCollateral == 0) {
+            currentLeverage = WAD;
+        } else {
+            currentLeverage =
+                _mulDiv(sumCollateral, WAD, sumCollateral - sumDebt);
+        }
 
         {
-            uint256 newCollateral = _mulDiv(
-                ICToken(cToken).previewDeposit(assets),
-                price,
-                10 ** ICToken(cToken).decimals()
-            );
-
             (uint256 collRatio, ,) = mm.collConfig(address(cToken));
             // If the collateral token cannot be borrowed against the hypothetical
             // leverage check will result in 0 meaning nothing new to leverage
             // against.
             if (collRatio == 0) {
-                revert();
+                revert ProtocolReader__NonCollateralizable();
             }
+
+            uint256 newCollateral = _mulDiv(
+                ICToken(cToken).previewDeposit(assets),
+                getPriceSafely(address(cToken), true, true, 1), // Price the collateralToken.
+                10 ** ICToken(cToken).decimals()
+            );
 
             sumCollateral += newCollateral;
             maxDebt += _mulDiv(newCollateral, collRatio, WAD);
@@ -299,32 +355,118 @@ contract ProtocolReader {
         // just extrapolated for an account's collateral vs debt.
         /// NOTE: This can overestimate maximum executeable leverage when
         ///       swapping due to AMM fees and slippage.
-        uint256 maxLeverage = _mulDiv(
-            maxDebt - sumDebt,
-            sumCollateral,
-            sumCollateral - maxDebt
-        );
-
-        (price, errorCode) = getPrice(address(borrowableCToken), true, false);
-
-        // Validate we got a price for `borrowableCToken`.
-        if (errorCode != 0) {
-            revert();
-        }
-
         maxDebtBorrowable = _mulDiv(
-            _mulDiv(maxLeverage, WAD, price),
-            10 ** IERC20(borrowableCToken).decimals(),
+            _mulDiv(
+                _mulDiv(maxDebt - sumDebt, sumCollateral, sumCollateral - maxDebt),
+                WAD,
+                getPriceSafely(ICToken(borrowableCToken).asset(), true, false, 1) // Price the debt token.
+            ),
+            10 ** IERC20(ICToken(borrowableCToken).asset()).decimals(),
             WAD
         );
 
-        uint256 liquidityAvailable = IERC20(ICToken(borrowableCToken).asset())
-            .balanceOf(borrowableCToken);
+        // Calculate the theoretical maximum leverage.
+        maxLeverage = _mulDiv(
+            sumCollateral + maxDebtBorrowable,
+            WAD,
+            sumCollateral - sumDebt
+        );
 
-        if (liquidityAvailable < maxDebtBorrowable) {
-            maxDebtBorrowable = liquidityAvailable;
-            isOffset = true;
+        // Calculate the maximum debt borrowable currently.
+        maxDebtBorrowable = _adjustForLimitations(
+            mm,
+            cToken,
+            ICToken(cToken).previewDeposit(assets),
+            borrowableCToken,
+            maxDebtBorrowable
+        );
+
+        // If theres no ability to borrow then can return adjusted leverage of 0.
+        if (maxDebtBorrowable > 0) {
+            // Calculate the real maximum leverage.
+            adjustedMaxLeverage = _mulDiv(
+                sumCollateral + maxDebtBorrowable,
+                WAD,
+                sumCollateral - sumDebt
+            );
         }
+    }
+
+    /// @notice Returns the debt balance of `account` at `timestamp`.
+    /// @dev This function is intended for frontend data querying and should
+    ///      not be used for onchain execution.
+    /// @param account The address whose debt balance should be calculated.
+    /// @param borrowableCToken The token that `account`'s debt balance
+    ///                         will be checked for.
+    /// @param timestamp The unix timestamp to calculate account debt
+    ///                  balance with.
+    /// @return debtBalance The debt balance of `account` at `timestamp`.
+    function debtBalanceAtTimestamp(
+        address account,
+        address borrowableCToken,
+        uint256 timestamp
+    ) public view returns (uint256 debtBalance) {
+        IBorrowableCToken bcToken = IBorrowableCToken(borrowableCToken);
+        debtBalance = bcToken.debtBalance(account);
+
+        // If `account` has no debt its still going to be 0 at `timestamp`.
+        if (debtBalance == 0) {
+            return 0;
+        }
+
+        // Pull latest yield information.
+        (uint256 rate, uint256 vestingEnd, uint256 lastVestingClaim) =
+            bcToken.getYieldInformation();
+
+        // If `timestamp` is before block.timestamp, use `block.timestamp`.
+        timestamp = timestamp < block.timestamp ? block.timestamp : timestamp;
+
+        // If no time has passed since `lastVestingClaim` can return
+        // `debtBalance`.
+        if (timestamp == lastVestingClaim) {
+            return debtBalance;
+        }
+
+        uint256 newDebt;
+
+        // Check whether there is pending debt owed.
+        if (rate > 0 && lastVestingClaim < vestingEnd) {
+            // When calculating pending debt owed, if the vesting period
+            // has not ended:
+            // newDebt = rate * (timestamp - lastVestingClaim).
+            // If the vesting period has ended:
+            // newDebt = rate * (vestingEnd - lastVestingClaim)).
+            // Then in either case:
+            // Divide the pending debt by `WAD` (1e18) for precision.
+            newDebt = _mulDiv(
+                timestamp < vestingEnd
+                    ? rate * (timestamp - lastVestingClaim)
+                    : rate * (vestingEnd - lastVestingClaim),
+                debtBalance,
+                WAD
+            );
+        }
+
+        // Update `lastVestingClaim`, stopping at `vestingEnd` if current
+        // vesting period has ended.
+        lastVestingClaim = timestamp > vestingEnd ? vestingEnd : timestamp;
+
+        // Check if it is time to start a new vesting period.
+        if (timestamp >= vestingEnd) {
+            uint256 assetsHeld = bcToken.assetsHeld();
+            uint256 outstandingDebt = bcToken.marketOutstandingDebt();
+            // Calculate the new interest rate for borrowers, in seconds.
+            rate = bcToken.IRM().predictedBorrowRate(assetsHeld, outstandingDebt);
+            debtBalance = debtBalance + newDebt;
+
+            newDebt = _mulDiv(
+                rate * (timestamp - lastVestingClaim),
+                debtBalance,
+                WAD
+            );
+        }
+
+        debtBalance += newDebt;
     }
 
     /// @notice Returns the cooldown periods for multiple markets for a user
@@ -345,13 +487,18 @@ contract ProtocolReader {
         return cooldowns;
     }
 
-    /// @notice Preview the impact of a new asset deposit on the market
-    /// @param user The user address
-    /// @param collateralCToken The address of the collateral cToken
+    /// @notice Preview the impact of a new asset deposit or borrow on market
+    ///         interest rates.
+    /// @param user The address of the user account to preview asset impact
+    ///             of.
+    /// @param collateralCToken The address of the collateral cToken.
     /// @param debtBorrowableCToken The address of the debt borrowable cToken
-    /// @param newCollateralAssets The amount of new collateral assets to deposit
-    /// @return supply The projected supply amount
-    /// @return borrow The projected borrow amount
+    /// @param newCollateralAssets The amount of new collateral asset to
+    ///                            deposit, in assets.
+    /// @param newDebtAssets The amount of new debt asset to borrow,
+    ///                      in assets.
+    /// @return supply The projected supply rate, in `WAD` seconds.
+    /// @return borrow The projected borrow amount, in `WAD` seconds.
     function previewAssetImpact(
         address user,
         address collateralCToken,
@@ -361,45 +508,28 @@ contract ProtocolReader {
     ) public view returns (uint256 supply, uint256 borrow) {
         ICToken cToken = ICToken(collateralCToken);
         IBorrowableCToken bcToken;
+        uint256 outstandingDebt;
         uint256 assetsHeld;
-        uint256 debt = bcToken.marketOutstandingDebt();
         
         if (cToken.isBorrowable()) {
             bcToken = IBorrowableCToken(address(collateralCToken));
+            outstandingDebt = bcToken.marketOutstandingDebt();
             assetsHeld = bcToken.assetsHeld() + newCollateralAssets;
-            debt = bcToken.marketOutstandingDebt();
             supply = bcToken.IRM()
-                .supplyRate(assetsHeld, debt, bcToken.interestFee()) * SECONDS_PER_YEAR;
+                .supplyRate(assetsHeld, outstandingDebt, bcToken.interestFee());
         }
 
         bcToken = IBorrowableCToken(debtBorrowableCToken);
         if (bcToken.debtBalance(user) != 0) {
-            assetsHeld = bcToken.assetsHeld() - newDebtAssets;
-            debt = bcToken.marketOutstandingDebt();
-            borrow = bcToken.IRM()
-                .borrowRate(assetsHeld, debt) * SECONDS_PER_YEAR;
+            outstandingDebt = bcToken.marketOutstandingDebt();
+            assetsHeld = bcToken.assetsHeld() > newDebtAssets 
+                ? bcToken.assetsHeld() - newDebtAssets 
+                : 0;
+            borrow = bcToken.IRM().borrowRate(assetsHeld, outstandingDebt);
         }
     }
 
     /// INTERNAL FUNCTIONS ///
-
-    /// @notice Gets the health factor of a user's position in a market
-    /// @param mm The market manager to pull data from.
-    /// @param account The user address to get the health factor for.
-    /// @return positionHealth The healthiness of `account`'s position.
-    function _getPositionHealth(
-        IMarketManager mm,
-        address account
-    ) internal view returns (uint256 positionHealth) {
-        (uint256 soft, , uint256 debt) = mm.liquidationValuesOf(account);
-
-        // No debt means infinite position health.
-        if (debt == 0) {
-            return type(uint256).max; 
-        }
-
-        positionHealth = (soft * WAD) / debt;
-    }
 
     function _getStaticTokenAsset(ICToken cToken) internal view returns (StaticMarketAsset memory a) {
         IERC20 asset = IERC20(cToken.asset());
@@ -477,9 +607,9 @@ contract ProtocolReader {
         address asset,
         IOracleManager om
     ) internal view returns (uint256, uint256) {
-        IOracleManager.CToken memory cToken = om.getCToken(asset);
-        if (cToken.isCToken) {
-            asset = cToken.underlying;
+        address cTokenUnderlying = om.cTokens(asset);
+        if (cTokenUnderlying != address(0)) {
+            asset = cTokenUnderlying;
         }
 
         address[] memory feeds = om.getPriceFeeds(asset);
@@ -543,7 +673,7 @@ contract ProtocolReader {
         
         (um.collateral, um.maxDebt, um.debt) = mm.statusOf(account);
         um._address = address(mm);
-        um.positionHealth = _getPositionHealth(mm, account);
+        um.positionHealth = getPositionHealth(mm, account);
         um.cooldown = mm.accountAssets(account) + MARKET_COOLDOWN_LENGTH;
         um.tokens = tokens;
     }
@@ -554,10 +684,10 @@ contract ProtocolReader {
         address asset = ctoken.asset();
 
         dmt._address = address(ctoken);
-        dmt.assetPrice = getPriceOnly(address(asset), true, false);
-        dmt.assetPriceLower = getPriceOnly(address(asset), true, true);
-        dmt.sharePrice = getPriceOnly(address(ctoken), true, false);
-        dmt.sharePriceLower = getPriceOnly(address(ctoken), true, true);
+        dmt.assetPrice = getPriceSafely(address(asset), true, false, 3);
+        dmt.assetPriceLower = getPriceSafely(address(asset), true, true, 3);
+        dmt.sharePrice = getPriceSafely(address(ctoken), true, false, 3);
+        dmt.sharePriceLower = getPriceSafely(address(ctoken), true, true, 3);
         dmt.totalSupply = ctoken.totalSupply();
         dmt.collateral = ctoken.marketCollateralPosted();
 
@@ -569,8 +699,9 @@ contract ProtocolReader {
             dmt.debt = bcToken.marketOutstandingDebt();
             dmt.liquidity = assetsHeld - dmt.debt;
 
-            // All of these values are multiplied depending on the time frame you are looking for.
-            // For example you might multiply this by SECONDS_PER_YEAR to get an annualized rate.
+            // Values are given in seconds, and should be multiplied depending
+            // on the time frame needed. For example, you might multiply these
+            // by SECONDS_PER_YEAR to get an annualized rate.
             dmt.borrowRate = irm.borrowRate(assetsHeld, dmt.debt);
             dmt.predictedBorrowRate = irm.predictedBorrowRate(assetsHeld, dmt.debt);
             dmt.utilizationRate = irm.utilizationRate(assetsHeld, dmt.debt);
@@ -592,6 +723,64 @@ contract ProtocolReader {
 
         dmd._address = address(mm);
         dmd.tokens = tokens;
+    }
+
+    /// @notice Calculates the debt borrowable from `debtCToken` based on
+    ///         any current restrictions.
+    /// @param mm The market manager to pull token config from.
+    /// @param collateralCToken The token that `account` will deposit to
+    ///                         leverage against.
+    /// @param collateralShares The amount of `cToken` shares that `account`
+    ///                          will deposit to leverage against.
+    /// @param debtCToken The token that `account` will borrow assets
+    ///                   from to achieve leverage.
+    /// @param debtAssets The amount of `debtCToken` underlying that
+    ///               `account` will borrow to leverage up.
+    function _adjustForLimitations(
+        IMarketManager mm,
+        address collateralCToken,
+        uint256 collateralShares,
+        address debtCToken,
+        uint256 debtAssets
+    ) internal view returns (uint256) {
+        uint256 collateralCap = mm.collateralCaps(collateralCToken);
+        uint256 marketCollateral = ICToken(collateralCToken).marketCollateralPosted();
+        uint256 debtCap = mm.debtCaps(debtCToken);
+        uint256 marketDebt = IBorrowableCToken(debtCToken).marketOutstandingDebt();
+        uint256 cTokenPrice = getPriceSafely(address(collateralCToken), true, true, 1);
+        uint256 debtTokenPrice = getPriceSafely(ICToken(debtCToken).asset(), true, false, 1);
+        uint256 debtAssetsInCollateral =
+            ((debtAssets * debtTokenPrice * (10 ** ICToken(collateralCToken).decimals())) /
+                (cTokenPrice * (10 ** ICToken(debtCToken).decimals())));
+
+        // If theres insufficient collateral room left we will need to adjust collateral
+        // and debt down proportionally.
+        if (marketCollateral + collateralShares + debtAssetsInCollateral > collateralCap) {
+            // If the user cannot collateralize the shares they want to deposit
+            // can bubble up that leverage is not possible.
+            if (marketCollateral + collateralShares > collateralCap) {
+                return 0;
+            }
+
+            uint256 collateralShortfall = marketCollateral + collateralShares
+                + debtAssetsInCollateral - collateralCap;
+            debtAssets = _mulDiv(
+                debtAssets,
+                debtAssetsInCollateral - collateralShortfall,
+                debtAssetsInCollateral
+            );
+        }
+
+        if (marketDebt + debtAssets > debtCap) {
+            debtAssets = _mulDiv(debtAssets, debtCap - marketDebt, debtAssets);
+        }
+
+        uint256 liquidityAvailable = IBorrowableCToken(debtCToken).assetsHeld();
+        if (liquidityAvailable < debtAssets) {
+            debtAssets = liquidityAvailable;
+        }
+
+        return debtAssets;
     }
 
     /// @dev Returns `floor(x * y / d)`.

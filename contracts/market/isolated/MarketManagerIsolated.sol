@@ -5,7 +5,7 @@ import { LiquidityManagerIsolated, CommonLib, ICToken, IOracleManager } from "co
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
-import { BPS, BPS_SQUARED, WAD, WAD_SQUARED, WAD_CUBED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD, WAD_SQUARED, WAD_SQUARED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
@@ -86,55 +86,65 @@ contract MarketManagerIsolated is
 
     /// CONSTANTS ///
 
-    /// @notice Maximum collateral requirement to avoid liquidation.
+    /// @notice Maximum collateral requirement to avoid liquidation, in `BPS`.
     /// @dev 23400 = 234%. Resulting in 1 / (BPS + 2.34 BPS),
     ///      or ~30% maximum LTV soft liquidation level.
     uint256 public constant MAX_COLLATERAL_REQUIREMENT = 23400;
-    /// @notice Minimum excess collateral requirement
-    ///         on top of liquidation incentive.
+    /// @notice Minimum excess collateral requirement on top of liquidation
+    ///         incentives, in `BPS`.
     /// @dev 100 = 1.0%.
     uint256 public constant MIN_EXCESS_COLL_REQUIRED = 100;
-    /// @notice Maximum collateralization ratio.
-    /// @dev 9750 = 97.5%.
-    uint256 public constant MAX_COLLATERALIZATION_RATIO = 9750;
-    /// @notice The maximum liquidation incentive.
+    /// @notice Minimum excess collateral requirement before soft liquidation
+    ///         can occur, in `BPS`.
+    /// @dev 9935 = (`BPS` - `BUFFER_REQUIRED`) = 0.65% liquidation buffer.
+    uint256 public constant MIN_LIQUIDATION_BUFFER_REQUIRED = 9935;
+    /// @notice Maximum collateralization ratio, in `BPS`.
+    /// @dev 9800 = 98%.
+    ///      Maximum 50x leverage (1 / (1 - Collateralization Ratio)).
+    uint256 public constant MAX_COLLATERALIZATION_RATIO = 9800;
+    /// @notice The maximum liquidation incentive, in `BPS`.
     /// @dev 3000 = 30%.
     uint256 public constant MAX_LIQUIDATION_INCENTIVE = 3000;
-    /// @notice Buffer to ensure orderflow auction-based liquidations have
-    ///         priority versus basic liquidations.
-    /// @dev 9999 = 99.9%. Multiplied then divided by `BPS` = 10 bps buffer.
-    uint256 public constant AUCTION_BUFFER = 9999;
-    /// @notice The maximum base cFactor.
+    /// @notice The maximum base cFactor, in `BPS`.
     /// @dev 5000 = 50%. NOTE: This can NEVER be changed to 100% or offchain
     ///      parameters can be unintentionally ignored.
     uint256 public constant MAX_BASE_CFACTOR = 5000;
-    /// @notice The minimum base cFactor.
+    /// @notice The minimum base cFactor, in `BPS`.
     /// @dev 1000 = 10%.
     uint256 public constant MIN_BASE_CFACTOR = 1000;
     /// @notice Minimum hold time to minimize external risks, in seconds.
     /// @dev 20 minutes = 1,200 seconds.
+    ///      The 20 minute holding period is intentionally set so that every
+    ///      borrower experiences a minimum 2 interest rate adjustments from a
+    ///      standard borrow action (10 minute interest rate adjustment rate).
     uint256 public constant MIN_HOLD_PERIOD = 20 minutes;
 
     /// @dev Limit for market debt cap to max sure outstanding user debt
     ///      never overflows `outstandingDebt` value inside _debtOf.
-    uint256 internal constant _MAX_DEBT_CAP = type(uint168).max;
+    uint256 internal constant _MAX_DEBT_CAP = type(uint160).max;
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvalidParameter()")))`
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0x65513fc1;
     /// @dev `bytes4(keccak256(bytes("MarketManager__Unauthorized()")))`
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x37cf6ad5;
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvariantError()")))`
     uint256 internal constant _INVARIANT_ERROR_SELECTOR = 0x5518d5cb;
-    /// @dev A fixed key to use in transient storage for the dynamic penalty.
-    bytes32 internal constant _TRANSIENT_INCENTIVE_KEY
-        = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
-    /// @dev A fixed key to use in transient storage for dynamic close factor.
-    bytes32 internal constant _TRANSIENT_CLOSE_FACTOR_KEY
-        = 0x2345678901234567890123456789012345678901234567890123456789012345;
-    /// @dev A fixed key to use in transient storage for enforcing a single
-    ///      collateral which can be liquidated during Auction tx.
-    bytes32 internal constant _TRANSIENT_COLLATERAL_UNLOCKED_KEY
-        = 0x3456789012345678901234567890123456789012345678901234567890123456;
-
+    /// @dev A fixed key to use in transient storage for offchain liquidation
+    ///      configuration.
+    ///      Key value = `uint256(keccak256(_TRANSIENT_LIQUIDATION_CONFIG_KEY))`.
+    ///      Bits Layout:
+    ///      - [0..159]   `COLLATERAL_UNLOCKED`.
+    ///      - [160..175] `LIQ_INCENTIVE`.
+    ///      - [176..191] `CLOSE_FACTOR`.
+    uint256 internal constant _TRANSIENT_LIQUIDATION_CONFIG_KEY
+        = 0x1966ec4daf81281b2aba49348128e9b155301b8486bde131e0db16a52b730b82;
+    uint256 internal constant _BITMASK_COLLATERAL_UNLOCKED = (1 << 160) - 1;
+    /// @dev The bit position of `LIQ_INCENTIVE` in
+    ///      `_TRANSIENT_LIQUIDATION_CONFIG_KEY`.
+    uint256 internal constant _BITPOS_LIQ_INCENTIVE = 160;
+    /// @dev The bit position of `CLOSE_FACTOR` in
+    ///      `_TRANSIENT_LIQUIDATION_CONFIG_KEY`.
+    uint256 internal constant _BITPOS_CLOSE_FACTOR = 176;
+    
     /// STORAGE ///
 
     /// @notice A list of all tokens inside this market for
@@ -195,6 +205,7 @@ contract MarketManagerIsolated is
     
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
     constructor(ICentralRegistry cr) LiquidityManagerIsolated(cr) {}
 
     /// EXTERNAL FUNCTIONS ///
@@ -322,79 +333,13 @@ contract MarketManagerIsolated is
     /// @return The total market value of `account`'s collateral offset
     ///         by hard liquidation requirements.
     /// @return The total outstanding debt value of `account`.
+    /// @return The value that determines liquidation severity.
     function liquidationValuesOf(
         address account
-    ) external view returns (uint256, uint256, uint256) {
-        (AccountLiqResult memory result, , , )
-            = _liquidationValuesOf(account, address(0), address(0));
-        return (result.cSoft, result.cHard, result.debt);
-    }
-
-    /// @notice Determine whether `account` can be liquidated,
-    ///         by calculating their lFactor, based on their
-    ///         collateral versus outstanding debt.
-    /// @param account The account to check liquidation status for.
-    /// @param collateralToken The address of the Curvance token to be seized
-    ///                        during in the liquidation.
-    /// @param debtToken The address of the Curvance token to be repaid during
-    ///                  the liquidation.
-    /// @return lfactor `account`'s current lFactor, an lFactor at or above 1
-    ///                 indicates a soft liquidation, with a value of
-    ///                 1e18 (WAD) indicating a hard liquidation.
-    /// @return collateralPrice Current price for `collateralToken`.
-    /// @return debtPrice Current price for `debtToken`.
-    function liquidationStatusOf(
-        address account,
-        address collateralToken,
-        address debtToken
-    ) public view returns (
-        uint256 lfactor,
-        uint256 collateralPrice,
-        uint256 debtPrice
-    ) {
-        (, lfactor, collateralPrice, debtPrice) =
-            _liquidationValuesOf(account, collateralToken, debtToken);
-    }
-
-    /// @notice Determine what the account liquidity would be if
-    ///         the given amounts were redeemed/borrowed.
-    /// @dev Will natively revert if a hypothetical borrow will result in a
-    ///      loan less than `MIN_ACTIVE_LOAN_SIZE`, set in `LiquidityManager`.
-    /// @param account The account to determine liquidity for.
-    /// @param cTokenModified The token to hypothetically redeem/borrow.
-    /// @param redemptionShares The number of shares to hypothetically redeem.
-    /// @param borrowAssets The amount of underlying assets to hypothetically
-    ///                     borrow.
-    /// @return Hypothetical account liquidity in excess of collateral
-    ///         requirements.
-    /// @return Hypothetical account liquidity deficit below collateral
-    ///         requirements.
-    function hypotheticalLiquidityOf(
-        address account,
-        address cTokenModified,
-        uint256 redemptionShares, // in Shares.
-        uint256 borrowAssets // in Assets.
-    ) external view returns (uint256, uint256, bool[] memory) {
-        // Make sure they are not trying to hypothetically borrow
-        // a token they are collateralizing.
-        if (
-            ICToken(cTokenModified).collateralPosted(account) > 0 &&
-            borrowAssets > 0
-            ) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        (HypotheticalResult memory r, bool[] memory positionsToClose) =
-            _hypotheticalLiquidityOf(
-                account,
-                HypotheticalAction({
-                    cTokenModified: cTokenModified,
-                    redemptionShares: redemptionShares,
-                    borrowAssets: borrowAssets,
-                    errorCodeBreakpoint: 2
-                })
-            );
-        return (r.collateralSurplus, r.liquidityDeficit, positionsToClose);
+    ) external view returns (uint256, uint256, uint256, uint256) {
+        (AccountLiqResult memory result, uint256 lFactor)
+            = _liquidationValuesOf(account);
+        return (result.cSoft, result.cHard, result.debt, lFactor);
     }
 
     /// @notice Checks if the account should be allowed to mint tokens
@@ -878,8 +823,12 @@ contract MarketManagerIsolated is
         }
 
         // Validate the soft liquidation collateral premium is not stricter
-        // than its `collRatio`.
-        if (c.collRatio > (BPS_SQUARED / (BPS + c.collReqSoft))) {
+        // than its `collRatio` and has a sufficient buffer against
+        // soft liquidation.
+        if (
+            c.collRatio > (MIN_LIQUIDATION_BUFFER_REQUIRED * AUCTION_BUFFER /
+                (BPS + c.collReqSoft))
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -1083,43 +1032,15 @@ contract MarketManagerIsolated is
         emit PositionManagerUpdated(oldPM, false);
     }
 
-    /// @notice Called from the AuctionHub as a post hook after liquidations
-    ///         are tried to enable all collateral to be liquidated outside
-    ///         an Auction tx.
-    function lockAuctionCollateral() external {
-        _checkAuctionPermissions();
-
-        /// @solidity memory-safe-assembly
-        assembly {
-            tstore(_TRANSIENT_COLLATERAL_UNLOCKED_KEY, 0)
-        }
-    }
-
-    /// @notice Called from the AuctionHub as a pre hook before liquidations
-    ///         are tried to enforce that only a specific collateral can be
-    ///         liquidated during a transaction.
-    /// @param collateralToUnlock The address of the cToken to unlock as
-    ///                           liquidatable collateral during
-    ///                           a transaction.
-    function unlockAuctionCollateral(address collateralToUnlock) external {
-        _checkAuctionPermissions();
-
-        uint256 collateralToUnlockUint = uint256(uint160(collateralToUnlock));
-        /// @solidity memory-safe-assembly
-        assembly {
-            tstore(_TRANSIENT_COLLATERAL_UNLOCKED_KEY, collateralToUnlockUint)
-        }
-    }
-
-    /// @notice Sets new dynamic close factor and liquidation penalty
-    ///         values in transient storage.
+    /// @notice Enables an auction-based liquidation, potentially with a dynamic
+    ///         close factor and liquidation penalty values in transient storage.
     /// @dev Transient storage enforces any liquidator outside auction-based
     ///      liquidations uses the default risk parameters.
-    /// @param cToken The Curvance token to set liquidation incentive and
-    ///               close factor for during an auction-based liquidation.
+    /// @param cToken The Curvance token to configure liquidations for during
+    ///               an auction-based liquidation.
     /// @param incentive The auction liquidation incentive value, in `BPS`.
     /// @param closeFactor The auction close factor value, in `BPS`.
-    function setLiquidationConfig(
+    function setTransientLiquidationConfig(
         address cToken,
         uint256 incentive,
         uint256 closeFactor
@@ -1127,7 +1048,7 @@ contract MarketManagerIsolated is
         _checkAuctionPermissions();
         _checkIsListedToken(cToken);
 
-        CurvanceToken memory c = _tokenConfig[cToken];
+         CurvanceToken memory c = _tokenConfig[cToken];
 
         // Make sure this token actually can be liquidated, by being
         // collateralizable in the first place.
@@ -1135,61 +1056,79 @@ contract MarketManagerIsolated is
             revert MarketManager__UnauthorizedLiquidation();
         }
 
-        // Validate `incentive` is within configured incentive bounds.
+        // Validate `incentive` is within configured incentive bounds. This
+        // also validates `incentive` is not > the 16 bits we have allocated.
         if (incentive < c.liqIncMin || incentive > c.liqIncMax) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Validate `closeFactor` is within configured allowed close factor
-        // range.
+        // range. This also validates `closeFactor` is not > the 16 bits we
+        // have allocated.
         if (closeFactor < c.closeFactorMin || closeFactor > c.closeFactorMax) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Store new liquidation parameters in transient storage.
-        // tstore(key, value):
-        // Store `incentive` at `_TRANSIENT_INCENTIVE_KEY`.
-        // Store `closeFactor` at `_TRANSIENT_CLOSE_FACTOR_KEY`.
-        /// @solidity memory-safe-assembly
+        uint256 liqConfig = uint256(uint160(cToken));
         assembly {
-            tstore(_TRANSIENT_INCENTIVE_KEY, incentive)
-            tstore(_TRANSIENT_CLOSE_FACTOR_KEY, closeFactor)
+            // Mask `liqConfig` to the lower 160 bits, in case the upper bits
+            // somehow are not clean.
+            liqConfig := and(liqConfig, _BITMASK_COLLATERAL_UNLOCKED)
+            // Equals: liqConfig | (incentive << _BITPOS_LIQ_INCENTIVE) |
+            //         closeFactor << _BITPOS_CLOSE_FACTOR.
+            liqConfig := or(
+                liqConfig,
+                or(
+                    shl(_BITPOS_LIQ_INCENTIVE, incentive),
+                    shl(_BITPOS_CLOSE_FACTOR, closeFactor)
+                )  
+            )
+
+            tstore(_TRANSIENT_LIQUIDATION_CONFIG_KEY, liqConfig)
         }
     }
 
+    /// @notice Called from the AuctionManager as a post hook after liquidations
+    ///         are tried to enable all collateral to be liquidated outside
+    ///         an Auction tx.
     /// @notice Resets the liquidation risk parameters in transient storage to
     ///         zero.
     /// @dev This is redundant since the transient values will be reset after
     ///      the liquidation transaction, but can be useful during meta calls
     ///      with multiple liquidations during a single transaction. 
-    function resetLiquidationConfig() external {
+    function resetTransientLiquidationConfig() external {
         _checkAuctionPermissions();
 
-        // Clear the transient storage slots by writing zero.
         /// @solidity memory-safe-assembly
         assembly {
-            tstore(_TRANSIENT_INCENTIVE_KEY, 0)
-            tstore(_TRANSIENT_CLOSE_FACTOR_KEY, 0)
+            tstore(_TRANSIENT_LIQUIDATION_CONFIG_KEY, 0)
         }
     }
 
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice Returns the current liquidation values in an active
+    /// @notice Returns the current liquidation configuration in an active
     ///         transaction.
-    /// @dev If a liquidation incentive or close factor is set in
-    ///      transient storage, that value is returned (0 if no set value).
+    /// @dev If a liquidation configuration value is set in transient storage,
+    ///      that value is returned, 0 is returned if no set value.
+    /// @return cTokenUnlocked The Curvance token unlocked for auction-based
+    ///                        liquidations.
     /// @return incentive The liquidation incentive value, in `BPS`.
     /// @return closeFactor The close factor value, in `BPS`.
-    function getLiquidationConfig() public view returns (
+    function getTransientLiquidationConfig() public view returns (
+        address cTokenUnlocked,
         uint256 incentive,
         uint256 closeFactor
     ) {
+        uint256 liqConfig;
         /// @solidity memory-safe-assembly
         assembly {
-            incentive := tload(_TRANSIENT_INCENTIVE_KEY)
-            closeFactor := tload(_TRANSIENT_CLOSE_FACTOR_KEY)
+            liqConfig := tload(_TRANSIENT_LIQUIDATION_CONFIG_KEY)
         }
+
+        cTokenUnlocked = address(uint160(liqConfig));
+        incentive = uint16(liqConfig >> _BITPOS_LIQ_INCENTIVE);
+        closeFactor = uint16(liqConfig >> _BITPOS_CLOSE_FACTOR);
     }
 
     /// @dev Returns true that this contract implements both IMarketManager
@@ -1484,12 +1423,12 @@ contract MarketManagerIsolated is
         
         // Get the exchange rate, and calculate the number of collateralized
         // shares to seize.
-        // Convert liqInc to WAD via `WAD_CUBED_BPS_OFFSET` so we dont run
+        // Convert liqInc to WAD via `WAD_SQUARED_BPS_OFFSET` so we dont run
         // into precision loss from only multiplying into WAD_SQUARED form.
         uint256 debtToCollateral =
-            (((aData.liqInc * tData.debtUnderlyingPrice * WAD_CUBED_BPS_OFFSET) /
-            (tData.collateralUnderlyingPrice * tData.collateralExchangeRate)) *
-            tData.collateralDecimals) / tData.debtDecimals;
+            (((aData.liqInc * tData.debtUnderlyingPrice * WAD_SQUARED_BPS_OFFSET) /
+                tData.collateralSharesPrice) * tData.collateralDecimals) /
+                    tData.debtDecimals;
         uint256 maxDebt = (aData.closeFactor * aData.debtBalance) / BPS;
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
         // otherwise liquidate the maximum amount possible.
@@ -1623,27 +1562,25 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        // Will revert if this liquidation is an attempted auction liquidator
+        // and liquidator has chosen incorrect collateral or market.
+        // Pulls any relevant offchain liquidation configuration.
+        (tData.auctionBuffer, aData.liqInc, aData.closeFactor) =
+            _checkLiquidationConfig(collateralToken);
+
         // Liquidations are only blocked if an error code of 2 (NO_SOURCE)
         // is calculated.
-        (tData.collateralUnderlyingPrice, tData.debtUnderlyingPrice) =
+        (tData.collateralSharesPrice, tData.debtUnderlyingPrice) =
             CommonLib._oracleManager(centralRegistry)
                 .getPriceIsolatedPair(collateralToken, debtToken, 2);
 
-        // Will revert if this liquidation is an attempted auction liquidator
-        // and liquidator has chosen incorrect collateral or market.
-        tData.auctionBuffer = _checkLiquidationConfig(collateralToken);
-
         // Cache all variables needed for computing liquidation levels.
         tData.collateralToken = collateralToken;
-        tData.collateralExchangeRate = ICToken(collateralToken).exchangeRate();
         tData.collateralReqSoft = c.collReqSoft;
         tData.collateralReqHard = c.collReqHard;
         tData.collateralDecimals = 10 ** IERC20(collateralToken).decimals();
         tData.debtToken = debtToken;
         tData.debtDecimals = 10 ** IERC20(debtToken).decimals();
-
-        // Pull transient storage variables from auctioneer updates.
-        (aData.liqInc, aData.closeFactor) = getLiquidationConfig();
 
         // We only need to cache these variables if we did not receive close
         // factor/liquidation incentive from `getLiquidationConfig`.
@@ -1766,28 +1703,23 @@ contract MarketManagerIsolated is
 
     /// @notice Will revert and block liquidations of collateral that are not
     ///         currently allowed by Auction, only if this is an Auction tx.
-    /// @param collateralToken The address of the collateral token to
-    ///                        liquidate.
+    /// @param cToken The address of the collateral token to liquidate.
     /// @return The buffer priority value to apply as a discount to collateral
     ///         during auctioned liquidations.
     function _checkLiquidationConfig(
-        address collateralToken
-    ) internal view returns (uint256) {
-        uint256 result;
-        
-        /// @solidity memory-safe-assembly
-        assembly {
-            result := tload(_TRANSIENT_COLLATERAL_UNLOCKED_KEY)
-        }
+        address cToken
+    ) internal view returns (uint256, uint256, uint256) {
+        (address unlockedCToken, uint256 liqIncentive, uint256 closeFactor) =
+            getTransientLiquidationConfig();
 
         bool unlockedMarket = centralRegistry.isMarketUnlocked();
-        bool unlockedCollateral = address(uint160(result)) == collateralToken;
+        bool unlockedCollateral = unlockedCToken == cToken;
 
         if (unlockedMarket || unlockedCollateral) {
             // This is an attempted auction liquidation, and is configured
             // correctly so give them the auction priority buffer.
             if (unlockedMarket && unlockedCollateral) {
-                return AUCTION_BUFFER;
+                return (AUCTION_BUFFER, liqIncentive, closeFactor);
             }
 
             // This is an attempted auction liquidation, but its misconfigured
@@ -1796,8 +1728,8 @@ contract MarketManagerIsolated is
         }
 
         // This is not an attempted auction liquidation, so approve the
-        // liquidation, but without the auction priority buffer.
-        return 0;
+        // liquidation, but without any offchain liquidation config values.
+        return (0, 0, 0);
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.

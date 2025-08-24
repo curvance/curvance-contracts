@@ -20,7 +20,7 @@ contract SetInterestFeeTest is TestBaseBorrowableCToken {
 
     function test_setInterestFee_fail_whenInvalidInterestFee() public {
         vm.expectRevert(BorrowableCToken.BorrowableCToken__InvalidParameter.selector);
-        borrowableCUSDC.setInterestFee(5001);
+        borrowableCUSDC.setInterestFee(6001);
     }
 
     function test_setInterestFee_success() public {

@@ -147,6 +147,28 @@ contract RedeemTest is TestBaseStrategyCToken {
         assertEq(strategyCBALRETH.totalSupply(), totalSupply - collateralRedeemed);
     }
 
+    function test_strategyCTokenRedeem_success_User2WithMaxApproval() public {
+        skip(20 minutes);
+
+        uint256 underlyingBalance = balRETH.balanceOf(user1);
+        uint256 balance = strategyCBALRETH.balanceOf(user1);
+        uint256 totalSupply = strategyCBALRETH.totalSupply();
+        uint256 collateralRedeemed = 0.5e18;
+
+        vm.startPrank(user1);
+        strategyCBALRETH.approve(user2, type(uint256).max);
+        vm.stopPrank();
+        
+        vm.startPrank(user2);
+        uint256 assets = strategyCBALRETH.redeem(collateralRedeemed, user2, user1);
+        vm.stopPrank();
+
+        assertEq(balRETH.balanceOf(user2), underlyingBalance + assets);
+        assertEq(strategyCBALRETH.balanceOf(user1), balance - collateralRedeemed);
+        assertEq(strategyCBALRETH.totalSupply(), totalSupply - collateralRedeemed);
+        assertEq(strategyCBALRETH.allowance(user1, user2), type(uint256).max);
+    }
+
     function test_strategyCTokenRedeem_success_redeemNonCollateralWhenCollateralIsInUse() public {
         uint256 newTokensDeposited = 2e18;
         uint256 tokensRedeemed = 2e18;

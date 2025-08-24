@@ -126,8 +126,7 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         skip(20 minutes);
         _harvestAuraStrategyRewards(1 weeks);
 
-        mockWethFeed.setMockAnswer(1000e8);
-        mockRethFeed.setMockAnswer(1000e8);
+        mockBalEthRethFeed.setMockAnswer(1000e8);
 
         _prepareUSDC(user2, 250e6);
     }

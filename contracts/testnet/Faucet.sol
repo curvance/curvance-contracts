@@ -20,14 +20,15 @@ contract Faucet is Ownable {
     constructor(
         address[] memory tokens, 
         uint256[] memory claimAmounts
-    ) Ownable() {
-        for (uint256 i = 0; i < tokens.length; i++) {
+    ) Ownable(msg.sender) {
+        for (uint256 i; i < tokens.length; i++) {
             _addFaucetToken(tokens[i], claimAmounts[i]);
         }
     }
 
     function claim(address[] calldata tokens) external {
-        for (uint256 i = 0; i < tokens.length; i++) {
+        uint256 numTokens = tokens.length;
+        for (uint256 i; i < numTokens; i++) {
             _claim(tokens[i]);
         }
     }
@@ -35,8 +36,9 @@ contract Faucet is Ownable {
     function tokensAvailable(
         address[] calldata tokens
     ) external view returns (bool[] memory tokenAvailability) {
-        tokenAvailability = new bool[](tokens.length);
-        for (uint256 i = 0; i < tokens.length; i++) {
+        uint256 numTokens = tokens.length;
+        tokenAvailability = new bool[](numTokens);
+        for (uint256 i; i < numTokens; i++) {
             IERC20 token = IERC20(tokens[i]);
             FaucetToken memory faucetToken = _getFaucetToken(tokens[i]);
             tokenAvailability[i] = 

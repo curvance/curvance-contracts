@@ -86,8 +86,7 @@ contract MixedCollateral is TestBaseLiquidations {
 
         _createPositions();
 
-        mockWethFeed.setMockAnswer(1440e8);
-        mockRethFeed.setMockAnswer(1440e8);
+        mockBalEthRethFeed.setMockAnswer(1440e8);
 
         console2.log("SETUP COMPLETE");
     }
@@ -106,11 +105,11 @@ contract MixedCollateral is TestBaseLiquidations {
         console2.log("Borrower 3 lFactor", lFactorsPreLiquidation[2]);
         console2.log("Borrower 4 lFactor", lFactorsPreLiquidation[3]);
 
-        (,uint256 collateralTokenPrice, uint256 debtTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(
-                borrowers[0],
-                address(strategyCBALRETH), 
-                address(borrowableCUSDC)
+        (uint256 collateralTokenPrice,uint256 debtTokenPrice) =
+            oracleManager.getPriceIsolatedPair(
+                address(strategyCBALRETH),
+                address(borrowableCUSDC),
+                2
             );
 
         console2.log("debtTokenPrice", debtTokenPrice);
@@ -203,11 +202,7 @@ contract MixedCollateral is TestBaseLiquidations {
 
         // Verify lFactors
         for(uint i = 2; i < 4; i++) {
-            (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
-                borrowers[i],
-                address(borrowableCUSDC),
-                address(strategyCBALRETH)
-            );
+            (, , , uint256 lFactorAfter) = marketManagerIsolated.liquidationValuesOf(borrowers[i]);
 
             console2.log("borrower", i, "lFactor", lFactorAfter);
 
@@ -253,11 +248,7 @@ contract MixedCollateral is TestBaseLiquidations {
         lFactors = new uint256[](4);
 
         for(uint i; i < 4; i++) {
-            (lFactors[i],,) = marketManagerIsolated.liquidationStatusOf(
-                borrowers[i],
-                address(borrowableCUSDC),
-                address(strategyCBALRETH)
-            );
+            (, , , lFactors[i]) = marketManagerIsolated.liquidationValuesOf(borrowers[i]);
         }
 
         return lFactors;

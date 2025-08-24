@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IProxy } from "contracts/interfaces/external/api3/IProxy.sol";
 
 contract Api3Adaptor is BaseOracleAdaptor {
@@ -50,7 +49,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param cr The address of central registry.
+    /// @param cr The address of the Protocol Central Registry.
     constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
 
     /// EXTERNAL FUNCTIONS ///

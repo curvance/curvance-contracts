@@ -6,7 +6,6 @@ import { VaultAggregator } from "contracts/oracles/adaptors/wrappedAggregators/V
 import { IStakedFrax } from "contracts/interfaces/external/frax/IStakedFrax.sol";
 
 contract StakedFraxAggregator is VaultAggregator {
-
     /// CONSTRUCTOR ///
 
     constructor(

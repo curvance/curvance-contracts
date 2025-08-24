@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
@@ -12,8 +12,6 @@ import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
     using PendlePtOracleLib for IPMarket;
@@ -63,7 +61,8 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
 
     /// CONSTRUCTOR ///
 
-    /// @param cr The address of central registry.
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param ptOracle_ The address of the PT twap oracle.
     constructor(
         ICentralRegistry cr,
         IPendlePTOracle ptOracle_
@@ -180,11 +179,8 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
     /// @param market The address of the Pendle LP.
     /// @param twapDuration The twap duration to use when pricing.
     function _checkPtTwap(address market, uint32 twapDuration) internal view {
-        (
-            bool increaseCardinalityRequired,
-            ,
-            bool oldestObservationSatisfied
-        ) = ptOracle.getOracleState(market, twapDuration);
+        (bool increaseCardinalityRequired, , bool oldestObservationSatisfied)
+            = ptOracle.getOracleState(market, twapDuration);
 
         if (increaseCardinalityRequired) {
             revert PendlePrincipalTokenAdaptor__CallIncreaseCardinality();

@@ -22,12 +22,10 @@ import { PendleZapperCalldataChecker } from "contracts/calldata-checker/swap-che
 import { VelodromeZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/VelodromeZapperCalldataChecker.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
-import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { BPS, WAD, WAD_SQUARED, WAD_CUBED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD, WAD_SQUARED, WAD_SQUARED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -51,7 +49,7 @@ import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.s
 import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-
+import { MockAuctionManager } from "contracts/mocks/MockAuctionManager.sol";
 
 contract TestBaseMarketIsolated is TestBase {
     // Chain Data
@@ -112,6 +110,7 @@ contract TestBaseMarketIsolated is TestBase {
         _deployChainlinkAdaptors();
 
         _deployMarketManager();
+        _deployAuctionManager();
 
         _deployBorrowableCUSDC();
         _deployBorrowableCDAI();
@@ -150,6 +149,7 @@ contract TestBaseMarketIsolated is TestBase {
         _deployVotingHub();
         _deployFeeManager();
         _deployProtocolReader();
+        _deployAuctionManager();
 
         vm.warp(centralRegistry.genesisEpoch());
         rewardManager.startRewardManager();
@@ -274,11 +274,15 @@ contract TestBaseMarketIsolated is TestBase {
             18,
             1e18
         );
+        chainlinkDaiEth = chainlinkDaiEths[chainId] = new MockV3Aggregator(
+            18,
+            1e18
+        );
         chainlinkRethEth = chainlinkRethEths[chainId] = new MockV3Aggregator(
             18,
             1e18
         );
-        chainlinkDaiEth = chainlinkDaiEths[chainId] = new MockV3Aggregator(
+        chainlinkBalEthReth = chainlinkBalEthReths[chainId] = new MockV3Aggregator(
             18,
             1e18
         );
@@ -328,6 +332,12 @@ contract TestBaseMarketIsolated is TestBase {
             address(chainlinkRethEth),
             0
         );
+        chainlinkAdaptor.addAsset(
+            _BAL_WETH_RETH_ADDRESS,
+            false,
+            address(chainlinkBalEthReth),
+            0
+        );
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
@@ -348,6 +358,10 @@ contract TestBaseMarketIsolated is TestBase {
         );
         oracleManager.addAssetPriceFeed(
             _RETH_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+        oracleManager.addAssetPriceFeed(
+            _BAL_WETH_RETH_ADDRESS,
             address(chainlinkAdaptor)
         );
 
@@ -393,6 +407,13 @@ contract TestBaseMarketIsolated is TestBase {
             address(chainlinkRethEth),
             0
         );
+        dualChainlinkAdaptor.addAsset(
+            _BAL_WETH_RETH_ADDRESS,
+            false,
+            address(chainlinkBalEthReth),
+            0
+        );
+
         oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
         oracleManager.addAssetPriceFeed(
             _WETH_ADDRESS,
@@ -410,27 +431,9 @@ contract TestBaseMarketIsolated is TestBase {
             _RETH_ADDRESS,
             address(dualChainlinkAdaptor)
         );
-
-        balRETHAdapter = balRETHAdapters[
-            chainId
-        ] = new BalancerStablePoolAdaptor(
-            ICentralRegistry(address(centralRegistry)),
-            IVault(_BAL_VAULT_ADDRESS)
-        );
-        BalancerStablePoolAdaptor.AssetConfig memory assetConfig;
-        assetConfig.poolId = _BAL_WETH_RETH_POOLID;
-        assetConfig.poolDecimals = 18;
-        assetConfig.rateProviderDecimals[0] = 18;
-        assetConfig.rateProviders[
-            0
-        ] = 0x1a8F81c256aee9C640e14bB0453ce247ea0DFE6F;
-        assetConfig.underlyingOrConstituent[0] = _RETH_ADDRESS;
-        assetConfig.underlyingOrConstituent[1] = _WETH_ADDRESS;
-        balRETHAdapter.addAsset(_BAL_WETH_RETH_ADDRESS, assetConfig);
-        oracleManager.addApprovedAdaptor(address(balRETHAdapter));
         oracleManager.addAssetPriceFeed(
             _BAL_WETH_RETH_ADDRESS,
-            address(balRETHAdapter)
+            address(dualChainlinkAdaptor)
         );
     }
 
@@ -442,13 +445,29 @@ contract TestBaseMarketIsolated is TestBase {
         centralRegistry.addLockingPermissions(address(gaugeManager));
     }
 
-    function _deployMarketManager() internal initMainVariables {
+    function _deployMarketManager() internal virtual initMainVariables {
         marketManagerIsolated = marketManagersIsolated[block.chainid] = new MarketManagerIsolated(
             ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.addMarketManager(
             address(marketManagerIsolated),
             marketInterestFee
+        );
+    }
+
+    function _deployAuctionManager() internal initMainVariables {
+        address OEV_ALLOCATION_DESTINATION_FASTLANE = address(0x1);
+        address OEV_ALLOCATION_DESTINATION_PROTOCOL = address(0x2);
+        uint256 OEV_SHARE_BUNDLER = 2000; // 20%
+        uint256 OEV_SHARE_FASTLANE = 1000; // 10%
+
+        auctionManager = auctionManagers[block.chainid] = new MockAuctionManager(
+            ICentralRegistry(address(centralRegistry)),
+            address(this),
+            OEV_SHARE_FASTLANE,
+            OEV_ALLOCATION_DESTINATION_FASTLANE,
+            OEV_ALLOCATION_DESTINATION_PROTOCOL,
+            6000 // 60% CF
         );
     }
 
@@ -580,24 +599,6 @@ contract TestBaseMarketIsolated is TestBase {
             )
         );
         return velodromeZapper;
-    }
-
-    function _addSinglePriceFeed() internal initMainVariables {
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
-            _USDC_ADDRESS,
-            address(chainlinkAdaptor)
-        );
-    }
-
-    function _addDualPriceFeed() internal initMainVariables {
-        _addSinglePriceFeed();
-
-        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
-            _USDC_ADDRESS,
-            address(dualChainlinkAdaptor)
-        );
     }
 
     function _setRedstoneSigners() internal initMainVariables {
@@ -753,15 +754,32 @@ contract TestBaseMarketIsolated is TestBase {
         marketManagerIsolated.updateTokenConfig(tokenConfig);
     }
 
+    /// @dev This is effectively `_setAuctionConfigs` but through the mock
+    ///      auction manager.
+    function _setPreSolverSetup(
+        address token,
+        uint256 liquidationIncentive
+    ) internal {
+        // Call as address(this) which is the governor on mock auction manager
+        // deployment.
+        // 
+        auctionManager.preSolverSetup(
+            address(marketManagerIsolated),
+            token,
+            liquidationIncentive
+        );
+    }
+
     function _setAuctionConfigs(
         address token,
-        uint256 liquidationPenalty,
+        uint256 liquidationIncentive,
         uint256 liquidationCloseFactor
     ) internal {
         vm.startPrank(auctionPermsUser);
+
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.unlockAuctionCollateral(token);
-        marketManagerIsolated.setLiquidationConfig(token, liquidationPenalty, liquidationCloseFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(token, liquidationIncentive, liquidationCloseFactor);
+
         vm.stopPrank();
     }
 
@@ -934,13 +952,11 @@ contract TestBaseMarketIsolated is TestBase {
 
         if(params.isMultiMarketTest) {
             marketManager_ = marketManagersIsolated[params.marketManagerId];
-            (lFactor,,) = 
-                marketManagersIsolated[params.marketManagerId].liquidationStatusOf(params.borrower, params.collateralToken, params.borrowedToken);
+            (, , , lFactor) = marketManager_.liquidationValuesOf(params.borrower);
 
         } else {
             marketManager_ = marketManagerIsolated;
-            (lFactor,,) = 
-                marketManagerIsolated.liquidationStatusOf(params.borrower, params.collateralToken, params.borrowedToken);
+            (, , , lFactor) = marketManager_.liquidationValuesOf(params.borrower);
         }
 
         // Handle auction scenarios where lFactor=0 but auction buffer makes it liquidatable
@@ -1037,29 +1053,78 @@ contract TestBaseMarketIsolated is TestBase {
         (data.liqIncBase, data.liqIncCurve,,, data.closeFactorBase, data.closeFactorCurve,,)
             = _marketManager.liquidationConfig(address(_collateralToken));
 
-        (data.lFactor, data.collateralTokenPrice, data.debtTokenPrice) = 
-            _marketManager.liquidationStatusOf(_borrower, _collateralToken, _debtToken);
+        // get decimals
+        (data.collateralTokenPrice, data.debtTokenPrice) =
+            oracleManager.getPriceIsolatedPair(_collateralToken, _debtToken, 2);
+        
+        console2.log("data.collateralTokenPrice in helper", data.collateralTokenPrice);
+        console2.log("data.debtTokenPrice in helper", data.debtTokenPrice);
+
+        data.collateralTokenDecimals = 10 ** ICToken(_collateralToken).decimals();
+        data.debtTokenDecimals = 10 ** ICToken(_debtToken).decimals();
+
+        console2.log("data.collateralTokenDecimals in helper", data.collateralTokenDecimals);
+        console2.log("data.debtTokenDecimals in helper", data.debtTokenDecimals);
+
+        (, uint256 collReqSoft, uint256 collReqHard) = _marketManager.collConfig(_collateralToken);
+
+        console2.log("collReqSoft in helper", collReqSoft);
+        console2.log("collReqHard in helper", collReqHard);
+
+        uint256 sharesPosted = ICToken(_collateralToken).collateralPosted(_borrower);
+        uint256 debtBal = IBorrowableCToken(_debtToken).debtBalance(_borrower);
+
+        console2.log("sharesPosted in helper", sharesPosted);
+        console2.log("debtBal in helper", debtBal);
+
+        uint256 collValue = FixedPointMathLib.mulDiv(sharesPosted, data.collateralTokenPrice, data.collateralTokenDecimals);
+        uint256 debtValue = FixedPointMathLib.mulDivUp(debtBal, data.debtTokenPrice, data.debtTokenDecimals);
+
+        console2.log("collValue in helper", collValue);
+        console2.log("debtValue in helper", debtValue);
+
+        // using BPS,same as _addLiquidationValuesCached
+        uint256 assetValueBps = collValue * BPS;
+        uint256 cSoft = assetValueBps / collReqSoft;
+        uint256 cHard = assetValueBps / collReqHard;
 
         if (_isAuction) {
-            (data.liqInc, cFactor) = _marketManager.getLiquidationConfig();
+            uint256 auctionBuffer = _marketManager.AUCTION_BUFFER();
+            if (auctionBuffer != 0) {
+                cSoft = FixedPointMathLib.mulDiv(cSoft, auctionBuffer, BPS);
+                cHard = FixedPointMathLib.mulDiv(cHard, auctionBuffer, BPS);
+            }
+        }
+
+        // emulate lFactor calculation in _addLiquidationValuesCached
+        if (cSoft >= debtValue) {
+            data.lFactor = 0;
+        } else if (debtValue >= cHard) {
+            data.lFactor = WAD;
+        } else {
+            data.lFactor = FixedPointMathLib.mulDivUp(debtValue - cSoft, WAD, cHard - cSoft);
+        }
+
+        console2.log("data.lFactor in helper", data.lFactor);
+
+        if (_isAuction) {
+            (, data.liqInc, cFactor) = _marketManager.getTransientLiquidationConfig();
         } else {
             cFactor = data.closeFactorBase + ((data.closeFactorCurve * data.lFactor) / WAD);
             data.liqInc = data.liqIncBase + ((data.liqIncCurve * data.lFactor) / WAD);
         }
 
-        console2.log("data.liqInc from auction", data.liqInc);
-        console2.log("cFactor from auction", cFactor);
+        console2.log("data.liqInc in helper", data.liqInc);
+        console2.log("cFactor in helper", cFactor);
 
-        data.collateralTokenDecimals = 10 ** ICToken(_collateralToken).decimals();
-        data.debtTokenDecimals = 10 ** ICToken(_debtToken).decimals();
+        // debtToCollateral unchanged
+        debtToCollateral =
+            (((data.liqInc * data.debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
+                data.collateralTokenPrice) *
+                    data.collateralTokenDecimals) / data.debtTokenDecimals;
 
-        uint256 collateralExchangeRate = ICToken(_collateralToken).exchangeRate();
-
-        debtToCollateral = (((data.liqInc *
-            data.debtTokenPrice * WAD_CUBED_BPS_OFFSET) /
-            (data.collateralTokenPrice * collateralExchangeRate)) * 
-            data.collateralTokenDecimals) / data.debtTokenDecimals;
-            
+        console2.log("debtToCollateral in helper", debtToCollateral);
+                
     }
 
     function _calculateExpectedBadDebt(
@@ -1075,7 +1140,7 @@ contract TestBaseMarketIsolated is TestBase {
         uint256 collateralTokenExchangeRate = ICToken(_collateralToken).exchangeRate();
 
         uint256 collateralAvailable = ICToken(_collateralToken).collateralPosted(_borrower);
-        (uint256 collateralTokenUnderlyingPrice, uint256 debtTokenUnderlyingPrice) = oracleManager.getPriceIsolatedPair(
+        (uint256 collateralTokenPrice, uint256 debtTokenUnderlyingPrice) = oracleManager.getPriceIsolatedPair(
             _collateralToken,
             _debtToken,
             2
@@ -1086,7 +1151,7 @@ contract TestBaseMarketIsolated is TestBase {
         console2.log("debtBalance", debtBalance);
         console2.log("debtTokenUnderlyingPrice", debtTokenUnderlyingPrice);
         console2.log("collateralTokenExchangeRate", collateralTokenExchangeRate);
-        console2.log("collateralTokenUnderlyingPrice", collateralTokenUnderlyingPrice);
+        console2.log("collateralTokenPrice", collateralTokenPrice);
         console2.log("collateralAvailable", collateralAvailable);
         console2.log("collateralRequired", _collateralRequired);
         console2.log("collateralLiquidated", _collateralLiquidated);
@@ -1122,7 +1187,7 @@ contract TestBaseMarketIsolated is TestBase {
         MarketManagerIsolated marketManager_
     ) internal view returns (uint256) {
         // Get collateral and debt values
-        (uint256 collateralSoft,, uint256 debt) =
+        (uint256 collateralSoft,, uint256 debt,) =
             marketManager_.liquidationValuesOf(params.borrower);
 
         // Apply auction buffer
@@ -1148,12 +1213,8 @@ contract TestBaseMarketIsolated is TestBase {
         IBooster(_AURA_BOOSTER).earmarkRewards(109);
 
         skip(time);
-
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-        mockBALFeed.setMockUpdatedAt(block.timestamp);
-        mockAURAFeed.setMockUpdatedAt(block.timestamp);
+        // Update mock feeds
+        _refreshMockFeeds();
 
         IBaseRewardPool rewarder = IBaseRewardPool(_REWARDERS[1]);
         uint256 earnedBAL = rewarder.earned(address(strategyCBALRETH));
@@ -1198,11 +1259,7 @@ contract TestBaseMarketIsolated is TestBase {
             skip(vestingPeriod);
             
             // Update mock feeds
-            mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-            mockWethFeed.setMockUpdatedAt(block.timestamp);
-            mockRethFeed.setMockUpdatedAt(block.timestamp);
-            mockBALFeed.setMockUpdatedAt(block.timestamp);
-            mockAURAFeed.setMockUpdatedAt(block.timestamp);
+            _refreshMockFeeds();
             
             // Accrue the vested yield
             strategyCBALRETH.accrueIfNeeded();
@@ -1216,7 +1273,6 @@ contract TestBaseMarketIsolated is TestBase {
     }
 
     function _setMockFeedsInitial() internal {
-
         /// STABLECOINS
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
         chainlinkAdaptor.addAsset(
@@ -1262,6 +1318,8 @@ contract TestBaseMarketIsolated is TestBase {
             0
         );
 
+        /// RETH
+
         mockRethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
@@ -1273,6 +1331,22 @@ contract TestBaseMarketIsolated is TestBase {
             _RETH_ADDRESS,
             true,
             address(mockRethFeed),
+            0
+        );
+
+        /// BalRETHETH
+
+        mockBalEthRethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
+        chainlinkAdaptor.addAsset(
+            _BAL_WETH_RETH_ADDRESS,
+            true,
+            address(mockBalEthRethFeed),
+            0
+        );
+        dualChainlinkAdaptor.addAsset(
+            _BAL_WETH_RETH_ADDRESS,
+            true,
+            address(mockBalEthRethFeed),
             0
         );
 
@@ -1354,11 +1428,12 @@ contract TestBaseMarketIsolated is TestBase {
 
     function _refreshMockFeeds() internal {
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
+        mockBalEthRethFeed.setMockUpdatedAt(block.timestamp);
         mockStethFeed.setMockUpdatedAt(block.timestamp);
         mockBALFeed.setMockUpdatedAt(block.timestamp);
         mockAURAFeed.setMockUpdatedAt(block.timestamp);
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
     }
 }

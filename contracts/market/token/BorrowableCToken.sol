@@ -19,20 +19,20 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// @notice Maximum percentage fee that can be taken from interest accrued
     ///         from outstanding debt, in `basis points`.
-    /// @dev 5000 = 50%.
-    uint256 public constant MAX_INTEREST_ACCRUAL_FEE = 5000;
+    /// @dev 6000 = 60%.
+    uint256 public constant MAX_INTEREST_ACCRUAL_FEE = 6000;
 
     /// @notice Percentage (%) fee on loan taken during a flashloan, in `BPS`.
-    /// @dev 5 bps = 0.05%.
-    uint256 public constant FLASHLOAN_FEE = 5;
+    /// @dev 4 bps = 0.04%.
+    uint256 public constant FLASHLOAN_FEE = 4;
 
-    /// @dev Mask of vesting rate entry in `_vestingData`.
+    /// @dev Mask of `VESTING_RATE` entry in `_vestingData`.
     uint256 internal constant _BITMASK_VESTING_RATE = (1 << 96) - 1;
-    /// @dev The bit position of `vestingEnd` in `_vestingData`.
+    /// @dev The bit position of `VEST_END` in `_vestingData`.
     uint256 internal constant _BITPOS_VEST_END = 96;
-    /// @dev The bit position of `lastVestingClaim` in `_vestingData`.
+    /// @dev The bit position of `LAST_VEST` in `_vestingData`.
     uint256 internal constant _BITPOS_LAST_VEST = 136;
-    /// @dev The bit position of `marketDebtIndex` in `_vestingData`.
+    /// @dev The bit position of `DEBT_INDEX` in `_vestingData` and `_debtOf`.
     uint256 internal constant _BITPOS_DEBT_INDEX = 176;
     /// @dev `bytes4(keccak256(bytes("BorrowableCToken__InvalidParameter()")))`
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0x8b5fe5a3;
@@ -45,17 +45,16 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice The amount of `asset` that has been borrowed as outstanding
     ///         debt, in assets.
     /// @dev We do not need to worry about uint240 overflow here since we
-    ///      limit debt caps to type(uint168).max in the Market Manager.
+    ///      limit debt caps to type(uint160).max in the Market Manager.
     uint240 public marketOutstandingDebt;
     /// @notice The portion of interest paid by borrowers that goes to the
     ///         protocol, in `BPS`.
     uint16 public interestFee;
 
-    /// @notice Outstanding debt information associated with an account.
-    /// @dev Internal packed debt data:
-    ///      Bits Layout:
-    ///      - [0..175]   `outstandingDebt`.
-    ///      - [176..255] `accountDebtIndex`.
+    /// @notice Active debt information associated with an account.
+    /// @dev Bits Layout:
+    ///      - [0..175]   Account `DEBT`.
+    ///      - [176..255] Account `DEBT_INDEX`.
     mapping(address => uint256) internal _debtOf;
 
     /// EVENTS ///
@@ -110,6 +109,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         uint256 vestingEnd,
         uint256 lastVestingClaim
     ) {
+        // Cache `_vestingData`, the packed vesting data storage value.
         uint256 vestingData = _vestingData;
         vestingRate = uint96(vestingData);
         vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
@@ -127,6 +127,12 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Accrue interest if needed.
         _accrueIfNeeded();
+
+        // Validate that the adjustment rate has not changed from the previous
+        // one, which would go against user assumptions.
+        if (IDynamicIRM(newIRM).ADJUSTMENT_RATE() != vestingPeriod) {
+            revert BaseCTokenWithYield__InvalidVestingPeriod();
+        }
 
         _setIRM(IDynamicIRM(newIRM));
     }
@@ -384,7 +390,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
         result.asset = address(this);
         result.decimals = decimals();
         result.isCollateral = outstandingDebt > 0 ? false : true;
-        result.exchangeRate = _convertToAssets(WAD, _getTotalAssets());
         result.collateralPosted = collateralPosted[account];
         result.debtBalance = outstandingDebt;
     }
@@ -438,7 +443,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param account The address whose debt balance should be calculated.
     /// @return r The current outstanding debt balance of `account`.
     function debtBalance(address account) public view returns (uint256 r) {
-        // Cache debt data to save gas.
+        // Cache `_debtOf`, the packed account active debt storage value.
         uint256 debtOf = _debtOf[account];
         uint256 outstandingDebt = uint176(debtOf);
         
@@ -447,14 +452,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
             return r;
         }
 
-        // Calculate debt balance using the debt indexes:
-        // Debt balance calculation:
-        // ((Account's outstanding debt * Market's debt index) /
-        // Account's debt index).
+        // Calculate `account` active debt balance using:
+        // `(Account's outstanding debt * Market's `DEBT_INDEX`) /
+        // Account's `DEBT_INDEX``.
         r = FixedPointMathLib.mulDivUp(
             outstandingDebt,
-            uint80(_vestingData >> _BITPOS_DEBT_INDEX), // pull the last 80 bits of vesting data to grab the market debt index
-            uint80(debtOf >> _BITPOS_DEBT_INDEX) // pull the last 80 bits of debtOf to grab the account debt index
+            uint80(_vestingData >> _BITPOS_DEBT_INDEX),
+            uint80(debtOf >> _BITPOS_DEBT_INDEX)
         );
     }
 
@@ -708,10 +712,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///         period, and updates vesting data, if needed.
     /// @dev May emit a {RatesAdjusted} event.
     function _accrueIfNeeded() internal override {
+        // Cache `_vestingData`, the packed vesting data storage value.
         uint256 vestingData = _vestingData;
         uint256 lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
 
-        // If no time has passed since the last vest can exit immediately.
+        // If no time has passed since `lastVestingClaim` can exit immediately.
         if (block.timestamp == lastVestingClaim) {
             return;
         }
@@ -728,8 +733,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
             lastVestingClaim
         );
 
-        // Update `lastVestingClaim`, stopping at vesting end if current
-        // vesting period is over.
+        // Update `lastVestingClaim`, stopping at `vestingEnd` if current
+        // vesting period has ended.
         lastVestingClaim = block.timestamp > vestingEnd ?
             vestingEnd : block.timestamp;
 
@@ -801,11 +806,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
         }
 
         assembly {
-            // Mask `rate` to the lower 96 bits, in case
-            // the upper bits somehow aren't clean.
+            // Mask `rate` to the lower 96 bits, in case the upper bits
+            // somehow are not clean.
             rate := and(rate, _BITMASK_VESTING_RATE)
-            // Equals rate | (vestingEnd << _BITPOS_VEST_END) |
-            //        block.timestamp << _BITPOS_LAST_VEST | marketDebtIndex.
+            // Equals `rate | (vestingEnd << _BITPOS_VEST_END) |
+            //         block.timestamp << _BITPOS_LAST_VEST | marketDebtIndex`.
             vestingData := or(
                 rate,
                 or(
@@ -816,10 +821,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
                     shl(_BITPOS_DEBT_INDEX, marketDebtIndex)
                 )  
             )
+            // Update packed `_vestingData` based on new vesting config.
+            sstore(_vestingData.slot, vestingData)
         }
-
-        // Update packed vesting data based on new vesting configuration.
-        _vestingData = vestingData;
     }
 
     /// @notice Updates the interest rate model (`IRM`) used
@@ -921,7 +925,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///      it returns 0.
     /// @return assets The calculated pending assets to vest.
     function _assetsToVest() internal view override returns (uint256 assets) {
-        // Cache vesting data.
+        // Cache `_vestingData`, the packed vesting data storage value.
         uint256 vestingData = _vestingData;
         assets =  _assetsToVest(
             uint96(vestingData),
@@ -931,8 +935,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
         );
     }
 
-        /// @notice Calculates pending yield that has been vested.
-    /// @dev If there are no pending yield or the vesting period has ended,
+    /// @notice Calculates pending assets that have been vested.
+    /// @dev If there are no pending assets or the vesting period has ended,
     ///      it returns 0.
     /// @return assets The calculated pending assets to vest.
     function _assetsToVest(
@@ -943,12 +947,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ) internal view returns (uint256 assets) {
         // Check whether there are pending assets vesting.
         if (vestingRate > 0 && lastVestingClaim < vestingEnd) {
-            // When calculating pending yield:
-            // assets =
-            // If the vesting period has not ended:
-            // PY = vestingRate * (block.timestamp - lastTimeVestClaimed).
+            // When calculating pending assets to vest, if the vesting period
+            // has not ended:
+            // assets = vestingRate * (block.timestamp - lastVestingClaim).
             // If the vesting period has ended:
-            // PY = vestingRate * (vestingEnd - lastTimeVestClaimed)).
+            // assets = vestingRate * (vestingEnd - lastVestingClaim).
             // Then in either case:
             // Divide the pending yield by `WAD` (1e18) for precision.
             assets = _mulDiv(

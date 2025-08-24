@@ -12,6 +12,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 contract PendleZapperCalldataChecker is BaseSwapChecker {
     /// CONSTRUCTOR ///
 
+    /// @param _target The address of the Pendle swap contract.
     constructor(address _target) BaseSwapChecker(_target) {}
 
     /// EXTERNAL FUNCTIONS ///

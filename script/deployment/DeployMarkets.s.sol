@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { Script } from "forge-std/Script.sol";
-import { Vm } from "forge-std/Vm.sol";
-import { DeploymentLogger } from "../utils/DeploymentLogger.sol";
+import { DeployScript } from "../utils/DeployScript.sol";
+import { AddPlugins } from "./AddPlugins.s.sol";
+
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
@@ -12,9 +12,8 @@ import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { AddPlugins } from "./AddPlugins.s.sol";
 
-contract DeployMarkets is Script, DeploymentLogger, AddPlugins {
+contract DeployMarkets is DeployScript {
     struct DynamicInterestRateConfig {
         uint256 baseRatePerYear;
         uint256 vertexRatePerYear;
@@ -23,6 +22,12 @@ contract DeployMarkets is Script, DeploymentLogger, AddPlugins {
         uint256 adjustmentVelocity;
         uint256 vertexMultiplierMax;
         uint256 decayRate;
+    }
+
+    AddPlugins internal plugin_deployer;
+
+    constructor() {
+        plugin_deployer = new AddPlugins();
     }
 
     struct ListConfig {
@@ -38,14 +43,14 @@ contract DeployMarkets is Script, DeploymentLogger, AddPlugins {
         ListConfig[][] memory tokens,
         uint256[] memory interestFees,
         address wrappedNative,
-        AvailablePlugins[] memory plugins
+        AddPlugins.AvailablePlugins[] memory plugins
     ) external recordEvents {
         CentralRegistry registry = CentralRegistry(centralRegistry);
         ICentralRegistry icr = ICentralRegistry(centralRegistry);
         OracleManager router = OracleManager(registry.oracleManager());
 
         for (uint256 i = 0; i < names.length; i++) {
-            string memory name = names[i];
+            string memory name = string.concat("markets.", names[i]);
             ListConfig[] memory tokens = tokens[i];
 
             MarketManagerIsolated market = new MarketManagerIsolated(icr);
@@ -54,11 +59,10 @@ contract DeployMarkets is Script, DeploymentLogger, AddPlugins {
                 address(market),
                 string.concat(name, ".address")
             );
-            emit ContractMetadata(name, "isMarket", true);
 
-            _deployPlugins(icr, market, wrappedNative, name, plugins[i]);
+            plugin_deployer.deployPlugins(icr, market, wrappedNative, name, plugins[i]);
 
-            address[] memory cTokens = _deployCTokens(
+            address[] memory cTokens = deployCTokens(
                 tokens,
                 router,
                 name,
@@ -72,27 +76,27 @@ contract DeployMarkets is Script, DeploymentLogger, AddPlugins {
         }
     }
 
-    function _deployCTokens(
+    function deployCTokens(
         ListConfig[] memory tokens,
         OracleManager router,
         string memory marketName,
         MarketManagerIsolated market,
         ICentralRegistry icr
-    ) internal returns (address[] memory cTokens) {
+    ) public externalScript returns (address[] memory cTokens) {
         cTokens = new address[](tokens.length);
 
         for (uint256 i = 0; i < tokens.length; i++) {
             ListConfig memory listConfig = tokens[i];
 
             if (listConfig.canBorrow) {
-                cTokens[i] = _deployBorrowableCToken(
+                cTokens[i] = deployBorrowableCToken(
                     listConfig,
                     marketName,
                     market,
                     icr
                 );
             } else {
-                cTokens[i] = _deploySimpleCToken(
+                cTokens[i] = deploySimpleCToken(
                     listConfig,
                     marketName,
                     market,
@@ -105,12 +109,12 @@ contract DeployMarkets is Script, DeploymentLogger, AddPlugins {
         }
     }
 
-    function _deploySimpleCToken(
+    function deploySimpleCToken(
         ListConfig memory config,
         string memory marketName,
         MarketManagerIsolated market,
         ICentralRegistry icr
-    ) internal returns (address) {
+    ) public externalScript returns (address) {
         IERC20 asset = IERC20(config.asset);
 
         address cToken = address(
@@ -126,12 +130,12 @@ contract DeployMarkets is Script, DeploymentLogger, AddPlugins {
         return cToken;
     }
 
-    function _deployBorrowableCToken(
+    function deployBorrowableCToken(
         ListConfig memory config,
         string memory marketName,
         MarketManagerIsolated market,
         ICentralRegistry icr
-    ) internal returns (address) {
+    ) public externalScript returns (address) {
         IERC20 asset = IERC20(config.asset);
 
         DynamicIRM IRM = new DynamicIRM(

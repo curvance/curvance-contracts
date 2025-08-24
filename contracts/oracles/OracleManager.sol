@@ -105,8 +105,8 @@ contract OracleManager is IOracleManager {
     mapping(address => bool) public isApprovedAdaptor;
     // Address => Price Feed addresses.
     mapping(address => address[]) public assetPriceFeeds;
-    // Address => Curvance token metadata.
-    mapping(address => CToken) public cTokens;
+    // Address => Curvance token underlying asset address.
+    mapping(address => address) public cTokens;
 
     /// ERRORS ///
 
@@ -118,6 +118,7 @@ contract OracleManager is IOracleManager {
 
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
     constructor(ICentralRegistry cr) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
@@ -178,20 +179,24 @@ contract OracleManager is IOracleManager {
     }
 
     /// @notice Adds a new Curvance token to the Oracle Manager.
-    /// @dev Requires that `newCToken` isn't already supported.
+    /// @dev Requires that `newCToken` is not already supported.
+    ///      The cToken's underlying CANNOT be equal to address(0).
     /// @param newCToken The address of the Curvance token to support.
     function addCTokenSupport(address newCToken) external {
         _checkElevatedPermissions();
 
-        if (cTokens[newCToken].isCToken) {
-            revert OracleManager__InvalidParameter();
-        }
-
         // We call a Curvance-specific token function as a sanity check.
         ICToken(newCToken).isBorrowable();
 
-        cTokens[newCToken].isCToken = true;
-        cTokens[newCToken].underlying = ICToken(newCToken).asset();
+        // Validate `newCToken` has not already been registered as a cToken,
+        // and that `newUnderlying` is not address(0) as that is how we check
+        // whether a token is a cToken or not.
+        address newUnderlying = ICToken(newCToken).asset();
+        if (cTokens[newCToken] != address(0) || newUnderlying == address(0)) {
+            revert OracleManager__InvalidParameter();
+        }
+
+        cTokens[newCToken]= newUnderlying;
     }
 
     /// @notice Removes a Curvance token's support in the Oracle Manager.
@@ -201,7 +206,8 @@ contract OracleManager is IOracleManager {
     function removeCTokenSupport(address cTokenToRemove) external {
         _checkElevatedPermissions();
 
-        if (!cTokens[cTokenToRemove].isCToken) {
+        // Validate `newCToken` has already been registered as a cToken.
+        if (cTokens[cTokenToRemove] == address(0)) {
             revert OracleManager__InvalidParameter();
         }
 
@@ -295,12 +301,6 @@ contract OracleManager is IOracleManager {
         badSourcePriceDivergence = uint128(newBadSource);
     }
 
-    /// @notice Returns the token data of `cToken`.
-    /// @param cToken The address of the cToken to get data of.
-    function getCToken(address cToken) external view returns (CToken memory) {
-        return cTokens[cToken];
-    }
-
     /// @notice Returns the price feeds for `asset`.
     /// @param asset The address of the asset to get price feeds of.
     function getPriceFeeds(
@@ -315,8 +315,9 @@ contract OracleManager is IOracleManager {
     /// @param asset The address of the asset to check.
     /// @return True if the asset is supported, false otherwise.
     function isSupportedAsset(address asset) external view returns (bool) {
-        if (cTokens[asset].isCToken) {
-            return assetPriceFeeds[cTokens[asset].underlying].length > 0;
+        address cTokenUnderlying = cTokens[asset];
+        if (cTokenUnderlying != address(0)) {
+            return assetPriceFeeds[cTokenUnderlying].length > 0;
         }
 
         return assetPriceFeeds[asset].length > 0;
@@ -358,10 +359,11 @@ contract OracleManager is IOracleManager {
         }
 
         address cToken;
+        address cTokenUnderlying = cTokens[asset];
         // Check whether `asset` is Curvance token.
-        if (cTokens[asset].isCToken) {
+        if (cTokenUnderlying != address(0)) {
             cToken = asset;
-            asset = cTokens[asset].underlying;
+            asset = cTokenUnderlying;
         }
 
         // Route pricing to a single feed source or dual feed source.
@@ -388,14 +390,14 @@ contract OracleManager is IOracleManager {
         }
     }
 
-    /// @notice Retrieves the prices of a collateral token and debt token
-    ///         underlyings.
+    /// @notice Retrieves the prices of a collateral token, and debt token
+    ///         underlying.
     /// @param collateralToken The cToken currently collateralized to price.
-    /// @param debtToken The cToken borrowed from to price.
+    /// @param debtToken The borrowableCToken borrowed from to price
+    ///                  underlying of.
     /// @param errorCodeBreakpoint The error code that will cause liquidity
     ///                            operations to revert.
-    /// @return collateralUnderlyingPrice The current price of
-    ///                                   `collateralToken` underlying.
+    /// @return collateralSharesPrice The current price of `collateralToken`.
     /// @return debtUnderlyingPrice The current price of `debtToken`
     ///                             underlying.
     function getPriceIsolatedPair(
@@ -403,12 +405,12 @@ contract OracleManager is IOracleManager {
         address debtToken,
         uint256 errorCodeBreakpoint
     ) external view returns (
-        uint256 collateralUnderlyingPrice,
+        uint256 collateralSharesPrice,
         uint256 debtUnderlyingPrice
     ) {
         uint256 errorCode;
-        (collateralUnderlyingPrice, errorCode) = getPrice(
-            cTokens[collateralToken].underlying,
+        (collateralSharesPrice, errorCode) = getPrice(
+            collateralToken,
             true,
             true
         );
@@ -417,7 +419,7 @@ contract OracleManager is IOracleManager {
         }
 
         (debtUnderlyingPrice, errorCode) = getPrice(
-            cTokens[debtToken].underlying,
+            cTokens[debtToken],
             true,
             false
         );
@@ -428,6 +430,9 @@ contract OracleManager is IOracleManager {
 
     /// @notice Retrieves the prices and account data of multiple assets
     ///         inside a Curvance Market.
+    /// @dev If the asset is being used as collateral the users liquidity is
+    ///      priced in shares, if theyre borrowing the outstanding debt is
+    ///      measured in assets (underlying).
     /// @param account The account to retrieve data for.
     /// @param assets An array of asset addresses to retrieve the prices for.
     /// @param errorCodeBreakpoint The error code that will cause liquidity
@@ -447,7 +452,7 @@ contract OracleManager is IOracleManager {
         uint256 numAssets = assets.length;
 
         AccountSnapshot[] memory snapshots = new AccountSnapshot[](numAssets);
-        uint256[] memory underlyingPrices = new uint256[](numAssets);
+        uint256[] memory prices = new uint256[](numAssets);
         uint256 errorCode;
 
         address asset;
@@ -455,8 +460,11 @@ contract OracleManager is IOracleManager {
             asset = assets[i];
             snapshots[i] = ICToken(asset).getSnapshot(account);
 
-            (underlyingPrices[i], errorCode) = getPrice(
-                cTokens[asset].underlying,
+            // If the asset is being used as collateral the users liquidity is
+            // priced in shares, if theyre borrowing the outstanding debt is
+            // measured in assets (underlying).
+            (prices[i], errorCode) = getPrice(
+                snapshots[i].isCollateral ? asset : cTokens[asset],
                 true,
                 snapshots[i].isCollateral
             );
@@ -466,7 +474,7 @@ contract OracleManager is IOracleManager {
             }
         }
 
-        return (snapshots, underlyingPrices, numAssets);
+        return (snapshots, prices, numAssets);
     }
 
     /// INTERNAL FUNCTIONS ///

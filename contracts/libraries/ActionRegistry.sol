@@ -85,10 +85,6 @@ abstract contract ActionRegistry is IActionRegistry {
     error ActionRegistry__InvalidParams();
     error ActionRegistry__CooldownActive();
 
-    /// CONSTRUCTOR ///
-
-    constructor() {}
-
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Sets token transferability unlock cooldown.

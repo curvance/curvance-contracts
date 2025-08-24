@@ -31,9 +31,8 @@ contract AuctionOneLiquidatedOthersNotTest is TestBaseLiquidations {
         _harvestAuraStrategyRewards(2 weeks);
 
         // set mock prices
-        mockWethFeed.setMockAnswer(1185e8);
-        mockRethFeed.setMockAnswer(1185e8);
-
+        mockBalEthRethFeed.setMockAnswer(1185e8);
+        
         // accrue interest
         borrowableCUSDC.accrueIfNeeded();
         strategyCBALRETH.accrueIfNeeded();

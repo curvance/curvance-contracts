@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseStableLPAdaptor } from "contracts/oracles/adaptors/stableswapBase/BaseStableLPAdaptor.sol";
+import { BaseStableLPAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/stableswapBase/BaseStableLPAdaptor.sol";
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
 contract VelodromeStableLPAdaptor is BaseStableLPAdaptor {
     /// CONSTRUCTOR ///
 
-    /// @param cr The address of central registry.
+    /// @param cr The address of the Protocol Central Registry.
     constructor(ICentralRegistry cr) BaseStableLPAdaptor(cr) {}
 
     /// EXTERNAL FUNCTIONS ///

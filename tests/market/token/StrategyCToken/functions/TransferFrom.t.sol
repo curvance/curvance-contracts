@@ -39,17 +39,39 @@ contract TransferFromTest is TestBaseStrategyCToken {
     }
 
     function test_strategyCTokenTransferFrom_success() public {
+        deal(address(strategyCBALRETH), address(this), 100e18);
+
         uint256 balance = strategyCBALRETH.balanceOf(address(this));
         uint256 user1Balance = strategyCBALRETH.balanceOf(user1);
 
-        strategyCBALRETH.approve(address(this), 100);
+        strategyCBALRETH.approve(user1, 100e18);
 
         vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
-        emit Transfer(address(this), user1, 100);
+        emit Transfer(address(this), user1, 100e18);
 
-        strategyCBALRETH.transferFrom(address(this), user1, 100);
+        vm.prank(user1);
+        strategyCBALRETH.transferFrom(address(this), user1, 100e18);
 
-        assertEq(strategyCBALRETH.balanceOf(address(this)), balance - 100);
-        assertEq(strategyCBALRETH.balanceOf(user1), user1Balance + 100);
+        assertEq(strategyCBALRETH.balanceOf(address(this)), balance - 100e18);
+        assertEq(strategyCBALRETH.balanceOf(user1), user1Balance + 100e18);
+    }
+
+    function test_strategyCTokenTransferFrom_success_withMaxApproval() public {
+        deal(address(strategyCBALRETH), address(this), 100e18);
+
+        uint256 balance = strategyCBALRETH.balanceOf(address(this));
+        uint256 user1Balance = strategyCBALRETH.balanceOf(user1);
+
+        strategyCBALRETH.approve(user1, type(uint256).max);
+
+        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
+        emit Transfer(address(this), user1, 100e18);
+
+        vm.prank(user1);
+        strategyCBALRETH.transferFrom(address(this), user1, 100e18);
+
+        assertEq(strategyCBALRETH.balanceOf(address(this)), balance - 100e18);
+        assertEq(strategyCBALRETH.balanceOf(user1), user1Balance + 100e18);
+        assertEq(strategyCBALRETH.allowance(address(this), user1), type(uint256).max);
     }
 }

@@ -36,7 +36,7 @@ contract SetProtocolInterestFeeTest is TestBaseMarketIsolated {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
-        centralRegistry.setProtocolInterestFee(newMarket, 7501);
+        centralRegistry.setProtocolInterestFee(newMarket, 6001);
     }
 
     function test_setProtocolInterestFee_fail_whenNotLendingMarket()

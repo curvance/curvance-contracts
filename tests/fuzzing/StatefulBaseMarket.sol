@@ -23,8 +23,6 @@
 // import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
 // 
 // import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-// import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
-// import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 // import { OracleManager } from "contracts/oracles/OracleManager.sol";
 // import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 

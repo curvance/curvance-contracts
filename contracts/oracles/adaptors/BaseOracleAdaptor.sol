@@ -3,13 +3,12 @@ pragma solidity 0.8.28;
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
-import { SECONDS_PER_YEAR, WAD } from "contracts/libraries/ConstantsLib.sol";
+import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// CONSTANTS ///
@@ -45,6 +44,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
     constructor(ICentralRegistry cr) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
@@ -88,9 +88,9 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @param asset The address of the asset to set a PriceGuard data on.
     /// @param inUSD Specifies whether the PriceGuard should be in
     ///              USD (true) or a chain's native token (false).
-    /// @param timestampStart When `increasePerYear` should start increasing
-    ///                       `basePrice` raising the maximum price returned
-    ///                       when pricing `asset`.
+    /// @param timestampStart When `ips` should start increasing `basePrice`
+    ///                       raising the maximum price returned when pricing
+    ///                       `asset`.
     /// @param ips The magnitude that `basePrice` should increase overtime
     ///            overtime from `timestampStart`, in `WAD`, in seconds.
     /// @param basePrice The base price that should be the maximum price

@@ -3,6 +3,32 @@ pragma solidity 0.8.28;
 
 import { BasePositionManager, SwapperLib, ICentralRegistry } from "contracts/market/position-management/BasePositionManager.sol";
 
+/// @title Curvance Simple Position Manager.
+/// @notice Simple Asset-specific contract for executing leverage related
+///         actions.
+/// @dev Curvance Position Manager contracts enshrine actions that
+///      usually would require multiple sequential actions to facilitate,
+///      specifically leveraging a position up or deleveraging it for
+///      withdrawal.
+///
+///      Curvance token contracts facilitate these operations through
+///      enshrined integrations with Position Manager callback functions.
+///
+///      Typical workflow for:
+///      Leverage -> borrow assets from a borrowableCToken -> swap debt assets
+///      into collateral assets -> deposit collateral assets and collateralize
+///      received shares -> check that there is no liquidity shortfall from
+///      the initial assets borrowed versus the new collateralized shares.
+///
+///      Deleverage -> redeem collateralized shares from a cToken for assets
+///      -> swap collateral assets for debt assets -> repay outstanding debt
+///      with debt assets -> check that there is no liquidity shortfall from
+///      the initial shares redeemed versus the newly decreased outstanding
+///      debt.
+///
+///      The "Simple" contract is the position manager for working with
+///      generic non-native erc20 tokens such as USDC or WETH.
+///
 contract SimplePositionManager is BasePositionManager {
     /// CONSTRUCTOR ///
 

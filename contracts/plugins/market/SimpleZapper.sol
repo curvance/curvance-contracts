@@ -3,9 +3,29 @@ pragma solidity 0.8.28;
 
 import { BaseZapper, ICentralRegistry, SwapperLib, CommonLib, ICToken } from "contracts/plugins/BaseZapper.sol";
 
+/// @title Curvance Simple Zapper.
+/// @notice Simple Asset-specific contract for executing zap related
+///         actions.
+/// @dev Curvance zapper contracts enshrine actions that
+///      usually would require multiple sequential actions to facilitate,
+///      specifically swapping, depositing, redemptions, and repayments.
+///
+///      Curvance token contracts facilitate these operations through our
+///      standard contract interfaces and the plugin system.
+///
+///      Actions that include collateralization require plugin approval to the
+///      corresponding zapper contract, to collateralize on behalf of another
+///      user via a zapper both the zapper and the caller must have plugin
+///      approval from the account being collateralized on behalf of.
+///
+///      The "Simple" contract is the zapper for working with generic
+///      non-native erc20 tokens such as USDC or WETH.
+///
 contract SimpleZapper is BaseZapper {
     /// CONSTRUCTOR ///
 
+    /// @param cr The address of the Protocol Central Registry.
+    /// @param wNative The address of wrapped native token.
     constructor(ICentralRegistry cr, address wNative) BaseZapper(cr, wNative) {}
 
     /// EXTERNAL FUNCTIONS ///

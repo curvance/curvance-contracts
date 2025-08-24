@@ -12,6 +12,7 @@ import { IOdosRouterV2 } from "contracts/interfaces/external/odos/IOdosRouterV2.
 contract OdosCalldataChecker is BaseSwapChecker {
     /// CONSTRUCTOR ///
 
+    /// @param _target The address of the Odos Router V2 contract.
     constructor(address _target) BaseSwapChecker(_target) {}
 
     /// EXTERNAL FUNCTIONS ///
