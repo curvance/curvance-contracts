@@ -2,12 +2,12 @@
 
 ## Overview
 
-This directory contains the core contracts for the Curvance protocol. All contracts are written using Solidity 0.8.29.
+This directory contains the core contracts for the Curvance protocol. All contracts are written using Solidity 0.8.28.
 
 Curvance is a cross-chain, thesis-driven DeFi lending protocol designed to support diverse asset types while minimizing systemic risk. Key features include:
 
-- **Dynamic Liquidation Engine (DLE)**: A multi-tiered liquidation system that efficiently balances risk management with capital efficiency.
-- **Cross-Chain Architecture**: Native multi-chain support through a hub-and-spoke model powered by secure messaging protocols.
+- **Dynamic Liquidation Engine (DLE)**: A multi-pathed liquidation system that efficiently balances risk management with capital efficiency which captures all MEV.
+- **Cross-Chain Architecture**: Native multi-chain support through the Curvance plugin system powered by secure messaging protocols.
 - **Thesis-Driven Markets**: Specialized markets with tailored risk parameters for different asset classes and investment theses.
 - **Governance-Optimized Tokenomics**: A sophisticated CVE/veCVE system enabling protocol governance across multiple chains.
 - **Security-First Design**: Comprehensive validation systems for external interactions, including dedicated calldata checkers for oracle updates and DEX operations.

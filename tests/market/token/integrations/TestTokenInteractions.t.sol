@@ -345,8 +345,6 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         _assertDebtReduction(250e18, expectedLiquidationValues.badDebt, currentDebtBalance);
 
         assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
-
-
     }
 
     function testLiquidation() public {
