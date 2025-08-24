@@ -72,9 +72,9 @@ the two oracle feeds is too large, an error code can be returned. For the simpli
 
 - Error Code = 0/NO_ERROR: No oracles had any issues in pricing and the Δ was small, every market functionality is allowed.
 - Error Code = 1/CAUTION: Either one of two oracle prices ran into issues in pricing or the Δ was moderate, both new borrows 
-and redemptions are paused.
+  and redemptions are paused.
 - Error Code = 2/BAD_SOURCE: All oracle prices ran into issues in pricing and/or the Δ was large, new borrows, redemptions, 
-and liquidations are paused.
+  and liquidations are paused.
 ```
 
 ### Pessimistic pricing
@@ -97,7 +97,7 @@ Curvance implements a far more complex liquidation system that is generally refe
 - Cached token configuration and oracle price reads.
 - Runtime dynamic liquidation values via transient storage for auction-based liquidations.
 - Dynamically scaling liquidation penalties and close factors via a runtime calculated liquidation factor (lFactor) 
-for traditional liquidations.
+  for traditional liquidations.
 - Exact or optimistic traditional liquidations.
 ```
 
@@ -110,16 +110,23 @@ Auction-based liquidations have a slight priority against traditional liquidatio
 The workflow of an auction-based liquidation follows the steps:
 1. An account enters soft liquidation range for an auction-based liquidation.
 2. Any prospective liquidation can start an auction offchain with the Atlas sdk.
-3. The created auction is desired for all combinations of collateral and Curvance market. The bids are then isolated to each unique collateral and market via the ordering rule highlighted in `AuctionManager_README.md`.
+3. The created auction is desired for all combinations of collateral and Curvance market. The bids are then isolated to 
+   each unique collateral and market via the ordering rule highlighted in `AuctionManager_README.md`.
 4. The auction determines a winner after 300 milliseconds.
 5. The Fastlane bundler can then execute the liquidation via account abstraction to the AEE.
-6. This includes the winning bid as well as several sequential bids (up to 10 total) incase there is left over liquidity to liquidate, or the tx includes multiple auctions for different collateral tokens.
-7. The AEE then calls the Curvance Auction Manager setting up an auction-based liquidation configuration including unlocking the market and collateral for liquidation, 
-optionally dynamic liquidation values such as liquidation penalty and close factor. 
-8. The liquidation is then allowed within that call, conditional on the liquidator transferring the agreed upon bid (currently in native gas tokens) back to the AEE which then transfers it to the Curvance Auction Manager.
-9. Sequential auction-based liquidations can be executed in a singular meta call (repeating steps 6 - 8). Transient storage resets back to empty slots at the end of the transaction locking down auctions until a new auction-based liquidation is executed.
+6. This includes the winning bid as well as several sequential bids (up to 10 total) incase there is left over liquidity 
+to liquidate, or the tx includes multiple auctions for different collateral tokens.
+7. The AEE then calls the Curvance Auction Manager setting up an auction-based liquidation configuration including 
+   unlocking the market and collateral for liquidation, optionally dynamic liquidation values such as liquidation penalty 
+   and close factor. 
+8. The liquidation is then allowed within that call, conditional on the liquidator transferring the agreed upon 
+   bid (currently in native gas tokens) back to the AEE which then transfers it to the Curvance Auction Manager.
+9. Sequential auction-based liquidations can be executed in a singular meta call (repeating steps 6 - 8). Transient storage
+   resets back to empty slots at the end of the transaction locking down auctions until a new auction-based liquidation is
+   executed.
 
-Additionally, auction-based liquidations follow all the additional checks and execution logic highlighted below in `Traditional Liquidations`.
+Additionally, auction-based liquidations follow all the additional checks and execution logic highlighted below in 
+`Traditional Liquidations`.
 ```
 
 ### Traditional Liquidations
@@ -130,11 +137,29 @@ execution costs low due to its bundling structure.
 
 ```
 The workflow of a traditional liquidation follows the steps:
-1. An account or accounts enters liquidation range for the liquidation of some collateral against their outstanding debt obligation(s).
-2. A liquidator can call liquidate() or liquidateExact() on the corresponding borrowableCToken (Borrowable Curvance token which gives its underlying asset tokens to borrowers).
-3. The liquidation call includes a particular Curvance Token (cToken) posted as collateral to be liquidated and then account(s) to be liquidated. If calling liquidateExact() the debt obligations to repay are provided in `assets` denomination. The cToken to be liquidated CANNOT be the borrowableCToken owed as its implicitly enforced within the protocol that users cannot borrow from a cToken they also are posting as collateral themselves.
-4. The liquidation states of all accounts are then reviewed via the `MarketManager` calculating whether a liquidation is possible and if so, how much debt and collateral can be liquidated. For liquidateExact() calls if the allowed debt repayment is more than the value provided in the exact call then the liquidation reverts. The magnitude of collateral that can be liquidated and the penalty paid to liquidators is determined by the `lFactor` which scales from a soft liquidation with a moderate penalty and liquidation size, to a hard liquidation which completely liquidates an account with a huge penalty. Any accounts who cannot be liquidated are merely skipped, if no accounts can be liquidated the entire operation reverts. Because of this a liquidator may think that includes a huge number of accounts who potentially can be liquidated makes sense, however this is not the case as the network gas cost of liquidation will increase without any additional rewards due to the additional logic processessing costs.
-5. For all accounts who can be liquidated their debt repayment is bundled with all other accounts liquidated into a singular repayment (E.g. 10 users who will have $100 of usdc debt obligations repaid will have it done as a singular $1000 usdc debt repayment to the borrowableCToken contract), their collateral is then individually transferred to the liquidator.
+1. An account or accounts enters liquidation range for the liquidation of some collateral against their 
+   outstanding debt obligation(s).
+2. A liquidator can call liquidate() or liquidateExact() on the corresponding borrowableCToken (Borrowable 
+   Curvance token which gives its underlying asset tokens to borrowers).
+3. The liquidation call includes a particular Curvance Token (cToken) posted as collateral to be liquidated 
+   and then account(s) to be liquidated. If calling liquidateExact() the debt obligations to repay are provided 
+   in `assets` denomination. The cToken to be liquidated CANNOT be the borrowableCToken owed as its implicitly 
+   enforced within the protocol that users cannot borrow from a cToken they also are posting as collateral 
+   themselves.
+4. The liquidation states of all accounts are then reviewed via the `MarketManager` calculating whether a 
+   liquidation is possible and if so, how much debt and collateral can be liquidated. For liquidateExact() 
+   calls if the allowed debt repayment is more than the value provided in the exact call then the liquidation 
+   reverts. The magnitude of collateral that can be liquidated and the penalty paid to liquidators is determined 
+   by the `lFactor` which scales from a soft liquidation with a moderate penalty and liquidation size, to a hard 
+   liquidation which completely liquidates an account with a huge penalty. Any accounts who cannot be liquidated 
+   are merely skipped, if no accounts can be liquidated the entire operation reverts. Because of this a liquidator 
+   may think that includes a huge number of accounts who potentially can be liquidated makes sense, however this is 
+   not the case as the network gas cost of liquidation will increase without any additional rewards due to the 
+   additional logic processessing costs.
+5. For all accounts who can be liquidated their debt repayment is bundled with all other accounts liquidated into a 
+   singular repayment (E.g. 10 users who will have $100 of usdc debt obligations repaid will have it done as a 
+   singular $1000 usdc debt repayment to the borrowableCToken contract), their collateral is then individually 
+   transferred to the liquidator.
 6. Corresponding events are emitted for all frontends to pick up that liquidation(s) have occurred.
 ```
 
