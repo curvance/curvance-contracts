@@ -1,3 +1,7 @@
+<p style="text-align: center;width:100%"> <img src="https://pbs.twimg.com/profile_banners/1445781144125857796/1752160592"/></p>
+
+<h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> curvance contracts</h1>
+
 ## Overview
 
 This document contains information regarding how Curvance markets function regarding dependencies, execution, and asset support inside the Curvance Protocol ("Curvance").
@@ -9,7 +13,10 @@ All contracts are written using Solidity 0.8.28, this is for usage of tstore/tlo
 ## Market Positioning and design methodology
 
 Curvance markets are extremely opinionated in their design and are not intended to compete with more generalized models like Aave or curation platforms like Morpho 
-or Euler.
+or Euler. Curvance isolated markets by design support two tokens, which can have one or two borrowable tokens, but not zero. Any token can be collateralized inside 
+Curvance, but not all tokens need to be borrowable. These two tokens are listed simultaneously on calling `listTokens()` and can not be changed afterwards, once a token
+becomes collateralizable or borrowable it cannot be disabled, though this functionality can be paused for new entrants via changes to collateral/debt caps and/or direct pausing of corresponding actions via the Market Manager.
+
 Curvance focuses heavily on optimizing liquidations through bundled execution, cached state reads, and compressed storage variables through transient storage, 
 packed bitshifting, and packed structured variables. The purpose of cheap liquidations is to substantially increase the level of leverage offered by the platform 
 as well as the ability to support nascent assets safely.
@@ -64,8 +71,10 @@ the two oracle feeds is too large, an error code can be returned. For the simpli
 Δ = Delta, or differential between values.
 
 - Error Code = 0/NO_ERROR: No oracles had any issues in pricing and the Δ was small, every market functionality is allowed.
-- Error Code = 1/CAUTION: Either one of two oracle prices ran into issues in pricing or the Δ was moderate, both new borrows and redemptions are paused.
-- Error Code = 2/BAD_SOURCE: All oracle prices ran into issues in pricing and/or the Δ was large, new borrows, redemptions, and liquidations are paused.
+- Error Code = 1/CAUTION: Either one of two oracle prices ran into issues in pricing or the Δ was moderate, both new borrows 
+and redemptions are paused.
+- Error Code = 2/BAD_SOURCE: All oracle prices ran into issues in pricing and/or the Δ was large, new borrows, redemptions, 
+and liquidations are paused.
 ```
 
 ### Pessimistic pricing
@@ -81,13 +90,14 @@ such as liquidation cascades.
 Curvance implements a far more complex liquidation system that is generally referred to as the DLE. The DLE features:
 
 ```
-- A dual path liquidation system allowing for both auction-based liquidations and traditional liquidations. More on these later.
+- A dual path liquidation system allowing for both auction-based liquidations and traditional liquidations.
 - Native MEV capture of excessive liquidation penalties via orderflow auctions.
 - Bundled liquidations which are rolled up into a single debt repayment.
 - Native bad debt socialization to lenders to prevent bank runs.
 - Cached token configuration and oracle price reads.
 - Runtime dynamic liquidation values via transient storage for auction-based liquidations.
-- Dynamically scaling liquidation penalties and close factors via a runtime calculated liquidation factor (lFactor) for traditional liquidations.
+- Dynamically scaling liquidation penalties and close factors via a runtime calculated liquidation factor (lFactor) 
+for traditional liquidations.
 - Exact or optimistic traditional liquidations.
 ```
 
@@ -96,6 +106,7 @@ Curvance implements a far more complex liquidation system that is generally refe
 Auction-based liquidations are the "primary" liquidation path inside Curvance. Auction-based liquidations are built in collaboration with Fastlane Labs and their AEE. 
 Auction-based liquidations have a slight priority against traditional liquidations (currently 10 basis points) which acts as a discount on account collateral when compared to their outstanding debt obligations. Auction-based liquidations also have priority via backrunning oracle updates, currently built through Redstone oracle feeds.
 
+```
 The workflow of an auction-based liquidation follows the steps:
 1. An account enters soft liquidation range for an auction-based liquidation.
 2. Any prospective liquidation can start an auction offchain with the Atlas sdk.
@@ -109,6 +120,7 @@ optionally dynamic liquidation values such as liquidation penalty and close fact
 9. Sequential auction-based liquidations can be executed in a singular meta call (repeating steps 6 - 8). Transient storage resets back to empty slots at the end of the transaction locking down auctions until a new auction-based liquidation is executed.
 
 Additionally, auction-based liquidations follow all the additional checks and execution logic highlighted below in `Traditional Liquidations`.
+```
 
 ### Traditional Liquidations
 
@@ -116,6 +128,7 @@ Traditional liquidations are intended to be used as a fallback when auction-base
 overcollateralized protocol does today. When compared to traditional models, these traditional liquidations are still vastly superior in the ability to keep marginal 
 execution costs low due to its bundling structure.
 
+```
 The workflow of a traditional liquidation follows the steps:
 1. An account or accounts enters liquidation range for the liquidation of some collateral against their outstanding debt obligation(s).
 2. A liquidator can call liquidate() or liquidateExact() on the corresponding borrowableCToken (Borrowable Curvance token which gives its underlying asset tokens to borrowers).
@@ -123,6 +136,7 @@ The workflow of a traditional liquidation follows the steps:
 4. The liquidation states of all accounts are then reviewed via the `MarketManager` calculating whether a liquidation is possible and if so, how much debt and collateral can be liquidated. For liquidateExact() calls if the allowed debt repayment is more than the value provided in the exact call then the liquidation reverts. The magnitude of collateral that can be liquidated and the penalty paid to liquidators is determined by the `lFactor` which scales from a soft liquidation with a moderate penalty and liquidation size, to a hard liquidation which completely liquidates an account with a huge penalty. Any accounts who cannot be liquidated are merely skipped, if no accounts can be liquidated the entire operation reverts. Because of this a liquidator may think that includes a huge number of accounts who potentially can be liquidated makes sense, however this is not the case as the network gas cost of liquidation will increase without any additional rewards due to the additional logic processessing costs.
 5. For all accounts who can be liquidated their debt repayment is bundled with all other accounts liquidated into a singular repayment (E.g. 10 users who will have $100 of usdc debt obligations repaid will have it done as a singular $1000 usdc debt repayment to the borrowableCToken contract), their collateral is then individually transferred to the liquidator.
 6. Corresponding events are emitted for all frontends to pick up that liquidation(s) have occurred.
+```
 
 ## Crosschain
 
