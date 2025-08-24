@@ -7,17 +7,21 @@ import { DeploymentLogger } from "../utils/DeploymentLogger.sol";
 
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
 import { VaultPositionManager } from "contracts/market/position-management/VaultPositionManager.sol";
+import { NativeVaultPositionManager } from "contracts/market/position-management/NativeVaultPositionManager.sol";
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { VaultZapper } from "contracts/plugins/market/VaultZapper.sol";
+import { NativeVaultZapper } from "contracts/plugins/market/NativeVaultZapper.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract AddPlugins is Script, DeploymentLogger {
     struct AvailablePlugins {
         bool simplePositionManager;
-        bool vaultPositionManager;
         bool simpleZapper;
+        bool vaultPositionManager;
         bool vaultZapper;
+        bool nativeVaultPositionManager;
+        bool nativeVaultZapper;
     }
 
     struct PluginMarket {
@@ -46,6 +50,29 @@ contract AddPlugins is Script, DeploymentLogger {
         string memory marketName,
         AvailablePlugins memory plugins
     ) internal {
+        if (plugins.nativeVaultPositionManager) {
+            NativeVaultPositionManager nativeVaultPositionManager = new NativeVaultPositionManager(
+                    icr,
+                    address(market),
+                    wrappedNative
+                );
+            MarketManagerIsolated(market).addPositionManager(
+                address(nativeVaultPositionManager)
+            );
+            emit ContractDeployed(
+                address(nativeVaultPositionManager),
+                string.concat(marketName, ".plugins.nativeVaultPositionManager")
+            );
+        }
+
+        if (plugins.nativeVaultZapper) {
+            NativeVaultZapper nativeVaultZapper = new NativeVaultZapper(icr, wrappedNative);
+            emit ContractDeployed(
+                address(nativeVaultZapper),
+                string.concat(marketName, ".plugins.nativeVaultZapper")
+            );
+        }
+
         if (plugins.simplePositionManager) {
             SimplePositionManager simplePositionManager = new SimplePositionManager(
                     icr,
