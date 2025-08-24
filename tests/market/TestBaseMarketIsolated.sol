@@ -445,7 +445,7 @@ contract TestBaseMarketIsolated is TestBase {
         centralRegistry.addLockingPermissions(address(gaugeManager));
     }
 
-    function _deployMarketManager() internal initMainVariables {
+    function _deployMarketManager() internal virtual initMainVariables {
         marketManagerIsolated = marketManagersIsolated[block.chainid] = new MarketManagerIsolated(
             ICentralRegistry(address(centralRegistry))
         );
@@ -1053,10 +1053,59 @@ contract TestBaseMarketIsolated is TestBase {
         (data.liqIncBase, data.liqIncCurve,,, data.closeFactorBase, data.closeFactorCurve,,)
             = _marketManager.liquidationConfig(address(_collateralToken));
 
-        (, , , data.lFactor) = _marketManager.liquidationValuesOf(_borrower);
-
+        // get decimals
         (data.collateralTokenPrice, data.debtTokenPrice) =
             oracleManager.getPriceIsolatedPair(_collateralToken, _debtToken, 2);
+        
+        console2.log("data.collateralTokenPrice in helper", data.collateralTokenPrice);
+        console2.log("data.debtTokenPrice in helper", data.debtTokenPrice);
+
+        data.collateralTokenDecimals = 10 ** ICToken(_collateralToken).decimals();
+        data.debtTokenDecimals = 10 ** ICToken(_debtToken).decimals();
+
+        console2.log("data.collateralTokenDecimals in helper", data.collateralTokenDecimals);
+        console2.log("data.debtTokenDecimals in helper", data.debtTokenDecimals);
+
+        (, uint256 collReqSoft, uint256 collReqHard) = _marketManager.collConfig(_collateralToken);
+
+        console2.log("collReqSoft in helper", collReqSoft);
+        console2.log("collReqHard in helper", collReqHard);
+
+        uint256 sharesPosted = ICToken(_collateralToken).collateralPosted(_borrower);
+        uint256 debtBal = IBorrowableCToken(_debtToken).debtBalance(_borrower);
+
+        console2.log("sharesPosted in helper", sharesPosted);
+        console2.log("debtBal in helper", debtBal);
+
+        uint256 collValue = FixedPointMathLib.mulDiv(sharesPosted, data.collateralTokenPrice, data.collateralTokenDecimals);
+        uint256 debtValue = FixedPointMathLib.mulDivUp(debtBal, data.debtTokenPrice, data.debtTokenDecimals);
+
+        console2.log("collValue in helper", collValue);
+        console2.log("debtValue in helper", debtValue);
+
+        // using BPS,same as _addLiquidationValuesCached
+        uint256 assetValueBps = collValue * BPS;
+        uint256 cSoft = assetValueBps / collReqSoft;
+        uint256 cHard = assetValueBps / collReqHard;
+
+        if (_isAuction) {
+            uint256 auctionBuffer = _marketManager.AUCTION_BUFFER();
+            if (auctionBuffer != 0) {
+                cSoft = FixedPointMathLib.mulDiv(cSoft, auctionBuffer, BPS);
+                cHard = FixedPointMathLib.mulDiv(cHard, auctionBuffer, BPS);
+            }
+        }
+
+        // emulate lFactor calculation in _addLiquidationValuesCached
+        if (cSoft >= debtValue) {
+            data.lFactor = 0;
+        } else if (debtValue >= cHard) {
+            data.lFactor = WAD;
+        } else {
+            data.lFactor = FixedPointMathLib.mulDivUp(debtValue - cSoft, WAD, cHard - cSoft);
+        }
+
+        console2.log("data.lFactor in helper", data.lFactor);
 
         if (_isAuction) {
             (, data.liqInc, cFactor) = _marketManager.getTransientLiquidationConfig();
@@ -1065,16 +1114,16 @@ contract TestBaseMarketIsolated is TestBase {
             data.liqInc = data.liqIncBase + ((data.liqIncCurve * data.lFactor) / WAD);
         }
 
-        console2.log("data.liqInc from auction", data.liqInc);
-        console2.log("cFactor from auction", cFactor);
+        console2.log("data.liqInc in helper", data.liqInc);
+        console2.log("cFactor in helper", cFactor);
 
-        data.collateralTokenDecimals = 10 ** ICToken(_collateralToken).decimals();
-        data.debtTokenDecimals = 10 ** ICToken(_debtToken).decimals();
-
+        // debtToCollateral unchanged
         debtToCollateral =
             (((data.liqInc * data.debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
                 data.collateralTokenPrice) *
                     data.collateralTokenDecimals) / data.debtTokenDecimals;
+
+        console2.log("debtToCollateral in helper", debtToCollateral);
                 
     }
 
