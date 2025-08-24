@@ -8,6 +8,20 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
+/// @title Curvance Pendle Zapper.
+/// @notice Pendle Asset-specific contract for executing zap related
+///         actions.
+/// @dev Curvance zapper contracts enshrine actions that
+///      usually would require multiple sequential actions to facilitate,
+///      specifically swapping, depositing, redemptions, and repayments.
+///
+///      Curvance token contracts facilitate these operations through our
+///      standard contract interfaces and the plugin system.
+///
+///      The "Pendle" contract is the zapper for working with Pendle native
+///      erc20 tokens such as sUSDe/sUSDe-PT-dec-31-2025 LP tokens,
+///      or sUSDe-PT-dec-31-2025 PT tokens.
+///
 contract PendleZapper is BaseZapper {
     /// TYPES ///
 

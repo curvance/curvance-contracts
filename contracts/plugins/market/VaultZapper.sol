@@ -9,6 +9,22 @@ import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
 
+/// @title Curvance Vault Zapper.
+/// @notice Vault-specific contract for executing zap related
+///         actions.
+/// @dev Curvance zapper contracts enshrine actions that
+///      usually would require multiple sequential actions to facilitate,
+///      specifically swapping, depositing, redemptions, and repayments.
+///
+///      Curvance token contracts facilitate these operations through our
+///      standard contract interfaces and the plugin system.
+///
+///      The "Vault" contract is the zapper for working with generic
+///      non-native erc4626 tokens such as sFRAX. No type specific "redeemAnd"
+///      is written as execution is intended to be the  as the "simple"
+///      zappers where redemptions are done directly on the corresponding
+///      cToken.
+///
 contract VaultZapper is SimpleZapper {
     /// CONSTRUCTOR ///
 
