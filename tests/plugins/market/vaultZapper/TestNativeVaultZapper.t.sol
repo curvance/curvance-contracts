@@ -13,6 +13,7 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { IVault } from "contracts/interfaces/IVault.sol";
+import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
@@ -113,6 +114,41 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
             swapAction,
             0,
             false,
+            user1
+        );
+
+        vm.stopPrank();
+
+        assertEq(user1.balance, initialEthBalance - 100 ether, "User ETH balance should decrease by input amount");
+        assertEq(simpleCSHMON.balanceOf(user1), previewDepositAmount, "User cToken balance should increase, cToken exchange rate is 1:1 in this test");
+        assertEq(simpleCSHMON.balanceOf(user1), returnedShares, "Returned shares should match user balance");
+        assertEq(IERC20(simpleCSHMON.asset()).balanceOf(address(simpleCSHMON)), previewDepositAmount + 77777, "Vault balance in cToken should increase");
+        assertEq(simpleCSHMON.totalAssets(), previewDepositAmount + 77777, "cToken totalAssets should increase");
+        assertEq(address(vaultZapper).balance, 0, "Zapper should not hold any ETH after operation");
+    }
+
+    function test_vaultZapper_success_swapAndDeposit_NoSwap_DirectNative_WithCollateral() public {
+        // No swap in this test
+        deal(user1, 100 ether);
+
+        uint256 previewDepositAmount = IVault(simpleCSHMON.asset()).previewDeposit(100 ether);
+        uint256 initialEthBalance = user1.balance;
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputAmount = 100 ether;
+        swapAction.outputToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapAction.inputToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+
+        vm.startPrank(user1);
+
+        IPluginDelegable(address(simpleCSHMON)).setDelegateApproval(address(vaultZapper), true);
+        uint256 returnedShares = vaultZapper.swapAndDeposit{value: 100 ether}
+        (
+            address(simpleCSHMON),
+            false,
+            swapAction,
+            0,
+            true,
             user1
         );
 
