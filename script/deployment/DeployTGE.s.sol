@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { Script } from "forge-std/Script.sol";
-import { Vm } from "forge-std/Vm.sol";
-import { DeploymentLogger } from "../utils/DeploymentLogger.sol";
+import { DeployScript } from "../utils/DeployScript.sol";
+
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { CVE } from "contracts/token/CVE.sol";
@@ -12,7 +11,7 @@ import { VeCVE } from "contracts/token/VeCVE.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 
-contract DeployTGE is Script, DeploymentLogger {
+contract DeployTGE is DeployScript {
     function run(
         address centralRegistry,
         uint256 lockBoostMultiplier,

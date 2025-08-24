@@ -1,27 +1,19 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { Script } from "forge-std/Script.sol";
-import { Vm } from "forge-std/Vm.sol";
-import { DeploymentLogger } from "../utils/DeploymentLogger.sol";
+import { DeployScript } from "../utils/DeployScript.sol";
 
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
 import { VaultPositionManager } from "contracts/market/position-management/VaultPositionManager.sol";
 import { NativeVaultPositionManager } from "contracts/market/position-management/NativeVaultPositionManager.sol";
-import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
-import { VaultZapper } from "contracts/plugins/market/VaultZapper.sol";
-import { NativeVaultZapper } from "contracts/plugins/market/NativeVaultZapper.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract AddPlugins is Script, DeploymentLogger {
+contract AddPlugins is DeployScript {
     struct AvailablePlugins {
         bool simplePositionManager;
-        bool simpleZapper;
         bool vaultPositionManager;
-        bool vaultZapper;
         bool nativeVaultPositionManager;
-        bool nativeVaultZapper;
     }
 
     struct PluginMarket {
@@ -39,17 +31,17 @@ contract AddPlugins is Script, DeploymentLogger {
         for(uint256 i; i < markets.length; i++) {
             PluginMarket memory pluginMarket = markets[i];
             MarketManagerIsolated market = MarketManagerIsolated(pluginMarket.market);
-            _deployPlugins(icr, market, wrappedNative, pluginMarket.marketName, pluginMarket.plugins);
+            deployPlugins(icr, market, wrappedNative, pluginMarket.marketName, pluginMarket.plugins);
         }
     }
 
-    function _deployPlugins(
+    function deployPlugins(
         ICentralRegistry icr,
         MarketManagerIsolated market,
         address wrappedNative,
         string memory marketName,
         AvailablePlugins memory plugins
-    ) internal {
+    ) public externalScript {
         if (plugins.nativeVaultPositionManager) {
             NativeVaultPositionManager nativeVaultPositionManager = new NativeVaultPositionManager(
                     icr,
@@ -62,14 +54,6 @@ contract AddPlugins is Script, DeploymentLogger {
             emit ContractDeployed(
                 address(nativeVaultPositionManager),
                 string.concat(marketName, ".plugins.nativeVaultPositionManager")
-            );
-        }
-
-        if (plugins.nativeVaultZapper) {
-            NativeVaultZapper nativeVaultZapper = new NativeVaultZapper(icr, wrappedNative);
-            emit ContractDeployed(
-                address(nativeVaultZapper),
-                string.concat(marketName, ".plugins.nativeVaultZapper")
             );
         }
 
@@ -100,22 +84,6 @@ contract AddPlugins is Script, DeploymentLogger {
             emit ContractDeployed(
                 address(vaultPositionManager),
                 string.concat(marketName, ".plugins.vaultPositionManager")
-            );
-        }
-
-        if (plugins.simpleZapper) {
-            SimpleZapper simpleZapper = new SimpleZapper(icr, wrappedNative);
-            emit ContractDeployed(
-                address(simpleZapper),
-                string.concat(marketName, ".plugins.simpleZapper")
-            );
-        }
-
-        if (plugins.vaultZapper) {
-            VaultZapper vaultZapper = new VaultZapper(icr, wrappedNative);
-            emit ContractDeployed(
-                address(vaultZapper),
-                string.concat(marketName, ".plugins.vaultZapper")
             );
         }
     }

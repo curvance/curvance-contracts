@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { Script } from "forge-std/Script.sol";
-import { Vm } from "forge-std/Vm.sol";
-import { DeploymentLogger } from "../utils/DeploymentLogger.sol";
+import { DeployScript } from "../utils/DeployScript.sol";
+import { AddChainLinkSupport } from './AddChainLinkSupport.s.sol';
+import { AddRedstoneSupport } from './AddRedstoneSupport.s.sol';
 
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { RedstoneClassicAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneClassicAdaptor.sol";
-import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
-import { RedstoneAdaptorMulticallChecker } from "contracts/calldata-checker/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
+import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
+import { VaultZapper } from "contracts/plugins/market/VaultZapper.sol";
+import { NativeVaultZapper } from "contracts/plugins/market/NativeVaultZapper.sol";
 
-contract DeployBase is Script, DeploymentLogger {
+contract DeployBase is DeployScript  {
     struct Config {
         address daoAddress;
         address emergencyCouncil;
@@ -28,12 +27,20 @@ contract DeployBase is Script, DeploymentLogger {
         bool chainlink;
     }
 
+    AddRedstoneSupport internal redstoneSupport;
+    AddChainLinkSupport internal chainlinkSupport;
+
+    constructor() {
+        redstoneSupport = new AddRedstoneSupport();
+        chainlinkSupport = new AddChainLinkSupport();
+    }
+
     function run(
         Config memory config,
         address harvester,
-        Adaptors calldata adaptors
+        Adaptors calldata adaptors,
+        address wrappedNative
     ) external recordEvents {
-        // Deploy CentralRegistry
         CentralRegistry centralRegistry = new CentralRegistry(
             config.daoAddress,
             config.emergencyCouncil,
@@ -45,52 +52,50 @@ contract DeployBase is Script, DeploymentLogger {
         ICentralRegistry icr = ICentralRegistry(address(centralRegistry));
         centralRegistry.addHarvestPermissions(harvester);
 
-        // Deploy Oracle Manager
         OracleManager oracleManager = new OracleManager(icr);
         centralRegistry.setOracleManager(address(oracleManager));
         emit ContractDeployed(address(oracleManager), "OracleManager");
 
-        // TODO: Change this adaptor code into individual add contracts
+        _deployAdaptors(icr, centralRegistry, adaptors, oracleManager);
+        _deployZappers(icr, wrappedNative);
+    }
+
+    function _deployAdaptors(
+        ICentralRegistry icr,
+        CentralRegistry registry,
+        Adaptors memory adaptors, 
+        OracleManager oracleManager
+    ) internal {
         if (adaptors.chainlink) {
-            address chainlinkAdaptor = address(new ChainlinkAdaptor(icr));
-            oracleManager.addApprovedAdaptor(chainlinkAdaptor);
-            emit ContractDeployed(chainlinkAdaptor, "ChainlinkAdaptor");
+            chainlinkSupport.deployChainlinkAdaptor(icr, oracleManager);
         }
 
         if (adaptors.redstonePush) {
-            address classicRedstoneAdaptor = address(
-                new RedstoneClassicAdaptor(icr)
-            );
-            oracleManager.addApprovedAdaptor(classicRedstoneAdaptor);
-            emit ContractDeployed(
-                classicRedstoneAdaptor,
-                "RedstoneClassicAdaptor"
-            );
+            redstoneSupport.deployRedstoneClassicAdaptor(icr, oracleManager);
         }
 
         if (adaptors.redstonePull) {
-            // Deploy Redstone Adaptor
-            address[] memory redstoneSigners = new address[](4);
-            redstoneSigners[0] = 0x8BB8F32Df04c8b654987DAaeD53D6B6091e3B774;
-            redstoneSigners[1] = 0xdEB22f54738d54976C4c0fe5ce6d408E40d88499;
-            redstoneSigners[2] = 0x51Ce04Be4b3E32572C4Ec9135221d0691Ba7d202;
-            redstoneSigners[3] = 0xDD682daEC5A90dD295d14DA4b0bec9281017b5bE;
-            address redstoneCoreAdaptor = address(
-                new RedstoneCoreAdaptor(icr, redstoneSigners, 3, "ETH")
-            );
-            emit ContractDeployed(redstoneCoreAdaptor, "RedstoneCoreAdaptor");
-            address multicallChecker = address(
-                new RedstoneAdaptorMulticallChecker(icr)
-            );
-            emit ContractDeployed(
-                multicallChecker,
-                "RedstoneAdaptorMulticallChecker"
-            );
-            centralRegistry.setMulticallChecker(
-                redstoneCoreAdaptor,
-                multicallChecker
-            );
-            oracleManager.addApprovedAdaptor(redstoneCoreAdaptor);
+            redstoneSupport.deployRedstoneCoreAdaptor(registry, icr, oracleManager);
         }
+    }
+
+    function _deployZappers(ICentralRegistry icr, address wrappedNative) internal {
+        NativeVaultZapper nativeVaultZapper = new NativeVaultZapper(icr, wrappedNative);
+        emit ContractDeployed(
+            address(nativeVaultZapper),
+            string.concat("zappers.nativeVaultZapper")
+        );
+
+        VaultZapper vaultZapper = new VaultZapper(icr, wrappedNative);
+        emit ContractDeployed(
+            address(vaultZapper),
+            string.concat("zappers.vaultZapper")
+        );
+        
+        SimpleZapper simpleZapper = new SimpleZapper(icr, wrappedNative);
+        emit ContractDeployed(
+            address(simpleZapper),
+            string.concat("zappers.simpleZapper")
+        );
     }
 }

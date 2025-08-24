@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { Script } from "forge-std/Script.sol";
-import { Vm } from "forge-std/Vm.sol";
-import { DeploymentLogger } from "../utils/DeploymentLogger.sol";
+import { DeployScript } from "../utils/DeployScript.sol";
+
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 
-contract AddCrosschainSupport is Script, DeploymentLogger {
+contract AddCrosschainSupport is DeployScript {
     function run(
         address centralRegistry,
         address wormholeCore,
