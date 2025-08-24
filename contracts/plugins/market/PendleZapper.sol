@@ -18,6 +18,11 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 ///      Curvance token contracts facilitate these operations through our
 ///      standard contract interfaces and the plugin system.
 ///
+///      Actions that include collateralization require plugin approval to the
+///      corresponding zapper contract, to collateralize on behalf of another
+///      user via a zapper both the zapper and the caller must have plugin
+///      approval from the account being collateralized on behalf of.
+///
 ///      The "Pendle" contract is the zapper for working with Pendle native
 ///      erc20 tokens such as sUSDe/sUSDe-PT-dec-31-2025 LP tokens,
 ///      or sUSDe-PT-dec-31-2025 PT tokens.

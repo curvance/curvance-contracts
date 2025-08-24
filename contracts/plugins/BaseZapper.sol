@@ -14,6 +14,23 @@ import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
+/// @title Curvance Base Zapper.
+/// @notice Base contract for executing zap related actions.
+/// @dev Curvance zapper contracts enshrine actions that
+///      usually would require multiple sequential actions to facilitate,
+///      specifically swapping, depositing, redemptions, and repayments.
+///
+///      Curvance token contracts facilitate these operations through our
+///      standard contract interfaces and the plugin system.
+///
+///      Actions that include collateralization require plugin approval to the
+///      corresponding zapper contract, to collateralize on behalf of another
+///      user via a zapper both the zapper and the caller must have plugin
+///      approval from the account being collateralized on behalf of.
+///
+///      The "base" contract is the basis on which all zapper contracts are
+///      built on top of.
+///
 abstract contract BaseZapper is ReentrancyGuard {
     /// TYPES ///
 

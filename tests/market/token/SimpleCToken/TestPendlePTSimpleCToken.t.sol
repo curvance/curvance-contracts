@@ -286,6 +286,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
     function testBorrowableCTokenRedeemOnBorrow() public {
         // Try deposit().
         _preparePT(user1, 1 ether);
+        
         vm.startPrank(user1);
         pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
         pendleCTokenPTSTETH.deposit(1 ether, user1);
@@ -356,6 +357,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
     function testBorrowableCTokenTransferOnBorrow() public {
         // Try deposit().
         _preparePT(user1, 1 ether);
+
         vm.startPrank(user1);
         pendlePT.approve(address(pendleCTokenPTSTETH), 1 ether);
         pendleCTokenPTSTETH.deposit(1 ether, user1);
@@ -560,31 +562,47 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         uint256 collateralRequired
     ) {
 
-            if (lFactor == 0) return (0, 0, 0);
+        if (lFactor == 0) return (0, 0, 0);
 
-        (uint256 highPrecisionD2C, uint256 closeFactor) = _getDebtToCollateralAndCloseFactor(lFactor, debtTokenPrice, collateralTokenPrice);
+        (uint256 highPrecisionD2C, uint256 closeFactor) = _getDebtToCollateralAndCloseFactor(
+            lFactor,
+            debtTokenPrice,
+            collateralTokenPrice
+        );
                 
-            maxAmount = (closeFactor * borrowAmount) / BPS;
-            
-            // Calculate with extra precision
-            liquidatedCollateral = (maxAmount * highPrecisionD2C) / (WAD_SQUARED);
-            
-            if (liquidatedCollateral > collateralAmount) {
-                // Use the contract's exact formula
-                maxAmount = FixedPointMathLib.mulDivUp(
-                    maxAmount,
-                    collateralAmount,
-                    liquidatedCollateral
-                );
-                liquidatedCollateral = collateralAmount;
-            }
-            
+        maxAmount = (closeFactor * borrowAmount) / BPS;
+        
+        // Calculate with extra precision
+        liquidatedCollateral = (maxAmount * highPrecisionD2C) / (WAD_SQUARED);
+        
+        if (liquidatedCollateral > collateralAmount) {
             // Use the contract's exact formula
-            collateralRequired = (borrowAmount * highPrecisionD2C) / (WAD_SQUARED);
+            maxAmount = FixedPointMathLib.mulDivUp(
+                maxAmount,
+                collateralAmount,
+                liquidatedCollateral
+            );
+            liquidatedCollateral = collateralAmount;
+        }
+        
+        // Use the contract's exact formula
+        collateralRequired = (borrowAmount * highPrecisionD2C) / (WAD_SQUARED);
     }
 
-    function _getDebtToCollateralAndCloseFactor(uint256 lFactor, uint256 debtTokenPrice, uint256 collateralTokenPrice) internal view returns (uint256, uint256) {
-        (uint256 liqIncBase, uint256 liqIncCurve,,, uint256 closeFactorBase, uint256 closeFactorCurve,,)
+    function _getDebtToCollateralAndCloseFactor(
+        uint256 lFactor,
+        uint256 debtTokenPrice,
+        uint256 collateralTokenPrice
+    ) internal view returns (uint256, uint256) {
+        (
+            uint256 liqIncBase,
+            uint256 liqIncCurve,
+            ,
+            ,
+            uint256 closeFactorBase,
+            uint256 closeFactorCurve,
+            ,
+        )
             =  marketManagerIsolated.liquidationConfig(address(pendleCTokenPTSTETH));
 
         // Follow the contract's exact calculations but with higher precision
@@ -597,7 +615,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         uint256 highPrecisionD2C =
             (((liqInc * debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
-                collateralTokenPrice) * 1e18) / 1e6;
+                collateralTokenPrice) * WAD) / 1e6;
 
         return (highPrecisionD2C, closeFactor);
     }
@@ -608,7 +626,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         uint256 _collateralAvailable,
         uint256 _collateralRequired
     ) internal pure returns (uint256 badDebt) {
-        if(_collateralRequired > _collateralAvailable) {
+        if (_collateralRequired > _collateralAvailable) {
             badDebt = FixedPointMathLib.fullMulDiv(
                 FixedPointMathLib.mulDiv(
                     _debtAmount,
