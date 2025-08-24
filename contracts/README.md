@@ -1,13 +1,15 @@
-<h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> curvance contracts</h1>
+<p style="text-align: center;width:100%"> <img src="https://pbs.twimg.com/profile_banners/1445781144125857796/1752160592"/></p>
+
+<h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> Contracts</h1>
 
 ## Overview
 
-This directory contains the core contracts for the Curvance protocol. All contracts are written using Solidity 0.8.29.
+This directory contains the core contracts for the Curvance protocol. All contracts are written using Solidity 0.8.28.
 
 Curvance is a cross-chain, thesis-driven DeFi lending protocol designed to support diverse asset types while minimizing systemic risk. Key features include:
 
-- **Dynamic Liquidation Engine (DLE)**: A multi-tiered liquidation system that efficiently balances risk management with capital efficiency.
-- **Cross-Chain Architecture**: Native multi-chain support through a hub-and-spoke model powered by secure messaging protocols.
+- **Dynamic Liquidation Engine (DLE)**: A multi-pathed liquidation system that efficiently balances risk management with capital efficiency which captures all MEV.
+- **Cross-Chain Architecture**: Native multi-chain support through the Curvance plugin system powered by secure messaging protocols.
 - **Thesis-Driven Markets**: Specialized markets with tailored risk parameters for different asset classes and investment theses.
 - **Governance-Optimized Tokenomics**: A sophisticated CVE/veCVE system enabling protocol governance across multiple chains.
 - **Security-First Design**: Comprehensive validation systems for external interactions, including dedicated calldata checkers for oracle updates and DEX operations.
@@ -140,6 +142,7 @@ Core lending infrastructure that implements Curvance's unique Dynamic Liquidatio
 - When adding new files, place them in the appropriate subdirectory based on their purpose.
 - Maintain the directory structure to ensure project organization remains consistent.
 - Reference this document when onboarding new team members.
+
 
 *Last updated: 3/14/2025*
 
