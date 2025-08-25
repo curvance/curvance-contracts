@@ -82,7 +82,7 @@ contract DeployMarkets is DeployScript {
         string memory marketName,
         MarketManagerIsolated market,
         ICentralRegistry icr
-    ) public externalScript returns (address[] memory cTokens) {
+    ) public useDeployer returns (address[] memory cTokens) {
         cTokens = new address[](tokens.length);
 
         for (uint256 i = 0; i < tokens.length; i++) {
@@ -114,7 +114,7 @@ contract DeployMarkets is DeployScript {
         string memory marketName,
         MarketManagerIsolated market,
         ICentralRegistry icr
-    ) public externalScript returns (address) {
+    ) public useDeployer returns (address) {
         IERC20 asset = IERC20(config.asset);
 
         address cToken = address(
@@ -135,7 +135,7 @@ contract DeployMarkets is DeployScript {
         string memory marketName,
         MarketManagerIsolated market,
         ICentralRegistry icr
-    ) public externalScript returns (address) {
+    ) public useDeployer returns (address) {
         IERC20 asset = IERC20(config.asset);
 
         DynamicIRM IRM = new DynamicIRM(

@@ -41,7 +41,7 @@ contract AddPlugins is DeployScript {
         address wrappedNative,
         string memory marketName,
         AvailablePlugins memory plugins
-    ) public externalScript {
+    ) public useDeployer {
         if (plugins.nativeVaultPositionManager) {
             NativeVaultPositionManager nativeVaultPositionManager = new NativeVaultPositionManager(
                     icr,

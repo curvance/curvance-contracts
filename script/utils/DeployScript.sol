@@ -12,7 +12,7 @@ contract DeployScript is Script, DeploymentLogger {
     }
 
     /// @notice Modifier to start and stop broadcast for external scripts to be executed as the deployer instead of the contract
-    modifier externalScript() {
+    modifier useDeployer() {
         vm.stopBroadcast();
         vm.startBroadcast();
         _;

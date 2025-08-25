@@ -56,16 +56,16 @@ contract DeployBase is DeployScript  {
         centralRegistry.setOracleManager(address(oracleManager));
         emit ContractDeployed(address(oracleManager), "OracleManager");
 
-        _deployAdaptors(icr, centralRegistry, adaptors, oracleManager);
-        _deployZappers(icr, wrappedNative);
+        deployAdaptors(icr, centralRegistry, adaptors, oracleManager);
+        deployZappers(icr, wrappedNative);
     }
 
-    function _deployAdaptors(
+    function deployAdaptors(
         ICentralRegistry icr,
         CentralRegistry registry,
         Adaptors memory adaptors, 
         OracleManager oracleManager
-    ) internal {
+    ) public useDeployer {
         if (adaptors.chainlink) {
             chainlinkSupport.deployChainlinkAdaptor(icr, oracleManager);
         }
@@ -79,7 +79,7 @@ contract DeployBase is DeployScript  {
         }
     }
 
-    function _deployZappers(ICentralRegistry icr, address wrappedNative) internal {
+    function deployZappers(ICentralRegistry icr, address wrappedNative) public useDeployer {
         NativeVaultZapper nativeVaultZapper = new NativeVaultZapper(icr, wrappedNative);
         emit ContractDeployed(
             address(nativeVaultZapper),

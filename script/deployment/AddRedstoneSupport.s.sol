@@ -70,7 +70,7 @@ contract AddRedstoneSupport is DeployScript {
     function deployRedstoneClassicAdaptor(
         ICentralRegistry icr,
         OracleManager oracleManager
-    ) public externalScript returns (RedstoneClassicAdaptor) {
+    ) public useDeployer returns (RedstoneClassicAdaptor) {
         RedstoneClassicAdaptor adaptor  = new RedstoneClassicAdaptor(icr);
         oracleManager.addApprovedAdaptor(address(adaptor));
         emit ContractDeployed(address(adaptor),"adaptors.RedstoneClassicAdaptor");
@@ -82,7 +82,7 @@ contract AddRedstoneSupport is DeployScript {
         CentralRegistry registry,
         ICentralRegistry icr,
         OracleManager oracleManager
-    ) public externalScript returns (RedstoneCoreAdaptor) {
+    ) public useDeployer returns (RedstoneCoreAdaptor) {
         address[] memory redstoneSigners = new address[](4);
         redstoneSigners[0] = 0x8BB8F32Df04c8b654987DAaeD53D6B6091e3B774;
         redstoneSigners[1] = 0xdEB22f54738d54976C4c0fe5ce6d408E40d88499;

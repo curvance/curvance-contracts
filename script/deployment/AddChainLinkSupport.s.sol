@@ -31,7 +31,7 @@ contract AddChainLinkSupport is DeployScript {
     function deployChainlinkAdaptor(
         ICentralRegistry icr,
         OracleManager oracleManager
-    ) public externalScript returns (ChainlinkAdaptor) {
+    ) public useDeployer returns (ChainlinkAdaptor) {
         ChainlinkAdaptor chainlinkAdaptor = new ChainlinkAdaptor(icr);
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         emit ContractDeployed(address(chainlinkAdaptor), "adaptors.ChainlinkAdaptor");
