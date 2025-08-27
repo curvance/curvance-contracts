@@ -112,6 +112,7 @@ contract ProtocolReader {
         uint256 userShareBalance;
         uint256 userUnderlyingBalance;
         uint256 userCollateral;
+        uint256 exchangeRate;
         uint256 userDebt;
     }
 
@@ -659,6 +660,7 @@ contract ProtocolReader {
         umt.userShareBalance = ctoken.balanceOf(account);
         umt.userUnderlyingBalance = underlying.balanceOf(account);
         umt.userDebt = ctoken.isBorrowable() ? IBorrowableCToken(address(ctoken)).debtBalance(account) : 0;
+        umt.exchangeRate = ctoken.exchangeRate();
         umt.userCollateral = ctoken.collateralPosted(account);
     }
 
