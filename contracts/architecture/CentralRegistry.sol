@@ -860,22 +860,22 @@ contract CentralRegistry is ERC165, ActionRegistry {
         // Cache old emergency council.
         address previousEmergencyCouncil = emergencyCouncil;
         emergencyCouncil = newEmergencyCouncil;
-
+        
         // If the previous Emergency Council also has timelock permissions
         // for some reason, do not remove their elevated permissioning.
         if (previousEmergencyCouncil != timelock) {
             delete hasElevatedPermissions[previousEmergencyCouncil];
+            delete hasMarketPermissions[previousEmergencyCouncil];
+            emit PermissionsUpdated(
+                "Market",
+                previousEmergencyCouncil,
+                false
+            );
 
             // If the previous Emergency Council also has DAO permissions
             // for some reason, do not remove their permissioning.
             if (previousEmergencyCouncil != daoAddress) {
                 delete hasDaoPermissions[previousEmergencyCouncil];
-                delete hasMarketPermissions[previousEmergencyCouncil];
-                emit PermissionsUpdated(
-                    "Market",
-                    previousEmergencyCouncil,
-                    false
-                );
             }
         }
 
