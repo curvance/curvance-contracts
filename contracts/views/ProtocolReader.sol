@@ -707,7 +707,7 @@ contract ProtocolReader {
             IDynamicIRM irm = bcToken.IRM();
 
             dmt.debt = bcToken.marketOutstandingDebt();
-            dmt.liquidity = assetsHeldUsd > dmt.debt ? (assetsHeldUsd - dmt.debt) : 0;
+            dmt.liquidity = assetsHeld - MARKET_ASSET_RESERVE;
 
             // Values are given in seconds, and should be multiplied depending
             // on the time frame needed. For example, you might multiply these
