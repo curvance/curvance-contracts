@@ -110,6 +110,7 @@ contract ProtocolReader {
         address _address;
         uint256 userAssetBalance;
         uint256 userShareBalance;
+        uint256 userUnderlyingBalance;
         uint256 userCollateral;
         uint256 userDebt;
     }
@@ -650,11 +651,13 @@ contract ProtocolReader {
         address account
     ) internal view returns (UserMarketToken memory umt) {
         ICToken ctoken = ICToken(tokenAddress);
+        IERC20 underlying = IERC20(ctoken.asset());
         uint256 shares = ctoken.balanceOf(account);
 
         umt._address = tokenAddress;
         umt.userAssetBalance = ctoken.convertToAssets(shares);
         umt.userShareBalance = ctoken.balanceOf(account);
+        umt.userUnderlyingBalance = underlying.balanceOf(account);
         umt.userDebt = ctoken.isBorrowable() ? IBorrowableCToken(address(ctoken)).debtBalance(account) : 0;
         umt.userCollateral = ctoken.collateralPosted(account);
     }
