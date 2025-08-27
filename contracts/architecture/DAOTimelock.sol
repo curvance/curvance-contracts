@@ -87,10 +87,6 @@ contract DAOTimelock is TimelockController, ERC165 {
             _grantRole(EXECUTOR_ROLE, registryDaoAddress);
             _grantRole(CANCELLER_ROLE, registryDaoAddress);
             _DAO_ADDRESS = registryDaoAddress;
-            _grantRole(PROPOSER_ROLE, registryDaoAddress);
-            _grantRole(EXECUTOR_ROLE, registryDaoAddress);
-            _grantRole(CANCELLER_ROLE, registryDaoAddress);
-            _DAO_ADDRESS = registryDaoAddress;
         }
 
         address registryEC = centralRegistry.emergencyCouncil();
