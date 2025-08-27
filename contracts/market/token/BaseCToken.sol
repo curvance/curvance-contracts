@@ -1116,7 +1116,7 @@ abstract contract BaseCToken is
         _mint(cTokenAddress, shares);
         _totalAssets = assets;
 
-        emit Deposit(cTokenAddress, cTokenAddress, assets, shares);
+        emit Deposit(by, cTokenAddress, assets, shares);
         _afterDepositAction(shares, cTokenAddress);
     }
 
