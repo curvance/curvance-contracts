@@ -212,7 +212,7 @@ abstract contract BaseCToken is
 
     /// @notice Caller deposits `assets` into the market, `receiver` receives
     ///         shares, and collateralization of `assets` is enabled.
-    /// @dev The caller must be depositing for themselves, or be managing
+    /// @dev The caller must be collateralizing for themselves, or be managing
     ///      their position through a Position Manager contract.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param receiver The account that should receive the cToken shares.
@@ -1304,7 +1304,7 @@ abstract contract BaseCToken is
         uint256 collateralRedeemed = marketManager.canTransfer(
             address(this),
             shares,
-            msg.sender,
+            owner,
             balanceOf(owner),
             collateralOf,
             collateralOf > 0 ? true : false
