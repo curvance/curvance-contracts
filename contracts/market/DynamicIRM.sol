@@ -31,7 +31,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///
 ///      This means that if utilization remains elevated during update
 ///      periods, the interest rate paid by borrowers will continually
-///      increase. This will, in theory, attract new borrowers who require
+///      increase. This will, in theory, attract new lenders who require
 ///      a higher yield to provide liquidity to a particular market.
 ///      At the same time, higher borrow rates incentivize interest rate
 ///      sensitive borrowers to repay their outstanding debt.

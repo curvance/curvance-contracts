@@ -610,6 +610,9 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
     ///      can only have a maximum value of 60%.
     ///      Emits an {InterestFeeSet} event.
+    ///      NOTE: `protocolInterestFee` is only used for new markets deployed
+    ///            after this function is called and will not impact already
+    ///            deployed markets or borrowableCTokens.
     /// @param market The address of the market manager to configure
     ///               interest fees of.
     /// @param value The new fee to take on interest generated
@@ -899,6 +902,9 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///      can only have a maximum value of 60% interest fee.
     ///      Cannot be a supported Market Manager contract prior.
     ///      Emits a {PermissionsUpdated} and {InterestFeeSet} events.
+    ///      NOTE: `marketInterestFee` is only used for new markets deployed
+    ///            after this function is called and will not impact already
+    ///            deployed markets or borrowableCTokens.
     /// @param newMarket The new Market Manager contract to support for use
     ///                  in Curvance.
     /// @param marketInterestFee The portion of interest paid by borrowers
