@@ -894,6 +894,18 @@ contract CentralRegistry is ERC165, ActionRegistry {
             hasMarketPermissions[newEmergencyCouncil] = true;
             emit PermissionsUpdated("Market", newEmergencyCouncil, true);
         }
+
+        // Notify Timelock of an Emergency Council address update.
+        if (timelock != address(0)) {
+            if (
+                ERC165Checker.supportsInterface(
+                    timelock,
+                    type(ITimelock).interfaceId
+                )
+            ) {
+                ITimelock(timelock).updateRoles();
+            }
+        }
     }
 
     /// @notice Adds a new Market Manager and corresponding interest fee
