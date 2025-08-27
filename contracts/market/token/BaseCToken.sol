@@ -1293,6 +1293,8 @@ abstract contract BaseCToken is
         address receiver,
         address owner
     ) internal {
+        _accrueIfNeeded();
+
         _checkZeroAmount(shares);
         if (owner == receiver) {
             revert BaseCToken__TransferError();
