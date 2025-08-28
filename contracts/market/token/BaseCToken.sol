@@ -1113,11 +1113,11 @@ abstract contract BaseCToken is
         // is called, this will always be the initial call.
         uint256 shares = _initialConvertToShares(assets);
 
-        _mint(cTokenAddress, shares);
+        _mint(address(0), shares);
         _totalAssets = assets;
 
-        emit Deposit(by, cTokenAddress, assets, shares);
-        _afterDepositAction(shares, cTokenAddress);
+        emit Deposit(by, address(0), assets, shares);
+        _afterDepositAction(shares, address(0));
     }
 
     /// @notice Updates the allowance for the caller.
