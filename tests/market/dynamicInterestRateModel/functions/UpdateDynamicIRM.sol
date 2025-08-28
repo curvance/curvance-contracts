@@ -18,7 +18,7 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
             5500,
             1000,
             150,
-            150000000,
+            100000,
             true
         );
     }
@@ -37,7 +37,7 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
             5000,
             maxVertexAdjustmentVelocity + 1,
             100,
-            100000000,
+            100000,
             true
         );
     }
@@ -57,7 +57,7 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
             5000,
             minVertexAdjustmentVelocity - 1,
             100,
-            100000000,
+            100000,
             true
         );
     }
@@ -74,14 +74,16 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
             5000,
             1000,
             maxVertexDecayRate + 1,
-            100000000,
+            100000,
             true
         );
     }
 
-    function test_updateDynamicIRM_fail_whenTheoreticalMultiplierOverflows()
+    function test_updateDynamicIRM_fail_whenMaxMultiplierExceedsMaximum()
         public
     {
+        uint256 maxVertexMultiplierMax = 500000; // 50e4
+        
         vm.expectRevert(DynamicIRM.DynamicIRM__InvalidMultiplierMax.selector);
         IRM.updateDynamicIRM(
             1000,
@@ -89,7 +91,7 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
             5000,
             1000,
             100,
-            uint256(type(uint96).max) + 1,
+            maxVertexMultiplierMax + 1,
             true
         );
     }
@@ -101,7 +103,7 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
             5500,
             1000,
             150,
-            150000000,
+            100000,
             true
         );
     }

@@ -24,7 +24,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             5000,
             1000,
             100,
-            100000000
+            100000
         );
     }
 
@@ -43,7 +43,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             5000,
             1000,
             100,
-            100000000
+            100000
         );
     }
 
@@ -62,7 +62,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             5000,
             1000,
             100,
-            100000000
+            100000
         );
     }
 
@@ -83,7 +83,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             5000,
             maxVertexAdjustmentVelocity + 1,
             100,
-            100000000
+            100000
         );
     }
 
@@ -104,7 +104,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             5000,
             minVertexAdjustmentVelocity - 1,
             100,
-            100000000
+            100000
         );
     }
 
@@ -125,18 +125,16 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             5000,
             1000,
             maxVertexDecayRate + 1,
-            100000000
+            100000
         );
     }
 
-    function test_dynamicIRMDeployment_fail_whenTheoreticalMultiplierOverflows()
+    function test_dynamicIRMDeployment_fail_whenMaxMultiplierExceedsMaximum()
         public
     {
-        vm.expectRevert(
-            DynamicIRM
-                .DynamicIRM__InvalidMultiplierMax
-                .selector
-        );
+        uint256 maxVertexMultiplierMax = 500000; // 50e4
+
+        vm.expectRevert(DynamicIRM.DynamicIRM__InvalidMultiplierMax.selector);
         new DynamicIRM(
             ICentralRegistry(address(centralRegistry)),
             1000,
@@ -144,7 +142,7 @@ contract DynamicIRMDeploymentTest is TestBaseDynamicIRM {
             5000,
             1000,
             100,
-            uint256(type(uint96).max) + 1
+            maxVertexMultiplierMax + 1
         );
     }
 

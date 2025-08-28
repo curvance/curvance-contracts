@@ -172,7 +172,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     /// @notice The maximum value that `vertexMultiplierMax` can be set
     ///         to, in `WAD`.
     ///         E.g. 1 * WAD = 100% Maximum `vertexMultiplierMax` value.
-    uint256 internal constant _MAXIMUM_VERTEX_MULTIPLIER_MAX = type(uint96).max;
+    uint256 internal constant _MAXIMUM_VERTEX_MULTIPLIER_MAX = 50e18;
     /// @notice The minimum value that `vertexMultiplierMax` can be set to,
     ///         in `WAD`.
     ///         E.g. 1 * WAD = 100% Minimum `vertexMultiplierMax` value.
