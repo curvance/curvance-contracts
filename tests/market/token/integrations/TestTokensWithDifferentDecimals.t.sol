@@ -329,16 +329,16 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         borrowableCUSDC.transfer(user2, 1000e6);
         vm.stopPrank();
 
-        assertEq(strategyCBALRETH.balanceOf(user1), 1 ether);
-        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
+        assertEq(strategyCBALRETH.balanceOf(user1), 1 ether, "collateral balance is not affected");
+        assertEq(strategyCBALRETH.exchangeRate(), 1 ether, "collateral token exchange rate is not affected");
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
-        assertEq(borrowableCUSDC.debtBalance(user1), 500e6);
-        assertEq(borrowableCUSDC.exchangeRate(), 1 ether);
+        // accrueIfNeeded is called in transfer, so debt balance is increased
+        assertGt(borrowableCUSDC.debtBalance(user1), 500e6, "debt balance is increased because of interest");
+        assertGt(borrowableCUSDC.exchangeRate(), 1 ether, "debt token exchange rate is increased because of interest");
 
-        assertEq(borrowableCUSDC.balanceOf(user2), 1000e6);
-        assertEq(borrowableCUSDC.debtBalance(user2), 0);
-        assertEq(borrowableCUSDC.exchangeRate(), 1 ether);
+        assertEq(borrowableCUSDC.balanceOf(user2), 1000e6, "receiver balance is not affected");
+        assertEq(borrowableCUSDC.debtBalance(user2), 0, "receiver debt balance is 0");
     }
 
     function testLiquidationExact() public {

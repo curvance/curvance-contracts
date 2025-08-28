@@ -69,4 +69,40 @@ contract BorrowableCTokenTransferFromTest is TestBaseBorrowableCToken {
         assertEq(borrowableCUSDC.balanceOf(user1), user1Balance + 100e6);
         assertEq(borrowableCUSDC.allowance(address(this), user1), type(uint256).max);
     }
+
+    // If canTransfer incorrectly used msg.sender, this would revert.
+    // This test is to ensure that checkTransfer is against the owner, not the caller.
+    function test_transferFrom_success_whenSpenderDisabled() public {
+
+        deal(address(borrowableCUSDC), address(this), 100e6);
+        borrowableCUSDC.approve(user1, 100e6);
+
+        uint256 ownerBal = borrowableCUSDC.balanceOf(address(this));
+        uint256 recvBal = borrowableCUSDC.balanceOf(user2);
+
+        // Disable transfers for owner (user1), true == disable
+        vm.prank(user1);
+        centralRegistry.setTransferableStatus(true);
+
+        // would revert if msg.sender was used instead of owner
+        vm.prank(user1);
+        borrowableCUSDC.transferFrom(address(this), user2, 100e6);
+
+        assertEq(borrowableCUSDC.balanceOf(address(this)), ownerBal - 100e6);
+        assertEq(borrowableCUSDC.balanceOf(user2), recvBal + 100e6);
+    }
+
+    function test_transferFrom_fail_whenOwnerTransferDisabled() public {
+
+        deal(address(borrowableCUSDC), address(this), 100e6);
+        borrowableCUSDC.approve(user1, 100e6);
+
+        // Disable transfers for owner (address(this))
+        centralRegistry.setTransferableStatus(true);
+
+        // will revert because owner's transfer is disabled
+        vm.prank(user1);
+        vm.expectRevert();
+        borrowableCUSDC.transferFrom(address(this), user2, 100e6);
+    }
 }

@@ -8,6 +8,8 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 
 contract ListTokensTest is TestBaseMarketIsolated {
 
+     event Deposit(address indexed by, address indexed owner, uint256 assets, uint256 shares);
+
     function setUp() public override {
         super.setUp();
     }
@@ -119,6 +121,13 @@ contract ListTokensTest is TestBaseMarketIsolated {
         // Validate that the tokens are not listed.
         assertFalse(marketManagerIsolated.isListed(address(strategyCBALRETH)));
         assertFalse(marketManagerIsolated.isListed(address(borrowableCUSDC)));
+
+        // Expect Deposit is emitted from each cToken during _initializeDeposits().
+        vm.expectEmit(true, true, false, true, address(strategyCBALRETH));
+        emit Deposit(address(this), address(strategyCBALRETH), 77777, 77777);
+        
+        vm.expectEmit(true, true, false, true, address(borrowableCUSDC));
+        emit Deposit(address(this), address(borrowableCUSDC), 77777, 77777);
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
         

@@ -280,11 +280,12 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
-        assertEq(borrowableCDAI.debtBalance(user1), 500e18);
+        // accrueIfNeeded is called in transfer, so debt balance is increased
+        assertGt(borrowableCDAI.debtBalance(user1), 500e18, "debt balance is increased because of interest");
 
         assertEq(borrowableCDAI.balanceOf(user2), 1000e18);
         assertEq(borrowableCDAI.debtBalance(user2), 0e18);
-        assertEq(borrowableCDAI.exchangeRate(), _ONE);
+        assertGt(borrowableCDAI.exchangeRate(), _ONE, "debt token exchange rate is increased because of interest");
     }
 
     function testLiquidationExact() public {
