@@ -566,15 +566,23 @@ contract MarketManagerIsolated is
         (TokenLiqData memory tData, AccountLiqData memory aData) =
             _getLiquidationConfig(action.collateralToken, action.debtToken);
 
-        address cachedAccount;
         // Amounts array is empty since the max amount possible
         // will be liquidated.
         result.liquidatedShares = new uint256[](action.numAccounts);
+        address cachedAccount;
+        address priorAccount;
         for (uint256 i; i < action.numAccounts; ++i) {
             cachedAccount = accounts[i];
             
             // Do not let an account liquidate themselves.
             if (liquidator == cachedAccount) {
+                _revert(_UNAUTHORIZED_SELECTOR);
+            }
+
+            // Liquidators MUST sort the token addresses offchain from
+            // smallest to largest to validate there are no duplicate
+            // liquidations.
+            if (priorAccount >= cachedAccount) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
 
@@ -608,6 +616,9 @@ contract MarketManagerIsolated is
                 // waste.
                 debtAmounts[i] = action.debtRepaid;
             }
+
+            /// Update prior account to current account.
+            priorAccount = cachedAccount;
         }
 
         // If theres no debt to repay then there were no liquidations.
