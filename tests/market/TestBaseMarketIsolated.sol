@@ -483,7 +483,7 @@ contract TestBaseMarketIsolated is TestBase {
             5000, // vertexUtilizationStart
             1000, // adjustmentVelocity
             100, // decayRate
-            100000000 // 1000x maximum vertex multiplier
+            100000 // 50x maximum vertex multiplier
         );
 
         return address(IRMs[block.chainid][underlyingToken]);
