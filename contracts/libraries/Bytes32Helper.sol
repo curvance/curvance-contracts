@@ -8,16 +8,32 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 /// @dev Provides functions to convert strings to bytes32 and to create standardized 
 ///      bytes32 representations of token symbols with optional suffixes
 library Bytes32Helper {
+    /// ERRORS ///
+
+    error Bytes32Helper__ExcessiveLength();
+    
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Converts `data`, a string memory value, to bytes32 form.
-    /// @dev Will trim the output to 32 bytes, even if the bytes length is
-    ///      > 32 bytes. Accepts empty `data` giving 32 bytes of all zeroes.
+    /// @dev Will revert if string length is > 32 bytes. Accepts empty `data`
+    ///      giving 32 bytes of all zeroes.
     /// @return r The bytes32 converted form of `data` string.
     function toBytes32(string memory data) public pure returns (bytes32 r) {
-        /// @solidity memory-safe-assembly
+        uint256 stringLength = bytes(data).length;
+
+        if (stringLength > 32) {
+            revert Bytes32Helper__ExcessiveLength();
+        }
+
+        // May include dirty low bytes.
         assembly {
             r := mload(add(data, 32))
+        }
+
+        if (stringLength < 32) {
+            // Zero out dirty tail.
+            uint256 mask = type(uint256).max << ((32 - stringLength) * 8);
+            r = bytes32(uint256(r) & mask);
         }
     }
 
