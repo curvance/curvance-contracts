@@ -84,7 +84,7 @@ contract TestDynamicIRM is TestBaseMarketIsolated {
             5500,
             1000,
             150,
-            150000000,
+            100000,
             true
         );
 

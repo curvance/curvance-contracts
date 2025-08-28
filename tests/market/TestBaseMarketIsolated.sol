@@ -478,12 +478,12 @@ contract TestBaseMarketIsolated is TestBase {
             underlyingToken
         ] = new DynamicIRM(
             ICentralRegistry(address(centralRegistry)),
-            1000, // baseRatePerYear
-            1000, // vertexRatePerYear
-            5000, // vertexUtilizationStart
-            1000, // adjustmentVelocity
-            100, // decayRate
-            100000 // 50x maximum vertex multiplier
+            1000, // 10% baseRatePerYear
+            1000, // 10% vertexRatePerYear
+            5000, // 50% vertexUtilizationStart
+            1000, // 10% adjustmentVelocity
+            100, // 1% decayRate
+            100000 // 10x maximum vertex multiplier
         );
 
         return address(IRMs[block.chainid][underlyingToken]);

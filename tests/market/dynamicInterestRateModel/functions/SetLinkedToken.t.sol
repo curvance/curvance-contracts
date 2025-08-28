@@ -19,12 +19,12 @@ contract SetLinkedTokenTest is TestBaseDynamicIRM {
 
         IRM = new DynamicIRM(
             ICentralRegistry(address(centralRegistry)),
-            1000, // baseRatePerYear
-            1000, // vertexRatePerYear
-            5000, // vertexUtilizationStart
-            1000, // adjustmentVelocity
-            100, // decayRate
-            100000000 // 1000x maximum vertex multiplier
+            1000, // 10% baseRatePerYear
+            1000, // 10% vertexRatePerYear
+            5000, // 50% vertexUtilizationStart
+            1000, // 10% adjustmentVelocity
+            100, // 1% decayRate
+            100000 // 10x maximum vertex multiplier
         );
         cToken = new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
