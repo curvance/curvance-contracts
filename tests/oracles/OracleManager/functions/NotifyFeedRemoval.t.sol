@@ -21,26 +21,36 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
         oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
     }
 
-    function test_notifyFeedRemoval_fail_whenSingleFeedDoesNotExist() public {
+    function test_notifyFeedRemoval_noop_whenSingleFeedDoesNotExist() public {
         _addSinglePriceFeed();
 
         oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
 
-        vm.prank(address(dualChainlinkAdaptor));
+        address feed0Before = oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0);
 
-        vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
+        vm.prank(address(dualChainlinkAdaptor));
         oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
+
+        // does not change
+        assertEq(oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0), feed0Before);
+        vm.expectRevert();
+        oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1);
     }
 
-    function test_notifyFeedRemoval_fail_whenDualFeedDoesNotExist() public {
+    function test_notifyFeedRemoval_noop_whenDualFeedDoesNotExist() public {
         _addDualPriceFeed();
 
         oracleManager.addApprovedAdaptor(address(1));
 
-        vm.prank(address(1));
+        address feed0Before = oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0);
+        address feed1Before = oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1);
 
-        vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
+        vm.prank(address(1));
         oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
+
+        // does not change
+        assertEq(oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0), feed0Before);
+        assertEq(oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1), feed1Before);
     }
 
     function test_notifyFeedRemoval_success_whenRemoveSingleFeed() public {
