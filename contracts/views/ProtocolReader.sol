@@ -103,6 +103,7 @@ contract ProtocolReader {
         uint256 debt;
         uint256 positionHealth;
         uint256 cooldown;
+        bool priceStale;
         UserMarketToken[] tokens;
     }
 
@@ -233,18 +234,24 @@ contract ProtocolReader {
     /// @param mm The market manager to pull data from.
     /// @param account The user address to get the health factor for.
     /// @return positionHealth The healthiness of `account`'s position.
+    /// @return priceStale Whether the price is stale, which would provide incorrect position Health
     function getPositionHealth(
         IMarketManager mm,
         address account
-    ) public view returns (uint256 positionHealth) {
-        (uint256 soft, , uint256 debt, ) = mm.liquidationValuesOf(account);
+    ) public view returns (uint256 positionHealth, bool priceStale) {
+        try mm.liquidationValuesOf(account) returns (uint256 soft, uint256 hard, uint256 debt, uint256 ifactor) {
+            // No debt means infinite position health.
+            if (debt == 0) {
+                positionHealth = type(uint256).max; 
+            } else {
+                positionHealth = (soft * WAD) / debt;
+            }
 
-        // No debt means infinite position health.
-        if (debt == 0) {
-            return type(uint256).max; 
+            priceStale = false;
+        } catch {
+            priceStale = true;
         }
 
-        positionHealth = (soft * WAD) / debt;
     }
 
     function getUserData(
@@ -676,9 +683,17 @@ contract ProtocolReader {
             tokens[j] = _buildUserMarketToken(tokenAddresses[j], account);
         }
         
-        (um.collateral, um.maxDebt, um.debt) = mm.statusOf(account);
+        try mm.statusOf(account) returns (uint256 collateral, uint256 maxDebt, uint256 debt) {
+            um.collateral = collateral;
+            um.maxDebt = maxDebt;
+            um.debt = debt;
+            um.priceStale = false;
+        } catch {
+            um.priceStale = true;
+        }
+        
         um._address = address(mm);
-        um.positionHealth = getPositionHealth(mm, account);
+        (um.positionHealth, um.priceStale) = getPositionHealth(mm, account);
         um.cooldown = mm.accountAssets(account) + MARKET_COOLDOWN_LENGTH;
         um.tokens = tokens;
     }
