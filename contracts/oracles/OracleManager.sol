@@ -175,6 +175,21 @@ contract OracleManager is IOracleManager {
     /// @param asset The address of the asset.
     function notifyFeedRemoval(address asset) external {
         _checkIsApprovedAdaptor(msg.sender);
+
+        // Validate calling adaptor is a currently supported used for `asset`.
+        // If unused can return immediately.
+        if (_checkFeeds(asset) > 1) {
+            if (
+                assetPriceFeeds[asset][0] != msg.sender &&
+                assetPriceFeeds[asset][1] != msg.sender
+            ) {
+                return;
+            }
+        } else {
+            if (assetPriceFeeds[asset][0] != msg.sender) {
+                return;
+            }
+        }
         _removeFeed(asset, msg.sender);
     }
 
@@ -522,11 +537,9 @@ contract OracleManager is IOracleManager {
     /// @param asset The address of the asset.
     /// @param feed The address of the feed to be removed.
     function _removeFeed(address asset, address feed) internal {
-        uint256 numFeeds = _checkFeeds(asset);
-
         // If theres two feeds, figure out which to remove,
         // otherwise we know the feed to remove is the first entry.
-        if (numFeeds > 1) {
+        if (_checkFeeds(asset) > 1) {
             // Check whether `feed` is a currently supported feed for `asset`.
             if (
                 assetPriceFeeds[asset][0] != feed &&
@@ -661,12 +674,11 @@ contract OracleManager is IOracleManager {
     function _getNativeUSD(
         bool getLower
     ) internal view returns (uint256, bool) {
-        uint256 numFeeds = _checkFeeds(native);
         uint256 price;
         uint256 errorCode;
 
         // Route pricing to a single feed source or dual feed source.
-        if (numFeeds < 2) {
+        if (_checkFeeds(native) < 2) {
             bool hadError;
             (price, hadError) = _getPriceFromFeed(native, 0, true, getLower);
             if (hadError) {
