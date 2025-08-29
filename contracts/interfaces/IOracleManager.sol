@@ -4,8 +4,6 @@ pragma solidity 0.8.28;
 import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 
 interface IOracleManager {
-    /// TYPES ///
-
     /// @notice Retrieves the price of a specified asset from either single
     ///         or dual oracles.
     /// @dev If the asset has one oracle, it fetches the price from a single feed.
@@ -41,7 +39,7 @@ interface IOracleManager {
         address collateralToken,
         address debtToken,
         uint256 errorCodeBreakpoint
-    ) external view returns (uint256, uint256);
+    ) external returns (uint256, uint256);
 
     /// @notice Retrieves the prices and account data of multiple assets
     ///         inside a Curvance Market.
@@ -58,7 +56,6 @@ interface IOracleManager {
         uint256 errorCodeBreakpoint
     )
         external
-        view
         returns (AccountSnapshot[] memory, uint256[] memory, uint256);
 
     /// @notice Removes a price feed for a specific asset

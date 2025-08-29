@@ -78,20 +78,6 @@ abstract contract BasePositionManager is
     /// @param slippage Slippage accepted by the user for execution of
     ///                 `action` leverage action, in `WAD`.
     modifier checkSlippage(address account, uint256 slippage) {
-        // Scoping to avoid stack too deep.
-        {
-            address[] memory assets = marketManager.assetsOf(account);
-            uint256 numAssets = assets.length;
-            IBorrowableCToken asset;
-
-            for (uint256 i; i < numAssets; ++i) {
-                asset = IBorrowableCToken(assets[i]);
-                if (asset.isBorrowable()) {
-                    asset.accrueIfNeeded();
-                }
-            }
-        }
-
         (uint256 collateralBefore, , uint256 debtBefore) = marketManager
             .statusOf(account);
         uint256 valueIn = collateralBefore - debtBefore;
@@ -485,6 +471,16 @@ abstract contract BasePositionManager is
 
     /// PUBLIC FUNCTIONS ///
 
+    /// @inheritdoc ERC165
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override returns (bool result) {
+        result = interfaceId == type(IPositionManager).interfaceId ||
+            super.supportsInterface(interfaceId);
+    }
+
+    /// INTERNAL FUNCTIONS ///
+
     /// @notice Calculates the maximum amount of `borrowableCToken` `account`
     ///         can borrow for maximum leverage.
     /// @dev This can overestimate maximum executeable leverage when swapping
@@ -498,10 +494,10 @@ abstract contract BasePositionManager is
     ///                         from to achieve leverage.
     /// @return result The maximum remaining debt amount allowed from
     ///                `borrowableCToken`, measured in underlying debt assets.
-    function maxRemainingLeverageOf(
+    function _maxRemainingLeverageOf(
         address account,
         address borrowableCToken
-    ) public view returns (uint256 result) {
+    ) internal returns (uint256 result) {
         (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
             marketManager.statusOf(account);
         address debtAsset = ICToken(borrowableCToken).asset();
@@ -539,16 +535,6 @@ abstract contract BasePositionManager is
             WAD
         );
     }
-
-    /// @inheritdoc ERC165
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view override returns (bool result) {
-        result = interfaceId == type(IPositionManager).interfaceId ||
-            super.supportsInterface(interfaceId);
-    }
-
-    /// INTERNAL FUNCTIONS ///
 
     /// @notice Validate `action` parameters versus function parameters and
     ///         apply any protocol fee.
@@ -635,7 +621,7 @@ abstract contract BasePositionManager is
         // will be allowed by the Market Manager.
         if (
             borrowAssets >
-            maxRemainingLeverageOf(account, address(borrowableCToken))
+            _maxRemainingLeverageOf(account, address(borrowableCToken))
             ) {
             revert BasePositionManager__ExceedsMaximumBorrowAllowed();
         }

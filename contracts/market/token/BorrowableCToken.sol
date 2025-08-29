@@ -376,24 +376,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
         emit Flashloan(assets, fee, msg.sender);
     }
 
-    /// @notice Get a snapshot of the cToken and `account` data.
-    /// @dev Used by marketManager to more efficiently perform
-    ///      liquidity checks.
-    ///      NOTE: Does not accrue pending interest as part of the call.
-    /// @param account The address of the account to snapshot.
-    /// @return result The account snapshot of `account`.
-    function getSnapshot(
-        address account
-    ) external view override returns (AccountSnapshot memory result) {
-        uint256 outstandingDebt = debtBalance(account);
-
-        result.asset = address(this);
-        result.decimals = decimals();
-        result.isCollateral = outstandingDebt > 0 ? false : true;
-        result.collateralPosted = collateralPosted[account];
-        result.debtBalance = outstandingDebt;
-    }
-
     /// @notice Updates pending interest and then returns the current
     ///         market-wide outstanding debt.
     /// @dev Used for third party integrations.
@@ -408,17 +390,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _accrueIfNeeded();
 
         result = marketOutstandingDebt;
-    }
-
-    /// @notice Updates pending interest and returns the up-to-date exchange
-    ///         rate from the underlying to the BorrowableCToken.
-    /// @dev Oracle Manager calculates cToken value from this exchange rate.
-    /// @return r The share -> asset exchange rate, in `WAD`.
-    function exchangeRateUpdated() external nonReentrant returns (uint256 r) {
-        // Accrue interest if needed.
-        _accrueIfNeeded();
-        
-        r = _convertToAssets(WAD, _getTotalAssets());
     }
 
     /// @notice Updates pending interest and returns the current outstanding
@@ -437,6 +408,25 @@ contract BorrowableCToken is BaseCTokenWithYield {
     }
 
     /// PUBLIC FUNCTIONS ///
+
+    /// @notice Get a snapshot of the cToken and `account` data.
+    /// @dev Used by marketManager to more efficiently perform
+    ///      liquidity checks.
+    ///      NOTE: Does not accrue pending interest as part of the call.
+    /// @param account The address of the account to snapshot.
+    /// @return result The account snapshot of `account`.
+    function getSnapshot(
+        address account
+    ) public view override returns (AccountSnapshot memory result) {
+        uint256 outstandingDebt = debtBalance(account);
+
+        result.asset = address(this);
+        result.underlying = address(_asset);
+        result.decimals = decimals();
+        result.isCollateral = outstandingDebt > 0 ? false : true;
+        result.collateralPosted = collateralPosted[account];
+        result.debtBalance = outstandingDebt;
+    }
 
     /// @notice Returns the current debt balance for `account`.
     /// @dev Note: Pending interest is not applied in this calculation.

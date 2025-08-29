@@ -256,7 +256,7 @@ interface IMarketManager {
         address liquidator,
         address[] calldata accounts,
         IMarketManager.LiqAction memory action
-    ) external view returns (LiqResult memory, uint256[] memory);
+    ) external returns (LiqResult memory, uint256[] memory);
 
     /// @notice Checks if the seizing of `collateralToken` by repayment of
     ///         `debtToken` should be allowed.
@@ -333,18 +333,5 @@ interface IMarketManager {
     /// @return The current total borrow amount of `account`.
     function statusOf(
         address account
-    ) external view returns (uint256, uint256, uint256);
-
-    /// @notice Determine `account`'s current collateral and debt values
-    ///         in the market.
-    /// @param account The account to calculate liquidation values for.
-    /// @return The total market value of `account`'s collateral offset
-    ///         by soft liquidation requirements.
-    /// @return The total market value of `account`'s collateral offset
-    ///         by hard liquidation requirements.
-    /// @return The total outstanding debt value of `account`.
-    /// @return The value that determines liquidation severity.
-    function liquidationValuesOf(
-        address account
-    ) external view returns (uint256, uint256, uint256, uint256);
+    ) external returns (uint256, uint256, uint256);
 }

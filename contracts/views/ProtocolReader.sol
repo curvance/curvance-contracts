@@ -4,13 +4,13 @@ pragma solidity 0.8.28;
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
-import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD } from "contracts/libraries/ConstantsLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
@@ -103,7 +103,7 @@ contract ProtocolReader {
         uint256 debt;
         uint256 positionHealth;
         uint256 cooldown;
-        bool priceStale;
+        bool errorCodeHit;
         UserMarketToken[] tokens;
     }
 
@@ -122,6 +122,10 @@ contract ProtocolReader {
     // @dev: See MarketManagerIsolated constant: MIN_HOLD_PERIOD
     uint256 public constant MARKET_COOLDOWN_LENGTH = 20 minutes;
     uint256 public constant MARKET_ASSET_RESERVE = 77777;
+    /// @notice Buffer to ensure orderflow auction-based liquidations have
+    ///         priority versus basic liquidations, in `BPS`.
+    /// @dev 9990 = 99.9%. Multiplied then divided by `BPS` = 10 bps buffer.
+    uint256 public constant AUCTION_BUFFER = 9990;
 
     /// STORAGE ///
 
@@ -234,24 +238,21 @@ contract ProtocolReader {
     /// @param mm The market manager to pull data from.
     /// @param account The user address to get the health factor for.
     /// @return positionHealth The healthiness of `account`'s position.
-    /// @return priceStale Whether the price is stale, which would provide incorrect position Health
+    /// @return Whether an error code was hit or not, which would provide
+    ///         incorrect Position Health.
     function getPositionHealth(
         IMarketManager mm,
         address account
-    ) public view returns (uint256 positionHealth, bool priceStale) {
-        try mm.liquidationValuesOf(account) returns (uint256 soft, uint256 hard, uint256 debt, uint256 ifactor) {
-            // No debt means infinite position health.
-            if (debt == 0) {
-                positionHealth = type(uint256).max; 
-            } else {
-                positionHealth = (soft * WAD) / debt;
-            }
-
-            priceStale = false;
-        } catch {
-            priceStale = true;
+    ) public view returns (uint256 positionHealth, bool) {
+        (uint256 soft, , uint256 debt, , bool errorCodeHit) =
+            _liquidationValuesOf(mm, account);
+        if (debt == 0) {
+            positionHealth = type(uint256).max; 
+        } else {
+            positionHealth = (soft * WAD) / debt;
         }
 
+        return (positionHealth, errorCodeHit);
     }
 
     function getUserData(
@@ -319,8 +320,8 @@ contract ProtocolReader {
             revert ProtocolReader__TokenNotListed();
         }
 
-        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
-            mm.statusOf(account);
+        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt, ) =
+            _statusOf(mm, account);
         
         // If the account is insolvent or we can immediately return with 0 for
         // everything.
@@ -540,6 +541,166 @@ contract ProtocolReader {
 
     /// INTERNAL FUNCTIONS ///
 
+    /// @notice Determine `account`'s current status between collateral,
+    ///         debt, and additional liquidity.
+    /// @param account The account to determine liquidity for.
+    /// @return collateral Total value of `account`'s collateral across
+    ///                    all positions.
+    /// @return maxDebt The maximum amount of debt `account`
+    ///                 could take on based on `collateral`.
+    /// @return debt Total value of `account`'s current outstanding
+    ///              debt across all positions.
+    function _statusOf(
+        IMarketManager mm,
+        address account
+    ) internal view returns (
+        uint256 collateral,
+        uint256 maxDebt,
+        uint256 debt,
+        bool
+    ) {
+        (
+            AccountSnapshot[] memory snapshots,
+            uint256[] memory prices,
+            uint256 numAssets,
+            bool errorCodeHit
+        ) = _assetDataOf(mm, account, 2);
+        AccountSnapshot memory snap;
+
+        uint256 collRatio;
+        for (uint256 i; i < numAssets; ++i) {
+            snap = snapshots[i];
+
+            if (snap.isCollateral) {
+                (collRatio, ,) = mm.collConfig(snap.asset);
+                uint256 collateralValue = _assetValue(
+                    snap.collateralPosted,
+                    prices[i],
+                    10 ** snap.decimals,
+                    true
+                );
+                collateral += collateralValue;
+                maxDebt += _mulDiv(
+                    collateralValue,
+                    collRatio,
+                    BPS
+                );
+            } else {
+                // If they have a debt balance, increment their debt.
+                if (snap.debtBalance > 0) {
+                    debt += _assetValue(
+                        snap.debtBalance,
+                        prices[i],
+                        10 ** snap.decimals,
+                        false
+                    );
+                }
+            }
+        }
+
+        return(collateral, maxDebt, debt, errorCodeHit);
+    }
+
+    /// @notice Evaluates collateral and debt positions to determine account
+    ///         health and liquidation parameters.
+    /// @param account The address of the account being evaluated for
+    ///                liquidation.
+    /// @return cSoft The account's soft collateral value (collateral
+    ///               adjusted by soft requirements).
+    /// @return cHard The account's hard collateral value (collateral
+    ///               adjusted by hard requirements).
+    /// @return debt The account's total debt value.
+    /// @return lFactor The value that determines liquidation severity.
+    function _liquidationValuesOf(
+        IMarketManager mm,
+        address account
+    ) internal view returns (
+        uint256 cSoft, uint256 cHard, uint256 debt, uint256 lFactor, bool
+    ) {
+        (
+            AccountSnapshot[] memory snapshots,
+            uint256[] memory prices,
+            uint256 numAssets,
+            bool errorCodeHit
+        ) = _assetDataOf(mm, account, 2);
+        AccountSnapshot memory snap;
+
+        for (uint256 i; i < numAssets; ++i) {
+            snap = snapshots[i];
+
+            if (snap.isCollateral) {
+                (cSoft, cHard) = _addLiquidationValues(
+                    snap,
+                    account,
+                    prices[i],
+                    cSoft,
+                    cHard
+                );
+            } else {
+                // If they have a debt balance,
+                // we need to document collateral requirements.
+                if (snap.debtBalance > 0) {
+                    debt += _assetValue(
+                        snap.debtBalance,
+                        prices[i],
+                        10 ** snap.decimals,
+                        false
+                    );
+                }
+            }
+        }
+
+        if (AUCTION_BUFFER != 0) {
+            cSoft = _mulDiv(cSoft, AUCTION_BUFFER, BPS);
+            cHard = _mulDiv(cHard, AUCTION_BUFFER, BPS);
+        }
+
+        // Get `account` lFactor.
+        if (cSoft >= debt) {
+            // Indicates no liquidation.
+            lFactor = 0;
+        } else {
+            lFactor = debt >= cHard ? WAD // Indicates hard liquidation.
+            // Indicates soft liquidation, we round up here in favor of the
+            // protocol, we know that we wont run into a value > WAD due to cHard
+            // being at least 1 higher than debt.
+            : FixedPointMathLib.mulDivUp(debt - cSoft, WAD, cHard - cSoft);
+        }
+
+        return (cSoft, cHard, debt, lFactor, errorCodeHit);
+    }
+
+    /// @notice Calculates and adds soft and hard collateral values for
+    ///         liquidation assessment.
+    /// @param snap Asset snapshot to calculate asset value from.
+    /// @param account The account to query collateral posted for to calculate
+    ///                liquidation values off of.
+    /// @param price The price of the underlying asset, in `WAD`.
+    /// @param softSumPrior The previous sum of soft collateral values.
+    /// @param hardSumPrior The previous sum of hard collateral values.
+    /// @return softSum The updated sum of soft collateral values.
+    /// @return hardSum The updated sum of hard collateral values.
+    function _addLiquidationValues(
+        AccountSnapshot memory snap,
+        address account,
+        uint256 price,
+        uint256 softSumPrior,
+        uint256 hardSumPrior
+    ) internal view returns (uint256 softSum, uint256 hardSum) {
+        address asset = snap.asset;
+        (, uint256 collReqSoft, uint256 collReqHard) =
+            IMarketManager(ICToken(asset).marketManager()).collConfig(asset);
+        uint256 assetValue = _assetValue(
+            ICToken(asset).collateralPosted(account),
+            price,
+            10 ** snap.decimals,
+            true
+        ) * BPS;
+
+        softSum = softSumPrior + (assetValue / collReqSoft);
+        hardSum = hardSumPrior + (assetValue / collReqHard);
+    }
+
     function _getStaticTokenAsset(ICToken cToken) internal view returns (StaticMarketAsset memory a) {
         IERC20 asset = IERC20(cToken.asset());
         a._address = address(asset);
@@ -682,18 +843,12 @@ contract ProtocolReader {
         for (uint256 j; j < numTokens; ++j) {
             tokens[j] = _buildUserMarketToken(tokenAddresses[j], account);
         }
-        
-        try mm.statusOf(account) returns (uint256 collateral, uint256 maxDebt, uint256 debt) {
-            um.collateral = collateral;
-            um.maxDebt = maxDebt;
-            um.debt = debt;
-            um.priceStale = false;
-        } catch {
-            um.priceStale = true;
-        }
+
+        (um.collateral, um.maxDebt, um.debt, um.errorCodeHit) =
+            _statusOf(mm, account);
         
         um._address = address(mm);
-        (um.positionHealth, um.priceStale) = getPositionHealth(mm, account);
+        (um.positionHealth, um.errorCodeHit) = getPositionHealth(mm, account);
         um.cooldown = mm.accountAssets(account) + MARKET_COOLDOWN_LENGTH;
         um.tokens = tokens;
     }
@@ -801,6 +956,75 @@ contract ProtocolReader {
         }
 
         return debtAssets;
+    }
+
+    /// @notice Retrieves the prices and account data of multiple assets
+    ///         inside this market.
+    /// @param account The account to retrieve data for.
+    /// @param errorCodeBreakpoint The error code that will cause liquidity
+    ///                            operations to revert.
+    /// @return Assets data for `account`.
+    /// @return Prices for `account` assets.
+    /// @return The number of assets `account` is in.
+    function _assetDataOf(
+        IMarketManager mm,
+        address account,
+        uint256 errorCodeBreakpoint
+    ) internal view returns (
+        AccountSnapshot[] memory,
+        uint256[] memory,
+        uint256,
+        bool errorCodeHit
+    ) {
+        address[] memory assets = mm.assetsOf(account);
+        uint256 numAssets = assets.length;
+        AccountSnapshot[] memory snapshots = new AccountSnapshot[](numAssets);
+        uint256[] memory prices = new uint256[](numAssets);
+
+        address asset;
+        uint256 errorCode;
+        for (uint256 i; i < numAssets; ++i) {
+            asset = assets[i];
+            snapshots[i] = ICToken(asset).getSnapshot(account);
+
+            if (snapshots[i].isCollateral) {
+                (prices[i], errorCode) = getPrice(snapshots[i].underlying, true, true);
+                prices[i] = (prices[i] * ICToken(asset).exchangeRate()) / WAD;
+            } else {
+                (prices[i], errorCode) = getPrice(snapshots[i].underlying, true, false);
+            }
+
+            if (errorCode >= errorCodeBreakpoint && !errorCodeHit) {
+                errorCodeHit = true;
+            }
+
+        }
+
+        return (snapshots, prices, numAssets, errorCodeHit);
+    }
+
+    /// @notice Calculates an assets value based on its `price`,
+    ///         `amount`, and adjusts for decimals.
+    /// @param amount The asset amount to calculate asset value from.
+    /// @param price The asset price to calculate asset value from, in `WAD`.
+    /// @param decimals The asset decimals to adjust asset value
+    ///                 into proper form.
+    /// @param increasesCollateral Whether the asset adds positive value or
+    ///        not to the liquidity check, we round down when increasing
+    ///        collateral value and round up when increasing collateral
+    ///        value/increasing debt.
+    /// @return The calculated asset value.
+    function _assetValue(
+        uint256 amount,
+        uint256 price,
+        uint256 decimals,
+        bool increasesCollateral
+    ) internal pure returns (uint256) {
+        if (increasesCollateral) {
+            return _mulDiv(amount, price, decimals);
+        }
+
+        return FixedPointMathLib.mulDivUp(amount, price, decimals);
     }
 
     /// @dev Returns `floor(x * y / d)`.

@@ -474,7 +474,7 @@
 //                 uint256 newCollateralForUser = _collateralPostedFor(cToken);
 
 //                 uint256 cTokenExchange = MockSimpleCToken(cToken)
-//                     .exchangeRateSafe();
+//                     .exchangeRateUpdated();
 //                 assertEq(
 //                     (newCollateralForUser) * cTokenExchange,
 //                     (oldCollateralForUser + tokens) * cTokenExchange,

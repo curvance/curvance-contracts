@@ -321,25 +321,8 @@ contract MarketManagerIsolated is
     /// @return The current total borrow amount of `account`.
     function statusOf(
         address account
-    ) external view returns (uint256, uint256, uint256) {
+    ) external returns (uint256, uint256, uint256) {
         return _statusOf(account);
-    }
-
-    /// @notice Determine `account`'s current collateral and debt values
-    ///         in the market.
-    /// @param account The account to calculate liquidation values for.
-    /// @return The total market value of `account`'s collateral offset
-    ///         by soft liquidation requirements.
-    /// @return The total market value of `account`'s collateral offset
-    ///         by hard liquidation requirements.
-    /// @return The total outstanding debt value of `account`.
-    /// @return The value that determines liquidation severity.
-    function liquidationValuesOf(
-        address account
-    ) external view returns (uint256, uint256, uint256, uint256) {
-        (AccountLiqResult memory result, uint256 lFactor)
-            = _liquidationValuesOf(account);
-        return (result.cSoft, result.cHard, result.debt, lFactor);
     }
 
     /// @notice Checks if the account should be allowed to mint tokens
@@ -447,7 +430,7 @@ contract MarketManagerIsolated is
         address cToken,
         uint256 shares,
         address account
-    ) external view {
+    ) external {
         _canRedeem(cToken, shares, account);
     }
 
@@ -552,7 +535,7 @@ contract MarketManagerIsolated is
         address liquidator,
         address[] calldata accounts,
         IMarketManager.LiqAction memory action
-    ) external view virtual returns (
+    ) external returns (
         IMarketManager.LiqResult memory result,
         uint256[] memory
     ) {
@@ -1246,7 +1229,7 @@ contract MarketManagerIsolated is
         address cToken,
         uint256 shares,
         address account
-    ) internal view returns (uint256, bool[] memory) {
+    ) internal returns (uint256, bool[] memory) {
         if (redeemPaused == 2) {
             revert MarketManager__Paused();
         }
@@ -1413,7 +1396,7 @@ contract MarketManagerIsolated is
     ) {
         // Calculate the users lFactor and bubble up their active debt.
         (aData.lFactor, aData.debtBalance) =
-            _liquidationValuesOfCached(account, tData);
+            _liquidationValuesOf(account, tData);
 
         if (aData.lFactor == 0) {
             return (0, 0, 0);
@@ -1563,7 +1546,7 @@ contract MarketManagerIsolated is
     function _getLiquidationConfig(
         address collateralToken,
         address debtToken
-    ) internal view returns (
+    ) internal returns (
         TokenLiqData memory tData,
         AccountLiqData memory aData
     ) {

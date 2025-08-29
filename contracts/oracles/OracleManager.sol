@@ -77,7 +77,7 @@ contract OracleManager is IOracleManager {
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     /// @notice Time to pass before accepting answers when sequencer
     ///         comes back up, in seconds.
-    uint256 public constant GRACE_PERIOD_TIME = 3600;
+    uint256 public constant GRACE_PERIOD_TIME = 600;
     /// @notice Maximum value that a price divergence flag can be set as
     ///         inside the protocol.
     /// @dev 1.03e4 = 3.0%.
@@ -175,10 +175,11 @@ contract OracleManager is IOracleManager {
     /// @param asset The address of the asset.
     function notifyFeedRemoval(address asset) external {
         _checkIsApprovedAdaptor(msg.sender);
+        uint256 numFeeds = _checkFeeds(asset);
 
         // Validate calling adaptor is a currently supported used for `asset`.
         // If unused can return immediately.
-        if (_checkFeeds(asset) > 1) {
+        if (numFeeds > 1) {
             if (
                 assetPriceFeeds[asset][0] != msg.sender &&
                 assetPriceFeeds[asset][1] != msg.sender
@@ -186,6 +187,10 @@ contract OracleManager is IOracleManager {
                 return;
             }
         } else {
+            if (numFeeds == 0) {
+                return;
+            }
+
             if (assetPriceFeeds[asset][0] != msg.sender) {
                 return;
             }
@@ -381,27 +386,12 @@ contract OracleManager is IOracleManager {
             asset = cTokenUnderlying;
         }
 
-        // Route pricing to a single feed source or dual feed source.
-        if (_checkFeeds(asset) > 1) {
-            (price, errorCode) = _getPriceDualFeed(asset, inUSD, getLower);
-        } else {
-            bool hadError;
-            (price, hadError) = _getPriceFromFeed(asset, 0, inUSD, getLower);
-            if (hadError) {
-                errorCode = BAD_SOURCE;
-            }
-        }
+        (price, errorCode) = _getPrice(asset, inUSD, getLower);
 
         // Query the exchange rate between a Curvance token and its underlying
         // token and convert the price into WAD form.
         if (cToken != address(0)) {
             price = (price * ICToken(cToken).exchangeRate()) / WAD;
-        }
-
-        // If somehow a feed returns a price of 0,
-        // make sure we trigger the BAD_SOURCE flag.
-        if (price == 0 && errorCode < BAD_SOURCE) {
-            errorCode = BAD_SOURCE;
         }
     }
 
@@ -419,21 +409,28 @@ contract OracleManager is IOracleManager {
         address collateralToken,
         address debtToken,
         uint256 errorCodeBreakpoint
-    ) external view returns (
+    ) external returns (
         uint256 collateralSharesPrice,
         uint256 debtUnderlyingPrice
     ) {
-        uint256 errorCode;
-        (collateralSharesPrice, errorCode) = getPrice(
-            collateralToken,
-            true,
-            true
-        );
-        if (errorCode >= errorCodeBreakpoint) {
+        if (!_isSequencerValid()) {
             revert OracleManager__ErrorCodeFlagged();
         }
 
-        (debtUnderlyingPrice, errorCode) = getPrice(
+        uint256 errorCode;
+        (collateralSharesPrice, errorCode) = _getPrice(
+            cTokens[collateralToken],
+            true,
+            true
+        );
+
+        if (errorCode >= errorCodeBreakpoint) {
+            revert OracleManager__ErrorCodeFlagged();
+        }
+        collateralSharesPrice = (collateralSharesPrice *
+            ICToken(collateralToken).exchangeRateUpdated()) / WAD;
+
+        (debtUnderlyingPrice, errorCode) = _getPrice(
             cTokens[debtToken],
             true,
             false
@@ -459,13 +456,16 @@ contract OracleManager is IOracleManager {
         address account,
         address[] calldata assets,
         uint256 errorCodeBreakpoint
-    ) external view returns (
+    ) external returns (
         AccountSnapshot[] memory,
         uint256[] memory,
         uint256
     ) {
-        uint256 numAssets = assets.length;
+        if (!_isSequencerValid()) {
+            revert OracleManager__ErrorCodeFlagged();
+        }
 
+        uint256 numAssets = assets.length;
         AccountSnapshot[] memory snapshots = new AccountSnapshot[](numAssets);
         uint256[] memory prices = new uint256[](numAssets);
         uint256 errorCode;
@@ -473,16 +473,28 @@ contract OracleManager is IOracleManager {
         address asset;
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            snapshots[i] = ICToken(asset).getSnapshot(account);
+            snapshots[i] = ICToken(asset).getSnapshotUpdated(account);
 
-            // If the asset is being used as collateral the users liquidity is
-            // priced in shares, if theyre borrowing the outstanding debt is
-            // measured in assets (underlying).
-            (prices[i], errorCode) = getPrice(
-                snapshots[i].isCollateral ? asset : cTokens[asset],
-                true,
-                snapshots[i].isCollateral
-            );
+            if (snapshots[i].isCollateral) {
+                // If the asset is being used as collateral the users liquidity is
+                // priced in shares using _getPrice multiplied by exchange rate.
+                (prices[i], errorCode) = _getPrice(
+                    snapshots[i].underlying,
+                    true,
+                    true
+                );
+                // `getSnapshotUpdated` already accrues any pending assets so
+                // we can call `exchangeRate` directly.
+                prices[i] = (prices[i] * ICToken(asset).exchangeRate()) / WAD;
+            } else {
+                // If the asset is being borrowed the outstanding debt is
+                // measured in assets (underlying) using _getPrice.
+                (prices[i], errorCode) = _getPrice(
+                    snapshots[i].underlying,
+                    true,
+                    false
+                );
+            }
 
             if (errorCode >= errorCodeBreakpoint) {
                 revert OracleManager__ErrorCodeFlagged();
@@ -493,6 +505,47 @@ contract OracleManager is IOracleManager {
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Retrieves the price of a specified asset from either single
+    ///         or dual oracles.
+    /// @dev If the asset has one oracle, it fetches the price from a single
+    ///      feed.
+    ///      If it has two or more oracles, it fetches the price from both
+    ///      feeds.
+    /// @param asset The address of the asset to retrieve the price for.
+    /// @param inUSD Specifies whether the price format should be in
+    ///              USD (true) or a chain's native token (false).
+    /// @param getLower Whether the lower or higher price should be returned
+    ///                 if two feeds are available.
+    /// @return price The current price of `asset`.
+    /// @return errorCode An error code related to fetching the price:
+    ///                   '0' indicates no error fetching price.
+    ///                   '1' indicates that price should be taken with
+    ///                   caution.
+    ///                   '2' indicates a complete failure in receiving
+    ///                   a price.
+    function _getPrice(
+        address asset,
+        bool inUSD,
+        bool getLower
+    ) internal view returns (uint256 price, uint256 errorCode) {
+        // Route pricing to a single feed source or dual feed source.
+        if (_checkFeeds(asset) > 1) {
+            (price, errorCode) = _getPriceDualFeed(asset, inUSD, getLower);
+        } else {
+            bool hadError;
+            (price, hadError) = _getPriceFromFeed(asset, 0, inUSD, getLower);
+            if (hadError) {
+                errorCode = BAD_SOURCE;
+            }
+        }
+
+        // If somehow a feed returns a price of 0,
+        // make sure we trigger the BAD_SOURCE flag.
+        if (price == 0 && errorCode < BAD_SOURCE) {
+            errorCode = BAD_SOURCE;
+        }
+    }
 
     /// @notice Adds a price feed for a specific asset.
     /// @dev Requires that the feed is not supported for `asset`.
@@ -676,22 +729,7 @@ contract OracleManager is IOracleManager {
         bool getLower
     ) internal view returns (uint256 price, bool hadError) {
         uint256 errorCode;
-
-        // Route pricing to a single feed source or dual feed source.
-        if (_checkFeeds(native) > 1) {
-            (price, errorCode) = _getPriceDualFeed(native, true, getLower);
-        } else {
-            (price, hadError) = _getPriceFromFeed(native, 0, true, getLower);
-            if (hadError) {
-                errorCode = BAD_SOURCE;
-            }
-        }
-
-        // If somehow a feed returns a price of 0,
-        // make sure we trigger the BAD_SOURCE flag.
-        if (price == 0 && errorCode < BAD_SOURCE) {
-            errorCode = BAD_SOURCE;
-        }
+        (price, errorCode) = _getPrice(native, true, getLower);
 
         // If there was any error while querying native token price,
         // bubble up an error.

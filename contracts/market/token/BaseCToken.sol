@@ -428,38 +428,53 @@ abstract contract BaseCToken is
         RescueLib._rescueToken(centralRegistry, token, amount);
     }
 
-    /// @notice Returns share -> asset exchange rate, in `WAD`, safely.
+    /// @notice Updates pending assets and returns the up-to-date exchange
+    ///         rate from the underlying to the BorrowableCToken.
     /// @dev Oracle Manager calculates cToken value from this exchange rate.
-    /// @return r The share -> asset exchange rate, in `WAD`.
-    function exchangeRateSafe() external view nonReadReentrant returns (
-        uint256 r
-    ) {
-        r = _convertToAssets(WAD, _getTotalAssets());
+    /// @return result The share -> asset exchange rate, in `WAD`.
+    function exchangeRateUpdated() external returns (uint256 result) {
+        _accrueIfNeeded();
+        
+        result = _convertToAssets(WAD, _getTotalAssets());
     }
 
-    /// @notice Returns share -> asset exchange rate, in `WAD`.
-    /// @dev Oracle Manager calculates cToken value from this exchange rate.
-    /// @return r The share -> asset exchange rate, in `WAD`.
-    function exchangeRate() external view returns (uint256 r) {
-        r = _convertToAssets(WAD, _getTotalAssets());
+    /// @notice Returns the up-to-date exchange rate from the underlying to
+    ///         the BorrowableCToken.
+    /// @return result The share -> asset exchange rate, in `WAD`.
+    function exchangeRate() external view returns (uint256 result) {
+        result = _convertToAssets(WAD, _getTotalAssets());
     }
 
-    /// @notice Returns a snapshot of the cToken and `account` data.
+    /// @notice Updates pending assets and returns a snapshot of the cToken
+    ///         and `account` data.
     /// @dev Used by MarketManager to efficiently perform liquidity checks.
     /// NOTE: debtBalance always return 0 except in `borrowableCToken`.
     /// @return result The snapshot of the cToken and `account` data.
+    function getSnapshotUpdated(
+        address account
+    ) external returns (AccountSnapshot memory result) {
+        _accrueIfNeeded();
+
+        result = getSnapshot(account);
+    }
+
+    /// PUBLIC FUNCTIONS ///
+
+    /// @notice Returns a snapshot of the cToken and `account` data.
+    /// @dev debtBalance always return 0 except in `borrowableCToken`.
+    ///      NOTE: Does not accrue pending assets as part of the call.
+    /// @return result The snapshot of the cToken and `account` data.
     function getSnapshot(
         address account
-    ) external view virtual returns (AccountSnapshot memory result) {
+    ) public view virtual returns (AccountSnapshot memory result) {
         result.asset = address(this);
+        result.underlying = address(_asset);
         result.decimals = decimals();
         // Can only be true for non-BorrowableCTokens.
         result.isCollateral = true;
         result.collateralPosted = collateralPosted[account];
         // result.debtBalance is 0 for non-BorrowableCTokens, no need to set.
     }
-
-    /// PUBLIC FUNCTIONS ///
 
     /// @notice Returns the name of the token.
     /// @return The name of the token.

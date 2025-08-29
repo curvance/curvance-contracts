@@ -260,7 +260,7 @@ abstract contract LiquidityManagerIsolated {
     ///                 could take on based on `collateral`.
     /// @return debt Total value of `account`'s current outstanding
     ///              debt across all positions.
-    function _statusOf(address account) internal view returns (
+    function _statusOf(address account) internal returns (
         uint256 collateral,
         uint256 maxDebt,
         uint256 debt
@@ -327,10 +327,7 @@ abstract contract LiquidityManagerIsolated {
     function _hypotheticalLiquidityOf(
         address account,
         HypotheticalAction memory action
-    ) internal view returns (
-        HypotheticalResult memory result,
-        bool[] memory
-    ) {
+    ) internal returns (HypotheticalResult memory result, bool[] memory) {
         (
             AccountSnapshot[] memory snapshots,
             uint256[] memory prices,
@@ -456,61 +453,6 @@ abstract contract LiquidityManagerIsolated {
         return (result, positionsToClose);
     }
 
-    /// @notice Evaluates collateral and debt positions to determine account
-    ///         health and liquidation parameters.
-    /// @param account The address of the account being evaluated for
-    ///                liquidation.
-    /// @return result Hypothetical results for an action containing:
-    ///                cSoft The account's soft collateral value (collateral
-    ///                      adjusted by soft requirements).
-    ///                cHard The account's hard collateral value (collateral
-    ///                      adjusted by hard requirements).
-    ///                debt The account's total debt value.
-    /// @return lFactor The value that determines liquidation severity.
-    function _liquidationValuesOf(address account) internal view returns (
-        AccountLiqResult memory result,
-        uint256 lFactor
-    ) {
-        (
-            AccountSnapshot[] memory snapshots,
-            uint256[] memory prices,
-            uint256 numAssets
-        ) = _assetDataOf(account, 2);
-        AccountSnapshot memory snap;
-
-        for (uint256 i; i < numAssets; ++i) {
-            snap = snapshots[i];
-
-            if (snap.isCollateral) {
-                (result.cSoft, result.cHard) = _addLiquidationValues(
-                    snap,
-                    account,
-                    prices[i],
-                    result.cSoft,
-                    result.cHard
-                );
-            } else {
-                // If they have a debt balance,
-                // we need to document collateral requirements.
-                if (snap.debtBalance > 0) {
-                    result.debt += _assetValue(
-                        snap.debtBalance,
-                        prices[i],
-                        10 ** snap.decimals,
-                        false
-                    );
-                }
-            }
-        }
-
-        if (AUCTION_BUFFER != 0) {
-            result.cSoft = _mulDiv(result.cSoft, AUCTION_BUFFER, BPS);
-            result.cHard = _mulDiv(result.cHard, AUCTION_BUFFER, BPS);
-        }
-
-        lFactor = _getLFactor(result.cSoft, result.cHard, result.debt);
-    }
-
     /// @notice Evaluates an account's collateral and debt positions to
     ///         determine liquidation factor using cached data.
     /// @param account The address of the account being evaluated for
@@ -541,52 +483,55 @@ abstract contract LiquidityManagerIsolated {
     ///              auctionBuffer The current buffer that `cSoft` is
     ///                            multiplied against, 10 bps, or 0  if not
     ///                            an auction-based liquidation.
-    ///  @return lFactor The liquidation factor for `account`.
+    ///  @return lFactor The liquidation factor where:
+    ///                  0: No liquidation (account is healthy).
+    ///                  1 to WAD - 1: Soft liquidation (partial liquidation
+    ///                                allowed).
+    ///                  WAD: Hard liquidation (full liquidation, possibly
+    ///                       including bad debt).
     ///  @return debt The current debt position in `liqData.debtToken` for
     ///               `account`.
-    function _liquidationValuesOfCached(
+    function _liquidationValuesOf(
         address account,
         TokenLiqData memory tData
     ) internal view returns (uint256 lFactor, uint256 debt) {
         AccountLiqResult memory r;
         address[] memory assets = accountAssets[account].assets;
 
-        {
-            address asset;
-            uint256 numAssets = assets.length;
-            for (uint256 i; i < numAssets; ) {
-                asset = assets[i++];
-                if (asset == tData.collateralToken) {
-                    (r.cSoft, r.cHard) = _addLiquidationValuesCached(
-                        tData.collateralDecimals,
-                        tData.collateralReqSoft,
-                        tData.collateralReqHard,
-                        tData.collateralSharesPrice,
-                        ICToken(tData.collateralToken).collateralPosted(account),
-                        r.cSoft,
-                        r.cHard
-                    );
-                } else {
-                    // If the asset is not `collateralToken`, the asset must
-                    // be the `debtToken` debt position because this market
-                    // only has two tokens.
-                    debt =
-                        IBorrowableCToken(tData.debtToken).debtBalance(account);
+        address asset;
+        uint256 numAssets = assets.length;
+        for (uint256 i; i < numAssets; ) {
+            asset = assets[i++];
+            if (asset == tData.collateralToken) {
+                (r.cSoft, r.cHard) = _addLiquidationValues(
+                    tData.collateralDecimals,
+                    tData.collateralReqSoft,
+                    tData.collateralReqHard,
+                    tData.collateralSharesPrice,
+                    ICToken(tData.collateralToken).collateralPosted(account),
+                    r.cSoft,
+                    r.cHard
+                );
+            } else {
+                // If the asset is not `collateralToken`, the asset must
+                // be the `debtToken` debt position because this market
+                // only has two tokens.
+                debt =
+                    IBorrowableCToken(tData.debtToken).debtBalance(account);
 
-                    // If they have a debt balance, document additional
-                    // collateral requirements.
-                    if (debt > 0) {
-                        r.debt += _assetValue(
-                            debt,
-                            tData.debtUnderlyingPrice,
-                            tData.debtDecimals,
-                            false
-                        );
-                    }
+                // If they have a debt balance, document additional
+                // collateral requirements.
+                if (debt > 0) {
+                    r.debt += _assetValue(
+                        debt,
+                        tData.debtUnderlyingPrice,
+                        tData.debtDecimals,
+                        false
+                    );
                 }
             }
         }
-
+        
         // If this is a potential liquidation from an auction, apply the
         // auction buffer to collateral values, discounting collateral values.
         if (tData.auctionBuffer != 0) {
@@ -594,42 +539,17 @@ abstract contract LiquidityManagerIsolated {
             r.cHard = _mulDiv(r.cHard, tData.auctionBuffer, BPS);
         }
 
-        lFactor = _getLFactor(r.cSoft, r.cHard, r.debt);
-    }
-
-    ///  @notice Calculates the liquidation factor (LFactor) for an account
-    ///          based on their collateral and debt positions.
-    ///  @dev Determines whether an account is in a no-liquidation,
-    ///       soft-liquidation, or hard-liquidation state.
-    ///  @param cSoft The account's soft collateral value (collateral adjusted
-    ///               by soft requirements).
-    ///  @param cHard The account's hard collateral value (collateral adjusted
-    ///               by hard requirements).
-    ///  @param debt The account's total outstanding debt value.
-    ///  @return The liquidation factor where:
-    ///          0: No liquidation (account is healthy).
-    ///          1 to WAD-1: Soft liquidation (partial liquidation allowed).
-    ///          WAD: Hard liquidation (full liquidation, possibly including
-    ///               bad debt).
-    function _getLFactor(
-        uint256 cSoft,
-        uint256 cHard,
-        uint256 debt
-    ) internal pure returns (uint256) {
-        // Indicates no liquidation.
-        if (cSoft >= debt) {
-            return 0;
+        // Get `account` lFactor.
+        if (r.cSoft >= r.debt) {
+            // Indicates no liquidation.
+            lFactor = 0;
+        } else {
+            lFactor = r.debt >= r.cHard ? WAD // Indicates hard liquidation.
+            // Indicates soft liquidation, we round up here in favor of the
+            // protocol, we know that we wont run into a value > WAD due to cHard
+            // being at least 1 higher than debt.
+            : FixedPointMathLib.mulDivUp(r.debt - r.cSoft, WAD, r.cHard - r.cSoft);
         }
-
-        // Indicates hard liquidation.
-        if (debt >= cHard) {
-            return WAD;
-        }
-
-        // Indicates soft liquidation, we round up here in favor of the
-        // protocol, we know that we wont run into a value > WAD due to cHard
-        // being at least 1 higher than debt.
-        return FixedPointMathLib.mulDivUp(debt - cSoft, WAD, cHard - cSoft);
     }
 
     /// @notice Retrieves the prices and account data of multiple assets
@@ -642,7 +562,6 @@ abstract contract LiquidityManagerIsolated {
     /// @return The number of assets `account` is in.
     function _assetDataOf(address account, uint256 errorCodeBreakpoint)
         internal
-        view
         returns (AccountSnapshot[] memory, uint256[] memory, uint256) {
         return CommonLib._oracleManager(centralRegistry).getPricesForMarket(
             account,
@@ -703,35 +622,6 @@ abstract contract LiquidityManagerIsolated {
     }
 
     /// @notice Calculates and adds soft and hard collateral values for
-    ///         liquidation assessment.
-    /// @param snap Asset snapshot to calculate asset value from.
-    /// @param account The account to query collateral posted for to calculate
-    ///                liquidation values off of.
-    /// @param price The price of the underlying asset, in `WAD`.
-    /// @param softSumPrior The previous sum of soft collateral values.
-    /// @param hardSumPrior The previous sum of hard collateral values.
-    /// @return uint256 The updated sum of soft collateral values.
-    /// @return uint256 The updated sum of hard collateral values.
-    function _addLiquidationValues(
-        AccountSnapshot memory snap,
-        address account,
-        uint256 price,
-        uint256 softSumPrior,
-        uint256 hardSumPrior
-    ) internal view returns (uint256, uint256) {
-        address asset = snap.asset;
-        return _addLiquidationValuesCached(
-            10 ** snap.decimals,
-            _tokenConfig[asset].collReqSoft,
-            _tokenConfig[asset].collReqHard,
-            price,
-            ICToken(asset).collateralPosted(account),
-            softSumPrior,
-            hardSumPrior
-        );
-    }
-
-    /// @notice Calculates and adds soft and hard collateral values for
     ///         liquidation assessment with cached data.
     /// @param decimals The number of decimals for the collateral token.
     /// @param collReqSoft The soft collateral requirement ratio, in WAD.
@@ -743,7 +633,7 @@ abstract contract LiquidityManagerIsolated {
     /// @param hardSumPrior The previous sum of hard collateral values.
     /// @return softSum The updated sum of soft collateral values.
     /// @return hardSum The updated sum of hard collateral values.
-    function _addLiquidationValuesCached(
+    function _addLiquidationValues(
         uint256 decimals,
         uint256 collReqSoft,
         uint256 collReqHard,

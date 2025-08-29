@@ -8,6 +8,7 @@ import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
 struct AccountSnapshot {
     address asset;
+    address underlying;
     uint8 decimals;
     bool isCollateral;
     uint256 collateralPosted;
@@ -46,10 +47,17 @@ interface ICToken {
     /// @return The address of the underlying asset.
     function asset() external view returns (address);
 
-    /// @notice Get a snapshot of `account` data in this Curvance token.
+    /// @notice Updates pending assets and returns a snapshot of the cToken
+    ///         and `account` data.
     /// @dev Used by marketManager to more efficiently perform
     ///      liquidity checks.
-    ///      NOTE: Does not accrue pending interest as part of the call.
+    /// @return result The snapshot of the cToken and `account` data.
+    function getSnapshotUpdated(
+        address account
+    ) external returns (AccountSnapshot memory result) 
+
+    /// @notice Get a snapshot of `account` data in this Curvance token.
+    /// @dev NOTE: Does not accrue pending assets as part of the call.
     /// @param account The address of the account to snapshot.
     /// @return The account snapshot of `account`.
     function getSnapshot(
@@ -74,8 +82,16 @@ interface ICToken {
     ///         `shares`.
     function convertToAssets(uint256 shares) external view returns (uint256);
 
-    /// @notice Returns share -> asset exchange rate, in `WAD`.
+    /// @notice Updates pending assets and returns the up-to-date exchange
+    ///         rate from the underlying to the BorrowableCToken.
     /// @dev Oracle Manager calculates cToken value from this exchange rate.
+    /// @return The share -> asset exchange rate, in `WAD`.
+    function exchangeRateUpdated() external returns (uint256) ;
+
+    /// @notice Returns the up-to-date exchange rate from the underlying to
+    ///         the BorrowableCToken.
+    /// @dev Oracle Manager calculates cToken value from this exchange rate.
+    /// @return The share -> asset exchange rate, in `WAD`.
     function exchangeRate() external view returns (uint256);
 
     /// @notice Executes multiple calls in a single transaction.
