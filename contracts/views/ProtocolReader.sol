@@ -699,11 +699,6 @@ contract ProtocolReader {
         if(ctoken.isBorrowable()) {
             IBorrowableCToken bcToken = IBorrowableCToken(address(ctoken));
             uint256 assetsHeld = bcToken.assetsHeld();
-            uint256 assetsHeldUsd = _mulDiv(
-                assetsHeld,
-                getPriceSafely(asset, true, false, 3), 
-                10 ** IERC20(asset).decimals()
-            );
             IDynamicIRM irm = bcToken.IRM();
 
             dmt.debt = bcToken.marketOutstandingDebt();

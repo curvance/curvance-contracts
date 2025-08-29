@@ -738,7 +738,6 @@ abstract contract BaseCToken is
         // Check for rounding error by converting assets to shares,
         // since we round down in previewDeposit.
         _checkZeroAmount(shares = _convertToShares(assets, _getTotalAssets()));
-        _checkDeposit(receiver);
 
         // Fails if deposit not allowed, this stands in for a maxDeposit
         // check reviewing isListed and mintPaused != 2.
@@ -761,7 +760,6 @@ abstract contract BaseCToken is
         _accrueIfNeeded();
 
         _checkZeroAmount(shares);
-        _checkDeposit(receiver);
 
         // Fail if mint not allowed, this stands in for a maxMint
         // check reviewing isListed and mintPaused != 2.
@@ -1318,10 +1316,6 @@ abstract contract BaseCToken is
         
         _beforeTransferAction(shares, receiver, owner);
     }
-
-    /// @notice An optional set of instructions to check before processing
-    ///         a deposit of assets.
-    function _checkDeposit(address /* owner */) internal view virtual {}
 
     /// @notice Returns the total assets invariant, any pending rewards for
     ///         depositors and other values to process a withdrawal.
