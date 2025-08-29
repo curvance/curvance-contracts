@@ -124,10 +124,10 @@ contract ListTokensTest is TestBaseMarketIsolated {
 
         // Expect Deposit is emitted from each cToken during _initializeDeposits().
         vm.expectEmit(true, true, false, true, address(strategyCBALRETH));
-        emit Deposit(address(this), address(strategyCBALRETH), 77777, 77777);
+        emit Deposit(address(this), address(0), 77777, 77777);
         
         vm.expectEmit(true, true, false, true, address(borrowableCUSDC));
-        emit Deposit(address(this), address(borrowableCUSDC), 77777, 77777);
+        emit Deposit(address(this), address(0), 77777, 77777);
 
         marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
         

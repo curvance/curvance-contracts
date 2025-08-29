@@ -32,10 +32,11 @@ import { console2 } from "forge-std/console2.sol";
 
 contract MixedAuction is TestBaseLiquidations {
 
-    address borrower1 = makeAddr("borrower1");
-    address borrower2 = makeAddr("borrower2");
-    address borrower3 = makeAddr("borrower3");
-    address borrower4 = makeAddr("borrower4");
+    // addresses are sorted in ascending order
+    address borrower1 = address(0x0000000000000000000000000000000000000001);
+    address borrower2 = address(0x0000000000000000000000000000000000000002);
+    address borrower3 = address(0x0000000000000000000000000000000000000003);
+    address borrower4 = address(0x0000000000000000000000000000000000000004);
 
     uint256 borrowAmount = 2500e6;
     address[] auctionBorrowers = [borrower1, borrower2];

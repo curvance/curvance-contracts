@@ -16,9 +16,9 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
     
 contract NoneLiquidated is TestBaseLiquidations {
 
-    address borrower1 = makeAddr("borrower1");
-    address borrower2 = makeAddr("borrower2");
-    address borrower3 = makeAddr("borrower3");
+    address borrower1 = address(0x0000000000000000000000000000000000000001);
+    address borrower2 = address(0x0000000000000000000000000000000000000002);
+    address borrower3 = address(0x0000000000000000000000000000000000000003);
 
     uint256 borrowAmount = 1000e6;
     address[] borrowers = [borrower1, borrower2, borrower3];

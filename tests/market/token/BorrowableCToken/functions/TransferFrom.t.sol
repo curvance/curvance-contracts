@@ -73,23 +73,37 @@ contract BorrowableCTokenTransferFromTest is TestBaseBorrowableCToken {
     // If canTransfer incorrectly used msg.sender, this would revert.
     // This test is to ensure that checkTransfer is against the owner, not the caller.
     function test_transferFrom_success_whenSpenderDisabled() public {
-
+        // Give owner shares and post most as collateral to test liquidity code path
         deal(address(borrowableCUSDC), address(this), 100e6);
+        borrowableCUSDC.postCollateral(90e6);
+
+        // skip hold period
+        skip(20 minutes + 1);
+
         borrowableCUSDC.approve(user1, 100e6);
 
         uint256 ownerBal = borrowableCUSDC.balanceOf(address(this));
         uint256 recvBal = borrowableCUSDC.balanceOf(user2);
+        uint256 ownerCollBefore = borrowableCUSDC.collateralPosted(address(this));
 
         // Disable transfers for owner (user1), true == disable
         vm.prank(user1);
         centralRegistry.setTransferableStatus(true);
 
+        // Transfer amount exceeds idle shares to force collateral redemption 
+        // triggering liquidity checks
+        // idle = 10e6, so collateralRedeemed = 10e6
+        uint256 transferAmount = 20e6;
+
         // would revert if msg.sender was used instead of owner
         vm.prank(user1);
-        borrowableCUSDC.transferFrom(address(this), user2, 100e6);
+        borrowableCUSDC.transferFrom(address(this), user2, transferAmount);
 
-        assertEq(borrowableCUSDC.balanceOf(address(this)), ownerBal - 100e6);
-        assertEq(borrowableCUSDC.balanceOf(user2), recvBal + 100e6);
+        assertEq(borrowableCUSDC.balanceOf(address(this)), ownerBal - transferAmount);
+        assertEq(borrowableCUSDC.balanceOf(user2), recvBal + transferAmount);
+        
+        // Collateral reduced by (transferAmount - idleShares) = 10e6
+        assertEq(borrowableCUSDC.collateralPosted(address(this)), ownerCollBefore - 10e6);
     }
 
     function test_transferFrom_fail_whenOwnerTransferDisabled() public {
