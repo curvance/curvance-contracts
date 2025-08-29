@@ -377,8 +377,8 @@ abstract contract BasePositionManager is
 
         // Remove any excess approval.
         SwapperLib._removeApprovalIfNeeded(
-            debtAsset,
-            address(borrowableCToken)
+            collateralAsset,
+            address(cToken)
         );
     }
 
@@ -461,8 +461,9 @@ abstract contract BasePositionManager is
         }
 
         // Transfer remaining swap dust back to the user.
-        if (action.swapActions.length > 0) {
-            for (uint256 i; i < action.swapActions.length; ++i) {
+        uint256 numSwaps = action.swapActions.length;
+        if (numSwaps > 0) {
+            for (uint256 i; i < numSwaps; ++i) {
                 remaining = IERC20(action.swapActions[i].outputToken)
                     .balanceOf(address(this));
                 if (remaining > 0) {
