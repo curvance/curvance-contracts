@@ -382,14 +382,14 @@ contract OracleManager is IOracleManager {
         }
 
         // Route pricing to a single feed source or dual feed source.
-        if (_checkFeeds(asset) < 2) {
+        if (_checkFeeds(asset) > 1) {
+            (price, errorCode) = _getPriceDualFeed(asset, inUSD, getLower);
+        } else {
             bool hadError;
             (price, hadError) = _getPriceFromFeed(asset, 0, inUSD, getLower);
             if (hadError) {
                 errorCode = BAD_SOURCE;
             }
-        } else {
-            (price, errorCode) = _getPriceDualFeed(asset, inUSD, getLower);
         }
 
         // Query the exchange rate between a Curvance token and its underlying
@@ -669,23 +669,22 @@ contract OracleManager is IOracleManager {
     ///      is fresh and a positive value.
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
-    /// @return uint256 The current price of `native`.
-    /// @return bool Whether the adaptor ran into an error when pricing.
+    /// @return price The current price of `native`.
+    /// @return hadError Whether the adaptor ran into an error when pricing
+    ///                  `native`.
     function _getNativeUSD(
         bool getLower
-    ) internal view returns (uint256, bool) {
-        uint256 price;
+    ) internal view returns (uint256 price, bool hadError) {
         uint256 errorCode;
 
         // Route pricing to a single feed source or dual feed source.
-        if (_checkFeeds(native) < 2) {
-            bool hadError;
+        if (_checkFeeds(native) > 1) {
+            (price, errorCode) = _getPriceDualFeed(native, true, getLower);
+        } else {
             (price, hadError) = _getPriceFromFeed(native, 0, true, getLower);
             if (hadError) {
                 errorCode = BAD_SOURCE;
             }
-        } else {
-            (price, errorCode) = _getPriceDualFeed(native, true, getLower);
         }
 
         // If somehow a feed returns a price of 0,
@@ -694,7 +693,9 @@ contract OracleManager is IOracleManager {
             errorCode = BAD_SOURCE;
         }
 
-        return (price, errorCode != NO_ERROR);
+        // If there was any error while querying native token price,
+        // bubble up an error.
+        hadError = errorCode != NO_ERROR;
     }
 
     /// @notice Check whether a sequencer is valid or down.
