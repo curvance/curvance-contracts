@@ -733,8 +733,10 @@ contract BorrowableCToken is BaseCTokenWithYield {
             uint256 adjustmentRate;
             
             // Calculate the new interest rate for borrowers, in seconds.
-            (rate, adjustmentRate)
-                = IRM.adjustedBorrowRate(assetsHeld(), outstandingDebt);
+            (rate, adjustmentRate) = IRM.adjustedBorrowRate(
+                assetsHeld(),
+                outstandingDebt + assetsToVest
+            );
 
             // The multiplication logic here is to round down to
             // discrete `adjustmentRate` cycles, e.g. if block.timestamp is 3
