@@ -176,9 +176,6 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         deal(_SFRAX_ADDRESS, user1, 500e18);
         IERC20(_SFRAX_ADDRESS).approve(address(positionManager), type(uint256).max);
 
-        // Set position manager as delegate
-        simpleCSFRAX.setDelegateApproval(address(positionManager), true);
-
         uint256 amountForLeverage = 800e6;
 
         VaultPositionManager.LeverageAction memory leverageAction;
@@ -267,8 +264,6 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         deal(_SFRAX_ADDRESS, user1, 500e18);
         IERC20(_SFRAX_ADDRESS).approve(address(positionManager), type(uint256).max);
-
-        simpleCSFRAX.setDelegateApproval(address(positionManager), true);
 
         uint256 amountForLeverage = 800e18;
 

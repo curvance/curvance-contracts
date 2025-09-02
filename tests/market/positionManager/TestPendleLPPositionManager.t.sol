@@ -239,9 +239,6 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         deal(_LP_STETH, user, 1 ether);
         IERC20(_LP_STETH).approve(address(positionManager), 1 ether);
 
-        // allow delegation for postCollateral
-        strategyCTokenSTETH.setDelegateApproval(address(positionManager), true);
-
         // Try leverage with 50% of max.
         uint256 amountForLeverage = 7.4983181832e21;
 

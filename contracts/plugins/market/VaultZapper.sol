@@ -108,6 +108,10 @@ contract VaultZapper is SimpleZapper {
 
         // Deposit into vault.
         outAmount = vault.deposit(outAmount, address(this));
+        SwapperLib._removeApprovalIfNeeded(
+            swapAction.outputToken,
+            address(vault)
+        );
         
         // Enter Curvance position.
         outAmount = _enterCurvance(

@@ -122,8 +122,6 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         deal(SHMON_ADDRESS, user1, 500e18);
         IERC20(SHMON_ADDRESS).approve(address(positionManager), type(uint256).max);
 
-        simpleCSHMON.setDelegateApproval(address(positionManager), true);
-
         uint256 amountForLeverage = 100 ether;
 
         NativeVaultPositionManager.LeverageAction memory leverageAction;

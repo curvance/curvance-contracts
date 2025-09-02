@@ -126,10 +126,10 @@ abstract contract BasePositionManager is
     ///         of increasing both collateral and debt inside the system.
     /// @dev Measures slippage through pre/post conditional slippage check
     ///      in `checkSlippage` modifier.
-    ///      NOTE: The caller MUST have approved this smart contract to have
-    ///      delegated actions inside `action.cToken` or
-    ///      depositAsCollateralFor will only deposit and the leverage
-    ///      operation will fail.
+    ///      NOTE: This position manager MUST be recognized as an official
+    ///            Position Manager by the market manager connected to
+    ///            `action.cToken`. Otherwise, the leveraged deposit will
+    ///            fail.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param action Instructions for a leverage action containing:
     ///               borrowableCToken Address of the borrowableCToken that
@@ -166,7 +166,7 @@ abstract contract BasePositionManager is
         SwapperLib._approveIfNeeded(collateralAsset, address(cToken), assets);
 
         // Deposit and collateralize `collateralAsset` in cToken contract.
-        cToken.depositAsCollateralFor(assets, msg.sender);
+        cToken.depositAsCollateral(assets, msg.sender);
 
         // Execute leverage operation.
         _leverage(action, msg.sender);

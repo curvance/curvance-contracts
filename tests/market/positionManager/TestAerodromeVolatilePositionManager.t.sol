@@ -255,9 +255,6 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             0.0001 ether
         );
 
-        // allow delegation for postCollateral
-        strategyCTokenWETHUSDC.setDelegateApproval(address(positionManager), true);
-
         // Try leverage with 50% of max.
         uint256 amountForLeverage = 1.204e22;
 
@@ -311,10 +308,13 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         // deposit and borrow
         deal(_AERODROME_WETH_USDC, user, 0.0001 ether);
+
         IERC20(_AERODROME_WETH_USDC).approve(address(strategyCTokenWETHUSDC), 0.0001 ether);
         assertGt(strategyCTokenWETHUSDC.deposit(0.0001 ether, user), 0);
         strategyCTokenWETHUSDC.postCollateral(0.0001 ether);
+
         assertEq(strategyCTokenWETHUSDC.balanceOf(user), 0.0001 ether);
+
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         borrowableCDAI.borrow(100 ether, user);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
@@ -385,12 +385,16 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
 
         // deposit and borrow
         deal(_AERODROME_WETH_USDC, user, 0.0001 ether);
+
         IERC20(_AERODROME_WETH_USDC).approve(address(strategyCTokenWETHUSDC), 0.0001 ether);
         assertGt(strategyCTokenWETHUSDC.deposit(0.0001 ether, user), 0);
         strategyCTokenWETHUSDC.postCollateral(0.0001 ether);
+
         assertEq(strategyCTokenWETHUSDC.balanceOf(user), 0.0001 ether);
+
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         borrowableCDAI.borrow(100 ether, user);
+        
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // deposit and leverage

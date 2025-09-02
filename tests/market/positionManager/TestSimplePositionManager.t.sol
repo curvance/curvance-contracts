@@ -163,9 +163,6 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(positionManager), 1000e6);
 
-        // allow delegation for postCollateral
-        borrowableCUSDC.setDelegateApproval(address(positionManager), true);
-
         // Try leverage with 50% of max.
         uint256 amountForLeverage = 0.99e21;
 
