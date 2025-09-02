@@ -404,6 +404,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         // skip min hold period
         skip(20 minutes);
 
+        borrowableCUSDC.accrueIfNeeded();
+
         mockUsdcFeed.setMockAnswer(150000000);
 
         uint256 currentDebtBalance = borrowableCUSDC.debtBalance(user1);
