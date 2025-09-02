@@ -48,8 +48,6 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             _prepareUSDC(owner, 100e6);
             usdc.approve(address(borrowableCUSDC), 100e6);
             oracleManager.addCTokenSupport(address(borrowableCUSDC));
-
-
         }
 
         marketManagerIsolated.listTokens(address(borrowableCUSDC), address(borrowableCDAI));
@@ -58,33 +56,14 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
          _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
 
         positionManager = new SimplePositionManager(
-        ICentralRegistry(address(centralRegistry)),
-        address(marketManagerIsolated),
-        _WETH_ADDRESS
-    );
+            ICentralRegistry(address(centralRegistry)),
+            address(marketManagerIsolated),
+            _WETH_ADDRESS
+        );
 
         marketManagerIsolated.addPositionManager(address(positionManager));
 
         _provideEnoughLiquidityForLeverage();
-    }
-
-    function _provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = makeAddr("liquidityProvider");
-
-        _prepareUSDC(liquidityProvider, 100e6);
-        _prepareDAI(liquidityProvider, 20000000e18);
-
-        vm.startPrank(liquidityProvider);
-
-        // Mint borrowable cDAI.
-        dai.approve(address(borrowableCDAI), 20000000 ether);
-        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
-
-        // Mint borrowable cUSDC.
-        usdc.approve(address(borrowableCUSDC), 100e6);
-        borrowableCUSDC.deposit(100e6, liquidityProvider);
-
-        vm.stopPrank();
     }
 
     function testInitialize() public {
@@ -961,6 +940,25 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.startPrank(user2);
         vm.expectRevert(bytes4(keccak256("PluginDelegable__Unauthorized()")));
         positionManager.leverageFor(leverageAction, user, 0.05e18);
+        vm.stopPrank();
+    }
+
+    function _provideEnoughLiquidityForLeverage() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
+
+        _prepareUSDC(liquidityProvider, 100e6);
+        _prepareDAI(liquidityProvider, 20000000e18);
+
+        vm.startPrank(liquidityProvider);
+
+        // Mint borrowable cDAI.
+        dai.approve(address(borrowableCDAI), 20000000 ether);
+        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
+
+        // Mint borrowable cUSDC.
+        usdc.approve(address(borrowableCUSDC), 100e6);
+        borrowableCUSDC.deposit(100e6, liquidityProvider);
+
         vm.stopPrank();
     }
 

@@ -128,29 +128,6 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         _provideEnoughLiquidityForLeverage();
     }
 
-    function _preparePT(address _user, uint256 _amount) internal {
-        deal(_PT_STETH, _user, _amount);
-    }
-
-    function _provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = makeAddr("liquidityProvider");
-
-        _preparePT(liquidityProvider, 10 ether);
-        _prepareDAI(liquidityProvider, 20000000e18);
-
-        vm.startPrank(liquidityProvider);
-
-        // Deposit borrowableCDAI.
-        dai.approve(address(borrowableCDAI), 20000000 ether);
-        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
-
-        // Deposit Curvance Pendle PT stETH.
-        pendlePT.approve(address(cPendlePTSTETH), 10 ether);
-        cPendlePTSTETH.deposit(10 ether, liquidityProvider);
-
-        vm.stopPrank();
-    }
-
     function testInitialize() public {
         assertEq(
             address(positionManager.centralRegistry()),
@@ -512,6 +489,29 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
         positionManager.leverage(leverageAction, 0.05e18); // 5% slippage
         
+        vm.stopPrank();
+    }
+
+    function _preparePT(address _user, uint256 _amount) internal {
+        deal(_PT_STETH, _user, _amount);
+    }
+
+    function _provideEnoughLiquidityForLeverage() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
+
+        _preparePT(liquidityProvider, 10 ether);
+        _prepareDAI(liquidityProvider, 20000000e18);
+
+        vm.startPrank(liquidityProvider);
+
+        // Deposit borrowableCDAI.
+        dai.approve(address(borrowableCDAI), 20000000 ether);
+        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
+
+        // Deposit Curvance Pendle PT stETH.
+        pendlePT.approve(address(cPendlePTSTETH), 10 ether);
+        cPendlePTSTETH.deposit(10 ether, liquidityProvider);
+
         vm.stopPrank();
     }
 

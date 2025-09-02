@@ -137,16 +137,8 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
 
         marketManagerIsolated.addPositionManager(address(positionManager));
 
-        _provideEnoughLiquidityForLeverage();
-        
-        
+        _provideEnoughLiquidityForLeverage();   
     }
-
-    function _preparePT(address _user, uint256 _amount) internal {
-        deal(_PT_STETH, _user, _amount);
-    }
-
-    event debugUint(string, uint256);
 
     function _createLeverage() public {
         _setUpMarket(1);
@@ -210,25 +202,6 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
             .getSnapshot(user);
         assertGt(cPendlePTSTETHSnapshot.collateralPosted, 1 ether);
         assertEq(cPendlePTSTETHSnapshot.debtBalance, 0 ether);
-
-        vm.stopPrank();
-    }
-
-    function _provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = makeAddr("liquidityProvider");
-
-        _preparePT(liquidityProvider, 10 ether);
-        _prepareDAI(liquidityProvider, 20000000e18);
-
-        vm.startPrank(liquidityProvider);
-
-        // Deposit borrowableCDAI.
-        dai.approve(address(borrowableCDAI), 20000000 ether);
-        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
-
-        // Deposit Pendle PT stETH.
-        pendlePT.approve(address(cPendlePTSTETH), 10 ether);
-        cPendlePTSTETH.deposit(10 ether, liquidityProvider);
 
         vm.stopPrank();
     }
@@ -413,4 +386,26 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function _preparePT(address _user, uint256 _amount) internal {
+        deal(_PT_STETH, _user, _amount);
+    }
+
+    function _provideEnoughLiquidityForLeverage() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
+
+        _preparePT(liquidityProvider, 10 ether);
+        _prepareDAI(liquidityProvider, 20000000e18);
+
+        vm.startPrank(liquidityProvider);
+
+        // Deposit borrowableCDAI.
+        dai.approve(address(borrowableCDAI), 20000000 ether);
+        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
+
+        // Deposit Pendle PT stETH.
+        pendlePT.approve(address(cPendlePTSTETH), 10 ether);
+        cPendlePTSTETH.deposit(10 ether, liquidityProvider);
+
+        vm.stopPrank();
+    }
 }

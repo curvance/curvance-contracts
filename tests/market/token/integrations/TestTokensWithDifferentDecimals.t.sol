@@ -404,11 +404,10 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         // skip min hold period
         skip(20 minutes);
 
-        borrowableCUSDC.accrueIfNeeded();
-
         mockUsdcFeed.setMockAnswer(150000000);
 
-        uint256 currentDebtBalance = borrowableCUSDC.debtBalance(user1);
+        // Accrue pending interest and get current debt balance of `user1`.
+        uint256 currentDebtBalance = borrowableCUSDC.debtBalanceUpdated(user1);
 
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
             LiquidationParams({

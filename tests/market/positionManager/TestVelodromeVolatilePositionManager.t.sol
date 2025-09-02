@@ -146,11 +146,8 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
 
             deal(_VELODROME_WETH_USDC, owner, 1 ether);
             IERC20(_VELODROME_WETH_USDC).approve(address(strategyCTokenWETHUSDC), 1 ether);
-
-
-
-
         }
+        
         marketManagerIsolated.listTokens(address(strategyCTokenWETHUSDC), address(borrowableCDAI));
 
          _setCTokenConfigBasic(address(strategyCTokenWETHUSDC), 100_000e18, 0);

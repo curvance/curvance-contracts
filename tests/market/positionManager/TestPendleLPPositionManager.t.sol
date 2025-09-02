@@ -133,25 +133,6 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         _provideEnoughLiquidityForLeverage();
     }
 
-    function _provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = makeAddr("liquidityProvider");
-
-        deal(_LP_STETH, liquidityProvider, 100 ether);
-        _prepareDAI(liquidityProvider, 20000000e18);
-
-        vm.startPrank(liquidityProvider);
-
-        // Deposit borrowable cDAI.
-        dai.approve(address(borrowableCDAI), 20000000 ether);
-        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
-
-        // Deposit strategyCTokenSTETH.
-        IERC20(_LP_STETH).approve(address(strategyCTokenSTETH), 100 ether);
-        strategyCTokenSTETH.deposit(100 ether, liquidityProvider);
-
-        vm.stopPrank();
-    }
-
     function testInitialize() public {
         assertEq(
             address(positionManager.centralRegistry()),
@@ -491,5 +472,24 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             strategyCTokenSTETHCollateralBefore - deleverageAction.collateralAssets
         );
         assertEq(strategyCTokenSTETHSnapshot.debtBalance, 0);
+    }
+
+    function _provideEnoughLiquidityForLeverage() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
+
+        deal(_LP_STETH, liquidityProvider, 100 ether);
+        _prepareDAI(liquidityProvider, 20000000e18);
+
+        vm.startPrank(liquidityProvider);
+
+        // Deposit borrowable cDAI.
+        dai.approve(address(borrowableCDAI), 20000000 ether);
+        borrowableCDAI.deposit(20000000 ether, liquidityProvider);
+
+        // Deposit strategyCTokenSTETH.
+        IERC20(_LP_STETH).approve(address(strategyCTokenSTETH), 100 ether);
+        strategyCTokenSTETH.deposit(100 ether, liquidityProvider);
+
+        vm.stopPrank();
     }
 }

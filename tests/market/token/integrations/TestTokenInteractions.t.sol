@@ -442,7 +442,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         mockDaiFeed.setMockAnswer(1.3e8);
 
+        // Accrue pending interest and get current debt balance of `user1`.
         uint256 debtBefore = borrowableCDAI.debtBalanceUpdated(user1);
+        
         console2.log("debtBefore", debtBefore);
         console2.log("collateralBefore", strategyCBALRETH.balanceOf(user1));
 

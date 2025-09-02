@@ -138,8 +138,6 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
         marketManagerIsolated.addPositionManager(address(positionManager));
 
-
-
         _provideEnoughLiquidityForLeverage();
 
         centralRegistry.setExternalCalldataChecker(
