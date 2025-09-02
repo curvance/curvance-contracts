@@ -94,24 +94,10 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(borrowableCDAI), 100e18, 100_000e18);
 
         // provide enough liquidity
-        provideEnoughLiquidityForLeverage();
+        _provideEnoughLiquidityForLeverage();
     }
 
-    function provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = makeAddr("liquidityProvider");
-        _prepareDAI(liquidityProvider, 200000e18);
-        _prepareBALRETH(liquidityProvider, 10 ether);
-        // Mint borrowable cDAI.
-        vm.startPrank(liquidityProvider);
-        dai.approve(address(borrowableCDAI), 200000 ether);
-        borrowableCDAI.mint(200000 ether, liquidityProvider);
-        // Mint cBALETH.
-        balRETH.approve(address(strategyCBALRETH), 10 ether);
-        strategyCBALRETH.deposit(10 ether, liquidityProvider);
-        vm.stopPrank();
-    }
-
-    function testLiquidateRevertWhenBelowColReq() public {
+    function testDynamicLiquidations_liquidateRevertWhenBelowColReq() public {
         _prepareBALRETH(user1, 1 ether);
 
         // try mint()
@@ -156,7 +142,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
             address(strategyCBALRETH));
     }
 
-    function testLiquidateWorksWhenAboveColReq() public {
+    function testDynamicLiquidations_liquidateWorksWhenAboveColReq() public {
         _prepareBALRETH(user1, 1 ether);
 
         // try mint()
@@ -222,5 +208,19 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertApproxEqRel(borrowableCDAI.debtBalance(user1), 1000 ether - (expectedLiqValues.badDebt + 250 ether), 0.01e18, "something funky");
         assertApproxEqRel(borrowableCDAI.exchangeRateUpdated(), 1 ether, 0.01e18);
+    }
+
+    function _provideEnoughLiquidityForLeverage() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
+        _prepareDAI(liquidityProvider, 200000e18);
+        _prepareBALRETH(liquidityProvider, 10 ether);
+        // Mint borrowable cDAI.
+        vm.startPrank(liquidityProvider);
+        dai.approve(address(borrowableCDAI), 200000 ether);
+        borrowableCDAI.mint(200000 ether, liquidityProvider);
+        // Mint cBALETH.
+        balRETH.approve(address(strategyCBALRETH), 10 ether);
+        strategyCBALRETH.deposit(10 ether, liquidityProvider);
+        vm.stopPrank();
     }
 }

@@ -90,24 +90,10 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         // provide enough liquidity
-        provideEnoughLiquidityForLeverage();
+        _provideEnoughLiquidityForLeverage();
     }
 
-    function provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = makeAddr("liquidityProvider");
-        _prepareUSDC(liquidityProvider, 200000e6);
-        _prepareBALRETH(liquidityProvider, 10 ether);
-        // Mint borrowable cUSDC.
-        vm.startPrank(liquidityProvider);
-        usdc.approve(address(borrowableCUSDC), 200000e6);
-        borrowableCUSDC.deposit(200000e6, liquidityProvider);
-        // Mint cBALETH.
-        balRETH.approve(address(strategyCBALRETH), 10 ether);
-        strategyCBALRETH.deposit(10 ether, liquidityProvider);
-        vm.stopPrank();
-    }
-
-    function testCTokenMintRedeem() public {
+    function testTokensWithDifferentDecimals_cTokenMintRedeem() public {
         _prepareBALRETH(user1, 2 ether);
 
         // try mint()
@@ -132,7 +118,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.balanceOf(user1), 0);
     }
 
-    function testBorrowableCTokenMintRedeem() public {
+    function testTokensWithDifferentDecimals_borrowableCTokenMintRedeem() public {
         _prepareUSDC(user1, 2e6);
 
         // try mint()
@@ -153,7 +139,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
     }
 
-    function testBorrowableCTokenBorrowRepay() public {
+    function testTokensWithDifferentDecimals_borrowableCTokenBorrowRepay() public {
         _prepareBALRETH(user1, 1 ether);
 
         // try mint()
@@ -210,7 +196,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertGt(borrowableCUSDC.exchangeRate(), exchangeRateBefore);
     }
 
-    function testCTokenRedeemOnBorrow() public {
+    function testTokensWithDifferentDecimals_cTokenRedeemOnBorrow() public {
         _prepareBALRETH(user1, 1 ether);
 
         // try mint()
@@ -239,7 +225,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
     }
 
-    function testBorrowableCTokenRedeemOnBorrow() public {
+    function testTokensWithDifferentDecimals_borrowableCTokenRedeemOnBorrow() public {
         // try mint()
         _prepareBALRETH(user1, 1 ether);
         vm.startPrank(user1);
@@ -276,7 +262,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertGt(borrowableCUSDC.exchangeRate(), 1 ether);
     }
 
-    function testCTokenTransferOnBorrow() public {
+    function testTokensWithDifferentDecimals_cTokenTransferOnBorrow() public {
         _prepareBALRETH(user1, 1 ether);
 
         // try mint()
@@ -306,7 +292,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
     }
 
-    function testBorrowableCTokenTransferOnBorrow() public {
+    function testTokensWithDifferentDecimals_borrowableCTokenTransferOnBorrow() public {
         // try mint()
         _prepareBALRETH(user1, 1 ether);
         vm.startPrank(user1);
@@ -341,7 +327,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(borrowableCUSDC.debtBalance(user2), 0, "receiver debt balance is 0");
     }
 
-    function testLiquidationExact() public {
+    function testTokensWithDifferentDecimals_liquidationExact() public {
         _prepareBALRETH(user1, 1 ether);
 
         // try mint()
@@ -402,7 +388,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertApproxEqRel(borrowableCUSDC.exchangeRate(), 1 ether, 0.01e18);
     }
 
-    function testLiquidation() public {
+    function testTokensWithDifferentDecimals_liquidation() public {
         _prepareBALRETH(user1, 1 ether);
 
         // try mint()
@@ -458,6 +444,20 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertApproxEqRel(borrowableCUSDC.debtBalance(user1), currentDebtBalance - (expectedLiquidationValues.badDebt + expectedLiquidationValues.debtRepaid), 0.01e18);
         assertApproxEqRel(borrowableCUSDC.exchangeRate(), 1 ether, 0.01e18);
+    }
+
+    function _provideEnoughLiquidityForLeverage() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
+        _prepareUSDC(liquidityProvider, 200000e6);
+        _prepareBALRETH(liquidityProvider, 10 ether);
+        // Mint borrowable cUSDC.
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 200000e6);
+        borrowableCUSDC.deposit(200000e6, liquidityProvider);
+        // Mint cBALETH.
+        balRETH.approve(address(strategyCBALRETH), 10 ether);
+        strategyCBALRETH.deposit(10 ether, liquidityProvider);
+        vm.stopPrank();
     }
 
 }

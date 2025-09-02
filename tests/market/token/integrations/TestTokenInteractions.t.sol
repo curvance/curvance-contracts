@@ -22,22 +22,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         super.setUp();
     }
 
-    function provideEnoughLiquidityForLeverage() internal {
-        
-        address liquidityProvider = makeAddr("liquidityProvider");
-        _prepareDAI(liquidityProvider, 200_000e18);
-        _prepareBALRETH(liquidityProvider, 10e18);
-        // Mint borrowable cDAI.
-        vm.startPrank(liquidityProvider);
-        dai.approve(address(borrowableCDAI), 200_000e18);
-        borrowableCDAI.deposit(200_000e18, liquidityProvider);
-        // Mint cBALETH.
-        balRETH.approve(address(strategyCBALRETH), 10e18);
-        strategyCBALRETH.deposit(10e18, liquidityProvider);
-        vm.stopPrank();
-    }
-
-    function testCTokenMintRedeem() public {
+    function testTokenInteractions_cTokenMintRedeem() public {
         _deployMarket();
 
         _prepareBALRETH(user1, 2e18);
@@ -60,7 +45,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.balanceOf(user1), 0);
     }
 
-    function testBorrowableCTokenMintRedeem() public {
+    function testTokenInteractions_borrowableCTokenMintRedeem() public {
         _deployMarket();
 
         _prepareDAI(user1, 2e18);
@@ -83,7 +68,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.balanceOf(user1), 0);
     }
 
-    function testBorrowableCTokenBorrowRepay() public {
+    function testTokenInteractions_borrowableCTokenBorrowRepay() public {
         _deployMarket();
         _prepareBALRETH(user1, _ONE);
 
@@ -153,7 +138,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertGt(borrowableCDAI.exchangeRate(), exchangeRateBefore);
     }
 
-    function testCTokenRedeemOnBorrow() public {
+    function testTokenInteractions_cTokenRedeemOnBorrow() public {
         _deployMarket();
         _prepareBALRETH(user1, _ONE);
 
@@ -183,7 +168,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.exchangeRate(), _ONE);
     }
 
-    function testBorrowableCTokenRedeemOnBorrow() public {
+    function testTokenInteractions_borrowableCTokenRedeemOnBorrow() public {
         _deployMarket();
         // try mint()
         _prepareBALRETH(user1, _ONE);
@@ -221,7 +206,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertGt(borrowableCDAI.exchangeRate(), _ONE);
     }
 
-    function testCTokenTransferOnBorrow() public {
+    function testTokenInteractions_cTokenTransferOnBorrow() public {
         _deployMarket();
         _prepareBALRETH(user1, _ONE);
 
@@ -252,7 +237,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.exchangeRate(), _ONE);
     }
 
-    function testBorrowableCTokenTransferOnBorrow() public {
+    function testTokenInteractions_borrowableCTokenTransferOnBorrow() public {
         _deployMarket();
         // try mint()
         _prepareBALRETH(user1, _ONE);
@@ -288,7 +273,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertGt(borrowableCDAI.exchangeRate(), _ONE, "debt token exchange rate is increased because of interest");
     }
 
-    function testLiquidationExact() public {
+    function testTokenInteractions_liquidationExact() public {
         _deployMarket();
 
         _prepareBALRETH(user1, _ONE);
@@ -348,7 +333,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
-    function testLiquidation() public {
+    function testTokenInteractions_liquidation() public {
         _deployMarket();
 
         _prepareBALRETH(user1, _ONE);
@@ -399,7 +384,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
     }
 
-    function testLiquidationWithFullValueLoss() public {
+    function testTokenInteractions_liquidationWithFullValueLoss() public {
         _deployMarket();
 
         _prepareBALRETH(user1, _ONE);
@@ -437,7 +422,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertLt(borrowableCDAI.exchangeRateUpdated(), _ONE);
     }
 
-    function testSoftLiquidation() public {
+    function testTokenInteractions_softLiquidation() public {
         _deployMarket();
 
         _prepareBALRETH(user1, _ONE);
@@ -499,7 +484,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18, "borrowableCDAI exchange rate should be 1");
     }
 
-    function testRevertBorrowAndLiquidateWithZeroCollRatio() public {
+    function testTokenInteractions_revertBorrowAndLiquidateWithZeroCollRatio() public {
         _deployMarketForZeroCollateralTest();
 
         _setCTokenConfigCollateralOff(address(strategyCBALRETH), 0);
@@ -661,7 +646,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
 
         // provide enough liquidity
-        provideEnoughLiquidityForLeverage();
+        _provideEnoughLiquidityForLeverage();
     }
 
     function _deployMarketForZeroCollateralTest() internal {
@@ -741,6 +726,20 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(borrowableCDAI), 0, 100_000e18);
 
         // provide enough liquidity
-        provideEnoughLiquidityForLeverage();
+        _provideEnoughLiquidityForLeverage();
+    }
+
+    function _provideEnoughLiquidityForLeverage() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
+        _prepareDAI(liquidityProvider, 200_000e18);
+        _prepareBALRETH(liquidityProvider, 10e18);
+        // Mint borrowable cDAI.
+        vm.startPrank(liquidityProvider);
+        dai.approve(address(borrowableCDAI), 200_000e18);
+        borrowableCDAI.deposit(200_000e18, liquidityProvider);
+        // Mint cBALETH.
+        balRETH.approve(address(strategyCBALRETH), 10e18);
+        strategyCBALRETH.deposit(10e18, liquidityProvider);
+        vm.stopPrank();
     }
 }
