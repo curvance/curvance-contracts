@@ -194,7 +194,7 @@ contract VaryingHealthFactors is TestBaseLiquidations {
 
         // Test accounts health factor after liquidation
         for (uint i = 2; i < 5; i++) {
-            (, , , uint256 lFactorAfter) = marketManagerIsolated.liquidationValuesOf(borrowers[i]);
+            (, , , uint256 lFactorAfter) = _liquidationValuesOfHelper(marketManagerIsolated, borrowers[i]);
             
             if (borrowableCUSDC.debtBalance(borrowers[i]) > 0) {
                 // If there's still debt, health factor should be improved
@@ -247,11 +247,11 @@ contract VaryingHealthFactors is TestBaseLiquidations {
         vm.stopPrank();
     }
 
-    function _getLFactorsPreLiquidation() internal view returns (uint256[] memory lFactors) {
+    function _getLFactorsPreLiquidation() internal returns (uint256[] memory lFactors) {
         lFactors = new uint256[](5);
 
         for(uint i; i < 5; i++) {
-            (, , , lFactors[i]) = marketManagerIsolated.liquidationValuesOf(borrowers[i]);
+            (, , , lFactors[i]) = _liquidationValuesOfHelper(marketManagerIsolated, borrowers[i]);
         }
 
         return lFactors;

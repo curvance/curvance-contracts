@@ -54,7 +54,7 @@ interface ICToken {
     /// @return result The snapshot of the cToken and `account` data.
     function getSnapshotUpdated(
         address account
-    ) external returns (AccountSnapshot memory result) 
+    ) external returns (AccountSnapshot memory result);
 
     /// @notice Get a snapshot of `account` data in this Curvance token.
     /// @dev NOTE: Does not accrue pending assets as part of the call.

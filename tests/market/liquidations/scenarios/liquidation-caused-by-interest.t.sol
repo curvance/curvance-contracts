@@ -70,7 +70,7 @@ contract TestLiquidationCausedByInterest is TestBaseLiquidations {
             mockWethFeed.setMockUpdatedAt(block.timestamp);
             mockUsdcFeed.setMockUpdatedAt(block.timestamp);
             borrowableCUSDC.accrueIfNeeded();
-            (, , , lFactor) = marketManagerIsolated.liquidationValuesOf(user1);
+            (, , , lFactor) = _liquidationValuesOfHelper(marketManagerIsolated, user1);
             console2.log("marketOutstandingDebt", borrowableCUSDC.marketOutstandingDebt());
             console2.log("lFactor", lFactor);
         } while (lFactor == 0);

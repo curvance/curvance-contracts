@@ -17,7 +17,7 @@ contract MarketManagerIsolatedHarness is MarketManagerIsolated {
 		address cTokenModified,
 		uint256 redemptionShares,
 		uint256 borrowAssets
-	) external view returns (
+	) external returns (
 		uint256 collateralSurplus,
 		uint256 liquidityDeficit,
 		bool[] memory positionsToClose

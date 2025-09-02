@@ -90,7 +90,7 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCWMON.borrow(1 ether, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1,
             address(borrowableCWMON)
         ) / 2;
@@ -218,7 +218,7 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC_monad.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC_monad)
         ) / 2;
 
@@ -251,7 +251,7 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC_monad.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC_monad)
         ) / 2;
 
@@ -284,7 +284,7 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC_monad.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC_monad)
         ) / 2;
 
@@ -317,7 +317,7 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC_monad.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC_monad)
         ) / 2;
 

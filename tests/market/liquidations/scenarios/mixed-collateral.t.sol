@@ -202,7 +202,7 @@ contract MixedCollateral is TestBaseLiquidations {
 
         // Verify lFactors
         for(uint i = 2; i < 4; i++) {
-            (, , , uint256 lFactorAfter) = marketManagerIsolated.liquidationValuesOf(borrowers[i]);
+            (, , , uint256 lFactorAfter) = _liquidationValuesOfHelper(marketManagerIsolated, borrowers[i]);
 
             console2.log("borrower", i, "lFactor", lFactorAfter);
 
@@ -244,11 +244,11 @@ contract MixedCollateral is TestBaseLiquidations {
 
     }
 
-    function _getLFactorsPreLiquidation() internal view returns (uint256[] memory lFactors) {
+    function _getLFactorsPreLiquidation() internal returns (uint256[] memory lFactors) {
         lFactors = new uint256[](4);
 
         for(uint i; i < 4; i++) {
-            (, , , lFactors[i]) = marketManagerIsolated.liquidationValuesOf(borrowers[i]);
+            (, , , lFactors[i]) = _liquidationValuesOfHelper(marketManagerIsolated, borrowers[i]);
         }
 
         return lFactors;

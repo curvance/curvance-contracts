@@ -66,7 +66,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         
         (uint256 cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
         
-        (, , , uint256 lFactor) = marketManagerIsolated.liquidationValuesOf(user1);
+        (, , , uint256 lFactor) = _liquidationValuesOfHelper(marketManagerIsolated, user1);
         
         // Calculate default penalty and close factor.
         uint256 liqIncBase = 11000;
@@ -228,7 +228,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         assertEq(liquidatorUSDCBalance, debtBalance - closeBalance);
     }
 
-    function _calculateExpectedLiquidatedTokensWithDefaultPenalty() internal view returns (uint256) {
+    function _calculateExpectedLiquidatedTokensWithDefaultPenalty() internal returns (uint256) {
         uint256 WAD_SQUARED = 1e36;
 
         uint256 debtTokenPrice = 2e18; 
@@ -236,7 +236,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
         (cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
 
-        (, , , uint256 lFactor) = marketManagerIsolated.liquidationValuesOf(user1);
+        (, , , uint256 lFactor) = _liquidationValuesOfHelper(marketManagerIsolated, user1);
 
         uint256 liqBaseIncentive = 11000; // 10% base, premium BPS
         uint256 liqCurve = 500; // 5% curve, in BPS
@@ -256,16 +256,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         return collateralLiquidated;
     }
 
-    function _calculateExpectedLiquidatedTokens(uint256 incentive) internal view returns (uint256) {
-        // in _canLiquidate:
-        // cFactor = 200000000000000000 (closeFactorBase) + 
-        // ((800000000000000000 (closeFactorCurve) * 1000000000000000000 (lFactor)) / WAD)
-        // maxAmount = 1000000762
-        // debtToCollateralRatio =
-        // `incentive` *  2000000000000000000 (data.debtTokenPrice) * WAD) /
-        // (1677420866257185401796 (data.collateralTokenPrice) * 1000000000000000000 (data.exchangeRate))
-        // amountAdjusted = 250000000 (debtAmount) * 1e18 / 1e6  // convert from USDC 6 decimals to 18 decimals
-        // collateralLiquidated = amountAdjusted * debtToCollateralRatio / WAD
+    function _calculateExpectedLiquidatedTokens(uint256 incentive) internal returns (uint256) {
 
         uint256 WAD_SQUARED = 1e36;
         uint256 debtTokenPrice = 2e18; 

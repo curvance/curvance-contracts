@@ -271,7 +271,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         assertEq(cWBTC.balanceOf(user1), 0.1e8);
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1,
             address(borrowableCWETH)
         ) / 2;

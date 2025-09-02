@@ -274,7 +274,7 @@ contract LiquidateExactMix is TestBaseLiquidations {
         assertLt(outstandingDebtAfter, outstandingDebtBefore, "Total outstanding debt should have decreased");
 
         // Verify the position is no longer liquidatable.
-        (, , , uint256 lFactorFinal) = marketManagerIsolated.liquidationValuesOf(borrower1);
+        (, , , uint256 lFactorFinal) = _liquidationValuesOfHelper(marketManagerIsolated, borrower1);
         assertEq(lFactorFinal, 0, "Position should no longer be liquidatable");
 
         // Verify remaining debt calculation was correct
@@ -291,8 +291,8 @@ contract LiquidateExactMix is TestBaseLiquidations {
         vm.stopPrank();
     }
 
-    function _getLFactorPreLiquidation(address _borrower) internal view returns (uint256 lFactor) {
-        (, , , lFactor) = marketManagerIsolated.liquidationValuesOf(_borrower);
+    function _getLFactorPreLiquidation(address _borrower) internal returns (uint256 lFactor) {
+        (, , , lFactor) = _liquidationValuesOfHelper(marketManagerIsolated, _borrower);
 
         return lFactor;
     }

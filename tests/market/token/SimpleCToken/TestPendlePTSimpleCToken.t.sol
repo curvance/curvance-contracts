@@ -473,7 +473,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // cache liquidation values
 
-        (, , , uint256 lFactor) = marketManagerIsolated.liquidationValuesOf(user1);
+        (, , , uint256 lFactor) = _liquidationValuesOfHelper(marketManagerIsolated, user1);
         (uint256 collateralTokenPrice,uint256 debtTokenPrice) =
             oracleManager.getPriceIsolatedPair(
                 address(pendleCTokenPTSTETH),

@@ -246,14 +246,13 @@ contract MixedAuction is TestBaseLiquidations {
         // Verify lFactors
         // Auction borrowers should still have lFactor > 0 (partial liquidation)
         for(uint i = 0; i < 2; i++) {
-            (, , , uint256 lFactorAfter) = marketManagerIsolated.liquidationValuesOf(auctionBorrowers[i]);
-
+            (, , , uint256 lFactorAfter) = _liquidationValuesOfHelper(marketManagerIsolated, auctionBorrowers[i]);
             assertGt(lFactorAfter, 0, "Auction borrower should still have lFactor > 0");
         }
 
         // Regular borrowers should still be liquidatable (their liquidation was prevented by auction state)
         for(uint i = 0; i < 2; i++) {
-            (, , , uint256 lFactorAfter) = marketManagerIsolated.liquidationValuesOf(regularBorrowers[i]);
+            (, , , uint256 lFactorAfter) = _liquidationValuesOfHelper(marketManagerIsolated, regularBorrowers[i]);
 
             assertEq(lFactorAfter, WAD, "Regular borrower should still be liquidatable");
         }
@@ -447,13 +446,13 @@ contract MixedAuction is TestBaseLiquidations {
         // Regular borrowers should have lFactor since fully liquidated
 
         for(uint i = 0; i < 2; i++) {
-            (, , , uint256 lFactorAfter) = marketManagerIsolated.liquidationValuesOf(auctionBorrowers[i]);
+            (, , , uint256 lFactorAfter) = _liquidationValuesOfHelper(marketManagerIsolated, auctionBorrowers[i]);
 
             assertGt(lFactorAfter, 0, "Auction borrower should still have lFactor > 0");
         }
 
         for(uint i = 0; i < 2; i++) {
-            (, , , uint256 lFactorAfter) = marketManagerIsolated.liquidationValuesOf(regularBorrowers[i]);
+            (, , , uint256 lFactorAfter) = _liquidationValuesOfHelper(marketManagerIsolated, regularBorrowers[i]);
 
             assertEq(lFactorAfter, 0, "Regular borrower should have lFactor = 0");
         }

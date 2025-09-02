@@ -30,7 +30,7 @@ import { BPS, WAD, WAD_SQUARED, WAD_SQUARED_BPS_OFFSET } from "contracts/librari
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
@@ -943,7 +943,7 @@ contract TestBaseMarketIsolated is TestBase {
 
     function _calculateExpectedLiquidationValues(
         LiquidationParams memory params
-    ) internal view returns (
+    ) internal returns (
        ExpectedLiquidationValues memory expectedLiquidationValues
     ) {
 
@@ -952,11 +952,11 @@ contract TestBaseMarketIsolated is TestBase {
 
         if(params.isMultiMarketTest) {
             marketManager_ = marketManagersIsolated[params.marketManagerId];
-            (, , , lFactor) = marketManager_.liquidationValuesOf(params.borrower);
+            (, , , lFactor) = _liquidationValuesOfHelper(marketManager_, params.borrower);
 
         } else {
             marketManager_ = marketManagerIsolated;
-            (, , , lFactor) = marketManager_.liquidationValuesOf(params.borrower);
+            (, , , lFactor) = _liquidationValuesOfHelper(marketManager_, params.borrower);
         }
 
         // Handle auction scenarios where lFactor=0 but auction buffer makes it liquidatable
@@ -1045,7 +1045,7 @@ contract TestBaseMarketIsolated is TestBase {
         address _debtToken,
         bool _isAuction,
         MarketManagerIsolated _marketManager
-    ) internal view 
+    ) internal 
     returns (uint256 debtToCollateral, uint256 cFactor) {
 
         LiquidationCalcData memory data;
@@ -1134,7 +1134,7 @@ contract TestBaseMarketIsolated is TestBase {
         uint256 _collateralLiquidated,
         address _collateralToken,
         address _debtToken
-    ) internal view returns (uint256 badDebt) {
+    ) internal returns (uint256 badDebt) {
 
         uint256 debtTokenDecimals = 10 ** ICToken(_debtToken).decimals();
         uint256 collateralTokenExchangeRate = ICToken(_collateralToken).exchangeRate();
@@ -1185,10 +1185,10 @@ contract TestBaseMarketIsolated is TestBase {
     function _calculateAuctionLFactor(
         LiquidationParams memory params,
         MarketManagerIsolated marketManager_
-    ) internal view returns (uint256) {
+    ) internal returns (uint256) {
         // Get collateral and debt values
         (uint256 collateralSoft,, uint256 debt,) =
-            marketManager_.liquidationValuesOf(params.borrower);
+            _liquidationValuesOfHelper(marketManager_, params.borrower);
 
         // Apply auction buffer
         uint256 AUCTION_BUFFER = marketManager_.AUCTION_BUFFER();
@@ -1435,5 +1435,82 @@ contract TestBaseMarketIsolated is TestBase {
         mockStethFeed.setMockUpdatedAt(block.timestamp);
         mockBALFeed.setMockUpdatedAt(block.timestamp);
         mockAURAFeed.setMockUpdatedAt(block.timestamp);
+    }
+
+    function _liquidationValuesOfHelper(
+        MarketManagerIsolated mm,
+        address account
+    ) internal returns (
+        uint256 cSoft,
+        uint256 cHard,
+        uint256 debt,
+        uint256 lFactor
+    ) {
+        address[] memory assets = mm.assetsOf(account);
+        (AccountSnapshot[] memory snapshots, uint256[] memory prices, uint256 numAssets) =
+            oracleManager.getPricesForMarket(account, assets, 2);
+
+        for (uint256 i; i < numAssets; ++i) {
+            AccountSnapshot memory snap = snapshots[i];
+
+            if (snap.isCollateral) {
+                (, uint256 collReqSoft, uint256 collReqHard) = mm.collConfig(snap.asset);
+                uint256 assetValue = FixedPointMathLib.mulDiv(
+                    snap.collateralPosted,
+                    prices[i],
+                    10 ** snap.decimals
+                ) * BPS;
+
+                cSoft += assetValue / collReqSoft;
+                cHard += assetValue / collReqHard;
+            } else {
+                if (snap.debtBalance > 0) {
+                    debt += FixedPointMathLib.mulDivUp(
+                        snap.debtBalance,
+                        prices[i],
+                        10 ** snap.decimals
+                    );
+                }
+            }
+        }
+
+        uint256 auctionBuffer = mm.AUCTION_BUFFER();
+        if (auctionBuffer != 0) {
+            cSoft = FixedPointMathLib.mulDiv(cSoft, auctionBuffer, BPS);
+            cHard = FixedPointMathLib.mulDiv(cHard, auctionBuffer, BPS);
+        }
+
+        if (cSoft >= debt) {
+            lFactor = 0;
+        } else if (debt >= cHard) {
+            lFactor = WAD;
+        } else {
+            lFactor = FixedPointMathLib.mulDivUp(debt - cSoft, WAD, cHard - cSoft);
+        }
+    }
+
+    function _maxRemainingLeverageOfHelper(
+        address account,
+        address borrowableCToken
+    ) public returns (uint256 result) {
+        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
+            marketManagerIsolated.statusOf(account);
+        address debtAsset = ICToken(borrowableCToken).asset();
+
+        (uint256 price, uint256 errorCode) =
+            oracleManager
+                .getPrice(debtAsset, true, false);
+
+        uint256 maxLeverage = FixedPointMathLib.mulDiv(
+            maxDebt - sumDebt,
+            sumCollateral,
+            sumCollateral - maxDebt
+        );
+
+        result = FixedPointMathLib.mulDiv(
+            FixedPointMathLib.mulDiv(maxLeverage, WAD, price),
+            10 ** IERC20(debtAsset).decimals(),
+            WAD
+        );
     }
 }

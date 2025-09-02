@@ -116,7 +116,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -277,7 +277,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -396,7 +396,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -483,7 +483,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -570,7 +570,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -618,7 +618,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -705,7 +705,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -765,7 +765,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         borrowableCDAI.borrow(100 ether, user);
         
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage =_maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -819,7 +819,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
         
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage =_maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -920,7 +920,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage =_maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;

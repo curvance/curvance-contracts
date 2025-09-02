@@ -200,7 +200,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -330,7 +330,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         strategyCTokenWETHUSDC.setDelegateApproval(address(positionManager), true);
 
         // Try leveraging with 99% of limit.
-        uint256 amountForLeverage = (positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = (_maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) * 99) / 100;
@@ -404,7 +404,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         strategyCTokenWETHUSDC.setDelegateApproval(address(positionManager), true);
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;
@@ -549,7 +549,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user,
             address(borrowableCDAI)
         ) / 2;

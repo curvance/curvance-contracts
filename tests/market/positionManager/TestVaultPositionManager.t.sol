@@ -122,7 +122,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         vm.startPrank(user1);
         borrowableCUSDC.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1,
             address(borrowableCUSDC)
         ) / 2;
@@ -236,7 +236,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         vm.startPrank(user1);
         borrowableCFRAX.borrow(50e18, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1,
             address(borrowableCUSDC)
         ) / 2;
@@ -366,7 +366,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC)
         ) / 2;
 
@@ -409,7 +409,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC)
         ) / 2;
 
@@ -441,7 +441,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC)
         ) / 2;
 
@@ -482,7 +482,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC)
         ) / 2;
 
@@ -523,7 +523,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage =_maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC)
         ) / 2;
 
@@ -564,7 +564,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
 
         borrowableCUSDC.borrow(50e6, user1);
 
-        uint256 amountForLeverage = positionManager.maxRemainingLeverageOf(
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
             user1, address(borrowableCUSDC)
         ) / 2;
 

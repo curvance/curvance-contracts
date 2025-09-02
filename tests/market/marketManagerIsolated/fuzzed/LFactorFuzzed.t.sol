@@ -1,35 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import { LiquidityManagerIsolated } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
-
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
-
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract LFactorHarness is LiquidityManagerIsolated {
-
-    constructor(address centralRegistry_) LiquidityManagerIsolated(
-        ICentralRegistry(centralRegistry_)
-    ){}
-
-	function getLFactor(uint256 cSoft, uint256 cHard, uint256 debt) external pure returns (uint256) {
-		return _getLFactor(cSoft, cHard, debt);
-	}
-}
-
 contract TestLFactorFuzzed is TestBaseMarketIsolated {
-    LFactorHarness harness;
 
     function setUp() public override {
         super.setUp();
+    }
 
-        harness = new LFactorHarness(address(centralRegistry));
-
+    function _computeLFactor(uint256 cSoft, uint256 cHard, uint256 debt) internal pure returns (uint256) {
+        if (debt <= cSoft) return 0;
+        if (debt >= cHard) return WAD;
+        return FixedPointMathLib.mulDivUp(debt - cSoft, WAD, cHard - cSoft);
     }
 
     function test_success_whenLFactorCalculated(uint256 cSoft, uint256 gap, uint256 debtDelta) public view {
@@ -58,17 +44,16 @@ contract TestLFactorFuzzed is TestBaseMarketIsolated {
         } 
         // Soft liquidation.
         else {
-            // Replicate the soft liquidation formula in `_getLFactor` to
-            // calculate lFactor.
+            // Replicate the soft liquidation formula to calculate lFactor.
             expected = FixedPointMathLib.mulDivUp(debt - cSoft, WAD, cHard - cSoft);
         }
 
-        uint256 lFactor = harness.getLFactor(cSoft, cHard, debt);
+        uint256 lFactor = _computeLFactor(cSoft, cHard, debt);
         assertEq(lFactor, expected, "lFactor mismatch vs expected");
         assertTrue(lFactor <= WAD, "lFactor out of bounds");
     }
 
-    // Non-fuzz test to test LFactor rounds up to 1 wei when result is 0
+	// Non-fuzz test to test LFactor rounds up to 1 wei when result is 0
 	function test_success_whenLFactorRoundsUpToOneWeiForSoftLiquidation() public view {
 		uint256 cSoft = 1e18;
 		uint256 cHard = cSoft + (2 * WAD);
@@ -78,7 +63,7 @@ contract TestLFactorFuzzed is TestBaseMarketIsolated {
 		uint256 result = FixedPointMathLib.mulDiv(debt - cSoft, WAD, cHard - cSoft);
 		assertEq(result, 0, "result should floor to 0");
 
-		result = harness.getLFactor(cSoft, cHard, debt);
+		result = _computeLFactor(cSoft, cHard, debt);
 		assertEq(result, 1, "lFactor must round up to 1 wei");
 	}
 
@@ -86,17 +71,17 @@ contract TestLFactorFuzzed is TestBaseMarketIsolated {
 		uint256 cSoft = 1.1e59;
 		uint256 cHard = 2.2e59;
 
-		uint256 nearHardLiquidation = harness.getLFactor(cSoft, cHard, cHard - 1);
+		uint256 nearHardLiquidation = _computeLFactor(cSoft, cHard, cHard - 1);
 		assertEq(
             nearHardLiquidation,
             WAD,
             "near-hard soft lFactor should be WAD and not round up to WAD + 1"
         );
 
-		uint256 hardLiquidation = harness.getLFactor(cSoft, cHard, cHard + 1);
+		uint256 hardLiquidation = _computeLFactor(cSoft, cHard, cHard + 1);
 		assertEq(hardLiquidation, WAD, "hard lFactor must equal WAD");
 
-		uint256 maxDebtLiquidation = harness.getLFactor(cSoft, cHard, type(uint256).max);
+		uint256 maxDebtLiquidation = _computeLFactor(cSoft, cHard, type(uint256).max);
 		assertEq(maxDebtLiquidation, WAD, "max-debt lFactor must equal WAD");
 	}
 }

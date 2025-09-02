@@ -122,7 +122,7 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         _refreshMockFeeds();
         borrowableCUSDC.accrueIfNeeded();
 
-        (, , , uint256 lFactorsPreLiquidation) = marketManagerIsolated.liquidationValuesOf(borrower);
+        (, , , uint256 lFactorsPreLiquidation) = _liquidationValuesOfHelper(marketManagerIsolated, borrower);
 
         _prepareUSDC(liquidator, 1_000_000e6);
         usdc.approve(address(borrowableCUSDC), 1_000_000e6);
@@ -267,8 +267,8 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         );
     }
 
-    function _assertHealthFactorImprovement(uint256 lFactorsPreLiquidation) internal view {
-        (, , , uint256 lFactorAfter) = marketManagerIsolated.liquidationValuesOf(borrower);
+    function _assertHealthFactorImprovement(uint256 lFactorsPreLiquidation) internal {
+        (, , , uint256 lFactorAfter) = _liquidationValuesOfHelper(marketManagerIsolated, borrower);
         
         uint256 debtAfter = borrowableCUSDC.debtBalance(borrower);
         
