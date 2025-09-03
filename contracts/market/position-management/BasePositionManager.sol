@@ -73,6 +73,29 @@ abstract contract BasePositionManager is
 
     /// MODIFIERS ///
 
+    /// @dev Executes a predeposit to a leverage action.
+    /// @param assets The amount of the underlying assets to deposit.
+    /// @param cToken Curvance token to deposit `assets` into.
+    modifier preDeposit(uint256 assets, ICToken cToken) {
+        address collateralAsset = cToken.asset();
+        
+        // Transfer `collateralAsset` to deposit.
+        SafeTransferLib.safeTransferFrom(
+            collateralAsset,
+            msg.sender,
+            address(this),
+            assets
+        );
+
+        // Approve cToken to process a deposit.
+        SwapperLib._approveIfNeeded(collateralAsset, address(cToken), assets);
+
+        // Deposit and collateralize `collateralAsset` in cToken contract.
+        cToken.depositAsCollateral(assets, msg.sender);
+
+        _;
+    }
+
     /// @dev Checks slippage prior to and after leverage/deleverage action,
     ///      works similar to reentryguard with pre and post checks.
     /// @param slippage Slippage accepted by the user for execution of
@@ -150,24 +173,10 @@ abstract contract BasePositionManager is
         uint256 assets,
         LeverageAction calldata action,
         uint256 slippage
-    ) external checkSlippage(msg.sender, slippage) nonReentrant {
-        ICToken cToken = action.cToken;
-        address collateralAsset = cToken.asset();
-        
-        // Transfer `collateralAsset` to deposit.
-        SafeTransferLib.safeTransferFrom(
-            collateralAsset,
-            msg.sender,
-            address(this),
-            assets
-        );
-
-        // Approve cToken to process a deposit.
-        SwapperLib._approveIfNeeded(collateralAsset, address(cToken), assets);
-
-        // Deposit and collateralize `collateralAsset` in cToken contract.
-        cToken.depositAsCollateral(assets, msg.sender);
-
+    ) external preDeposit(
+        assets,
+        action.cToken
+    ) checkSlippage(msg.sender, slippage) nonReentrant {
         // Execute leverage operation.
         _leverage(action, msg.sender);
     }
