@@ -1026,6 +1026,8 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             block.timestamp
         );
         leverageAction.swapAction.slippage = 0.3e18;
+
+        vm.startPrank(user);
         positionManager.leverage(leverageAction, 0.05e18); // 5% slippage
 
         AccountSnapshot memory borrowableCDAISnapshot =
