@@ -10,6 +10,7 @@ import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract TestSimplePositionManager is TestBaseMarketIsolated {
     address public owner;
