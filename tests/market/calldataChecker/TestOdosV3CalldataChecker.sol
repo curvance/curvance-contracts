@@ -9,7 +9,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import "tests/market/TestBaseMarketIsolated.sol";
 
 contract TestOdosV3CalldataChecker is TestBaseMarketIsolated {
-    address public odosRouterV3 = 0x0d05a7d3448512b78fa8a9e46c4872c88c4a0d05;
+    address public odosRouterV3 = 0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05;
     OdosV3CalldataChecker public checker;
 
     SwapperLib.Swap public swapAction;
