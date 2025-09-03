@@ -330,7 +330,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         _assertDebtReduction(250e18, expectedLiquidationValues.badDebt, currentDebtBalance);
 
-        assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
+        assertLt(borrowableCDAI.exchangeRate(), _ONE, "exchange rate should lower because of bad debt");
     }
 
     function testTokenInteractions_liquidation() public {
@@ -381,7 +381,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.exchangeRate(), _ONE);
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertEq(borrowableCDAI.debtBalance(user1), 0);
-        assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18);
+        assertLt(borrowableCDAI.exchangeRate(), _ONE, "exchange rate should lower because of bad debt");
     }
 
     function testTokenInteractions_liquidationWithFullValueLoss() public {
@@ -418,7 +418,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.balanceOf(user1), 0);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
-        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 0, 0.01e18);
+        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 0, 1000);
         assertLt(borrowableCDAI.exchangeRateUpdated(), _ONE);
     }
 
@@ -442,9 +442,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         mockDaiFeed.setMockAnswer(1.3e8);
 
-        // Accrue pending interest and get current debt balance of `user1`.
         uint256 debtBefore = borrowableCDAI.debtBalanceUpdated(user1);
-        
         console2.log("debtBefore", debtBefore);
         console2.log("collateralBefore", strategyCBALRETH.balanceOf(user1));
 
@@ -483,7 +481,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         assertEq(borrowableCDAI.balanceOf(user1), 0, "borrowableCDAI balance of user1 should be 0");
         assertApproxEqRel(borrowableCDAI.debtBalance(user1), debtBefore - expectedLiquidationValues.debtRepaid, 0.01e18, "borrowableCDAI debt balance should be reduced by debt repaid");
-        assertApproxEqRel(borrowableCDAI.exchangeRate(), _ONE, 0.01e18, "borrowableCDAI exchange rate should be 1");
+        assertGt(borrowableCDAI.exchangeRate(), _ONE, "borrowableCDAI exchange rate should higher because of interest accrued");
     }
 
     function testTokenInteractions_revertBorrowAndLiquidateWithZeroCollRatio() public {

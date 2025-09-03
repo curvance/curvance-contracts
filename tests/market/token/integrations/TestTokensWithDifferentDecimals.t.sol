@@ -379,13 +379,13 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertApproxEqRel(
             strategyCBALRETH.balanceOf(user1),
             1 ether - expectedLiquidationValues.collateralLiquidated,
-            0.01e18
+            0.001e18
         );
         assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
-        assertApproxEqRel(borrowableCUSDC.debtBalance(user1), currentDebtBalance - (expectedLiquidationValues.badDebt + 250e6), 0.01e18);
-        assertApproxEqRel(borrowableCUSDC.exchangeRate(), 1 ether, 0.01e18);
+        assertApproxEqRel(borrowableCUSDC.debtBalance(user1), currentDebtBalance - (expectedLiquidationValues.badDebt + 250e6), 0.001e18);
+        assertLt(borrowableCUSDC.exchangeRate(), 1 ether, "exchange rate should lower because of bad debt");
     }
 
     function testTokensWithDifferentDecimals_liquidation() public {
@@ -404,10 +404,11 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         // skip min hold period
         skip(20 minutes);
 
+        borrowableCUSDC.accrueIfNeeded();
+
         mockUsdcFeed.setMockAnswer(150000000);
 
-        // Accrue pending interest and get current debt balance of `user1`.
-        uint256 currentDebtBalance = borrowableCUSDC.debtBalanceUpdated(user1);
+        uint256 currentDebtBalance = borrowableCUSDC.debtBalance(user1);
 
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
             LiquidationParams({
@@ -438,13 +439,13 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         assertApproxEqRel(
             strategyCBALRETH.balanceOf(user1),
             1 ether - expectedLiquidationValues.collateralLiquidated,
-            0.06e18
+            0.001e18
         );
         assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
-        assertApproxEqRel(borrowableCUSDC.debtBalance(user1), currentDebtBalance - (expectedLiquidationValues.badDebt + expectedLiquidationValues.debtRepaid), 0.01e18);
-        assertApproxEqRel(borrowableCUSDC.exchangeRate(), 1 ether, 0.01e18);
+        assertApproxEqRel(borrowableCUSDC.debtBalance(user1), currentDebtBalance - (expectedLiquidationValues.badDebt + expectedLiquidationValues.debtRepaid), 0.001e18);
+        assertLt(borrowableCUSDC.exchangeRate(), 1 ether, "exchange rate should lower because of bad debt");
     }
 
     function _provideEnoughLiquidityForLeverage() internal {

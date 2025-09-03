@@ -158,6 +158,8 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         // skip min hold period
         skip(20 minutes);
 
+        borrowableCDAI.accrueIfNeeded();
+
         mockDaiFeed.setMockAnswer(200000000);
 
         ExpectedLiquidationValues memory expectedLiqValues = _calculateExpectedLiquidationValues(
@@ -206,8 +208,8 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
-        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 1000 ether - (expectedLiqValues.badDebt + 250 ether), 0.01e18, "something funky");
-        assertApproxEqRel(borrowableCDAI.exchangeRateUpdated(), 1 ether, 0.01e18);
+        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 1000 ether - (expectedLiqValues.badDebt + 250 ether), 0.0001e18, "debt balance mismatch");
+        assertLt(borrowableCDAI.exchangeRateUpdated(), 1 ether, "exchange rate should lower because of bad debt");
     }
 
     function _provideEnoughLiquidityForLeverage() internal {

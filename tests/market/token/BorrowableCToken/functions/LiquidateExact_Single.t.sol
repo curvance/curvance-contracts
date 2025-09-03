@@ -165,25 +165,19 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
     }
 
     function _assertInvariants() internal view {
-        // Verify liquidator had enough balance to cover the liquidation
-        assertTrue(
-            true, // If we got here, the liquidation succeeded
-            "Liquidation should have completed successfully"
-        );
         
-        // Verify collateral exchange rate didn't change
+        // Verify collateral exchange rate increased because of harvest
         assertGt(
             strategyCBALRETH.exchangeRate(),
             _ONE,
-            "Exchange rate should remain positive during liquidation, strategy should have harvested"
+            "Exchange rate should increase because of harvest"
         );
 
-        // Verify USDC exchange rate didn't change 
-        assertApproxEqRel(
+        // Verify USDC exchange rate lowered because of bad debt
+        assertLt(
             borrowableCUSDC.exchangeRate(),
             WAD,
-            0.01e18,
-            "USDC exchange rate should remain close to 1"
+            "USDC exchange rate should lower because of bad debt"
         );
     }
 }

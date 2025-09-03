@@ -943,6 +943,51 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function test_fail_whenLeverageDebtCapDoubleCountReverts() public {
+
+        vm.startPrank(user);
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+        assertGt(borrowableCUSDC.deposit(1000e6, user), 0);
+        borrowableCUSDC.postCollateral(1000e6);
+        assertEq(borrowableCUSDC.balanceOf(user), 1000e6);
+        vm.stopPrank();
+
+        // Set debt cap and borrow slightly more than half to show double counting.
+        uint256 debtCap = 100 ether;
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, debtCap);
+        uint256 amountForLeverage = (debtCap / 2) + 1;
+
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(borrowableCUSDC));
+        leverageAction.swapAction.inputToken = address(dai);
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = address(usdc);
+        leverageAction.swapAction.target = address(_UNISWAP_V2_ROUTER);
+
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageAction.swapAction.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManager),
+            block.timestamp
+        );
+        leverageAction.swapAction.slippage = 0.3e18;
+
+        // Expect revert due to double-counting 
+        // new net debt uses (marketOutstandingDebt + assets).
+        vm.startPrank(user);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
+        positionManager.leverage(leverageAction, 0.05e18);
+        vm.stopPrank();
+    }
+
     function _provideEnoughLiquidityForLeverage() internal {
         address liquidityProvider = makeAddr("liquidityProvider");
 

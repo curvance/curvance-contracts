@@ -443,7 +443,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertApproxEqRel(borrowableCUSDC.debtBalance(user1), 750e6, 0.01e18);
-        assertApproxEqRel(borrowableCUSDC.exchangeRate(), 1 ether, 0.01e18);
+        assertGt(borrowableCUSDC.exchangeRate(), 1 ether, "exchange rate should higher because of interest accrued");
     }
 
     function testLiquidationFull() public {
