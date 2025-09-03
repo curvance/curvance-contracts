@@ -264,7 +264,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             address(this),
             0,
             owner,
-            marketOutstandingDebt + assets
+            marketOutstandingDebt
         );
     }
 

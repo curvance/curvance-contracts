@@ -67,298 +67,6 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         _provideEnoughLiquidityForLeverage();
     }
 
-    function testInitialize() public {
-        assertEq(
-            address(positionManager.centralRegistry()),
-            address(centralRegistry)
-        );
-        assertEq(
-            address(positionManager.marketManager()),
-            address(marketManagerIsolated)
-        );
-    }
-
-    function testLeverage() public {
-        vm.startPrank(user);
-
-        deal(address(usdc), user, 1000e6);
-        usdc.approve(address(borrowableCUSDC), 1000e6);
-
-        // Mint borrowable cUSDC.
-        assertGt(borrowableCUSDC.deposit(1000e6, user), 0);
-        borrowableCUSDC.postCollateral(1000e6);
-        assertEq(borrowableCUSDC.balanceOf(user), 1000e6);
-
-        uint256 balanceBeforeBorrow = dai.balanceOf(user);
-        
-        // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether, user);
-        assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
-
-        // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
-            user,
-            address(borrowableCDAI)
-        ) / 2;
-
-        SimplePositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageAction.borrowAssets = amountForLeverage;
-        leverageAction.cToken = ICToken(address(borrowableCUSDC));
-        leverageAction.swapAction.inputToken = address(dai);
-        leverageAction.swapAction.inputAmount = amountForLeverage;
-        leverageAction.swapAction.outputToken = address(usdc);
-        leverageAction.swapAction.target = address(_UNISWAP_V2_ROUTER);
-        address[] memory path = new address[](2);
-        path[0] = address(dai);
-        path[1] = address(usdc);
-        leverageAction.swapAction.call = abi.encodeWithSignature(
-            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-            amountForLeverage,
-            0,
-            path,
-            address(positionManager),
-            block.timestamp
-        );
-        leverageAction.swapAction.slippage = 0.3e18;
-
-        positionManager.leverage(leverageAction, 0.05e18); // 5% slippage
-
-        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
-        assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
-
-        AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
-            user
-        );
-        assertGt(borrowableCUSDCSnapshot.collateralPosted, 1900e6);
-        assertEq(borrowableCUSDCSnapshot.debtBalance, 0);
-
-        vm.stopPrank();
-    }
-
-    function testDepositAndLeverage() public {
-        vm.startPrank(user);
-
-        deal(address(usdc), user, 1000e6);
-        usdc.approve(address(positionManager), 1000e6);
-
-        // Try leverage with 50% of max.
-        uint256 amountForLeverage = 0.99e21;
-
-        SimplePositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageAction.borrowAssets = amountForLeverage;
-        leverageAction.cToken = ICToken(address(borrowableCUSDC));
-        leverageAction.swapAction.inputToken = address(dai);
-        leverageAction.swapAction.inputAmount = amountForLeverage;
-        leverageAction.swapAction.outputToken = address(usdc);
-        leverageAction.swapAction.target = address(_UNISWAP_V2_ROUTER);
-        address[] memory path = new address[](2);
-        path[0] = address(dai);
-        path[1] = address(usdc);
-        leverageAction.swapAction.call = abi.encodeWithSignature(
-            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-            amountForLeverage,
-            0,
-            path,
-            address(positionManager),
-            block.timestamp
-        );
-        leverageAction.swapAction.slippage = 0.3e18;
-
-        positionManager.depositAndLeverage(1000e6, leverageAction, 0.05e18); // 5% slippage
-
-        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
-        assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAISnapshot.debtBalance, amountForLeverage);
-
-        AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
-            user
-        );
-        assertGt(borrowableCUSDCSnapshot.collateralPosted, 1900e6);
-        assertEq(borrowableCUSDCSnapshot.debtBalance, 0);
-
-        vm.stopPrank();
-    }
-
-    function testDeLeverage() public {
-        testLeverage();
-
-        // Warp until collateralization cooldown period ends.
-        vm.warp(block.timestamp + 20 minutes);
-        borrowableCDAI.accrueIfNeeded();
-
-        vm.startPrank(user);
-        AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
-        AccountSnapshot memory borrowableCUSDCBeforeSnapshot = borrowableCUSDC.getSnapshot(user);
-
-        SimplePositionManager.DeleverageAction memory deleverageAction;
-        deleverageAction.cToken = ICToken(address(borrowableCUSDC));
-        deleverageAction.collateralAssets = 900e6;
-        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageAction.swapActions = new SwapperLib.Swap[](1);
-        deleverageAction.swapActions[0].inputToken = address(usdc);
-        deleverageAction.swapActions[0].inputAmount = 900e6;
-        deleverageAction.swapActions[0].outputToken = address(dai);
-        deleverageAction.swapActions[0].target = address(_UNISWAP_V2_ROUTER);
-        address[] memory path = new address[](2);
-        path[0] = address(usdc);
-        path[1] = address(dai);
-        deleverageAction.swapActions[0].call = abi.encodeWithSignature(
-            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-            900e6,
-            0,
-            path,
-            address(positionManager),
-            block.timestamp
-        );
-        deleverageAction.swapActions[0].slippage = 0.3e18;
-        deleverageAction.repayAssets = 890 ether;
-        positionManager.deleverage(deleverageAction, 0.05e18); // 5% slippage
-
-        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
-        assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(
-            borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
-        );
-
-        AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
-            user
-        );
-        assertEq(
-            borrowableCUSDCSnapshot.collateralPosted,
-            borrowableCUSDCBeforeSnapshot.collateralPosted - deleverageAction.collateralAssets
-        );
-        assertEq(borrowableCUSDCSnapshot.debtBalance, 0);
-
-        vm.stopPrank();
-    }
-
-    function testLeverageFor() public {
-        vm.startPrank(user);
-
-        deal(address(usdc), user, 1000e6);
-        usdc.approve(address(borrowableCUSDC), 1000e6);
-
-        // Mint borrowable cUSDC.
-        assertGt(borrowableCUSDC.deposit(1000e6, user), 0);
-        borrowableCUSDC.postCollateral(1000e6);
-        assertEq(borrowableCUSDC.balanceOf(user), 1000e6);
-
-        uint256 balanceBeforeBorrow = dai.balanceOf(user);
-
-        // Borrow borrowable cDAI.
-        borrowableCDAI.borrow(100 ether, user);
-        assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
-
-        // Try leveraging with 50% of limit.
-        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
-            user,
-            address(borrowableCDAI)
-        ) / 2;
-
-        SimplePositionManager.LeverageAction memory leverageAction;
-        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
-        leverageAction.borrowAssets = amountForLeverage;
-        leverageAction.cToken = ICToken(address(borrowableCUSDC));
-        leverageAction.swapAction.inputToken = address(dai);
-        leverageAction.swapAction.inputAmount = amountForLeverage;
-        leverageAction.swapAction.outputToken = address(usdc);
-        leverageAction.swapAction.target = address(_UNISWAP_V2_ROUTER);
-        address[] memory path = new address[](2);
-        path[0] = address(dai);
-        path[1] = address(usdc);
-        leverageAction.swapAction.call = abi.encodeWithSignature(
-            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-            amountForLeverage,
-            0,
-            path,
-            address(positionManager),
-            block.timestamp
-        );
-        leverageAction.swapAction.slippage = 0.3e18;
-
-        positionManager.setDelegateApproval(address(user2), true);
-        vm.stopPrank();
-
-        vm.prank(user2);
-        positionManager.leverageFor(leverageAction, user, 0.05e18); // 5% slippage
-
-        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
-        assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
-
-        AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
-            user
-        );
-        assertGt(borrowableCUSDCSnapshot.collateralPosted, 1900e6);
-        assertEq(borrowableCUSDCSnapshot.debtBalance, 0);
-
-        vm.stopPrank();
-    }
-
-    function testDeLeverageFor() public {
-        testLeverage();
-
-        // Warp until collateralization cooldown period ends.
-        vm.warp(block.timestamp + 20 minutes);
-        borrowableCDAI.accrueIfNeeded();
-
-        vm.startPrank(user);
-        AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
-        AccountSnapshot memory borrowableCUSDCBeforeSnapshot = borrowableCUSDC.getSnapshot(user);
-
-        SimplePositionManager.DeleverageAction memory deleverageAction;
-        deleverageAction.cToken = ICToken(address(borrowableCUSDC));
-        deleverageAction.collateralAssets = 900e6;
-        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
-        deleverageAction.swapActions = new SwapperLib.Swap[](1);
-        deleverageAction.swapActions[0].inputToken = address(usdc);
-        deleverageAction.swapActions[0].inputAmount = 900e6;
-        deleverageAction.swapActions[0].outputToken = address(dai);
-        deleverageAction.swapActions[0].target = address(_UNISWAP_V2_ROUTER);
-        address[] memory path = new address[](2);
-        path[0] = address(usdc);
-        path[1] = address(dai);
-        deleverageAction.swapActions[0].call = abi.encodeWithSignature(
-            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-            900e6,
-            0,
-            path,
-            address(positionManager),
-            block.timestamp
-        );
-        deleverageAction.swapActions[0].slippage = 0.3e18;
-        deleverageAction.repayAssets = 890 ether;
-        borrowableCUSDC.approve(address(positionManager), type(uint256).max);
-
-        positionManager.setDelegateApproval(address(user2), true);
-        vm.stopPrank();
-
-        vm.prank(user2);
-        positionManager.deleverageFor(deleverageAction, user, 0.05e18); // 5% slippage
-
-        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
-        assertEq(borrowableCDAI.balanceOf(user), 0);
-        assertEq(
-            borrowableCDAISnapshot.debtBalance,
-            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
-        );
-
-        AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
-            user
-        );
-        assertEq(
-            borrowableCUSDCSnapshot.collateralPosted,
-            borrowableCUSDCBeforeSnapshot.collateralPosted - deleverageAction.collateralAssets
-        );
-        assertEq(borrowableCUSDCSnapshot.debtBalance, 0);
-
-        vm.stopPrank();
-    }
-
     function testRevert_LeverageInvalidSwapTarget() public {
         vm.startPrank(user);
         
@@ -829,7 +537,6 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-
     function testRevert_DeleverageForWithoutPermission() public {
         testLeverage();
         
@@ -874,7 +581,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testSetAndRevokeDelegate() public {
+    function testRevert_SetAndRevokeDelegate() public {
         vm.startPrank(user);
 
         // At this point, user2 should not have delegation.
@@ -944,20 +651,21 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function test_fail_whenLeverageDebtCapDoubleCountReverts() public {
-
+    function testRevert_leverageAboveDebtCap() public {
         vm.startPrank(user);
+
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(borrowableCUSDC), 1000e6);
         assertGt(borrowableCUSDC.deposit(1000e6, user), 0);
         borrowableCUSDC.postCollateral(1000e6);
         assertEq(borrowableCUSDC.balanceOf(user), 1000e6);
+
         vm.stopPrank();
 
         // Set debt cap and borrow slightly more than half to show double counting.
         uint256 debtCap = 100 ether;
         _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, debtCap);
-        uint256 amountForLeverage = (debtCap / 2) + 1;
+        uint256 amountForLeverage = debtCap + 1;
 
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
@@ -986,6 +694,350 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.startPrank(user);
         vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
         positionManager.leverage(leverageAction, 0.05e18);
+        vm.stopPrank();
+    }
+
+    function testInitialize() public {
+        assertEq(
+            address(positionManager.centralRegistry()),
+            address(centralRegistry)
+        );
+        assertEq(
+            address(positionManager.marketManager()),
+            address(marketManagerIsolated)
+        );
+    }
+
+    function testLeverage() public {
+        vm.startPrank(user);
+
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+
+        // Mint borrowable cUSDC.
+        assertGt(borrowableCUSDC.deposit(1000e6, user), 0);
+        borrowableCUSDC.postCollateral(1000e6);
+        assertEq(borrowableCUSDC.balanceOf(user), 1000e6);
+
+        uint256 balanceBeforeBorrow = dai.balanceOf(user);
+        
+        // Borrow borrowable cDAI.
+        borrowableCDAI.borrow(100 ether, user);
+        assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
+
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
+            user,
+            address(borrowableCDAI)
+        ) / 2;
+
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(borrowableCUSDC));
+        leverageAction.swapAction.inputToken = address(dai);
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = address(usdc);
+        leverageAction.swapAction.target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageAction.swapAction.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManager),
+            block.timestamp
+        );
+        leverageAction.swapAction.slippage = 0.3e18;
+
+        positionManager.leverage(leverageAction, 0.05e18); // 5% slippage
+
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
+        assertEq(borrowableCDAI.balanceOf(user), 0);
+        assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
+
+        AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
+            user
+        );
+        assertGt(borrowableCUSDCSnapshot.collateralPosted, 1900e6);
+        assertEq(borrowableCUSDCSnapshot.debtBalance, 0);
+
+        vm.stopPrank();
+    }
+
+    function testDepositAndLeverage() public {
+        vm.startPrank(user);
+
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(positionManager), 1000e6);
+
+        // Try leverage with 50% of max.
+        uint256 amountForLeverage = 0.99e21;
+
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(borrowableCUSDC));
+        leverageAction.swapAction.inputToken = address(dai);
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = address(usdc);
+        leverageAction.swapAction.target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageAction.swapAction.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManager),
+            block.timestamp
+        );
+        leverageAction.swapAction.slippage = 0.3e18;
+
+        positionManager.depositAndLeverage(1000e6, leverageAction, 0.05e18); // 5% slippage
+
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
+        assertEq(borrowableCDAI.balanceOf(user), 0);
+        assertEq(borrowableCDAISnapshot.debtBalance, amountForLeverage);
+
+        AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
+            user
+        );
+        assertGt(borrowableCUSDCSnapshot.collateralPosted, 1900e6);
+        assertEq(borrowableCUSDCSnapshot.debtBalance, 0);
+
+        vm.stopPrank();
+    }
+
+    function testDeLeverage() public {
+        testLeverage();
+
+        // Warp until collateralization cooldown period ends.
+        vm.warp(block.timestamp + 20 minutes);
+        borrowableCDAI.accrueIfNeeded();
+
+        vm.startPrank(user);
+        AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCUSDCBeforeSnapshot = borrowableCUSDC.getSnapshot(user);
+
+        SimplePositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(borrowableCUSDC));
+        deleverageAction.collateralAssets = 900e6;
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = address(usdc);
+        deleverageAction.swapActions[0].inputAmount = 900e6;
+        deleverageAction.swapActions[0].outputToken = address(dai);
+        deleverageAction.swapActions[0].target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(usdc);
+        path[1] = address(dai);
+        deleverageAction.swapActions[0].call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            900e6,
+            0,
+            path,
+            address(positionManager),
+            block.timestamp
+        );
+        deleverageAction.swapActions[0].slippage = 0.3e18;
+        deleverageAction.repayAssets = 890 ether;
+        positionManager.deleverage(deleverageAction, 0.05e18); // 5% slippage
+
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
+        assertEq(borrowableCDAI.balanceOf(user), 0);
+        assertEq(
+            borrowableCDAISnapshot.debtBalance,
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
+        );
+
+        AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
+            user
+        );
+        assertEq(
+            borrowableCUSDCSnapshot.collateralPosted,
+            borrowableCUSDCBeforeSnapshot.collateralPosted - deleverageAction.collateralAssets
+        );
+        assertEq(borrowableCUSDCSnapshot.debtBalance, 0);
+
+        vm.stopPrank();
+    }
+
+    function testLeverageFor() public {
+        vm.startPrank(user);
+
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+
+        // Mint borrowable cUSDC.
+        assertGt(borrowableCUSDC.deposit(1000e6, user), 0);
+        borrowableCUSDC.postCollateral(1000e6);
+        assertEq(borrowableCUSDC.balanceOf(user), 1000e6);
+
+        uint256 balanceBeforeBorrow = dai.balanceOf(user);
+
+        // Borrow borrowable cDAI.
+        borrowableCDAI.borrow(100 ether, user);
+        assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
+
+        // Try leveraging with 50% of limit.
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
+            user,
+            address(borrowableCDAI)
+        ) / 2;
+
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(borrowableCUSDC));
+        leverageAction.swapAction.inputToken = address(dai);
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = address(usdc);
+        leverageAction.swapAction.target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageAction.swapAction.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManager),
+            block.timestamp
+        );
+        leverageAction.swapAction.slippage = 0.3e18;
+
+        positionManager.setDelegateApproval(address(user2), true);
+        vm.stopPrank();
+
+        vm.prank(user2);
+        positionManager.leverageFor(leverageAction, user, 0.05e18); // 5% slippage
+
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
+        assertEq(borrowableCDAI.balanceOf(user), 0);
+        assertEq(borrowableCDAISnapshot.debtBalance, 100 ether + amountForLeverage);
+
+        AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
+            user
+        );
+        assertGt(borrowableCUSDCSnapshot.collateralPosted, 1900e6);
+        assertEq(borrowableCUSDCSnapshot.debtBalance, 0);
+
+        vm.stopPrank();
+    }
+
+    function testDeLeverageFor() public {
+        testLeverage();
+
+        // Warp until collateralization cooldown period ends.
+        vm.warp(block.timestamp + 20 minutes);
+        borrowableCDAI.accrueIfNeeded();
+
+        vm.startPrank(user);
+        AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCUSDCBeforeSnapshot = borrowableCUSDC.getSnapshot(user);
+
+        SimplePositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(borrowableCUSDC));
+        deleverageAction.collateralAssets = 900e6;
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = address(usdc);
+        deleverageAction.swapActions[0].inputAmount = 900e6;
+        deleverageAction.swapActions[0].outputToken = address(dai);
+        deleverageAction.swapActions[0].target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(usdc);
+        path[1] = address(dai);
+        deleverageAction.swapActions[0].call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            900e6,
+            0,
+            path,
+            address(positionManager),
+            block.timestamp
+        );
+        deleverageAction.swapActions[0].slippage = 0.3e18;
+        deleverageAction.repayAssets = 890 ether;
+        borrowableCUSDC.approve(address(positionManager), type(uint256).max);
+
+        positionManager.setDelegateApproval(address(user2), true);
+        vm.stopPrank();
+
+        vm.prank(user2);
+        positionManager.deleverageFor(deleverageAction, user, 0.05e18); // 5% slippage
+
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
+        assertEq(borrowableCDAI.balanceOf(user), 0);
+        assertEq(
+            borrowableCDAISnapshot.debtBalance,
+            borrowableCDAIBeforeSnapshot.debtBalance - deleverageAction.repayAssets
+        );
+
+        AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
+            user
+        );
+        assertEq(
+            borrowableCUSDCSnapshot.collateralPosted,
+            borrowableCUSDCBeforeSnapshot.collateralPosted - deleverageAction.collateralAssets
+        );
+        assertEq(borrowableCUSDCSnapshot.debtBalance, 0);
+
+        vm.stopPrank();
+    }
+
+    function testLeverageUpToDebtCap() public {
+        vm.startPrank(user);
+
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+        assertGt(borrowableCUSDC.deposit(1000e6, user), 0);
+        borrowableCUSDC.postCollateral(1000e6);
+        assertEq(borrowableCUSDC.balanceOf(user), 1000e6);
+
+        vm.stopPrank();
+
+        // Set debt cap and borrow slightly more than half to show double counting.
+        uint256 debtCap = 100 ether;
+        _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, debtCap);
+        uint256 amountForLeverage = debtCap - 1;
+
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(borrowableCUSDC));
+        leverageAction.swapAction.inputToken = address(dai);
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = address(usdc);
+        leverageAction.swapAction.target = address(_UNISWAP_V2_ROUTER);
+
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageAction.swapAction.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManager),
+            block.timestamp
+        );
+        leverageAction.swapAction.slippage = 0.3e18;
+        positionManager.leverage(leverageAction, 0.05e18); // 5% slippage
+
+        AccountSnapshot memory borrowableCDAISnapshot =
+            borrowableCDAI.getSnapshot(user);
+        assertEq(borrowableCDAI.balanceOf(user), 0);
+        assertEq(borrowableCDAISnapshot.debtBalance, amountForLeverage);
+
+        AccountSnapshot memory borrowableCUSDCSnapshot =
+            borrowableCUSDC.getSnapshot(user);
+        assertGt(borrowableCUSDCSnapshot.collateralPosted, 1000e6);
+        assertEq(borrowableCUSDCSnapshot.debtBalance, 0);
+
         vm.stopPrank();
     }
 
