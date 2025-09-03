@@ -9,7 +9,7 @@ import { IOdosRouterV2 } from "contracts/interfaces/external/odos/IOdosRouterV2.
 
 /// @notice Inspects the calldata for an Odos related swap action.
 /// @dev NOTE: Currently built for Router V2.
-contract OdosCalldataChecker is BaseSwapChecker {
+contract OdosV2CalldataChecker is BaseSwapChecker {
     /// CONSTRUCTOR ///
 
     /// @param _target The address of the Odos Router V2 contract.
@@ -42,23 +42,6 @@ contract OdosCalldataChecker is BaseSwapChecker {
                 _getFuncParams(swapAction.call),
                 (IOdosRouterV2.swapTokenInfo, bytes, address, uint32)
             );
-            recipient = tokenInfo.outputReceiver;
-            inputToken = tokenInfo.inputToken;
-            inputAmount = tokenInfo.inputAmount;
-            outputToken = tokenInfo.outputToken;
-        } else if (funcSigHash == IOdosRouterV2.swapPermit2.selector) {
-            (, IOdosRouterV2.swapTokenInfo memory tokenInfo, , , ) = abi
-                .decode(
-                    _getFuncParams(swapAction.call),
-                    (
-                        IOdosRouterV2.permit2Info,
-                        IOdosRouterV2.swapTokenInfo,
-                        bytes,
-                        address,
-                        uint32
-                    )
-                );
-
             recipient = tokenInfo.outputReceiver;
             inputToken = tokenInfo.inputToken;
             inputAmount = tokenInfo.inputAmount;

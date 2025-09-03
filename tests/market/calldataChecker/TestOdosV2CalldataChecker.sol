@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import { OdosCalldataChecker } from "contracts/calldata-checker/swap-checker/OdosCalldataChecker.sol";
+import { OdosV2CalldataChecker } from "contracts/calldata-checker/swap-checker/OdosV2CalldataChecker.sol";
 import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestOdosCalldataChecker is TestBaseMarketIsolated {
+contract TestOdosV2CalldataChecker is TestBaseMarketIsolated {
     address public odosRouterV2 = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
-    OdosCalldataChecker public checker;
+    OdosV2CalldataChecker public checker;
 
     SwapperLib.Swap public swapAction;
     address public recipient;
@@ -22,7 +22,7 @@ contract TestOdosCalldataChecker is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 
-        checker = new OdosCalldataChecker(odosRouterV2);
+        checker = new OdosV2CalldataChecker(odosRouterV2);
     }
 
     function testCheckCallDataRevert__TargetError() public {

@@ -5,7 +5,7 @@ import { VelodromeStableCToken } from "contracts/market/token/VelodromeStableCTo
 import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeStableLPAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { VelodromePositionManager } from "contracts/market/position-management/VelodromePositionManager.sol";
-import { OdosCalldataChecker } from "contracts/calldata-checker/swap-checker/OdosCalldataChecker.sol";
+import { OdosV2CalldataChecker } from "contracts/calldata-checker/swap-checker/OdosV2CalldataChecker.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { BPS } from "contracts/libraries/ConstantsLib.sol";
@@ -37,7 +37,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
     IVeloRouter public veloRouter =
         IVeloRouter(0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858);
 
-    OdosCalldataChecker public odosCallDataChecker;
+    OdosV2CalldataChecker public odosCallDataChecker;
     VelodromeStableCToken public strategyCTokenUSDCDAI;
     VelodromeStableLPAdaptor public adaptor;
     VelodromePositionManager public positionManager;
@@ -165,7 +165,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
 
         _provideEnoughLiquidityForLeverage();
 
-        odosCallDataChecker = new OdosCalldataChecker(odosRouterV2);
+        odosCallDataChecker = new OdosV2CalldataChecker(odosRouterV2);
 
         centralRegistry.setExternalCalldataChecker(
             odosRouterV2,
