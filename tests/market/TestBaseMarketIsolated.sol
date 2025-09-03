@@ -96,7 +96,7 @@ contract TestBaseMarketIsolated is TestBase {
     }
 
     function setUp() public virtual {
-        _fork(18031848);
+        _fork(23263997);
 
         _init();
     }

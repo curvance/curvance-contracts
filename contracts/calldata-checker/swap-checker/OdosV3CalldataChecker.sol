@@ -9,7 +9,7 @@ import { IOdosRouterV3 } from "contracts/interfaces/external/odos/IOdosRouterV3.
 
 /// @notice Inspects the calldata for an Odos related swap action.
 /// @dev NOTE: Currently built for Router V3.
-contract OdosV2CalldataChecker is BaseSwapChecker {
+contract OdosV3CalldataChecker is BaseSwapChecker {
     /// CONSTRUCTOR ///
 
     /// @param _target The address of the Odos Router V3 contract.
