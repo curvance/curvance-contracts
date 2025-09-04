@@ -337,13 +337,14 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(1 ether);
 
         // try borrow()
-        borrowableCUSDC.borrow(1000e6, user1);
+        borrowableCUSDC.borrow(3000e6, user1);
         vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
 
-        mockUsdcFeed.setMockAnswer(200000000);
+        mockUsdcFeed.setMockAnswer(1.5e8);
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
             LiquidationParams({

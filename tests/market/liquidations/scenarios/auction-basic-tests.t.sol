@@ -231,10 +231,10 @@ contract AuctionBasicTests is TestBaseLiquidations {
     function _calculateExpectedLiquidatedTokensWithDefaultPenalty() internal returns (uint256) {
         uint256 WAD_SQUARED = 1e36;
 
-        uint256 debtTokenPrice = 2e18; 
+        uint256 debtTokenPrice; 
         uint256 cTokenPrice;
 
-        (cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
+        (cTokenPrice, debtTokenPrice) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
 
         (, , , uint256 lFactor) = _liquidationValuesOfHelper(marketManagerIsolated, user1);
 
@@ -259,10 +259,10 @@ contract AuctionBasicTests is TestBaseLiquidations {
     function _calculateExpectedLiquidatedTokens(uint256 incentive) internal returns (uint256) {
 
         uint256 WAD_SQUARED = 1e36;
-        uint256 debtTokenPrice = 2e18; 
+        uint256 debtTokenPrice; 
         uint256 cTokenPrice;
         
-        (cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
+        (cTokenPrice, debtTokenPrice) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
         
         uint256 collateralDecimals = 10**18;
         uint256 debtDecimals = 10**6;

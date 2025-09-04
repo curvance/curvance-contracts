@@ -23,33 +23,6 @@ contract TestBaseLiquidations is TestBaseMarketIsolated {
             address(strategyCBALRETH),
             _ONE
         );
-
-        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            true,
-            address(mockWethFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            true,
-            address(mockWethFeed),
-            0
-        );
-        mockRethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            true,
-            address(mockRethFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            true,
-            address(mockRethFeed),
-            0
-        );
     }
 
     function _prepareLiquidation() internal {
@@ -70,11 +43,6 @@ contract TestBaseLiquidations is TestBaseMarketIsolated {
         // use mock pricing for testing
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
-
-        chainlinkEthUsd.updateAnswer(1500e8);
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
 
         _prepareUSDC(user1, _ONE);
         _prepareUSDC(address(this), _ONE);
@@ -122,13 +90,13 @@ contract TestBaseLiquidations is TestBaseMarketIsolated {
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
-        borrowableCUSDC.borrow(1000e6, user1);
+        borrowableCUSDC.borrow(3000e6, user1);
         vm.stopPrank();
 
         // skip 20 min hold period in harvestAuraStrategyRewards
         _harvestAuraStrategyRewards(1 weeks);
 
-        mockUsdcFeed.setMockAnswer(2e8);
+        mockUsdcFeed.setMockAnswer(1.2e8);
 
         _prepareUSDC(user2, 1000e6);
     }

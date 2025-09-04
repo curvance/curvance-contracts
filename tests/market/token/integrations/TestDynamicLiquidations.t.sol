@@ -22,47 +22,6 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
 
         owner = address(this);
 
-        // use mock pricing for testing
-        mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(
-            _DAI_ADDRESS,
-            true,
-            address(mockDaiFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _DAI_ADDRESS,
-            true,
-            address(mockDaiFeed),
-            0
-        );
-        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            true,
-            address(mockWethFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            true,
-            address(mockWethFeed),
-            0
-        );
-        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
-        chainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            false,
-            address(mockRethFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            false,
-            address(mockRethFeed),
-            0
-        );
-
         // start epoch
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
@@ -152,7 +111,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(1 ether - 1);
 
         // try borrow()
-        borrowableCDAI.borrow(1000 ether, user1);
+        borrowableCDAI.borrow(3000 ether, user1);
         vm.stopPrank();
 
         // skip min hold period
@@ -160,7 +119,8 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
 
         borrowableCDAI.accrueIfNeeded();
 
-        mockDaiFeed.setMockAnswer(200000000);
+        mockDaiFeed.setMockAnswer(1.5e8);
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
         ExpectedLiquidationValues memory expectedLiqValues = _calculateExpectedLiquidationValues(
             LiquidationParams({
@@ -208,7 +168,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
-        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 1000 ether - (expectedLiqValues.badDebt + 250 ether), 0.0001e18, "debt balance mismatch");
+        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 3000 ether - (expectedLiqValues.badDebt + 250 ether), 0.0001e18, "debt balance mismatch");
         assertLt(borrowableCDAI.exchangeRateUpdated(), 1 ether, "exchange rate should lower because of bad debt");
     }
 

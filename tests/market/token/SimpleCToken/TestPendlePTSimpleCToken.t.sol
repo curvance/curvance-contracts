@@ -144,7 +144,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function testSimpleCTokenMintRedeem() public {
+    function testPendlePTSimpleCToken_SimpleCTokenMintRedeem() public {
         _preparePT(user1, 2 ether);
 
         // Try deposit().
@@ -167,7 +167,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         assertEq(pendleCTokenPTSTETH.balanceOf(user1), 0);
     }
 
-    function testBorrowableCTokenMintRedeem() public {
+    function testPendlePTSimpleCToken_BorrowableCTokenMintRedeem() public {
         _prepareUSDC(user1, 2e6);
 
         // Try deposit().
@@ -190,7 +190,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
     }
 
-    function testBorrowableCTokenBorrowRepay() public {
+    function testPendlePTSimpleCToken_BorrowableCTokenBorrowRepay() public {
         _preparePT(user1, 1 ether);
 
         // Try deposit().
@@ -254,7 +254,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         assertEq(borrowableCUSDC.exchangeRate(), exchangeRatePrior, "exchange rate mismatch");
     }
 
-    function testCTokenRedeemOnBorrow() public {
+    function testPendlePTSimpleCToken_CTokenRedeemOnBorrow() public {
         _preparePT(user1, 1 ether);
 
         // Try deposit().
@@ -283,7 +283,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         assertEq(pendleCTokenPTSTETH.exchangeRate(), 1 ether);
     }
 
-    function testBorrowableCTokenRedeemOnBorrow() public {
+    function testPendlePTSimpleCToken_BorrowableCTokenRedeemOnBorrow() public {
         // Try deposit().
         _preparePT(user1, 1 ether);
         
@@ -322,7 +322,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         assertGt(borrowableCUSDC.exchangeRate(), 1 ether);
     }
 
-    function testCTokenTransferOnBorrow() public {
+    function testPendlePTSimpleCToken_CTokenTransferOnBorrow() public {
         _preparePT(user1, 1 ether);
 
         // Try deposit().
@@ -354,7 +354,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         assertEq(pendleCTokenPTSTETH.exchangeRate(), 1 ether);
     }
 
-    function testBorrowableCTokenTransferOnBorrow() public {
+    function testPendlePTSimpleCToken_BorrowableCTokenTransferOnBorrow() public {
         // Try deposit().
         _preparePT(user1, 1 ether);
 
@@ -391,7 +391,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         assertGt(borrowableCUSDC.exchangeRate(), 1 ether, "debt token exchange rate is increased because of interest");
     }
 
-    function testLiquidationExact() public {
+    function testPendlePTSimpleCToken_LiquidationExact() public {
         _preparePT(user1, 1 ether);
 
         // Try deposit().
@@ -402,7 +402,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         pendleCTokenPTSTETH.postCollateral(1 ether);
 
         // Try borrow().
-        borrowableCUSDC.borrow(1000e6, user1);
+        borrowableCUSDC.borrow(3000e6, user1);
         vm.stopPrank();
 
         // Warp time to simulate interest being applied on debt.
@@ -414,7 +414,8 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
             true
         );
 
-        mockUsdcFeed.setMockAnswer(120000000);
+        mockUsdcFeed.setMockAnswer(1.1e8);
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
         // Try 50% liquidation.
         _prepareUSDC(user2, 250e6);
@@ -434,10 +435,15 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         vm.stopPrank();
 
         uint256 liquidatedAmount = 250e6;
+        (, uint256 debtTokenPrice) = oracleManager.getPriceIsolatedPair(
+            address(pendleCTokenPTSTETH),
+            address(borrowableCUSDC),
+            2
+        );
         assertApproxEqRel(
             pendleCTokenPTSTETH.balanceOf(user1),
-            1 ether - (liquidatedAmount * 12e11 * 1 ether) / pendlePTPrice,
-            0.03e18
+            1 ether - (liquidatedAmount * 12e11 * debtTokenPrice) / pendlePTPrice,
+            0.03e18, "collateral balance of user1 mismatch"
         );
         assertEq(pendleCTokenPTSTETH.exchangeRate(), 1 ether);
 
@@ -446,7 +452,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         assertGt(borrowableCUSDC.exchangeRate(), 1 ether, "exchange rate should higher because of interest accrued");
     }
 
-    function testLiquidationFull() public {
+    function testPendlePTSimpleCToken_LiquidationFull() public {
         _preparePT(user1, 1 ether);
 
         // Try deposit().
@@ -469,7 +475,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
             true
         );
 
-        mockUsdcFeed.setMockAnswer(120000000);
+        mockUsdcFeed.setMockAnswer(3.5e8);
 
         // cache liquidation values
 
@@ -500,9 +506,9 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         
 
         // Try full liquidation.
-        _prepareUSDC(user2, 1000e6);
+        _prepareUSDC(user2, 1000000038); // debt plus interest
         vm.startPrank(user2);
-        usdc.approve(address(borrowableCUSDC), 1000e6);
+        usdc.approve(address(borrowableCUSDC), 1000000038); 
         address[] memory accounts = new address[](1);
         accounts[0] = user1;
 
@@ -511,8 +517,6 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
             address(pendleCTokenPTSTETH)
         );
         vm.stopPrank();
-
-        uint256 liquidatedAmount = 590e6;
 
         AccountSnapshot memory snapshot = pendleCTokenPTSTETH.getSnapshot(user1);
         assertApproxEqRel(

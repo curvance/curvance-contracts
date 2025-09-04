@@ -285,13 +285,14 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(_ONE);
 
         // try borrow()
-        borrowableCDAI.borrow(1000e18, user1);
+        borrowableCDAI.borrow(3000e18, user1);
         vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
 
-        mockDaiFeed.setMockAnswer(2e8);
+        mockDaiFeed.setMockAnswer(1.5e8);
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
         uint256 currentDebtBalance = borrowableCDAI.debtBalanceUpdated(user1);  
 
@@ -327,7 +328,6 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
 
-
         _assertDebtReduction(250e18, expectedLiquidationValues.badDebt, currentDebtBalance);
 
         assertLt(borrowableCDAI.exchangeRate(), _ONE, "exchange rate should lower because of bad debt");
@@ -345,13 +345,14 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(_ONE); 
 
         // try borrow()
-        borrowableCDAI.borrow(1000e18, user1);
+        borrowableCDAI.borrow(3000e18, user1);
         vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
 
         mockDaiFeed.setMockAnswer(1.5e8);
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
             LiquidationParams({
@@ -434,13 +435,14 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(_ONE);
 
         // try borrow()
-        borrowableCDAI.borrow(1000e18, user1);
+        borrowableCDAI.borrow(3000e18, user1);
         vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
 
-        mockDaiFeed.setMockAnswer(1.3e8);
+        mockDaiFeed.setMockAnswer(1.1e8);
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
         uint256 debtBefore = borrowableCDAI.debtBalanceUpdated(user1);
         console2.log("debtBefore", debtBefore);
@@ -460,9 +462,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         );
 
         // try liquidate
-        _prepareDAI(user2, 1000e18);
+        _prepareDAI(user2, 1600e18);
         vm.startPrank(user2);
-        dai.approve(address(borrowableCDAI), 1000e18);
+        dai.approve(address(borrowableCDAI), 1600e18);
 
         address[] memory accounts = new address[](1);
         accounts[0] = user1;

@@ -45,13 +45,14 @@ contract TestBaseBorrowableCToken is TestBaseMarketIsolated {
         strategyCBALRETH.deposit(_ONE, user1);
         strategyCBALRETH.postCollateral(_ONE - 1);
 
-        borrowableCUSDC.borrow(1000e6, user1);
+        borrowableCUSDC.borrow(3000e6, user1);
         vm.stopPrank();
 
         // skip 20 min hold period in harvestAuraStrategyRewards
         _harvestAuraStrategyRewards(1 weeks);
 
-        mockUsdcFeed.setMockAnswer(2e8);
+        mockUsdcFeed.setMockAnswer(1.2e8);
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
         _prepareUSDC(user2, 250e6);
     }
