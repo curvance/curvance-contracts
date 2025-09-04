@@ -375,7 +375,6 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
     // NO-SWAP TESTS
 
     function test_vaultZapper_success_swapAndDeposit_noSwap() public {
-
         _setUpSimpleCSFRAX_borrowableCUSDC();
 
         deal(_FRAX_ADDRESS, user1, 100e18);

@@ -234,25 +234,78 @@ contract ProtocolReader {
         }
     }
 
-    /// @notice Gets the health factor of a user's position in a market
+    /// @notice Gets the Position health of `account` inside a market (`mm`).
     /// @param mm The market manager to pull data from.
-    /// @param account The user address to get the health factor for.
-    /// @return positionHealth The healthiness of `account`'s position.
-    /// @return Whether an error code was hit or not, which would provide
-    ///         incorrect Position Health.
+    /// @param account The user address to get the position health of.
+    /// @param cToken Optional collateral token for a hypothetical action.
+    /// @param borrowableCToken Optional debt token for a hypothetical action.
+    /// @param isDeposit Whether `collateralAssets` is for a deposit (true) or
+    ///                  redemption (false).
+    /// @param collateralAssets The amount of assets for a hypothetical action
+    ///                         with `cToken`.
+    /// @param isRepayment Whether `debtAssets` is for a repayment (true) or
+    ///                    borrow (false).
+    /// @param debtAssets The amount of assets for a hypothetical action with
+    ///                   `borrowableCToken`.
+    /// @param bufferTime Any additional time buffer for debt balance check.
+    /// @return positionHealth The healthiness of `account`'s position inside
+    ///                        `mm`.
+    /// @return errorCodeHit Whether an error code was hit or not, which
+    ///                      would provide incorrect Position Health.
     function getPositionHealth(
         IMarketManager mm,
-        address account
-    ) public view returns (uint256 positionHealth, bool) {
-        (uint256 soft, , uint256 debt, , bool errorCodeHit) =
-            _liquidationValuesOf(mm, account);
+        address account,
+        address cToken,
+        address borrowableCToken,
+        bool isDeposit,
+        uint256 collateralAssets,
+        bool isRepayment,
+        uint256 debtAssets,
+        uint256 bufferTime
+    ) public view returns (uint256 positionHealth, bool errorCodeHit) {
+        uint256 soft;
+        uint256 debt;
+        uint256 tempValue;
+        (soft, , debt, , errorCodeHit) = _liquidationValuesOf(mm, account);
+
+        if (mm.isListed(cToken) && collateralAssets != 0) {
+            tempValue = _collateralValue(cToken, collateralAssets);
+            (, uint256 collReqSoft , ) = mm.collConfig(cToken);
+            if (collReqSoft != 0) {
+                tempValue = _mulDiv(tempValue, BPS, collReqSoft);
+                if (tempValue > soft && !isDeposit) {
+                    errorCodeHit = true;
+                } else {
+                    soft = isDeposit ? soft + tempValue : soft - tempValue;
+                }
+            }
+        }
+
+        if (mm.isListed(borrowableCToken) && debtAssets != 0) {
+            if (debtAssets == type(uint256).max) {
+                debtAssets = debtBalanceAtTimestamp(account, borrowableCToken, block.timestamp);
+            }
+
+            tempValue = _debtValue(borrowableCToken, debtAssets);
+            if (isRepayment) {
+                // Add `bufferTime` seconds buffer for interest accrued during
+                // user execution.
+                if (
+                    debtBalanceAtTimestamp(account, borrowableCToken, block.timestamp + bufferTime) >
+                    debtAssets
+                    ) {
+                        errorCodeHit = true;
+                    } else {
+                        debt = isRepayment ? debt - tempValue : debt + tempValue;
+                    }
+            }
+        }
+
         if (debt == 0) {
             positionHealth = type(uint256).max; 
         } else {
             positionHealth = (soft * WAD) / debt;
         }
-
-        return (positionHealth, errorCodeHit);
     }
 
     function getUserData(
@@ -345,14 +398,9 @@ contract ProtocolReader {
                 revert ProtocolReader__NonCollateralizable();
             }
 
-            uint256 newCollateral = _mulDiv(
-                ICToken(cToken).previewDeposit(assets),
-                getPriceSafely(address(cToken), true, true, 1), // Price the collateralToken.
-                10 ** ICToken(cToken).decimals()
-            );
-
+            uint256 newCollateral = _collateralValue(cToken, assets);
             sumCollateral += newCollateral;
-            maxDebt += _mulDiv(newCollateral, collRatio, WAD);
+            maxDebt += _mulDiv(newCollateral, collRatio, BPS);
         }
 
         // We can calculate terminal leverage by calculating the infinite
@@ -848,7 +896,9 @@ contract ProtocolReader {
             _statusOf(mm, account);
         
         um._address = address(mm);
-        (um.positionHealth, um.errorCodeHit) = getPositionHealth(mm, account);
+        // Get position health without any hypothetical changes.
+        (um.positionHealth, um.errorCodeHit) =
+            getPositionHealth(mm, account, address(0), address(0), false, 0, false, 0, 0);
         um.cooldown = mm.accountAssets(account) + MARKET_COOLDOWN_LENGTH;
         um.tokens = tokens;
     }
@@ -1001,6 +1051,40 @@ contract ProtocolReader {
         }
 
         return (snapshots, prices, numAssets, errorCodeHit);
+    }
+    
+    /// @notice Calculates collateral value based on `cToken` `assets`,
+    ///         querying necessary values like price and decimals.
+    /// @param cToken The address of the cToken to calculate collateral value of.
+    /// @param assets The amount of underlying `cToken` assets.
+    function _collateralValue(
+        address cToken,
+        uint256 assets
+    ) internal view returns(uint256 value) {
+        value = _assetValue(
+            ICToken(cToken).previewDeposit(assets),
+            getPriceSafely(cToken, true, true, 1), // Price `cToken`.
+            10 ** ICToken(cToken).decimals(),
+            true
+        );
+    }
+
+    /// @notice Calculates debt value based on `borrowableCToken` `assets`,
+    ///         querying necessary values like price and decimals.
+    /// @param borrowableCToken The address of the borrowableCToken to
+    ///                         calculate debt value of.
+    /// @param assets The amount of underlying `borrowableCToken` assets.
+    function _debtValue(
+        address borrowableCToken,
+        uint256 assets
+    ) internal view returns(uint256 value) {
+        address underlyingAsset = ICToken(borrowableCToken).asset();
+        value = _assetValue(
+            assets,
+            getPriceSafely(underlyingAsset, true, false, 1), // Price `borrowableCToken`.
+            10 ** ICToken(underlyingAsset).decimals(),
+            false
+        );
     }
 
     /// @notice Calculates an assets value based on its `price`,
