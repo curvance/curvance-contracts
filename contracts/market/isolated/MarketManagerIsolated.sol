@@ -242,11 +242,11 @@ contract MarketManagerIsolated is
     /// @param cToken The address of the Curvance token to return
     ///               collateralization configuration of.
     /// @return The ratio at which this token can be borrowed against
-    ///         when collateralized.
+    ///         when collateralized, in `BPS`.
     /// @return The collateral requirement where dipping below this
-    ///         will cause a soft liquidation.
+    ///         will cause a soft liquidation, in `BPS`.
     /// @return The collateral requirement where dipping below
-    ///         this will cause a hard liquidation.
+    ///         this will cause a hard liquidation, in `BPS`.
     function collConfig(address cToken) external view returns (
          uint256, uint256, uint256
     ) {
