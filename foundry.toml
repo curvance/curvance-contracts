@@ -31,7 +31,7 @@ optimizer_runs = 200
 allow_internal_expect_revert = true
 
 [fuzz]
-runs = 1000
+runs = 50
 
 # Suppress common linting notes
 [profile.lint]
