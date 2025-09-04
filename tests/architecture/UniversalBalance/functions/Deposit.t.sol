@@ -8,6 +8,8 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
+    uint256 public constant MAX_FUZZ_VALUE = type(uint256).max - 1;
+
     event Deposit(
         address indexed by,
         address indexed owner,
@@ -15,10 +17,10 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
         bool lendingDeposit
     );
 
-    function test_universalBalanceDeposit_fail_whenHasNoEnoughUSDC_fuzzed(
+    function test_universalBalanceDeposit_fail_whenHasNotEnoughUSDC_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(amount < type(uint256).max);
+        vm.assume(amount < MAX_FUZZ_VALUE);
 
         _prepareUSDC(user1, amount);
 
@@ -35,7 +37,7 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
     function test_universalBalanceDeposit_fail_whenExceedsAllowance_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(amount < type(uint256).max);
+        vm.assume(amount < MAX_FUZZ_VALUE);
 
         _prepareUSDC(user1, amount + 1);
 

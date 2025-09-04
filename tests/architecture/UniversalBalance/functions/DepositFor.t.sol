@@ -9,6 +9,8 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract UniversalBalanceDepositForTest is TestBaseUniversalBalance {
+    uint256 public constant MAX_FUZZ_VALUE = type(uint256).max - 1;
+
     event Deposit(
         address indexed by,
         address indexed owner,
@@ -39,10 +41,10 @@ contract UniversalBalanceDepositForTest is TestBaseUniversalBalance {
         vm.stopPrank();
     }
 
-    function test_universalBalanceDepositFor_fail_whenHasNoEnoughUSDC_fuzzed(
+    function test_universalBalanceDepositFor_fail_whenHasNotEnoughUSDC_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(amount < type(uint256).max);
+        vm.assume(amount < MAX_FUZZ_VALUE);
 
         _prepareUSDC(user1, amount);
 
@@ -59,7 +61,7 @@ contract UniversalBalanceDepositForTest is TestBaseUniversalBalance {
     function test_universalBalanceDepositFor_fail_whenExceedsAllowance_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(amount < type(uint256).max);
+        vm.assume(amount < MAX_FUZZ_VALUE);
 
         _prepareUSDC(user1, amount + 1);
 
