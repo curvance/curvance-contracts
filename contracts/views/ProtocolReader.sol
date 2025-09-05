@@ -354,8 +354,6 @@ contract ProtocolReader {
 
     /// @notice Determine what the account liquidity would be if
     ///         the given shares were redeemed.
-    /// @param mm The market manager to pull hypothetical liquidity values
-    ///           from.
     /// @param account The account to determine liquidity for.
     /// @param cTokenModified The cToken to hypothetically redeem.
     /// @param redemptionShares The number of shares to hypothetically redeem.
@@ -367,17 +365,18 @@ contract ProtocolReader {
     ///              whether it passes liquidity constraints or not.
     /// @return bool Whether an error code was hit.
     function hypotheticalRedemptionOf(
-        IMarketManager mm,
         address account,
         address cTokenModified,
         uint256 redemptionShares
     ) public view returns (uint256, uint256, bool, bool) {
+        IMarketManager mm = ICToken(cTokenModified).marketManager();
+
         // Make sure they are not trying to hypothetically redeem
         // a token they are borrowing, not trying to redeem 0 shares, or
         // redeem an unlisted token.
         if (
             IBorrowableCToken(cTokenModified).debtBalance(account) > 0 ||
-            redemptionShares == 0 || !mm.isListed(cTokenModified)
+            redemptionShares == 0
         ) {
             return(0, 0, false, false);
         }
@@ -395,8 +394,6 @@ contract ProtocolReader {
 
     /// @notice Determine what the account liquidity would be if
     ///         the given assets were borrowed.
-    /// @param mm The market manager to pull hypothetical liquidity values
-    ///           from.
     /// @param account The account to determine liquidity for.
     /// @param borrowableCTokenModified The borrowableCToken to hypothetically
     ///                                 borrow.
@@ -411,17 +408,18 @@ contract ProtocolReader {
     ///              error.
     /// @return bool Whether an error code was hit.
     function hypotheticalBorrowOf(
-        IMarketManager mm,
         address account,
         address borrowableCTokenModified,
         uint256 borrowAssets
     ) public view returns (uint256, uint256, bool, bool, bool) {
+        IMarketManager mm = ICToken(borrowableCTokenModified).marketManager();
+
         // Make sure they are not trying to hypothetically redeem
         // a token they are borrowing, not trying to redeem 0 shares, or
         // redeem an unlisted token.
         if (
             ICToken(borrowableCTokenModified).collateralPosted(account) > 0 ||
-            borrowAssets == 0 || !mm.isListed(borrowableCTokenModified)
+            borrowAssets == 0
         ) {
             return(0, 0, false, false, false);
         }
@@ -462,6 +460,9 @@ contract ProtocolReader {
     ///                           allowed from `borrowableCToken`, measured in
     ///                           underlying token amount, after the new
     ///                           hypothetical deposit.
+    /// @return loanSizeError Whether the desired loan size is insufficient
+    ///                       causing an error.
+    /// @return errorCodeHit Whether an error code was hit.
     function hypotheticalLeverageOf(
         address account,
         address cToken,
