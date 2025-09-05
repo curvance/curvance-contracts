@@ -399,7 +399,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         strategyCBALRETH.postCollateral(1 ether);
 
         // try borrow()
-        borrowableCUSDC.borrow(1000e6, user1);
+        borrowableCUSDC.borrow(3000e6, user1);
         vm.stopPrank();
 
         // skip min hold period
