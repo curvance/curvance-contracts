@@ -420,7 +420,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         // Try 50% liquidation.
         _prepareUSDC(user2, 250e6);
 
-        uint256 debtBefore = borrowableCUSDC.debtBalance(user1);
+        uint256 debtBefore = borrowableCUSDC.debtBalanceUpdated(user1);
         vm.startPrank(user2);
         usdc.approve(address(borrowableCUSDC), 250e6);
 
