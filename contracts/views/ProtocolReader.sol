@@ -117,8 +117,34 @@ contract ProtocolReader {
         uint256 userDebt;
     }
 
+    /// @notice Data structure returned on hypothetical calculation containing
+    ///         whether there was a collateral surplus or a liquidity deficit,
+    ///         and whether account positions need to be updated.
+    /// @param collateral Total value of `account`'s collateral across
+    ///                    all positions.
+    /// @param maxDebt The maximum amount of debt `account` could take
+    ///                on based on `collateral`.
+    /// @param debt Total value of `account`'s current outstanding debt
+    ///             across all positions.
+    /// @param collateralSurplus Excess collateral when adjusted for debt
+    ///                          obligations.
+    /// @param liquidityDeficit Liquidity deficit when adjusted for debt
+    ///                         obligations.
+    struct HypotheticalResult {
+        uint256 collateral;
+        uint256 maxDebt;
+        uint256 debt;
+        uint256 collateralSurplus;
+        uint256 liquidityDeficit;
+    }
+
     /// CONSTANTS ///
 
+    /// @notice Minimum loan size allowed inside Curvance that can be created
+    ///         from a new line of credit inside a market.
+    /// @dev This restriction is to minimize the potential of debt positions
+    ///      being created that cannot not be profitably closed.
+    uint256 public constant MIN_ACTIVE_LOAN_SIZE = 10e18;
     // @dev: See MarketManagerIsolated constant: MIN_HOLD_PERIOD
     uint256 public constant MARKET_COOLDOWN_LENGTH = 20 minutes;
     uint256 public constant MARKET_ASSET_RESERVE = 77777;
@@ -326,6 +352,91 @@ contract ProtocolReader {
         }
     }
 
+    /// @notice Determine what the account liquidity would be if
+    ///         the given shares were redeemed.
+    /// @param mm The market manager to pull hypothetical liquidity values
+    ///           from.
+    /// @param account The account to determine liquidity for.
+    /// @param cTokenModified The cToken to hypothetically redeem.
+    /// @param redemptionShares The number of shares to hypothetically redeem.
+    /// @return Hypothetical account liquidity in excess of collateral
+    ///         requirements.
+    /// @return Hypothetical account liquidity deficit below collateral
+    ///         requirements.
+    /// @return bool Whether the proposed action is possible. NOTE: NOT
+    ///              whether it passes liquidity constraints or not.
+    /// @return bool Whether an error code was hit.
+    function hypotheticalRedemptionOf(
+        IMarketManager mm,
+        address account,
+        address cTokenModified,
+        uint256 redemptionShares
+    ) public view returns (uint256, uint256, bool, bool) {
+        // Make sure they are not trying to hypothetically redeem
+        // a token they are borrowing, not trying to redeem 0 shares, or
+        // redeem an unlisted token.
+        if (
+            IBorrowableCToken(cTokenModified).debtBalance(account) > 0 ||
+            redemptionShares == 0 || !mm.isListed(cTokenModified)
+        ) {
+            return(0, 0, false, false);
+        }
+
+        (HypotheticalResult memory r, , bool errorCodeHit) =
+            _hypotheticalLiquidityOf(
+                mm,
+                account,
+                cTokenModified,
+                redemptionShares,
+                0
+            );
+        return (r.collateralSurplus, r.liquidityDeficit, true, errorCodeHit);
+    }
+
+    /// @notice Determine what the account liquidity would be if
+    ///         the given assets were borrowed.
+    /// @param mm The market manager to pull hypothetical liquidity values
+    ///           from.
+    /// @param account The account to determine liquidity for.
+    /// @param borrowableCTokenModified The borrowableCToken to hypothetically
+    ///                                 borrow.
+    /// @param borrowAssets The number of assets to hypothetically borrow.
+    /// @return Hypothetical account liquidity in excess of collateral
+    ///         requirements.
+    /// @return Hypothetical account liquidity deficit below collateral
+    ///         requirements.
+    /// @return bool Whether the proposed action is possible. NOTE: NOT
+    ///              whether it passes liquidity constraints or not.
+    /// @return bool Whether the desired loan size is insufficient causing an
+    ///              error.
+    /// @return bool Whether an error code was hit.
+    function hypotheticalBorrowOf(
+        IMarketManager mm,
+        address account,
+        address borrowableCTokenModified,
+        uint256 borrowAssets
+    ) public view returns (uint256, uint256, bool, bool, bool) {
+        // Make sure they are not trying to hypothetically redeem
+        // a token they are borrowing, not trying to redeem 0 shares, or
+        // redeem an unlisted token.
+        if (
+            ICToken(borrowableCTokenModified).collateralPosted(account) > 0 ||
+            borrowAssets == 0 || !mm.isListed(borrowableCTokenModified)
+        ) {
+            return(0, 0, false, false, false);
+        }
+
+        (HypotheticalResult memory r, bool loanSizeError, bool errorCodeHit) =
+            _hypotheticalLiquidityOf(
+                mm,
+                account,
+                borrowableCTokenModified,
+                0,
+                borrowAssets
+            );
+        return (r.collateralSurplus, r.liquidityDeficit, true, loanSizeError, errorCodeHit);
+    }
+
     /// @notice Calculates the hypothetical maximum amount of
     ///         `borrowableCToken` assets `account` can borrow for maximum
     ///         leverage based on a new `cToken` collateralized deposit.
@@ -360,7 +471,9 @@ contract ProtocolReader {
         uint256 currentLeverage,
         uint256 adjustedMaxLeverage,
         uint256 maxLeverage,
-        uint256 maxDebtBorrowable
+        uint256 maxDebtBorrowable,
+        bool loanSizeError,
+        bool errorCodeHit
     ) {
         IMarketManager mm = ICToken(borrowableCToken).marketManager();
 
@@ -369,20 +482,21 @@ contract ProtocolReader {
             revert ProtocolReader__TokenNotListed();
         }
 
-        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt, ) =
-            _statusOf(mm, account);
+        HypotheticalResult memory r;
+        (r, loanSizeError, errorCodeHit) = 
+            _hypotheticalLiquidityOf(mm, account, address(0), 0, 0);
         
         // If the account is insolvent or we can immediately return with 0 for
         // everything.
-        if (sumDebt > sumCollateral) {
-            return (0, 0, 0, 0);
+        if (r.debt > r.collateral) {
+            return (0, 0, 0, 0, false, false);
         }
 
-        if (sumDebt == 0 || sumCollateral == 0) {
+        if (r.debt == 0 || r.collateral == 0) {
             currentLeverage = WAD;
         } else {
             currentLeverage =
-                _mulDiv(sumCollateral, WAD, sumCollateral - sumDebt);
+                _mulDiv(r.collateral, WAD, r.collateral - r.debt);
         }
 
         {
@@ -395,8 +509,8 @@ contract ProtocolReader {
             }
 
             uint256 newCollateral = _collateralValue(cToken, assets);
-            sumCollateral += newCollateral;
-            maxDebt += _mulDiv(newCollateral, collRatio, BPS);
+            r.collateral += newCollateral;
+            r.maxDebt += _mulDiv(newCollateral, collRatio, BPS);
         }
 
         // We can calculate terminal leverage by calculating the infinite
@@ -411,7 +525,7 @@ contract ProtocolReader {
         ///       swapping due to AMM fees and slippage.
         maxDebtBorrowable = _mulDiv(
             _mulDiv(
-                _mulDiv(maxDebt - sumDebt, sumCollateral, sumCollateral - maxDebt),
+                _mulDiv(r.maxDebt - r.debt, r.collateral, r.collateral - r.debt),
                 WAD,
                 getPriceSafely(ICToken(borrowableCToken).asset(), true, false, 1) // Price the debt token.
             ),
@@ -421,9 +535,9 @@ contract ProtocolReader {
 
         // Calculate the theoretical maximum leverage.
         maxLeverage = _mulDiv(
-            sumCollateral + maxDebtBorrowable,
+            r.collateral + maxDebtBorrowable,
             WAD,
-            sumCollateral - sumDebt
+            r.collateral - r.debt
         );
 
         // Calculate the maximum debt borrowable currently.
@@ -439,9 +553,9 @@ contract ProtocolReader {
         if (maxDebtBorrowable > 0) {
             // Calculate the real maximum leverage.
             adjustedMaxLeverage = _mulDiv(
-                sumCollateral + maxDebtBorrowable,
+                r.collateral + maxDebtBorrowable,
                 WAD,
-                sumCollateral - sumDebt
+                r.collateral - r.debt
             );
         }
     }
@@ -585,22 +699,41 @@ contract ProtocolReader {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Determine `account`'s current status between collateral,
-    ///         debt, and additional liquidity.
+    /// @notice Calculates hypothetical liquidity for an account after a
+    ///         potential action such as redemption and borrowing.
+    /// @param mm The market manager to pull hypothetical liquidity values
+    ///           from.
     /// @param account The account to determine liquidity for.
-    /// @return collateral Total value of `account`'s collateral across
-    ///                    all positions.
-    /// @return maxDebt The maximum amount of debt `account`
-    ///                 could take on based on `collateral`.
-    /// @return debt Total value of `account`'s current outstanding
-    ///              debt across all positions.
-    function _statusOf(
+    /// @param cTokenModified The cToken to hypothetically redeem/borrow.
+    /// @param redemptionShares The number of tokens to hypothetically redeem,
+    ///                         in `shares`.
+    /// @param borrowAssets The amount of underlying to hypothetically borrow,
+    ///                     in `assets`.
+    /// @return result Hypothetical results for an action containing:
+    ///                collateral Total value of `account`'s collateral across
+    ///                           all positions.
+    ///                maxDebt The maximum amount of debt `account`
+    ///                        could take on based on `collateral`.
+    ///                debt Total value of `account`'s current outstanding
+    ///                     debt across all positions.
+    ///                collateralSurplus Excess collateral capacity after
+    ///                                  the action.
+    ///                liquidityDeficit Shortfall in collateral capacity after
+    ///                                 the action.
+    ///                positionClosureNeeded Flag indicating if positions need
+    ///                                      to be closed. (0: no, 2: yes)
+    /// @return loanSizeError Whether the desired loan size is insufficient
+    ///                       causing an error.
+    /// @return bool Whether an error code was hit.
+    function _hypotheticalLiquidityOf(
         IMarketManager mm,
-        address account
+        address account,
+        address cTokenModified,
+        uint256 redemptionShares,
+        uint256 borrowAssets
     ) internal view returns (
-        uint256 collateral,
-        uint256 maxDebt,
-        uint256 debt,
+        HypotheticalResult memory result,
+        bool loanSizeError,
         bool
     ) {
         (
@@ -610,6 +743,7 @@ contract ProtocolReader {
             bool errorCodeHit
         ) = _assetDataOf(mm, account, 2);
         AccountSnapshot memory snap;
+        uint256 newDebt;
 
         uint256 collRatio;
         for (uint256 i; i < numAssets; ++i) {
@@ -623,8 +757,8 @@ contract ProtocolReader {
                     10 ** snap.decimals,
                     true
                 );
-                collateral += collateralValue;
-                maxDebt += _mulDiv(
+                result.collateral += collateralValue;
+                result.maxDebt += _mulDiv(
                     collateralValue,
                     collRatio,
                     BPS
@@ -632,7 +766,7 @@ contract ProtocolReader {
             } else {
                 // If they have a debt balance, increment their debt.
                 if (snap.debtBalance > 0) {
-                    debt += _assetValue(
+                    result.debt += _assetValue(
                         snap.debtBalance,
                         prices[i],
                         10 ** snap.decimals,
@@ -640,13 +774,72 @@ contract ProtocolReader {
                     );
                 }
             }
+
+            // Calculate impact of cTokenModified action.
+            if (cTokenModified == snap.asset) {
+                // If the token is collateral it cannot also be debt position,
+                // but, on a fresh borrow position snapshot can misreport
+                // a debt position as collateral until its fully opened
+                // because debtBalance still equals 0 at getSnapshot level.
+                if (snap.isCollateral && borrowAssets == 0) {
+                    (collRatio, ,) = mm.collConfig(snap.asset);
+                    // Hypothetical redemption action, decreasing collateral
+                    // or more simply adding new debt.
+                    newDebt += _mulDiv(
+                        _assetValue(
+                            redemptionShares,
+                            prices[i],
+                            10 ** snap.decimals,
+                            false
+                        ),
+                        collRatio,
+                        BPS
+                    );
+                } else {
+                    if (snap.isCollateral) {
+                        prices[i] = getPriceSafely(snap.underlying, true, false, 2);
+                    }
+
+                    // Hypothetical borrow action.
+                    newDebt += _assetValue(
+                        borrowAssets,
+                        prices[i],
+                        10 ** snap.decimals,
+                        false
+                    );
+
+                    // Initially, we would worry that newDebt can be
+                    // incremented during both borrow and redemption
+                    // actions but actions are done in isolation, so if
+                    // newDebt is increases here then cTokenModified will
+                    // never reach the redemption action block.
+                    // This means we can check terminal newDebt value here
+                    // and know its only including current and
+                    // hypothetical new debt.
+                    if (newDebt < MIN_ACTIVE_LOAN_SIZE) {
+                        loanSizeError = true;
+                    }
+
+                    // We don't need to check for closing a position here
+                    // since borrow action will only expand a position.
+                }
+            }
         }
 
-        return(collateral, maxDebt, debt, errorCodeHit);
+        // Returns excess liquidity on hypothetical positions.
+        if (result.maxDebt > newDebt) {
+            result.collateralSurplus = result.maxDebt - newDebt;
+            return (result, loanSizeError, errorCodeHit);
+        }
+
+        // Returns shortfall on hypothetical positions.
+        result.liquidityDeficit = newDebt - result.maxDebt;
+        return(result, loanSizeError, errorCodeHit);
     }
 
     /// @notice Evaluates collateral and debt positions to determine account
     ///         health and liquidation parameters.
+    /// @param mm The market manager to pull liquidation values from.
     /// @param account The address of the account being evaluated for
     ///                liquidation.
     /// @return cSoft The account's soft collateral value (collateral
@@ -888,9 +1081,13 @@ contract ProtocolReader {
             tokens[j] = _buildUserMarketToken(tokenAddresses[j], account);
         }
 
-        (um.collateral, um.maxDebt, um.debt, um.errorCodeHit) =
-            _statusOf(mm, account);
-        
+        HypotheticalResult memory r;
+        (r, , um.errorCodeHit) =
+            _hypotheticalLiquidityOf(mm, account, address(0), 0, 0);
+        um.collateral = r.collateral;
+        um.maxDebt = r.maxDebt;
+        um.debt = r.debt;
+
         um._address = address(mm);
         // Get position health without any hypothetical changes.
         (um.positionHealth, um.errorCodeHit) =

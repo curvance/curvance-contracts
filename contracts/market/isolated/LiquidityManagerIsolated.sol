@@ -416,6 +416,16 @@ abstract contract LiquidityManagerIsolated {
                         false
                     );
                 } else {
+                    // Adjust debt asset price if it was accidently priced as
+                    // collateral.
+                    if (snap.isCollateral) {
+                        // We can skip the error code check as we've already
+                        // priced the share token which requires pricing the
+                        // underlying token.
+                        (prices[i], ) = CommonLib._oracleManager(centralRegistry).
+                            getPrice(snap.underlying, true, false);
+                    }
+
                     // Hypothetical borrow action.
                     newDebt += _assetValue(
                         action.borrowAssets,
