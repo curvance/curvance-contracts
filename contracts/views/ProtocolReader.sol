@@ -376,7 +376,7 @@ contract ProtocolReader {
         // redeem an unlisted token.
         if (
             IBorrowableCToken(cTokenModified).debtBalance(account) > 0 ||
-            redemptionShares == 0
+            redemptionShares == 0 || !mm.isListed(cTokenModified)
         ) {
             return(0, 0, false, false);
         }
@@ -419,7 +419,7 @@ contract ProtocolReader {
         // redeem an unlisted token.
         if (
             ICToken(borrowableCTokenModified).collateralPosted(account) > 0 ||
-            borrowAssets == 0
+            borrowAssets == 0 || !mm.isListed(borrowableCTokenModified)
         ) {
             return(0, 0, false, false, false);
         }
