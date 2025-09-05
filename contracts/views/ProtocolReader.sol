@@ -287,17 +287,13 @@ contract ProtocolReader {
             }
 
             tempValue = _debtValue(borrowableCToken, debtAssets);
-            if (isRepayment) {
-                // Add `bufferTime` seconds buffer for interest accrued during
-                // user execution.
-                if (
-                    debtBalanceAtTimestamp(account, borrowableCToken, block.timestamp + bufferTime) >
-                    debtAssets
-                    ) {
-                        errorCodeHit = true;
-                    } else {
-                        debt = isRepayment ? debt - tempValue : debt + tempValue;
-                    }
+            if (
+                debtBalanceAtTimestamp(account, borrowableCToken, block.timestamp + bufferTime) >
+                debtAssets
+            ) {
+                errorCodeHit = true;
+            } else {
+                debt = isRepayment ? debt - tempValue : debt + tempValue;
             }
         }
 
