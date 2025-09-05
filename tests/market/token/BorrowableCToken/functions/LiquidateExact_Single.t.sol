@@ -18,6 +18,8 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
 
         _prepareLiquidation();
 
+        mockUsdcFeed.setMockAnswer(1.5e8);
+
         debtBalancePreLiquidation = borrowableCUSDC.debtBalance(user1);
     }
 

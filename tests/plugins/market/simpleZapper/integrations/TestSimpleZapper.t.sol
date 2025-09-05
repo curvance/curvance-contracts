@@ -176,7 +176,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         params.fee = 100;
         params.recipient = address(simpleZapper);
         params.deadline = block.timestamp;
-        params.amountIn = 2000e6;
+        params.amountIn = shares;
         params.amountOutMinimum = 0;
         params.sqrtPriceLimitX96 = 0;
         swapAction.call = abi.encodeWithSelector(
@@ -187,7 +187,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         vm.prank(user1);
         simpleZapper.redeemAndSwap(redeemAction, swapAction, user1);
 
-        assertGt(weth.balanceOf(user1), 2.9 ether); // 3 ether - fees
+        assertGt(weth.balanceOf(user1), 2.99 ether, "weth balance of user1 mismatch"); // 3 ether - fees
     }
 
     function testRedeemAndSwapBorrowableCToken() public {
