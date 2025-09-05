@@ -723,13 +723,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
             lastVestingClaim
         );
 
-        // Update `lastVestingClaim`, stopping at `vestingEnd` if current
-        // vesting period has ended.
-        lastVestingClaim = block.timestamp > vestingEnd ?
-            vestingEnd : block.timestamp;
-
         // Check if it is time to start a new vesting period.
         if (block.timestamp >= vestingEnd) {
+            // Update `lastVestingClaim`, to `vestingEnd` if current vesting
+            // period has ended.
+            lastVestingClaim = vestingEnd;
             uint256 adjustmentRate;
             
             // Calculate the new interest rate for borrowers, in seconds.
