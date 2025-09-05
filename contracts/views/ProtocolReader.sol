@@ -287,14 +287,13 @@ contract ProtocolReader {
             }
 
             tempValue = _debtValue(borrowableCToken, debtAssets);
-            uint256 newDebt = isRepayment ? debt - tempValue : debt + tempValue;
             if (
-                debtBalanceAtTimestamp(account, borrowableCToken, block.timestamp + bufferTime) >
-                newDebt
+                debtBalanceAtTimestamp(account, borrowableCToken, block.timestamp + bufferTime) <
+                debtAssets && isRepayment
             ) {
                 errorCodeHit = true;
             } else {
-                debt = newDebt;
+                debt = isRepayment ? debt - tempValue : debt + tempValue;
             }
         }
 
