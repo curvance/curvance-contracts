@@ -419,6 +419,8 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // Try 50% liquidation.
         _prepareUSDC(user2, 250e6);
+
+        uint256 debtBefore = borrowableCUSDC.debtBalance(user1);
         vm.startPrank(user2);
         usdc.approve(address(borrowableCUSDC), 250e6);
 
@@ -448,7 +450,12 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         assertEq(pendleCTokenPTSTETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
-        assertApproxEqRel(borrowableCUSDC.debtBalance(user1), 750e6, 0.01e18);
+        // account for interest accrued
+        assertApproxEqRel(
+            borrowableCUSDC.debtBalance(user1),
+            debtBefore - liquidatedAmount,
+            0.01e18
+        );
         assertGt(borrowableCUSDC.exchangeRate(), 1 ether, "exchange rate should higher because of interest accrued");
     }
 
