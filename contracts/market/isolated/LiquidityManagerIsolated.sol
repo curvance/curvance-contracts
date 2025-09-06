@@ -217,7 +217,7 @@ abstract contract LiquidityManagerIsolated {
     ///         from a new line of credit inside a market.
     /// @dev This restriction is to minimize the potential of debt positions
     ///      being created that cannot not be profitably closed.
-    uint256 public constant MIN_ACTIVE_LOAN_SIZE = 10e18;
+    uint256 public immutable MIN_ACTIVE_LOAN_SIZE;
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
@@ -246,9 +246,15 @@ abstract contract LiquidityManagerIsolated {
     error LiquidityManager__InsufficientLoanSize();
 
     /// @param cr The address of the Protocol Central Registry.
-    constructor(ICentralRegistry cr) {
+    constructor(ICentralRegistry cr, uint256 minLoan) {
+
+        if (minLoan < 10e18 || minLoan > 100e18) {
+            revert LiquidityManager__InsufficientLoanSize();
+        }
+
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
+        MIN_ACTIVE_LOAN_SIZE = minLoan;
     }
 
     /// @notice Determine `account`'s current status between collateral,

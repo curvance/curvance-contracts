@@ -8,8 +8,8 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 
 contract MarketManagerIsolatedHarness is MarketManagerIsolated {
 
-	constructor(address centralRegistry_)
-		MarketManagerIsolated(ICentralRegistry(centralRegistry_))
+	constructor(address centralRegistry_, uint256 minLoan)
+		MarketManagerIsolated(ICentralRegistry(centralRegistry_), minLoan)
 	{}
 
 	function hypotheticalLiquidityOf(
@@ -41,7 +41,7 @@ contract TestHypotheticalLiquidityOfFuzzed is TestBaseMarketIsolated {
 
 	function _deployMarketManager() internal override initMainVariables {
 		marketManagerIsolated = marketManagersIsolated[block.chainid] = MarketManagerIsolated(
-			address(new MarketManagerIsolatedHarness(address(centralRegistry)))
+			address(new MarketManagerIsolatedHarness(address(centralRegistry), 10e18))
 		);
 		centralRegistry.addMarketManager(address(marketManagerIsolated), marketInterestFee);
 	}

@@ -447,7 +447,8 @@ contract TestBaseMarketIsolated is TestBase {
 
     function _deployMarketManager() internal virtual initMainVariables {
         marketManagerIsolated = marketManagersIsolated[block.chainid] = new MarketManagerIsolated(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            10e18
         );
         centralRegistry.addMarketManager(
             address(marketManagerIsolated),

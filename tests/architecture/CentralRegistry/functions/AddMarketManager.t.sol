@@ -84,7 +84,7 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
 
     function testMarketManagerIntegration() public {
         // Setup an actual MarketManager.
-        MarketManagerIsolated marketManager = new MarketManagerIsolated(ICentralRegistry(address(centralRegistry)));
+        MarketManagerIsolated marketManager = new MarketManagerIsolated(ICentralRegistry(address(centralRegistry)), 10e18);
         
         // Add market manager with actual implementation
         vm.prank(centralRegistry.emergencyCouncil());

@@ -118,7 +118,6 @@ contract MarketManagerIsolated is
     ///      borrower experiences a minimum 2 interest rate adjustments from a
     ///      standard borrow action (10 minute interest rate adjustment rate).
     uint256 public constant MIN_HOLD_PERIOD = 20 minutes;
-
     /// @dev Limit for market debt cap to max sure outstanding user debt
     ///      never overflows `outstandingDebt` value inside _debtOf.
     uint256 internal constant _MAX_DEBT_CAP = type(uint160).max;
@@ -206,7 +205,7 @@ contract MarketManagerIsolated is
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
-    constructor(ICentralRegistry cr) LiquidityManagerIsolated(cr) {}
+    constructor(ICentralRegistry cr, uint256 minLoan) LiquidityManagerIsolated(cr, minLoan) {}
 
     /// EXTERNAL FUNCTIONS ///
 

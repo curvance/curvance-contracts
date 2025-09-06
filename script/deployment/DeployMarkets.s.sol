@@ -53,7 +53,7 @@ contract DeployMarkets is DeployScript {
             string memory name = string.concat("markets.", names[i]);
             ListConfig[] memory tokens = tokens[i];
 
-            MarketManagerIsolated market = new MarketManagerIsolated(icr);
+            MarketManagerIsolated market = new MarketManagerIsolated(icr, 10e18);
             registry.addMarketManager(address(market), interestFees[i]);
             emit ContractDeployed(
                 address(market),
