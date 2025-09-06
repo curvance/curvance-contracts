@@ -98,10 +98,14 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         );
         assertTrue(success);
 
-       // remove WBTC pricefeed made in base market setup
+       // remove WBTC pricefeeds made in base market setup
         oracleManager.removeAssetPriceFeed(
             _WBTC_ADDRESS,
             address(chainlinkAdaptor)
+        );
+        oracleManager.removeAssetPriceFeed(
+            _WBTC_ADDRESS,
+            address(dualChainlinkAdaptor)
         );
 
         oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
@@ -201,14 +205,14 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         );
         calls[0].target = address(adaptor);
         bytes memory redstonePayload = getRedstonePayload(
-            "WBTC:61000:8",
+            "WBTC:108772:8",
             redstoneSignerKeys
         );
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool,uint48)",
             _WBTC_ADDRESS,
             true,
-            uint48(block.timestamp * 1000)
+            uint48((block.timestamp + 1) * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
@@ -234,7 +238,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             true,
             true
         );
-        assertEq(result.price, 61000e18);
+        assertEq(result.price, 108772e18);
     }
 
     function testBorrowableCTokenMintWithMulticall() public {
@@ -251,14 +255,14 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         );
         calls[0].target = address(adaptor);
         bytes memory redstonePayload = getRedstonePayload(
-            "WBTC:61000:8",
+            "WBTC:108772:8",
             redstoneSignerKeys
         );
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool,uint48)",
             _WBTC_ADDRESS,
             true,
-            uint48(block.timestamp * 1000)
+            uint48((block.timestamp + 1) * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
@@ -286,7 +290,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             true,
             true
         );
-        assertEq(result.price, 61000e18);
+        assertEq(result.price, 108772e18);
     }
 
     function testPositionLeverage() public {
@@ -338,14 +342,14 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         );
         calls[0].target = address(adaptor);
         bytes memory redstonePayload = getRedstonePayload(
-            "WBTC:61000:8",
+            "WBTC:108772:8",
             redstoneSignerKeys
         );
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool,uint48)",
             _WBTC_ADDRESS,
             true,
-            uint48(block.timestamp * 1000)
+            uint48((block.timestamp + 1) * 1000)
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
             encodedFunction,
@@ -368,7 +372,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     function testCheckCalldata() public {
         {
             bytes memory redstonePayload = getRedstonePayload(
-                "WBTC:61000:8",
+                "WBTC:108772:8",
                 redstoneSignerKeys
             );
             bytes memory encodedFunction = abi.encodeWithSignature(
@@ -394,7 +398,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
         {
             bytes memory redstonePayload = getRedstonePayload(
-                "WBTC:61000:8",
+                "WBTC:108772:8",
                 redstoneSignerKeys
             );
             bytes memory encodedFunction = abi.encodeWithSignature(
