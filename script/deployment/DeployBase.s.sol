@@ -11,6 +11,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { VaultZapper } from "contracts/plugins/market/VaultZapper.sol";
 import { NativeVaultZapper } from "contracts/plugins/market/NativeVaultZapper.sol";
+import { MockOracleAdaptor } from "contracts/mocks/MockOracleAdaptor.sol";
 
 contract DeployBase is DeployScript  {
     struct Config {
@@ -39,7 +40,8 @@ contract DeployBase is DeployScript  {
         Config memory config,
         address harvester,
         Adaptors calldata adaptors,
-        address wrappedNative
+        address wrappedNative,
+        bool testnet
     ) external recordEvents {
         CentralRegistry centralRegistry = new CentralRegistry(
             config.daoAddress,
@@ -58,6 +60,19 @@ contract DeployBase is DeployScript  {
 
         deployAdaptors(icr, centralRegistry, adaptors, oracleManager);
         deployZappers(icr, wrappedNative);
+        deployMockOracle(icr, oracleManager, testnet);
+    }
+
+    function deployMockOracle(
+        ICentralRegistry icr, 
+        OracleManager oracleManager, 
+        bool testnet
+    ) public useDeployer {
+        if (testnet) {
+            MockOracleAdaptor adaptor = new MockOracleAdaptor(icr);
+            oracleManager.addApprovedAdaptor(address(adaptor));
+            emit ContractDeployed(address(adaptor), string.concat("MockOracle"));
+        }
     }
 
     function deployAdaptors(
