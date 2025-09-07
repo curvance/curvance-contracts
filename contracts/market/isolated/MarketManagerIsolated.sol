@@ -205,6 +205,7 @@ contract MarketManagerIsolated is
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
+    /// @param minLoan The minimum active loan size for this isolated market (must be between $10-$100 in WAD).
     constructor(ICentralRegistry cr, uint256 minLoan) LiquidityManagerIsolated(cr, minLoan) {}
 
     /// EXTERNAL FUNCTIONS ///

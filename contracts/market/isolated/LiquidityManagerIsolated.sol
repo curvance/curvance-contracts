@@ -246,8 +246,8 @@ abstract contract LiquidityManagerIsolated {
     error LiquidityManager__InsufficientLoanSize();
 
     /// @param cr The address of the Protocol Central Registry.
+    /// @param minLoan The minimum active loan size for this isolated market (must be between $10-$100 in WAD).
     constructor(ICentralRegistry cr, uint256 minLoan) {
-
         if (minLoan < 10e18 || minLoan > 100e18) {
             revert LiquidityManager__InsufficientLoanSize();
         }
