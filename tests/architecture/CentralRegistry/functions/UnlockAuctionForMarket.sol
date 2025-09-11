@@ -6,21 +6,23 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
+
+
 contract UnlockAuctionForMarketTest is TestBaseMarketIsolated {
 
     function setUp() public override {
         super.setUp();
 
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
         
         // List tokens in the market.
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
     }
 
@@ -29,7 +31,7 @@ contract UnlockAuctionForMarketTest is TestBaseMarketIsolated {
         vm.startPrank(user1);
         
         vm.expectRevert(CentralRegistry.CentralRegistry__Unauthorized.selector);
-        centralRegistry.unlockAuctionForMarket(address(strategyCBALRETH));
+        centralRegistry.unlockAuctionForMarket(address(pendleStrategyCTokenSTETH));
         
         vm.stopPrank();
     }
@@ -38,7 +40,7 @@ contract UnlockAuctionForMarketTest is TestBaseMarketIsolated {
         vm.startPrank(auctionPermsUser);
 
         marketManagerIsolated.setTransientLiquidationConfig(
-            address(strategyCBALRETH),
+            address(pendleStrategyCTokenSTETH),
             11500,
             3000
         );

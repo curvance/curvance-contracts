@@ -13,11 +13,11 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
 
         _prepareUSDC(address(this), 77777);
         _prepareDAI(address(this), 77777);
-        _prepareBALRETH(address(this), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
 
         usdc.approve(address(borrowableCUSDC), 77777);
         dai.approve(address(borrowableCDAI), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
     }
 
     function test_updateTokenConfig_fail_whenCallerIsNotAuthorized() public {
@@ -64,10 +64,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_whenCollRatioIsTooHigh() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 9900;    // collRatio 99%, above max of 98%
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -86,10 +86,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_whenSoftReqIsTooHigh() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 23500;    // collReqSoft 235% (above max of 234%)
         tokenConfig.collReqHard = 5000;
@@ -108,10 +108,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_whenHardReqHigherThanSoftReq() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 5000;     //(should be < collReqSoft)
@@ -130,10 +130,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_whenLiqIncBaseIsLargerThanLiqIncHard() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -152,10 +152,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_whenLiqIncBaseIsLargerThanLiqIncMax() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -174,10 +174,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_whenLiqIncMinIsLargerThanLiqIncMax() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -196,10 +196,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_whenLiqIncMaxIsTooHigh() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -218,10 +218,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_CollateralBufferIsTooLowFromliqIncHard() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 1000;  
@@ -240,10 +240,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_CollateralBufferIsTooLowFromLiqIncMax() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 1000;  
@@ -262,10 +262,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_whenCloseFactorBaseisTooLow() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -284,10 +284,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_whenCloseFactorBaseisTooHigh() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -306,10 +306,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_whenCollReqSoftCollateralPremiumTooHighVersusCollRatio() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 20000; // 200% collateral requirement to avoid liquidation, not possible with 70% collRatio.
         tokenConfig.collReqHard = 3000;
@@ -328,10 +328,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_whenDebtCapAboveZeroWhenCTokenIsNotBorrowable() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000;
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -398,10 +398,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_whenCollateralCapTurnedOnWithoutCollateralization() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 0; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -422,10 +422,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_TurnOffCollateralizationWithoutCollateralCap() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -449,10 +449,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_fail_TurnOffCollateralizationWithCollateralCap() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -476,10 +476,10 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
     }
 
     function test_updateTokenConfig_success_strategyCTokenAndBorrowableCToken() public {
-        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(strategyCBALRETH));
+        marketManagerIsolated.listTokens(address(borrowableCUSDC), address(pendleStrategyCTokenSTETH));
 
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000; 
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;

@@ -26,7 +26,7 @@ contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
         );
         new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(strategyCBALRETH)
+            address(pendleStrategyCTokenSTETH)
         );
     }
 

@@ -11,17 +11,17 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
     function setUp() public override {
         super.setUp();
         
-        _prepareBALRETH(user1, _ONE + _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE + _ONE);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
-        strategyCBALRETH.depositAsCollateral(_ONE + _ONE, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE + _ONE);
+        pendleStrategyCTokenSTETH.depositAsCollateral(_ONE + _ONE, user1);
         vm.stopPrank();
     }
 
     function test_strategyCTokenRemoveCollateral_fail_whenZeroAmount() public {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-        _removeBalRETHCollateral(0);
+        _removePendleStrategyCTokenSTETHCollateral(0);
     }
 
     function test_strategyCTokenRemoveCollateral_fail_whenCooldownActive() public {
@@ -29,7 +29,7 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
             MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
 
-        _removeBalRETHCollateral(_ONE);
+        _removePendleStrategyCTokenSTETHCollateral(_ONE);
     }
 
     function test_strategyCTokenRemoveCollateral_fail_whenCollateralAmountExceedsCTokens() public {
@@ -37,7 +37,7 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
             BaseCToken.BaseCToken__InsufficientLiquidity.selector
         );
 
-        _removeBalRETHCollateral(10e18);
+        _removePendleStrategyCTokenSTETHCollateral(10e18);
     }
 
     function test_strategyCTokenRemoveCollateral_fail_whenCollateralIsRequired() public {
@@ -55,35 +55,35 @@ contract RemoveCollateralTest is TestBaseStrategyCToken {
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
 
-        _removeBalRETHCollateral(1.9e18);
+        _removePendleStrategyCTokenSTETHCollateral(1.9e18);
     }
 
     function test_strategyCTokenRemoveCollateral_success() public {
-        uint256 balanceBefore = strategyCBALRETH.balanceOf(user1);
-        uint256 userCollateral = strategyCBALRETH.collateralPosted(user1);
-        uint256 totalCollateral = strategyCBALRETH.marketCollateralPosted();
+        uint256 balanceBefore = pendleStrategyCTokenSTETH.balanceOf(user1);
+        uint256 userCollateral = pendleStrategyCTokenSTETH.collateralPosted(user1);
+        uint256 totalCollateral = pendleStrategyCTokenSTETH.marketCollateralPosted();
         uint256 collateralRemoved = _ONE;
 
         skip(20 minutes);
 
-        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
+        vm.expectEmit(true, true, true, true, address(pendleStrategyCTokenSTETH));
         emit CollateralUpdated(collateralRemoved, false, user1);
 
-        _removeBalRETHCollateral(collateralRemoved);
+        _removePendleStrategyCTokenSTETHCollateral(collateralRemoved);
 
         // Balance should not have changed.
-        assertEq(strategyCBALRETH.balanceOf(user1), balanceBefore);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), balanceBefore);
 
         // User collateral should go up by `collateralRemoved`.
-        assertEq(strategyCBALRETH.collateralPosted(user1), userCollateral - collateralRemoved);
+        assertEq(pendleStrategyCTokenSTETH.collateralPosted(user1), userCollateral - collateralRemoved);
 
         // Market collateral should go up by `collateralRemoved`.
-        assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral - collateralRemoved);
+        assertEq(pendleStrategyCTokenSTETH.marketCollateralPosted(), totalCollateral - collateralRemoved);
     }
 
-    function _removeBalRETHCollateral(uint256 shares) internal {
+    function _removePendleStrategyCTokenSTETHCollateral(uint256 shares) internal {
         vm.startPrank(user1);
-        strategyCBALRETH.removeCollateral(shares);
+        pendleStrategyCTokenSTETH.removeCollateral(shares);
         vm.stopPrank();
     }
 

@@ -61,27 +61,27 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
         _prepareUSDC(user1, _ONE);
-        _prepareBALRETH(user1, _ONE + 77777);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE + 77777);
 
         vm.prank(user1);
         usdc.approve(address(borrowableCUSDC), _ONE);
-        balRETH.approve(address(strategyCBALRETH), _ONE + 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE + 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigHighValues(address(strategyCBALRETH), 10_000e18, 0);
+        _setCTokenConfigHighValues(address(pendleStrategyCTokenSTETH), 10_000e18, 0);
         _setCTokenConfigLowValues(address(borrowableCUSDC), 10_000e18, 100_000_000e6);
 
         // Add liquidity
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000000e6);
-        _prepareBALRETH(liquidityProvider, 100e18);
+        deal(address(LP_wstETH_24Dec2025), liquidityProvider, 100e18);
         
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000000e6);
         borrowableCUSDC.deposit(200000000e6, liquidityProvider);
-        balRETH.approve(address(strategyCBALRETH), 100e18);
-        strategyCBALRETH.deposit(100e18, liquidityProvider);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 100e18);
+        pendleStrategyCTokenSTETH.deposit(100e18, liquidityProvider);
         vm.stopPrank();
 
     }
@@ -97,11 +97,11 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         _oraclePrice = int256(bound(uint256(int256(_oraclePrice)), uint256(MINIMUM_COLLATERAL_PRICE), uint256(MAXIMUM_COLLATERAL_PRICE)));
         _accrualTime = bound(_accrualTime, 20 minutes, 52 weeks);
 
-        _prepareBALRETH(borrower, _collateralAmount);
+        deal(address(LP_wstETH_24Dec2025), borrower, _collateralAmount);
 
         vm.startPrank(borrower);
-        balRETH.approve(address(strategyCBALRETH), _collateralAmount);
-        strategyCBALRETH.depositAsCollateral(_collateralAmount,borrower);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _collateralAmount);
+        pendleStrategyCTokenSTETH.depositAsCollateral(_collateralAmount,borrower);
 
         (, uint256 maxBorrowAmount,) = marketManagerIsolated.statusOf(borrower);
 
@@ -143,11 +143,11 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
 
     function _handleNoLiquidationCase(uint256 _collateralAmount, uint256 _debtBalancePreLiquidation) internal {
         vm.expectRevert(abi.encodeWithSelector(MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector));
-        borrowableCUSDC.liquidate(borrowerArray, address(strategyCBALRETH));
+        borrowableCUSDC.liquidate(borrowerArray, address(pendleStrategyCTokenSTETH));
         
         assertEq(borrowableCUSDC.debtBalance(borrower), _debtBalancePreLiquidation, "Debt should not change when lFactor is 0");
-        assertEq(strategyCBALRETH.balanceOf(borrower), _collateralAmount, "Collateral should not change when lFactor is 0");
-        assertEq(strategyCBALRETH.balanceOf(liquidator), 0, "Liquidator should not receive collateral when lFactor is 0");
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(borrower), _collateralAmount, "Collateral should not change when lFactor is 0");
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(liquidator), 0, "Liquidator should not receive collateral when lFactor is 0");
     }
 
     function _performLiquidationAndAssert(
@@ -156,12 +156,12 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         uint256 _debtBalancePreLiquidation
     ) internal {
         // cache values before liquidation
-        uint256 liquidatorBalanceBefore = strategyCBALRETH.balanceOf(liquidator);
+        uint256 liquidatorBalanceBefore = pendleStrategyCTokenSTETH.balanceOf(liquidator);
         uint256 totalBorrowsBefore = borrowableCUSDC.marketOutstandingDebt();
 
         LiquidationParams memory params = LiquidationParams({
             borrower: borrower,
-            collateralToken: address(strategyCBALRETH),
+            collateralToken: address(pendleStrategyCTokenSTETH),
             borrowedToken: address(borrowableCUSDC),
             isLiquidateExact: false,
             liquidateExactAmount: 0,
@@ -179,7 +179,7 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         emit BadDebtRecognized(liquidator, expectedValues.badDebt);
         emit Repay(liquidator, borrower, expectedValues.debtRepaid);
 
-        borrowableCUSDC.liquidate(borrowerArray, address(strategyCBALRETH));
+        borrowableCUSDC.liquidate(borrowerArray, address(pendleStrategyCTokenSTETH));
 
         // Run all assertions
         _assertDebtReduction(
@@ -228,7 +228,7 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         uint256 _collateralAmount,
         uint256 _collateralLiquidated
     ) internal view {
-        uint256 borrowerCollateralAfter = strategyCBALRETH.balanceOf(borrower);
+        uint256 borrowerCollateralAfter = pendleStrategyCTokenSTETH.balanceOf(borrower);
         uint256 expectedBorrowerCollateralAfter = _collateralAmount - _collateralLiquidated;
         
         assertApproxEqAbs(
@@ -243,7 +243,7 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         uint256 liquidatorBalanceBefore,
         uint256 _collateralLiquidated
     ) internal view {
-        uint256 liquidatorBalanceAfter = strategyCBALRETH.balanceOf(liquidator);
+        uint256 liquidatorBalanceAfter = pendleStrategyCTokenSTETH.balanceOf(liquidator);
         
         assertApproxEqAbs(
             liquidatorBalanceAfter - liquidatorBalanceBefore,
@@ -315,7 +315,7 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         
         // Verify collateral exchange rate didn't change
         assertEq(
-            strategyCBALRETH.exchangeRate(),
+            pendleStrategyCTokenSTETH.exchangeRate(),
             1e18,
             "Exchange rate should remain constant during liquidation"
         );

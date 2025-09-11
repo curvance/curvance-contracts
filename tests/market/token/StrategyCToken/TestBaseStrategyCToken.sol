@@ -11,7 +11,7 @@ contract TestBaseStrategyCToken is TestBaseMarketIsolated {
     function setUp() public virtual override {
         super.setUp();
 
-        _prepareBALRETH(user1, _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE);
 
         {
             _prepareDAI(address(this), 200000e18);
@@ -19,13 +19,13 @@ contract TestBaseStrategyCToken is TestBaseMarketIsolated {
         }
 
         {
-            _prepareBALRETH(address(this), 1 ether);
-            balRETH.approve(address(strategyCBALRETH), 1 ether);
+            deal(address(LP_wstETH_24Dec2025), address(this), 1 ether);
+            LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1 ether);
         }
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCDAI));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
     }
     

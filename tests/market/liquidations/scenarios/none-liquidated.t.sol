@@ -53,27 +53,27 @@ contract NoneLiquidated is TestBaseLiquidations {
         _prepareUSDC(user1, _ONE);
         _prepareUSDC(address(this), _ONE);
 
-        _prepareBALRETH(user1, _ONE + 77777);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE + 77777);
 
         vm.prank(user1);
         usdc.approve(address(borrowableCUSDC), _ONE);
-        balRETH.approve(address(strategyCBALRETH), _ONE + 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE + 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigLowValues(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
-        _prepareBALRETH(liquidityProvider, 10e18);
+        deal(address(LP_wstETH_24Dec2025), liquidityProvider, 10e18);
         // Mint borrowable cUSDC.
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // Mint cBALETH.
-        balRETH.approve(address(strategyCBALRETH), 10e18);
-        strategyCBALRETH.deposit(10e18, liquidityProvider);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
+        pendleStrategyCTokenSTETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
 
         _createPositions();
@@ -96,7 +96,7 @@ contract NoneLiquidated is TestBaseLiquidations {
         vm.expectRevert(abi.encodeWithSelector(MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector));
         borrowableCUSDC.liquidate(
             borrowers,
-            address(strategyCBALRETH)
+            address(pendleStrategyCTokenSTETH)
         );
 
         // Verify all healthy accounts are not liquidated
@@ -105,37 +105,37 @@ contract NoneLiquidated is TestBaseLiquidations {
         assertEq(borrowableCUSDC.debtBalance(borrowers[2]), debtBalancesPreLiquidation[2], "Healthy account 3 shouldn't be liquidated");
 
         // Verify all users have the same collateral
-        assertEq(strategyCBALRETH.balanceOf(borrowers[0]), collateralAmounts[0], "Healthy account 1 should have the same collateral");
-        assertEq(strategyCBALRETH.balanceOf(borrowers[1]), collateralAmounts[1], "Healthy account 2 should have the same collateral");
-        assertEq(strategyCBALRETH.balanceOf(borrowers[2]), collateralAmounts[2], "Healthy account 3 should have the same collateral");
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(borrowers[0]), collateralAmounts[0], "Healthy account 1 should have the same collateral");
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(borrowers[1]), collateralAmounts[1], "Healthy account 2 should have the same collateral");
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(borrowers[2]), collateralAmounts[2], "Healthy account 3 should have the same collateral");
     
         // Verify the same amount of borrows is still owed
         assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrowsBefore, "Total borrows should be the same");
 
         // Verify liquidator received no collateral
-        assertEq(strategyCBALRETH.balanceOf(address(this)), 0, "Liquidator should have received no collateral");
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(address(this)), 0, "Liquidator should have received no collateral");
     }
 
     function _createPositions() internal {
-        _prepareBALRETH(borrower1, collateralAmounts[0]);
-        _prepareBALRETH(borrower2, collateralAmounts[1]);
-        _prepareBALRETH(borrower3, collateralAmounts[2]);
+        deal(address(LP_wstETH_24Dec2025), borrower1, collateralAmounts[0]);
+        deal(address(LP_wstETH_24Dec2025), borrower2, collateralAmounts[1]);
+        deal(address(LP_wstETH_24Dec2025), borrower3, collateralAmounts[2]);
 
         vm.startPrank(borrower1);
-        balRETH.approve(address(strategyCBALRETH), collateralAmounts[0]);
-        strategyCBALRETH.depositAsCollateral(collateralAmounts[0], borrower1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[0]);
+        pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[0], borrower1);
         borrowableCUSDC.borrow(borrowAmount, borrower1);
         vm.stopPrank();
 
         vm.startPrank(borrower2);
-        balRETH.approve(address(strategyCBALRETH), collateralAmounts[1]);
-        strategyCBALRETH.depositAsCollateral(collateralAmounts[1], borrower2);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[1]);
+        pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[1], borrower2);
         borrowableCUSDC.borrow(borrowAmount, borrower2);
         vm.stopPrank();
 
         vm.startPrank(borrower3);
-        balRETH.approve(address(strategyCBALRETH), collateralAmounts[2]);
-        strategyCBALRETH.depositAsCollateral(collateralAmounts[2], borrower3);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[2]);
+        pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[2], borrower3);
         borrowableCUSDC.borrow(borrowAmount, borrower3);
         vm.stopPrank();
     }

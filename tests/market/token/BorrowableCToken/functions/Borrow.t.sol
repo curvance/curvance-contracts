@@ -27,12 +27,12 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         vm.stopPrank();
 
 
-        _prepareBALRETH(address(this), _ONE);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, address(this));
-        strategyCBALRETH.postCollateral(_ONE);
+        deal(address(LP_wstETH_24Dec2025), address(this), _ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, address(this));
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
 
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
 
         uint256 assetsHeld = borrowableCUSDC.assetsHeld();
 
@@ -51,13 +51,13 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         borrowableCUSDC.deposit(100e6, liquidityProvider);
         vm.stopPrank();
 
-        _prepareBALRETH(address(this), _ONE);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, address(this));
-        strategyCBALRETH.postCollateral(_ONE);
+        deal(address(LP_wstETH_24Dec2025), address(this), _ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, address(this));
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
 
         skip(69 minutes);
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
 
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 0);
 
@@ -72,7 +72,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
         borrowableCUSDC.deposit(200e6, address(this));
 
-        strategyCBALRETH.postCollateral(1e18 - 1);
+        pendleStrategyCTokenSTETH.postCollateral(1e18 - 1);
         borrowableCUSDC.postCollateral(100e6 - 1);
 
         vm.expectRevert(
@@ -84,7 +84,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
     function test_borrowableCTokenBorrow_success() public {
         borrowableCUSDC.deposit(200e6, address(this));
-        strategyCBALRETH.postCollateral(1e18 - 1);
+        pendleStrategyCTokenSTETH.postCollateral(1e18 - 1);
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = borrowableCUSDC.balanceOf(address(this));
@@ -103,7 +103,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         assertEq(borrowableCUSDC.marketOutstandingDebt(), totalBorrows + 100e6);
 
         // Test interest accrual over time
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
 
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();

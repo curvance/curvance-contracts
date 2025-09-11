@@ -36,10 +36,10 @@ contract SetInterestFeeTest is TestBaseBorrowableCToken {
 
     function test_setInterestFee_success_withOutstandingDebt() public {
         borrowableCUSDC.deposit(200e6, address(this));
-        strategyCBALRETH.postCollateral(1e18 - 1);
+        pendleStrategyCTokenSTETH.postCollateral(1e18 - 1);
         borrowableCUSDC.borrow(100e6, address(this));
 
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
 
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();

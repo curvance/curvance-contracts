@@ -61,34 +61,34 @@ contract LiquidateExactMix is TestBaseLiquidations {
         _prepareUSDC(user1, _ONE);
         _prepareUSDC(address(this), _ONE);
 
-        _prepareBALRETH(user1, _ONE + 77777);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE + 77777);
 
         vm.prank(user1);
         usdc.approve(address(borrowableCUSDC), _ONE);
-        balRETH.approve(address(strategyCBALRETH), _ONE + 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE + 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigHighValues(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigHighValues(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
-        _prepareBALRETH(liquidityProvider, 10e18);
+        deal(address(LP_wstETH_24Dec2025), liquidityProvider, 10e18);
         // mint borrowableCUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // Mint cBALETH.
-        balRETH.approve(address(strategyCBALRETH), 10e18);
-        strategyCBALRETH.deposit(10e18, liquidityProvider);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
+        pendleStrategyCTokenSTETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
 
-        mockBalEthRethFeed.setMockAnswer(2000e8);
+        mockPendleLPFeed.setMockAnswer(2000e8);
 
         _createPositions();
 
-        mockBalEthRethFeed.setMockAnswer(1300e8);
+        mockPendleLPFeed.setMockAnswer(1300e8);
 
         console2.log("SETUP COMPLETE");
     }
@@ -121,7 +121,7 @@ contract LiquidateExactMix is TestBaseLiquidations {
         ExpectedLiquidationValues memory expectedLiqValues_first = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: borrower1,
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: true,
                 liquidateExactAmount: amountToRepayPartial[0],
@@ -151,7 +151,7 @@ contract LiquidateExactMix is TestBaseLiquidations {
         borrowableCUSDC.liquidateExact(
             amountToRepayPartial,
             borrowers,
-            address(strategyCBALRETH)
+            address(pendleStrategyCTokenSTETH)
         );
 
         vm.stopPrank();
@@ -172,7 +172,7 @@ contract LiquidateExactMix is TestBaseLiquidations {
         ExpectedLiquidationValues memory expectedLiqValues_second = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: borrower1,
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: true,
                 liquidateExactAmount: amountToRepayPartial[0],
@@ -207,7 +207,7 @@ contract LiquidateExactMix is TestBaseLiquidations {
         borrowableCUSDC.liquidateExact(
             amountToRepayPartial,
             borrowers,
-            address(strategyCBALRETH)
+            address(pendleStrategyCTokenSTETH)
         );
 
         vm.stopPrank();
@@ -223,7 +223,7 @@ contract LiquidateExactMix is TestBaseLiquidations {
         ExpectedLiquidationValues memory expectedLiqValues_third = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: borrower1,
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: false,
                 liquidateExactAmount: 0,
@@ -253,7 +253,7 @@ contract LiquidateExactMix is TestBaseLiquidations {
 
         borrowableCUSDC.liquidate(
             borrowers,
-            address(strategyCBALRETH)
+            address(pendleStrategyCTokenSTETH)
         );
 
        vm.stopPrank();
@@ -266,8 +266,8 @@ contract LiquidateExactMix is TestBaseLiquidations {
         assertEq(borrowableCUSDC.debtBalance(borrower1), 0, "Borrower1 should have zero debt remaining");
 
         // Verify borrower1's collateral is fully liquidated.
-        assertEq(strategyCBALRETH.balanceOf(borrower1), 0, "Borrower1 should have zero collateral remaining");
-        assertEq(strategyCBALRETH.balanceOf(borrower1), collateralAmountAfterThird, "double check to make sure the test accounting aligns fully");
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(borrower1), 0, "Borrower1 should have zero collateral remaining");
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(borrower1), collateralAmountAfterThird, "double check to make sure the test accounting aligns fully");
 
         // Verify total outstanding debt decreased appropriately.
         uint256 outstandingDebtAfter = borrowableCUSDC.marketOutstandingDebt();
@@ -282,11 +282,11 @@ contract LiquidateExactMix is TestBaseLiquidations {
     }
 
     function _createPositions() internal {
-        _prepareBALRETH(borrower1, collateralAmountStart);
+        deal(address(LP_wstETH_24Dec2025), borrower1, collateralAmountStart);
 
         vm.startPrank(borrower1);
-        balRETH.approve(address(strategyCBALRETH), collateralAmountStart);
-        strategyCBALRETH.depositAsCollateral(collateralAmountStart, borrower1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmountStart);
+        pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmountStart, borrower1);
         borrowableCUSDC.borrow(borrowAmount, borrower1);
         vm.stopPrank();
     }

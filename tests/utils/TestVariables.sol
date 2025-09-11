@@ -28,6 +28,7 @@ import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol"
 import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockAuctionManager } from "contracts/mocks/MockAuctionManager.sol";
+import { PendleLPCToken } from "contracts/market/token/PendleLPCToken.sol";
 
 import { ProtocolReader } from "contracts/views/ProtocolReader.sol";
 
@@ -115,13 +116,16 @@ contract TestVariables {
     SimpleCToken public simpleCUSDC;
     AuraCToken public strategyCBALRETH;
     MockAuraCTokenWithExitFee public strategyCBALRETHWithExitFee;
- 
+    PendleLPCToken public pendleStrategyCTokenSTETH;
+    IERC20 public LP_wstETH_24Dec2025 = IERC20(0xC374f7eC85F8C7DE3207a10bB1978bA104bdA3B2);
+
     IERC20 public usdc;
     IERC20 public dai;
     IERC20 public weth;
     IERC20 public wbtc;
     IERC20 public balRETH;
-
+    IERC20 public stETH;
+    
     MockV3Aggregator public chainlinkUsdcUsd;
     MockV3Aggregator public chainlinkUsdcEth;
     MockV3Aggregator public chainlinkDaiUsd;
@@ -160,7 +164,7 @@ contract TestVariables {
 
     mapping(uint256 => AuraCToken) public strategyCBALRETHs;
     mapping(uint256 => MockAuraCTokenWithExitFee) public strategyCBALRETHWithExitFees;
-
+    mapping(uint256 => PendleLPCToken) public pendleStrategyCTokens;
 
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcEths;
@@ -199,6 +203,7 @@ contract TestVariables {
     MockDataFeed public mockStethFeed;
     MockDataFeed public mockBALFeed;
     MockDataFeed public mockAURAFeed;
+    MockDataFeed public mockPendleLPFeed;
     
     MockV3Aggregator public mockWbtcFeed;
     
@@ -397,6 +402,7 @@ contract TestVariables {
         weth = IERC20(_WETH_ADDRESS);
         wbtc = IERC20(_WBTC_ADDRESS);
         balRETH = IERC20(_BAL_WETH_RETH_ADDRESS);
+        stETH = IERC20(_STETH_ADDRESS);
     }
 
     function _initMainContractVariables() internal {
@@ -422,7 +428,7 @@ contract TestVariables {
         strategyCBALRETH = strategyCBALRETHs[chainId];
         strategyCBALRETHWithExitFee = strategyCBALRETHWithExitFees[chainId];
 
-
+        pendleStrategyCTokenSTETH = pendleStrategyCTokens[chainId];
         chainlinkUsdcUsd = chainlinkUsdcUsds[chainId];
         chainlinkUsdcEth = chainlinkUsdcEths[chainId];
         chainlinkRethEth = chainlinkRethEths[chainId];

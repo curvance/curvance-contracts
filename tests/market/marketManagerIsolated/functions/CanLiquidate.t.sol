@@ -29,7 +29,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
     
     function test_canLiquidate_fail_whenBorrowableCTokenNotListed() public {
         IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
-            collateralToken: address(strategyCBALRETH),
+            collateralToken: address(pendleStrategyCTokenSTETH),
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
@@ -52,7 +52,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
     function test_canLiquidate_fail_whenCTokenNotListed() public {
         // marketManager.listToken(address(borrowableCUSDC));
         IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
-            collateralToken: address(strategyCBALRETH),
+            collateralToken: address(pendleStrategyCTokenSTETH),
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
@@ -73,16 +73,16 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
     }
 
     function test_canLiquidate_fail_whenCollRatioZero() public {
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
         IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
-            collateralToken: address(strategyCBALRETH),
+            collateralToken: address(pendleStrategyCTokenSTETH),
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
@@ -105,18 +105,18 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
     }
 
     function test_canLiquidate_fail_whenUserHasNotEnteredAnyMarket() public {
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
-            collateralToken: address(strategyCBALRETH),
+            collateralToken: address(pendleStrategyCTokenSTETH),
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
@@ -141,18 +141,18 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
     function test_canLiquidate_fail_whenAccountHasNoBorrowsAndCollateralPosted()
         public
     {
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
-            collateralToken: address(strategyCBALRETH),
+            collateralToken: address(pendleStrategyCTokenSTETH),
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
@@ -197,26 +197,26 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
             block.timestamp,
             block.timestamp
         );
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
-        _prepareBALRETH(user1, 10_000e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 10_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1_000e18);
-        strategyCBALRETH.deposit(1_000e18, user1);
-        strategyCBALRETH.postCollateral(999e18);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1_000e18);
+        pendleStrategyCTokenSTETH.deposit(1_000e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(999e18);
         vm.stopPrank();
 
         IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
-            collateralToken: address(strategyCBALRETH),
+            collateralToken: address(pendleStrategyCTokenSTETH),
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
@@ -239,21 +239,21 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
     }
 
     function test_canLiquidate_success() public {
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100_000e6);
 
         _setupUserPositionAndOracles();
 
         IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
-            collateralToken: address(strategyCBALRETH),
+            collateralToken: address(pendleStrategyCTokenSTETH),
             debtToken: address(borrowableCUSDC),
             numAccounts: 1,
             liquidateExact: false,
@@ -262,8 +262,8 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
             badDebt: 0
         });
 
-        // Price of ETH drops and balRETH collateral goes below required collateral ratio
-        mockBalEthRethFeed.setMockAnswer(1000e8);
+        // Price of ETH drops and mockPendleLPFeed collateral goes below required collateral ratio
+        mockPendleLPFeed.setMockAnswer(1000e8);
 
         vm.prank(address(borrowableCUSDC));
 
@@ -291,7 +291,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
             _calculateExpectedLiquidationValues(
                 LiquidationParams ({
                     borrower: user1,
-                    collateralToken: address(strategyCBALRETH),
+                    collateralToken: address(pendleStrategyCTokenSTETH),
                     borrowedToken: address(borrowableCUSDC),
                     isLiquidateExact: false,
                     liquidateExactAmount: 0,
@@ -344,14 +344,14 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
             block.timestamp
         );
 
-        // Mint strategyCBALRETH for collateral
-        _prepareBALRETH(user1, 10_000e18);
+        // Mint pendleStrategyCTokenSTETH for collateral
+        deal(address(LP_wstETH_24Dec2025), user1, 10_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1_000e18);
-        strategyCBALRETH.deposit(1e18, user1);
-        strategyCBALRETH.postCollateral(1e18 - 1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1_000e18);
+        pendleStrategyCTokenSTETH.deposit(1e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(1e18 - 1);
 
-        // Borrow eUSDC with strategyCBALRETH as collateral
+        // Borrow eUSDC with pendleStrategyCTokenSTETH as collateral
         _prepareUSDC(address(borrowableCUSDC), 100_000e6);
         borrowableCUSDC.borrow(1000e6, user1);
         vm.stopPrank();

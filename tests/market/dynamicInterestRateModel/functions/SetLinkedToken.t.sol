@@ -62,7 +62,7 @@ contract SetLinkedTokenTest is TestBaseDynamicIRM {
                 .DynamicIRM__InvalidToken
                 .selector
         );
-        IRM.setLinkedToken(address(strategyCBALRETH));
+        IRM.setLinkedToken(address(pendleStrategyCTokenSTETH));
     }
 
     function test_setLinkedToken_fail_whenIRMMismatch() public {

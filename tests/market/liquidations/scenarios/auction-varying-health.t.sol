@@ -26,25 +26,25 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
         _setUpMarketPreLiquidation();
         _setUpBorrowerCollateral();
         _setUpBorrowerDebt();
-        _harvestAuraStrategyRewards(2 weeks);
+        _harvestPendleLP(2 weeks);
 
         // set mock prices
-        mockBalEthRethFeed.setMockAnswer(1185e8);
+        mockPendleLPFeed.setMockAnswer(1185e8);
 
         // accrue interest
         borrowableCUSDC.accrueIfNeeded();
-        strategyCBALRETH.accrueIfNeeded();
+        pendleStrategyCTokenSTETH.accrueIfNeeded();
     }
 
     function testMultipleLiquidationsWithOnlyAuctions() public {
         // Configure auction.
-        _setAuctionConfigs(address(strategyCBALRETH), 11000, 3000);
+        _setAuctionConfigs(address(pendleStrategyCTokenSTETH), 11000, 3000);
 
         // Cache the expected liquidation values.
         ExpectedLiquidationValues memory expectedLiquidationValuesBorrower1 = _calculateExpectedLiquidationValues(
             LiquidationParams({
             borrower: borrower1,
-            collateralToken: address(strategyCBALRETH),
+            collateralToken: address(pendleStrategyCTokenSTETH),
             borrowedToken: address(borrowableCUSDC),
             isLiquidateExact: false,
             liquidateExactAmount: 0,
@@ -56,7 +56,7 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
         ExpectedLiquidationValues memory expectedLiquidationValuesBorrower2 = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: borrower2,
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: false,
                 liquidateExactAmount: 0,
@@ -69,7 +69,7 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
         ExpectedLiquidationValues memory expectedLiquidationValuesBorrower3 = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: borrower3,
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: false,
                 liquidateExactAmount: 0,
@@ -84,15 +84,15 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
 
         // User1 debt and collateral before liquidation.
         uint256 user1DebtBefore = borrowableCUSDC.debtBalance(borrower1);
-        uint256 user1CollateralBefore = strategyCBALRETH.collateralPosted(borrower1);
+        uint256 user1CollateralBefore = pendleStrategyCTokenSTETH.collateralPosted(borrower1);
 
         // User2 debt and collateral before liquidation.
         uint256 user2DebtBefore = borrowableCUSDC.debtBalance(borrower2);
-        uint256 user2CollateralBefore = strategyCBALRETH.collateralPosted(borrower2);
+        uint256 user2CollateralBefore = pendleStrategyCTokenSTETH.collateralPosted(borrower2);
 
         // User3 debt and collateral before liquidation.
         uint256 user3DebtBefore = borrowableCUSDC.debtBalance(borrower3);
-        uint256 user3CollateralBefore = strategyCBALRETH.collateralPosted(borrower3);
+        uint256 user3CollateralBefore = pendleStrategyCTokenSTETH.collateralPosted(borrower3);
 
         uint256 borrowableCUSDCBalanceBefore = usdc.balanceOf(address(borrowableCUSDC));
 
@@ -112,7 +112,7 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
         emit Repay(expectedLiquidationValuesBorrower2.debtRepaid, address(this), borrower2);
         emit Repay(expectedLiquidationValuesBorrower3.debtRepaid, address(this), borrower3);
 
-        borrowableCUSDC.liquidate(usersToLiquidate, address(strategyCBALRETH));
+        borrowableCUSDC.liquidate(usersToLiquidate, address(pendleStrategyCTokenSTETH));
 
         // Use helper functions to reduce stack depth.
         _assertDebtReductions(
@@ -142,15 +142,15 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
 
     function _setUpMarketPreLiquidation() internal {
         // Setup market with tokens.
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777 + 1_000_000e6);
         usdc.approve(address(borrowableCUSDC), 77777 + 1_000_000e6);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         // provide liquidity to the market
@@ -158,25 +158,25 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
     }
 
     function _setUpBorrowerCollateral() internal {
-        _prepareBALRETH(borrower1, 1e18);
-        _prepareBALRETH(borrower2, 1e18);
-        _prepareBALRETH(borrower3, 1e18);
+        deal(address(LP_wstETH_24Dec2025), borrower1, 1e18);
+        deal(address(LP_wstETH_24Dec2025), borrower2, 1e18);
+        deal(address(LP_wstETH_24Dec2025), borrower3, 1e18);
 
         // Deposit collateral.
         
         vm.startPrank(borrower1);
-        balRETH.approve(address(strategyCBALRETH), 1e18);
-        strategyCBALRETH.depositAsCollateral(1e18, borrower1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18, borrower1);
         vm.stopPrank();
 
         vm.startPrank(borrower2);
-        balRETH.approve(address(strategyCBALRETH), 1e18);
-        strategyCBALRETH.depositAsCollateral(1e18, borrower2);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18, borrower2);
         vm.stopPrank();
 
         vm.startPrank(borrower3);
-        balRETH.approve(address(strategyCBALRETH), 1e18);
-        strategyCBALRETH.depositAsCollateral(1e18, borrower3);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18, borrower3);
         vm.stopPrank();
     }
 
@@ -224,7 +224,7 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
             userDebtBefore - expectedDebtReduction);
 
         // Assert user collateral reduction.
-        assertEq(strategyCBALRETH.collateralPosted(user), 
+        assertEq(pendleStrategyCTokenSTETH.collateralPosted(user), 
             userCollateralBefore - expected.collateralLiquidated);
     }
 
@@ -233,7 +233,7 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
         ExpectedLiquidationValues memory expectedBorrower2,
         ExpectedLiquidationValues memory expectedBorrower3
     ) internal {
-        assertEq(strategyCBALRETH.balanceOf(address(this)), 
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(address(this)), 
             (expectedBorrower1.collateralLiquidated + 
             expectedBorrower2.collateralLiquidated + 
             expectedBorrower3.collateralLiquidated)

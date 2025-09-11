@@ -23,7 +23,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenBorrowFor_fail_whenNotDelegated() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
         _provideLiquidity();
         _depositCollateral();
@@ -37,13 +37,13 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenBorrowFor_fail_whenBorrowAmountExceedsAssetsHeld() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
         _provideLiquidity();
         _depositCollateral();
         _delegateToUser();
 
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
 
         uint256 assetsHeld = borrowableCUSDC.assetsHeld();
 
@@ -58,14 +58,14 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenBorrowFor_fail_whenBorrowAmountExceedsDebtCap() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
         _provideLiquidity();
         _depositCollateral();
         _delegateToUser();
 
         skip(69 minutes);
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
 
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 0);
 
@@ -80,7 +80,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenBorrowFor_fail_whenCollateralPostedInBorrowableCToken() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
         _provideLiquidity();
         _depositCollateral();
@@ -106,7 +106,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenBorrowForSendToDelegater_success() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
         _provideLiquidity();
         _depositCollateral();
@@ -130,7 +130,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         assertEq(borrowableCUSDC.marketOutstandingDebt(), totalDebt + 100e6);
 
         skip(1 hours);
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
         
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(user1);
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
@@ -150,7 +150,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenBorrowForSendToDelegatee_success() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
         _provideLiquidity();
         _depositCollateral();
@@ -175,7 +175,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
 
         // Test interest accrual over time  
         skip(1 hours);
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
         
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(user1);
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
@@ -213,12 +213,12 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
     }
 
     function _depositCollateral() internal {
-        _prepareBALRETH(user1, 10e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 10e18);
 
-        // Mint and collateralize strategyCBALRETH.
+        // Mint and collateralize pendleStrategyCTokenSTETH.
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1e18);
-        strategyCBALRETH.depositAsCollateral(1e18,  user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18,  user1);
         vm.stopPrank();
     }
 }

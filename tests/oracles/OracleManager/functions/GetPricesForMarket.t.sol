@@ -15,12 +15,12 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
 
         assets.push(address(borrowableCUSDC));
 
-        _deployStrategyCBALRETH();
+        _deployPendleStrategyCTokenSTETH();
 
-        _prepareBALRETH(address(this), 1e18);
+        deal(address(LP_wstETH_24Dec2025), address(this), 1e18);
         _prepareUSDC(address(this), 1e18);
 
-        balRETH.approve(address(strategyCBALRETH), 1e18);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
         
     }
 
@@ -47,7 +47,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         vm.prank(address(this));
         usdc.approve(address(borrowableCUSDC), 1e18);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
         vm.prank(address(marketManagerIsolated));
         borrowableCUSDC.initializeDeposits(address(this));
@@ -64,7 +64,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         usdc.approve(address(borrowableCUSDC), 1e18);
 
         oracleManager.addCTokenSupport(address(borrowableCUSDC));
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
         vm.prank(address(marketManagerIsolated));
         borrowableCUSDC.initializeDeposits(address(this));
@@ -83,7 +83,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         usdc.approve(address(borrowableCUSDC), 1e18);
 
         oracleManager.addCTokenSupport(address(borrowableCUSDC));
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
         _addSinglePriceFeed();
 

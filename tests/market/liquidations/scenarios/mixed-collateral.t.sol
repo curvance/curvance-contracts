@@ -53,40 +53,35 @@ contract MixedCollateral is TestBaseLiquidations {
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
-        chainlinkEthUsd.updateAnswer(1500e8);
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-
         _prepareUSDC(user1, _ONE);
         _prepareUSDC(address(this), _ONE);
 
-        _prepareBALRETH(user1, _ONE + 77777);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE + 77777);
 
         vm.prank(user1);
         usdc.approve(address(borrowableCUSDC), _ONE);
-        balRETH.approve(address(strategyCBALRETH), _ONE + 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE + 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigHighValues(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigHighValues(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigLowValues(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
-        _prepareBALRETH(liquidityProvider, 10e18);
+        deal(address(LP_wstETH_24Dec2025), liquidityProvider, 10e18);
         // Mint borrowable cUSDC.
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // Mint cBALETH.
-        balRETH.approve(address(strategyCBALRETH), 10e18);
-        strategyCBALRETH.deposit(10e18, liquidityProvider);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
+        pendleStrategyCTokenSTETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
 
         _createPositions();
 
-        mockBalEthRethFeed.setMockAnswer(1440e8);
+        mockPendleLPFeed.setMockAnswer(1440e8);
 
         console2.log("SETUP COMPLETE");
     }
@@ -107,7 +102,7 @@ contract MixedCollateral is TestBaseLiquidations {
 
         (uint256 collateralTokenPrice,uint256 debtTokenPrice) =
             oracleManager.getPriceIsolatedPair(
-                address(strategyCBALRETH),
+                address(pendleStrategyCTokenSTETH),
                 address(borrowableCUSDC),
                 2
             );
@@ -123,7 +118,7 @@ contract MixedCollateral is TestBaseLiquidations {
             expectedLiqValues[i] = _calculateExpectedLiquidationValues(
                 LiquidationParams({
                     borrower: borrowers[i],
-                    collateralToken: address(strategyCBALRETH),
+                    collateralToken: address(pendleStrategyCTokenSTETH),
                     borrowedToken: address(borrowableCUSDC),
                     isLiquidateExact: false,
                     liquidateExactAmount: 0,
@@ -150,7 +145,7 @@ contract MixedCollateral is TestBaseLiquidations {
         
         borrowableCUSDC.liquidate(
             borrowers,
-            address(strategyCBALRETH)
+            address(pendleStrategyCTokenSTETH)
         );
 
         // ===== Validate =====
@@ -167,14 +162,14 @@ contract MixedCollateral is TestBaseLiquidations {
         
         // Assert collateral is reduced by liquidatedCollateral
         assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(borrowers[3]),
+            pendleStrategyCTokenSTETH.balanceOf(borrowers[3]),
             collateralAmounts[3] - expectedLiqValues[3].collateralLiquidated,
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(borrowers[2]),
+            pendleStrategyCTokenSTETH.balanceOf(borrowers[2]),
             collateralAmounts[2] - expectedLiqValues[2].collateralLiquidated,
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
@@ -194,7 +189,7 @@ contract MixedCollateral is TestBaseLiquidations {
         // Verify liquidator received the expected collateral
         uint256 expectedLiquidatorBalance = expectedLiqValues[2].collateralLiquidated + expectedLiqValues[3].collateralLiquidated;
         assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(address(this)),
+            pendleStrategyCTokenSTETH.balanceOf(address(this)),
             expectedLiquidatorBalance,
             1000,
             "Liquidator didn't receive expected collateral"
@@ -213,32 +208,32 @@ contract MixedCollateral is TestBaseLiquidations {
     }
 
     function _createPositions() internal {
-        _prepareBALRETH(borrower1, collateralAmounts[0]);
-        _prepareBALRETH(borrower2, collateralAmounts[1]);
-        _prepareBALRETH(borrower3, collateralAmounts[2]);
-        _prepareBALRETH(borrower4, collateralAmounts[3]);
+        deal(address(LP_wstETH_24Dec2025), borrower1, collateralAmounts[0]);
+        deal(address(LP_wstETH_24Dec2025), borrower2, collateralAmounts[1]);
+        deal(address(LP_wstETH_24Dec2025), borrower3, collateralAmounts[2]);
+        deal(address(LP_wstETH_24Dec2025), borrower4, collateralAmounts[3]);
 
         vm.startPrank(borrower1);
-        balRETH.approve(address(strategyCBALRETH), collateralAmounts[0]);
-        strategyCBALRETH.depositAsCollateral(collateralAmounts[0], borrower1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[0]);
+        pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[0], borrower1);
         borrowableCUSDC.borrow(borrowAmount, borrower1);
         vm.stopPrank();
 
         vm.startPrank(borrower2);
-        balRETH.approve(address(strategyCBALRETH), collateralAmounts[1]);
-        strategyCBALRETH.depositAsCollateral(collateralAmounts[1], borrower2);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[1]);
+        pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[1], borrower2);
         borrowableCUSDC.borrow(borrowAmount, borrower2);
         vm.stopPrank();
 
         vm.startPrank(borrower3);
-        balRETH.approve(address(strategyCBALRETH), collateralAmounts[2]);
-        strategyCBALRETH.depositAsCollateral(collateralAmounts[2], borrower3);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[2]);
+        pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[2], borrower3);
         borrowableCUSDC.borrow(borrowAmount, borrower3);
         vm.stopPrank();
 
         vm.startPrank(borrower4);
-        balRETH.approve(address(strategyCBALRETH), collateralAmounts[3]);
-        strategyCBALRETH.depositAsCollateral(collateralAmounts[3], borrower4);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[3]);
+        pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[3], borrower4);
         borrowableCUSDC.borrow(borrowAmount, borrower4);
         vm.stopPrank();
 

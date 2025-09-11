@@ -77,16 +77,16 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
             usdc.approve(address(borrowableCUSDC), 200000e6);
         }
 
-        // Setup strategyCBALRETH.
+        // Setup pendleStrategyCTokenSTETH.
         {
-            _prepareBALRETH(owner, 1 ether);
-            balRETH.approve(address(strategyCBALRETH), 1 ether);
+            deal(address(LP_wstETH_24Dec2025), owner, 1 ether);
+            LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1 ether);
 
         }
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         // provide enough liquidity
@@ -94,28 +94,28 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
     }
 
     function testTokensWithDifferentDecimals_cTokenMintRedeem() public {
-        _prepareBALRETH(user1, 2 ether);
+        deal(address(LP_wstETH_24Dec2025), user1, 2 ether);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1 ether);
-        strategyCBALRETH.deposit(1 ether, user1);
-        strategyCBALRETH.postCollateral(1 ether);
-        assertEq(strategyCBALRETH.balanceOf(user1), 1 ether);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1 ether);
+        pendleStrategyCTokenSTETH.deposit(1 ether, user1);
+        pendleStrategyCTokenSTETH.postCollateral(1 ether);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), 1 ether);
 
         // try mintFor()
-        balRETH.approve(address(strategyCBALRETH), 1 ether);
-        strategyCBALRETH.deposit(1 ether, user2);
-        assertEq(strategyCBALRETH.balanceOf(user1), 1 ether);
-        assertEq(strategyCBALRETH.balanceOf(user2), 1 ether);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1 ether);
+        pendleStrategyCTokenSTETH.deposit(1 ether, user2);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), 1 ether);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user2), 1 ether);
 
         // skip some period
         skip(20 minutes);
 
         // try redeem()
-        strategyCBALRETH.redeem(1 ether, user1, user1);
+        pendleStrategyCTokenSTETH.redeem(1 ether, user1, user1);
         vm.stopPrank();
-        assertEq(strategyCBALRETH.balanceOf(user1), 0);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), 0);
     }
 
     function testTokensWithDifferentDecimals_borrowableCTokenMintRedeem() public {
@@ -140,16 +140,16 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
     }
 
     function testTokensWithDifferentDecimals_borrowableCTokenBorrowRepay() public {
-        _prepareBALRETH(user1, 1 ether);
+        deal(address(LP_wstETH_24Dec2025), user1, 1 ether);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1 ether);
-        strategyCBALRETH.deposit(1 ether, user1);
-        strategyCBALRETH.postCollateral(1 ether);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1 ether);
+        pendleStrategyCTokenSTETH.deposit(1 ether, user1);
+        pendleStrategyCTokenSTETH.postCollateral(1 ether);
 
-        assertEq(strategyCBALRETH.balanceOf(user1), 1 ether);
-        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), 1 ether);
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), 1 ether);
 
         // try borrow()
         borrowableCUSDC.borrow(500e6, user1);
@@ -197,13 +197,13 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
     }
 
     function testTokensWithDifferentDecimals_cTokenRedeemOnBorrow() public {
-        _prepareBALRETH(user1, 1 ether);
+        deal(address(LP_wstETH_24Dec2025), user1, 1 ether);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1 ether);
-        strategyCBALRETH.deposit(1 ether, user1);
-        strategyCBALRETH.postCollateral(1 ether);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1 ether);
+        pendleStrategyCTokenSTETH.deposit(1 ether, user1);
+        pendleStrategyCTokenSTETH.postCollateral(1 ether);
 
         // try borrow()
         borrowableCUSDC.borrow(500e6, user1);
@@ -215,23 +215,23 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         vm.expectRevert(
             bytes4(keccak256("MarketManager__InsufficientCollateral()"))
         );
-        strategyCBALRETH.redeem(1 ether, user1, user1);
+        pendleStrategyCTokenSTETH.redeem(1 ether, user1, user1);
 
         // can redeem partially
-        strategyCBALRETH.redeem(0.2 ether, user1, user1);
+        pendleStrategyCTokenSTETH.redeem(0.2 ether, user1, user1);
         vm.stopPrank();
 
-        assertEq(strategyCBALRETH.balanceOf(user1), 0.8 ether);
-        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), 0.8 ether);
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), 1 ether);
     }
 
     function testTokensWithDifferentDecimals_borrowableCTokenRedeemOnBorrow() public {
         // try mint()
-        _prepareBALRETH(user1, 1 ether);
+        deal(address(LP_wstETH_24Dec2025), user1, 1 ether);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1 ether);
-        strategyCBALRETH.deposit(1 ether, user1);
-        strategyCBALRETH.postCollateral(1 ether);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1 ether);
+        pendleStrategyCTokenSTETH.deposit(1 ether, user1);
+        pendleStrategyCTokenSTETH.postCollateral(1 ether);
 
         // try mint()
         _prepareUSDC(user1, 1000e6);
@@ -254,8 +254,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         borrowableCUSDC.redeem(1000e6, address(this), user1);
         vm.stopPrank();
 
-        assertEq(strategyCBALRETH.balanceOf(user1), 1 ether);
-        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), 1 ether);
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertGt(borrowableCUSDC.debtBalance(user1), 500e6);
@@ -263,13 +263,13 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
     }
 
     function testTokensWithDifferentDecimals_cTokenTransferOnBorrow() public {
-        _prepareBALRETH(user1, 1 ether);
+        deal(address(LP_wstETH_24Dec2025), user1, 1 ether);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1 ether);
-        strategyCBALRETH.deposit(1 ether, user1);
-        strategyCBALRETH.postCollateral(1 ether);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1 ether);
+        pendleStrategyCTokenSTETH.deposit(1 ether, user1);
+        pendleStrategyCTokenSTETH.postCollateral(1 ether);
 
         // try borrow()
         borrowableCUSDC.borrow(500e6, user1);
@@ -281,24 +281,24 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         vm.expectRevert(
             bytes4(keccak256("MarketManager__InsufficientCollateral()"))
         );
-        strategyCBALRETH.transfer(user2, 1 ether);
+        pendleStrategyCTokenSTETH.transfer(user2, 1 ether);
 
         // can redeem partially
-        strategyCBALRETH.transfer(user2, 0.2 ether);
+        pendleStrategyCTokenSTETH.transfer(user2, 0.2 ether);
         vm.stopPrank();
 
-        assertEq(strategyCBALRETH.balanceOf(user1), 0.8 ether);
-        assertEq(strategyCBALRETH.balanceOf(user2), 0.2 ether);
-        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), 0.8 ether);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user2), 0.2 ether);
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), 1 ether);
     }
 
     function testTokensWithDifferentDecimals_borrowableCTokenTransferOnBorrow() public {
         // try mint()
-        _prepareBALRETH(user1, 1 ether);
+        deal(address(LP_wstETH_24Dec2025), user1, 1 ether);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1 ether);
-        strategyCBALRETH.deposit(1 ether, user1);
-        strategyCBALRETH.postCollateral(1 ether);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1 ether);
+        pendleStrategyCTokenSTETH.deposit(1 ether, user1);
+        pendleStrategyCTokenSTETH.postCollateral(1 ether);
 
         // try mint()
         _prepareUSDC(user1, 1000e6);
@@ -315,8 +315,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         borrowableCUSDC.transfer(user2, 1000e6);
         vm.stopPrank();
 
-        assertEq(strategyCBALRETH.balanceOf(user1), 1 ether, "collateral balance is not affected");
-        assertEq(strategyCBALRETH.exchangeRate(), 1 ether, "collateral token exchange rate is not affected");
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), 1 ether, "collateral balance is not affected");
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), 1 ether, "collateral token exchange rate is not affected");
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         // accrueIfNeeded is called in transfer, so debt balance is increased
@@ -328,13 +328,13 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
     }
 
     function testTokensWithDifferentDecimals_liquidationExact() public {
-        _prepareBALRETH(user1, 1 ether);
+        deal(address(LP_wstETH_24Dec2025), user1, 1 ether);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1 ether);
-        strategyCBALRETH.deposit(1 ether, user1);
-        strategyCBALRETH.postCollateral(1 ether);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1 ether);
+        pendleStrategyCTokenSTETH.deposit(1 ether, user1);
+        pendleStrategyCTokenSTETH.postCollateral(1 ether);
 
         // try borrow()
         borrowableCUSDC.borrow(3000e6, user1);
@@ -349,7 +349,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: user1,
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: true,
                 liquidateExactAmount: 250e6,
@@ -374,15 +374,15 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         borrowableCUSDC.liquidateExact(
             debtAmounts,
             accounts,
-            address(strategyCBALRETH));
+            address(pendleStrategyCTokenSTETH));
         vm.stopPrank();
 
         assertApproxEqRel(
-            strategyCBALRETH.balanceOf(user1),
+            pendleStrategyCTokenSTETH.balanceOf(user1),
             1 ether - expectedLiquidationValues.collateralLiquidated,
             0.001e18
         );
-        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertApproxEqRel(borrowableCUSDC.debtBalance(user1), currentDebtBalance - (expectedLiquidationValues.badDebt + 250e6), 0.001e18);
@@ -390,13 +390,13 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
     }
 
     function testTokensWithDifferentDecimals_liquidation() public {
-        _prepareBALRETH(user1, 1 ether);
+        deal(address(LP_wstETH_24Dec2025), user1, 1 ether);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1 ether);
-        strategyCBALRETH.deposit(1 ether, user1);
-        strategyCBALRETH.postCollateral(1 ether);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1 ether);
+        pendleStrategyCTokenSTETH.deposit(1 ether, user1);
+        pendleStrategyCTokenSTETH.postCollateral(1 ether);
 
         // try borrow()
         borrowableCUSDC.borrow(3000e6, user1);
@@ -414,7 +414,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: user1,
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: false,
                 liquidateExactAmount: 0,
@@ -434,15 +434,15 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         borrowableCUSDC.liquidate(
             accounts,
-            address(strategyCBALRETH));
+            address(pendleStrategyCTokenSTETH));
         vm.stopPrank();
 
         assertApproxEqRel(
-            strategyCBALRETH.balanceOf(user1),
+            pendleStrategyCTokenSTETH.balanceOf(user1),
             1 ether - expectedLiquidationValues.collateralLiquidated,
             0.001e18
         );
-        assertEq(strategyCBALRETH.exchangeRate(), 1 ether);
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
         assertApproxEqRel(borrowableCUSDC.debtBalance(user1), currentDebtBalance - (expectedLiquidationValues.badDebt + expectedLiquidationValues.debtRepaid), 0.001e18);
@@ -452,14 +452,14 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
     function _provideEnoughLiquidityForLeverage() internal {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
-        _prepareBALRETH(liquidityProvider, 10 ether);
+        deal(address(LP_wstETH_24Dec2025), liquidityProvider, 10 ether);
         // Mint borrowable cUSDC.
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // Mint cBALETH.
-        balRETH.approve(address(strategyCBALRETH), 10 ether);
-        strategyCBALRETH.deposit(10 ether, liquidityProvider);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10 ether);
+        pendleStrategyCTokenSTETH.deposit(10 ether, liquidityProvider);
         vm.stopPrank();
     }
 

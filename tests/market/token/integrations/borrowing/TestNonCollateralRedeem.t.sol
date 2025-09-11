@@ -13,27 +13,27 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
 
     function test_partialCollateralizedWithdraw() public {
         // Get underlying
-        MockERC20Token balRETH = MockERC20Token(strategyCBALRETH.asset());
+        MockERC20Token balRETH = MockERC20Token(pendleStrategyCTokenSTETH.asset());
         MockERC20Token USDC = MockERC20Token(borrowableCUSDC.asset());
 
         // Prepare token balances
-        _prepareBALRETH(address(this), 10e18);
+        deal(address(LP_wstETH_24Dec2025), address(this), 10e18);
         deal(address(USDC), address(this), 1_000_000e6);
 
         // Approve underlying tokens
-        balRETH.approve(address(strategyCBALRETH), 10e18);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
         USDC.approve(address(borrowableCUSDC), 1_000_000e6);
 
         // List tokens
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
-        // Deposit 1 strategyCBALRETH
-        strategyCBALRETH.deposit(1e18, address(this));
-        // Deposit & Collateralize 1 strategyCBALRETH
-        strategyCBALRETH.depositAsCollateral(1e18, address(this));
+        // Deposit 1 pendleStrategyCTokenSTETH
+        pendleStrategyCTokenSTETH.deposit(1e18, address(this));
+        // Deposit & Collateralize 1 pendleStrategyCTokenSTETH
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18, address(this));
         // Lend so there is something to borrow.
         borrowableCUSDC.deposit(100_000e6, address(this));
 
@@ -41,7 +41,7 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
         borrowableCUSDC.borrow(750e6, address(this));
         // Fast forward to get past minimum hold
         vm.warp(block.timestamp + 1 days);
-        // Withdraw 1 strategyCBALRETH (which has not been collateralized yet)
-        strategyCBALRETH.redeem(1e18, address(this), address(this));
+        // Withdraw 1 pendleStrategyCTokenSTETH (which has not been collateralized yet)
+        pendleStrategyCTokenSTETH.redeem(1e18, address(this), address(this));
     }
 }

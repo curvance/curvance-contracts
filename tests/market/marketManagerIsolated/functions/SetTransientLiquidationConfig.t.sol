@@ -13,33 +13,33 @@ contract SetTransientLiquidationConfigTest is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
         
         // List tokens in the market.
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigCollateralOff(address(strategyCBALRETH), 0);
+        _setCTokenConfigCollateralOff(address(pendleStrategyCTokenSTETH), 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
     }
 
     function test_setTransientLiquidationConfig_fail_whenUnauthorized() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
         // // Non-dapp control user should not be able to set penalty
         vm.startPrank(user1);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), 1.15e18, 0.30e18);
+        marketManagerIsolated.setTransientLiquidationConfig(address(pendleStrategyCTokenSTETH), 1.15e18, 0.30e18);
         
         vm.stopPrank();
     }
 
     function test_setTransientLiquidationConfig_fail_whenTokenNotListed() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
         vm.startPrank(auctionPermsUser);
 
@@ -52,12 +52,12 @@ contract SetTransientLiquidationConfigTest is TestBaseMarketIsolated {
         vm.startPrank(auctionPermsUser);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedLiquidation.selector); 
-        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), 1.15e18, 0.30e18);
+        marketManagerIsolated.setTransientLiquidationConfig(address(pendleStrategyCTokenSTETH), 1.15e18, 0.30e18);
         vm.stopPrank();
     }
 
     function test_setTransientLiquidationConfig_fail_whenInvalidValues() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
         uint256 tooLowPenalty = 1.0001e18;
         uint256 tooHighPenalty = 1.25e18; 
@@ -69,23 +69,23 @@ contract SetTransientLiquidationConfigTest is TestBaseMarketIsolated {
         vm.startPrank(auctionPermsUser);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), tooLowPenalty, validCloseFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(pendleStrategyCTokenSTETH), tooLowPenalty, validCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), tooHighPenalty, validCloseFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(pendleStrategyCTokenSTETH), tooHighPenalty, validCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), validPenalty, tooHighCloseFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(pendleStrategyCTokenSTETH), validPenalty, tooHighCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), validPenalty, tooLowCloseFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(pendleStrategyCTokenSTETH), validPenalty, tooLowCloseFactor);
 
         vm.stopPrank();
     }
 
     function test_setTransientLiquidationConfig_success() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setAuctionConfigs(address(strategyCBALRETH), 11500, 3000);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
+        _setAuctionConfigs(address(pendleStrategyCTokenSTETH), 11500, 3000);
 
         vm.startPrank(auctionPermsUser);
 

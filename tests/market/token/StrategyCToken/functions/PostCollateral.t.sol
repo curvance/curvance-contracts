@@ -11,24 +11,24 @@ contract PostCollateralTest is TestBaseStrategyCToken {
     function setUp() public override {
         super.setUp();
         
-        _prepareBALRETH(user1, _ONE + _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE + _ONE);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE + _ONE);
-        strategyCBALRETH.deposit(_ONE + _ONE, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE + _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE + _ONE, user1);
         vm.stopPrank();
     }
 
     function test_strategyCTokenPostCollateral_fail_whenCollateralizationIsNotAllowed() public {
-        marketManagerIsolated.setCollateralizationPaused(address(strategyCBALRETH), true);
+        marketManagerIsolated.setCollateralizationPaused(address(pendleStrategyCTokenSTETH), true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        _postBalRETHCollateral(0.1e18);
+        _postPendleStrategyCTokenSTETHCollateral(0.1e18);
     }
 
     function test_strategyCTokenPostCollateral_fail_whenZeroAmount() public {
         vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
-        _postBalRETHCollateral(0);
+        _postPendleStrategyCTokenSTETHCollateral(0);
     }
 
     function test_strategyCTokenPostCollateral_fail_whenCollateralAmountExceedsCTokens() public {
@@ -36,44 +36,44 @@ contract PostCollateralTest is TestBaseStrategyCToken {
             BaseCToken.BaseCToken__InsufficientLiquidity.selector
         );
 
-        _postBalRETHCollateral(10e18);
+        _postPendleStrategyCTokenSTETHCollateral(10e18);
     }
 
     function test_strategyCTokenPostCollateral_fail_whenCollateralAmountExceedsCollateralCap() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 1, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 1, 0);
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__CapReached.selector
         );
 
-        _postBalRETHCollateral(_ONE);
+        _postPendleStrategyCTokenSTETHCollateral(_ONE);
     }
 
     function test_strategyCTokenPostCollateral_success() public {
-        uint256 balanceBefore = strategyCBALRETH.balanceOf(user1);
-        uint256 userCollateral = strategyCBALRETH.collateralPosted(user1);
-        uint256 totalCollateral = strategyCBALRETH.marketCollateralPosted();
+        uint256 balanceBefore = pendleStrategyCTokenSTETH.balanceOf(user1);
+        uint256 userCollateral = pendleStrategyCTokenSTETH.collateralPosted(user1);
+        uint256 totalCollateral = pendleStrategyCTokenSTETH.marketCollateralPosted();
 
-        vm.expectEmit(true, true, true, true, address(strategyCBALRETH));
+        vm.expectEmit(true, true, true, true, address(pendleStrategyCTokenSTETH));
         emit CollateralUpdated(_ONE, true, user1);
 
         uint256 newCollateral = _ONE;
 
-        _postBalRETHCollateral(newCollateral);
+        _postPendleStrategyCTokenSTETHCollateral(newCollateral);
 
         // Balance should not have changed.
-        assertEq(strategyCBALRETH.balanceOf(user1), balanceBefore);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), balanceBefore);
 
         // User collateral should go up by `newCollateral`.
-        assertEq(strategyCBALRETH.collateralPosted(user1), userCollateral + newCollateral);
+        assertEq(pendleStrategyCTokenSTETH.collateralPosted(user1), userCollateral + newCollateral);
 
         // Market collateral should go up by `newCollateral`.
-        assertEq(strategyCBALRETH.marketCollateralPosted(), totalCollateral + newCollateral);
+        assertEq(pendleStrategyCTokenSTETH.marketCollateralPosted(), totalCollateral + newCollateral);
     }
 
-    function _postBalRETHCollateral(uint256 shares) internal {
+    function _postPendleStrategyCTokenSTETHCollateral(uint256 shares) internal {
         vm.startPrank(user1);
-        strategyCBALRETH.postCollateral(shares);
+        pendleStrategyCTokenSTETH.postCollateral(shares);
         vm.stopPrank();
     }
 

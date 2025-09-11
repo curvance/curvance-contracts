@@ -19,7 +19,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
     function test_success_LiquidateExactWithAuctionAndDynamicPenalty() public {
         _prepareLiquidation();
         _prepareUSDC(user3, 250e6);
-        _setAuctionConfigs(address(strategyCBALRETH), 11500, 3000);
+        _setAuctionConfigs(address(pendleStrategyCTokenSTETH), 11500, 3000);
         
         vm.startPrank(user3);
         address[] memory usersToLiquidate = new address[](1);   
@@ -28,12 +28,12 @@ contract AuctionBasicTests is TestBaseLiquidations {
         amountsToLiquidate[0] = 250e6;
 
         usdc.approve(address(borrowableCUSDC), 250e6);
-        borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(strategyCBALRETH));
+        borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(pendleStrategyCTokenSTETH));
         vm.stopPrank();
 
         console2.log("done liquidating");
 
-        uint256 liquidatorcTokenBalance = strategyCBALRETH.balanceOf(user3);
+        uint256 liquidatorcTokenBalance = pendleStrategyCTokenSTETH.balanceOf(user3);
         assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokens(11500), 
         "Liquidator cToken balance should match expected");
 
@@ -48,7 +48,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         // Override closeFactorMax to 100% close factor so we can pass default
         // penalty based on lFactor.
         MarketManagerIsolated.TokenConfig memory tokenConfig;
-        tokenConfig.cToken = address(strategyCBALRETH);
+        tokenConfig.cToken = address(pendleStrategyCTokenSTETH);
         tokenConfig.collRatio = 7000;
         tokenConfig.collReqSoft = 4000;
         tokenConfig.collReqHard = 3000;
@@ -64,7 +64,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
         marketManagerIsolated.updateTokenConfig(tokenConfig);
         
-        (uint256 cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
+        (uint256 cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC), 2);
         
         (, , , uint256 lFactor) = _liquidationValuesOfHelper(marketManagerIsolated, user1);
         
@@ -77,7 +77,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         uint256 closeFactorCurve = 8000;
         uint256 closeFactor = closeFactorBase + ((closeFactorCurve * lFactor) / WAD);
 
-        _setAuctionConfigs(address(strategyCBALRETH), incentive, closeFactor);
+        _setAuctionConfigs(address(pendleStrategyCTokenSTETH), incentive, closeFactor);
         
         vm.startPrank(user3);
         address[] memory usersToLiquidate = new address[](1);   
@@ -86,12 +86,12 @@ contract AuctionBasicTests is TestBaseLiquidations {
         amountsToLiquidate[0] = 250e6;
 
         usdc.approve(address(borrowableCUSDC), 250e6);
-        borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(strategyCBALRETH));
+        borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(pendleStrategyCTokenSTETH));
         vm.stopPrank();
 
         console2.log("done liquidating");
 
-        uint256 liquidatorcTokenBalance = strategyCBALRETH.balanceOf(user3);
+        uint256 liquidatorcTokenBalance = pendleStrategyCTokenSTETH.balanceOf(user3);
         assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokens(incentive), 
         "Liquidator cToken balance should match expected");
 
@@ -111,10 +111,10 @@ contract AuctionBasicTests is TestBaseLiquidations {
         amountsToLiquidate[0] = 250e6;
 
         usdc.approve(address(borrowableCUSDC), 250e6);
-        borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(strategyCBALRETH));
+        borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(pendleStrategyCTokenSTETH));
         vm.stopPrank();
 
-        uint256 liquidatorcTokenBalance = strategyCBALRETH.balanceOf(user3);
+        uint256 liquidatorcTokenBalance = pendleStrategyCTokenSTETH.balanceOf(user3);
         assertEq(liquidatorcTokenBalance, _calculateExpectedLiquidatedTokensWithDefaultPenalty());
 
         uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
@@ -128,7 +128,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         vm.startPrank(auctionPermsUser);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        // We unlock borrowableCUSDC when we will try to liquidate strategyCBALRETH.
+        // We unlock borrowableCUSDC when we will try to liquidate pendleStrategyCTokenSTETH.
         marketManagerIsolated.setTransientLiquidationConfig(
             address(borrowableCUSDC),
             11500,
@@ -146,7 +146,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
         usdc.approve(address(borrowableCUSDC), 250e6);
         vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedLiquidation.selector);
-        borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(strategyCBALRETH));
+        borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(pendleStrategyCTokenSTETH));
         vm.stopPrank();
     }
 
@@ -157,7 +157,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         vm.startPrank(auctionPermsUser);
 
         marketManagerIsolated.setTransientLiquidationConfig(
-            address(strategyCBALRETH),
+            address(pendleStrategyCTokenSTETH),
             11500,
             3000
         );
@@ -173,7 +173,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
         usdc.approve(address(borrowableCUSDC), 250e6);
         vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedLiquidation.selector);
-        borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(strategyCBALRETH));
+        borrowableCUSDC.liquidateExact(amountsToLiquidate, usersToLiquidate, address(pendleStrategyCTokenSTETH));
         vm.stopPrank();
     }
 
@@ -187,7 +187,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         
         uint256 validPenalty = 11500; //15%
         uint256 closeFactor = 3000; // 30%
-        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(pendleStrategyCTokenSTETH), validPenalty, closeFactor);
         vm.stopPrank();
 
         borrowableCUSDC.accrueIfNeeded(); // pull interest forward
@@ -200,7 +200,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: user1,
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: false,
                 liquidateExactAmount: 0,
@@ -218,10 +218,10 @@ contract AuctionBasicTests is TestBaseLiquidations {
         amountsToLiquidate[0] = debtBalance;
 
         usdc.approve(address(borrowableCUSDC), debtBalance);
-        borrowableCUSDC.liquidate(usersToLiquidate, address(strategyCBALRETH));
+        borrowableCUSDC.liquidate(usersToLiquidate, address(pendleStrategyCTokenSTETH));
         vm.stopPrank();
 
-        uint256 liquidatorcTokenBalance = strategyCBALRETH.balanceOf(user3);
+        uint256 liquidatorcTokenBalance = pendleStrategyCTokenSTETH.balanceOf(user3);
         assertEq(liquidatorcTokenBalance, expectedLiquidationValues.collateralLiquidated);
 
         uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
@@ -234,7 +234,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         uint256 debtTokenPrice; 
         uint256 cTokenPrice;
 
-        (cTokenPrice, debtTokenPrice) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
+        (cTokenPrice, debtTokenPrice) = oracleManager.getPriceIsolatedPair(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC), 2);
 
         (, , , uint256 lFactor) = _liquidationValuesOfHelper(marketManagerIsolated, user1);
 
@@ -262,7 +262,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
         uint256 debtTokenPrice; 
         uint256 cTokenPrice;
         
-        (cTokenPrice, debtTokenPrice) = oracleManager.getPriceIsolatedPair(address(strategyCBALRETH), address(borrowableCUSDC), 2);
+        (cTokenPrice, debtTokenPrice) = oracleManager.getPriceIsolatedPair(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC), 2);
         
         uint256 collateralDecimals = 10**18;
         uint256 debtDecimals = 10**6;

@@ -11,13 +11,13 @@ contract CanRedeemTest is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
     }
 
     function test_canRedeem_fail_whenTokenNotListed() public {
@@ -56,17 +56,17 @@ contract CanRedeemTest is TestBaseMarketIsolated {
     }
 
     function test_canRedeem_fail_whenCInsufficientLiquidity() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
-        _prepareBALRETH(user1, 10_000e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 10_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1_000e18);
-        strategyCBALRETH.deposit(1e18, user1);
-        strategyCBALRETH.postCollateral(9e17);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1_000e18);
+        pendleStrategyCTokenSTETH.deposit(1e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(9e17);
         vm.stopPrank();
 
         bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
-            .accountPositions(address(strategyCBALRETH), user1) == 2;
+            .accountPositions(address(pendleStrategyCTokenSTETH), user1) == 2;
 
         assertTrue(hasPosition);
 
@@ -77,7 +77,7 @@ contract CanRedeemTest is TestBaseMarketIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
-        marketManagerIsolated.canRedeem(address(strategyCBALRETH), 100e18, user1);
+        marketManagerIsolated.canRedeem(address(pendleStrategyCTokenSTETH), 100e18, user1);
     }
 
     function test_canRedeem_success_whenPastMinimumHoldPeriod() public {

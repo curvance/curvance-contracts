@@ -18,15 +18,15 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         mockRethFeed.setMockAnswer(1500e8);
         _refreshMockFeeds();
 
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100e6);
     }
 
@@ -95,11 +95,11 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrowWithNotify_fail_whenExceedsBorrowCap() external {
-        vm.prank(address(strategyCBALRETH));
+        vm.prank(address(pendleStrategyCTokenSTETH));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
         marketManagerIsolated.canBorrowWithNotify(
-            address(strategyCBALRETH),
+            address(pendleStrategyCTokenSTETH),
             100e6 + 1,
             user1,
             100e6 + 1
@@ -121,12 +121,12 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrowWithNotify_fail_whenInsufficientLoanSize() public {
-        _prepareBALRETH(user1, 1_000e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 1_000e18);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1_000e18);
-        strategyCBALRETH.deposit(10e18, user1);
-        strategyCBALRETH.postCollateral(10e18);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1_000e18);
+        pendleStrategyCTokenSTETH.deposit(10e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(10e18);
         vm.stopPrank();
 
         vm.prank(address(borrowableCUSDC));
@@ -142,12 +142,12 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrowWithNotify_success_atDebtCapLimit() external {
-        _prepareBALRETH(user1, 1_000e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 1_000e18);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1_000e18);
-        strategyCBALRETH.deposit(10e18, user1);
-        strategyCBALRETH.postCollateral(10e18);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1_000e18);
+        pendleStrategyCTokenSTETH.deposit(10e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(10e18);
         vm.stopPrank();
 
         vm.prank(address(borrowableCUSDC));
@@ -160,12 +160,12 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrowWithNotify_success_atLoanMinimumSize() public {
-        _prepareBALRETH(user1, 1_000e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 1_000e18);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1_000e18);
-        strategyCBALRETH.deposit(10e18, user1);
-        strategyCBALRETH.postCollateral(10e18);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1_000e18);
+        pendleStrategyCTokenSTETH.deposit(10e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(10e18);
         vm.stopPrank();
 
         vm.prank(address(borrowableCUSDC));
@@ -192,14 +192,14 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrowWithNotify_success_withProtocolReaderReview() external {
-        _prepareBALRETH(user1, 10_000e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 10_000e18);
 
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100_000e6);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1_000e18);
-        strategyCBALRETH.deposit(1_000e18, user1);
-        strategyCBALRETH.postCollateral(999e18);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1_000e18);
+        pendleStrategyCTokenSTETH.deposit(1_000e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(999e18);
         vm.stopPrank();
 
         bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
@@ -224,7 +224,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
 
         accountAssets = marketManagerIsolated.assetsOf(user1);
         assertEq(accountAssets.length, 2);
-        assertEq(address(accountAssets[0]), address(strategyCBALRETH));
+        assertEq(address(accountAssets[0]), address(pendleStrategyCTokenSTETH));
         assertEq(address(accountAssets[1]), address(borrowableCUSDC));
     }
 }

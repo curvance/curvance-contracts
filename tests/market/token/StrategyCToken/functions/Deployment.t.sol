@@ -2,9 +2,9 @@
 pragma solidity 0.8.28;
 
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
-import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
+import { PendleLPCToken } from "contracts/market/token/PendleLPCToken.sol";
 import { BaseCTokenWithYield } from "contracts/market/token/BaseCTokenWithYield.sol";
-
+import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -16,6 +16,8 @@ import "forge-std/StdStorage.sol";
 contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
     using stdStorage for StdStorage;
 
+    address internal _PENDLE_ROUTER = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+
     event NewMarketManager(address oldMarketManager, address newMarketManager);
 
     function test_strategyCTokenDeployment_fail_whenCentralRegistryIsInvalid()
@@ -25,13 +27,12 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
             CentralRegistryLib.CentralRegistryLib__InvalidCentralRegistry
                 .selector
         );
-        new AuraCToken(
+        
+         new PendleLPCToken(
             ICentralRegistry(address(0)),
-            balRETH,
+            IERC20(LP_wstETH_24Dec2025),
             address(marketManagerIsolated),
-            109,
-            _REWARDER,
-            _AURA_BOOSTER,
+            IPendleRouter(_PENDLE_ROUTER),
             1 days
         );
     }
@@ -40,13 +41,11 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
         public
     {
         vm.expectRevert(BaseCToken.BaseCToken__InvalidMarketManager.selector);
-        new AuraCToken(
+         new PendleLPCToken(
             ICentralRegistry(address(centralRegistry)),
-            balRETH,
+            IERC20(LP_wstETH_24Dec2025),
             address(1),
-            109,
-            _REWARDER,
-            _AURA_BOOSTER,
+            IPendleRouter(_PENDLE_ROUTER),
             1 days
         );
     }
@@ -58,13 +57,11 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
                 .selector
         );
 
-        new AuraCToken(
+         new PendleLPCToken(
             ICentralRegistry(address(centralRegistry)),
-            balRETH,
+            IERC20(LP_wstETH_24Dec2025),
             address(marketManagerIsolated),
-            109,
-            _REWARDER,
-            _AURA_BOOSTER,
+            IPendleRouter(_PENDLE_ROUTER),
             0
         );
     }
@@ -79,34 +76,30 @@ contract StrategyCTokenDeploymentTest is TestBaseStrategyCToken {
                 .selector
         );
 
-        new AuraCToken(
+         new PendleLPCToken(
             ICentralRegistry(address(centralRegistry)),
-            balRETH,
+            IERC20(LP_wstETH_24Dec2025),
             address(marketManagerIsolated),
-            109,
-            _REWARDER,
-            _AURA_BOOSTER,
+            IPendleRouter(_PENDLE_ROUTER),
             MAXIMUM_VESTING_PERIOD + 1
         );
     }
 
     function test_strategyCTokenDeployment_success() public {
-        strategyCBALRETH = new AuraCToken(
+         new PendleLPCToken(
             ICentralRegistry(address(centralRegistry)),
-            balRETH,
+            IERC20(LP_wstETH_24Dec2025),
             address(marketManagerIsolated),
-            109,
-            _REWARDER,
-            _AURA_BOOSTER,
+            IPendleRouter(_PENDLE_ROUTER),
             1 days
         );
 
         assertEq(
-            address(strategyCBALRETH.centralRegistry()),
+            address(pendleStrategyCTokenSTETH.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(strategyCBALRETH.asset(), _BAL_WETH_RETH_ADDRESS);
-        assertEq(address(strategyCBALRETH.marketManager()), address(marketManagerIsolated));
-        assertEq(strategyCBALRETH.name(), "Curvance Balancer rETH Stable Pool");
+        assertEq(pendleStrategyCTokenSTETH.asset(), address(LP_wstETH_24Dec2025));
+        assertEq(address(pendleStrategyCTokenSTETH.marketManager()), address(marketManagerIsolated));
+        assertEq(pendleStrategyCTokenSTETH.name(), "Curvance Pendle Market");
     }
 }

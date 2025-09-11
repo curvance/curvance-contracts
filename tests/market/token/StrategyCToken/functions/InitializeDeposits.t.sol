@@ -11,7 +11,7 @@ contract InitializeDepositsTest is TestBaseStrategyCToken {
     {
         vm.expectRevert(BaseCToken.BaseCToken__Unauthorized.selector);
 
-        strategyCBALRETH.initializeDeposits(address(0));
+        pendleStrategyCTokenSTETH.initializeDeposits(address(0));
     }
 
     function test_strategyCTokenInitializeDeposits_fail_whenInitializerIsZeroAddress()
@@ -20,22 +20,22 @@ contract InitializeDepositsTest is TestBaseStrategyCToken {
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
 
         vm.prank(address(marketManagerIsolated));
-        strategyCBALRETH.initializeDeposits(address(0));
+        pendleStrategyCTokenSTETH.initializeDeposits(address(0));
     }
 
     function test_strategyCTokenInitializeDeposits_success() public {
         vm.prank(user1);
         SafeTransferLib.safeApprove(
-            _BAL_WETH_RETH_ADDRESS,
-            address(strategyCBALRETH),
+            address(LP_wstETH_24Dec2025),
+            address(pendleStrategyCTokenSTETH),
             1e18
         );
 
-        uint256 totalSupply = strategyCBALRETH.totalSupply();
+        uint256 totalSupply = pendleStrategyCTokenSTETH.totalSupply();
 
         vm.prank(address(marketManagerIsolated));
-        strategyCBALRETH.initializeDeposits(user1);
+        pendleStrategyCTokenSTETH.initializeDeposits(user1);
 
-        assertEq(strategyCBALRETH.totalSupply(), totalSupply + 77777);
+        assertEq(pendleStrategyCTokenSTETH.totalSupply(), totalSupply + 77777);
     }
 }

@@ -28,25 +28,25 @@ contract AuctionOneLiquidatedOthersNotTest is TestBaseLiquidations {
         _setUpMarketPreLiquidation();
         _setUpBorrowerCollateral();
         _setUpBorrowerDebt();
-        _harvestAuraStrategyRewards(2 weeks);
+        _harvestPendleLP(2 weeks);
 
         // set mock prices
-        mockBalEthRethFeed.setMockAnswer(1185e8);
+        mockPendleLPFeed.setMockAnswer(1185e8);
         
         // accrue interest
         borrowableCUSDC.accrueIfNeeded();
-        strategyCBALRETH.accrueIfNeeded();
+        pendleStrategyCTokenSTETH.accrueIfNeeded();
     }
 
     function test_success_AuctionOneLiquidatedOthersNot() public {
         // Configure auction.
-        _setAuctionConfigs(address(strategyCBALRETH), 11000, 3000);
+        _setAuctionConfigs(address(pendleStrategyCTokenSTETH), 11000, 3000);
 
         // Cache the expected liquidation values.
         ExpectedLiquidationValues memory expectedLiquidationValuesBorrower1 = _calculateExpectedLiquidationValues(
             LiquidationParams({
             borrower: borrower1,
-            collateralToken: address(strategyCBALRETH),
+            collateralToken: address(pendleStrategyCTokenSTETH),
             borrowedToken: address(borrowableCUSDC),
             isLiquidateExact: false,
             liquidateExactAmount: 0,
@@ -60,17 +60,17 @@ contract AuctionOneLiquidatedOthersNotTest is TestBaseLiquidations {
 
         // User1 debt and collateral before liquidation.
         uint256 user1DebtBefore = borrowableCUSDC.debtBalance(borrower1);
-        uint256 user1CollateralBefore = strategyCBALRETH.collateralPosted(borrower1);
+        uint256 user1CollateralBefore = pendleStrategyCTokenSTETH.collateralPosted(borrower1);
 
         // Cache debt and collateral for users that should NOT be liquidated
         uint256 user2DebtBefore = borrowableCUSDC.debtBalance(borrower2);
-        uint256 user2CollateralBefore = strategyCBALRETH.collateralPosted(borrower2);
+        uint256 user2CollateralBefore = pendleStrategyCTokenSTETH.collateralPosted(borrower2);
         uint256 user3DebtBefore = borrowableCUSDC.debtBalance(borrower3);
-        uint256 user3CollateralBefore = strategyCBALRETH.collateralPosted(borrower3);
+        uint256 user3CollateralBefore = pendleStrategyCTokenSTETH.collateralPosted(borrower3);
         uint256 user4DebtBefore = borrowableCUSDC.debtBalance(borrower4);
-        uint256 user4CollateralBefore = strategyCBALRETH.collateralPosted(borrower4);
+        uint256 user4CollateralBefore = pendleStrategyCTokenSTETH.collateralPosted(borrower4);
         uint256 user5DebtBefore = borrowableCUSDC.debtBalance(borrower5);
-        uint256 user5CollateralBefore = strategyCBALRETH.collateralPosted(borrower5);
+        uint256 user5CollateralBefore = pendleStrategyCTokenSTETH.collateralPosted(borrower5);
 
         uint256 borrowableCUSDCBalanceBefore = usdc.balanceOf(address(borrowableCUSDC));
 
@@ -90,7 +90,7 @@ contract AuctionOneLiquidatedOthersNotTest is TestBaseLiquidations {
             address(this));
         emit Repay(expectedLiquidationValuesBorrower1.debtRepaid, address(this), borrower1);
 
-        borrowableCUSDC.liquidate(usersToLiquidate, address(strategyCBALRETH));
+        borrowableCUSDC.liquidate(usersToLiquidate, address(pendleStrategyCTokenSTETH));
 
         // Assert only borrower1 was liquidated
         _assertSingleLiquidation(
@@ -110,15 +110,15 @@ contract AuctionOneLiquidatedOthersNotTest is TestBaseLiquidations {
 
     function _setUpMarketPreLiquidation() internal {
         // Setup market with tokens.
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777 + 1_000_000e6);
         usdc.approve(address(borrowableCUSDC), 77777 + 1_000_000e6);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 1_000_000e6);
 
         // provide liquidity to the market
@@ -126,37 +126,37 @@ contract AuctionOneLiquidatedOthersNotTest is TestBaseLiquidations {
     }
 
     function _setUpBorrowerCollateral() internal {
-        _prepareBALRETH(borrower1, 1e18);
-        _prepareBALRETH(borrower2, 1e18);
-        _prepareBALRETH(borrower3, 1e18);
-        _prepareBALRETH(borrower4, 1e18);
-        _prepareBALRETH(borrower5, 1e18);
+        deal(address(LP_wstETH_24Dec2025), borrower1, 1e18);
+        deal(address(LP_wstETH_24Dec2025), borrower2, 1e18);
+        deal(address(LP_wstETH_24Dec2025), borrower3, 1e18);
+        deal(address(LP_wstETH_24Dec2025), borrower4, 1e18);
+        deal(address(LP_wstETH_24Dec2025), borrower5, 1e18);
 
         // Deposit collateral.
         
         vm.startPrank(borrower1);
-        balRETH.approve(address(strategyCBALRETH), 1e18);
-        strategyCBALRETH.depositAsCollateral(1e18, borrower1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18, borrower1);
         vm.stopPrank();
 
         vm.startPrank(borrower2);
-        balRETH.approve(address(strategyCBALRETH), 1e18);
-        strategyCBALRETH.depositAsCollateral(1e18, borrower2);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18, borrower2);
         vm.stopPrank();
 
         vm.startPrank(borrower3);
-        balRETH.approve(address(strategyCBALRETH), 1e18);
-        strategyCBALRETH.depositAsCollateral(1e18, borrower3);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18, borrower3);
         vm.stopPrank();
 
         vm.startPrank(borrower4);
-        balRETH.approve(address(strategyCBALRETH), 1e18);
-        strategyCBALRETH.depositAsCollateral(1e18, borrower4);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18, borrower4);
         vm.stopPrank();
 
         vm.startPrank(borrower5);
-        balRETH.approve(address(strategyCBALRETH), 1e18);
-        strategyCBALRETH.depositAsCollateral(1e18, borrower5);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1e18, borrower5);
         vm.stopPrank();
         
     }
@@ -206,11 +206,11 @@ contract AuctionOneLiquidatedOthersNotTest is TestBaseLiquidations {
             user1DebtBefore - expectedDebtReduction);
 
         // Assert borrower1 collateral reduction
-        assertEq(strategyCBALRETH.collateralPosted(borrower1), 
+        assertEq(pendleStrategyCTokenSTETH.collateralPosted(borrower1), 
             user1CollateralBefore - expectedBorrower1.collateralLiquidated);
 
         // Assert liquidator received only borrower1's collateral
-        assertEq(strategyCBALRETH.balanceOf(address(this)), 
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(address(this)), 
             expectedBorrower1.collateralLiquidated);
 
         // Assert USDC transfer for only borrower1's debt repayment
@@ -225,6 +225,6 @@ contract AuctionOneLiquidatedOthersNotTest is TestBaseLiquidations {
     ) internal view {
         // Assert debt and collateral remain unchanged for non-liquidated users
         assertEq(borrowableCUSDC.debtBalance(user), userDebtBefore);
-        assertEq(strategyCBALRETH.collateralPosted(user), userCollateralBefore);
+        assertEq(pendleStrategyCTokenSTETH.collateralPosted(user), userCollateralBefore);
     }
 }

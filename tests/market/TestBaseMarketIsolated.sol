@@ -15,6 +15,7 @@ import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { AuraCToken } from "contracts/market/token/AuraCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { DynamicIRM } from "contracts/market/DynamicIRM.sol";
+import { PendleLPCToken } from "contracts/market/token/PendleLPCToken.sol";
 import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
@@ -33,6 +34,13 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
+import { IPendleRouter, ApproxParams, LimitOrderData } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
+import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
+import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
+import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
+import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
+import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
 
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
@@ -117,7 +125,7 @@ contract TestBaseMarketIsolated is TestBase {
         _deploySimpleCUSDC();
         _deployStrategyCBALRETH();
         _deployStrategyCBALRETHWithExitFee();
-
+        _deployPendleStrategyCTokenSTETH();
         _deployPendleZapper();
         _deployVelodromeZapper();
 
@@ -136,6 +144,7 @@ contract TestBaseMarketIsolated is TestBase {
         oracleManagers[chainId].addCTokenSupport(address(borrowableCDAI));
         oracleManagers[chainId].addCTokenSupport(address(strategyCBALRETH));
         oracleManagers[chainId].addCTokenSupport(address(strategyCBALRETHWithExitFee));
+        oracleManagers[chainId].addCTokenSupport(address(pendleStrategyCTokenSTETH));
     }
 
     function _deployBaseContracts() internal {
@@ -564,6 +573,22 @@ contract TestBaseMarketIsolated is TestBase {
             200
         );
         return strategyCBALRETHWithExitFee;
+    }
+
+    function _deployPendleStrategyCTokenSTETH()
+        internal
+        initMainVariables
+        returns (PendleLPCToken)
+    {
+        address _PENDLE_ROUTER = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+        pendleStrategyCTokenSTETH = pendleStrategyCTokens[block.chainid] = new PendleLPCToken(
+            ICentralRegistry(address(centralRegistry)),
+            IERC20(LP_wstETH_24Dec2025),
+            address(marketManagerIsolated),
+            IPendleRouter(_PENDLE_ROUTER),
+            1 days
+        );
+        return pendleStrategyCTokenSTETH;
     }
 
     function _deployPendleZapper()
@@ -1209,8 +1234,6 @@ contract TestBaseMarketIsolated is TestBase {
 
     function _harvestAuraStrategyRewards(uint256 time) internal {
 
-        uint256 exchangeRateBefore = strategyCBALRETH.exchangeRate();
-
         IBooster(_AURA_BOOSTER).earmarkRewards(109);
 
         skip(time);
@@ -1269,8 +1292,74 @@ contract TestBaseMarketIsolated is TestBase {
         } else {
             console2.log("Skipping harvest - netHarvestAmount is 0");
         }
+    }
 
-        uint256 exchangeRateAfter = strategyCBALRETH.exchangeRate();
+    function _harvestPendleLP(uint256 time) internal {
+        // Advance time and refresh mock feeds to avoid staleness
+        skip(time);
+        _refreshMockFeeds();
+
+        // Configure PENDLE price feed
+        address _PENDLE = 0x808507121B80c02388fAd14726482e061B8da827;
+        MockV3Aggregator chainlinkPendleUsd = new MockV3Aggregator(18, 4.8e18);
+        chainlinkAdaptor.addAsset(_PENDLE, true, address(chainlinkPendleUsd), 0);
+        oracleManager.addAssetPriceFeed(_PENDLE, address(chainlinkAdaptor));
+
+        address _UNISWAP_V3_SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+        centralRegistry.setExternalCalldataChecker(
+            _UNISWAP_V3_SWAP_ROUTER,
+            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
+        );
+
+        // Mint additional rewards
+        uint256 seededRewards = 100e18;
+        deal(_PENDLE, address(pendleStrategyCTokenSTETH), seededRewards);
+
+        // get net amount after protocol harvest fee
+        uint256 protocolFee = centralRegistry.protocolHarvestFee();
+        uint256 netHarvestAmount = (seededRewards * (BPS - protocolFee)) / BPS;
+
+        // Build swap
+        SwapperLib.Swap[] memory swaps = new SwapperLib.Swap[](1);
+        swaps[0].inputToken = _PENDLE;
+        swaps[0].inputAmount = netHarvestAmount;
+        swaps[0].outputToken = _WETH_ADDRESS;
+        swaps[0].target = _UNISWAP_V3_SWAP_ROUTER;
+        swaps[0].slippage = 0.3e18;
+
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _PENDLE;
+        params.tokenOut = _WETH_ADDRESS;
+        params.fee = 3000;
+        params.recipient = address(pendleStrategyCTokenSTETH);
+        params.deadline = block.timestamp;
+        params.amountIn = netHarvestAmount;
+        params.amountOutMinimum = 0;
+        params.sqrtPriceLimitX96 = 0;
+
+        swaps[0].call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector,
+            params
+        );
+
+        // Pendle router params
+        ApproxParams memory approx;
+        approx.guessMin = 1e10;
+        approx.guessMax = 1e18;
+        approx.guessOffchain = 0;
+        approx.maxIteration = 200;
+        approx.eps = 1e18;
+
+        LimitOrderData memory limit;
+
+        vm.startPrank(harvester);
+        pendleStrategyCTokenSTETH.harvest(abi.encode(swaps, 1e8, approx, limit));
+        vm.stopPrank();
+
+        uint256 vestingPeriod = 1 days;
+        skip(vestingPeriod);
+        _refreshMockFeeds();
+        pendleStrategyCTokenSTETH.accrueIfNeeded();
     }
 
     function _setMockFeedsInitial() internal {
@@ -1370,6 +1459,20 @@ contract TestBaseMarketIsolated is TestBase {
         oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(_STETH, address(dualChainlinkAdaptor));
 
+        /// Pendle LP Token (wSTETH-24Dec2025)
+        mockPendleLPFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
+        mockPendleLPFeed.setMockUpdatedAt(block.timestamp);
+        chainlinkAdaptor.addAsset(
+            address(LP_wstETH_24Dec2025),
+            true,
+            address(mockPendleLPFeed),
+            0
+        );
+        oracleManager.addAssetPriceFeed(
+            address(LP_wstETH_24Dec2025),
+            address(chainlinkAdaptor)
+        );
+
         /// BAL
         mockBALFeed = new MockDataFeed(
             0xdF2917806E30300537aEB49A7663062F4d1F2b5F
@@ -1436,6 +1539,7 @@ contract TestBaseMarketIsolated is TestBase {
         mockStethFeed.setMockUpdatedAt(block.timestamp);
         mockBALFeed.setMockUpdatedAt(block.timestamp);
         mockAURAFeed.setMockUpdatedAt(block.timestamp);
+        mockPendleLPFeed.setMockUpdatedAt(block.timestamp);
     }
 
     function _liquidationValuesOfHelper(

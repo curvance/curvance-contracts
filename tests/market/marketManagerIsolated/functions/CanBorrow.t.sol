@@ -17,19 +17,17 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         super.setUp();
 
         mockUsdcFeed.setMockAnswer(1e8);
-        mockWethFeed.setMockAnswer(1500e8);
-        mockRethFeed.setMockAnswer(1500e8);
         _refreshMockFeeds();
 
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 10_000_000e6);
     }
 
@@ -68,12 +66,12 @@ contract CanBorrowTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrow_fail_whenInsufficientLoanSize() public {
-        _prepareBALRETH(user1, 1_000e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 1_000e18);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 10e18);
-        strategyCBALRETH.deposit(10e18, user1);
-        strategyCBALRETH.postCollateral(10e18);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
+        pendleStrategyCTokenSTETH.deposit(10e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(10e18);
         vm.stopPrank();
 
         vm.prank(address(borrowableCUSDC));
@@ -93,11 +91,11 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100_000e6);
 
         // Need some cTokens/collateral to have enough liquidity for borrowing
-        _prepareBALRETH(user1, 10_000e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 1_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1_000e18);
-        strategyCBALRETH.deposit(1_000e18, user1);
-        strategyCBALRETH.postCollateral(999e18);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1_000e18);
+        pendleStrategyCTokenSTETH.deposit(1_000e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(999e18);
         vm.stopPrank();
 
         bool hasPosition = ILiquidityManager(address(marketManagerIsolated))
@@ -122,15 +120,15 @@ contract CanBorrowTest is TestBaseMarketIsolated {
 
         accountAssets = marketManagerIsolated.assetsOf(user1);
         assertEq(accountAssets.length, 2);
-        assertEq(address(accountAssets[0]), address(strategyCBALRETH));
+        assertEq(address(accountAssets[0]), address(pendleStrategyCTokenSTETH));
         assertEq(address(accountAssets[1]), address(borrowableCUSDC));
     }
 
     function test_canBorrow_fail_whenExceedsBorrowCap() external {
         vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
-        vm.prank(address(strategyCBALRETH));
+        vm.prank(address(pendleStrategyCTokenSTETH));
         marketManagerIsolated.canBorrow(
-            address(strategyCBALRETH),
+            address(pendleStrategyCTokenSTETH),
             100e6,
             user1,
             100e6
@@ -138,12 +136,12 @@ contract CanBorrowTest is TestBaseMarketIsolated {
     }
 
     function test_canBorrow_success_atDebtCapLimit() external {
-        _prepareBALRETH(user1, 1_000e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 1_000e18);
 
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 10e18);
-        strategyCBALRETH.deposit(10e18, user1);
-        strategyCBALRETH.postCollateral(10e18);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
+        pendleStrategyCTokenSTETH.deposit(10e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(10e18);
         vm.stopPrank();
 
         vm.prank(address(borrowableCUSDC));
@@ -163,11 +161,11 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         vm.prank(address(borrowableCUSDC));
         
         // Need some cTokens/collateral to have enough liquidity for borrowing
-        _prepareBALRETH(user1, 10_000e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 10_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1_000e18);
-        strategyCBALRETH.deposit(1_000e18, user1);
-        strategyCBALRETH.postCollateral(999e18);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1_000e18);
+        pendleStrategyCTokenSTETH.deposit(1_000e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(999e18);
 
         borrowableCUSDC.borrow(100e6, user1);
 
@@ -210,11 +208,11 @@ contract CanBorrowTest is TestBaseMarketIsolated {
         vm.prank(address(borrowableCUSDC));
         
         // Need some cTokens/collateral to have enough liquidity for borrowing
-        _prepareBALRETH(user1, 10_000e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 10_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1_000e18);
-        strategyCBALRETH.deposit(1_000e18, user1);
-        strategyCBALRETH.postCollateral(999e18);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1_000e18);
+        pendleStrategyCTokenSTETH.deposit(1_000e18, user1);
+        pendleStrategyCTokenSTETH.postCollateral(999e18);
 
         borrowableCUSDC.borrow(100e6, user1);
 

@@ -65,48 +65,39 @@ contract MixedAuction is TestBaseLiquidations {
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
-        chainlinkEthUsd.updateAnswer(1500e8);
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-
         _prepareUSDC(user1, _ONE);
         _prepareUSDC(address(this), _ONE);
 
-        _prepareBALRETH(user1, _ONE + 77777);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE + 77777);
 
         vm.prank(user1);
         usdc.approve(address(borrowableCUSDC), _ONE);
-        balRETH.approve(address(strategyCBALRETH), _ONE + 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE + 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
-        
-        mockWethFeed.setMockAnswer(3000e8);
-        mockRethFeed.setMockAnswer(3000e8);
-        _refreshMockFeeds();
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
-        _prepareBALRETH(liquidityProvider, 10e18);
+        deal(address(LP_wstETH_24Dec2025), liquidityProvider, 10e18);
         // Mint borrowable cUSDC.
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
         // Mint cBALETH.
-        balRETH.approve(address(strategyCBALRETH), 10e18);
-        strategyCBALRETH.deposit(10e18, liquidityProvider);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
+        pendleStrategyCTokenSTETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
 
-        mockBalEthRethFeed.setMockAnswer(2000e8);
+        mockPendleLPFeed.setMockAnswer(2000e8);
         _createPositions();
 
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
         borrowableCUSDC.accrueIfNeeded();
 
-        mockBalEthRethFeed.setMockAnswer(1300e8);
+        mockPendleLPFeed.setMockAnswer(1300e8);
 
         console2.log("SETUP COMPLETE");
     }
@@ -131,12 +122,12 @@ contract MixedAuction is TestBaseLiquidations {
         usdc.approve(address(borrowableCUSDC), 100000e6);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(pendleStrategyCTokenSTETH), validPenalty, closeFactor);
 
         ExpectedLiquidationValues memory auctionLiqValuesBorrower1 = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: auctionBorrowers[0],
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: false,
                 liquidateExactAmount: 0,
@@ -148,7 +139,7 @@ contract MixedAuction is TestBaseLiquidations {
         ExpectedLiquidationValues memory auctionLiqValuesBorrower2 = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: auctionBorrowers[0],
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: false,
                 liquidateExactAmount: 0,
@@ -167,7 +158,7 @@ contract MixedAuction is TestBaseLiquidations {
 
         borrowableCUSDC.liquidate(
             auctionBorrowers,
-            address(strategyCBALRETH)
+            address(pendleStrategyCTokenSTETH)
         );
 
         marketManagerIsolated.resetTransientLiquidationConfig();
@@ -180,7 +171,7 @@ contract MixedAuction is TestBaseLiquidations {
         vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedLiquidation.selector);
         borrowableCUSDC.liquidate(
             regularBorrowers,
-            address(strategyCBALRETH)
+            address(pendleStrategyCTokenSTETH)
         );
 
         // ===== Validate Auction Liquidations Only =====
@@ -199,23 +190,23 @@ contract MixedAuction is TestBaseLiquidations {
 
         // Verify collateral is reduced by collateralLiquidated for auction borrowers only
         assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(auctionBorrowers[0]),
+            pendleStrategyCTokenSTETH.balanceOf(auctionBorrowers[0]),
             collateralAmounts[0] - (auctionLiqValuesBorrower1.collateralLiquidated),
             1000, // Tolerance of 1000 wei 
             "Auction borrower 1 collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(auctionBorrowers[1]),
+            pendleStrategyCTokenSTETH.balanceOf(auctionBorrowers[1]),
             collateralAmounts[1] - (auctionLiqValuesBorrower2.collateralLiquidated),
             1000, // Tolerance of 1000 wei 
             "Auction borrower 2 collateral post liquidation mismatch"
         );
 
         // Regular borrowers should have unchanged collateral
-        assertEq(strategyCBALRETH.balanceOf(regularBorrowers[0]), collateralAmounts[2], 
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(regularBorrowers[0]), collateralAmounts[2], 
         "Regular borrower 1 collateral should be unchanged");
-        assertEq(strategyCBALRETH.balanceOf(regularBorrowers[1]), collateralAmounts[3], 
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(regularBorrowers[1]), collateralAmounts[3], 
         "Regular borrower 2 collateral should be unchanged");
 
         // Assert Total borrows is reduced by only the auction liquidations
@@ -234,14 +225,14 @@ contract MixedAuction is TestBaseLiquidations {
             auctionLiqValuesBorrower2.collateralLiquidated;
 
         assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(auctionPermsUser),
+            pendleStrategyCTokenSTETH.balanceOf(auctionPermsUser),
             expectedAuctionPermsUserLiquidatorBalance,
             1000,
             "Dapp control user didn't receive expected collateral from auction"
         );
 
         // This test liquidator should have no collateral since regular liquidation failed
-        assertEq(strategyCBALRETH.balanceOf(address(this)), 0, "Test liquidator should have no collateral");
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(address(this)), 0, "Test liquidator should have no collateral");
 
         // Verify lFactors
         // Auction borrowers should still have lFactor > 0 (partial liquidation)
@@ -277,7 +268,7 @@ contract MixedAuction is TestBaseLiquidations {
         ExpectedLiquidationValues memory regularLiqValuesBorrower3 = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: regularBorrowers[0],
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: false,
                 liquidateExactAmount: 0,
@@ -289,7 +280,7 @@ contract MixedAuction is TestBaseLiquidations {
         ExpectedLiquidationValues memory regularLiqValuesBorrower4 = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: regularBorrowers[1],
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: false,
                 liquidateExactAmount: 0,
@@ -312,7 +303,7 @@ contract MixedAuction is TestBaseLiquidations {
 
         borrowableCUSDC.liquidate(
             regularBorrowers,
-            address(strategyCBALRETH)
+            address(pendleStrategyCTokenSTETH)
         );
 
         // ===== Auction Liquidations Second =====
@@ -321,12 +312,12 @@ contract MixedAuction is TestBaseLiquidations {
         usdc.approve(address(borrowableCUSDC), 100000e6);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
-        marketManagerIsolated.setTransientLiquidationConfig(address(strategyCBALRETH), validPenalty, closeFactor);
+        marketManagerIsolated.setTransientLiquidationConfig(address(pendleStrategyCTokenSTETH), validPenalty, closeFactor);
 
         ExpectedLiquidationValues memory auctionLiqValuesBorrower1 = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: auctionBorrowers[0],
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: false,
                 liquidateExactAmount: 0,
@@ -338,7 +329,7 @@ contract MixedAuction is TestBaseLiquidations {
         ExpectedLiquidationValues memory auctionLiqValuesBorrower2 = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: auctionBorrowers[1],
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: false,
                 liquidateExactAmount: 0,
@@ -357,7 +348,7 @@ contract MixedAuction is TestBaseLiquidations {
 
         borrowableCUSDC.liquidate(
             auctionBorrowers,
-            address(strategyCBALRETH)
+            address(pendleStrategyCTokenSTETH)
         );
 
         marketManagerIsolated.resetTransientLiquidationConfig();
@@ -377,28 +368,28 @@ contract MixedAuction is TestBaseLiquidations {
 
         // Verify collateral is reduced by collateralLiquidated
         assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(auctionBorrowers[0]),
+            pendleStrategyCTokenSTETH.balanceOf(auctionBorrowers[0]),
             collateralAmounts[0] - (auctionLiqValuesBorrower1.collateralLiquidated),
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(auctionBorrowers[1]),
+            pendleStrategyCTokenSTETH.balanceOf(auctionBorrowers[1]),
             collateralAmounts[1] - (auctionLiqValuesBorrower2.collateralLiquidated),
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(regularBorrowers[0]),
+            pendleStrategyCTokenSTETH.balanceOf(regularBorrowers[0]),
             collateralAmounts[2] - (regularLiqValuesBorrower3.collateralLiquidated),
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(regularBorrowers[1]),
+            pendleStrategyCTokenSTETH.balanceOf(regularBorrowers[1]),
             collateralAmounts[3] - (regularLiqValuesBorrower4.collateralLiquidated),
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
@@ -428,14 +419,14 @@ contract MixedAuction is TestBaseLiquidations {
             regularLiqValuesBorrower4.collateralLiquidated;
 
         assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(auctionPermsUser),
+            pendleStrategyCTokenSTETH.balanceOf(auctionPermsUser),
             expectedAuctionPermsUserLiquidatorBalance,
             1000,
             "Dapp control user didn't receive expected collateral"
         );
 
         assertApproxEqAbs(
-            strategyCBALRETH.balanceOf(address(this)),
+            pendleStrategyCTokenSTETH.balanceOf(address(this)),
             expectedNormalUserLiquidatorBalance,
             1000,
             "Liquidator didn't receive expected collateral"
@@ -459,32 +450,32 @@ contract MixedAuction is TestBaseLiquidations {
     }
 
     function _createPositions() internal {
-        _prepareBALRETH(borrower1, collateralAmounts[0]);
-        _prepareBALRETH(borrower2, collateralAmounts[1]);
-        _prepareBALRETH(borrower3, collateralAmounts[2]);
-        _prepareBALRETH(borrower4, collateralAmounts[3]);
+        deal(address(LP_wstETH_24Dec2025), borrower1, collateralAmounts[0]);
+        deal(address(LP_wstETH_24Dec2025), borrower2, collateralAmounts[1]);
+        deal(address(LP_wstETH_24Dec2025), borrower3, collateralAmounts[2]);
+        deal(address(LP_wstETH_24Dec2025), borrower4, collateralAmounts[3]);
 
         vm.startPrank(borrower1);
-        balRETH.approve(address(strategyCBALRETH), collateralAmounts[0]);
-        strategyCBALRETH.depositAsCollateral(collateralAmounts[0], borrower1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[0]);
+        pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[0], borrower1);
         borrowableCUSDC.borrow(borrowAmount, borrower1);
         vm.stopPrank();
 
         vm.startPrank(borrower2);
-        balRETH.approve(address(strategyCBALRETH), collateralAmounts[1]);
-        strategyCBALRETH.depositAsCollateral(collateralAmounts[1], borrower2);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[1]);
+        pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[1], borrower2);
         borrowableCUSDC.borrow(borrowAmount, borrower2);
         vm.stopPrank();
 
         vm.startPrank(borrower3);
-        balRETH.approve(address(strategyCBALRETH), collateralAmounts[2]);
-        strategyCBALRETH.depositAsCollateral(collateralAmounts[2], borrower3);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[2]);
+        pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[2], borrower3);
         borrowableCUSDC.borrow(borrowAmount, borrower3);
         vm.stopPrank();
 
         vm.startPrank(borrower4);
-        balRETH.approve(address(strategyCBALRETH), collateralAmounts[3]);
-        strategyCBALRETH.depositAsCollateral(collateralAmounts[3], borrower4);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[3]);
+        pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[3], borrower4);
         borrowableCUSDC.borrow(borrowAmount, borrower4);
         vm.stopPrank();
 

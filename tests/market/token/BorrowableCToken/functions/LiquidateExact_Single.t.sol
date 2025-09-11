@@ -54,13 +54,13 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         uint256[] memory debtAmounts
     ) internal {
         // Cache values before liquidation
-        uint256 liquidatorBalanceBefore = strategyCBALRETH.balanceOf(user2);
+        uint256 liquidatorBalanceBefore = pendleStrategyCTokenSTETH.balanceOf(user2);
         uint256 totalBorrowsBefore = borrowableCUSDC.marketOutstandingDebt();
-        uint256 borrowerCollateralBefore = strategyCBALRETH.balanceOf(user1);
+        uint256 borrowerCollateralBefore = pendleStrategyCTokenSTETH.balanceOf(user1);
 
         LiquidationParams memory params = LiquidationParams({   
             borrower: accounts[0],
-            collateralToken: address(strategyCBALRETH),
+            collateralToken: address(pendleStrategyCTokenSTETH),
             borrowedToken: address(borrowableCUSDC),
             isLiquidateExact: true,
             liquidateExactAmount: debtAmounts[0],
@@ -80,7 +80,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         borrowableCUSDC.liquidateExact(
             debtAmounts,
             accounts,
-            address(strategyCBALRETH)
+            address(pendleStrategyCTokenSTETH)
         );
         vm.stopPrank();
 
@@ -118,7 +118,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
     }
 
     function _assertCollateralSeizure(uint256 _collateralAmount, uint256 collateralLiquidated) internal view {
-        uint256 borrowerCollateralAfter = strategyCBALRETH.balanceOf(user1);
+        uint256 borrowerCollateralAfter = pendleStrategyCTokenSTETH.balanceOf(user1);
         uint256 expectedBorrowerCollateralAfter = _collateralAmount - collateralLiquidated;
         
         assertApproxEqAbs(
@@ -130,7 +130,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
     }
 
     function _assertLiquidatorRewards(uint256 liquidatorBalanceBefore, uint256 collateralLiquidated) internal view {
-        uint256 liquidatorBalanceAfter = strategyCBALRETH.balanceOf(user2);
+        uint256 liquidatorBalanceAfter = pendleStrategyCTokenSTETH.balanceOf(user2);
         
         assertApproxEqAbs(
             liquidatorBalanceAfter - liquidatorBalanceBefore,
@@ -170,7 +170,7 @@ contract LiquidateExactSingleTest is TestBaseBorrowableCToken {
         
         // Verify collateral exchange rate increased because of harvest
         assertGt(
-            strategyCBALRETH.exchangeRate(),
+            pendleStrategyCTokenSTETH.exchangeRate(),
             _ONE,
             "Exchange rate should increase because of harvest"
         );

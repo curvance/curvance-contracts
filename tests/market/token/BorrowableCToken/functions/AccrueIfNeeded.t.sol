@@ -16,14 +16,14 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         super.setUp();
 
         _prepareUSDC(address(this), 77777);
-        _prepareBALRETH(address(this), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
         
         usdc.approve(address(borrowableCUSDC), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
         liquidityProvider = makeAddr("liqProvider");
@@ -43,10 +43,10 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
     
     function test_success_accrueIfNeeded_singleVestingPeriod() public {
 
-        _prepareBALRETH(user1, 250e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 250e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 250e18);
-        strategyCBALRETH.depositAsCollateral(250e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 250e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(250e18, user1);
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
@@ -79,10 +79,10 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
     function test_success_accrueIfNeeded_multipleVestingPeriods() public {
 
-        _prepareBALRETH(user1, 250e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 250e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 250e18);
-        strategyCBALRETH.depositAsCollateral(250e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 250e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(250e18, user1);
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
@@ -106,10 +106,10 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
     function test_success_accrueIfNeeded_noTimeElapsed() public {
 
-        _prepareBALRETH(user1, 250e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 250e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 250e18);
-        strategyCBALRETH.depositAsCollateral(250e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 250e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(250e18, user1);
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
@@ -134,10 +134,10 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
     function test_success_accrueIfNeeded_vestingPeriodTransition() public {
 
-        _prepareBALRETH(user1, 250e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 250e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 250e18);
-        strategyCBALRETH.depositAsCollateral(250e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 250e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(250e18, user1);
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
@@ -198,10 +198,10 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
     function test_success_accrueIfNeeded_verifyAccountingAllParties() public {
 
-        _prepareBALRETH(user1, 250e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 250e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 250e18);
-        strategyCBALRETH.depositAsCollateral(250e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 250e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(250e18, user1);
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
@@ -267,10 +267,10 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
     // More targeted assertions for dao
     function test_success_accrueIfNeeded_protocolFeeAccounting() public {
 
-        _prepareBALRETH(user1, 250e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 250e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 250e18);
-        strategyCBALRETH.depositAsCollateral(250e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 250e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(250e18, user1);
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
@@ -323,10 +323,10 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         // set protocol fee to 0
         borrowableCUSDC.setInterestFee(0);
 
-        _prepareBALRETH(user1, 250e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 250e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 250e18);
-        strategyCBALRETH.depositAsCollateral(250e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 250e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(250e18, user1);
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
@@ -386,10 +386,10 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         borrowableCUSDC.deposit(50000e6, liquidityProvider);
         vm.stopPrank();
 
-        _prepareBALRETH(user1, 2500e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 2500e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 2500e18);
-        strategyCBALRETH.depositAsCollateral(2500e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 2500e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(2500e18, user1);
         borrowableCUSDC.borrow(25000e6, user1);
         vm.stopPrank();
 
@@ -487,24 +487,24 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         borrowableCUSDC.deposit(80000e6, liquidityProvider);
         vm.stopPrank();
 
-        _prepareBALRETH(user1, 2000e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 2000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 2000e18);
-        strategyCBALRETH.depositAsCollateral(2000e18, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 2000e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(2000e18, user1);
         borrowableCUSDC.borrow(35000e6, user1);
         vm.stopPrank();
 
-        _prepareBALRETH(user2, 1000e18);
+        deal(address(LP_wstETH_24Dec2025), user2, 1000e18);
         vm.startPrank(user2);
-        balRETH.approve(address(strategyCBALRETH), 1000e18);
-        strategyCBALRETH.depositAsCollateral(1000e18, user2);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1000e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(1000e18, user2);
         borrowableCUSDC.borrow(20000e6, user2);
         vm.stopPrank();
 
-        _prepareBALRETH(user3, 500e18);
+        deal(address(LP_wstETH_24Dec2025), user3, 500e18);
         vm.startPrank(user3);
-        balRETH.approve(address(strategyCBALRETH), 500e18);
-        strategyCBALRETH.depositAsCollateral(500e18, user3);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 500e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(500e18, user3);
         borrowableCUSDC.borrow(10000e6, user3);
         vm.stopPrank();
 

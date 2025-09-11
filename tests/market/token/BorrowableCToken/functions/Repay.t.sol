@@ -10,11 +10,11 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
     function setUp() public override {
         super.setUp();
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
         _prepareUSDC(address(borrowableCUSDC), 2000e6);
 
-        strategyCBALRETH.postCollateral(1e18 - 1);
+        pendleStrategyCTokenSTETH.postCollateral(1e18 - 1);
 
         _prepareUSDC(address(user1), 1000e6);
 
@@ -45,7 +45,7 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenRepay_success() public {
-        _harvestAuraStrategyRewards(1 weeks);
+        _harvestPendleLP(1 weeks);
 
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
@@ -134,7 +134,7 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
     function test_borrowers_repayAllDebts() public {
         uint256 _BASE_UNDERLYING_RESERVE = 77777;
         uint256 initialUsdcReserves = 1000e6;
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
 
         uint256 addUsdcAmount = 1500e6;
         borrowableCUSDC.mint(
@@ -153,16 +153,16 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
         // 1. users post collateral and borrow 100 usdc
         for (uint i; i < 3; ++i) {
             address user = users[i];
-            deal(address(strategyCBALRETH), user, 1e18);
+            deal(address(pendleStrategyCTokenSTETH), user, 1e18);
             vm.startPrank(user);
-            strategyCBALRETH.postCollateral(1e18 - 1);
+            pendleStrategyCTokenSTETH.postCollateral(1e18 - 1);
             borrowableCUSDC.borrow(100e6, user);
             vm.stopPrank();
         }
 
         // 2. repay user101 and user102 all debt after two days
         skip(2 days);
-        _harvestAuraStrategyRewards(2 weeks);
+        _harvestPendleLP(2 weeks);
         for (uint i; i < 2; ++i) {
             address user = users[i];
             vm.startPrank(user);

@@ -25,24 +25,24 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     function testTokenInteractions_cTokenMintRedeem() public {
         _deployMarket();
 
-        _prepareBALRETH(user1, 2e18);
+        deal(address(LP_wstETH_24Dec2025), user1, 2e18);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.mint(_ONE, user1);
-        assertEq(strategyCBALRETH.balanceOf(user1), _ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.mint(_ONE, user1);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), _ONE);
 
         // try mint to another user
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.mint(_ONE, user2);
-        assertEq(strategyCBALRETH.balanceOf(user1), _ONE);
-        assertEq(strategyCBALRETH.balanceOf(user2), _ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.mint(_ONE, user2);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), _ONE);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user2), _ONE);
 
         // try redeem()
-        strategyCBALRETH.redeem(_ONE, user1, user1);
+        pendleStrategyCTokenSTETH.redeem(_ONE, user1, user1);
         vm.stopPrank();
-        assertEq(strategyCBALRETH.balanceOf(user1), 0);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), 0);
     }
 
     function testTokenInteractions_borrowableCTokenMintRedeem() public {
@@ -70,16 +70,16 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
     function testTokenInteractions_borrowableCTokenBorrowRepay() public {
         _deployMarket();
-        _prepareBALRETH(user1, _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, user1);
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
 
-        assertEq(strategyCBALRETH.balanceOf(user1), _ONE);
-        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), _ONE);
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), _ONE);
 
         uint256 priceDecimals = mockDaiFeed.decimals();
         (, int256 daiPrice, , , ) = mockDaiFeed.latestRoundData();
@@ -140,13 +140,13 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
     function testTokenInteractions_cTokenRedeemOnBorrow() public {
         _deployMarket();
-        _prepareBALRETH(user1, _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, user1);
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
 
         // try borrow()
         borrowableCDAI.borrow(500e18, user1);
@@ -158,24 +158,24 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.expectRevert(
             bytes4(keccak256("MarketManager__InsufficientCollateral()"))
         );
-        strategyCBALRETH.redeem(_ONE, user1, user1);
+        pendleStrategyCTokenSTETH.redeem(_ONE, user1, user1);
 
         // can redeem partially
-        strategyCBALRETH.redeem(0.2e18, user1, user1);
+        pendleStrategyCTokenSTETH.redeem(0.2e18, user1, user1);
         vm.stopPrank();
 
-        assertEq(strategyCBALRETH.balanceOf(user1), 0.8e18);
-        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), 0.8e18);
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), _ONE);
     }
 
     function testTokenInteractions_borrowableCTokenRedeemOnBorrow() public {
         _deployMarket();
         // try mint()
-        _prepareBALRETH(user1, _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, user1);
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
 
         // try mint()
         _prepareDAI(user1, 1000e18);
@@ -198,8 +198,8 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         borrowableCDAI.redeem(1000e18, address(this), user1);
         vm.stopPrank();
 
-        assertEq(strategyCBALRETH.balanceOf(user1), _ONE);
-        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), _ONE);
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertGt(borrowableCDAI.debtBalance(user1), 500e18);
@@ -208,13 +208,13 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
     function testTokenInteractions_cTokenTransferOnBorrow() public {
         _deployMarket();
-        _prepareBALRETH(user1, _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, user1);
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
 
         // try borrow()
         borrowableCDAI.borrow(500e18, user1);
@@ -226,25 +226,25 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.expectRevert(
             bytes4(keccak256("MarketManager__InsufficientCollateral()"))
         );
-        strategyCBALRETH.transfer(user2, _ONE);
+        pendleStrategyCTokenSTETH.transfer(user2, _ONE);
 
         // can redeem partially
-        strategyCBALRETH.transfer(user2, 0.2e18);
+        pendleStrategyCTokenSTETH.transfer(user2, 0.2e18);
         vm.stopPrank();
 
-        assertEq(strategyCBALRETH.balanceOf(user1), 0.8e18);
-        assertEq(strategyCBALRETH.balanceOf(user2), 0.2e18);
-        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), 0.8e18);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user2), 0.2e18);
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), _ONE);
     }
 
     function testTokenInteractions_borrowableCTokenTransferOnBorrow() public {
         _deployMarket();
         // try mint()
-        _prepareBALRETH(user1, _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE);
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, user1);
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
 
         // try mint()
         _prepareDAI(user1, 1000e18);
@@ -261,8 +261,8 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         borrowableCDAI.transfer(user2, 1000e18);
         vm.stopPrank();
 
-        assertEq(strategyCBALRETH.balanceOf(user1), _ONE);
-        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), _ONE);
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         // accrueIfNeeded is called in transfer, so debt balance is increased
@@ -276,13 +276,13 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     function testTokenInteractions_liquidationExact() public {
         _deployMarket();
 
-        _prepareBALRETH(user1, _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, user1);
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
 
         // try borrow()
         borrowableCDAI.borrow(3000e18, user1);
@@ -299,7 +299,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: user1,
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCDAI),
                 isLiquidateExact: true,
                 liquidateExactAmount: 250e18,
@@ -320,11 +320,11 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         borrowableCDAI.liquidateExact(
             debtAmounts,
             accounts,
-            address(strategyCBALRETH));
+            address(pendleStrategyCTokenSTETH));
         vm.stopPrank();
 
         _assertCollateralSeizure(_ONE, expectedLiquidationValues.collateralLiquidated);
-        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), _ONE);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
 
@@ -336,13 +336,13 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     function testTokenInteractions_liquidation() public {
         _deployMarket();
 
-        _prepareBALRETH(user1, _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE); 
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, user1);
+        pendleStrategyCTokenSTETH.postCollateral(_ONE); 
 
         // try borrow()
         borrowableCDAI.borrow(3000e18, user1);
@@ -357,7 +357,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: user1,
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCDAI),
                 isLiquidateExact: false,
                 liquidateExactAmount: 0,
@@ -374,12 +374,12 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         address[] memory accounts = new address[](1);
         accounts[0] = user1;
 
-        borrowableCDAI.liquidate(accounts, address(strategyCBALRETH));
+        borrowableCDAI.liquidate(accounts, address(pendleStrategyCTokenSTETH));
         vm.stopPrank();
 
         _assertCollateralSeizure(_ONE, expectedLiquidationValues.collateralLiquidated);
 
-        assertEq(strategyCBALRETH.exchangeRate(), _ONE);
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), _ONE);
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertEq(borrowableCDAI.debtBalance(user1), 0);
         assertLt(borrowableCDAI.exchangeRate(), _ONE, "exchange rate should lower because of bad debt");
@@ -388,13 +388,13 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     function testTokenInteractions_liquidationWithFullValueLoss() public {
         _deployMarket();
 
-        _prepareBALRETH(user1, _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, user1);
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
 
         // try borrow()
         borrowableCDAI.borrow(1000e18, user1);
@@ -413,10 +413,10 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         accounts[0] = user1;
         borrowableCDAI.liquidate(
             accounts,
-            address(strategyCBALRETH));
+            address(pendleStrategyCTokenSTETH));
         vm.stopPrank();
 
-        assertEq(strategyCBALRETH.balanceOf(user1), 0);
+        assertEq(pendleStrategyCTokenSTETH.balanceOf(user1), 0);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertApproxEqRel(borrowableCDAI.debtBalance(user1), 0, 1000);
@@ -426,13 +426,13 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     function testTokenInteractions_softLiquidation() public {
         _deployMarket();
 
-        _prepareBALRETH(user1, _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, user1);
-        strategyCBALRETH.postCollateral(_ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, user1);
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
 
         // try borrow()
         borrowableCDAI.borrow(3000e18, user1);
@@ -446,12 +446,12 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         uint256 debtBefore = borrowableCDAI.debtBalanceUpdated(user1);
         console2.log("debtBefore", debtBefore);
-        console2.log("collateralBefore", strategyCBALRETH.balanceOf(user1));
+        console2.log("collateralBefore", pendleStrategyCTokenSTETH.balanceOf(user1));
 
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
             LiquidationParams({
                 borrower: user1,
-                collateralToken: address(strategyCBALRETH),
+                collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCDAI),
                 isLiquidateExact: false,
                 liquidateExactAmount: 0,
@@ -471,15 +471,15 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         borrowableCDAI.liquidate(
             accounts,
-            address(strategyCBALRETH));
+            address(pendleStrategyCTokenSTETH));
         vm.stopPrank();
 
         assertEq(
-            strategyCBALRETH.balanceOf(user1), 
+            pendleStrategyCTokenSTETH.balanceOf(user1), 
             _ONE - expectedLiquidationValues.collateralLiquidated,
-            "strategyCBALRETH balance of user1 should be reduced by collateral liquidated"
+            "pendleStrategyCTokenSTETH balance of user1 should be reduced by collateral liquidated"
         );
-        assertEq(strategyCBALRETH.exchangeRate(), _ONE, "strategyCBALRETH exchange rate should be 1");
+        assertEq(pendleStrategyCTokenSTETH.exchangeRate(), _ONE, "pendleStrategyCTokenSTETH exchange rate should be 1");
 
         assertEq(borrowableCDAI.balanceOf(user1), 0, "borrowableCDAI balance of user1 should be 0");
         assertApproxEqRel(borrowableCDAI.debtBalance(user1), debtBefore - expectedLiquidationValues.debtRepaid, 0.01e18, "borrowableCDAI debt balance should be reduced by debt repaid");
@@ -489,20 +489,20 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     function testTokenInteractions_revertBorrowAndLiquidateWithZeroCollRatio() public {
         _deployMarketForZeroCollateralTest();
 
-        _setCTokenConfigCollateralOff(address(strategyCBALRETH), 0);
+        _setCTokenConfigCollateralOff(address(pendleStrategyCTokenSTETH), 0);
 
-        _prepareBALRETH(user1, _ONE);
+        deal(address(LP_wstETH_24Dec2025), user1, _ONE);
 
         // try mint()
         vm.startPrank(user1);
 
-        balRETH.approve(address(strategyCBALRETH), _ONE);
-        strategyCBALRETH.deposit(_ONE, user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.deposit(_ONE, user1);
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__CapReached.selector
         );
-        strategyCBALRETH.postCollateral(_ONE);
+        pendleStrategyCTokenSTETH.postCollateral(_ONE);
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
@@ -528,11 +528,11 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         );
         borrowableCDAI.liquidate(
             accounts,
-            address(strategyCBALRETH));
+            address(pendleStrategyCTokenSTETH));
         vm.stopPrank();
 
         vm.prank(user1);
-        strategyCBALRETH.withdraw(_ONE, user1, user1);
+        pendleStrategyCTokenSTETH.withdraw(_ONE, user1, user1);
     }
 
     function _assertDebtReduction(uint256 debtAmount, uint256 expectedBadDebt, uint256 debtBalancesPreLiquidation) internal view {
@@ -560,9 +560,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         console2.log("collateralAmount", _collateralAmount);
         console2.log("collateralLiquidated", collateralLiquidated);
-        console2.log("borrowerCollateralAfter", strategyCBALRETH.balanceOf(user1));
+        console2.log("borrowerCollateralAfter", pendleStrategyCTokenSTETH.balanceOf(user1));
 
-        uint256 borrowerCollateralAfter = strategyCBALRETH.balanceOf(user1);
+        uint256 borrowerCollateralAfter = pendleStrategyCTokenSTETH.balanceOf(user1);
         uint256 expectedBorrowerCollateralAfter = _collateralAmount - collateralLiquidated;
 
         assertApproxEqAbs(
@@ -636,15 +636,15 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             dai.approve(address(borrowableCDAI), 200_000e18);
         }
 
-        // Setup strategyCBALRETH.
+        // Setup pendleStrategyCTokenSTETH.
         {
-            _prepareBALRETH(owner, _ONE);
-            balRETH.approve(address(strategyCBALRETH), _ONE);
+            deal(address(LP_wstETH_24Dec2025), owner, _ONE);
+            LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
         }
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCDAI));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
 
         // provide enough liquidity
@@ -716,15 +716,15 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             
         }
 
-        // Setup strategyCBALRETH.
+        // Setup pendleStrategyCTokenSTETH.
         {
-            _prepareBALRETH(owner, _ONE);
-            balRETH.approve(address(strategyCBALRETH), _ONE);
+            deal(address(LP_wstETH_24Dec2025), owner, _ONE);
+            LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
         }
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCDAI));
 
-        _setCTokenConfigCollateralOff(address(strategyCBALRETH), 0);
+        _setCTokenConfigCollateralOff(address(pendleStrategyCTokenSTETH), 0);
         _setCTokenConfigBasic(address(borrowableCDAI), 0, 100_000e18);
 
         // provide enough liquidity
@@ -734,14 +734,14 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     function _provideEnoughLiquidityForLeverage() internal {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 200_000e18);
-        _prepareBALRETH(liquidityProvider, 10e18);
+        deal(address(LP_wstETH_24Dec2025), liquidityProvider, 10e18);
         // Mint borrowable cDAI.
         vm.startPrank(liquidityProvider);
         dai.approve(address(borrowableCDAI), 200_000e18);
         borrowableCDAI.deposit(200_000e18, liquidityProvider);
         // Mint cBALETH.
-        balRETH.approve(address(strategyCBALRETH), 10e18);
-        strategyCBALRETH.deposit(10e18, liquidityProvider);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
+        pendleStrategyCTokenSTETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
     }
 }

@@ -57,10 +57,10 @@ contract SetIRMTest is TestBaseBorrowableCToken {
     function test_setIRM_success_withOutstandingDebt() public {
         _prepareUSDC(address(this), 2000e6);
         borrowableCUSDC.deposit(2000e6, address(this));
-        strategyCBALRETH.postCollateral(1e18 - 1);
+        pendleStrategyCTokenSTETH.postCollateral(1e18 - 1);
         borrowableCUSDC.borrow(1000e6, address(this));
 
-        _harvestAuraStrategyRewards(4 weeks);
+        _harvestPendleLP(4 weeks);
 
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();

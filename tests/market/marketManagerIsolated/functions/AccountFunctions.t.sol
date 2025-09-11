@@ -17,14 +17,14 @@ contract AccountFunctionsTest is TestBaseLiquidations {
     function test_assetsOf() public {
         address[] memory assets = marketManagerIsolated.assetsOf(user1);
         assertEq(assets.length, 2);
-        assertEq(address(assets[0]), address(strategyCBALRETH));
+        assertEq(address(assets[0]), address(pendleStrategyCTokenSTETH));
         assertEq(address(assets[1]), address(borrowableCUSDC));
     }
 
     function test_statusOf() public {
         mockUsdcFeed.setMockAnswer(1e8); // reset price back to $1
 
-        strategyCBALRETH.accrueIfNeeded();
+        pendleStrategyCTokenSTETH.accrueIfNeeded();
         borrowableCUSDC.accrueIfNeeded();
 
         (uint256 accountCollateral, uint256 maxDebt, uint256 accountDebt) = marketManagerIsolated.statusOf(user1);

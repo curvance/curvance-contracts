@@ -16,13 +16,13 @@ contract SetTransferPausedTest is TestBaseMarketIsolated {
     }
 
     function test_setTransferPaused_success() public {
-        deal(address(balRETH), address(this), 77777);
-        balRETH.approve(address(strategyCBALRETH), 77777);
+        deal(address(LP_wstETH_24Dec2025), address(this), 77777);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 77777);
 
         deal(address(_USDC_ADDRESS), address(this), 77777);
         usdc.approve(address(borrowableCUSDC), 77777);
 
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCUSDC));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
 
         vm.prank(address(borrowableCUSDC));
         marketManagerIsolated.canTransfer(address(borrowableCUSDC), 100, address(this), 0, 1, false);

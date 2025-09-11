@@ -82,16 +82,16 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
             
         }
 
-        // Setup strategyCBALRETH.
+        // Setup pendleStrategyCTokenSTETH.
         {
-            _prepareBALRETH(owner, 1 ether);
-            balRETH.approve(address(strategyCBALRETH), 1 ether);
+            deal(address(LP_wstETH_24Dec2025), owner, 1 ether);
+            LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1 ether);
         }
 
         // List the tokens.
-        marketManagerIsolated.listTokens(address(strategyCBALRETH), address(borrowableCDAI));
+        marketManagerIsolated.listTokens(address(pendleStrategyCTokenSTETH), address(borrowableCDAI));
 
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCDAI), 100_000e18, 100_000e18);
     }
 
@@ -107,20 +107,20 @@ contract TestBorrowableCTokenDelegatedBorrowing is TestBaseMarketIsolated {
     function testDelegatedBorrowing() public {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 1000 ether);
-        _prepareBALRETH(liquidityProvider, 10 ether);
+        deal(address(LP_wstETH_24Dec2025), liquidityProvider, 10 ether);
         // Mint borrowable cDAI.
         vm.startPrank(liquidityProvider);
         dai.approve(address(borrowableCDAI), 1000 ether);
         borrowableCDAI.mint(1000 ether, liquidityProvider);
         vm.stopPrank();
 
-        _prepareBALRETH(user1, 1 ether);
+        deal(address(LP_wstETH_24Dec2025), user1, 1 ether);
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(strategyCBALRETH), 1 ether);
-        strategyCBALRETH.deposit(1 ether, user1);
-        strategyCBALRETH.postCollateral(1 ether - 1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 1 ether);
+        pendleStrategyCTokenSTETH.deposit(1 ether, user1);
+        pendleStrategyCTokenSTETH.postCollateral(1 ether - 1);
 
         // delegate borrow
         borrowableCDAI.setDelegateApproval(user2, true);
