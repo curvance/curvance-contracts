@@ -29,7 +29,7 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
         _harvestPendleLP(2 weeks);
 
         // set mock prices
-        mockPendleLPFeed.setMockAnswer(1185e8);
+        mockStethFeed.setMockAnswer(500e8);
 
         // accrue interest
         borrowableCUSDC.accrueIfNeeded();

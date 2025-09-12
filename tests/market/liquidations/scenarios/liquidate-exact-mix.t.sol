@@ -84,12 +84,9 @@ contract LiquidateExactMix is TestBaseLiquidations {
         pendleStrategyCTokenSTETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
 
-        mockPendleLPFeed.setMockAnswer(2000e8);
-
         _createPositions();
-
-        mockPendleLPFeed.setMockAnswer(1300e8);
-
+        mockStethFeed.setMockAnswer(500e8);
+        
         console2.log("SETUP COMPLETE");
     }
 

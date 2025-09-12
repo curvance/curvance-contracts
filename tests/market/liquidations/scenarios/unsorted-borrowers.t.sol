@@ -66,8 +66,7 @@ contract TestUnsortedBorrowersLiquidationTest is TestBaseLiquidations {
 
         _createPositions();
 
-        mockPendleLPFeed.setMockAnswer(1100e8);
-        
+        mockStethFeed.setMockAnswer(400e8);
     }
 
     function test_fail_whenUnsortedBorrowers() public {

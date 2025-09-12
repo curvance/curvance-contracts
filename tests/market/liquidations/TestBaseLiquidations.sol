@@ -88,7 +88,7 @@ contract TestBaseLiquidations is TestBaseMarketIsolated {
         // skip 20 min hold period in harvestPendleLP
         _harvestPendleLP(1 weeks);
 
-        mockUsdcFeed.setMockAnswer(1.2e8);
+        mockUsdcFeed.setMockAnswer(3e8);
         // Refresh all mock feeds to ensure they're not stale after time advance
         _refreshMockFeeds();
 

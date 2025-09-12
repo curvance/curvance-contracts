@@ -86,9 +86,7 @@ contract VaryingHealthFactors is TestBaseLiquidations {
 
         _createPositions();
 
-        mockPendleLPFeed.setMockAnswer(1100e8);
-
-        // vm.warp(block.timestamp + 20 minutes); skipping so no interest accrues which keeps it simple
+        mockStethFeed.setMockAnswer(450e8);
     }
 
     function test_multipleUsersLiquidatedWithVaryingHealthFactors() public {

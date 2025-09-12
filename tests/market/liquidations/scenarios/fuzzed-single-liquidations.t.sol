@@ -54,6 +54,11 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         vm.roll(block.number + 1000);
 
         chainlinkEthUsd.updateAnswer(int256(INITIAL_PRICE));
+        // Initialize stETH mock feed to the same initial price and mark it fresh
+        mockStethFeed.setMockAnswer(int256(INITIAL_PRICE));
+        mockStethFeed.setMockUpdatedAt(block.timestamp);
+        // Ensure USDC mock feed reflects $1.00 to align minimum loan size checks
+        mockUsdcFeed.setMockAnswer(int256(1e8));
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockAnswer(int256(INITIAL_PRICE));
         mockRethFeed.setMockAnswer(int256(INITIAL_PRICE));
@@ -117,8 +122,8 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         vm.stopPrank();
 
         skip(_accrualTime);
-        mockWethFeed.setMockAnswer(_oraclePrice);
-        mockRethFeed.setMockAnswer(_oraclePrice);
+        // Since the Pendle LP uses stETH as the quote asset, move stETH to drive collateral pricing
+        mockStethFeed.setMockAnswer(_oraclePrice);
         _refreshMockFeeds();
         borrowableCUSDC.accrueIfNeeded();
 

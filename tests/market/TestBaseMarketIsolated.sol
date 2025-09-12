@@ -134,7 +134,8 @@ contract TestBaseMarketIsolated is TestBase {
         _deployUniswapV2CalldataChecker();
 
         _setMockFeedsInitial();
-
+        _deployPendleOracleAdaptor();
+        
         // Create a dapp control user.
         vm.startPrank(centralRegistry.daoAddress());
         centralRegistry.addAuctionPermissions(auctionPermsUser);
@@ -573,6 +574,32 @@ contract TestBaseMarketIsolated is TestBase {
             200
         );
         return strategyCBALRETHWithExitFee;
+    }
+
+    function _deployPendleOracleAdaptor()
+        internal
+        initMainVariables
+        returns (PendleLPTokenAdaptor)
+    {
+        address _PT_ORACLE = 0x14030836AEc15B2ad48bB097bd57032559339c92;
+
+        PendleLPTokenAdaptor pendleAdaptor = new PendleLPTokenAdaptor(
+            ICentralRegistry(address(centralRegistry)),
+            IPendlePTOracle(_PT_ORACLE)
+        );
+        (, IPPrincipalToken pendlePt, ) = IPMarket(address(LP_wstETH_24Dec2025)).readTokens();
+
+        PendleLPTokenAdaptor.AssetConfig memory assetConfig;
+        assetConfig.twapDuration = 12;
+        assetConfig.quoteAsset = _STETH;
+        assetConfig.pt = address(pendlePt);
+        assetConfig.quoteAssetDecimals = 18;
+
+        pendleAdaptor.addAsset(address(LP_wstETH_24Dec2025), assetConfig);
+        oracleManager.addApprovedAdaptor(address(pendleAdaptor));
+        oracleManager.addAssetPriceFeed(address(LP_wstETH_24Dec2025), address(pendleAdaptor));
+
+        return pendleAdaptor;
     }
 
     function _deployPendleStrategyCTokenSTETH()
@@ -1459,19 +1486,8 @@ contract TestBaseMarketIsolated is TestBase {
         oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(_STETH, address(dualChainlinkAdaptor));
 
-        /// Pendle LP Token (wSTETH-24Dec2025)
-        mockPendleLPFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        mockPendleLPFeed.setMockUpdatedAt(block.timestamp);
-        chainlinkAdaptor.addAsset(
-            address(LP_wstETH_24Dec2025),
-            true,
-            address(mockPendleLPFeed),
-            0
-        );
-        oracleManager.addAssetPriceFeed(
-            address(LP_wstETH_24Dec2025),
-            address(chainlinkAdaptor)
-        );
+        // Pendle LP Token (wSTETH-24Dec2025) price is provided by PendleLPTokenAdaptor.
+        // Do not register a Chainlink mock feed for the LP to avoid dual-feed divergence.
 
         /// BAL
         mockBALFeed = new MockDataFeed(
@@ -1539,7 +1555,6 @@ contract TestBaseMarketIsolated is TestBase {
         mockStethFeed.setMockUpdatedAt(block.timestamp);
         mockBALFeed.setMockUpdatedAt(block.timestamp);
         mockAURAFeed.setMockUpdatedAt(block.timestamp);
-        mockPendleLPFeed.setMockUpdatedAt(block.timestamp);
     }
 
     function _liquidationValuesOfHelper(

@@ -261,10 +261,8 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
             debtRepaid: 0,
             badDebt: 0
         });
-
-        // Price of ETH drops and mockPendleLPFeed collateral goes below required collateral ratio
-        mockPendleLPFeed.setMockAnswer(1000e8);
-
+        mockStethFeed.setMockAnswer(500e8);
+        
         vm.prank(address(borrowableCUSDC));
 
         // =================== RESULTS ==================

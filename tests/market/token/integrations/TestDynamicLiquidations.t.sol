@@ -111,7 +111,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         pendleStrategyCTokenSTETH.postCollateral(1 ether - 1);
 
         // try borrow()
-        borrowableCDAI.borrow(3000 ether, user1);
+        borrowableCDAI.borrow(5000 ether, user1);
         vm.stopPrank();
 
         // skip min hold period
@@ -119,7 +119,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
 
         borrowableCDAI.accrueIfNeeded();
 
-        mockDaiFeed.setMockAnswer(1.5e8);
+        mockDaiFeed.setMockAnswer(2e8);
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
         ExpectedLiquidationValues memory expectedLiqValues = _calculateExpectedLiquidationValues(
@@ -168,7 +168,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         assertEq(pendleStrategyCTokenSTETH.exchangeRate(), 1 ether);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
-        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 3000 ether - (expectedLiqValues.badDebt + 250 ether), 0.0001e18, "debt balance mismatch");
+        assertApproxEqRel(borrowableCDAI.debtBalance(user1), 5000 ether - (expectedLiqValues.badDebt + 250 ether), 0.0001e18, "debt balance mismatch");
         assertLt(borrowableCDAI.exchangeRateUpdated(), 1 ether, "exchange rate should lower because of bad debt");
     }
 

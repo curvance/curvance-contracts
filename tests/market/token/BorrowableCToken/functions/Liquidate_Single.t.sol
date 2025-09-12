@@ -126,7 +126,7 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         skip(20 minutes);
         _harvestPendleLP(1 weeks);
 
-        mockPendleLPFeed.setMockAnswer(1000e8);
+        mockStethFeed.setMockAnswer(450e8);
 
         _prepareUSDC(user2, 250e6);
     }

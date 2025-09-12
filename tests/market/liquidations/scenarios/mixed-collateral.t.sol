@@ -81,7 +81,7 @@ contract MixedCollateral is TestBaseLiquidations {
 
         _createPositions();
 
-        mockPendleLPFeed.setMockAnswer(1440e8);
+        mockStethFeed.setMockAnswer(600e8);
 
         console2.log("SETUP COMPLETE");
     }

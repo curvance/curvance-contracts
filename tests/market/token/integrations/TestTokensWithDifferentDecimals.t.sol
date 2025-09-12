@@ -337,13 +337,13 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         pendleStrategyCTokenSTETH.postCollateral(1 ether);
 
         // try borrow()
-        borrowableCUSDC.borrow(3000e6, user1);
+        borrowableCUSDC.borrow(5000e6, user1);
         vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
 
-        mockUsdcFeed.setMockAnswer(1.5e8);
+        mockUsdcFeed.setMockAnswer(2e8);
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
         ExpectedLiquidationValues memory expectedLiquidationValues = _calculateExpectedLiquidationValues(
@@ -399,7 +399,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         pendleStrategyCTokenSTETH.postCollateral(1 ether);
 
         // try borrow()
-        borrowableCUSDC.borrow(3000e6, user1);
+        borrowableCUSDC.borrow(5000e6, user1);
         vm.stopPrank();
 
         // skip min hold period
@@ -407,7 +407,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         borrowableCUSDC.accrueIfNeeded();
 
-        mockUsdcFeed.setMockAnswer(150000000);
+        mockUsdcFeed.setMockAnswer(2e8);
 
         uint256 currentDebtBalance = borrowableCUSDC.debtBalance(user1);
 
