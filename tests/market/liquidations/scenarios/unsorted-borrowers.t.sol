@@ -39,8 +39,6 @@ contract TestUnsortedBorrowersLiquidationTest is TestBaseLiquidations {
 
         chainlinkEthUsd.updateAnswer(1500e8);
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
 
         _prepareUSDC(user1, _ONE);
         _prepareUSDC(address(this), _ONE);

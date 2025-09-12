@@ -177,8 +177,6 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
     function test_canLiquidate_fail_whenShortfallInsufficient() public {
         skip(gaugeManager.gaugeStartTime() - block.timestamp);
 
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
         chainlinkEthUsd.updateRoundData(
             0,
             1500e8,
@@ -330,11 +328,6 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
     function _setupUserPositionAndOracles() internal {
         skip(gaugeManager.gaugeStartTime() - block.timestamp);
 
-        mockWethFeed.setMockAnswer(3000e8);
-        mockRethFeed.setMockAnswer(3000e8);
-
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
         chainlinkUsdcUsd.updateRoundData(
             0,
             1e8,

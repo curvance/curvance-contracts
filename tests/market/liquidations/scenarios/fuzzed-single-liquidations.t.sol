@@ -57,13 +57,9 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         // Initialize stETH mock feed to the same initial price and mark it fresh
         mockStethFeed.setMockAnswer(int256(INITIAL_PRICE));
         mockStethFeed.setMockUpdatedAt(block.timestamp);
-        // Ensure USDC mock feed reflects $1.00 to align minimum loan size checks
+        
         mockUsdcFeed.setMockAnswer(int256(1e8));
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockAnswer(int256(INITIAL_PRICE));
-        mockRethFeed.setMockAnswer(int256(INITIAL_PRICE));
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
 
         _prepareUSDC(user1, _ONE);
         deal(address(LP_wstETH_24Dec2025), user1, _ONE + 77777);
