@@ -255,7 +255,7 @@ contract ProtocolReader {
     {
         address[] memory markets = centralRegistry.marketManagers();
         data = new DynamicMarketData[](markets.length);
-        for (uint256 i; i < markets.length; i++) {
+        for (uint256 i; i < markets.length; ++i) {
             data[i] = _buildDynamicMarketData(IMarketManager(markets[i]));
         }
     }
@@ -333,10 +333,10 @@ contract ProtocolReader {
     function getUserData(
         address account
     ) public view returns (UserData memory data) {
-        IVeCVE veCve = IVeCVE(centralRegistry.veCVE());
-        (uint256[] memory lockAmounts, uint256[] memory lockTimestamps) = veCve.queryUserLocks(account);
+        (uint256[] memory lockAmounts, uint256[] memory lockTimestamps) =
+            IVeCVE(centralRegistry.veCVE()).queryUserLocks(account);
         data.locks = new UserLock[](lockAmounts.length);
-        for (uint256 i = 0; i < lockAmounts.length; i++) {
+        for (uint256 i; i < lockAmounts.length; ++i) {
             data.locks[i] = UserLock({
                 lockIndex: i,
                 amount: lockAmounts[i],
@@ -346,9 +346,72 @@ contract ProtocolReader {
         
         address[] memory markets = centralRegistry.marketManagers();
         data.markets = new UserMarket[](markets.length);
-        for (uint256 i = 0; i < markets.length; i++) {
+        for (uint256 i = 0; i < markets.length; ++i) {
             data.markets[i] =
                 _buildUserMarket(MarketManagerIsolated(markets[i]), account);
+        }
+    }
+
+    /// @notice Determine the maximum amount of `cTokenRedeemed` that `account`
+    ///         can redeem.
+    /// @param account The account to determine redemptions for.
+    /// @param cTokenRedeemed The cToken to redeem.
+    /// @return collateralizedSharesRedeemable The amount of collateralized `cTokenModified`
+    ///                                        shares redeemable by `account`.
+    /// @return uncollateralizedShares The amount of uncollateralized `cTokenModified`
+    ///                                shares redeemable by `account`.
+    /// @return errorHit Whether an error code was hit.
+    function maxRedemptionOf(
+        address account,
+        address cTokenRedeemed
+    ) public view returns (
+        uint256 collateralizedSharesRedeemable,
+        uint256 uncollateralizedShares,
+        bool errorHit
+    ) {
+        IMarketManager mm = _marketManager(cTokenRedeemed);
+
+        // Make sure they are not trying to hypothetically redeem
+        // a token they are borrowing, not trying to redeem 0 shares, or
+        // redeem an unlisted token.
+        if (!mm.isListed(cTokenRedeemed)) {
+            return(0, 0, true);
+        }
+
+        HypotheticalResult memory r;
+        (r, , errorHit) =
+            _hypotheticalLiquidityOf(mm, account, address(0), 0, 0);
+
+        collateralizedSharesRedeemable =
+            _collateralPosted(cTokenRedeemed, account);
+        uncollateralizedShares = ICToken(cTokenRedeemed).balanceOf(account) -
+            collateralizedSharesRedeemable;
+        if (collateralizedSharesRedeemable > 0) {
+            uint256 redemptionDebt = _mulDiv(
+                _assetValue(
+                    collateralizedSharesRedeemable,
+                    getPriceSafely(cTokenRedeemed, true, true, 2),
+                    10 ** ICToken(cTokenRedeemed).decimals(),
+                    false
+                ),
+                _collateralizationRatio(mm, cTokenRedeemed),
+                BPS
+            );
+
+            if (r.debt + redemptionDebt > r.maxDebt) {
+                // If the account is already at or above debt cap no collateral
+                // can be redeemed.
+                if (r.debt >= r.maxDebt) {
+                    collateralizedSharesRedeemable = 0;
+                } else {
+                    // Else calculate partial redemption.
+                    collateralizedSharesRedeemable = _mulDiv(
+                        collateralizedSharesRedeemable,
+                        _mulDiv(r.maxDebt - r.debt, WAD, redemptionDebt),
+                        WAD
+                    );
+                }
+            }
         }
     }
 
@@ -369,7 +432,7 @@ contract ProtocolReader {
         address cTokenModified,
         uint256 redemptionShares
     ) public view returns (uint256, uint256, bool, bool) {
-        IMarketManager mm = ICToken(cTokenModified).marketManager();
+        IMarketManager mm = _marketManager(cTokenModified);
 
         // Make sure they are not trying to hypothetically redeem
         // a token they are borrowing, not trying to redeem 0 shares, or
@@ -412,13 +475,13 @@ contract ProtocolReader {
         address borrowableCTokenModified,
         uint256 borrowAssets
     ) public view returns (uint256, uint256, bool, bool, bool) {
-        IMarketManager mm = ICToken(borrowableCTokenModified).marketManager();
+        IMarketManager mm = _marketManager(borrowableCTokenModified);
 
         // Make sure they are not trying to hypothetically redeem
         // a token they are borrowing, not trying to redeem 0 shares, or
         // redeem an unlisted token.
         if (
-            ICToken(borrowableCTokenModified).collateralPosted(account) > 0 ||
+            _collateralPosted(borrowableCTokenModified, account) > 0 ||
             borrowAssets == 0 || !mm.isListed(borrowableCTokenModified)
         ) {
             return(0, 0, false, false, false);
@@ -476,7 +539,7 @@ contract ProtocolReader {
         bool loanSizeError,
         bool errorCodeHit
     ) {
-        IMarketManager mm = ICToken(borrowableCToken).marketManager();
+        IMarketManager mm = _marketManager(borrowableCToken);
 
         // Validate `cToken` and `borrowableCToken` are properly listed.
         if (!mm.isListed(borrowableCToken) || !mm.isListed(cToken)) {
@@ -501,7 +564,7 @@ contract ProtocolReader {
         }
 
         {
-            (uint256 collRatio, ,) = mm.collConfig(address(cToken));
+            uint256 collRatio = _collateralizationRatio(mm, address(cToken));
             // If the collateral token cannot be borrowed against the hypothetical
             // leverage check will result in 0 meaning nothing new to leverage
             // against.
@@ -927,9 +990,9 @@ contract ProtocolReader {
     ) internal view returns (uint256 softSum, uint256 hardSum) {
         address asset = snap.asset;
         (, uint256 collReqSoft, uint256 collReqHard) =
-            IMarketManager(ICToken(asset).marketManager()).collConfig(asset);
+            _marketManager(asset).collConfig(asset);
         uint256 assetValue = _assetValue(
-            ICToken(asset).collateralPosted(account),
+            _collateralPosted(asset, account),
             price,
             10 ** snap.decimals,
             true
@@ -1057,17 +1120,17 @@ contract ProtocolReader {
         address tokenAddress,
         address account
     ) internal view returns (UserMarketToken memory umt) {
-        ICToken ctoken = ICToken(tokenAddress);
-        IERC20 underlying = IERC20(ctoken.asset());
-        uint256 shares = ctoken.balanceOf(account);
+        ICToken cToken = ICToken(tokenAddress);
+        IERC20 underlying = IERC20(cToken.asset());
+        uint256 shares = cToken.balanceOf(account);
 
         umt._address = tokenAddress;
-        umt.userAssetBalance = ctoken.convertToAssets(shares);
-        umt.userShareBalance = ctoken.balanceOf(account);
+        umt.userAssetBalance = cToken.convertToAssets(shares);
+        umt.userShareBalance = cToken.balanceOf(account);
         umt.userUnderlyingBalance = underlying.balanceOf(account);
-        umt.userDebt = ctoken.isBorrowable() ? IBorrowableCToken(address(ctoken)).debtBalance(account) : 0;
-        umt.exchangeRate = ctoken.exchangeRate();
-        umt.userCollateral = ctoken.collateralPosted(account);
+        umt.userDebt = cToken.isBorrowable() ? IBorrowableCToken(address(cToken)).debtBalance(account) : 0;
+        umt.exchangeRate = cToken.exchangeRate();
+        umt.userCollateral = _collateralPosted(address(cToken), account);
     }
 
     function _buildUserMarket(
@@ -1245,6 +1308,26 @@ contract ProtocolReader {
         }
 
         return (snapshots, prices, numAssets, errorCodeHit);
+    }
+    
+    function _marketManager(
+        address cToken
+    ) internal view returns (IMarketManager mm) {
+        mm = ICToken(cToken).marketManager();
+    }
+
+    function _collateralPosted(
+        address cToken,
+        address account
+    ) internal view returns (uint256 shares) {
+        shares = ICToken(cToken).collateralPosted(account);
+    }
+
+    function _collateralizationRatio(
+        IMarketManager mm,
+        address cToken
+    ) internal view returns (uint256 collRatio) {
+        (collRatio, ,) = mm.collConfig(cToken);
     }
     
     /// @notice Calculates collateral value based on `cToken` `assets`,
