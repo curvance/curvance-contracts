@@ -307,6 +307,51 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         assertEq(collateralRemoved, collateralRedeemed, "Expect to only remove collateralRedeemed not tokensRedeemed");
     }
 
+    function test_canRedeemWithCollateralRemoval_success_removeAllCollateral() public {
+        // Step 1: User1 deposits 2000e6+1 USDC.
+        uint user1DepositAmount = 2000e6+1;
+        _prepareUSDC(user1, user1DepositAmount);
+        vm.startPrank(user1);
+        usdc.approve(address(borrowableCUSDC), user1DepositAmount);
+        borrowableCUSDC.depositAsCollateral(user1DepositAmount, user1);
+        vm.stopPrank();
+
+        // Step 2: User2 deposits 2000e18 DAI (as collateral), then borrow 250e6 USDC.
+        _prepareDAI(user2, 2000e18);
+        vm.startPrank(user2);
+        dai.approve(address(borrowableCDAI), 2000e18);
+        borrowableCDAI.depositAsCollateral(2000e18, user2);
+        borrowableCUSDC.borrow(250e6, user2);
+        vm.stopPrank();
+
+        // Step 3: Accrue interest.
+        skip(30 minutes);
+        borrowableCUSDC.accrueIfNeeded();
+
+        // Step 4: User2 repays all USDC debt.
+        _prepareUSDC(user2, 100000e6);
+        vm.startPrank(user2);
+        usdc.approve(address(borrowableCUSDC), 100000e6);
+        borrowableCUSDC.repay(0);
+        vm.stopPrank();
+
+        // cUSDC exchange rate = 1000000160493755749
+        console.log(borrowableCUSDC.exchangeRateUpdated());
+
+        // Step 5: User1 tries to remove all collateral, but fails due to rounding.
+        assertEq(user1DepositAmount, borrowableCUSDC.collateralPosted(user1));
+        vm.startPrank(user1);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__InsufficientCollateral.selector);
+        borrowableCUSDC.removeCollateral(user1DepositAmount);
+        vm.stopPrank();
+
+        // Step 6: User1 tries to remove all but 1 wei collateral, succeeds but still fails to remove the last 1 wei.
+        vm.startPrank(user1);
+        borrowableCUSDC.removeCollateral(user1DepositAmount);
+        assertEq(0, borrowableCUSDC.collateralPosted(user1));
+        vm.stopPrank();
+    }
+
     function _canRedeemBorrowableCDAIWithCollateralRemoval(
         uint256 shares,
         uint256 balance,
