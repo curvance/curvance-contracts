@@ -29,7 +29,7 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
         _harvestPendleLP(2 weeks);
 
         // set mock prices
-        mockStethFeed.setMockAnswer(500e8);
+        _setPendleStEthLpPrice(1150e8);
 
         // accrue interest
         borrowableCUSDC.accrueIfNeeded();
@@ -202,7 +202,7 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
         ExpectedLiquidationValues memory expectedBorrower2, 
         ExpectedLiquidationValues memory expectedBorrower3,
         uint256 totalDebtBefore
-    ) internal {
+    ) internal view {
         // Assert total market debt reduction.
         assertEq(borrowableCUSDC.marketOutstandingDebt(), 
             totalDebtBefore - 
@@ -217,7 +217,7 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
         uint256 userDebtBefore,
         uint256 userCollateralBefore,
         ExpectedLiquidationValues memory expected
-    ) internal {
+    ) internal view {
         // Assert user debt reduction (including bad debt for underwater positions).
         uint256 expectedDebtReduction = expected.debtRepaid + expected.badDebt;
         assertEq(borrowableCUSDC.debtBalance(user), 
@@ -232,7 +232,7 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
         ExpectedLiquidationValues memory expectedBorrower1,
         ExpectedLiquidationValues memory expectedBorrower2,
         ExpectedLiquidationValues memory expectedBorrower3
-    ) internal {
+    ) internal view {
         assertEq(pendleStrategyCTokenSTETH.balanceOf(address(this)), 
             (expectedBorrower1.collateralLiquidated + 
             expectedBorrower2.collateralLiquidated + 
@@ -245,7 +245,7 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
         ExpectedLiquidationValues memory expectedBorrower1,
         ExpectedLiquidationValues memory expectedBorrower2,
         ExpectedLiquidationValues memory expectedBorrower3
-    ) internal {
+    ) internal view {
         assertEq(usdc.balanceOf(address(borrowableCUSDC)), 
         borrowableCUSDCBalanceBefore + 
         expectedBorrower1.debtRepaid + 

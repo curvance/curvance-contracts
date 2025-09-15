@@ -219,7 +219,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             address(positionManager),
             5 // 0.5%
         );
-        (uint256 minUsdcOut, bytes memory odosCallData) = abi.decode(
+        (, bytes memory odosCallData) = abi.decode(
             result,
             (uint256, bytes)
         );

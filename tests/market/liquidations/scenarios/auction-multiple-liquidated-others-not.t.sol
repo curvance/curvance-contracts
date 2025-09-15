@@ -28,7 +28,7 @@ contract AuctionMultipleLiquidatedOthersNotTest is TestBaseLiquidations {
         _setUpBorrowerDebt();
         _harvestPendleLP(2 weeks);
 
-        mockStethFeed.setMockAnswer(500e8);
+        _setPendleStEthLpPrice(1150e8);
         _refreshMockFeeds();
         // accrue interest
         borrowableCUSDC.accrueIfNeeded();

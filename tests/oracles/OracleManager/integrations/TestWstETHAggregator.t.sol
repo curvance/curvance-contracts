@@ -27,7 +27,7 @@ contract TestWstETHAggregator is TestBase {
         );
     }
     
-    function testLatestRoundData() public {
+    function testLatestRoundData() public view {
         (, int256 wstethPrice, , , ) = aggregator.latestRoundData();
         (, int256 stethPrice, , , ) = IChainlink(_CHAINLINK_STETH_USD)
             .latestRoundData();

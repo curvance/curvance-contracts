@@ -98,12 +98,12 @@ contract VotingHubPublicFunctionsTest is TestBaseVotingHub {
 
     // is tested implicitly in ExecuteEmissionConfigurationTest but tested
     // for completeness
-    function test_queryEmissionsAllocated() public {
+    function test_queryEmissionsAllocated() public view {
         uint256 queryEmissionsAllocated = votingHub.queryEmissionsAllocated();
         assertEq(queryEmissionsAllocated, 2 * _ONE);
     }
 
-    function test_currentTargetEmissions() public {
+    function test_currentTargetEmissions() public view {
         uint256 currentTargetEmissions = votingHub.currentTargetEmissions();
         assertEq(currentTargetEmissions, 3 * _ONE);
     }
@@ -114,7 +114,7 @@ contract VotingHubPublicFunctionsTest is TestBaseVotingHub {
         assertEq(currentEra, 1);
     }
 
-    function test_epochOfTimestamp() public {
+    function test_epochOfTimestamp() public view {
         uint256 epoch_duration = centralRegistry.EPOCH_DURATION();
         uint256 epochOfTimestampCurrent = votingHub.epochOfTimestamp(block.timestamp);
         assertEq(epochOfTimestampCurrent, 1);

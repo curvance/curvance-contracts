@@ -128,7 +128,7 @@ contract TestPendlePTPositionManager is TestBaseMarketIsolated {
         _provideEnoughLiquidityForLeverage();
     }
 
-    function testInitialize() public {
+    function testInitialize() public view {
         assertEq(
             address(positionManager.centralRegistry()),
             address(centralRegistry)

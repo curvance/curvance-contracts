@@ -35,26 +35,9 @@ contract LiquidateExactMix is TestBaseLiquidations {
     function setUp() public override {
         super.setUp();
 
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-
         // use mock pricing for testing
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
-
-        chainlinkEthUsd.updateAnswer(1500e8);
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
         _prepareUSDC(user1, _ONE);
         _prepareUSDC(address(this), _ONE);
@@ -83,7 +66,7 @@ contract LiquidateExactMix is TestBaseLiquidations {
         vm.stopPrank();
 
         _createPositions();
-        mockStethFeed.setMockAnswer(500e8);
+        _setPendleStEthLpPrice(1150e8);
         
         console2.log("SETUP COMPLETE");
     }

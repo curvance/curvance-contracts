@@ -16,10 +16,11 @@ contract PriceGuardTest is TestBaseMarketIsolated {
     function setUp() public virtual override {
         super.setUp();
 
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockAnswer(3500e8);
         // Make ETH feed match WETH for dual adaptor
         chainlinkEthUsd.updateAnswer(3500e8);
+
+        _refreshMockFeeds();
     }
 
     function test_fail_when_timestampStartIsSoonerThanBuffer() public {

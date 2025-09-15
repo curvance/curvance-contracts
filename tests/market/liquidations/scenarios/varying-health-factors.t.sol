@@ -40,20 +40,6 @@ contract VaryingHealthFactors is TestBaseLiquidations {
     function setUp() public override {
         super.setUp();
 
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-
         // use mock pricing for testing
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
@@ -86,7 +72,7 @@ contract VaryingHealthFactors is TestBaseLiquidations {
 
         _createPositions();
 
-        mockStethFeed.setMockAnswer(450e8);
+        _setPendleStEthLpPrice(1100e8);
     }
 
     function test_multipleUsersLiquidatedWithVaryingHealthFactors() public {

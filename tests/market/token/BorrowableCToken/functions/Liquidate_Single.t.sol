@@ -55,7 +55,7 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
             badDebt: 0
         });
 
-        (IMarketManager.LiqResult memory result, uint256[] memory debtAmountReturned) = marketManagerIsolated.canLiquidate(
+        (IMarketManager.LiqResult memory result, ) = marketManagerIsolated.canLiquidate(
             debtAmounts,
             user2,
             accounts,

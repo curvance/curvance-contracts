@@ -515,7 +515,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         usdc.approve(_UNISWAP_V2_ROUTER, 1000000e6);
         cve.approve(_UNISWAP_V2_ROUTER, 1000e18);
 
-        _UNISWAP_V2_ROUTER.call(
+        (bool success, ) =_UNISWAP_V2_ROUTER.call(
             abi.encodeWithSignature(
                 "addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256)",
                 _USDC_ADDRESS,
@@ -528,6 +528,8 @@ contract TestMessagingHub is TestBaseMessagingHub {
                 block.timestamp
             )
         );
+
+        assertTrue(success);
 
         vm.stopPrank();
     }

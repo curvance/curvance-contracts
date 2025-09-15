@@ -179,7 +179,6 @@ contract CanBorrowWithNotifyTest is TestBaseMarketIsolated {
         );
     
         uint256 cooldownTimestamp = marketManagerIsolated.accountAssets(user1);
-        uint256 expectedCooldownTimestamp;
         assertEq(cooldownTimestamp, block.timestamp);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector);

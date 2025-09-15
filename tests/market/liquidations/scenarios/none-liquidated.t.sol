@@ -27,28 +27,9 @@ contract NoneLiquidated is TestBaseLiquidations {
     function setUp() public override {
         super.setUp();
 
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-
         // use mock pricing for testing
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
-
-        chainlinkEthUsd.updateAnswer(1500e8);
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
 
         _prepareUSDC(user1, _ONE);
         _prepareUSDC(address(this), _ONE);
@@ -77,10 +58,6 @@ contract NoneLiquidated is TestBaseLiquidations {
         vm.stopPrank();
 
         _createPositions();
-
-        // Simulate price drop
-        mockWethFeed.setMockAnswer(1520e8);
-        mockRethFeed.setMockAnswer(1520e8);
     }
 
     function test_noneLiquidated() public {

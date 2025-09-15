@@ -259,7 +259,7 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
             debtRepaid: 0,
             badDebt: 0
         });
-        mockStethFeed.setMockAnswer(500e8);
+        _setPendleStEthLpPrice(1100e8);
         
         vm.prank(address(borrowableCUSDC));
 

@@ -13,7 +13,6 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
 
     function test_partialCollateralizedWithdraw() public {
         // Get underlying
-        MockERC20Token balRETH = MockERC20Token(pendleStrategyCTokenSTETH.asset());
         MockERC20Token USDC = MockERC20Token(borrowableCUSDC.asset());
 
         // Prepare token balances

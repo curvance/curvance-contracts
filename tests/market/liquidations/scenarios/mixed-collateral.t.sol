@@ -35,20 +35,6 @@ contract MixedCollateral is TestBaseLiquidations {
     function setUp() public override {
         super.setUp();
 
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-
         // use mock pricing for testing
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
@@ -81,7 +67,7 @@ contract MixedCollateral is TestBaseLiquidations {
 
         _createPositions();
 
-        mockStethFeed.setMockAnswer(600e8);
+        _setPendleStEthLpPrice(1370e8);
 
         console2.log("SETUP COMPLETE");
     }

@@ -14,7 +14,7 @@ contract AccountFunctionsTest is TestBaseLiquidations {
         _prepareLiquidation();
     }
 
-    function test_assetsOf() public {
+    function test_assetsOf() public view {
         address[] memory assets = marketManagerIsolated.assetsOf(user1);
         assertEq(assets.length, 2);
         assertEq(address(assets[0]), address(pendleStrategyCTokenSTETH));

@@ -22,19 +22,6 @@ contract TestBaseLiquidations is TestBaseMarketIsolated {
     }
 
     function _prepareLiquidation() internal {
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
 
         // use mock pricing for testing
         vm.warp(gaugeManager.gaugeStartTime());
@@ -62,25 +49,17 @@ contract TestBaseLiquidations is TestBaseMarketIsolated {
         vm.startPrank(liquidityProvider);
         usdc.approve(address(borrowableCUSDC), 200000e6);
         borrowableCUSDC.deposit(200000e6, liquidityProvider);
-        // Mint cBALETH.
+        // Mint pendleStrategyCTokenSTETH.
         LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
         pendleStrategyCTokenSTETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
 
         deal(address(LP_wstETH_24Dec2025), user1, _ONE);
 
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-
         vm.startPrank(user1);
         LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
         pendleStrategyCTokenSTETH.deposit(_ONE, user1);
         pendleStrategyCTokenSTETH.postCollateral(_ONE - 1);
-
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
 
         borrowableCUSDC.borrow(3000e6, user1);
         vm.stopPrank();

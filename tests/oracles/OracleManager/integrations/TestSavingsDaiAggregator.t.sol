@@ -24,7 +24,7 @@ contract TestSavingsDaiAggregator is TestBase {
         );
     }
 
-    function testLatestRoundData() public {
+    function testLatestRoundData() public view {
         (, int256 sdaiPrice, , , ) = aggregator.latestRoundData();
         (, int256 daiPrice, , , ) = IChainlink(_CHAINLINK_DAI_USD)
             .latestRoundData();

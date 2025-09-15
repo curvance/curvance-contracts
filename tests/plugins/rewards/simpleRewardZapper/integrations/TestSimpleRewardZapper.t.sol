@@ -28,40 +28,12 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         _prepareUSDC(address(rewardManager), 1e18);
 
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            true,
-            address(mockWethFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            true,
-            address(mockWethFeed),
-            0
-        );
-
         // start epoch
         vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
         vm.roll(block.number + 1000);
 
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        _refreshMockFeeds();
 
         address owner = address(this);
 

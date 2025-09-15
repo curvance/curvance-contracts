@@ -41,6 +41,7 @@ import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtO
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
+import { PendleLpOracleLib } from "contracts/libraries/external/pendle/PendleLpOracleLib.sol";
 
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
@@ -469,7 +470,6 @@ contract TestBaseMarketIsolated is TestBase {
     function _deployAuctionManager() internal initMainVariables {
         address OEV_ALLOCATION_DESTINATION_FASTLANE = address(0x1);
         address OEV_ALLOCATION_DESTINATION_PROTOCOL = address(0x2);
-        uint256 OEV_SHARE_BUNDLER = 2000; // 20%
         uint256 OEV_SHARE_FASTLANE = 1000; // 10%
 
         auctionManager = auctionManagers[block.chainid] = new MockAuctionManager(
@@ -1189,7 +1189,6 @@ contract TestBaseMarketIsolated is TestBase {
         address _debtToken
     ) internal returns (uint256 badDebt) {
 
-        uint256 debtTokenDecimals = 10 ** ICToken(_debtToken).decimals();
         uint256 collateralTokenExchangeRate = ICToken(_collateralToken).exchangeRate();
 
         uint256 collateralAvailable = ICToken(_collateralToken).collateralPosted(_borrower);
@@ -1617,7 +1616,7 @@ contract TestBaseMarketIsolated is TestBase {
             marketManagerIsolated.statusOf(account);
         address debtAsset = ICToken(borrowableCToken).asset();
 
-        (uint256 price, uint256 errorCode) =
+        (uint256 price,) =
             oracleManager
                 .getPrice(debtAsset, true, false);
 
@@ -1632,5 +1631,17 @@ contract TestBaseMarketIsolated is TestBase {
             10 ** IERC20(debtAsset).decimals(),
             WAD
         );
+    }
+
+    function _setPendleStEthLpPrice(uint256 targetPrice) internal {
+        address LP_STETH = address(LP_wstETH_24Dec2025);
+
+        uint32 twapDuration = 12;
+        uint256 lpRate = PendleLpOracleLib.getLpToAssetRate(IPMarket(LP_STETH), twapDuration);
+
+        uint256 requiredStethPrice = (targetPrice * WAD) / lpRate;
+
+        mockStethFeed.setMockAnswer(int256(requiredStethPrice));
+        mockStethFeed.setMockUpdatedAt(block.timestamp);
     }
 }

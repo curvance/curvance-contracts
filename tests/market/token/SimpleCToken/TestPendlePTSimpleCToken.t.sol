@@ -40,34 +40,6 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         owner = address(this);
 
-        // use mock pricing for testing
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            true,
-            address(mockWethFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            true,
-            address(mockWethFeed),
-            0
-        );
-
         adapter = new PendlePrincipalTokenAdaptor(
             ICentralRegistry(address(centralRegistry)),
             IPendlePTOracle(_PT_ORACLE)
@@ -87,9 +59,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         _skipEpochDuration(1);
         vm.roll(block.number + 1000);
 
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockStethFeed.setMockUpdatedAt(block.timestamp);
+        _refreshMockFeeds();
 
         // Setup borrowable cUSDC.
         {
@@ -475,12 +445,6 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
 
         // Warp time to simulate interest being applied on debt.
         skip(20 minutes);
-
-        (uint256 pendlePTPrice, ) = oracleManager.getPrice(
-            address(pendlePT),
-            true,
-            true
-        );
 
         mockUsdcFeed.setMockAnswer(3.5e8);
 

@@ -51,7 +51,7 @@ contract SetMintPausedTest is TestBaseMarketIsolated {
         assertFalse(_mintPaused(address(borrowableCUSDC)));
     }
 
-    function _mintPaused(address cToken) internal returns (bool isPaused) {
+    function _mintPaused(address cToken) internal view returns (bool isPaused) {
         (isPaused, , ) = marketManagerIsolated.actionsPaused(cToken);
     }
 }

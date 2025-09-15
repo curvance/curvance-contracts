@@ -96,7 +96,7 @@ contract MixedAuction is TestBaseLiquidations {
         _harvestPendleLP(1 weeks);
         borrowableCUSDC.accrueIfNeeded();
 
-        mockStethFeed.setMockAnswer(500e8);
+        _setPendleStEthLpPrice(1150e8);
 
         console2.log("SETUP COMPLETE");
     }

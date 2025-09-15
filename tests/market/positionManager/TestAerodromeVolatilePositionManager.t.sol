@@ -171,7 +171,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         centralRegistry.setSlippageLimit(60000);
     }
 
-    function testInitialize() public {
+    function testInitialize() public view {
         assertEq(
             address(positionManager.centralRegistry()),
             address(centralRegistry)

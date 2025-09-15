@@ -101,7 +101,7 @@ contract WithdrawByPositionManagerWithExitFeeTest is TestBaseMarketIsolated {
     // the same logic from the StrategyCTokenWithExitFee contract which removes the exit fee
     function _removeExitFeeFromAssets(
         uint256 assets
-    ) internal view returns (uint256) {
+    ) internal pure returns (uint256) {
         // Rounds up with an enforced minimum of assets = 1,
         // so this can never underflow.
         uint256 exitFee = .02e18; // implemented with max exit fee of 2%

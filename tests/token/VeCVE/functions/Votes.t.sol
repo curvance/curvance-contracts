@@ -12,7 +12,7 @@ contract VotesTest is TestBaseVeCVE {
         _skipRestrictionDuration();
     }
 
-    function test_getVotes_zero() public {
+    function test_getVotes_zero() public view {
         assertEq(veCVE.getVotes(address(this)), 0);
     }
 

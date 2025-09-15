@@ -26,9 +26,7 @@ contract TestDynamicLiquidations is TestBaseMarketIsolated {
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
+        _refreshMockFeeds();
 
         (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);

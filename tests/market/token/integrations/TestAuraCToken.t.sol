@@ -34,10 +34,7 @@ contract TestAuraCToken is TestBaseMarketIsolated {
         _skipEpochDuration(1);
         vm.roll(block.number + 1000);
 
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
+        _refreshMockFeeds();
 
         _prepareBALRETH(user1, _ONE);
         _prepareBALRETH(address(this), _ONE);
@@ -76,12 +73,7 @@ contract TestAuraCToken is TestBaseMarketIsolated {
         // Advance time to earn BAL and AURA rewards
         vm.warp(block.timestamp + 10 days);
 
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-        mockBALFeed.setMockUpdatedAt(block.timestamp);
-        mockAURAFeed.setMockUpdatedAt(block.timestamp);
+        _refreshMockFeeds();
 
         // Mint some extra rewards for Vault.
         // deal(address(CRV), address(cSTETH), 100e18);
@@ -135,8 +127,8 @@ contract TestAuraCToken is TestBaseMarketIsolated {
         // increase vesting period to 2 days
 
         (bool updateNeeded, uint256 newVestPeriod) = strategyCBALRETH.pendingVestingPeriodUpdate();
-        assert(updateNeeded == true);
-        assert(newVestPeriod == 2 days);
+        assertTrue(updateNeeded);
+        assertEq(newVestPeriod, 2 days);
 
         // harvest again to update the vesting period
 
@@ -153,12 +145,7 @@ contract TestAuraCToken is TestBaseMarketIsolated {
         // Advance time to earn BAL and AURA rewards
         vm.warp(block.timestamp + 10 days);
 
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-        mockBALFeed.setMockUpdatedAt(block.timestamp);
-        mockAURAFeed.setMockUpdatedAt(block.timestamp);
+        _refreshMockFeeds();
 
         swaps[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",

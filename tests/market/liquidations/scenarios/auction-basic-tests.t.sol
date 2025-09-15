@@ -64,8 +64,6 @@ contract AuctionBasicTests is TestBaseLiquidations {
 
         marketManagerIsolated.updateTokenConfig(tokenConfig);
         
-        (uint256 cTokenPrice,) = oracleManager.getPriceIsolatedPair(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC), 2);
-        
         (, , , uint256 lFactor) = _liquidationValuesOfHelper(marketManagerIsolated, user1);
         
         // Calculate default penalty and close factor.

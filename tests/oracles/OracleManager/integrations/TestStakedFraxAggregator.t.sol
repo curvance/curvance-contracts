@@ -23,7 +23,7 @@ contract TestStakedFraxAggregator is TestBase {
         );
     }
 
-    function testLatestRoundData() public {
+    function testLatestRoundData() public view {
         (, int256 sfraxPrice, , , ) = aggregator.latestRoundData();
         (, int256 fraxPrice, , , ) = IChainlink(_CHAINLINK_FRAX_USD)
             .latestRoundData();

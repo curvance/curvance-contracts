@@ -237,8 +237,6 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         path[0] = _DAI_ADDRESS;
         path[1] = _USDC_ADDRESS;
 
-        address uniswapV2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-
         uint256 estimatedUniswapOutputAmount = 778457529;
 
         vm.stopPrank();

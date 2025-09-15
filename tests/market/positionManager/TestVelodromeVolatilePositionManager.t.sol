@@ -177,7 +177,7 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         centralRegistry.setSlippageLimit(6000);
     }
 
-    function testInitialize() public {
+    function testInitialize() public view {
         assertEq(
             address(positionManager.centralRegistry()),
             address(centralRegistry)

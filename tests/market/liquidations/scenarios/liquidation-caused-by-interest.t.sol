@@ -48,9 +48,9 @@ contract TestLiquidationCausedByInterest is TestBaseLiquidations {
         vm.stopPrank();
 
         mockWethFeed.setMockAnswer(1000e8);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockUsdcFeed.setMockAnswer(1e8);
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+
+        _refreshMockFeeds();
     }
 
     function test_success_LiquidationCausedByInterest() public {
@@ -67,8 +67,7 @@ contract TestLiquidationCausedByInterest is TestBaseLiquidations {
 
         do {
             skip(90 days);
-            mockWethFeed.setMockUpdatedAt(block.timestamp);
-            mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+            _refreshMockFeeds();
             borrowableCUSDC.accrueIfNeeded();
             (, , , lFactor) = _liquidationValuesOfHelper(marketManagerIsolated, user1);
             console2.log("marketOutstandingDebt", borrowableCUSDC.marketOutstandingDebt());

@@ -7,8 +7,6 @@ import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidat
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
-// TODO - ADD ASSERTIONS!!!!
-
 // 0. Use maximum LTV possible for fuzzing
 // 1. Fuzz collateral
 // 2. Borrow amounts - make sure fuzzed borrows are within the maximum LTV
@@ -36,30 +34,10 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
     function setUp() public override {
         super.setUp();
 
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
-        chainlinkEthUsd.updateAnswer(int256(INITIAL_PRICE));
-        // Initialize stETH mock feed to the same initial price and mark it fresh
-        mockStethFeed.setMockAnswer(int256(INITIAL_PRICE));
-        mockStethFeed.setMockUpdatedAt(block.timestamp);
-        
-        mockUsdcFeed.setMockAnswer(int256(1e8));
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        _setPendleStEthLpPrice(INITIAL_PRICE);
 
         _prepareUSDC(user1, _ONE);
         deal(address(LP_wstETH_24Dec2025), user1, _ONE + 77777);
@@ -118,9 +96,9 @@ contract LiquidationFuzzedTest is TestBaseLiquidations {
         vm.stopPrank();
 
         skip(_accrualTime);
-        // Since the Pendle LP uses stETH as the quote asset, move stETH to drive collateral pricing
-        mockStethFeed.setMockAnswer(_oraclePrice);
-        _refreshMockFeeds();
+
+        _setPendleStEthLpPrice(uint256(_oraclePrice));
+
         borrowableCUSDC.accrueIfNeeded();
 
         (, , , uint256 lFactorsPreLiquidation) = _liquidationValuesOfHelper(marketManagerIsolated, borrower);

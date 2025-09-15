@@ -19,15 +19,13 @@ contract ExtremeDropTest is TestBaseLiquidations {
 
         // set DAI price to almost 0
         mockDaiFeed.setMockAnswer(100);
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
     }
 
     function testLiquidateWithExtremeDrop() public {
 
         skip(8 weeks);
 
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
+        _refreshMockFeeds();
 
         uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
         uint256 initialOutstandingDebt = borrowableCUSDC.marketOutstandingDebt();
@@ -98,7 +96,7 @@ contract ExtremeDropTest is TestBaseLiquidations {
             0
         );
 
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
+        _refreshMockFeeds();
 
         // Setup market with tokens.
         deal(address(_DAI_ADDRESS), address(this), 77777);

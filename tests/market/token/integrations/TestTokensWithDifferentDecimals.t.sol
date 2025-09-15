@@ -19,54 +19,11 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         owner = address(this);
 
-        // use mock pricing for testing
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            true,
-            address(mockUsdcFeed),
-            0
-        );
-        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
-        chainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            true,
-            address(mockWethFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
-            true,
-            address(mockWethFeed),
-            0
-        );
-        mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
-        chainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            false,
-            address(mockRethFeed),
-            0
-        );
-        dualChainlinkAdaptor.addAsset(
-            _RETH_ADDRESS,
-            false,
-            address(mockRethFeed),
-            0
-        );
-
         // start epoch
         vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
+        _refreshMockFeeds();
 
         (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
