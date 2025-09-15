@@ -419,11 +419,12 @@ abstract contract LiquidityManagerIsolated {
                         prices[i],
                         10 ** snap.decimals,
                         _tokenConfig[snap.asset].collRatio,
-                        false
+                        true
                     );
                 } else {
                     // Adjust debt asset price if it was accidently priced as
-                    // collateral.
+                    // collateral, happens during an initial borrow when debt
+                    // is not documented yet.
                     if (snap.isCollateral) {
                         // We can skip the error code check as we've already
                         // priced the share token which requires pricing the
