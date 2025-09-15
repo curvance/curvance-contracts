@@ -331,24 +331,22 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         // Step 4: User2 repays all USDC debt.
         _prepareUSDC(user2, 100000e6);
         vm.startPrank(user2);
+
         usdc.approve(address(borrowableCUSDC), 100000e6);
         borrowableCUSDC.repay(0);
+
         vm.stopPrank();
 
         // cUSDC exchange rate = 1000000160493755749
-        console.log(borrowableCUSDC.exchangeRateUpdated());
 
-        // Step 5: User1 tries to remove all collateral, but fails due to rounding.
         assertEq(user1DepositAmount, borrowableCUSDC.collateralPosted(user1));
-        vm.startPrank(user1);
-        vm.expectRevert(MarketManagerIsolated.MarketManager__InsufficientCollateral.selector);
-        borrowableCUSDC.removeCollateral(user1DepositAmount);
-        vm.stopPrank();
 
-        // Step 6: User1 tries to remove all but 1 wei collateral, succeeds but still fails to remove the last 1 wei.
+        // Step 5: User1 tries to remove all collateral, succeeds.
         vm.startPrank(user1);
+
         borrowableCUSDC.removeCollateral(user1DepositAmount);
         assertEq(0, borrowableCUSDC.collateralPosted(user1));
+        
         vm.stopPrank();
     }
 
