@@ -35,7 +35,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
 
     /// @notice The minimum acceptable twap duration when pricing.
     uint32 public constant MINIMUM_TWAP_DURATION = 12;
-    /// @notice Current network's ptOracle.
+    /// @notice The address of the Principal Token oracle on this chain.
     /// @dev for mainnet use 0x414d3C8A26157085f286abE3BC6E1bb010733602.
     IPendlePTOracle public immutable ptOracle;
 

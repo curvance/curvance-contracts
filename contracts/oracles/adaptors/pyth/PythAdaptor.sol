@@ -4,17 +4,17 @@ pragma solidity 0.8.28;
 import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBalance.sol";
 
-import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
+import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 import { IPyth } from "contracts/interfaces/external/pyth/IPyth.sol";
 import { PythStructs } from "contracts/interfaces/external/pyth/PythStructs.sol";
 
-contract PythAdaptor is BaseOracleAdaptor, PluginDelegable {
+contract PythAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
     /// @notice Stores configuration data for Pyth price sources.
@@ -40,11 +40,15 @@ contract PythAdaptor is BaseOracleAdaptor, PluginDelegable {
     uint256 public constant DEFAULT_HEARTBEAT =
         1 days + HEARTBEAT_GRACE_PERIOD;
 
-    /// STORAGE ///
+    /// @notice The address of the Native Universal Balance contract linked
+    ///         to the Pyth Adaptor.
+    address public immutable nativeUniversalBalance;
+    /// @notice The address of the Pyth oracle hub on this chain.
+    address public immutable pyth;
+    /// @notice The address of wrapped native token on this chain.
+    address public immutable wrappedNative;
 
-    address public nativeUniversalBalance;
-    address public pyth;
-    address public wrappedNative;
+    /// STORAGE ///
 
     /// @notice Price feed configuration data for an asset.
     /// @dev Token address => inUSD => Price feed configuration for `asset`.
@@ -130,7 +134,7 @@ contract PythAdaptor is BaseOracleAdaptor, PluginDelegable {
         bytes[] calldata priceUpdateData,
         address user
     ) public {
-        _checkDelegate(user, msg.sender);
+        IPluginDelegable(nativeUniversalBalance).isDelegate(user, msg.sender);
 
         // Update the prices to the latest available values and pay the
         // required fee for it. The `priceUpdateData` data should be retrieved

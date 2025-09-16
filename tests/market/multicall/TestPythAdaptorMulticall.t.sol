@@ -147,9 +147,9 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             marketManagerIsolated.addPositionManager(address(positionManager));
         }
 
-        pythAdaptor.setDelegateApproval(address(cWBTC), true);
-        pythAdaptor.setDelegateApproval(address(positionManager), true);
-        pythAdaptor.setDelegateApproval(address(borrowableCWETH), true);
+        nativeUniversalBalance.setDelegateApproval(address(cWBTC), true);
+        nativeUniversalBalance.setDelegateApproval(address(positionManager), true);
+        nativeUniversalBalance.setDelegateApproval(address(borrowableCWETH), true);
 
         centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
