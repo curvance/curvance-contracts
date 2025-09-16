@@ -212,9 +212,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Indicates if an address is a market manager or not.
     /// @dev Address => Market Manager status.
     mapping(address => bool) public isMarketManager;
-    /// @notice Indicates if an address is a multicall provider or not.
-    /// @dev Address => Multicall provider status.
-    mapping(address => bool) public isMulticallProvider;
 
     /// @notice Maps an intent target address to the contract that will
     ///         inspect provided external calldata.
@@ -281,7 +278,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
         address targetAddress,
         address calldataChecker
     );
-    event MulticallProviderSet(address provider, bool isSupported);
     event EraEmissionsAllotmentSet(uint256 epochEmissionAllotment);
 
     /// ERRORS ///
@@ -1322,33 +1318,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
         multicallChecker[target] = checker;
         emit CalldataCheckerSet("Multicall", target, checker);
-    }
-
-    /// @notice Sets multicall provider contracts, either enabling,
-    ///         or disabling support inside the Curvance Protocol.
-    /// @dev Only callable on a 5-day delay or by the Emergency Council.
-    ///      Emits one or many {MulticallProviderSet} events.
-    /// @param providers Array containing the addresses of multicall provider
-    ///                  contracts such as collateral or debt token contracts.
-    /// @param supported Whether a provider should be supported or not.
-    function setMulticallProviders(
-        address[] calldata providers,
-        bool supported
-    ) external {
-        _checkElevatedPermissions();
-
-        uint256 numProviders = providers.length;
-        address cachedProvider;
-
-        for (uint256 i; i < numProviders; ++i) {
-            cachedProvider = providers[i];
-            if (isMulticallProvider[cachedProvider] == supported) {
-                revert CentralRegistry__InvalidParameter();
-            }
-
-            isMulticallProvider[cachedProvider] = supported;
-            emit MulticallProviderSet(cachedProvider, supported);
-        }
     }
 
     /// @notice Returns an array of Chain IDs recorded in the Crosschain

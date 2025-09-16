@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBalance.sol";
 
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -13,7 +14,7 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { IPyth } from "contracts/interfaces/external/pyth/IPyth.sol";
 import { PythStructs } from "contracts/interfaces/external/pyth/PythStructs.sol";
 
-contract PythAdaptor is BaseOracleAdaptor {
+contract PythAdaptor is BaseOracleAdaptor, PluginDelegable {
     /// TYPES ///
 
     /// @notice Stores configuration data for Pyth price sources.
@@ -55,7 +56,6 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// ERRORS ///
 
-    error PythAdaptor__Unauthorized();
     error PythAdaptor__InvalidHeartbeat();
 
     /// CONSTRUCTOR ///
@@ -130,10 +130,8 @@ contract PythAdaptor is BaseOracleAdaptor {
         bytes[] calldata priceUpdateData,
         address user
     ) public {
-        if (!centralRegistry.isMulticallProvider(msg.sender)) {
-            revert PythAdaptor__Unauthorized();
-        }
-        
+        _checkDelegate(user, msg.sender);
+
         // Update the prices to the latest available values and pay the
         // required fee for it. The `priceUpdateData` data should be retrieved
         // from our off-chain Price Service API using the `pyth-evm-js`
@@ -142,10 +140,8 @@ contract PythAdaptor is BaseOracleAdaptor {
         uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
 
         // Receive oracle update fee from universal balance contract.
-        NativeUniversalBalance(payable(nativeUniversalBalance)).useBalanceForOracleUpdate(
-            user,
-            fee
-        );
+        NativeUniversalBalance(payable(nativeUniversalBalance))
+            .useBalanceForOracleUpdate(user, fee);
 
         uint256 balanceBefore = address(this).balance;
         IWETH(wrappedNative).withdraw(fee);

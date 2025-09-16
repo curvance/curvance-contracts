@@ -194,11 +194,6 @@ interface ICentralRegistry {
         address addressToCheck
     ) external view returns (bool);
 
-    /// @notice Indicates if an address is a multicall provider or not.
-    function isMulticallProvider(
-        address addressToCheck
-    ) external view returns (bool);
-
     /// @notice Maps an intent target address to the contract that will
     ///         inspect provided external calldata.
     function externalCalldataChecker(
