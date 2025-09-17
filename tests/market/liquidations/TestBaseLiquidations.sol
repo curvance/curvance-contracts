@@ -61,13 +61,13 @@ contract TestBaseLiquidations is TestBaseMarketIsolated {
         pendleStrategyCTokenSTETH.deposit(_ONE, user1);
         pendleStrategyCTokenSTETH.postCollateral(_ONE - 1);
 
-        borrowableCUSDC.borrow(3000e6, user1);
+        borrowableCUSDC.borrow(6500e6, user1);
         vm.stopPrank();
 
         // skip 20 min hold period in harvestPendleLP
         _harvestPendleLP(1 weeks);
 
-        mockUsdcFeed.setMockAnswer(3e8);
+        mockUsdcFeed.setMockAnswer(2e8);
         // Refresh all mock feeds to ensure they're not stale after time advance
         _refreshMockFeeds();
 

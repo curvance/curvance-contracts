@@ -15,7 +15,7 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
     function setUp() public override {
         super.setUp();
 
-        _prepareLiquidationRethDrop();
+        _prepareLiquidationCollateralDrop();
     }
 
     // Test a single liquidation
@@ -41,9 +41,9 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         uint256[] memory debtAmounts = new uint256[](1);
         debtAmounts[0] = 0;
         
-        _prepareUSDC(user2, 1000e6);
+        _prepareUSDC(user2, 6500e6);
         vm.startPrank(user2);
-        usdc.approve(address(borrowableCUSDC), 1000e6);
+        usdc.approve(address(borrowableCUSDC), 6500e6);
 
         IMarketManager.LiqAction memory action = IMarketManager.LiqAction({
             debtToken: address(borrowableCUSDC),
@@ -95,11 +95,11 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         assertGt(pendleStrategyCTokenSTETH.exchangeRate(), _ONE, "pendleStrategyCTokenSTETH exchange rate mismatch, strategy should have harvested");
         assertLt(borrowableCUSDC.exchangeRate(), _ONE, "borrowableCUSDC exchange rate mismatch, there should be bad debt");
         assertEq(pendleStrategyCTokenSTETH.balanceOf(user2), _ONE - 1, "Liquidator pendleStrategyCTokenSTETH balance mismatch");
-        assertEq(usdc.balanceOf(user2), 1000e6 - result.debtRepaid, "Liquidator USDC balance mismatch");
+        assertEq(usdc.balanceOf(user2), 6500e6 - result.debtRepaid, "Liquidator USDC balance mismatch");
        
     }
 
-    function _prepareLiquidationRethDrop() internal {
+    function _prepareLiquidationCollateralDrop() internal {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
         deal(address(LP_wstETH_24Dec2025), liquidityProvider, 10e18);
@@ -119,14 +119,14 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         pendleStrategyCTokenSTETH.deposit(_ONE, user1);
         pendleStrategyCTokenSTETH.postCollateral(_ONE - 1);
 
-        borrowableCUSDC.borrow(1000e6, user1);
+        borrowableCUSDC.borrow(6500e6, user1);
         vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
         _harvestPendleLP(1 weeks);
 
-        mockStethFeed.setMockAnswer(450e8);
+        _setPendleStEthLpPrice(6500e8);
 
         _prepareUSDC(user2, 250e6);
     }

@@ -5,11 +5,17 @@ import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidat
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
-// 3 liquidations, all are auctions, 2 are soft liquidated, 1 is hard liquidated
-// also harvest positions before liquidation
+// Scenario: 3 liquidations via auction with varying health factors
+// - Setup: 3 users with same collateral (1 LP token each) but different debt amounts
+// - Borrower 1: Very high LTV (~94%) - hard liquidated with bad debt after 30% price drop
+// - Borrower 2: High LTV (~86%) - soft liquidated after price drop
+// - Borrower 3: High LTV (~83%) - soft liquidated after price drop
+// - Action: Price drop from ~$10,287 to $7,200 per token (30% drop)
+// - Expected: All 3 liquidated via auction, borrower1 with bad debt, borrowers 2-3 soft liquidated
+// Also harvest positions before liquidation to test with accrued interest
 
-/// @dev NOTE: BORROWER 1 IS HARD LIQUIDATED, BUT ONLY ACCRUES BAD DEBT BECAUSE OF THE LIQUIDATION PENALTY WHICH PUSHES
-///           IT FROM HARD LIQUIDATION TO BAD DEBT TERRITORY.
+/// @dev NOTE: BORROWER 1 IS HARD LIQUIDATED WITH BAD DEBT BECAUSE THE LIQUIDATION PENALTY PUSHES
+///           IT FROM HARD LIQUIDATION TO BAD DEBT TERRITORY. BORROWERS 2-3 ARE SOFT LIQUIDATED.
 
 contract AuctionVaryingHealthTest is TestBaseLiquidations {
     address borrower1 = address(0x0000000000000000000000000000000000000001);
@@ -29,7 +35,7 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
         _harvestPendleLP(2 weeks);
 
         // set mock prices
-        _setPendleStEthLpPrice(1150e8);
+        _setPendleStEthLpPrice(7200e8);
 
         // accrue interest
         borrowableCUSDC.accrueIfNeeded();
@@ -181,19 +187,19 @@ contract AuctionVaryingHealthTest is TestBaseLiquidations {
     }
 
     function _setUpBorrowerDebt() internal {
-        // High ltv, trigger hard liquidation.
+        // High LTV - becomes hard liquidatable with bad debt after price drop
         vm.startPrank(borrower1);
-        borrowableCUSDC.borrow(1150e6, borrower1);
+        borrowableCUSDC.borrow(6800e6, borrower1);
         vm.stopPrank();
 
-        // Medium ltv, trigger soft liquidation.
+        // Medium LTV - becomes soft liquidatable after price drop
         vm.startPrank(borrower2);
-        borrowableCUSDC.borrow(900e6, borrower2);
+        borrowableCUSDC.borrow(6200e6, borrower2);
         vm.stopPrank();
 
-        // Slightly lower than medium ltv, trigger soft liquidation.
+        // Lower medium LTV - becomes soft liquidatable after price drop
         vm.startPrank(borrower3);
-        borrowableCUSDC.borrow(880e6, borrower3);
+        borrowableCUSDC.borrow(6000e6, borrower3);
         vm.stopPrank();
     }
 

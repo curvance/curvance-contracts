@@ -9,19 +9,19 @@ import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidat
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
-// ## Scenario 4: Mixed Auction and Regular Liquidations, with a mix of liquidateExact() and liquidate()
+// Scenario: Mixed Auction and Regular Liquidations, with a mix of liquidateExact() and liquidate()
 // - Setup: 4 users with varying positions
-// - User 1: 1.9 strategyCBALRETH ($2,850), 2500 USDC debt
-// - Action 1: Price drop by to ~$1,300, 
+// - User 1: 1.9 Pendle wstETH LP tokens (~$19,500 initial value), 15,500 USDC debt
+// - Action 1: Price drop to $7,200 per token (~$13,680 total value)
 // - Action 2: User 1 is liquidated via regular liquidation using liquidateExact() 1/4 of their total debt
 // - Action 3: User 1 is liquidated via regular liquidation using liquidateExact() 1/4 of their remaining debt
-// - Action 3: User 1 has the rest of their debt liquidated via regular liquidation using liquidate()
+// - Action 4: User 1 has the rest of their debt liquidated via regular liquidation using liquidate()
 
 contract LiquidateExactMix is TestBaseLiquidations {
 
     address borrower1 = makeAddr("borrower1");
     uint256 collateralAmountStart = 1.9e18;
-    uint256 borrowAmount = 2500e6;
+    uint256 borrowAmount = 15_500e6;
     address[] borrowers = [borrower1];
     uint256[] amountToRepayPartial;
     
@@ -66,7 +66,7 @@ contract LiquidateExactMix is TestBaseLiquidations {
         vm.stopPrank();
 
         _createPositions();
-        _setPendleStEthLpPrice(1150e8);
+        _setPendleStEthLpPrice(7200e8);
         
         console2.log("SETUP COMPLETE");
     }

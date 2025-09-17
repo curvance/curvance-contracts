@@ -5,10 +5,15 @@ import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidat
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
-// 1 liquidation via auction with bad debt, 4 other users cannot be liquidated
-// also harvest positions before liquidation
+// Scenario: 1 liquidation via auction with bad debt, 4 other users remain healthy.
+// - Setup: 5 users with same collateral (1 LP token each) but gradually ordered debt amounts.
+// - Borrower 1: High LTV (~96%) - becomes liquidatable after 27% price drop + interest accrual.
+// - Borrowers 2-5: Safe LTVs (67%, 53%, 40%, 27%), which remain healthy after price drop.
+// - Action: Price drop from ~$10,287 to $7,500 per token (27% drop).
+// - Expected: Only Borrower 1 liquidated via auction with bad debt, others remain healthy.
+// Also harvest positions before liquidation to test with accrued interest.
 
-/// @dev NOTE: BORROWER 1 IS HARD LIQUIDATED, BUT ONLY ACCRUES BAD DEBT BECAUSE OF THE LIQUIDATION PENALTY WHICH PUSHES
+/// @dev NOTE: BORROWER 1 IS HARD LIQUIDATED WITH BAD DEBT BECAUSE THE LIQUIDATION PENALTY PUSHES
 ///           IT FROM HARD LIQUIDATION TO BAD DEBT TERRITORY. BORROWERS 2-5 HAVE SAFE LTV AND CANNOT BE LIQUIDATED.
 
 contract AuctionOneLiquidatedOthersNotTest is TestBaseLiquidations {
@@ -30,7 +35,7 @@ contract AuctionOneLiquidatedOthersNotTest is TestBaseLiquidations {
         _setUpBorrowerDebt();
         _harvestPendleLP(2 weeks);
 
-        _setPendleStEthLpPrice(1150e8);
+        _setPendleStEthLpPrice(7500e8);
 
         // accrue interest
         borrowableCUSDC.accrueIfNeeded();
@@ -161,29 +166,29 @@ contract AuctionOneLiquidatedOthersNotTest is TestBaseLiquidations {
     }
 
     function _setUpBorrowerDebt() internal {
-        // High ltv, trigger hard liquidation with bad debt
+        // High LTV - becomes liquidatable after price drop + interest accrual
         vm.startPrank(borrower1);
-        borrowableCUSDC.borrow(1150e6, borrower1);
+        borrowableCUSDC.borrow(7200e6, borrower1);
         vm.stopPrank();
 
-        // Safe LTV
+        // Safe LTV - remains healthy
         vm.startPrank(borrower2);
-        borrowableCUSDC.borrow(500e6, borrower2);
+        borrowableCUSDC.borrow(5000e6, borrower2);
         vm.stopPrank();
 
-        // Safe LTV
+        // Safe LTV - remains healthy
         vm.startPrank(borrower3);
-        borrowableCUSDC.borrow(400e6, borrower3);
+        borrowableCUSDC.borrow(4000e6, borrower3);
         vm.stopPrank();
 
-        // Safe LTV
+        // Safe LTV - remains healthy
         vm.startPrank(borrower4);
-        borrowableCUSDC.borrow(300e6, borrower4);
+        borrowableCUSDC.borrow(3000e6, borrower4);
         vm.stopPrank();
 
-        // Safe LTV
+        // Safe LTV - remains healthy
         vm.startPrank(borrower5);
-        borrowableCUSDC.borrow(200e6, borrower5);
+        borrowableCUSDC.borrow(2000e6, borrower5);
         vm.stopPrank();
     }
 

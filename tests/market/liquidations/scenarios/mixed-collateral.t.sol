@@ -7,13 +7,13 @@ import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidat
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
-// ## Scenario 2: Mixed Collateral Results w/ 92% LTV, all using liquidate() function
-// - Setup: 4 users with different positions
-// - User 1: 2.5 strategyCBALRETH ($4,000), 2,500 USDC debt (very healthy)
-// - User 2: 2.0 strategyCBALRETH ($3,200), 2,500 USDC debt (healthy)
-// - User 3: 1.9 strategyCBALRETH ($3,040), 2,500 USDC debt (borderline)
-// - User 4: 1.7 strategyCBALRETH ($2,720), 2,500 USDC debt (risky)
-// - Action: Price drop of strategyCBALRETH by 10% (to ~$1,420)
+// ## Scenario: Mixed Collateral Results with Same Debt, Different Collateral, all using liquidate() function
+// - Setup: 4 users with same debt but different collateral (creating natural risk diversity)
+// - User 1: 2.2 Pendle wstETH LP tokens (~$22,600 initial value), 10,000 USDC debt (very healthy)
+// - User 2: 1.8 Pendle wstETH LP tokens (~$18,500 initial value), 10,000 USDC debt (healthy - 54% LTV)
+// - User 3: 1.5 Pendle wstETH LP tokens (~$15,400 initial value), 10,000 USDC debt (borderline - 65% LTV)
+// - User 4: 1.4 Pendle wstETH LP tokens (~$14,400 initial value), 10,000 USDC debt (very risky - 69% LTV)
+// - Action: Price drop to $6,500 per token (37% drop, realistic market crash)
 // - Expected: Users 3 and 4 liquidated, Users 1 and 2 remain healthy
 //      User 3 has a soft liquidation, so no bad debt.
 //      User 4 has a hard liquidation which accrues bad debt.
@@ -25,9 +25,9 @@ contract MixedCollateral is TestBaseLiquidations {
     address borrower3 = address(0x0000000000000000000000000000000000000003);
     address borrower4 = address(0x0000000000000000000000000000000000000004);
 
-    uint256 borrowAmount = 2500e6;
+    uint256 borrowAmount = 10_000e6; // All users borrow same amount
     address[] borrowers = [borrower1, borrower2, borrower3, borrower4];
-    uint256[] collateralAmounts = [2.5e18, 2e18, 1.9e18, 1.7e18];
+    uint256[] collateralAmounts = [2.2e18, 1.8e18, 1.5e18, 1.4e18]; // Different collateral = different risk
 
     event Repay(uint256 assets, address payer, address account);
     event BadDebtRecognized(uint256 assets, address liquidator);
@@ -67,7 +67,7 @@ contract MixedCollateral is TestBaseLiquidations {
 
         _createPositions();
 
-        _setPendleStEthLpPrice(1370e8);
+        _setPendleStEthLpPrice(6500e8);
 
         console2.log("SETUP COMPLETE");
     }

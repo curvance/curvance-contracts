@@ -7,18 +7,18 @@ import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidat
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
-// ## Scenario 1: Multiple Users Liquidated, all using liquidate() function
-// - Setup: 5 users with varying health factors
-// - User 1: 1.0 strategyCBALRETH ($1,600), 800 USDC debt (healthy)
-// - User 2: 1.0 strategyCBALRETH ($1,600), 1,000 USDC debt (borderline)
-// - User 3: 1.0 strategyCBALRETH ($1,600), 1,100 USDC debt (soft liquidation)
-// - User 4: 1.0 strategyCBALRETH ($1,600), 1,200 USDC debt (hard liquidation)
-// - User 5: 1.0 strategyCBALRETH ($1,600), 1,300 USDC debt (severe liquidation)
-// - Action: Price drop of strategyCBALRETH by 15% (to $1,380)
+// ## Scenario: Multiple Users Liquidated with varying health factors
+// - Setup: 5 users with same collateral (1.0 LP token each) but graduated debt amounts
+// - User 1: 1.0 Pendle wstETH LP (~$10,287), 5,000 USDC debt (49% LTV initially - healthy)
+// - User 2: 1.0 Pendle wstETH LP (~$10,287), 5,500 USDC debt (53% LTV initially - borderline)
+// - User 3: 1.0 Pendle wstETH LP (~$10,287), 6,000 USDC debt (58% LTV initially - soft liquidation)
+// - User 4: 1.0 Pendle wstETH LP (~$10,287), 6,400 USDC debt (62% LTV initially - hard liquidation)
+// - User 5: 1.0 Pendle wstETH LP (~$10,287), 6,700 USDC debt (65% LTV initially - severe liquidation)
+// - Action: Price drop from ~$10,287 to $7,200 per token (30% drop)
 // - Expected: Users 3, 4, and 5 should be liquidated in single transaction
-//          User 3 has a soft liquidation, so no bad debt is accrued.
-//          User 4 has a hard liquidation, which accrues some bad debt.
-//          User 5 has a severe hard liquidaiton, which accrues substantial bad debt.
+//           User 3 has a soft liquidation, so no bad debt is accrued.
+//           User 4 has a hard liquidation, which accrues some bad debt.
+//           User 5 has a severe hard liquidation, which accrues substantial bad debt.
     
 
 contract VaryingHealthFactors is TestBaseLiquidations {
@@ -29,7 +29,7 @@ contract VaryingHealthFactors is TestBaseLiquidations {
     address borrower4 = address(0x0000000000000000000000000000000000000004);
     address borrower5 = address(0x0000000000000000000000000000000000000005);
 
-    uint256[] borrowAmounts = [800e6, 1000e6, 1100e6, 1200e6, 1300e6];
+    uint256[] borrowAmounts = [5000e6, 5500e6, 6000e6, 6400e6, 6700e6];
     address[] borrowers = [borrower1, borrower2, borrower3, borrower4, borrower5];
 
     uint256[] badDebt = [0,0,0,0,0];
@@ -72,7 +72,7 @@ contract VaryingHealthFactors is TestBaseLiquidations {
 
         _createPositions();
 
-        _setPendleStEthLpPrice(1100e8);
+        _setPendleStEthLpPrice(7200e8);
     }
 
     function test_multipleUsersLiquidatedWithVaryingHealthFactors() public {

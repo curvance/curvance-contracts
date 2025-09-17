@@ -5,8 +5,13 @@ import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidat
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
-// 3 liquidations via auction with bad debt, 2 other users cannot be liquidated
-// also harvest positions before liquidation
+// Scenario: 3 liquidations via auction with bad debt, 2 other users remain healthy
+// - Setup: 5 users with same collateral (1 LP token each) but different debt amounts
+// - Borrowers 1-3: High LTV (~70%) - become liquidatable after 30% price drop
+// - Borrowers 4-5: Safe LTV (~35-40%) - remain healthy after price drop
+// - Action: Price drop from ~$10,287 to $7,200 per token (30% drop)
+// - Expected: Borrowers 1-3 liquidated via auction, Borrowers 4-5 remain healthy
+// Also harvest positions before liquidation to test with accrued interest
 
 contract AuctionMultipleLiquidatedOthersNotTest is TestBaseLiquidations {
     // addresses are sorted in ascending order
@@ -28,7 +33,7 @@ contract AuctionMultipleLiquidatedOthersNotTest is TestBaseLiquidations {
         _setUpBorrowerDebt();
         _harvestPendleLP(2 weeks);
 
-        _setPendleStEthLpPrice(1150e8);
+        _setPendleStEthLpPrice(7200e8);
         _refreshMockFeeds();
         // accrue interest
         borrowableCUSDC.accrueIfNeeded();
@@ -207,29 +212,29 @@ contract AuctionMultipleLiquidatedOthersNotTest is TestBaseLiquidations {
     }
 
     function _setUpBorrowerDebt() internal {
-        // High LTV
+        // High LTV - will become liquidatable after price drop
         vm.startPrank(borrower1);
-        borrowableCUSDC.borrow(1150e6, borrower1);
+        borrowableCUSDC.borrow(7_200e6, borrower1);
         vm.stopPrank();
 
-        // High LTV
+        // High LTV - will become liquidatable after price drop
         vm.startPrank(borrower2);
-        borrowableCUSDC.borrow(1140e6, borrower2);
+        borrowableCUSDC.borrow(7_100e6, borrower2);
         vm.stopPrank();
 
-        // High LTV
+        // High LTV - will become liquidatable after price drop
         vm.startPrank(borrower3);
-        borrowableCUSDC.borrow(1130e6, borrower3);
+        borrowableCUSDC.borrow(7_000e6, borrower3);
         vm.stopPrank();
 
-        // Safe LTV
+        // Safe LTV - will remain healthy
         vm.startPrank(borrower4);
-        borrowableCUSDC.borrow(300e6, borrower4);
+        borrowableCUSDC.borrow(4_000e6, borrower4);
         vm.stopPrank();
 
-        // Safe LTV
+        // Safe LTV - will remain healthy
         vm.startPrank(borrower5);
-        borrowableCUSDC.borrow(200e6, borrower5);
+        borrowableCUSDC.borrow(3_500e6, borrower5);
         vm.stopPrank();
     }
 

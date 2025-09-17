@@ -13,21 +13,19 @@ import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidat
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
-// ## Scenario 4: Mixed Regular and Auction Liquidations, all using liquidate() function
+// Scenario: Mixed Regular and Auction Liquidations, all using liquidate() function
 // - Setup: 4 users with varying positions
-// - User 1: 1.9 strategyCBALRETH ($2,850), 2500 USDC debt (for Auction)
-// - User 2: 1.9 strategyCBALRETH ($2,850), 2500 USDC debt (for Auction)
-// - User 3: 1.9 strategyCBALRETH ($2,850), 2500 USDC debt (for regular)
-// - User 4: 1.9 strategyCBALRETH ($2,850), 2500 USDC debt (for regular)
-// - Action 1: Price drop to ~$1,300, Regular liquidation for User 3 and User 4
+// - User 1: 2.0 Pendle wstETH LP tokens (~$20,600 initial value), 8,500 USDC debt (for Auction)
+// - User 2: 1.8 Pendle wstETH LP tokens (~$18,500 initial value), 7,800 USDC debt (for Auction)
+// - User 3: 1.9 Pendle wstETH LP tokens (~$19,500 initial value), 8,200 USDC debt (for regular)
+// - User 4: 1.7 Pendle wstETH LP tokens (~$17,500 initial value), 7,400 USDC debt (for regular)
+// - Action 1: Price drop to $4,000 per token (~$7,600 total value), Regular liquidation for User 3 and User 4
 // - Action 2: Auction transaction with custom parameters for User 1 and User 2
 // - Expected: Users 3 and 4 liquidated via regular liquidation first, then Users 1 and 2 via Auction
 //          All users have the same underwater position, so each accrue bad debt at the moment.
 //          Users who are liquidated via Auction accrue less bad debt because their positions are not completely closed
 //                  because they use a lower close factor than using liquiding the maximum amount.
 //          Users who are liquidated without Auction are fully liquidated and accrue the full bad debt amount.
-
-// TODO: Use different loan/collateral ratios for each user. Currently each have the same collateral amount and loan.
 
 
 contract MixedAuction is TestBaseLiquidations {
@@ -38,10 +36,10 @@ contract MixedAuction is TestBaseLiquidations {
     address borrower3 = address(0x0000000000000000000000000000000000000003);
     address borrower4 = address(0x0000000000000000000000000000000000000004);
 
-    uint256 borrowAmount = 2500e6;
     address[] auctionBorrowers = [borrower1, borrower2];
     address[] regularBorrowers = [borrower3, borrower4];
-    uint256[] collateralAmounts = [1.9e18,1.9e18,1.9e18,1.9e18];
+    uint256[] collateralAmounts = [2.0e18, 1.8e18, 1.9e18, 1.7e18];
+    uint256[] borrowAmounts = [8_500e6, 7_800e6, 8_200e6, 7_400e6];
 
     // Auction parameters
     uint256 validPenalty = 10400;
@@ -96,7 +94,7 @@ contract MixedAuction is TestBaseLiquidations {
         _harvestPendleLP(1 weeks);
         borrowableCUSDC.accrueIfNeeded();
 
-        _setPendleStEthLpPrice(1150e8);
+        _setPendleStEthLpPrice(4000e8);
 
         console2.log("SETUP COMPLETE");
     }
@@ -457,25 +455,25 @@ contract MixedAuction is TestBaseLiquidations {
         vm.startPrank(borrower1);
         LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[0]);
         pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[0], borrower1);
-        borrowableCUSDC.borrow(borrowAmount, borrower1);
+        borrowableCUSDC.borrow(borrowAmounts[0], borrower1);
         vm.stopPrank();
 
         vm.startPrank(borrower2);
         LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[1]);
         pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[1], borrower2);
-        borrowableCUSDC.borrow(borrowAmount, borrower2);
+        borrowableCUSDC.borrow(borrowAmounts[1], borrower2);
         vm.stopPrank();
 
         vm.startPrank(borrower3);
         LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[2]);
         pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[2], borrower3);
-        borrowableCUSDC.borrow(borrowAmount, borrower3);
+        borrowableCUSDC.borrow(borrowAmounts[2], borrower3);
         vm.stopPrank();
 
         vm.startPrank(borrower4);
         LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), collateralAmounts[3]);
         pendleStrategyCTokenSTETH.depositAsCollateral(collateralAmounts[3], borrower4);
-        borrowableCUSDC.borrow(borrowAmount, borrower4);
+        borrowableCUSDC.borrow(borrowAmounts[3], borrower4);
         vm.stopPrank();
 
     }
