@@ -13,7 +13,7 @@ import { console2 } from "forge-std/console2.sol";
 // - User 2: 1.8 Pendle wstETH LP tokens (~$18,500 initial value), 10,000 USDC debt (healthy - 54% LTV)
 // - User 3: 1.5 Pendle wstETH LP tokens (~$15,400 initial value), 10,000 USDC debt (borderline - 65% LTV)
 // - User 4: 1.4 Pendle wstETH LP tokens (~$14,400 initial value), 10,000 USDC debt (very risky - 69% LTV)
-// - Action: Price drop to $6,500 per token (37% drop, realistic market crash)
+// - Action: Price drop to $7,000 per token (32% drop, realistic market crash)
 // - Expected: Users 3 and 4 liquidated, Users 1 and 2 remain healthy
 //      User 3 has a soft liquidation, so no bad debt.
 //      User 4 has a hard liquidation which accrues bad debt.
@@ -67,7 +67,7 @@ contract MixedCollateral is TestBaseLiquidations {
 
         _createPositions();
 
-        _setPendleStEthLpPrice(6500e8);
+        _setPendleStEthLpPrice(7000e8);
 
         console2.log("SETUP COMPLETE");
     }

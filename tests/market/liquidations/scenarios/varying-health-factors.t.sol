@@ -8,17 +8,18 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
 // ## Scenario: Multiple Users Liquidated with varying health factors
-// - Setup: 5 users with same collateral (1.0 LP token each) but graduated debt amounts
-// - User 1: 1.0 Pendle wstETH LP (~$10,287), 5,000 USDC debt (49% LTV initially - healthy)
-// - User 2: 1.0 Pendle wstETH LP (~$10,287), 5,500 USDC debt (53% LTV initially - borderline)
-// - User 3: 1.0 Pendle wstETH LP (~$10,287), 6,000 USDC debt (58% LTV initially - soft liquidation)
-// - User 4: 1.0 Pendle wstETH LP (~$10,287), 6,400 USDC debt (62% LTV initially - hard liquidation)
-// - User 5: 1.0 Pendle wstETH LP (~$10,287), 6,700 USDC debt (65% LTV initially - severe liquidation)
+// - Setup: 5 users with same collateral (1.0 LP token each) but graduated debt amounts with good variance.
+// - User 1: 1.0 Pendle wstETH LP (~$10,287), 6,800 USDC debt (66% LTV initially - healthy).
+// - User 2: 1.0 Pendle wstETH LP (~$10,287), 6,950 USDC debt (68% LTV initially - borderline).
+// - User 3: 1.0 Pendle wstETH LP (~$10,287), 7,030 USDC debt (68% LTV initially - will be soft liquidated).
+// - User 4: 1.0 Pendle wstETH LP (~$10,287), 7,070 USDC debt (69% LTV initially - will be hard liquidated).
+// - User 5: 1.0 Pendle wstETH LP (~$10,287), 7,180 USDC debt (70% LTV initially - will be severe hard liquidated).
 // - Action: Price drop from ~$10,287 to $7,200 per token (30% drop)
 // - Expected: Users 3, 4, and 5 should be liquidated in single transaction
-//           User 3 has a soft liquidation, so no bad debt is accrued.
-//           User 4 has a hard liquidation, which accrues some bad debt.
-//           User 5 has a severe hard liquidation, which accrues substantial bad debt.
+//           After price drop: User 1 and User 2 remain healthy.
+//           User 3 has a soft liquidation with remaining debt.
+//           User 4 has a hard liquidation, full debt repayment.
+//           User 5 has a severe hard liquidation with bad debt.
     
 
 contract VaryingHealthFactors is TestBaseLiquidations {
@@ -29,7 +30,7 @@ contract VaryingHealthFactors is TestBaseLiquidations {
     address borrower4 = address(0x0000000000000000000000000000000000000004);
     address borrower5 = address(0x0000000000000000000000000000000000000005);
 
-    uint256[] borrowAmounts = [5000e6, 5500e6, 6000e6, 6400e6, 6700e6];
+    uint256[] borrowAmounts = [6800e6, 6950e6, 7030e6, 7070e6, 7180e6];
     address[] borrowers = [borrower1, borrower2, borrower3, borrower4, borrower5];
 
     uint256[] badDebt = [0,0,0,0,0];
@@ -116,7 +117,7 @@ contract VaryingHealthFactors is TestBaseLiquidations {
 
         borrowableCUSDC.approve(address(marketManagerIsolated), 100000e6);
 
-        // Assert BadDebtRecognized event is emitted with expected total bad debt
+        // Expect BadDebtRecognized event and Repay events for users 3, 4, and 5
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit BadDebtRecognized(expectedTotalBadDebt, address(this));
         emit Repay(maxAmount[2] + badDebt[2], address(this), borrowers[2]);

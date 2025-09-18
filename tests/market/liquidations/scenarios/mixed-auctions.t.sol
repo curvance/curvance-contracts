@@ -135,7 +135,7 @@ contract MixedAuction is TestBaseLiquidations {
 
         ExpectedLiquidationValues memory auctionLiqValuesBorrower2 = _calculateExpectedLiquidationValues(
             LiquidationParams({
-                borrower: auctionBorrowers[0],
+                borrower: auctionBorrowers[1],
                 collateralToken: address(pendleStrategyCTokenSTETH),
                 borrowedToken: address(borrowableCUSDC),
                 isLiquidateExact: false,
