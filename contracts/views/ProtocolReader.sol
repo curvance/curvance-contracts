@@ -647,7 +647,7 @@ contract ProtocolReader {
         }
 
         // Pull latest yield information.
-        (uint256 rate, uint256 vestingEnd, uint256 lastVestingClaim) =
+        (uint256 rate, uint256 vestingEnd, uint256 lastVestingClaim, ) =
             bcToken.getYieldInformation();
 
         // If `timestamp` is before block.timestamp, use `block.timestamp`.

@@ -120,15 +120,19 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     /// @return vestingEnd When the current vesting period ends and a new
     ///                    harvest can execute.
     /// @return lastVestingClaim Last time pending vested yield was claimed.
+    /// @return strategyPaused Whether the strategy token's strategy is
+    ///                        currently paused.
     function getYieldInformation() external view nonReadReentrant returns (
         uint256 vestingRate,
         uint256 vestingEnd,
-        uint256 lastVestingClaim
+        uint256 lastVestingClaim,
+        uint256 strategyPaused
     ) {
         uint256 vestingData = _vestingData;
         vestingRate = uint176(vestingData);
         vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
         lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
+        strategyPaused = harvestingPaused;
     }
 
     /// @notice Virtual function to harvest yield from the vault.

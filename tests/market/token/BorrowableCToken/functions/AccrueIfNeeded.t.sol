@@ -58,7 +58,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         skip(5 minutes);
         borrowableCUSDC.accrueIfNeeded();
 
-        (,uint256 midVestEnd, uint256 midLastVest) = borrowableCUSDC.getYieldInformation();
+        (,uint256 midVestEnd, uint256 midLastVest,) = borrowableCUSDC.getYieldInformation();
 
         assertEq(midVestEnd, initialVestEnd + 600, "First vesting period should advance by 600 seconds");
         assertEq(midLastVest, block.timestamp, "Last vest claim should update to current timestamp");
@@ -67,7 +67,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         skip(5 minutes + 1 seconds);
         borrowableCUSDC.accrueIfNeeded();
 
-        (,uint256 finalVestEnd,) = borrowableCUSDC.getYieldInformation();
+        (,uint256 finalVestEnd,,) = borrowableCUSDC.getYieldInformation();
         uint256 finalMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 finalTotalAssets = borrowableCUSDC.totalAssets();
         
@@ -86,7 +86,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
-        (,uint256 initialVestEnd,) = borrowableCUSDC.getYieldInformation();
+        (,uint256 initialVestEnd,,) = borrowableCUSDC.getYieldInformation();
         uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
         
@@ -94,7 +94,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         skip(25 minutes);
         borrowableCUSDC.accrueIfNeeded();
 
-        (,uint256 finalVestEnd,) = borrowableCUSDC.getYieldInformation();
+        (,uint256 finalVestEnd,,) = borrowableCUSDC.getYieldInformation();
         uint256 finalMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 finalTotalAssets = borrowableCUSDC.totalAssets();
 
@@ -113,13 +113,13 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         borrowableCUSDC.borrow(500e6, user1);
         vm.stopPrank();
 
-        (uint256 beforeRate, uint256 beforeVestEnd, uint256 beforeLastVest) = borrowableCUSDC.getYieldInformation();
+        (uint256 beforeRate, uint256 beforeVestEnd, uint256 beforeLastVest,) = borrowableCUSDC.getYieldInformation();
         uint256 beforeDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 beforeTotalAssets = borrowableCUSDC.totalAssets();
 
         borrowableCUSDC.accrueIfNeeded();
 
-        (uint256 afterRate, uint256 afterVestEnd, uint256 afterLastVest) = borrowableCUSDC.getYieldInformation();
+        (uint256 afterRate, uint256 afterVestEnd, uint256 afterLastVest,) = borrowableCUSDC.getYieldInformation();
         uint256 afterDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 afterTotalAssets = borrowableCUSDC.totalAssets();
 
@@ -142,7 +142,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         vm.stopPrank();
 
         // at block.timestamp
-        (,uint256 initialVestEnd,) = borrowableCUSDC.getYieldInformation();
+        (,uint256 initialVestEnd,,) = borrowableCUSDC.getYieldInformation();
         uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
         
@@ -156,7 +156,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         skip(10 minutes);
         borrowableCUSDC.accrueIfNeeded();
 
-        (,uint256 midVestEnd, uint256 midLastVest) = borrowableCUSDC.getYieldInformation();
+        (,uint256 midVestEnd, uint256 midLastVest,) = borrowableCUSDC.getYieldInformation();
         uint256 midMarketDebt = borrowableCUSDC.marketOutstandingDebt();
 
         // Should advance by 2 periods,1200 seconds 
@@ -179,7 +179,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         skip(1 seconds);
         borrowableCUSDC.accrueIfNeeded();
 
-        (,uint256 finalVestEnd, uint256 finalLastVest) = borrowableCUSDC.getYieldInformation();
+        (,uint256 finalVestEnd, uint256 finalLastVest,) = borrowableCUSDC.getYieldInformation();
         uint256 finalMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 finalTotalAssets = borrowableCUSDC.totalAssets();
 
@@ -397,7 +397,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
         uint256 initialDaoShares = borrowableCUSDC.balanceOf(daoAddress);
-        (,uint256 initialVestEnd,) = borrowableCUSDC.getYieldInformation();
+        (,uint256 initialVestEnd,,) = borrowableCUSDC.getYieldInformation();
         
 
         // Loop 20 times, skipping 5 minutes each loop, 100 minutes total
@@ -454,7 +454,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
 
         uint256 finalMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         uint256 finalTotalAssets = borrowableCUSDC.totalAssets();
-        (,uint256 finalVestEnd,) = borrowableCUSDC.getYieldInformation();
+        (,uint256 finalVestEnd,,) = borrowableCUSDC.getYieldInformation();
 
         // validate vesting period, 100 minutes + initial period = 11 periods
         assertEq(finalVestEnd - initialVestEnd, 6600, "Should advance by 11 full vesting periods");

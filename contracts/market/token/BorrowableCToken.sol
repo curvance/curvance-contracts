@@ -104,16 +104,19 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @return vestingEnd When the current vesting period ends and interest
     ///                    rates paid will update.
     /// @return lastVestingClaim Last time pending vested yield was claimed.
+    /// @return debtIndex The current market debt index.
     function getYieldInformation() external view nonReadReentrant returns (
         uint256 vestingRate,
         uint256 vestingEnd,
-        uint256 lastVestingClaim
+        uint256 lastVestingClaim,
+        uint256 debtIndex
     ) {
         // Cache `_vestingData`, the packed vesting data storage value.
         uint256 vestingData = _vestingData;
         vestingRate = uint96(vestingData);
         vestingEnd = uint40(vestingData >> _BITPOS_VEST_END);
         lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
+        debtIndex = uint80(vestingData >> _BITPOS_DEBT_INDEX);
     }
 
     /// @notice Accrues pending interest and updates the interest rate

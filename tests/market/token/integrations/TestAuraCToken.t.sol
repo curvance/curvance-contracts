@@ -104,7 +104,7 @@ contract TestAuraCToken is TestBaseMarketIsolated {
         // check vault data without modification to vesting period
         (uint256 rewardRate, 
         uint256 vestingPeriodEnd, 
-        uint256 lastVestClaim) = strategyCBALRETH.getYieldInformation();
+        uint256 lastVestClaim,) = strategyCBALRETH.getYieldInformation();
 
         assert(lastVestClaim == block.timestamp);
         assert(vestingPeriodEnd == block.timestamp + 1 days);
@@ -158,7 +158,7 @@ contract TestAuraCToken is TestBaseMarketIsolated {
 
         strategyCBALRETH.harvest(abi.encode(swaps, 1e8));
 
-        (rewardRate, vestingPeriodEnd, lastVestClaim) = strategyCBALRETH.getYieldInformation();
+        (rewardRate, vestingPeriodEnd, lastVestClaim,) = strategyCBALRETH.getYieldInformation();
 
         assert(lastVestClaim == block.timestamp);
         assert(vestingPeriodEnd == block.timestamp + 2 days);
