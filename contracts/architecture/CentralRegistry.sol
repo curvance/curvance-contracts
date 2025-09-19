@@ -380,7 +380,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Sets the fee token address.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
-    ///      Only settable once. Emits a {FeeTokenSet} event.
+    ///      Settable before genesis epoch start.
+    ///      Emits a {FeeTokenSet} event.
     /// @param newFeeToken The new address of fee token.
     function setFeeToken(address newFeeToken) external {
         _checkCanSetCoreContract(feeToken);
@@ -392,7 +393,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Sets the CVE contract address.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
-    ///      Only settable once. Emits a {CoreContractUpdated} event.
+    ///      Settable before genesis epoch start.
+    ///      Emits a {CoreContractUpdated} event.
     /// @param newCVE The new address of cve.
     function setCVE(address newCVE) external {
         _checkCanSetCoreContract(cve);
@@ -404,7 +406,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Sets the veCVE contract address.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
-    ///      Only settable once. Emits a {CoreContractUpdated} event.
+    ///      Settable before genesis epoch start.
+    ///      Emits a {CoreContractUpdated} event.
     /// @param newVeCVE The new address of veCVE.
     function setVeCVE(address newVeCVE) external {
         _checkCanSetCoreContract(veCVE);
@@ -416,8 +419,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Sets the Reward Manager contract address.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Settable before genesis epoch start.
     ///      Emits a {CoreContractUpdated} event.
-    ///      Can only be set once.
     /// @param newRewardManager The new address of rewardManager.
     function setRewardManager(address newRewardManager) external {
         _checkCanSetCoreContract(rewardManager);
@@ -429,8 +432,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Sets the Gauge Manager contract address.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Settable before genesis epoch start.
     ///      Emits a {CoreContractUpdated} event.
-    ///      Can only be set once.
     /// @param newGaugeManager The new address of Gauge Manager.
     function setGaugeManager(address newGaugeManager) external {
         _checkCanSetCoreContract(gaugeManager);
