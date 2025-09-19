@@ -58,7 +58,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         skip(5 minutes);
         borrowableCUSDC.accrueIfNeeded();
 
-        (,uint256 midVestEnd, uint256 midLastVest,,) = borrowableCUSDC.getYieldInformation();
+        (,uint256 midVestEnd, uint256 midLastVest,) = borrowableCUSDC.getYieldInformation();
 
         assertEq(midVestEnd, initialVestEnd + 600, "First vesting period should advance by 600 seconds");
         assertEq(midLastVest, block.timestamp, "Last vest claim should update to current timestamp");
