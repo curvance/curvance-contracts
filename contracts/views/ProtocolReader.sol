@@ -335,8 +335,9 @@ contract ProtocolReader {
     ) public view returns (UserData memory data) {
         (uint256[] memory lockAmounts, uint256[] memory lockTimestamps) =
             IVeCVE(centralRegistry.veCVE()).queryUserLocks(account);
-        data.locks = new UserLock[](lockAmounts.length);
-        for (uint256 i; i < lockAmounts.length; ++i) {
+        uint256 numLocks = lockAmounts.length;
+        data.locks = new UserLock[](numLocks);
+        for (uint256 i; i < numLocks; ++i) {
             data.locks[i] = UserLock({
                 lockIndex: i,
                 amount: lockAmounts[i],
@@ -345,8 +346,9 @@ contract ProtocolReader {
         }
         
         address[] memory markets = centralRegistry.marketManagers();
-        data.markets = new UserMarket[](markets.length);
-        for (uint256 i = 0; i < markets.length; ++i) {
+        uint256 numMarkets = markets.length;
+        data.markets = new UserMarket[](numMarkets);
+        for (uint256 i = 0; i < numMarkets; ++i) {
             data.markets[i] =
                 _buildUserMarket(MarketManagerIsolated(markets[i]), account);
         }

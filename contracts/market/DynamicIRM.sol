@@ -323,6 +323,11 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ) external {
         _checkMarketPermissions();
 
+        address linkedCToken = ratesConfig.linkedToken;
+        if (linkedCToken != address(0)) {
+            IBorrowableCToken(linkedCToken).accrueIfNeeded();
+        }
+
         _updateDynamicIRM(
             baseRatePerYear,
             vertexRatePerYear,
