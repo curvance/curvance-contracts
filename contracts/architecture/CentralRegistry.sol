@@ -357,7 +357,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     }
 
     /// @notice Sets a new genesis epoch.
-    /// @dev Only callable by the Emergency Council.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Emits a {GenesisEpochUpdated} event.
     /// @param newGenesisEpoch The new genesis epoch.
     function setGenesisEpoch(uint256 newGenesisEpoch) external {
@@ -740,7 +740,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     }
 
     /// @notice Sets the target token emissions for each Protocol Era.
-    /// @dev Only callable by the Emergency Council.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
     /// @param epochEmissions The initial token emissions value that the
     ///                       protocol should allocate, per epoch.
     function setEraTargetEmissions(uint256 epochEmissions) external {

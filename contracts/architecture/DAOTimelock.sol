@@ -92,8 +92,10 @@ contract DAOTimelock is TimelockController, ERC165 {
         address registryEC = centralRegistry.emergencyCouncil();
         address timelockEC = _EMERGENCY_COUNCIL;
         if (registryEC != timelockEC) {
-            _revokeRole(CANCELLER_ROLE, timelockEC);
-
+            if (timelockEC != registryDaoAddress) {
+                 _revokeRole(CANCELLER_ROLE, timelockEC);
+            }
+           
             _grantRole(CANCELLER_ROLE, registryEC);
             _EMERGENCY_COUNCIL = registryEC;
         }
