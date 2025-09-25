@@ -492,9 +492,9 @@ contract MarketManagerIsolated is
         _checkHoldPeriod(account);
     }
 
-    /// @notice Checks if the liquidation should be allowed to occur,
-    ///         and returns how many collateralized shares should be seized
-    ///         on liquidation.
+    /// @notice Validates and processes batch liquidations for multiple accounts,
+    ///         calculating collateral seizure amounts, debt repayment, and bad debt
+    ///         based on account health and market parameters.
     /// @param debtAmounts The amounts of outstanding debt the liquidator
     ///                    wishes to repay, in underlying assets, empty if
     ///                    intention is to liquidate maximum amount possible
