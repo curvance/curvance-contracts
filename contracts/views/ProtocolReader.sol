@@ -130,12 +130,17 @@ contract ProtocolReader {
     ///                          obligations.
     /// @param liquidityDeficit Liquidity deficit when adjusted for debt
     ///                         obligations.
+    /// @param loanSizeError Whether the desired loan size is insufficient
+    ///                      causing an error.
+    /// @param oracleError Whether an oracle error was hit when pricing assets.
     struct HypotheticalResult {
         uint256 collateral;
         uint256 maxDebt;
         uint256 debt;
         uint256 collateralSurplus;
         uint256 liquidityDeficit;
+        bool loanSizeError;
+        bool oracleError;
     }
 
     /// CONSTANTS ///
@@ -273,7 +278,8 @@ contract ProtocolReader {
     ///                    borrow (false).
     /// @param debtAssets The amount of assets for a hypothetical action with
     ///                   `borrowableCToken`.
-    /// @param bufferTime Any additional time buffer for debt balance check.
+    /// @param bufferTime Any additional time buffer debt accrual is expected
+    ///                   before a user's action, in seconds.
     /// @return positionHealth The healthiness of `account`'s position inside
     ///                        `mm`.
     /// @return errorCodeHit Whether an error code was hit or not, which
@@ -309,7 +315,7 @@ contract ProtocolReader {
 
         if (mm.isListed(borrowableCToken) && debtAssets != 0) {
             if (debtAssets == type(uint256).max) {
-                debtAssets = debtBalanceAtTimestamp(account, borrowableCToken, block.timestamp);
+                debtAssets = debtBalanceAtTimestamp(account, borrowableCToken, block.timestamp + bufferTime);
             }
 
             tempValue = _debtValue(borrowableCToken, debtAssets);
@@ -358,18 +364,21 @@ contract ProtocolReader {
     ///         can redeem.
     /// @param account The account to determine redemptions for.
     /// @param cTokenRedeemed The cToken to redeem.
+    /// @param bufferTime Any additional time buffer debt accrual is expected
+    ///                   before a user's action, in seconds.
     /// @return collateralizedSharesRedeemable The amount of collateralized `cTokenModified`
     ///                                        shares redeemable by `account`.
     /// @return uncollateralizedShares The amount of uncollateralized `cTokenModified`
     ///                                shares redeemable by `account`.
-    /// @return errorHit Whether an error code was hit.
+    /// @return oracleError Whether an oracle error was hit when pricing assets.
     function maxRedemptionOf(
         address account,
-        address cTokenRedeemed
+        address cTokenRedeemed,
+        uint256 bufferTime
     ) public view returns (
         uint256 collateralizedSharesRedeemable,
         uint256 uncollateralizedShares,
-        bool errorHit
+        bool oracleError
     ) {
         IMarketManager mm = _marketManager(cTokenRedeemed);
 
@@ -380,10 +389,9 @@ contract ProtocolReader {
             return(0, 0, true);
         }
 
-        HypotheticalResult memory r;
-        (r, , errorHit) =
-            _hypotheticalLiquidityOf(mm, account, address(0), 0, 0);
-
+        HypotheticalResult memory r =
+            _hypotheticalLiquidityOf(mm, account, address(0), 0, 0, bufferTime);
+        oracleError = r.oracleError;
         collateralizedSharesRedeemable =
             _collateralPosted(cTokenRedeemed, account);
         uncollateralizedShares = ICToken(cTokenRedeemed).balanceOf(account) -
@@ -422,6 +430,8 @@ contract ProtocolReader {
     /// @param account The account to determine liquidity for.
     /// @param cTokenModified The cToken to hypothetically redeem.
     /// @param redemptionShares The number of shares to hypothetically redeem.
+    /// @param bufferTime Any additional time buffer debt accrual is expected
+    ///                   before a user's action, in seconds.
     /// @return Hypothetical account liquidity in excess of collateral
     ///         requirements.
     /// @return Hypothetical account liquidity deficit below collateral
@@ -432,7 +442,8 @@ contract ProtocolReader {
     function hypotheticalRedemptionOf(
         address account,
         address cTokenModified,
-        uint256 redemptionShares
+        uint256 redemptionShares,
+        uint256 bufferTime
     ) public view returns (uint256, uint256, bool, bool) {
         IMarketManager mm = _marketManager(cTokenModified);
 
@@ -446,15 +457,16 @@ contract ProtocolReader {
             return(0, 0, false, false);
         }
 
-        (HypotheticalResult memory r, , bool errorCodeHit) =
+        HypotheticalResult memory r =
             _hypotheticalLiquidityOf(
                 mm,
                 account,
                 cTokenModified,
                 redemptionShares,
-                0
+                0,
+                bufferTime
             );
-        return (r.collateralSurplus, r.liquidityDeficit, true, errorCodeHit);
+        return (r.collateralSurplus, r.liquidityDeficit, true, r.oracleError);
     }
 
     /// @notice Determine what the account liquidity would be if
@@ -463,6 +475,8 @@ contract ProtocolReader {
     /// @param borrowableCTokenModified The borrowableCToken to hypothetically
     ///                                 borrow.
     /// @param borrowAssets The number of assets to hypothetically borrow.
+    /// @param bufferTime Any additional time buffer debt accrual is expected
+    ///                   before a user's action, in seconds.
     /// @return Hypothetical account liquidity in excess of collateral
     ///         requirements.
     /// @return Hypothetical account liquidity deficit below collateral
@@ -475,7 +489,8 @@ contract ProtocolReader {
     function hypotheticalBorrowOf(
         address account,
         address borrowableCTokenModified,
-        uint256 borrowAssets
+        uint256 borrowAssets,
+        uint256 bufferTime
     ) public view returns (uint256, uint256, bool, bool, bool) {
         IMarketManager mm = _marketManager(borrowableCTokenModified);
 
@@ -489,15 +504,16 @@ contract ProtocolReader {
             return(0, 0, false, false, false);
         }
 
-        (HypotheticalResult memory r, bool loanSizeError, bool errorCodeHit) =
+        HypotheticalResult memory r =
             _hypotheticalLiquidityOf(
                 mm,
                 account,
                 borrowableCTokenModified,
                 0,
-                borrowAssets
+                borrowAssets,
+                bufferTime
             );
-        return (r.collateralSurplus, r.liquidityDeficit, true, loanSizeError, errorCodeHit);
+        return (r.collateralSurplus, r.liquidityDeficit, true, r.loanSizeError, r.oracleError);
     }
 
     /// @notice Calculates the hypothetical maximum amount of
@@ -512,6 +528,8 @@ contract ProtocolReader {
     ///                         from to achieve leverage.
     /// @param assets The amount of `cToken` underlying that `account` will
     ///               deposit to leverage against.
+    /// @param bufferTime Any additional time buffer debt accrual is expected
+    ///                   before a user's action, in seconds.
     /// @return currentLeverage Returns the current leverage multiplier of
     ///                         `account`, in `WAD`.
     /// @return adjustedMaxLeverage Returns the maximum leverage multiplier of
@@ -527,19 +545,20 @@ contract ProtocolReader {
     ///                           hypothetical deposit.
     /// @return loanSizeError Whether the desired loan size is insufficient
     ///                       causing an error.
-    /// @return errorCodeHit Whether an error code was hit.
+    /// @return oracleError Whether an oracle error was hit when pricing assets.
     function hypotheticalLeverageOf(
         address account,
         address cToken,
         address borrowableCToken,
-        uint256 assets
+        uint256 assets,
+        uint256 bufferTime
     ) public view returns (
         uint256 currentLeverage,
         uint256 adjustedMaxLeverage,
         uint256 maxLeverage,
         uint256 maxDebtBorrowable,
         bool loanSizeError,
-        bool errorCodeHit
+        bool oracleError
     ) {
         IMarketManager mm = _marketManager(borrowableCToken);
 
@@ -548,10 +567,10 @@ contract ProtocolReader {
             revert ProtocolReader__TokenNotListed();
         }
 
-        HypotheticalResult memory r;
-        (r, loanSizeError, errorCodeHit) = 
-            _hypotheticalLiquidityOf(mm, account, address(0), 0, 0);
-        
+        HypotheticalResult memory r = 
+            _hypotheticalLiquidityOf(mm, account, address(0), 0, 0, bufferTime);
+        loanSizeError = r.loanSizeError;
+        oracleError = r.oracleError;
         // If the account is insolvent or we can immediately return with 0 for
         // everything.
         if (r.debt > r.collateral) {
@@ -775,6 +794,8 @@ contract ProtocolReader {
     ///                         in `shares`.
     /// @param borrowAssets The amount of underlying to hypothetically borrow,
     ///                     in `assets`.
+    /// @param bufferTime Any additional time buffer debt accrual is expected
+    ///                   before a user's action, in seconds.
     /// @return result Hypothetical results for an action containing:
     ///                collateral Total value of `account`'s collateral across
     ///                           all positions.
@@ -788,25 +809,26 @@ contract ProtocolReader {
     ///                                 the action.
     ///                positionClosureNeeded Flag indicating if positions need
     ///                                      to be closed. (0: no, 2: yes)
-    /// @return loanSizeError Whether the desired loan size is insufficient
-    ///                       causing an error.
-    /// @return bool Whether an error code was hit.
+    ///                loanSizeError Whether the desired loan size is
+    ///                              insufficient causing an error.
+    ///                oracleError Whether an oracle error was hit when pricing
+    ///                            assets.
     function _hypotheticalLiquidityOf(
         IMarketManager mm,
         address account,
         address cTokenModified,
         uint256 redemptionShares,
-        uint256 borrowAssets
-    ) internal view returns (
-        HypotheticalResult memory result,
-        bool loanSizeError,
-        bool
-    ) {
+        uint256 borrowAssets,
+        uint256 bufferTime
+    ) internal view returns (HypotheticalResult memory result) {
+        AccountSnapshot[] memory snapshots;
+        uint256[] memory prices;
+        uint256 numAssets;
         (
-            AccountSnapshot[] memory snapshots,
-            uint256[] memory prices,
-            uint256 numAssets,
-            bool errorCodeHit
+            snapshots,
+            prices,
+            numAssets,
+            result.oracleError
         ) = _assetDataOf(mm, account, 2);
         AccountSnapshot memory snap;
         uint256 newDebt;
@@ -830,6 +852,9 @@ contract ProtocolReader {
                     BPS
                 );
             } else {
+                // Update debt balance for `account` if necessary.
+                snap.debtBalance =
+                    debtBalanceAtTimestamp(account, snap.asset, block.timestamp + bufferTime);
                 // If they have a debt balance, increment their debt.
                 if (snap.debtBalance > 0) {
                     result.debt += _assetValue(
@@ -883,7 +908,7 @@ contract ProtocolReader {
                     // and know its only including current and
                     // hypothetical new debt.
                     if (newDebt < MIN_ACTIVE_LOAN_SIZE) {
-                        loanSizeError = true;
+                        result.loanSizeError = true;
                     }
 
                     // We don't need to check for closing a position here
@@ -895,12 +920,11 @@ contract ProtocolReader {
         // Returns excess liquidity on hypothetical positions.
         if (result.maxDebt > newDebt) {
             result.collateralSurplus = result.maxDebt - newDebt;
-            return (result, loanSizeError, errorCodeHit);
+            return result;
         }
 
         // Returns shortfall on hypothetical positions.
         result.liquidityDeficit = newDebt - result.maxDebt;
-        return(result, loanSizeError, errorCodeHit);
     }
 
     /// @notice Evaluates collateral and debt positions to determine account
@@ -1147,12 +1171,12 @@ contract ProtocolReader {
             tokens[j] = _buildUserMarketToken(tokenAddresses[j], account);
         }
 
-        HypotheticalResult memory r;
-        (r, , um.errorCodeHit) =
-            _hypotheticalLiquidityOf(mm, account, address(0), 0, 0);
+        HypotheticalResult memory r =
+            _hypotheticalLiquidityOf(mm, account, address(0), 0, 0, 0);
         um.collateral = r.collateral;
         um.maxDebt = r.maxDebt;
         um.debt = r.debt;
+        um.errorCodeHit = r.oracleError;
 
         um._address = address(mm);
         // Get position health without any hypothetical changes.
