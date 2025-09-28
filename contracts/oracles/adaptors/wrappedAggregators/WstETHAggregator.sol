@@ -14,16 +14,19 @@ contract WstETHAggregator is VaultAggregator {
         address stETHAggregator
     ) VaultAggregator(wstETH, stETH, stETHAggregator) {}
 
+    /// INTERNAL FUNCTIONS ///
+
     /// @notice Returns the current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.
-    /// @return The current exchange rate between the wrapped asset
-    ///         and the underlying aggregator, in `WAD`.
-    function getExchangeRate() public view override returns (uint256) {
-        // Return exchange rate in `WAD` format directly.
-        return IWstETH(vault).getStETHByWstETH(WAD);
+    /// @return result The current exchange rate between the wrapped asset
+    ///                and the underlying aggregator, in `WAD`.
+    function _getExchangeRate() internal view override returns (
+        uint256 result
+    ) {
+        // Return exchange rate in `WAD` format directly to get return value
+        // in `_vaultDecimalPrecision` format.
+        result = IWstETH(vault).getStETHByWstETH(WAD);
     }
-
-    /// INTERNAL FUNCTIONS ///
 
     function _checkVaultAsset(
         address _vault,

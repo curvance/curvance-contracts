@@ -44,7 +44,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
             underlyingAggregator()
         ).latestRoundData();
 
-        answer = (answer * _toInt256(getExchangeRate())) / _toInt256(WAD);
+        answer = getAdjustedAnswer(answer);
     }
 
     /// PUBLIC FUNCTIONS TO OVERRIDE ///
@@ -54,24 +54,24 @@ abstract contract BaseWrappedAggregator is IChainlink {
     /// @return The underlying aggregator address.
     function underlyingAggregator() public view virtual returns (address);
 
-    /// @notice Returns the current exchange rate between the wrapped asset
-    ///         and the underlying aggregator, in `WAD`.
+    /// @notice Returns the adjusted `answer` based on the current exchange
+    ///         rate between the wrapped asset and the underlying aggregator.
     /// @dev Overridden in implemented wrapped oracle aggregators.
-    /// @return The current exchange rate between the wrapped asset
-    ///         and the underlying aggregator, in `WAD`.
-    function getExchangeRate() public view virtual returns (uint256);
+    /// @return The adjusted oracle `answer`.
+    function getAdjustedAnswer(int256) public view virtual returns (int256);
 
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Converts an unsigned uint256 into a signed int256.
     /// @param value The uint256 value to convert to int256.
-    /// @return The converted int256 value.
-    function _toInt256(uint256 value) internal pure returns (int256) {
+    /// @return result The converted int256 value.
+    function _toInt256(uint256 value) internal pure returns (int256 result) {
         // Note: Unsafe cast below is okay because `type(int256).max`
         //       is guaranteed to be positive
         if (value > uint256(type(int256).max)) {
             revert BaseWrappedAggregator__UintToIntError();
         }
-        return int256(value);
+
+        result = int256(value);
     }
 }
