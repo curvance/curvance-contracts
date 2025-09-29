@@ -402,7 +402,7 @@ contract ProtocolReader {
                     collateralizedSharesRedeemable,
                     getPriceSafely(cTokenRedeemed, true, true, 2),
                     10 ** ICToken(cTokenRedeemed).decimals(),
-                    false
+                    true
                 ),
                 _collateralizationRatio(mm, cTokenRedeemed),
                 BPS
