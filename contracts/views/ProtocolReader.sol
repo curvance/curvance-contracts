@@ -881,7 +881,7 @@ contract ProtocolReader {
                             redemptionShares,
                             prices[i],
                             10 ** snap.decimals,
-                            false
+                            true
                         ),
                         collRatio,
                         BPS
