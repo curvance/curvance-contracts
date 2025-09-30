@@ -1056,16 +1056,17 @@ contract MarketManagerIsolated is
             revert MarketManager__UnauthorizedLiquidation();
         }
 
-        // Validate `incentive` is within configured incentive bounds. This
-        // also validates `incentive` is not > the 16 bits we have allocated.
-        if (incentive < c.liqIncMin || incentive > c.liqIncMax) {
+        // Validate `incentive` is within configured incentive bounds, unless
+        // zero is passed to signal protocol-derived values should be used.
+        // This also validates `incentive` is not > the 16 bits we have allocated.
+        if (incentive != 0 && (incentive < c.liqIncMin || incentive > c.liqIncMax)) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Validate `closeFactor` is within configured allowed close factor
-        // range. This also validates `closeFactor` is not > the 16 bits we
-        // have allocated.
-        if (closeFactor < c.closeFactorMin || closeFactor > c.closeFactorMax) {
+        // range, unless zero is passed to signal protocol-derived values should be used.
+        // This also validates `closeFactor` is not > the 16 bits we have allocated.
+        if (closeFactor != 0 && (closeFactor < c.closeFactorMin || closeFactor > c.closeFactorMax)) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
