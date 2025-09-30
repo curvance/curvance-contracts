@@ -1415,9 +1415,13 @@ contract MarketManagerIsolated is
         // limited to MAX_BASE_CFACTOR meaning closeFactorCurve cannot ever be
         // 0 unless we did not receive offchain parameters and we need to
         // calculate close factor and liquidation penalty onchain.
+        // Calculate each parameter independently to support partial zero values.
         if (aData.closeFactorCurve != 0) {
             aData.closeFactor = aData.closeFactorBase +
                 _mulDiv(aData.closeFactorCurve, aData.lFactor, WAD);
+        }
+
+        if (aData.liqIncCurve != 0) {
             aData.liqInc = aData.liqIncBase +
                 _mulDiv(aData.liqIncCurve, aData.lFactor, WAD);
         }
@@ -1585,9 +1589,13 @@ contract MarketManagerIsolated is
 
         // We only need to cache these variables if we did not receive close
         // factor/liquidation incentive from `getLiquidationConfig`.
-        if (aData.closeFactor == 0 || aData.liqInc == 0) {
+        // Handle each parameter independently to support partial zero values.
+        if (aData.closeFactor == 0) {
             aData.closeFactorBase = c.closeFactorBase;
             aData.closeFactorCurve = c.closeFactorCurve;
+        }
+
+        if (aData.liqInc == 0) {
             aData.liqIncBase = c.liqIncBase;
             aData.liqIncCurve = c.liqIncCurve;
         }

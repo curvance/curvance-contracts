@@ -156,6 +156,12 @@ contract TestLiquidationBuffer is TestBaseMarketIsolated {
         uint256 liquidatorCollateral = borrowableCDAI.balanceOf(auctionPermsUser);
         assertGt(liquidatorCollateral, 0, "Liquidator should have received collateral");
 
+        uint256 debtRepaid = debtBefore - debtAfter;
+        uint256 collateralSeized = collateralBefore - collateralAfter;
+
+        console2.log("Debt repaid with zeros:", debtRepaid);
+        console2.log("Collateral seized with zeros:", collateralSeized);
+
     }
 
     function test_success_AuctionLiquidationWithPartialZeroValues() public {
@@ -163,23 +169,24 @@ contract TestLiquidationBuffer is TestBaseMarketIsolated {
 
         vm.startPrank(auctionPermsUser);
         usdc.approve(address(borrowableCUSDC), 1000e6);
-        // Set auction with non-zero incentive but zero close factor
-        // This should use protocol-derived close factor but custom incentive
-        uint256 customIncentive = 11500;
-        marketManagerIsolated.setTransientLiquidationConfig(address(borrowableCDAI), customIncentive, 0);
+        // Set auction with lower non-zero incentive but zero close factor
+        // liqIncMin = 10, so use 10500 (105%) which is lower than protocol-derived
+        // Lower incentive = less collateral seized per unit debt
+        uint256 lowerIncentive = 10500;
+        marketManagerIsolated.setTransientLiquidationConfig(address(borrowableCDAI), lowerIncentive, 0);
 
         centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
 
         // Verify values are stored correctly
         (, uint256 storedIncentive, uint256 storedCloseFactor) = marketManagerIsolated.getTransientLiquidationConfig();
-        assertEq(storedIncentive, customIncentive, "Custom incentive should be stored");
+        assertEq(storedIncentive, lowerIncentive, "Custom lower incentive should be stored");
         assertEq(storedCloseFactor, 0, "Close factor should be stored as 0");
 
         // Capture state before liquidation
         uint256 debtBefore = borrowableCUSDC.debtBalanceUpdated(user1);
         uint256 collateralBefore = borrowableCDAI.balanceOf(user1);
 
-        // Execute liquidation with custom incentive + protocol-derived close factor
+        // Execute liquidation with custom lower incentive + protocol-derived close factor
         borrowableCUSDC.liquidate(borrowers, address(borrowableCDAI));
 
         vm.stopPrank();
@@ -195,6 +202,12 @@ contract TestLiquidationBuffer is TestBaseMarketIsolated {
         assertGt(debtRepaid, 0, "Debt should have been repaid");
         assertGt(collateralSeized, 0, "Collateral should have been seized");
         assertEq(liquidatorCollateral, collateralSeized, "Liquidator should have received seized collateral");
+
+        // With lower incentive, less collateral should be seized than the all-zeros test
+        // All-zeros test seized 164508299170082991700 (with protocol-derived incentive)
+        uint256 collateralSeizedWithZeros = 164508299170082991700;
+        assertLt(collateralSeized, collateralSeizedWithZeros,
+            "Lower incentive (105%) should result in less collateral seized than protocol-derived incentive (~110%)");
 
     }
 }
