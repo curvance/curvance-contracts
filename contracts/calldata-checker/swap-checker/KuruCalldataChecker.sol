@@ -56,6 +56,7 @@ contract KuruCalldataChecker is BaseSwapChecker {
         } else {
             revert CalldataChecker__InvalidFuncSig();
         }
+        
         if (recipient != expectedRecipient) {
             revert CalldataChecker__RecipientError();
         }

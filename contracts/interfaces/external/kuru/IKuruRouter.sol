@@ -19,12 +19,9 @@ interface IKuruFlowRouter {
     }
 
     function executeSwap(
-            SwapIntent calldata swapIntent,
-            FeeCollection calldata feeCollection,
-            bytes calldata program
-        )
-            external
-            payable
-            returns (uint256 amountOut);
+        SwapIntent calldata swapIntent,
+        FeeCollection calldata feeCollection,
+        bytes calldata program
+    ) external payable returns (uint256 amountOut);
 
 }

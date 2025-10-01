@@ -17,8 +17,9 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
-/// @notice Curvance's cTokens (Curvance Tokens) are ERC4626 compliant.
-///         However, they follow their own design modifying underlying
+/// @notice Curvance's cTokens (Curvance Tokens) are ERC4626 compliant, with
+///         the exception of blocking zero amount transfers.
+///         Curvance tokens also follow their own design modifying underlying
 ///         mechanisms such as `totalAssets` following an asset vesting system
 ///         in both external strategies and lender interest accrual from
 ///         borrowers.
