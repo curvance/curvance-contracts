@@ -17,11 +17,14 @@ interface IKuruFlowRouter {
         bool isInTokenFee; // true = take fee in input token (tokenUserSells), false = take fee in output token
             // (tokenUserBuys)
     }
-    function executeRoute(
-        address tokenIn,
-        uint256 amountIn,
-        address tokenOut,
-        uint256 minAmountOut,
-        bytes memory program
-    ) external payable returns (uint256 amountOut);
+
+    function executeSwap(
+            SwapIntent calldata swapIntent,
+            FeeCollection calldata feeCollection,
+            bytes calldata program
+        )
+            external
+            payable
+            returns (uint256 amountOut);
+
 }
