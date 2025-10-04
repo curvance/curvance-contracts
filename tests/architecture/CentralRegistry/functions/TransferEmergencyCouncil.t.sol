@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
+import { DAOTimelock } from "contracts/architecture/DAOTimelock.sol";
 
 import { console2 } from "forge-std/console2.sol";
 
@@ -119,12 +120,18 @@ contract TransferEmergencyCouncilTest is TestBaseMarketIsolated {
         address timelockAddress = centralRegistry.timelock();
         assertTrue(timelockAddress != address(0));
 
+        bytes32 CANCELLER_ROLE = keccak256("CANCELLER_ROLE");
         vm.expectEmit(false, true, true, false, timelockAddress);
-        emit RoleRevoked(bytes32(0), address(this), address(centralRegistry));
-
-        vm.expectEmit(false, true, true, false, timelockAddress);
-        emit RoleGranted(bytes32(0), newCouncil1, address(centralRegistry));
+        emit RoleGranted(CANCELLER_ROLE, newCouncil1, address(centralRegistry));
 
         centralRegistry.transferEmergencyCouncil(newCouncil1);
+
+        // Assert DAO retains its canceller role on the timelock
+        assertTrue(
+            DAOTimelock(payable(timelockAddress)).hasRole(
+                CANCELLER_ROLE,
+                centralRegistry.daoAddress()
+            )
+        );
     }
 }

@@ -609,13 +609,9 @@ contract ProtocolReader {
         /// NOTE: This can overestimate maximum executeable leverage when
         ///       swapping due to AMM fees and slippage.
         maxDebtBorrowable = _mulDiv(
-            _mulDiv(
-                _mulDiv(r.maxDebt - r.debt, r.collateral, r.collateral - r.debt),
-                WAD,
-                getPriceSafely(ICToken(borrowableCToken).asset(), true, false, 1) // Price the debt token.
-            ),
-            10 ** IERC20(ICToken(borrowableCToken).asset()).decimals(),
-            WAD
+            r.maxDebt - r.debt,
+            r.collateral,
+            r.collateral - r.maxDebt
         );
 
         // Calculate the theoretical maximum leverage.
@@ -623,6 +619,13 @@ contract ProtocolReader {
             r.collateral + maxDebtBorrowable,
             WAD,
             r.collateral - r.debt
+        );
+
+        // Convert maxDebtBorrowable, currently in WAD, to assets denomination.
+        maxDebtBorrowable = _mulDiv(
+            maxDebtBorrowable,
+            10 ** ICToken(borrowableCToken).decimals(),
+            getPriceSafely(ICToken(borrowableCToken).asset(), true, false, 1)
         );
 
         // Calculate the maximum debt borrowable currently.
@@ -635,10 +638,11 @@ contract ProtocolReader {
         );
 
         // If theres no ability to borrow then can return adjusted leverage of 0.
+        // Also convert adjusted maxDebtBorrowable back to WAD from assets denomination.
         if (maxDebtBorrowable > 0) {
             // Calculate the real maximum leverage.
             adjustedMaxLeverage = _mulDiv(
-                r.collateral + maxDebtBorrowable,
+                r.collateral + _debtValue(borrowableCToken, maxDebtBorrowable),
                 WAD,
                 r.collateral - r.debt
             );

@@ -38,7 +38,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
     fallback() external payable {}
 
     function setUp() public override {
-        _fork("ETH_NODE_URI_MONAD");
+        _fork("ETH_NODE_URI_MONAD", 40414278);
 
         _deployCentralRegistry();
         _deployCVE();
@@ -47,8 +47,6 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         _deployGaugeManager();
         _deployMarketManager();
         _deployOracleManager();
-
-        vm.roll(40414278);
 
         checker = new KuruCalldataChecker(kuruRouter);
         centralRegistry.setExternalCalldataChecker(kuruRouter, address(checker));
@@ -190,6 +188,6 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
 
         simpleZapper.swapAndDeposit(address(borrowableCWMON), true, swapAction, 0, true, address(this));
 
-        assertEq(borrowableCWMON.balanceOf(address(this)), 1518279023341523340);
+        assertEq(borrowableCWMON.balanceOf(address(this)), 1520146525215252151);
     }
 }
