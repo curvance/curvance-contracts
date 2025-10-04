@@ -25,7 +25,7 @@ contract VaultAggregator is BaseWrappedAggregator {
     /// CONSTRUCTOR ///
     
     constructor(address _vault, address _asset, address _aggregator) {
-        _checkVaultAsset(_vault, _asset);
+        _checkAssetConfig(_vault, _asset);
 
         vault = _vault;
         asset = _asset;
@@ -57,11 +57,10 @@ contract VaultAggregator is BaseWrappedAggregator {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Returns the current exchange rate between the wrapped asset
-    ///         and the underlying aggregator, in `_vaultDecimalPrecision`.
-    /// @return result The current exchange rate between the wrapped asset
-    ///                and the underlying aggregator,
-    ///                in `_vaultDecimalPrecision`.
+    /// @notice Returns the current exchange rate between `vault` and the
+    ///         and the underlying `asset`, in `_vaultDecimalPrecision`.
+    /// @return result The current exchange rate between `vault` and the
+    ///                underlying `asset`, in `_vaultDecimalPrecision`.
     function _getExchangeRate() internal view virtual returns (
         uint256 result
     ) {
@@ -71,7 +70,7 @@ contract VaultAggregator is BaseWrappedAggregator {
     }
 
     /// @notice Validates whether `_vault`'s asset() is `_asset`.
-    function _checkVaultAsset(
+    function _checkAssetConfig(
         address _vault,
         address _asset
     ) internal view virtual {

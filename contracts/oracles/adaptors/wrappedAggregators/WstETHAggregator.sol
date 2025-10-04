@@ -28,7 +28,7 @@ contract WstETHAggregator is VaultAggregator {
         result = IWstETH(vault).getStETHByWstETH(WAD);
     }
 
-    function _checkVaultAsset(
+    function _checkAssetConfig(
         address _vault,
         address _asset
     ) internal view override {
