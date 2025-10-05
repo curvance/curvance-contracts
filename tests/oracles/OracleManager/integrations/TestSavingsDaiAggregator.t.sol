@@ -56,10 +56,11 @@ contract TestSavingsDaiAggregator is TestBase {
         (, int256 sdaiPrice, , , ) = aggregator.latestRoundData();
         (, int256 daiPrice, , , ) = IChainlink(_CHAINLINK_DAI_USD)
             .latestRoundData();
+
+        uint256 exchangeRate = IPotLike(ISavingsDai(_SDAI_ADDRESS).pot()).chi() / 1e9;
         assertEq(
             uint256(sdaiPrice),
-            ((uint256(daiPrice) *
-                IPotLike(ISavingsDai(_SDAI_ADDRESS).pot()).chi()) / 1e9) / 1e6
+            ((uint256(daiPrice) * exchangeRate) / 1e6)
         );
     }
 }
