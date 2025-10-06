@@ -247,8 +247,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         // Case where there is no realtime price increase so the PriceGuard
         // has static minimum/maximum guarded prices.
         if (pg.ips == 0) {
+            // If the price of the token drops below the minimum we return 0
+            // to immediately bubble up a pricing error.
             if (price < pg.minPrice) {
-                return pg.minPrice;
+                return 0;
             }
 
             return price > pg.basePrice ? pg.basePrice : price;
@@ -261,8 +263,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 timePassed = block.timestamp - pg.timestampStart;
         uint256 min = _guardedPrice(timePassed, pg.ips, pg.minPrice);
 
+        // If the price of the token drops below the minimum we return 0 to
+        // immediately bubble up a pricing error.
         if (price < min) {
-            return min;
+            return 0;
         }
         
         uint256 max = _guardedPrice(timePassed, pg.ips, pg.basePrice);

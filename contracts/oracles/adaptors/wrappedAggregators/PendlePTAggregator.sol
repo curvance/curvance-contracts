@@ -45,7 +45,7 @@ contract PendlePTAggregator is BaseWrappedAggregator {
         // BPS for consistency.
         _discountOneYearBPS = _discountOneYearBPS * 1e14;
 
-        if (_discountOneYear > WAD) {
+        if (_discountOneYearBPS > WAD) {
             revert BaseWrappedAggregator__InvalidConfig();
         }
 
@@ -64,6 +64,7 @@ contract PendlePTAggregator is BaseWrappedAggregator {
         PT = _PT;
         asset = _asset;
 
+        _discountOneYear = _discountOneYearBPS;
         _PTDecimalPrecision = 10 ** ICToken(_PT).decimals();
         _assetDecimalPrecision = _toInt256(10 ** ICToken(_asset).decimals());
         _assetAggregator = _aggregator;
@@ -93,17 +94,21 @@ contract PendlePTAggregator is BaseWrappedAggregator {
 
     /// @notice Returns the current exchange rate between `PT` and the
     ///         and the underlying `asset`, in `_PTDecimalPrecision`.
-    /// @return result The current exchange rate between `PT` and the
-    ///                underlying `asset`, in `_PTDecimalPrecision`.
-    function _getExchangeRate() internal view returns (
-        uint256 result
-    ) {
-        uint256 timeToExpiry = _expiry >  block.timestamp ?
-            _expiry - block.timestamp : 0;
+    /// @return The current exchange rate between `PT` and the underlying
+    ///         `asset`, in `_PTDecimalPrecision`.
+    function _getExchangeRate() internal view returns (uint256) {
+        // If the PT has expired directly return 1 in `_PTDecimalPrecision`
+        // to price it 1:1 with underlying asset.
+        if (block.timestamp >= expiry) {
+            return _PTDecimalPrecision;
+        }
+
+        uint256 timeToExpiry = _expiry - block.timestamp;
         // We know this wont overflow since even 1 year _expiry, 100% discount,
         // 40 decimals is only 3.15e65, well below 1.15792e77 limit.
-        result = (timeToExpiry * _discountOneYear * _PTDecimalPrecision) /
-            SECONDS_PER_YEAR;
+        return _PTDecimalPrecision -
+            (timeToExpiry * _discountOneYear * _PTDecimalPrecision) /
+                SECONDS_PER_YEAR;
     }
 
     /// @notice Validates whether `_PT`'s asset is `_asset`.
