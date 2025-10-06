@@ -107,8 +107,8 @@ contract PendlePTAggregator is BaseWrappedAggregator {
         // We know this wont overflow since even 1 year _expiry, 100% discount,
         // 40 decimals is only 3.15e65, well below 1.15792e77 limit.
         return _PTDecimalPrecision -
-            (timeToExpiry * _discountOneYear * _PTDecimalPrecision) /
-                SECONDS_PER_YEAR;
+            ((timeToExpiry * _discountOneYear * _PTDecimalPrecision) /
+                (SECONDS_PER_YEAR * WAD));
     }
 
     /// @notice Validates whether `_PT`'s asset is `_asset`.
