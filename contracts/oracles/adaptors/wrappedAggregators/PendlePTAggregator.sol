@@ -99,7 +99,7 @@ contract PendlePTAggregator is BaseWrappedAggregator {
     function _getExchangeRate() internal view returns (uint256) {
         // If the PT has expired directly return 1 in `_PTDecimalPrecision`
         // to price it 1:1 with underlying asset.
-        if (block.timestamp >= expiry) {
+        if (block.timestamp >= _expiry) {
             return _PTDecimalPrecision;
         }
 

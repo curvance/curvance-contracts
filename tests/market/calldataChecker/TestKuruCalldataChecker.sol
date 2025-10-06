@@ -38,7 +38,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
     fallback() external payable {}
 
     function setUp() public override {
-        _fork("ETH_NODE_URI_MONAD", 40414278);
+        _fork("ETH_NODE_URI_MONAD", 41450292);
 
         _deployCentralRegistry();
         _deployCVE();
@@ -188,6 +188,6 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
 
         simpleZapper.swapAndDeposit(address(borrowableCWMON), true, swapAction, 0, true, address(this));
 
-        assertEq(borrowableCWMON.balanceOf(address(this)), 1520146525215252151);
+        assertEq(borrowableCWMON.balanceOf(address(this)), 1523425731895223420);
     }
 }
