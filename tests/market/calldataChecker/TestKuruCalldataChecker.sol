@@ -38,7 +38,11 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
     fallback() external payable {}
 
     function setUp() public override {
-        _fork("ETH_NODE_URI_MONAD", 41450292);
+        // _fork("ETH_NODE_URI_MONAD", 41450292);
+
+        uint256 forkId = vm.createSelectFork("https://monad-testnet.drpc.org", 41450292);
+
+        _initMainConstantVariables();
 
         _deployCentralRegistry();
         _deployCVE();

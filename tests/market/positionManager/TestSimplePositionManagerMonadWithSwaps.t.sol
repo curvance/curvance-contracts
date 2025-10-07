@@ -46,7 +46,11 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
     fallback() external payable {}
 
     function setUp() public override {
-        _fork("ETH_NODE_URI_MONAD", 41354880);
+        // _fork("ETH_NODE_URI_MONAD", 41354880);
+
+        uint256 forkId = vm.createSelectFork("https://monad-testnet.drpc.org", 41354880);
+
+        _initMainConstantVariables();
 
         _deployCentralRegistry();
         _deployCVE();
