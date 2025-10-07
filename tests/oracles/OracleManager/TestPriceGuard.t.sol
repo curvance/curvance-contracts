@@ -11,7 +11,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
-contract PriceGuardTest is TestBaseMarketIsolated {
+contract TestPriceGuard is TestBaseMarketIsolated {
 
     function setUp() public virtual override {
         super.setUp();
@@ -165,11 +165,11 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             3400e18
         );
 
-        // Below floor: adjust to 3400
+        // Below floor: return error
         chainlinkEthUsd.updateAnswer(3300e8);
         (uint256 price, uint256 err) = oracleManager.getPrice(_ETH_ADDRESS, true, true);
-        assertEq(err, 0);
-        assertEq(price, 3400e18);
+        assertEq(err, 2); // BAD_SOURCE
+        assertEq(price, 0);
 
         // Above cap: adjust to 3600
         chainlinkEthUsd.updateAnswer(3700e8);
@@ -219,11 +219,11 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         console2.log("minBound", minBound);
         console2.log("maxBound", maxBound);
 
-        // Below floor: adjust to dynamic floor
+        // Below floor: return error
         chainlinkEthUsd.updateAnswer(3000e8);
         (uint256 price, uint256 err) = oracleManager.getPrice(_ETH_ADDRESS, true, true);
-        assertEq(err, 0);
-        assertEq(price, minBound);
+        assertEq(err, 2); // BAD_SOURCE
+        assertEq(price, 0);
 
         // Above cap: adjust to dynamic cap
         chainlinkEthUsd.updateAnswer(4500e8);
@@ -254,11 +254,11 @@ contract PriceGuardTest is TestBaseMarketIsolated {
         assertEq(err, 0);
         assertEq(price, newMaxBound);
 
-        // Below floor after time: adjust to new, higher dynamic floor
+        // Below floor after time: return error
         chainlinkEthUsd.updateAnswer(3000e8);
         (price, err) = oracleManager.getPrice(_ETH_ADDRESS, true, true);
-        assertEq(err, 0);
-        assertEq(price, newMinBound);
+        assertEq(err, 2); // BAD_SOURCE
+        assertEq(price, 0);
     }
 
     // Dynamic guard with zero increase: behaves as static constraints
@@ -286,11 +286,11 @@ contract PriceGuardTest is TestBaseMarketIsolated {
             minPrice
         );
 
-        // Below floor: adjust to min
+        // Below floor: return error
         chainlinkEthUsd.updateAnswer(3300e8);
         (uint256 price, uint256 err) = oracleManager.getPrice(_ETH_ADDRESS, true, true);
-        assertEq(err, 0);
-        assertEq(price, minPrice);
+        assertEq(err, 2); // BAD_SOURCE
+        assertEq(price, 0);
 
         // Above cap: adjust to base
         chainlinkEthUsd.updateAnswer(3700e8);
