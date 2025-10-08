@@ -35,10 +35,10 @@ contract RedstoneCoreAdaptor is
 
     /// @notice If type(uint256).max is specified for an asset heartbeat,
     ///         `DEFAULT_HEARTBEAT` is used instead.
-    /// @dev 10 minutes = 600 seconds.
+    /// @dev 5 minutes = 300 seconds.
     ///      We use type(uint256).max instead of 0 for trigger as we may want
     ///      0 second requirement on redstone pull oracles.
-    uint256 public constant DEFAULT_HEARTBEAT = 10 minutes;
+    uint256 public constant DEFAULT_HEARTBEAT = 5 minutes;
     /// @notice The smallest value that Redstone Core unique signer threshold
     ///         can be inside Curvance.
     uint256 public constant MINIMUM_SIGNERS_THRESHOLD_ALLOWED = 3;
