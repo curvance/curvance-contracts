@@ -146,7 +146,8 @@ contract SimpleZapper is BaseZapper {
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
-        // Repay `repayAssets` outstanding debt.
+        // Repay `repayAssets` outstanding debt, 0 defaults to repaying
+        // everything.
         outAmount = _repayDebt(
             borrowableCToken,
             swapAction.outputToken,

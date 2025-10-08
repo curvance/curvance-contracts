@@ -260,6 +260,13 @@ abstract contract BaseZapper is ReentrancyGuard {
         uint256 repayAssets,
         address receiver
     ) internal returns (uint256) {
+        if (repayAssets == 0) {
+            // Accrue any interest owed so repayAssets includes all
+            // `receiver` debt.
+            repayAssets = IBorrowableCToken(borrowableCToken)
+                .debtBalanceUpdated(receiver);
+        }
+        
         // Revert if the swap experienced too much slippage.
         if (assetsHeld < repayAssets) {
             revert BaseZapper__InsufficientToRepay();
