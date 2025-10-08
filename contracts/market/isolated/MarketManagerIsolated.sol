@@ -581,24 +581,24 @@ contract MarketManagerIsolated is
                 action.liquidateExact
             );
 
-            // If the user is being liquidated update relevant values.
-            if (action.liquidatedShares > 0) {
-                result.debtRepaid += action.debtRepaid;
-                result.liquidatedShares[i] = action.liquidatedShares;
+            // We optimistically update values even if they are setting from
+            // 0 -> 0 to act as an invariant check for the sum of all debt
+            // values in `debtAmounts` equal to `debtRepaid`.
+            result.debtRepaid += action.debtRepaid;
+            result.liquidatedShares[i] = action.liquidatedShares;
 
-                if (action.badDebt > 0) {
-                    result.badDebtRealized += action.badDebt;
-                    // Add the bad debt to debt to remove from the liquidated
-                    // account.
-                    action.debtRepaid += action.badDebt;
-                }
-
-                // If its an exact liquidation this will be a redundant setter
-                // but anticipation is majority of liquidators will use
-                // non-exact so checking for liquidateExact each time is a
-                // waste.
-                debtAmounts[i] = action.debtRepaid;
+            if (action.badDebt > 0) {
+                result.badDebtRealized += action.badDebt;
+                // Add the bad debt to debt to remove from the liquidated
+                // account.
+                action.debtRepaid += action.badDebt;
             }
+
+            // If its an exact liquidation this will be a redundant setter
+            // but anticipation is majority of liquidators will use
+            // non-exact so checking for liquidateExact each time is a
+            // waste.
+            debtAmounts[i] = action.debtRepaid;
 
             /// Update prior account to current account.
             priorAccount = cachedAccount;
@@ -1431,7 +1431,11 @@ contract MarketManagerIsolated is
         }
         
         // Calculate how many shares should be liquidated.
-        liquidatedShares = (debtAmount * debtToCollateral) / WAD_SQUARED;
+        liquidatedShares = FixedPointMathLib.mulDivUp(
+            debtAmount,
+            debtToCollateral,
+            WAD_SQUARED
+        );
 
         // Cache `account`'s collateral posted of
         // `tData.collateralToken`.
@@ -1449,7 +1453,7 @@ contract MarketManagerIsolated is
             }
         } else {
             if (liquidatedShares > sharesPosted) {
-                debtAmount = FixedPointMathLib.mulDivUp(
+                debtAmount = FixedPointMathLib.mulDiv(
                     debtAmount,
                     sharesPosted,
                     liquidatedShares
