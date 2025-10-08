@@ -490,9 +490,9 @@ abstract contract BaseCToken is
     }
 
     /// @notice Returns the address of the underlying asset.
-    /// @return The address of the underlying asset.
-    function asset() public view override returns (address) {
-        return address(_asset);
+    /// @return result The address of the underlying asset.
+    function asset() public view override returns (address result) {
+        result = address(_asset);
     }
 
     /// @notice Returns the maximum assets that can be deposited at a time.
@@ -642,9 +642,9 @@ abstract contract BaseCToken is
 
     /// @notice Returns whether the underlying token can be borrowed.
     /// @dev true = Borrowable; false = Not Borrowable.
-    /// @return Whether this token is borrowable or not.
-    function isBorrowable() public pure virtual returns (bool) {
-        return false;
+    /// @return result Whether this token is borrowable or not.
+    function isBorrowable() public pure virtual returns (bool result) {
+        result = false;
     }
 
     /// @dev Returns true that this contract implements both ERC4626
@@ -659,11 +659,11 @@ abstract contract BaseCToken is
     }
 
     /// @notice Returns the total number of assets backing shares.
-    /// @return The total number of assets backing shares.
+    /// @return result The total number of assets backing shares.
     function totalAssets() public view nonReadReentrant override returns (
-        uint256
+        uint256 result
     ) {
-        return _getTotalAssets();
+        result = _getTotalAssets();
     }
 
     /// @notice Returns the amount of shares that would be exchanged
