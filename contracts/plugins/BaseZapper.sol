@@ -282,9 +282,11 @@ abstract contract BaseZapper is ReentrancyGuard {
         SwapperLib._removeApprovalIfNeeded(debtAsset, borrowableCToken);
         assetsHeld -= repayAssets;
 
-        // Transfer any remaining `debtAsset` to `receiver`.
+        // Transfer any remaining `debtAsset` to caller, we return funds to
+        // caller instead of `receiver` for teams integrating on top of
+        // Curvance and may want to keep those funds.
         if (assetsHeld > 0) {
-            _transferToRecipient(debtAsset, receiver, assetsHeld);
+            _transferToRecipient(debtAsset, msg.sender, assetsHeld);
         }
 
         return assetsHeld;
