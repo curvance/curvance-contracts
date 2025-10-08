@@ -344,6 +344,8 @@ contract OracleManager is IOracleManager {
     }
 
     /// @notice Check whether L2 sequencer is valid or down.
+    /// @dev Uses Chainlink sequencer check if available, regardless of
+    ///      linked oracle adaptor.
     /// @return True if sequencer is valid.
     function isSequencerValid() external view returns (bool) {
         return _isSequencerValid();

@@ -24,6 +24,10 @@ import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 ///         in both external strategies and lender interest accrual from
 ///         borrowers.
 ///
+///         "Weird tokens" that do not properly implement ERC-20 are not
+///         intended to be supported such as where name() or decimals()
+///         returns in unconventional forms.
+///
 ///         The "cToken" employs two different methods of engaging with the
 ///         Curvance protocol. Users can deposit an unlimited amount of assets,
 ///         which may or may not benefit from some form of yield.
