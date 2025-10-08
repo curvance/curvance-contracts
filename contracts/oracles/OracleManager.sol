@@ -418,8 +418,13 @@ contract OracleManager is IOracleManager {
         }
 
         uint256 errorCode;
+        address underlying = cTokens[collateralToken];
+        if (underlying == address(0)) {
+            revert OracleManager__NotSupported();
+        }
+
         (collateralSharesPrice, errorCode) = _getPrice(
-            cTokens[collateralToken],
+            underlying,
             true,
             true
         );
@@ -430,8 +435,13 @@ contract OracleManager is IOracleManager {
         collateralSharesPrice = (collateralSharesPrice *
             ICToken(collateralToken).exchangeRateUpdated()) / WAD;
 
+        underlying = cTokens[debtToken];
+        if (underlying == address(0)) {
+            revert OracleManager__NotSupported();
+        }
+
         (debtUnderlyingPrice, errorCode) = _getPrice(
-            cTokens[debtToken],
+            underlying,
             true,
             false
         );
