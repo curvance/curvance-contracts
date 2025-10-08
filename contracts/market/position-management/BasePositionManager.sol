@@ -430,8 +430,8 @@ abstract contract BasePositionManager is
         uint256 repayAssets = action.repayAssets;
         if (repayAssets == 0) {
             // Accrue any interest owed so repayAssets includes all
-            // `receiver` debt.
-            repayAssets = borrowableCToken.debtBalanceUpdated(receiver);
+            // `owner` debt.
+            repayAssets = borrowableCToken.debtBalanceUpdated(owner);
         }
 
         if (repayAssets > assetsHeld) {
