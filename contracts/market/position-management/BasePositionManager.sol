@@ -426,8 +426,14 @@ abstract contract BasePositionManager is
 
         // Unwrap deleverage instructions for debt repayment.
         address debtAsset = borrowableCToken.asset();
-        uint256 repayAssets = action.repayAssets;
         uint256 assetsHeld = IERC20(debtAsset).balanceOf(address(this));
+        uint256 repayAssets = action.repayAssets;
+        if (repayAssets == 0) {
+            // Accrue any interest owed so repayAssets includes all
+            // `receiver` debt.
+            repayAssets = borrowableCToken.debtBalanceUpdated(receiver);
+        }
+
         if (repayAssets > assetsHeld) {
             revert BasePositionManager__InsufficientAssetsForRepayment();
         }
