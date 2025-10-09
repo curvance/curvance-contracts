@@ -110,6 +110,56 @@ contract TestLiquidationBuffer is TestBaseMarketIsolated {
         
         assertEq(borrowableCDAI.balanceOf(auctionPermsUser), 
             expectedLiquidationValues.collateralLiquidated, " debt balance should have changed");
+    }
 
+    function test_success_AuctionLiquidationWithZeroValues() public {
+        _prepareUSDC(auctionPermsUser, 1000e6);
+
+        // CRITICAL ASSERTION 1: Without auction buffer, liquidation is not possible.
+        vm.expectRevert(abi.encodeWithSelector(MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector));
+        borrowableCUSDC.liquidate(borrowers, address(borrowableCDAI));
+
+        vm.startPrank(auctionPermsUser);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+        // Set auction parameters with ZERO to use protocol-derived values
+        marketManagerIsolated.setTransientLiquidationConfig(address(borrowableCDAI), 0, 0);
+
+        centralRegistry.unlockAuctionForMarket(address(marketManagerIsolated));
+
+        // Verify zeros are stored in transient config
+        (, uint256 storedIncentive, uint256 storedCloseFactor) = marketManagerIsolated.getTransientLiquidationConfig();
+        assertEq(storedIncentive, 0, "Incentive should be stored as 0");
+        assertEq(storedCloseFactor, 0, "Close factor should be stored as 0");
+
+        // Capture state before liquidation
+        uint256 debtBefore = borrowableCUSDC.debtBalanceUpdated(user1);
+        uint256 collateralBefore = borrowableCDAI.balanceOf(user1);
+
+        // CRITICAL ASSERTION 2: Liquidation succeeds because auction buffer 
+        // was applied when both dynamic risk parameters passed == 0.
+        // This liquidation succeeds because:
+        // 1. Auction buffer (9990) is applied even with zero values
+        // 2. Protocol-derived dynamic liquidation incentive and close factor are used
+        borrowableCUSDC.liquidate(borrowers, address(borrowableCDAI));
+
+        vm.stopPrank();
+
+        // Verify liquidation occurred - debt was reduced
+        uint256 debtAfter = borrowableCUSDC.debtBalanceUpdated(user1);
+        assertLt(debtAfter, debtBefore, "Debt should have been reduced");
+
+        // Verify collateral was seized
+        uint256 collateralAfter = borrowableCDAI.balanceOf(user1);
+        assertLt(collateralAfter, collateralBefore, "Collateral should have been seized");
+
+        // Verify liquidator received collateral
+        uint256 liquidatorCollateral = borrowableCDAI.balanceOf(auctionPermsUser);
+        assertGt(liquidatorCollateral, 0, "Liquidator should have received collateral");
+
+        uint256 debtRepaid = debtBefore - debtAfter;
+        uint256 collateralSeized = collateralBefore - collateralAfter;
+
+        console2.log("Debt repaid with zeros:", debtRepaid);
+        console2.log("Collateral seized with zeros:", collateralSeized);
     }
 }

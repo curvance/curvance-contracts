@@ -492,9 +492,10 @@ contract MarketManagerIsolated is
         _checkHoldPeriod(account);
     }
 
-    /// @notice Validates and processes batch liquidations for multiple accounts,
-    ///         calculating collateral seizure amounts, debt repayment, and bad debt
-    ///         based on account health and market parameters.
+    /// @notice Validates and processes batch liquidations for multiple
+    ///         accounts, calculating collateral seizure amounts, debt
+    ///         repayment, and bad debt based on account health and market
+    ///         parameters.
     /// @param debtAmounts The amounts of outstanding debt the liquidator
     ///                    wishes to repay, in underlying assets, empty if
     ///                    intention is to liquidate maximum amount possible
@@ -1050,16 +1051,24 @@ contract MarketManagerIsolated is
             revert MarketManager__UnauthorizedLiquidation();
         }
 
-        // Validate `incentive` is within configured incentive bounds. This
-        // also validates `incentive` is not > the 16 bits we have allocated.
-        if (incentive < c.liqIncMin || incentive > c.liqIncMax) {
+        // Validate `incentive` is within configured incentive bounds, unless
+        // zero is passed to signal protocol-derived values should be used.
+        // This also validates `incentive` is not > the 16 bits we have allocated.
+        if (
+            incentive != 0 &&
+            (incentive < c.liqIncMin || incentive > c.liqIncMax)
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Validate `closeFactor` is within configured allowed close factor
-        // range. This also validates `closeFactor` is not > the 16 bits we
-        // have allocated.
-        if (closeFactor < c.closeFactorMin || closeFactor > c.closeFactorMax) {
+        // range, unless zero is passed to signal protocol-derived values
+        // should be used. This also validates `closeFactor` is not > the 16
+        // bits we have allocated.
+        if (
+            closeFactor != 0 &&
+            (closeFactor < c.closeFactorMin || closeFactor > c.closeFactorMax)
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -1396,21 +1405,24 @@ contract MarketManagerIsolated is
     ) {
         // Calculate the users lFactor and bubble up their active debt.
         (aData.lFactor, aData.debtBalance) =
-            _liquidationValuesOf(account, tData);
+            _liquidationValuesOfCached(account, tData);
 
         if (aData.lFactor == 0) {
             return (0, 0, 0);
         }
 
-        // If this liquidation does not have offchain submitted
-        // parameters then closeFactorCurve will not be 0. We know this since
+        // If this liquidation does not have offchain submitted parameters
+        // then closeFactorCurve and liqIncCurve will not be 0. Because
         // closeFactorCurve is BPS - closeFactorBase and closeFactorBase is
         // limited to MAX_BASE_CFACTOR meaning closeFactorCurve cannot ever be
-        // 0 unless we did not receive offchain parameters and we need to
-        // calculate close factor and liquidation penalty onchain.
+        // 0. liqIncCurve cannot be zero due to the `updateTokenConfig`
+        // c.liqIncBase >= c.liqIncHard inline check.
         if (aData.closeFactorCurve != 0) {
             aData.closeFactor = aData.closeFactorBase +
                 _mulDiv(aData.closeFactorCurve, aData.lFactor, WAD);
+        }
+
+        if (aData.liqIncCurve != 0) {
             aData.liqInc = aData.liqIncBase +
                 _mulDiv(aData.liqIncCurve, aData.lFactor, WAD);
         }
@@ -1582,9 +1594,12 @@ contract MarketManagerIsolated is
 
         // We only need to cache these variables if we did not receive close
         // factor/liquidation incentive from `getLiquidationConfig`.
-        if (aData.closeFactor == 0 || aData.liqInc == 0) {
+        if (aData.closeFactor == 0) {
             aData.closeFactorBase = c.closeFactorBase;
             aData.closeFactorCurve = c.closeFactorCurve;
+        }
+
+        if (aData.liqInc == 0) {
             aData.liqIncBase = c.liqIncBase;
             aData.liqIncCurve = c.liqIncCurve;
         }
