@@ -1405,7 +1405,7 @@ contract MarketManagerIsolated is
     ) {
         // Calculate the users lFactor and bubble up their active debt.
         (aData.lFactor, aData.debtBalance) =
-            _liquidationValuesOfCached(account, tData);
+            _liquidationValuesOf(account, tData);
 
         if (aData.lFactor == 0) {
             return (0, 0, 0);
