@@ -96,5 +96,47 @@ contract SetTransientLiquidationConfigTest is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function test_setTransientLiquidationConfig_success_withBothZeroValues() public {
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setAuctionConfigs(address(strategyCBALRETH), 0, 0);
+
+        vm.startPrank(auctionPermsUser);
+
+        // Verify both values are zero (signaling protocol-derived)
+        (, uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getTransientLiquidationConfig();
+        assertEq(currentPenalty, 0, "Incentive should be 0 to signal protocol-derived");
+        assertEq(currentCloseFactor, 0, "Close factor should be 0 to signal protocol-derived");
+        vm.stopPrank();
+    }
+
+    function test_setTransientLiquidationConfig_success_withZeroIncentiveNonZeroCloseFactor() public {
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        // closeFactorMin = 2000, closeFactorMax = 5000 from _setCTokenConfigBasic
+        _setAuctionConfigs(address(strategyCBALRETH), 0, 3000);
+
+        vm.startPrank(auctionPermsUser);
+
+        // Verify incentive is zero (protocol-derived) and close factor is custom
+        (, uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getTransientLiquidationConfig();
+        assertEq(currentPenalty, 0, "Incentive should be 0 to signal protocol-derived");
+        assertEq(currentCloseFactor, 3000, "Close factor should be custom value");
+        vm.stopPrank();
+    }
+
+    function test_setTransientLiquidationConfig_success_withNonZeroIncentiveZeroCloseFactor() public {
+        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        // liqIncMin = 10, liqIncMax = 2000 from _setCTokenConfigBasic
+        // Use 10500 (105%) which is above liqIncMin + BPS = 10010
+        _setAuctionConfigs(address(strategyCBALRETH), 10500, 0);
+
+        vm.startPrank(auctionPermsUser);
+
+        // Verify incentive is custom and close factor is zero (protocol-derived)
+        (, uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getTransientLiquidationConfig();
+        assertEq(currentPenalty, 10500, "Incentive should be custom value");
+        assertEq(currentCloseFactor, 0, "Close factor should be 0 to signal protocol-derived");
+        vm.stopPrank();
+    }
+
 
 }
