@@ -49,7 +49,7 @@ contract DonationThenLiquidationTest is TestBaseBorrowableCToken {
 
         vm.expectRevert(BorrowableCToken.BorrowableCToken__InsufficientAssetsHeld.selector);
         borrowableCUSDC.borrow(2000e6, user1);
-        
+
         // Borrow a valid amount within assetsHeld() constraints.
         borrowableCUSDC.borrow(1000e6, user1);
         vm.stopPrank();
@@ -71,7 +71,7 @@ contract DonationThenLiquidationTest is TestBaseBorrowableCToken {
         vm.stopPrank();
 
         // Step 5: Invariants: totalAssets decreased (bad debt recognized) but remains > 0.
-        uint256 totalAssetsAfter = borrowableCUSDC.totalAssets();
+        totalAssetsAfter = borrowableCUSDC.totalAssets();
         assertLt(totalAssetsAfter, totalAssetsBefore);
         assertGt(totalAssetsAfter, 0);
     }
