@@ -123,7 +123,6 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
         // assert that the feeds are not changed
         assertEq(oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0), feed0Before);
         assertEq(oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1), feed1Before);
-
     }
 
 }

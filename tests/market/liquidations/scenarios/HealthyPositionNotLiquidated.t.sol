@@ -8,7 +8,6 @@ import { console2 } from "forge-std/console2.sol";
 
 
 contract HealthyPositionNotLiquidated is TestBaseMarketIsolated {
-
     address[] borrowers = [user1, makeAddr("attacker")];
 
     function setUp() public override {
@@ -90,6 +89,5 @@ contract HealthyPositionNotLiquidated is TestBaseMarketIsolated {
         // Assert attacker was NOT liquidated
         assertEq(borrowableCUSDC.debtBalance(borrowers[1]), 250e6, "Attacker debt should be unchanged");
         assertEq(borrowableCDAI.collateralPosted(borrowers[1]), 1000e18, "Attacker collateral should be unchanged");
-
     }
 }

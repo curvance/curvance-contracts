@@ -67,7 +67,6 @@ contract TestLiquidationRounding is TestBaseMarketIsolated {
         {
             _prepareDAI(owner, 200000e18);
             dai.approve(address(borrowableCDAI), 200000e18);
-
         }
 
         marketManagerIsolated.listTokens(address(borrowableCDAI), address(borrowableCUSDC));
@@ -77,7 +76,6 @@ contract TestLiquidationRounding is TestBaseMarketIsolated {
 
         mockDaiFeed.setMockAnswer(100_000e8); // debt
         mockUsdcFeed.setMockAnswer(100_000e8); // collateral
-
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();

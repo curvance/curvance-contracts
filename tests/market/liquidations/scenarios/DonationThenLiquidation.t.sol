@@ -25,23 +25,31 @@ contract DonationThenLiquidationTest is TestBaseBorrowableCToken {
     }
 
     function test_donation_then_liquidation() public {
+        uint256 assetsHeldBefore = borrowableCUSDC.assetsHeld();
+        uint256 totalAssetsBefore = borrowableCUSDC.totalAssets();
+
         // Step 1: Random user transfers 1000 USDC into cUSDC.
         _prepareUSDC(user1, 1000e6);
         usdc.transfer(address(borrowableCUSDC), 1000e6);
+
         // Donations do NOT increase assetsHeld() or totalAssets().
-        uint256 assetsHeldBefore = borrowableCUSDC.assetsHeld();
-        uint256 totalAssetsBefore = borrowableCUSDC.totalAssets();
-        assertEq(assetsHeldBefore, totalAssetsBefore);
+        uint256 assetsHeldAfter = borrowableCUSDC.assetsHeld();
+        uint256 totalAssetsAfter = borrowableCUSDC.totalAssets();
+        assertEq(assetsHeldBefore, assetsHeldAfter);
+        assertEq(totalAssetsBefore, totalAssetsAfter);
 
         // Step 2: User1 deposits 2 Pendle Strategy cToken as collateral and attempts to borrow 2000 USDC.
         // Borrowing > assetsHeld() should revert with InsufficientAssetsHeld.
         deal(address(LP_wstETH_24Dec2025), user1, 2*_ONE);
+
         vm.startPrank(user1);
         LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 2*_ONE);
         pendleStrategyCTokenSTETH.deposit(2*_ONE, user1);
         pendleStrategyCTokenSTETH.postCollateral(2*_ONE);
+
         vm.expectRevert(BorrowableCToken.BorrowableCToken__InsufficientAssetsHeld.selector);
         borrowableCUSDC.borrow(2000e6, user1);
+        
         // Borrow a valid amount within assetsHeld() constraints.
         borrowableCUSDC.borrow(1000e6, user1);
         vm.stopPrank();
