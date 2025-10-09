@@ -3,6 +3,8 @@ pragma solidity 0.8.28;
 
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract NotifyFeedRemovalTest is TestBaseOracleManager {
     function test_notifyFeedRemoval_fail_whenCallerIsNotApprovedAdaptor()
@@ -91,4 +93,37 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
         vm.expectRevert();
         oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1);
     }
+
+    function test_notifyFeedRemoval_whenThirdAdaptorSupportsAsset() public {
+        _addDualPriceFeed();
+
+        ChainlinkAdaptor thirdAdaptor = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
+
+        thirdAdaptor.addAsset(
+            _USDC_ADDRESS,
+            true,
+            _CHAINLINK_USDC_USD,
+            0
+        );
+        thirdAdaptor.addAsset(
+            _USDC_ADDRESS,
+            false,
+            _CHAINLINK_USDC_ETH,
+            0
+        );
+
+        oracleManager.addApprovedAdaptor(address(thirdAdaptor));
+
+        address feed0Before = oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0);
+        address feed1Before = oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1);
+
+        vm.prank(address(thirdAdaptor));
+        oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
+
+        // assert that the feeds are not changed
+        assertEq(oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0), feed0Before);
+        assertEq(oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1), feed1Before);
+
+    }
+
 }

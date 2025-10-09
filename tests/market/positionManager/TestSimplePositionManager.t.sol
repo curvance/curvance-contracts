@@ -866,6 +866,63 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function testDeLeverageZeroRepayAssets() public {
+        testLeverage();
+
+        // Warp until collateralization cooldown period ends.
+        vm.warp(block.timestamp + 20 minutes);
+        borrowableCDAI.accrueIfNeeded();
+
+        vm.startPrank(user);
+        AccountSnapshot memory borrowableCDAIBeforeSnapshot = borrowableCDAI.getSnapshot(user);
+        AccountSnapshot memory borrowableCUSDCBeforeSnapshot = borrowableCUSDC.getSnapshot(user);
+
+        uint256 currentDebt = borrowableCDAIBeforeSnapshot.debtBalance;
+
+        // Convert decimals from dai to usdc, with 1% buffer
+        uint256 collateralNeeded = (currentDebt * 101) / (100 * 1e12); 
+
+        SimplePositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(borrowableCUSDC));
+        deleverageAction.collateralAssets = collateralNeeded;
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = address(usdc);
+        deleverageAction.swapActions[0].inputAmount = collateralNeeded;
+        deleverageAction.swapActions[0].outputToken = address(dai);
+        deleverageAction.swapActions[0].target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(usdc);
+        path[1] = address(dai);
+        deleverageAction.swapActions[0].call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            collateralNeeded,
+            0,
+            path,
+            address(positionManager),
+            block.timestamp
+        );
+        deleverageAction.swapActions[0].slippage = 0.3e18;
+        deleverageAction.repayAssets = 0; // 0 = repay all debt
+        positionManager.deleverage(deleverageAction, 0.05e18);
+
+        AccountSnapshot memory borrowableCDAISnapshot = borrowableCDAI.getSnapshot(user);
+        assertEq(borrowableCDAISnapshot.debtBalance, 0, "Debt should be fully repaid");
+
+        AccountSnapshot memory borrowableCUSDCSnapshot = borrowableCUSDC.getSnapshot(
+            user
+        );
+        assertEq(
+            borrowableCUSDCSnapshot.collateralPosted,
+            borrowableCUSDCBeforeSnapshot.collateralPosted - deleverageAction.collateralAssets,
+            "Collateral should be reduced"
+        );
+
+        assertEq(borrowableCUSDCSnapshot.debtBalance, 0, "Debt should be fully repaid");
+
+        vm.stopPrank();
+    }
+
     function testLeverageFor() public {
         vm.startPrank(user);
 

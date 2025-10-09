@@ -467,7 +467,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///      current transaction, if any.
     /// @return result The quantity of underlying tokens held by the market.
     function assetsHeld() public view returns (uint256 result) {
-        result = _totalAssets - outstandingDebt;
+        result = _totalAssets - marketOutstandingDebt;
     }
 
     /// @notice Returns whether the underlying token can be borrowed.
