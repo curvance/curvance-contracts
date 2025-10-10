@@ -462,12 +462,21 @@ contract BorrowableCToken is BaseCTokenWithYield {
         fee = _mulDivUp(assets, FLASHLOAN_FEE, BPS);
     }
 
-    /// @notice Gets balance of this contract, in terms of the underlying.
-    /// @dev This excludes changes in underlying token balance by the
-    ///      current transaction, if any.
-    /// @return result The quantity of underlying tokens held by the market.
+    /// @notice Gets balance of borrowable assets held by this
+    ///         borrowableCToken contract.
+    /// @dev This excludes changes in assets by the current transaction,
+    ///      if any. NOTE: This will revert until the token is enabled via
+    ///      initializeDeposits().
+    /// @return result The quantity of borrowable assets held by the market.
     function assetsHeld() public view returns (uint256 result) {
-        result = _totalAssets - marketOutstandingDebt;
+        // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
+        // the market never actually runs out of assets and may introduce
+        // invariant manipulation.
+        // This also acts as a protective mechanism against trying to
+        // manipulate marketOutstandingDebt above total underlying assets
+        // inside the system since there will always be at least
+        // _BASE_UNDERLYING_RESERVE excess inside the market.
+        result = _totalAssets - marketOutstandingDebt - _BASE_UNDERLYING_RESERVE;
     }
 
     /// @notice Returns whether the underlying token can be borrowed.
@@ -959,15 +968,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param assets The amount of assets to withdraw which is checked
     ///               against current assets held in the contract.
     function _checkAssetsHeld(uint256 assets) internal view override {
-        // Check if we have enough underlying held to support the withdrawal.
-        // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
-        // the market never actually runs out of assets and may introduce
-        // invariant manipulation.
-        // This also acts as a protective mechanism against trying to
-        // manipulate marketOutstandingDebt above total underlying assets
-        // inside the system since there will always be at least
-        // _BASE_UNDERLYING_RESERVE excess inside the market.
-        if (assetsHeld() < assets + _BASE_UNDERLYING_RESERVE) {
+        if (assetsHeld() < assets) {
             revert BorrowableCToken__InsufficientAssetsHeld();
         }
     }
