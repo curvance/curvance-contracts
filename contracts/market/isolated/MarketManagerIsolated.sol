@@ -1265,7 +1265,7 @@ contract MarketManagerIsolated is
         // If `collateralRedeemed` is 0 or the account does not have an
         // active position in `cToken`, we can bypass the liquidity check.
         if (collateralRedeemed == 0 || accountPositions[cToken][account] != 2) {
-            return;
+            return collateralRedeemed;
         }
 
         // Check account liquidity with hypothetical cToken redemption.
