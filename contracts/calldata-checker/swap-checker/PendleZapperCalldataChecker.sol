@@ -39,17 +39,8 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
         address outputToken;
 
         if (funcSigHash == PendleZapper.enterPendle.selector) {
-            (
-                address cToken,
-                ,
-                ,
-                ,
-                PendleZapper.ZapAction memory desc,
-                ,
-                ,
-                ,
-                address receiver
-            ) = abi.decode(
+            (address cToken,,,, PendleZapper.ZapAction memory desc,,,,address receiver) =
+                abi.decode(
                     _getFuncParams(swapAction.call),
                     (
                         address,
@@ -68,15 +59,8 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
             inputAmount = desc.inputAmount;
             outputToken = cToken == address(0) ? desc.outputToken : cToken;
         } else if (funcSigHash == PendleZapper.exitPendle.selector) {
-            (
-                ,
-                ,
-                ,
-                ,
-                PendleZapper.ZapAction memory desc,
-                ,
-                address receiver
-            ) = abi.decode(
+            (,,,, PendleZapper.ZapAction memory desc,, address receiver) =
+                abi.decode(
                     _getFuncParams(swapAction.call),
                     (
                         address,
@@ -93,16 +77,8 @@ contract PendleZapperCalldataChecker is BaseSwapChecker {
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else if (funcSigHash == PendleZapper.redeemAndExitPendle.selector) {
-            (
-                ,
-                ,
-                ,
-                ,
-                BaseZapper.RedeemAction memory redeemAction,
-                PendleZapper.ZapAction memory desc,
-                ,
-                address receiver
-            ) = abi.decode(
+            (,,,, BaseZapper.RedeemAction memory redeemAction, PendleZapper.ZapAction memory desc,, address receiver) =
+                abi.decode(
                     _getFuncParams(swapAction.call),
                     (
                         address,
