@@ -1375,6 +1375,16 @@ abstract contract BaseCToken is
         }
     }
 
+    /// @dev Returns `ceil(x * y / d)`.
+    /// Reverts if `x * y` overflows, or `d` is zero.
+    function _mulDivUp(
+        uint256 x,
+        uint256 y,
+        uint256 d
+    ) internal pure returns (uint256 z) {
+        z = FixedPointMathLib.mulDivUp(x, y, d);
+    }
+
     /// @dev Returns `floor(x * y / d)`.
     /// Reverts if `x * y` overflows, or `d` is zero.
     function _mulDiv(

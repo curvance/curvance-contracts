@@ -338,7 +338,8 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
         address feeManager
     ) internal returns (uint256) {
         // Calculate protocol fee for token lockers and strategy bot.
-        uint256 fee = FixedPointMathLib.mulDivUp(reward, strategyFee, BPS);
+        uint256 fee = _mulDivUp(reward, strategyFee, BPS);
+        
         // Take fee.
         SafeTransferLib.safeTransfer(rewardToken, feeManager, fee);
         // Return remaining reward after fee was taken.

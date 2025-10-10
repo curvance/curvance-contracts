@@ -448,7 +448,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Calculate `account` active debt balance using:
         // `(Account's outstanding debt * Market's `DEBT_INDEX`) /
         // Account's `DEBT_INDEX``.
-        r = FixedPointMathLib.mulDivUp(
+        r = _mulDivUp(
             outstandingDebt,
             uint80(_vestingData >> _BITPOS_DEBT_INDEX),
             uint80(debtOf >> _BITPOS_DEBT_INDEX)
@@ -459,7 +459,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @param assets The amount of `asset()` lent during the flashloan.
     /// return The assets of `asset()` to be charged for the flashloan.
     function flashFee(uint256 assets) public pure returns (uint256 fee) {
-        fee = FixedPointMathLib.mulDivUp(assets, FLASHLOAN_FEE, BPS);
+        fee = _mulDivUp(assets, FLASHLOAN_FEE, BPS);
     }
 
     /// @notice Gets balance of this contract, in terms of the underlying.
@@ -761,12 +761,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
         }
 
         // Calculate any protocol fee on `assetsToVest`, in assets.
-        uint256 protocolFee = FixedPointMathLib.mulDivUp(
-            assetsToVest,
-            interestFee,
-            BPS
-        );
         // If theres fees we need to mint new shares for the protocol.
+        uint256 protocolFee = _mulDivUp(assetsToVest, interestFee, BPS);
         if (protocolFee > 0) {
             // We can calculate how many shares the protocol should receive
             // from its fee on assetsToVest by using the formula:
@@ -774,7 +770,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // This means that that shares minted will result in an exchange
             // rate matching the amount of vested assets lenders should
             // benefit from.
-            uint256 protocolFeeShares = _mulDiv(
+            uint256 protocolFeeShares = FixedPointMathLib.fullMulDiv(
                 protocolFee,
                 totalSupply(),
                 cachedTa + assetsToVest - protocolFee
@@ -790,7 +786,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // `assetsToVest` is new outstanding debt in assets so we
             // need to divide by `outstandingDebt` so its in % form.
             marketDebtIndex =
-                _mulDiv(assetsToVest, marketDebtIndex, outstandingDebt)
+                _mulDivUp(assetsToVest, marketDebtIndex, outstandingDebt)
                     + marketDebtIndex;
             // Update marketOutstandingDebt invariant with vested assets.
             marketOutstandingDebt = uint240(outstandingDebt + assetsToVest);

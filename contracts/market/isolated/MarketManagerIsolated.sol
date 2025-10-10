@@ -1465,7 +1465,7 @@ contract MarketManagerIsolated is
             }
         } else {
             if (liquidatedShares > sharesPosted) {
-                debtAmount = FixedPointMathLib.mulDiv(
+                debtAmount = FixedPointMathLib.fullMulDiv(
                     debtAmount,
                     sharesPosted,
                     liquidatedShares
@@ -1488,7 +1488,7 @@ contract MarketManagerIsolated is
             // E.g. `sharesPosted` = `sharesNeeded` / 2 means 50%
             // of debt should be recognized as bad debt.
             badDebt = FixedPointMathLib.fullMulDiv(
-                _mulDiv(debtAmount, sharesNeeded, sharesPosted),
+                FixedPointMathLib.fullMulDiv(debtAmount, sharesNeeded, sharesPosted),
                 WAD_SQUARED - _mulDiv(WAD_SQUARED, sharesPosted, sharesNeeded),
                 WAD_SQUARED
             );
