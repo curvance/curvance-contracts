@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
-import { RescueLib } from "contracts/libraries/RescueLib.sol";
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.sol";
 
@@ -418,19 +417,6 @@ abstract contract BaseCToken is
         // Update market collateral posted invariant for the liquidated
         // shares.
         marketCollateralPosted = marketCollateralPosted - totalShares;
-    }
-
-    /// @notice Rescue any token sent by mistake.
-    /// @param token token to rescue.
-    /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
-    function rescueToken(address token, uint256 amount) external {
-        _checkDaoPermissions();
-
-        if (token == asset()) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        RescueLib._rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Updates pending assets and returns the up-to-date exchange
