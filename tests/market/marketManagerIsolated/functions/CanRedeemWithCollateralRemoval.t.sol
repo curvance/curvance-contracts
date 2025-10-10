@@ -2,8 +2,9 @@
 pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
+import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
+import "forge-std/console.sol";
 
 contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
     event PositionUpdated(address cToken, address account, bool open);
@@ -338,23 +339,30 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
         // Step 4: User2 repays all USDC debt.
         _prepareUSDC(user2, 100000e6);
         vm.startPrank(user2);
-
         usdc.approve(address(borrowableCUSDC), 100000e6);
         borrowableCUSDC.repay(0);
-
         vm.stopPrank();
 
         // cUSDC exchange rate = 1000000160493755749
 
-        assertEq(user1DepositAmount, borrowableCUSDC.collateralPosted(user1));
-
         // Step 5: User1 tries to remove all collateral, succeeds.
+        assertEq(user1DepositAmount, borrowableCUSDC.collateralPosted(user1));
         vm.startPrank(user1);
-
         borrowableCUSDC.removeCollateral(user1DepositAmount);
-        assertEq(0, borrowableCUSDC.collateralPosted(user1));
-        
         vm.stopPrank();
+        assertEq(0, borrowableCUSDC.collateralPosted(user1));
+
+        // Step 6: No residual collateral, user1 can use cDAI as collateral and borrow USDC.
+        _prepareUSDC(address(this), 2000e6);
+        usdc.approve(address(borrowableCUSDC), 2000e6);
+        borrowableCUSDC.deposit(2000e6, address(this));
+        _prepareDAI(user1, 2000e18);
+        vm.startPrank(user1);
+        dai.approve(address(borrowableCDAI), 2000e18);
+        borrowableCDAI.depositAsCollateral(2000e18, user1);
+        borrowableCUSDC.borrow(250e6, user1);
+        vm.stopPrank();
+        assertEq(borrowableCUSDC.debtBalance(user1), 250e6);
     }
 
     function _canRedeemBorrowableCDAIWithCollateralRemoval(

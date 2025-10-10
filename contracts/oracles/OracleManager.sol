@@ -359,6 +359,9 @@ contract OracleManager is IOracleManager {
     ///      feed.
     ///      If it has two or more oracles, it fetches the price from both
     ///      feeds.
+    ///      Additionally checks Chainlink L2 sequencer via `_isSequencerValid()`
+    ///      and returns `(0, BAD_SOURCE)` if down, even for non-Chainlink
+    ///      adaptors. This is by design.
     /// @param asset The address of the asset to retrieve the price for.
     /// @param inUSD Specifies whether the price format should be in
     ///              USD (true) or a chain's native token (false).

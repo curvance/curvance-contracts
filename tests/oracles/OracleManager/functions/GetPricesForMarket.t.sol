@@ -114,4 +114,64 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
             assertEq(snapshots[i].debtBalance, 0, "debtBalance");
         }
     }
+
+function test_getPricesForMarket_accruesAndUsesExchangeRateAndDebt() public {
+    // Set up market with two borrowable cTokens.
+    _deployBorrowableCDAI();
+    oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+    oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
+    // switch to mock feeds to enable time skipping.
+    _setMockFeedsInitial();
+    oracleManager.addAssetPriceFeed(_USDC_ADDRESS, address(chainlinkAdaptor));
+    oracleManager.addAssetPriceFeed(_DAI_ADDRESS, address(chainlinkAdaptor));
+
+    oracleManager.addCTokenSupport(address(borrowableCDAI));
+    oracleManager.addCTokenSupport(address(borrowableCUSDC));
+
+    _prepareDAI(address(this), 77777);
+    _prepareUSDC(address(this), 77777);
+    dai.approve(address(borrowableCDAI), type(uint256).max);
+    usdc.approve(address(borrowableCUSDC), type(uint256).max);
+
+    marketManagerIsolated.listTokens(address(borrowableCDAI), address(borrowableCUSDC));
+    _setCTokenConfigBasic(address(borrowableCDAI), 5000e18, 5000e18);
+    _setCTokenConfigBasic(address(borrowableCUSDC), 5000e6, 5000e6);
+
+    // Provide liquidity
+    address liquidityProvider = makeAddr("liquidityProvider");
+    _prepareUSDC(liquidityProvider, 1_000e6);
+    vm.startPrank(liquidityProvider);
+    usdc.approve(address(borrowableCUSDC), type(uint256).max);
+    borrowableCUSDC.deposit(1_000e6, liquidityProvider);
+    vm.stopPrank();
+
+    // Create debt
+    _prepareDAI(user1, 200e18);
+    vm.startPrank(user1);
+    dai.approve(address(borrowableCDAI), 200e18);
+    borrowableCDAI.depositAsCollateral(200e18, user1);
+    borrowableCUSDC.borrow(100e6, user1);
+    vm.stopPrank();
+
+    // Skip a huge amount of time
+    skip(30 days);
+    _refreshMockFeeds();
+
+    // Use getPricesForMarket which is used along the path of canBorrowWithNotify.
+    address[] memory assetsToPrice = new address[](2);
+    assetsToPrice[0] = address(borrowableCDAI); // collateral
+    assetsToPrice[1] = address(borrowableCUSDC);
+
+    (AccountSnapshot[] memory snaps, uint256[] memory prices, ) =
+        oracleManager.getPricesForMarket(user1, assetsToPrice, 2);
+
+    // verify exchangeRate is applied
+    uint256 exchangeRate = borrowableCDAI.exchangeRate();
+    (uint256 daiPrice, ) = oracleManager.getPrice(address(dai), true, true);
+    uint256 expectedSharesPrice = (daiPrice * exchangeRate) / 1e18;
+    assertEq(prices[0], expectedSharesPrice, "collateral price must be underlying * exchangeRate");
+
+    // snapshot reflects accrued interest
+    assertGt(snaps[1].debtBalance, 100e6, "debt snapshot must include accrued interest");
+}
 }
