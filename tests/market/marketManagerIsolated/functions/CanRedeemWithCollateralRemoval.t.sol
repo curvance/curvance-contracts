@@ -36,7 +36,14 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
 
     function test_canRedeem_fail_whenTokenNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManagerIsolated.canRedeem(address(pendleStrategyCTokenSTETH), 100e6, user1);
+        marketManagerIsolated.canRedeemWithCollateralRemoval(
+            address(pendleStrategyCTokenSTETH),
+            0,
+            user1,
+            0,
+            0,
+            false
+        );
     }
 
     function test_canRedeemWithCollateralRemoval_fail_whenRedeemIsDisabled()

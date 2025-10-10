@@ -400,6 +400,7 @@ contract MarketManagerIsolated is
     ///                         collateral by `account`.
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced.
+    /// @return collateralRedeemed The amount of collateral shares redeemed.
     function canRedeemWithCollateralRemoval(
         address cToken,
         uint256 shares,
@@ -407,9 +408,9 @@ contract MarketManagerIsolated is
         uint256 balanceOf,
         uint256 collateralPosted,
         bool forceRedeemCollateral
-    ) external returns (uint256) {
+    ) external returns (uint256 collateralRedeemed) {
         _checkIsToken(cToken);
-        return _canRedeemWithCollateralRemoval(
+        collateralRedeemed = _canRedeem(
             cToken,
             shares,
             account,
@@ -418,20 +419,6 @@ contract MarketManagerIsolated is
             true,
             forceRedeemCollateral
         );
-    }
-
-    /// @notice Checks if the account should be allowed to redeem `shares`
-    ///         of `cToken` in the given market state.
-    /// @param cToken The Curvance token to verify the redemption for.
-    /// @param shares The number of cTokens to exchange
-    ///               for the underlying asset in the market.
-    /// @param account The account which would redeem `shares`.
-    function canRedeem(
-        address cToken,
-        uint256 shares,
-        address account
-    ) external {
-        _canRedeem(cToken, shares, account);
     }
 
     /// @notice Checks if the account should be allowed to borrow
@@ -649,6 +636,7 @@ contract MarketManagerIsolated is
     ///                         collateral by `account`.
     /// @param isCollateral Boolean indicating whether the token is currently
     ///                     being used as collateral.
+    /// @return collateralRedeemed The amount of collateral shares redeemed.
     function canTransfer(
         address cToken,
         uint256 shares,
@@ -656,13 +644,13 @@ contract MarketManagerIsolated is
         uint256 balanceOf,
         uint256 collateralPosted,
         bool isCollateral
-    ) external returns (uint256) {
+    ) external returns (uint256 collateralRedeemed) {
         _checkIsToken(cToken);
         if (transferPaused == 2) {
             revert MarketManager__Paused();
         }
 
-        return _canRedeemWithCollateralRemoval(
+        collateralRedeemed = _canRedeem(
             cToken,
             shares,
             account,
@@ -671,7 +659,6 @@ contract MarketManagerIsolated is
             isCollateral,
             false
         );
-        
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
@@ -1228,54 +1215,6 @@ contract MarketManagerIsolated is
         );
     }
 
-    /// @notice Helper function for checking if the account should be allowed
-    ///         to redeem `amount` of `cToken` in the given market state.
-    /// @param cToken The Curvance token to verify the redemption of.
-    /// @param shares The number of `cToken` shares to redeem for
-    ///               the underlying asset.
-    /// @param account The account which would redeem `shares`.
-    function _canRedeem(
-        address cToken,
-        uint256 shares,
-        address account
-    ) internal returns (uint256, bool[] memory) {
-        if (redeemPaused == 2) {
-            revert MarketManager__Paused();
-        }
-
-        _checkIsListedToken(cToken);
-        _checkTransfersAllowed(account);
-
-        // If the account does not have an active position in the token,
-        // then we can bypass the liquidity check.
-        if (accountPositions[cToken][account] != 2) {
-            bool[] memory emptyPositions;
-            return (0, emptyPositions);
-        }
-
-        // Check account liquidity with hypothetical cToken redemption.
-        (
-            HypotheticalResult memory result,
-            bool[] memory positionsToClose
-        ) = _hypotheticalLiquidityOf(
-                account,
-                HypotheticalAction({
-                    cTokenModified: cToken,
-                    redemptionShares: shares,
-                    borrowAssets: 0,
-                    errorCodeBreakpoint: 1
-                })
-            );
-
-        // Validate that `account` will not run out of collateral based
-        // on their collateralization ratio(s).
-        if (result.liquidityDeficit > 0) {
-            revert MarketManager__InsufficientCollateral();
-        }
-
-        return (result.positionClosureNeeded, positionsToClose);
-    }
-
     /// @notice Checks if the account should be allowed to redeem tokens
     ///         in the given market, and then redeems.
     /// @dev This can only be called by the cToken itself.
@@ -1290,7 +1229,8 @@ contract MarketManagerIsolated is
     ///                     being used as collateral.
     /// @param forceRedeemCollateral Whether the collateral should be force
     ///                              reduced, used if isCollateral is true.
-    function _canRedeemWithCollateralRemoval(
+    /// @return collateralRedeemed The amount of collateral shares redeemed.
+    function _canRedeem(
         address cToken,
         uint256 shares,
         address account,
@@ -1299,6 +1239,13 @@ contract MarketManagerIsolated is
         bool isCollateral,
         bool forceRedeemCollateral
     ) internal returns (uint256 collateralRedeemed) {
+        if (redeemPaused == 2) {
+            revert MarketManager__Paused();
+        }
+
+        _checkIsListedToken(cToken);
+        _checkTransfersAllowed(account);
+
         if (isCollateral) {
             // If collateral is being directly removed by user intention,
             // or liquidation we can skip balance checks.
@@ -1314,22 +1261,38 @@ contract MarketManagerIsolated is
                 }
             }
         }
-        
-        // Validate that the collateral being removed is allowed.
-        if (collateralRedeemed > 0) {
-            (
-                uint256 positionClosureNeeded,
-                bool[] memory positionsToClose
-            ) = _canRedeem(cToken, collateralRedeemed, account);
-            _closePositionsIfNeeded(
-                positionClosureNeeded,
-                account,
-                positionsToClose
-            );
-        } else {
-            _checkIsListedToken(cToken);
-            _checkTransfersAllowed(account);
+
+        // If `collateralRedeemed` is 0 or the account does not have an
+        // active position in `cToken`, we can bypass the liquidity check.
+        if (collateralRedeemed == 0 || accountPositions[cToken][account] != 2) {
+            return;
         }
+
+        // Check account liquidity with hypothetical cToken redemption.
+        (
+            HypotheticalResult memory result,
+            bool[] memory positionsToClose
+        ) = _hypotheticalLiquidityOf(
+                account,
+                HypotheticalAction({
+                    cTokenModified: cToken,
+                    redemptionShares: collateralRedeemed,
+                    borrowAssets: 0,
+                    errorCodeBreakpoint: 1
+                })
+            );
+
+        // Validate that `account` will not run out of collateral based
+        // on their collateralization ratio(s).
+        if (result.liquidityDeficit > 0) {
+            revert MarketManager__InsufficientCollateral();
+        }
+
+        _closePositionsIfNeeded(
+            result.positionClosureNeeded,
+            account,
+            positionsToClose
+        );
     }
 
     /// @notice Determines if an account can be liquidated and calculates

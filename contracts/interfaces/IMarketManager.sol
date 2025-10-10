@@ -142,18 +142,6 @@ interface IMarketManager {
     ) external;
 
     /// @notice Checks if the account should be allowed to redeem tokens
-    ///         in the given market.
-    /// @param cToken The market to verify the redeem against.
-    /// @param shares The number of cTokens to exchange
-    ///               for the underlying asset in the market.
-    /// @param account The account which would redeem `shares`.
-    function canRedeem(
-        address cToken,
-        uint256 shares,
-        address account
-    ) external;
-
-    /// @notice Checks if the account should be allowed to redeem tokens
     ///         in the given market, and then redeems.
     /// @dev This can only be called by the cToken itself.
     /// @param cToken The token to verify the redemption against.
