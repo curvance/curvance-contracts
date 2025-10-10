@@ -68,7 +68,6 @@ abstract contract BasePositionManager is
     error BasePositionManager__InvalidParam();
     error BasePositionManager__InvalidAmount();
     error BasePositionManager__InvalidTokenPrice();
-    error BasePositionManager__ExceedsMaximumBorrowAllowed();
     error BasePositionManager__InsufficientAssetsForRepayment();
 
     /// MODIFIERS ///
@@ -496,60 +495,7 @@ abstract contract BasePositionManager is
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Calculates the maximum amount of `borrowableCToken` `account`
-    ///         can borrow for maximum leverage.
-    /// @dev This can overestimate maximum executeable leverage when swapping
-    ///      due to AMM fees and slippage. Risk management limitations such as
-    ///      collateral/debt caps, and available liquidity are not factored in
-    ///      and should be manually adjusted on the frontend.
-    /// @param account The account to calculate the maximum amount of
-    ///                `borrowableCToken` that can be borrowed for maximum
-    ///                leverage.
-    /// @param borrowableCToken The token that `account` will borrow assets
-    ///                         from to achieve leverage.
-    /// @return result The maximum remaining debt amount allowed from
-    ///                `borrowableCToken`, measured in underlying debt assets.
-    function _maxRemainingLeverageOf(
-        address account,
-        address borrowableCToken
-    ) internal returns (uint256 result) {
-        (uint256 sumCollateral, uint256 maxDebt, uint256 sumDebt) =
-            marketManager.statusOf(account);
-        address debtAsset = ICToken(borrowableCToken).asset();
 
-        (uint256 price, uint256 errorCode) =
-            CommonLib._oracleManager(centralRegistry)
-                .getPrice(debtAsset, true, false);
-
-        // Validate we got a price for `borrowableCToken`'s underlying asset.
-        if (errorCode != 0) {
-            revert BasePositionManager__InvalidTokenPrice();
-        }
-
-        // We can calculate terminal leverage by calculating the infinite
-        // series of swapping to maximum LTV over and over, which results
-        // in the equation 1 / (1 - LTV).
-        //
-        // For example, 80% LTV will result in terminal maximum leverage of:
-        // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
-        // The equation below is equal to this equation,
-        // just extrapolated for an account's collateral vs debt.
-        /// NOTE: This can overestimate maximum executeable leverage when
-        ///       swapping due to AMM fees and slippage.
-        uint256 maxLeverage = _mulDiv(
-            maxDebt - sumDebt,
-            sumCollateral,
-            sumCollateral - maxDebt
-        );
-
-        // Convert maxLeverage, currently in WAD $, to `debtAsset` assets
-        // denomination.
-        result = _mulDiv(
-            _mulDiv(maxLeverage, WAD, price),
-            10 ** IERC20(debtAsset).decimals(),
-            WAD
-        );
-    }
 
     /// @notice Validate `action` parameters versus function parameters and
     ///         apply any protocol fee.
@@ -629,20 +575,8 @@ abstract contract BasePositionManager is
         LeverageAction memory action,
         address account
     ) internal {
-        IBorrowableCToken borrowableCToken = action.borrowableCToken;
-        uint256 borrowAssets = action.borrowAssets;
-
-        // Validate that the desired borrow amount is within bounds of what
-        // will be allowed by the Market Manager.
-        if (
-            borrowAssets >
-            _maxRemainingLeverageOf(account, address(borrowableCToken))
-            ) {
-            revert BasePositionManager__ExceedsMaximumBorrowAllowed();
-        }
-
-        borrowableCToken.borrowForPositionManager(
-            borrowAssets,
+        action.borrowableCToken.borrowForPositionManager(
+            action.borrowAssets,
             account,
             action
         );
