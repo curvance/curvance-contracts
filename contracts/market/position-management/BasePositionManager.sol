@@ -328,6 +328,13 @@ abstract contract BasePositionManager is
         address owner,
         LeverageAction memory action
     ) external override {
+        if (
+            !marketManager.isListed(borrowableCToken) ||
+            msg.sender != borrowableCToken
+        ) {
+            revert BasePositionManager__Unauthorized();
+        }
+
         address debtAsset = IBorrowableCToken(borrowableCToken).asset();
         // Take protocol fee, if any.
         action.borrowAssets = _validateInputsAndApplyFee(
@@ -404,6 +411,13 @@ abstract contract BasePositionManager is
         address owner,
         DeleverageAction memory action
     ) external override {
+        if (
+            !marketManager.isListed(cToken) ||
+            msg.sender != cToken
+        ) {
+            revert BasePositionManager__Unauthorized();
+        }
+
         address collateralAsset = ICToken(cToken).asset();
         // Take protocol fee, if any.
         action.collateralAssets = _validateInputsAndApplyFee(
