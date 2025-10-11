@@ -8,6 +8,7 @@ import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.so
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { ICToken } from "contracts/interfaces/ICToken.sol";
@@ -90,7 +91,7 @@ abstract contract BaseZapper is ReentrancyGuard {
     ///                         requires plugin approval.
     /// @param receiver Address that should receive Curvance cTokens.
     /// @return shares The output amount of shares received.
-    function _enterCurvanceSafe(
+    function _enterCurvance(
         address cToken,
         address asset,
         uint256 assets,
@@ -100,37 +101,6 @@ abstract contract BaseZapper is ReentrancyGuard {
     ) internal returns (uint256 shares) {
         _checkAddresses(cToken, asset);
 
-        shares = _enterCurvance(
-            cToken,
-            asset,
-            assets,
-            expectedShares,
-            collateralizeFor,
-            receiver
-        );
-    }
-
-    /// @notice Routes `asset` token into `cToken`, for `receiver`.
-    /// @param cToken The Curvance cToken address.
-    /// @param asset The input token address, should match
-    ///                   `cToken`.asset().
-    /// @param assets The amount of `asset` to deposit into cToken
-    ///               position.
-    /// @param expectedShares The minimum expected amount of shares received
-    ///                       from depositing `assets` of `asset` into
-    ///                       `cToken` position.
-    /// @param collateralizeFor Whether the deposit should be collateralized,
-    ///                         requires plugin approval.
-    /// @param receiver Address that should receive Curvance cTokens.
-    /// @return shares The output amount of shares received.
-    function _enterCurvance(
-        address cToken,
-        address asset,
-        uint256 assets,
-        uint256 expectedShares,
-        bool collateralizeFor,
-        address receiver
-    ) internal returns (uint256 shares) {
         // Approve `cToken` to take `asset`.
         SwapperLib._approveIfNeeded(asset, cToken, assets);
 
@@ -178,35 +148,6 @@ abstract contract BaseZapper is ReentrancyGuard {
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced from callers collateralPosted.
     /// @param receiver Address that should receive redeemed assets.
-    function _exitCurvanceSafe(
-        address cToken,
-        address asset,
-        uint256 shares,
-        uint256 expectedAssets,
-        bool forceRedeemCollateral,
-        address receiver
-    ) internal {
-        _checkAddresses(cToken, asset);
-
-        _exitCurvance(
-            cToken,
-            asset,
-            shares,
-            expectedAssets,
-            forceRedeemCollateral,
-            receiver
-        );
-    }
-
-    /// @notice Exits a Curvance position.
-    /// @param cToken The address of the cToken to be redeemed from.
-    /// @param asset The expected asset of `cToken`.
-    /// @param shares The amount of shares to redeemed.
-    /// @param expectedAssets The amount of assets expected to be redeemed
-    ///                       on exiting Curvance position.
-    /// @param forceRedeemCollateral Whether the collateral should be always
-    ///                              reduced from callers collateralPosted.
-    /// @param receiver Address that should receive redeemed assets.
     function _exitCurvance(
         address cToken,
         address asset,
@@ -215,6 +156,7 @@ abstract contract BaseZapper is ReentrancyGuard {
         bool forceRedeemCollateral,
         address receiver
     ) internal {
+        _checkAddresses(cToken, asset);
         uint256 assets;
 
         // Transfer tokens exited to the Zapper.
@@ -260,6 +202,8 @@ abstract contract BaseZapper is ReentrancyGuard {
         uint256 repayAssets,
         address receiver
     ) internal returns (uint256) {
+        _checkAddresses(borrowableCToken, debtAsset);
+
         if (repayAssets == 0) {
             // Accrue any interest owed so repayAssets includes all
             // `receiver` debt.
@@ -329,20 +273,22 @@ abstract contract BaseZapper is ReentrancyGuard {
     ///         action on valid.
     /// @param cToken The Curvance cToken address.
     /// @param asset The input token address, should match `cToken`.asset().
-    function _checkAddresses(
-        address cToken,
-        address asset
-    ) internal view returns (address cTokenAsset) {
-        // Validate `cToken` exists, otherwise transfer their tokens
-        // back and return.
+    function _checkAddresses(address cToken, address asset) internal view {
+        // Validate `cToken` exists, otherwise revert the whole zap action.
         if (cToken == address(0)) {
             revert BaseZapper__ExecutionError();
         }
 
-        cTokenAsset = ICToken(cToken).asset();
+        IMarketManager mm = ICToken(cToken).marketManager();
+        if (
+            !centralRegistry.isMarketManager(address(mm)) ||
+            mm.isListed(cToken)
+        ) {
+            revert BaseZapper__Unauthorized();
+        }
 
         // Validate `asset` matches asset of cToken contract.
-        if (asset != cTokenAsset) {
+        if (asset != ICToken(cToken).asset()) {
             revert BaseZapper__UnderlyingTokenIsNotInputToken();
         }
     }

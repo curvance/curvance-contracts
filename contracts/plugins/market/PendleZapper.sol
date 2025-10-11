@@ -137,7 +137,7 @@ contract PendleZapper is BaseZapper {
         );
 
         // Enter Curvance position.
-        outAmount = _enterCurvanceSafe(
+        outAmount = _enterCurvance(
             strategyCToken,
             zapAction.outputToken,
             outAmount,
@@ -279,7 +279,7 @@ contract PendleZapper is BaseZapper {
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
-        _exitCurvanceSafe(
+        _exitCurvance(
             redeemAction.cToken,
             zapAction.inputToken,
             redeemAction.shares,

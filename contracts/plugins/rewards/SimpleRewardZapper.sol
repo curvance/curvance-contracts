@@ -161,7 +161,7 @@ contract SimpleRewardZapper is BaseZapper {
         }
 
         // Enter Curvance cToken position.
-        outAmount = _enterCurvanceSafe(
+        outAmount = _enterCurvance(
             cToken,
             swapAction.outputToken,
             outAmount,

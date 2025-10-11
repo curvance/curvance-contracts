@@ -85,7 +85,7 @@ contract SimpleZapper is BaseZapper {
         }
 
         // Enter Curvance position.
-        outAmount = _enterCurvanceSafe(
+        outAmount = _enterCurvance(
             cToken,
             swapAction.outputToken,
             outAmount,
@@ -136,9 +136,6 @@ contract SimpleZapper is BaseZapper {
             swapAction.inputToken = address(wrappedNative);
         }
 
-        // Validate token address parameters are valid.
-        _checkAddresses(borrowableCToken, swapAction.outputToken);
-
         if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
             outAmount = swapAction.inputAmount;
         } else {
@@ -187,7 +184,7 @@ contract SimpleZapper is BaseZapper {
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
-        _exitCurvanceSafe(
+        _exitCurvance(
             redeemAction.cToken,
             swapAction.inputToken,
             redeemAction.shares,
@@ -234,7 +231,7 @@ contract SimpleZapper is BaseZapper {
         address receiver
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
-        _exitCurvanceSafe(
+        _exitCurvance(
             redeemAction.cToken,
             swapAction.inputToken,
             redeemAction.shares,
@@ -252,7 +249,7 @@ contract SimpleZapper is BaseZapper {
         }
 
         // Enter Curvance position.
-        outAmount = _enterCurvanceSafe(
+        outAmount = _enterCurvance(
             cToken,
             swapAction.outputToken,
             outAmount,
