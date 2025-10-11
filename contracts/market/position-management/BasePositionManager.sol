@@ -31,6 +31,13 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 ///      Curvance token contracts facilitate these operations through
 ///      enshrined integrations with Position Manager callback functions.
 ///
+///      NOTE:
+///      Position Manager checks tokens against listed market manager token
+///      list. If a market manager ever lists a token with callbacks such as
+///      ERC777 this can allow callbacks to occur which could potentially
+///      cause issues. Market with callback enabled tokens SHOULD NOT be
+///      hooked up to a position manager contract.
+///
 ///      Typical workflow for:
 ///      Leverage -> borrow assets from a borrowableCToken -> swap debt assets
 ///      into collateral assets -> deposit collateral assets and collateralize
@@ -478,10 +485,10 @@ abstract contract BasePositionManager is
         uint256 numSwaps = action.swapActions.length;
         if (numSwaps > 0) {
             for (uint256 i; i < numSwaps; ++i) {
-                remaining = IERC20(action.swapActions[i].outputToken)
-                    .balanceOf(address(this));
+                remaining =
+                    CommonLib._balanceOf(action.swapActions[i].outputToken);
                 if (remaining > 0) {
-                    SafeTransferLib.safeTransfer(
+                    _transferToRecipient(
                         action.swapActions[i].outputToken,
                         owner,
                         remaining
