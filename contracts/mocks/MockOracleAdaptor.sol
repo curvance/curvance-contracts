@@ -52,10 +52,6 @@ contract MockOracleAdaptor is BaseOracleAdaptor {
         isSupportedAsset[asset] = true;
     }
 
-    function adaptorType() external view virtual override returns (uint256) {
-        return 1337;
-    }
-
     /// @notice Retrieves the price of a given asset in `inUSD` price form.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD Whether `asset` should be priced in USD or native tokens.
