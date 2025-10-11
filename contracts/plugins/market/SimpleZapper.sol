@@ -77,7 +77,7 @@ contract SimpleZapper is BaseZapper {
             swapAction.inputToken = address(wrappedNative);
         }
 
-        if (swapAction.inputToken == swapAction.outputToken) {
+        if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken asset.
@@ -139,7 +139,7 @@ contract SimpleZapper is BaseZapper {
         // Validate token address parameters are valid.
         _checkAddresses(borrowableCToken, swapAction.outputToken);
 
-        if (swapAction.inputToken == swapAction.outputToken) {
+        if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken asset.
@@ -196,7 +196,7 @@ contract SimpleZapper is BaseZapper {
             receiver
         );
 
-        if (swapAction.inputToken == swapAction.outputToken) {
+        if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
             outAmount = swapAction.inputAmount;
         } else {
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
@@ -243,7 +243,7 @@ contract SimpleZapper is BaseZapper {
             receiver
         );
 
-        if (swapAction.inputToken == swapAction.outputToken) {
+        if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into `swapAction.outputToken` which should be

@@ -9,6 +9,26 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 /// @notice A utility library for common functions used throughout the
 ///        Curvance Protocol.
 library CommonLib {
+
+    /// @notice Returns whether `tokenA` matches `tokenB` or not.
+    /// @param tokenA The first token address to compare.
+    /// @param tokenB The second token address to compare.
+    /// @return Whether `tokenA` matches `tokenB` or not.
+    function _isMatchingToken(
+        address tokenA,
+        address tokenB
+    ) internal pure returns (bool) {
+        if (tokenA == tokenB) {
+            return true;
+        }
+
+        if (_isNative(tokenA) && _isNative(tokenB)) {
+            return true;
+        }
+
+        return false;
+    }
+
     /// @notice Returns whether `token` is referring to network gas token
     ///         or not.
     /// @param token The address to review.

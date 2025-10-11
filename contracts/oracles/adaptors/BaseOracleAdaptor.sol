@@ -20,6 +20,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ///         and `block.timestamp` on `setGuardedPriceConfig` call.
     uint256 internal constant _MINIMUM_TIMESTAMP_BUFFER = 7 days;
 
+    /// @notice The oracle adaptor type, calculated via keccak256 of the
+    ///         oracle adaptor's name.
+    uint256 internal immutable _adaptorType;
+
     /// STORAGE ///
 
     /// @notice Whether an asset is supported by the Oracle Adaptor or not.
@@ -45,9 +49,14 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
-    constructor(ICentralRegistry cr) {
+    constructor(ICentralRegistry cr, string memory adaptorName) {
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
+
+        if (bytes(adaptorName).length == 0) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
+        _adaptorType = uint256(keccak256(abi.encode(adaptorName)));
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -76,11 +85,13 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @param asset The address of the asset to retrieve any PriceGuard data on.
     /// @param inUSD Specifies whether the PriceGuard returned should be in
     ///              USD (true) or a chain's native token (false).
+    /// @return result The price guard currently applied to `asset` when
+    ///                denominated in `inUSD`.
     function getPriceGuard(
         address asset,
         bool inUSD
-    ) external view returns (PriceGuard memory) {
-        return priceGuards[asset][inUSD];
+    ) external view returns (PriceGuard memory result) {
+        result = priceGuards[asset][inUSD];
     }
 
     /// @notice Sets a PriceGuard when pricing `asset` denominated either USD
@@ -188,6 +199,14 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         CommonLib._oracleManager(centralRegistry).notifyFeedRemoval(asset);
         
         emit AssetRemoved(asset);
+    }
+
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    /// @return result The adaptor's type.
+    function adaptorType() external view returns (uint256 result) {
+        result = _adaptorType;
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -310,14 +329,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__Unauthorized();
         }
     }
-
-    /// EXTERNAL FUNCTIONS TO OVERRIDE ///
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external view virtual returns (uint256);
 
     /// INTERNAL FUNCTIONS TO OVERRIDE ///
 

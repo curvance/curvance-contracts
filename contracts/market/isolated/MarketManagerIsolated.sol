@@ -636,7 +636,8 @@ contract MarketManagerIsolated is
     ///                         collateral by `account`.
     /// @param isCollateral Boolean indicating whether the token is currently
     ///                     being used as collateral.
-    /// @return collateralRedeemed The amount of collateral shares redeemed.
+    /// @return collateralRedeemed The amount of collateral shares redeemed
+    ///                            on transfer.
     function canTransfer(
         address cToken,
         uint256 shares,

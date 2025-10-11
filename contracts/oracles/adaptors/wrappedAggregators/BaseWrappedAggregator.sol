@@ -6,10 +6,17 @@ import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 
 abstract contract BaseWrappedAggregator is IChainlink {
+    /// CONSTANTS ///
+
+    /// @notice The oracle adaptor type, calculated via keccak256 of the
+    ///         oracle adaptor's name.
+    uint256 internal immutable _adaptorType = uint256(keccak256(abi.encode("WrappedAggregator")));
+
     /// ERRORS ///
 
     error BaseWrappedAggregator__InvalidConfig();
     error BaseWrappedAggregator__UintToIntError();
+
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -45,6 +52,14 @@ abstract contract BaseWrappedAggregator is IChainlink {
         ).latestRoundData();
 
         answer = getAdjustedAnswer(answer);
+    }
+
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    /// @return result The adaptor's type.
+    function adaptorType() external view returns (uint256 result) {
+        result = _adaptorType;
     }
 
     /// PUBLIC FUNCTIONS TO OVERRIDE ///

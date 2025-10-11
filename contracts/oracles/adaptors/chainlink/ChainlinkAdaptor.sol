@@ -51,7 +51,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
-    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
+    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr, "ChainlinkAdaptor") {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -94,14 +94,6 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 1;
     }
 
     /// INTERNAL FUNCTIONS ///

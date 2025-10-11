@@ -56,7 +56,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
     /// @param cr The address of the Protocol Central Registry.
     /// @param proxy The proxy address location for Chainsight's oracles.
-    constructor(ICentralRegistry cr,address proxy) BaseOracleAdaptor(cr) {
+    constructor(ICentralRegistry cr,address proxy) BaseOracleAdaptor(cr, "ChainsightAdaptor") {
         // Sanity checks calls to `proxy` to make sure its Chainsight's proxy.
         IManagementOracle(proxy)
             .readAsUint256WithTimestamp(address(0), bytes32(0));
@@ -137,14 +137,6 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 7;
     }
 
     /// INTERNAL FUNCTIONS ///

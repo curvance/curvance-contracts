@@ -50,7 +50,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
-    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
+    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr, "Api3Adaptor") {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -102,13 +102,6 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    function adaptorType() external pure override returns (uint256) {
-        return 5;
     }
 
     /// INTERNAL FUNCTIONS ///

@@ -43,7 +43,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// @param cr The address of the Protocol Central Registry.
     /// @param dia The address of the proxy contract containing all dia price
     ///            feeds on this chain.
-    constructor(ICentralRegistry cr, address dia) BaseOracleAdaptor(cr) {
+    constructor(ICentralRegistry cr, address dia) BaseOracleAdaptor(cr, "DIAAdaptor") {
         diaOracle = dia;
     }
 
@@ -74,14 +74,6 @@ contract DIAAdaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, adaptor, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 6;
     }
 
     /// INTERNAL FUNCTIONS ///

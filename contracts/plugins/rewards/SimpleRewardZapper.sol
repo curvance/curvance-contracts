@@ -153,7 +153,7 @@ contract SimpleRewardZapper is BaseZapper {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
 
-        if (swapAction.inputToken == swapAction.outputToken) {
+        if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken asset.

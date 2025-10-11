@@ -46,7 +46,10 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
-    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
+    constructor(
+        ICentralRegistry cr,
+        string memory adaptorName
+    ) BaseOracleAdaptor(cr, adaptorName) {}
 
     /// EXTERNAL FUNCTIONS ///
 

@@ -74,7 +74,7 @@ contract NativeVaultZapper is SimpleZapper {
             revert BaseZapper__UnderlyingTokenIsNotInputToken();
         }
 
-        if (swapAction.inputToken == swapAction.outputToken) {
+        if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
             outAmount = swapAction.inputAmount;        
         } else if (swapAction.inputToken == wrappedNative) {
             // Make sure they are not attaching native tokens when

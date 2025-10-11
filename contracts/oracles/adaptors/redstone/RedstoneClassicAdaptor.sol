@@ -51,7 +51,7 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
-    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
+    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr, "RedstoneClassicAdaptor") {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -99,14 +99,6 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, c, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 3;
     }
 
     /// INTERNAL FUNCTIONS ///

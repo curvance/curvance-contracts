@@ -67,7 +67,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         ICentralRegistry cr,
         IStaticOracle uniOracle,
         address wNative
-    ) BaseOracleAdaptor(cr) {
+    ) BaseOracleAdaptor(cr, "UniswapV3Adaptor") {
         if (block.chainid != 1) {
             revert UniswapV3Adaptor__ChainIsNotSupported();
         }
@@ -228,14 +228,6 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 9;
     }
 
     /// INTERNAL FUNCTIONS TO OVERRIDE ///

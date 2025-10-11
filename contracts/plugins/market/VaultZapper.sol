@@ -93,7 +93,7 @@ contract VaultZapper is SimpleZapper {
             revert BaseZapper__UnderlyingTokenIsNotInputToken();
         }
 
-        if (swapAction.inputToken == swapAction.outputToken) {
+        if (CommonLib._isMatchingToken(swapAction.inputToken, swapAction.outputToken)) {
             outAmount = swapAction.inputAmount;
         } else {
             // Execute swap into cToken asset.

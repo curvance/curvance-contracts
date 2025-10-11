@@ -106,7 +106,10 @@ contract RedstoneCoreAdaptor is
         address[] memory signers,
         uint256 uniqueSignersThreshold_,
         string memory nativeSymbol
-    ) BaseOracleAdaptor(cr) PrimaryProdDataServiceConsumerBase() {
+    ) BaseOracleAdaptor(
+        cr,
+        "RedstoneCoreAdaptor"
+    ) PrimaryProdDataServiceConsumerBase() {
         _nativeSymbol = nativeSymbol;
 
         // Validate that unique signer threshold is within acceptable limits.
@@ -365,13 +368,6 @@ contract RedstoneCoreAdaptor is
         }
 
         emit SignerUpdated(currentSigner, false);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    function adaptorType() external pure override returns (uint256) {
-        return 2;
     }
 
     /// PUBLIC FUNCTIONS ///

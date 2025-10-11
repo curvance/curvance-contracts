@@ -71,7 +71,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         address nativeUniversalBalance_,
         address pyth_,
         address wNative
-    ) BaseOracleAdaptor(cr) {
+    ) BaseOracleAdaptor(cr, "PythAdaptor") {
         nativeUniversalBalance = nativeUniversalBalance_;
         pyth = pyth_;
         wrappedNative = wNative;
@@ -120,14 +120,6 @@ contract PythAdaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 4;
     }
 
     function updateFeedsFromUniversalBalance(

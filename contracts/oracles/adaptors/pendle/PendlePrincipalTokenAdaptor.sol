@@ -66,7 +66,7 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
     constructor(
         ICentralRegistry cr,
         IPendlePTOracle ptOracle_
-    ) BaseOracleAdaptor(cr) {
+    ) BaseOracleAdaptor(cr, "PendlePTAdaptor") {
         ptOracle = ptOracle_;
     }
 
@@ -164,14 +164,6 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return The adaptor's type.
-    function adaptorType() external pure override returns (uint256) {
-        return 7;
     }
 
     /// @notice Helper function to check whether the underlying PT TWAP
