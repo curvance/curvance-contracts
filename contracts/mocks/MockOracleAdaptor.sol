@@ -15,7 +15,10 @@ contract MockOracleAdaptor is BaseOracleAdaptor {
     mapping(address => MockPrice) public definedPrices;
     mapping(address => bool) public hasSetPrice;
 
-    constructor(ICentralRegistry cr) BaseOracleAdaptor(cr) {}
+    constructor(
+        ICentralRegistry cr,
+        string memory adaptorName
+    ) BaseOracleAdaptor(cr, adaptorName) {}
 
     function getPrice(
         address asset,
