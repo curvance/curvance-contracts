@@ -662,7 +662,16 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         config.adjustmentVelocity = uint16(adjustmentVelocity);
         config.decayPerAdjustment = uint16(decayPerAdjustment);
         config.vertexMultiplierMax = uint96(vertexMultiplierMax);
-        vertexMultiplier = vertexReset ? WAD : vertexMultiplier;
+        if (vertexReset) {
+            vertexMultiplier = WAD;
+        } else {
+            uint256 cachedVertexMultiplier = vertexMultiplier;
+            // If the new `vertexMultiplierMax` is below `vertexMultiplier`
+            // we should clamp it down to the new maximum.
+            if (vertexMultiplierMax < cachedVertexMultiplier) {
+                cachedVertexMultiplier = vertexMultiplierMax;
+            }
+        }
 
         // Dynamic rates start increasing halfway between desired
         // utilization and 100% utilization, in `WAD`.

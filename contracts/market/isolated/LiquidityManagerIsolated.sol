@@ -246,15 +246,16 @@ abstract contract LiquidityManagerIsolated {
     error LiquidityManager__InsufficientLoanSize();
 
     /// @param cr The address of the Protocol Central Registry.
-    /// @param minLoan The minimum active loan size for this isolated market (must be between $10-$100 in WAD).
-    constructor(ICentralRegistry cr, uint256 minLoan) {
-        if (minLoan < 10e18 || minLoan > 100e18) {
+    /// @param minLoanSize The minimum active loan size for this isolated
+    ///                    market (must be between $10-$100 in WAD).
+    constructor(ICentralRegistry cr, uint256 minLoanSize) {
+        if (minLoanSize < 10e18 || minLoanSize > 100e18) {
             revert LiquidityManager__InsufficientLoanSize();
         }
 
         CentralRegistryLib._isCentralRegistry(cr);
         centralRegistry = cr;
-        MIN_ACTIVE_LOAN_SIZE = minLoan;
+        MIN_ACTIVE_LOAN_SIZE = minLoanSize;
     }
 
     /// @notice Determine `account`'s current status between collateral,
