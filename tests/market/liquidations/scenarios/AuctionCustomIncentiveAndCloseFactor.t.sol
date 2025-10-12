@@ -134,7 +134,7 @@ contract AuctionCustomIncentiveAndCloseFactorTest is TestBaseMarketIsolated {
         uint256 liqIncentive,
         address collateralToken,
         address debtToken
-    ) internal view returns (uint256) {
+    ) internal returns (uint256) {
         // Get prices
         (uint256 collateralTokenPrice, uint256 debtTokenPrice) =
             oracleManager.getPriceIsolatedPair(collateralToken, debtToken, 2);

@@ -84,4 +84,21 @@ contract BorrowableCTokenDeploymentTest is TestBaseBorrowableCToken {
         );
         assertEq(address(borrowableCUSDC.marketManager()), address(marketManagerIsolated));
     }
+
+    function test_deploy_fail_whenCallingAccrueAfterDeployment() public {
+        uint256 newInterestFee = centralRegistry.protocolInterestFee(
+            address(marketManagerIsolated)
+        );
+
+        borrowableCUSDC = new BorrowableCToken(
+            ICentralRegistry(address(centralRegistry)),
+            IERC20(_USDC_ADDRESS),
+            address(marketManagerIsolated),
+            address(IRM)
+        );
+
+        // reverts with underflowin assetsHeld()
+        vm.expectRevert();
+        borrowableCUSDC.accrueIfNeeded();
+    }
 }

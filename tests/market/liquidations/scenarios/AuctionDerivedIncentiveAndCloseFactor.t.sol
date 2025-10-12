@@ -96,7 +96,7 @@ contract AuctionDerivedIncentiveAndCloseFactorTest is TestBaseMarketIsolated {
 
             // Calculate expected protocol-derived values
             // Get lFactor (liquidation severity) for the borrower
-            (, , , uint256 lFactor) = marketManagerIsolated.liquidationValuesOf(user1);
+            (, , , uint256 lFactor) = _liquidationValuesOfHelper(marketManagerIsolated, user1);
 
             // Calculate expected close factor: closeFactorBase + (closeFactorCurve * lFactor / WAD)
             uint256 expectedCloseFactor = closeFactorBase + ((closeFactorCurve * lFactor) / 1e18);
@@ -147,7 +147,7 @@ contract AuctionDerivedIncentiveAndCloseFactorTest is TestBaseMarketIsolated {
         uint256 liqIncentive,
         address collateralToken,
         address debtToken
-    ) internal view returns (uint256) {
+    ) internal returns (uint256) {
         // Get prices
         (uint256 collateralTokenPrice, uint256 debtTokenPrice) =
             oracleManager.getPriceIsolatedPair(collateralToken, debtToken, 2);
