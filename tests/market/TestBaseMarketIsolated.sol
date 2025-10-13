@@ -1063,13 +1063,17 @@ contract TestBaseMarketIsolated is TestBase {
 
         console2.log("debtRepaid after if(params.isLiquidateExact) ", expectedLiquidationValues.debtRepaid);
 
-        expectedLiquidationValues.collateralLiquidated = (expectedLiquidationValues.debtRepaid * debtToCollateral) / WAD_SQUARED;
+        expectedLiquidationValues.collateralLiquidated = FixedPointMathLib.mulDivUp(
+            expectedLiquidationValues.debtRepaid,
+            debtToCollateral,
+            WAD_SQUARED
+        );
 
         console2.log("collateralLiquidated", expectedLiquidationValues.collateralLiquidated);
         console2.log("collateralAvailable", collateralAvailable);
 
         if (expectedLiquidationValues.collateralLiquidated > collateralAvailable) {
-            expectedLiquidationValues.debtRepaid = FixedPointMathLib.mulDivUp(
+            expectedLiquidationValues.debtRepaid = FixedPointMathLib.fullMulDiv(
                 expectedLiquidationValues.debtRepaid,
                 collateralAvailable,
                 expectedLiquidationValues.collateralLiquidated
