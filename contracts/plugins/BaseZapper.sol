@@ -282,7 +282,7 @@ abstract contract BaseZapper is ReentrancyGuard {
         IMarketManager mm = ICToken(cToken).marketManager();
         if (
             !centralRegistry.isMarketManager(address(mm)) ||
-            mm.isListed(cToken)
+            !mm.isListed(cToken)
         ) {
             revert BaseZapper__Unauthorized();
         }
