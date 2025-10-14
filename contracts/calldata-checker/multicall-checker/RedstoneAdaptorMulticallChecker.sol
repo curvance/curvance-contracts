@@ -28,7 +28,10 @@ contract RedstoneAdaptorMulticallChecker is BaseMulticallChecker {
     ) external view override {
         // Validate `target` is actually a Redstone Core adaptor. This will
         // also fail if `target` does not properly implement `IOracleAdaptor`.
-        _checkIsApprovedAdaptor(target, 2);
+        _checkIsApprovedAdaptor(
+            target,
+            uint256(keccak256(abi.encode("RedstoneCoreAdaptor")))
+        );
 
         if (_getFuncSigHash(data) != RedstoneCoreAdaptor.writePrice.selector) {
             revert MulticallChecker__InvalidFuncSig();
