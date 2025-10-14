@@ -2,6 +2,8 @@
 pragma solidity 0.8.28;
 
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { WAD_SQUARED, WAD_SQUARED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { console2 } from "forge-std/console2.sol";
@@ -145,10 +147,22 @@ contract AuctionCustomIncentiveAndCloseFactorTest is TestBaseMarketIsolated {
 
         // Calculate debtToCollateral using the exact formula from MarketManagerIsolated
         // debtToCollateral = (((liqInc * debtPrice * WAD_SQUARED_BPS_OFFSET) / collateralPrice) * collateralDecimals) / debtDecimals
-        uint256 temp = (liqIncentive * debtTokenPrice * 1e32) / collateralTokenPrice; // 1e32 = WAD^2 / BPS
-        uint256 debtToCollateral = (temp * collateralTokenDecimals) / debtTokenDecimals;
+        uint256 temp = FixedPointMathLib.mulDiv(
+            FixedPointMathLib.mulDiv(liqIncentive, debtTokenPrice, 1),
+            WAD_SQUARED_BPS_OFFSET,
+            collateralTokenPrice
+        );
+        uint256 debtToCollateral = FixedPointMathLib.mulDiv(
+            temp,
+            collateralTokenDecimals,
+            debtTokenDecimals
+        );
 
-        // Calculate expected collateral seized: (debtRepaid * debtToCollateral) / WAD_SQUARED
-        return (debtRepaid * debtToCollateral) / 1e36; // 1e36 = WAD_SQUARED
+        // Calculate expected collateral seized
+        return FixedPointMathLib.mulDivUp(
+            debtRepaid,
+            debtToCollateral,
+            WAD_SQUARED
+        );
     }
 }

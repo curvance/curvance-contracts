@@ -94,8 +94,13 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(cSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 100_000e18, 100_000e6);
 
-        // User mints cSTETH with cvxStethEth LP tokens and then uses the cSTETH as collateral to borrow 10,000 eUSDC
-        _prepareUSDC(address(borrowableCUSDC), 100_000e6);
+        // Provide borrowable USDC liquidity
+        _prepareUSDC(user2, 100_000e6);
+        vm.startPrank(user2);
+        usdc.approve(address(borrowableCUSDC), 100_000e6);
+        borrowableCUSDC.deposit(100_000e6, user2);
+        vm.stopPrank();
+
         deal(address(CONVEX_STETH_ETH_POOL), user1, 10_000e18);
         vm.startPrank(user1);
         CONVEX_STETH_ETH_POOL.approve(address(cSTETH), 1_000e18);
@@ -173,7 +178,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         assertEq(
             usdc.balanceOf(address(borrowableCUSDC)),
             debtWithInterest + prevBalance,
-            "EToken's balance must include repaid debt plus interest"
+            "BorrowableCUSDC's balance must include repaid debt plus interest"
         );
     }
 

@@ -248,6 +248,11 @@ contract CanLiquidateTest is TestBaseMarketIsolated {
         _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         _setCTokenConfigBasic(address(borrowableCUSDC), 0, 100_000e6);
 
+        // provide liquidity
+        deal(_USDC_ADDRESS, address(this), 100_000e6);
+        usdc.approve(address(borrowableCUSDC), 100_000e6);
+        borrowableCUSDC.deposit(100_000e6, address(this));
+
         _setupUserPositionAndOracles();
 
         IMarketManager.LiqAction memory action = IMarketManager.LiqAction({

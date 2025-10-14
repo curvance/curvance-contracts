@@ -49,8 +49,8 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             3,
             "ETH"
         );
-        adaptor.addAsset(_WBTC_ADDRESS, true, 8, 10 minutes);
-        adaptor.addAsset(_WBTC_ADDRESS, false, 18, 10 minutes);
+        adaptor.addAsset(_WBTC_ADDRESS, true, 8, adaptor.DEFAULT_HEARTBEAT());
+        adaptor.addAsset(_WBTC_ADDRESS, false, 18, adaptor.DEFAULT_HEARTBEAT());
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 

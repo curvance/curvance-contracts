@@ -97,8 +97,8 @@ contract SetTransientLiquidationConfigTest is TestBaseMarketIsolated {
     }
 
     function test_setTransientLiquidationConfig_success_withBothZeroValues() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
-        _setAuctionConfigs(address(strategyCBALRETH), 0, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
+        _setAuctionConfigs(address(pendleStrategyCTokenSTETH), 0, 0);
 
         vm.startPrank(auctionPermsUser);
 
@@ -110,9 +110,9 @@ contract SetTransientLiquidationConfigTest is TestBaseMarketIsolated {
     }
 
     function test_setTransientLiquidationConfig_success_withZeroIncentiveNonZeroCloseFactor() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         // closeFactorMin = 2000, closeFactorMax = 5000 from _setCTokenConfigBasic
-        _setAuctionConfigs(address(strategyCBALRETH), 0, 3000);
+        _setAuctionConfigs(address(pendleStrategyCTokenSTETH), 0, 3000);
 
         vm.startPrank(auctionPermsUser);
 
@@ -124,10 +124,10 @@ contract SetTransientLiquidationConfigTest is TestBaseMarketIsolated {
     }
 
     function test_setTransientLiquidationConfig_success_withNonZeroIncentiveZeroCloseFactor() public {
-        _setCTokenConfigBasic(address(strategyCBALRETH), 100_000e18, 0);
+        _setCTokenConfigBasic(address(pendleStrategyCTokenSTETH), 100_000e18, 0);
         // liqIncMin = 10, liqIncMax = 2000 from _setCTokenConfigBasic
         // Use 10500 (105%) which is above liqIncMin + BPS = 10010
-        _setAuctionConfigs(address(strategyCBALRETH), 10500, 0);
+        _setAuctionConfigs(address(pendleStrategyCTokenSTETH), 10500, 0);
 
         vm.startPrank(auctionPermsUser);
 

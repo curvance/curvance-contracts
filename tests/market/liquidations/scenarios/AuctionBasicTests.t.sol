@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { WAD, WAD_SQUARED_BPS_OFFSET, BPS } from "contracts/libraries/ConstantsLib.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 
@@ -249,7 +250,11 @@ contract AuctionBasicTests is TestBaseLiquidations {
             (((incentive * debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
                 cTokenPrice) * collateralDecimals) / debtDecimals;
 
-        uint256 collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
+        uint256 collateralLiquidated = FixedPointMathLib.mulDivUp(
+            debtAmount,
+            debtToCollateralMultiplier,
+            WAD_SQUARED
+        );
 
         return collateralLiquidated;
     }
@@ -270,7 +275,11 @@ contract AuctionBasicTests is TestBaseLiquidations {
             (((incentive * debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
                 cTokenPrice) * collateralDecimals) / debtDecimals;
         
-        uint256 collateralLiquidated = (debtAmount * debtToCollateralMultiplier) / WAD_SQUARED;
+        uint256 collateralLiquidated = FixedPointMathLib.mulDivUp(
+            debtAmount,
+            debtToCollateralMultiplier,
+            WAD_SQUARED
+        );
         
         return collateralLiquidated;
     }
