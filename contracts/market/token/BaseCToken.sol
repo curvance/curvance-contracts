@@ -16,9 +16,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
-/// @notice Curvance's cTokens (Curvance Tokens) are ERC4626 compliant, with
-///         the exception of blocking zero amount transfers.
-///         Curvance tokens also follow their own design modifying underlying
+/// @notice Curvance's cTokens (Curvance Tokens) follow their own design modifying underlying
 ///         mechanisms such as `totalAssets` following an asset vesting system
 ///         in both external strategies and lender interest accrual from
 ///         borrowers.
@@ -50,7 +48,16 @@ import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 ///         View functions are "safe" by introducing reentry and update
 ///         protection to minimize risks when integrating with Curvance.
 ///
-/// @dev `Asset()` Positions must have all assets ready for withdraw,
+/// @dev Curvance cTokens are partially ERC-4626 compliant:
+///      - Zero-amount transfers are blocked.
+///      - `convertToShares()` and `convertToAssets()` use `nonReadReentrant`, which may revert
+///        under reentrancy, deviating from ERC-4626 view requirements.
+///      - `maxWithdraw()` and `maxRedeem()` do not reflect global withdrawal limits.
+///      These deviations are intentional to prioritize protocol-level risk controls,
+///      reentrancy protection, and flexibility. Integrators should not rely on strict
+///      ERC-4626 behavior.
+///      
+///      `Asset()` Positions must have all assets ready for withdraw,
 ///      IE assets can NOT be locked.
 ///      This way assets can be easily liquidated when loans default.
 abstract contract BaseCToken is

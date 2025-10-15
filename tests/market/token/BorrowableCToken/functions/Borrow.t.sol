@@ -121,5 +121,41 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         assertEq(debtIncrease, assetsIncrease, "Debt increase must equal assets increase");
     }
 
+    function test_borrow_UpToAssetsHeld() public {
+        
+        _setCTokenConfigBasic(address(borrowableCUSDC), 1_000_000_000e18, 1_000_000_000e18);
+        
+        // Provide liquidity
+        address lp = makeAddr("lpAssetsHeld");
+        _prepareUSDC(lp, 100e6);
+        vm.startPrank(lp);
+        usdc.approve(address(borrowableCUSDC), 100e6);
+        borrowableCUSDC.deposit(100e6, lp);
+        vm.stopPrank();
+
+        deal(address(LP_wstETH_24Dec2025), address(this), _ONE);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
+        pendleStrategyCTokenSTETH.depositAsCollateral(_ONE, address(this));
+
+        _harvestPendleLP(1 weeks);
+
+        uint256 assetsHeld = borrowableCUSDC.assetsHeld();
+        uint256 debtBefore = borrowableCUSDC.marketOutstandingDebt();
+
+        // Borrow exactly assetsHeld, which does not include the base reserve
+        borrowableCUSDC.borrow(assetsHeld, address(this));
+
+        // After borrowing, assetsHeld should be 0
+        assertEq(borrowableCUSDC.assetsHeld(), 0, "assetsHeld should be zero after full borrowable extraction");
+
+        uint256 debtAfter = borrowableCUSDC.marketOutstandingDebt();
+        uint256 util = borrowableCUSDC.IRM().utilizationRate(0, debtAfter);
+        assertEq(util, 1e18, "Utilization should be WAD");
+
+        // Attempting to borrow 1 wei more should revert
+        vm.expectRevert(BorrowableCToken.BorrowableCToken__InsufficientAssetsHeld.selector);
+        borrowableCUSDC.borrow(1, address(this));
+    }
+
 
 }
