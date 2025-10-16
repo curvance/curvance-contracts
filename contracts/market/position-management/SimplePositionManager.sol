@@ -70,6 +70,10 @@ contract SimplePositionManager is BasePositionManager {
         address collateralAsset = action.cToken.asset();
 
         if (debtAsset == collateralAsset) {
+            // No swap should be provided if assets match to avoid arbitrary calls.
+            if (swapAction.call.length != 0 || swapAction.target != address(0)) {
+                revert BasePositionManager__InvalidParam();
+            }
             return;
         }
 
@@ -121,6 +125,10 @@ contract SimplePositionManager is BasePositionManager {
         SwapperLib.Swap memory swapAction = swapActions[0];
 
         if (debtAsset == collateralAsset) {
+            // No swap should be provided if assets match to avoid arbitrary calls.
+            if (swapAction.call.length != 0 || swapAction.target != address(0)) {
+                revert BasePositionManager__InvalidParam();
+            }
             return;
         }
 

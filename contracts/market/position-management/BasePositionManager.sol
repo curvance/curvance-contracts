@@ -342,6 +342,12 @@ abstract contract BasePositionManager is
             revert BasePositionManager__Unauthorized();
         }
 
+        // Validate action.cToken is a listed Curvance market to prevent callbacks
+        // through untrusted tokens during the callback context.
+        if (!marketManager.isListed(address(action.cToken))) {
+            revert BasePositionManager__Unauthorized();
+        }
+
         address debtAsset = IBorrowableCToken(borrowableCToken).asset();
         // Take protocol fee, if any.
         action.borrowAssets = _validateInputsAndApplyFee(
@@ -422,6 +428,12 @@ abstract contract BasePositionManager is
             !marketManager.isListed(cToken) ||
             msg.sender != cToken
         ) {
+            revert BasePositionManager__Unauthorized();
+        }
+
+        // Validate action.borrowableCToken is a listed Curvance market to prevent
+        // callbacks through untrusted tokens during the callback context.
+        if (!marketManager.isListed(address(action.borrowableCToken))) {
             revert BasePositionManager__Unauthorized();
         }
 
