@@ -415,47 +415,39 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///         recovered without impacting user accounting.
     /// @dev    Computed as: marketOutstandingDebt + underlyingBalance - totalAssets.
     /// @return excess The recoverable excess underlying amount, or 0 if none.
-    function recoverableExcess() external view returns (uint256 excess) {
-        uint256 underlyingBalance = IERC20(_asset).balanceOf(address(this));
-
-        uint256 totalAssets = _totalAssets;
-        uint256 debtPlusBalance = marketOutstandingDebt + underlyingBalance;
-        if (debtPlusBalance <= totalAssets) {
+    function skimAvailable() external view returns (uint256 excess) {
+        uint256 cachedAssets = _totalAssets;
+        uint256 debtPlusBalance = marketOutstandingDebt +
+            IERC20(_asset).balanceOf(address(this)) - _BASE_UNDERLYING_RESERVE;
+        if (debtPlusBalance <= cachedAssets) {
             return 0;
         }
-        
-        unchecked { 
-            excess = debtPlusBalance - totalAssets; 
-        }
 
+        excess = debtPlusBalance - cachedAssets; 
     }
 
     /// @notice Recovers any accumulated excess underlying from rounding or
     ///         unsolicited donations, to the DAO address.
     /// @dev Does not modify `_totalAssets` or any accounting to avoid
     ///      donation attacks.
-    ///      Computed as: marketOutstandingDebt + underlyingBalance - totalAssets.
+    ///      Computed as: debtPlusBalance = marketOutstandingDebt + underlyingBalance
+    ///      excess = debtPlusBalance - totalAssets - _BASE_UNDERLYING_RESERVE.
     ///      Requires DAO permissions.
-    function recoverExcess() external nonReentrant {
+    function skim() external nonReentrant {
         _checkDaoPermissions();
 
-        address asset = asset();
+        address underlying = asset();
+        uint256 cachedAssets = _totalAssets;
+        uint256 debtPlusBalance = marketOutstandingDebt +
+            IERC20(underlying).balanceOf(address(this)) - _BASE_UNDERLYING_RESERVE;
 
-        uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
-        uint256 totalAssets = _totalAssets;
-        uint256 debtPlusBalance = marketOutstandingDebt + underlyingBalance;
-
-        if (debtPlusBalance <= totalAssets) {
-            return;
+        if (debtPlusBalance <= cachedAssets) {
+            revert BaseCToken__ZeroAmount();
         }
 
-        uint256 excess;
-        unchecked {
-            excess = debtPlusBalance - totalAssets;
-        }
-
+        uint256 excess = debtPlusBalance - cachedAssets;
         address recipient = centralRegistry.daoAddress();
-        SafeTransferLib.safeTransfer(asset, recipient, excess);
+        SafeTransferLib.safeTransfer(underlying, recipient, excess);
 
         emit ExcessRecovered(excess, recipient);
     }
