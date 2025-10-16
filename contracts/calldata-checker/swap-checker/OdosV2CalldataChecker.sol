@@ -10,10 +10,18 @@ import { IOdosRouterV2 } from "contracts/interfaces/external/odos/IOdosRouterV2.
 /// @notice Inspects the calldata for an Odos related swap action.
 /// @dev NOTE: Currently built for Router V2.
 contract OdosV2CalldataChecker is BaseSwapChecker {
+    /// CONSTANTS ///
+    address immutable public _ODOS_EXECUTOR;
+
     /// CONSTRUCTOR ///
 
     /// @param _target The address of the Odos Router V2 contract.
-    constructor(address _target) BaseSwapChecker(_target) {}
+    constructor(
+        address _target,
+        address _odosExecutor
+    ) BaseSwapChecker(_target) {
+        _ODOS_EXECUTOR = _odosExecutor;
+    }
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -37,8 +45,12 @@ contract OdosV2CalldataChecker is BaseSwapChecker {
         address inputToken;
         uint256 inputAmount;
         address outputToken;
+        address executor;
+        bytes memory path;
         if (funcSigHash == IOdosRouterV2.swap.selector) {
-            (IOdosRouterV2.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
+            (IOdosRouterV2.swapTokenInfo memory tokenInfo,
+             bytes memory pathDefinition, address exec,
+              /*uint32 refCode*/) = abi.decode(
                 _getFuncParams(swapAction.call),
                 (IOdosRouterV2.swapTokenInfo, bytes, address, uint32)
             );
@@ -46,6 +58,8 @@ contract OdosV2CalldataChecker is BaseSwapChecker {
             inputToken = tokenInfo.inputToken;
             inputAmount = tokenInfo.inputAmount;
             outputToken = tokenInfo.outputToken;
+            executor = exec;
+            path = pathDefinition;
         } else {
             revert CalldataChecker__InvalidFuncSig();
         }
@@ -64,6 +78,14 @@ contract OdosV2CalldataChecker is BaseSwapChecker {
 
         if (outputToken != swapAction.outputToken) {
             revert CalldataChecker__OutputTokenError();
+        }
+
+        if (executor != _ODOS_EXECUTOR) {
+            revert CalldataChecker__TargetError();
+        }
+
+        if (path.length == 0) {
+            revert CalldataChecker__InvalidFuncSig();
         }
     }
 }

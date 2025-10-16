@@ -10,10 +10,18 @@ import { IOdosRouterV3 } from "contracts/interfaces/external/odos/IOdosRouterV3.
 /// @notice Inspects the calldata for an Odos related swap action.
 /// @dev NOTE: Currently built for Router V3.
 contract OdosV3CalldataChecker is BaseSwapChecker {
+    /// CONSTANTS ///
+    address immutable public _ODOS_EXECUTOR;
+
     /// CONSTRUCTOR ///
 
     /// @param _target The address of the Odos Router V3 contract.
-    constructor(address _target) BaseSwapChecker(_target) {}
+    constructor(
+        address _target,
+        address _odosExecutor
+    ) BaseSwapChecker(_target) {
+        _ODOS_EXECUTOR = _odosExecutor;
+    }
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -37,8 +45,14 @@ contract OdosV3CalldataChecker is BaseSwapChecker {
         address inputToken;
         uint256 inputAmount;
         address outputToken;
+        address executor;
+        bytes memory path;
         if (funcSigHash == IOdosRouterV3.swap.selector) {
-            (IOdosRouterV3.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
+            (IOdosRouterV3.swapTokenInfo memory tokenInfo,
+                bytes memory pathDefinition, 
+                address exec, 
+                /*IOdosRouterV3.swapReferralInfo memory referralInfo*/
+                ) = abi.decode(
                 _getFuncParams(swapAction.call),
                 (
                     IOdosRouterV3.swapTokenInfo,
@@ -51,6 +65,8 @@ contract OdosV3CalldataChecker is BaseSwapChecker {
             inputToken = tokenInfo.inputToken;
             inputAmount = tokenInfo.inputAmount;
             outputToken = tokenInfo.outputToken;
+            executor = exec;
+            path = pathDefinition;
         } else {
             revert CalldataChecker__InvalidFuncSig();
         }
@@ -69,6 +85,15 @@ contract OdosV3CalldataChecker is BaseSwapChecker {
 
         if (outputToken != swapAction.outputToken) {
             revert CalldataChecker__OutputTokenError();
+        }
+
+        // Additional validations to restrict execution routing fields.
+        if (executor != _ODOS_EXECUTOR) {
+            revert CalldataChecker__TargetError();
+        }
+
+        if (path.length == 0) {
+            revert CalldataChecker__InvalidFuncSig();
         }
     }
 }
