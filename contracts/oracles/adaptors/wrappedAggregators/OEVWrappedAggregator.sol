@@ -151,7 +151,6 @@ contract OEVWrappedAggregator is IChainlink {
         // 1. This round has already been cached (meaning someone paid for it).
         // 2. The round is too old.
         if (roundId == cachedRoundId || block.timestamp >= updatedAt + maxRoundDelay) {
-            _validateRoundData(answer, updatedAt);
             return (roundId, answer, startedAt, updatedAt, answeredInRound);
         }
 
@@ -164,7 +163,10 @@ contract OEVWrappedAggregator is IChainlink {
             try _assetAggregator.getRoundData(uint80(startRoundId)) returns (
                 uint80 r, int256 a, uint256 s, uint256 u, uint80 ar
             ) {
-                _validateRoundData(a, u);
+                // Validate this round is safe, otherwise can keep looking.
+                if (a <= 0 || u == 0) {
+                    revert OEVWrappedAggregator__InvalidRoundData();
+                }
 
                 roundId = r;
                 answer = a;
@@ -174,9 +176,6 @@ contract OEVWrappedAggregator is IChainlink {
                 return (roundId, answer, startedAt, updatedAt, answeredInRound);
             } catch {}
         }
-
-        // Validate round data if we fall back to the latest price.
-        _validateRoundData(answer, updatedAt);
     }
 
     /// @notice Get the latest round ID.
@@ -223,19 +222,21 @@ contract OEVWrappedAggregator is IChainlink {
         // Get latest round data and validate it.
         (uint256 latestRoundId, int256 latestAnswer,, uint256 latestUpdatedAt,) =
             _assetAggregator.latestRoundData();
-        _validateRoundData(latestAnswer, latestUpdatedAt);
 
         // Only update if the new round is higher than cached.
         if (latestRoundId > cachedRoundId) {
-            cachedRoundId = latestRoundId;
+            // Only approve the update if the round data is safe.
+            if (latestAnswer > 0 && latestUpdatedAt > 0) {
+                cachedRoundId = latestRoundId;
+            } 
         }
         // Else gracefully move on without reverting.
-        // This allows the off-chain auctioneer to call this function regardless of
-        // there being a new price update; and for interest-triggered liquidations to
-        // occur via this UserOp path.
+        // This allows the off-chain auctioneer to call this function
+        // regardless of there being a new price update; and for
+        // interest-triggered liquidations to occur via this UserOp path.
     }
 
-    /// @notice Set the maximum number of decrements before falling back
+    /// @notice Set the maximum number of rounds checked before falling back
     ///         to latest price.
     /// @dev Emits a {MaxRoundDecrementsChanged} event.
     /// @param _maxRoundDecrements The new maximum number of decrements.
@@ -254,7 +255,7 @@ contract OEVWrappedAggregator is IChainlink {
         );
     }
 
-    /// @notice Set the maximum round delay before price defaults to next round.
+    /// @notice Set the maximum delay before price defaults to next round.
     /// @dev Emits a {NewMaxRoundDelay} event.
     /// @param _maxRoundDelay The new maximum round delay, in seconds.
     function setMaxRoundDelay(uint256 _maxRoundDelay) external {
@@ -278,20 +279,6 @@ contract OEVWrappedAggregator is IChainlink {
     }
 
     /// INTERNAL FUNCTIONS ///
-
-    /// @notice Validate the round data of an aggregator, if the round data is
-    ///         incomplete or stale we adjust the answer to 0 to bubble up an
-    ///         error code.
-    /// @param answer The price to validate.
-    /// @param updatedAt The timestamp when the round was updated.
-    function _validateRoundData(
-        int256 answer,
-        uint256 updatedAt
-    ) internal pure  {
-        if (answer <= 0 || updatedAt == 0) {
-            revert OEVWrappedAggregator__InvalidRoundData();
-        }
-    }
 
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkMarketPermissions() internal view virtual {
