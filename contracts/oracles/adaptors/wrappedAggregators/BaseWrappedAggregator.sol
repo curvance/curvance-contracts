@@ -40,16 +40,19 @@ abstract contract BaseWrappedAggregator is IChainlink {
     error BaseWrappedAggregator__InvalidConfig();
     error BaseWrappedAggregator__UintToIntError();
 
-    constructor(address _aggregator) {
-        // Validate we properly get a price from underlying aggregator, both
-        // that the function call did not revert but also we didnt get a 0 or
-        // negative value.
-        (, int256 answer,,,) = IChainlink(_aggregator).latestRoundData();
-        if (answer <= 0) {
+    /// @param aggregator The underlying aggregator to wrap additional logic
+    ///                   around to price a different asset.
+    constructor(address aggregator) {
+        (uint256 roundId, int256 answer,,uint256 updatedAt,) =
+            IChainlink(aggregator).latestRoundData();
+        // This check should basically never fail but its here incase somehow
+        // the deployer misconfigured the aggregator address, also doubles as
+        // checking that the function call did not fail.
+        if (answer <= 0 || updatedAt > 0 || roundId == 0) {
             revert BaseWrappedAggregator__InvalidConfig();
         }
 
-        _assetAggregator = IChainlink(_aggregator);
+        _assetAggregator = IChainlink(aggregator);
     }
 
 

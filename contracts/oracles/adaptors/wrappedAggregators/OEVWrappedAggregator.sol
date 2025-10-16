@@ -14,10 +14,10 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 ///      onchain push based oracle that supports rounds of data with the
 ///      "latestRoundData" function interface (see "IChainlink"). A minimum
 ///      time delay and round traversal amount acts as a floor on the delay
-///      allowed to capture OEV, a maximum value for both `maxRoundDelay`
-///      and `maxDecrements` MUST be implemented in the smart contract which
-///      has the "marketPermissions" role and checked whenever
-///      `setMaxRoundDecrements` and `setMaxRoundDelay` is called.
+///      allowed to capture OEV, a maximum value for both `MAX_ROUND_DELAY`
+///      and `MAX_ROUND_DECREMENTS` MUST be implemented in the smart contract
+///      which has the "marketPermissions" role and checked whenever
+///      `setConfigValues` is called.
 ///
 ///      The typical workflow is that auction based liquidations first update
 ///      the oracle price via calling `updatePriceEarly` and then execute the
@@ -31,15 +31,21 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 contract OEVWrappedAggregator is IChainlink {
     /// CONSTANTS ///
 
-    /// @notice Minimum value for `maxDecrements`, the maximum number of times
-    ///         to decrement the roundId before falling back to latest price.
-    /// @dev 100 = 1.0%.
-    uint256 public constant MIN_DECREMENTS_LIMIT = 1;
-
-    /// @notice Minimum value for `maxRoundDelay`, the maximum delay in time a
+    /// @notice The maximum value ever allowed for `MAX_ROUND_DELAY` or
+    ///         `MAX_ROUND_DECREMENTS` due to data storage size.
+    /// @dev NOTE: This should NOT be the only maximum value check performed,
+    ///            an additional check should be performed within the risk
+    ///            operator smart contract based on the chain and
+    ///            corresponding oracle aggregator.
+    uint256 public constant MAX_ROUND_VALUE_POSSIBLE = type(uint8).max;
+    /// @notice Minimum value for `MAX_ROUND_DELAY`, the maximum delay in time a
     ///         round has before falling back to latest price, in seconds.
-    /// @dev 100 = 1.0%.
+    /// @dev 100 = 1 second delay.
     uint256 public constant MIN_DELAY_LIMIT = 1;
+        /// @notice Minimum value for `MAX_ROUND_DECREMENTS`, the maximum number of times
+    ///         to decrement the roundId before falling back to latest price.
+    /// @dev 100 = 1 additional round checked.
+    uint256 public constant MIN_DECREMENTS_LIMIT = 1;
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
@@ -50,31 +56,40 @@ contract OEVWrappedAggregator is IChainlink {
     ///         oracle adaptor's name.
     uint256 internal immutable _adaptorType =
         uint256(keccak256(abi.encode("OEVWrappedAggregator")));
+    /// @dev Mask of `MAX_ROUND_DELAY` entry in `_aggregatorConfig`.
+    uint256 internal constant _BITMASK_MAX_ROUND_DELAY = (1 << 8) - 1;
+    /// @dev Mask of round processing entries
+    ///      (`MAX_ROUND_DELAY` and `MAX_ROUND_DECREMENTS`) in `_aggregatorConfig`.
+    uint256 internal constant _BITMASK_CONFIG = (1 << 16) - 1;
+    /// @dev The bit position of `MAX_ROUND_DECREMENTS` in `_aggregatorConfig`.
+    uint256 internal constant _BITPOS_MAX_ROUND_DECREMENTS = 8;
+    /// @dev The bit position of `ROUND_ID` in `_aggregatorConfig`.
+    uint256 internal constant _BITPOS_ROUND_ID = 16;
 
     /// STORAGE ///
 
-    /// @notice The maximum number of times to decrement the round before
-    ///         falling back to latest price.
-    uint256 public maxRoundDecrements;
-
-    /// @notice The maximum delay in time a round has before falling back to
-    ///         latest price, in seconds.
-    uint256 public maxRoundDelay;
-
-    /// @notice The last cached roundId to pull price from.
-    uint256 public cachedRoundId;
+    /// @notice The current cached aggregator round and instructions on how
+    ///         to process round data.
+    /// @dev Bits Layout:
+    ///      - [0..7]   `MAX_ROUND_DELAY`.
+    ///      - [8..15]  `MAX_ROUND_DECREMENTS`.
+    ///      - [16..95] `ROUND_ID`.
+    uint256 internal _aggregatorConfig;
 
     /// EVENTS /// 
 
-    /// @notice Emitted when the max decrements value is changed.
-    /// @param oldMaxDecrements The old maximum number of decrements.
-    /// @param newMaxDecrements The new maximum number of decrements.
-    event MaxRoundDecrementsChanged(uint256 oldMaxDecrements, uint256 newMaxDecrements);
-
-    /// @notice Emitted when the max round delay is changed.
+    /// @notice Emitted when OEV wrapped aggregator config values are
+    ///         changed.
     /// @param oldMaxRoundDelay The old maximum round delay, in seconds.
     /// @param newMaxRoundDelay The new maximum round delay, in seconds.
-    event NewMaxRoundDelay(uint256 oldMaxRoundDelay, uint256 newMaxRoundDelay);
+    /// @param oldMaxDecrements The old maximum number of decrements.
+    /// @param newMaxDecrements The new maximum number of decrements.
+    event ConfigChanged(
+        uint256 oldMaxRoundDelay,
+        uint256 newMaxRoundDelay,
+        uint256 oldMaxDecrements,
+        uint256 newMaxDecrements
+    );
 
     /// ERRORS ///
 
@@ -85,35 +100,55 @@ contract OEVWrappedAggregator is IChainlink {
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Protocol Central Registry.
+    /// @param aggregator The underlying aggregator to delay updated from
+    ///                   to capture OEV.
+    /// @param maxRoundDelay The new maximum round delay, in seconds.
+    /// @param maxRoundDecrements The new maximum number of rounds to review
+    ///                           before defaulting to the latest round.
     constructor(
         ICentralRegistry cr,
-        address _aggregator,
-        uint256 _maxRoundDecrements,
-        uint256 _maxRoundDelay
+        address aggregator,
+        uint256 maxRoundDelay,
+        uint256 maxRoundDecrements
     ) {
         CentralRegistryLib._isCentralRegistry(cr);
-        if (
-            _maxRoundDecrements < MIN_DECREMENTS_LIMIT ||
-            _maxRoundDelay < MIN_DELAY_LIMIT
-        ) {
-            revert OEVWrappedAggregator__InvalidConfig();
-        }
 
-        // Validate we properly get a price from underlying aggregator, both
-        // that the function call did not revert but also we didnt get a 0 or
-        // negative value.
-        (, int256 answer,,,) = IChainlink(_aggregator).latestRoundData();
-        if (answer <= 0) {
+        (uint256 roundId, int256 answer,,uint256 updatedAt,) =
+            IChainlink(aggregator).latestRoundData();
+        // This check should basically never fail but its here incase somehow
+        // the deployer misconfigured the aggregator address, also doubles as
+        // checking that the function call did not fail.
+        if (answer <= 0 || updatedAt > 0 || roundId == 0) {
             revert OEVWrappedAggregator__InvalidConfig();
         }
 
         centralRegistry = cr;
-        maxRoundDecrements =  _maxRoundDecrements;
-        maxRoundDelay = _maxRoundDelay;
-        _assetAggregator = IChainlink(_aggregator);
+        _assetAggregator = IChainlink(aggregator);
+        // We pass 0 for cached _aggregatorConfig since it should be empty
+        // at this point.
+        _setConfigValues(0, maxRoundDelay, maxRoundDecrements, roundId);
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Returns the current cached aggregator configuration.
+    /// @return maxRoundDelay The maximum delay in time a round has before
+    ///                       falling back to latest price, in seconds.
+    /// @return maxRoundDecrements The maximum number of times to decrement
+    ///                            the round before falling back to latest
+    ///                            price.
+    /// @return roundId The last cached roundId to pull price from.
+    function getAggregatorInformation() external view returns (
+        uint256 maxRoundDelay,
+        uint256 maxRoundDecrements,
+        uint256 roundId
+    ) {
+        // Cache `_aggregatorConfig`, the packed cached data storage value.
+        uint256 config = _aggregatorConfig;
+        maxRoundDelay = uint8(config);
+        maxRoundDecrements = uint8(config >> _BITPOS_MAX_ROUND_DECREMENTS);
+        roundId = uint80(config >> _BITPOS_ROUND_ID);
+    }
 
     /// @notice Returns the number of decimals the aggregator responds with.
     /// @return result The number of decimals the aggregator responds with.
@@ -146,11 +181,15 @@ contract OEVWrappedAggregator is IChainlink {
     {
         (roundId, answer, startedAt, updatedAt, answeredInRound) =
             _assetAggregator.latestRoundData();
+        uint256 config = _aggregatorConfig;
 
         // Return the current round data if either:
         // 1. This round has already been cached (meaning someone paid for it).
         // 2. The round is too old.
-        if (roundId == cachedRoundId || block.timestamp >= updatedAt + maxRoundDelay) {
+        if (
+            roundId == uint80(config >> _BITPOS_ROUND_ID) /* ROUND_ID */ ||
+            block.timestamp >= updatedAt + uint8(config) // MAX_ROUND_DELAY
+        ) {
             return (roundId, answer, startedAt, updatedAt, answeredInRound);
         }
 
@@ -159,6 +198,7 @@ contract OEVWrappedAggregator is IChainlink {
         // If the current round is not too old and has not been paid for,
         // attempt to find the most recent valid round by checking previous
         // rounds.
+        uint256 maxRoundDecrements = uint8(config >> _BITPOS_MAX_ROUND_DECREMENTS); 
         for (uint256 i; i < maxRoundDecrements && --startRoundId > 0; ++i) {
             try _assetAggregator.getRoundData(uint80(startRoundId)) returns (
                 uint80 r, int256 a, uint256 s, uint256 u, uint80 ar
@@ -178,10 +218,11 @@ contract OEVWrappedAggregator is IChainlink {
         }
     }
 
-    /// @notice Get the latest round ID.
-    /// @return result The latest round ID.
+    /// @notice Get the latest round ID supported by this wrapped aggregator.
+    /// @return result The latest round ID supported by this wrapped
+    ///                aggregator.
     function latestRound() external view override returns (uint256 result) {
-        result = _assetAggregator.latestRound();
+        result = uint80(_aggregatorConfig >> _BITPOS_ROUND_ID);
     }
 
     /// @notice Returns the oracle data from the aggregator for `_roundId`.
@@ -220,14 +261,26 @@ contract OEVWrappedAggregator is IChainlink {
         _checkMarketPermissions();
 
         // Get latest round data and validate it.
-        (uint256 latestRoundId, int256 latestAnswer,, uint256 latestUpdatedAt,) =
+        (uint80 latestRoundId, int256 latestAnswer,, uint256 latestUpdatedAt,) =
             _assetAggregator.latestRoundData();
+        uint256 config = _aggregatorConfig;
 
         // Only update if the new round is higher than cached.
-        if (latestRoundId > cachedRoundId) {
+        if (latestRoundId > uint80(config >> _BITPOS_ROUND_ID)) {
             // Only approve the update if the round data is safe.
             if (latestAnswer > 0 && latestUpdatedAt > 0) {
-                cachedRoundId = latestRoundId;
+                assembly {
+                    // Assign packed `_aggregatorConfig` equal to:
+                    // Mask `config` to the lower 16 bits, to keep both configuration values.
+                    // `Masked `config` | (latestRoundId << _BITPOS_ROUND_ID)`.
+                    sstore(
+                        _aggregatorConfig.slot, 
+                        or(
+                            and(config, _BITMASK_CONFIG),
+                            shl(_BITPOS_ROUND_ID, latestRoundId)
+                        )
+                    )
+                }
             } 
         }
         // Else gracefully move on without reverting.
@@ -236,38 +289,17 @@ contract OEVWrappedAggregator is IChainlink {
         // interest-triggered liquidations to occur via this UserOp path.
     }
 
-    /// @notice Set the maximum number of rounds checked before falling back
-    ///         to latest price.
-    /// @dev Emits a {MaxRoundDecrementsChanged} event.
-    /// @param _maxRoundDecrements The new maximum number of decrements.
-    function setMaxRoundDecrements(uint256 _maxRoundDecrements) external {
-        if (_maxRoundDecrements < MIN_DECREMENTS_LIMIT) {
-            revert OEVWrappedAggregator__InvalidConfig();
-        }
+    /// @notice Set the configuration values for this wrapped aggregator.
+    /// @dev Emits a {ConfigChanged} event.
+    /// @param maxRoundDelay The new maximum round delay, in seconds.
+    /// @param maxRoundDecrements The new maximum number of rounds to review
+    ///                           before defaulting to the latest round.
+    function setConfigValues(
+        uint256 maxRoundDelay,
+        uint256 maxRoundDecrements
+    ) external {
         _checkMarketPermissions();
-
-        uint256 oldMaxRoundDecrements = _maxRoundDecrements;
-        maxRoundDecrements = _maxRoundDecrements;
-
-        emit MaxRoundDecrementsChanged(
-            oldMaxRoundDecrements,
-            _maxRoundDecrements
-        );
-    }
-
-    /// @notice Set the maximum delay before price defaults to next round.
-    /// @dev Emits a {NewMaxRoundDelay} event.
-    /// @param _maxRoundDelay The new maximum round delay, in seconds.
-    function setMaxRoundDelay(uint256 _maxRoundDelay) external {
-        if (_maxRoundDelay < MIN_DELAY_LIMIT) {
-            revert OEVWrappedAggregator__InvalidConfig();
-        }
-        _checkMarketPermissions();
-
-        uint256 oldMaxRoundDelay = maxRoundDelay;
-        maxRoundDelay = _maxRoundDelay;
-
-        emit NewMaxRoundDelay(oldMaxRoundDelay, maxRoundDelay);
+        _setConfigValues(_aggregatorConfig, maxRoundDelay, maxRoundDecrements, 0);
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -279,6 +311,63 @@ contract OEVWrappedAggregator is IChainlink {
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Set the configuration values for this wrapped aggregator.
+    /// @dev If `roundId` is 0 we use the current packed config roundId.
+    ///      Emits a {ConfigChanged} event.
+    /// @param config The current cached `_aggregatorConfig` packed value.
+    /// @param maxRoundDelay The new maximum round delay, in seconds.
+    /// @param maxRoundDecrements The new maximum number of decrements.
+    /// @param roundId The roundId that should be included with the updated
+    ///                config values, 0 equal use current packed value.
+    function _setConfigValues(
+        uint256 config,
+        uint256 maxRoundDelay,
+        uint256 maxRoundDecrements,
+        uint256 roundId
+    ) internal {
+        if (
+            maxRoundDecrements < MIN_DECREMENTS_LIMIT ||
+            maxRoundDelay < MIN_DELAY_LIMIT ||
+            maxRoundDecrements > MAX_ROUND_VALUE_POSSIBLE ||
+            maxRoundDelay > MAX_ROUND_VALUE_POSSIBLE
+        ) {
+            revert OEVWrappedAggregator__InvalidConfig();
+        }
+
+        // If `roundId` is 0 we use the current packed config roundId.
+        if (roundId == 0) {
+            roundId = uint80(config >> _BITPOS_ROUND_ID);
+        }
+
+        uint256 oldMaxRoundDelay = uint8(config);
+        uint256 oldMaxRoundDecrements = uint8(config >> _BITPOS_MAX_ROUND_DECREMENTS);
+
+        assembly {
+            // Assign packed `_aggregatorConfig` based on config values.
+            // Mask `maxRoundDelay` to the lower 8 bits, in case the upper bits
+            // somehow are not clean.
+            // Equals `Masked maxRoundDelay | (maxRoundDecrements << _BITPOS_MAX_ROUND_DECREMENTS) |
+            //         (roundId << _BITPOS_ROUND_ID)`.
+            sstore(
+                _aggregatorConfig.slot,
+                or(
+                    and(maxRoundDelay, _BITMASK_MAX_ROUND_DELAY),
+                    or(
+                        shl(_BITPOS_MAX_ROUND_DECREMENTS, maxRoundDecrements),
+                        shl(_BITPOS_ROUND_ID, roundId)
+                    )
+                )
+            )
+        }
+
+        emit ConfigChanged(
+            oldMaxRoundDelay,
+            maxRoundDelay,
+            oldMaxRoundDecrements,
+            maxRoundDecrements
+        );
+    }
 
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkMarketPermissions() internal view virtual {
