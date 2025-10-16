@@ -66,6 +66,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     event BadDebtRecognized(uint256 assets, address liquidator);
     event NewIRM(address oldIRM, address newIRM, uint256 newVestingPeriod);
     event NewInterestFee(uint256 oldInterestFee, uint256 newInterestFee);
+    event ExcessRecovered(uint256 assets, address recipient);
 
     /// ERRORS ///
 
@@ -408,6 +409,55 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _accrueIfNeeded();
 
         result = debtBalance(account);
+    }
+
+    /// @notice Returns the amount of excess underlying that can be safely
+    ///         recovered without impacting user accounting.
+    /// @dev    Computed as: marketOutstandingDebt + underlyingBalance - totalAssets.
+    /// @return excess The recoverable excess underlying amount, or 0 if none.
+    function recoverableExcess() external view returns (uint256 excess) {
+        uint256 underlyingBalance = IERC20(_asset).balanceOf(address(this));
+
+        uint256 totalAssets = _totalAssets;
+        uint256 debtPlusBalance = marketOutstandingDebt + underlyingBalance;
+        if (debtPlusBalance <= totalAssets) {
+            return 0;
+        }
+        
+        unchecked { 
+            excess = debtPlusBalance - totalAssets; 
+        }
+
+    }
+
+    /// @notice Recovers any accumulated excess underlying from rounding or
+    ///         unsolicited donations, to the DAO address.
+    /// @dev Does not modify `_totalAssets` or any accounting to avoid
+    ///      donation attacks.
+    ///      Computed as: marketOutstandingDebt + underlyingBalance - totalAssets.
+    ///      Requires DAO permissions.
+    function recoverExcess() external nonReentrant {
+        _checkDaoPermissions();
+
+        address asset = asset();
+
+        uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
+        uint256 totalAssets = _totalAssets;
+        uint256 debtPlusBalance = marketOutstandingDebt + underlyingBalance;
+
+        if (debtPlusBalance <= totalAssets) {
+            return;
+        }
+
+        uint256 excess;
+        unchecked {
+            excess = debtPlusBalance - totalAssets;
+        }
+
+        address recipient = centralRegistry.daoAddress();
+        SafeTransferLib.safeTransfer(asset, recipient, excess);
+
+        emit ExcessRecovered(excess, recipient);
     }
 
     /// PUBLIC FUNCTIONS ///
