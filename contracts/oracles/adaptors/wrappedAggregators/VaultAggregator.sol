@@ -5,6 +5,25 @@ import { BaseWrappedAggregator, WAD } from "contracts/oracles/adaptors/wrappedAg
 
 import { ICToken } from "contracts/interfaces/ICToken.sol";
 
+/// @title Curvance Vault Aggregator.
+/// @notice Modifies an oracle aggregator to return the price for a related
+///         ERC4626 vault token, based on the exchange rate between them.
+/// @dev Curvance vault aggregators are intended to hook up to any
+///      onchain push based oracle that supports rounds of data with the
+///      "latestRoundData" function interface (see "IChainlink"). An exchange
+///      rate between the oracle aggregator's asset and the vault token is
+///      calculated and applied to the underlying aggregator's answer.
+///
+///      Validation is done on contract deployment to ensure that the linked
+///      contracts have the expected asset addresses supported and that any
+///      difference in decimals between the assets MUST be adjusted so that
+///      the new answer's decimals batches the underlying aggregator's
+///      decimals.
+///
+///      These aggregators should then be listed in the corresponding adaptor
+///      (e.g. "ChainlinkAdaptor", "RedstoneClassicAdaptor") to price assets
+///      inside Curvance Markets.
+///
 contract VaultAggregator is BaseWrappedAggregator {
     /// CONSTANTS ///
 
@@ -19,12 +38,14 @@ contract VaultAggregator is BaseWrappedAggregator {
     /// @notice The expanded decimal precision (10 ** decimals) for
     ///         `asset` asset, in int256 form.
     int256 internal immutable _assetDecimalPrecision;
-    /// @notice The address of the underlying asset aggregator.
-    address internal immutable _assetAggregator;
-
+    
     /// CONSTRUCTOR ///
     
-    constructor(address _vault, address _asset, address _aggregator) {
+    constructor(
+        address _vault,
+        address _asset,
+        address _aggregator
+    ) BaseWrappedAggregator(_aggregator) {
         _checkAssetConfig(_vault, _asset);
 
         vault = _vault;
@@ -32,16 +53,9 @@ contract VaultAggregator is BaseWrappedAggregator {
 
         _vaultDecimalPrecision = 10 ** ICToken(_vault).decimals();
         _assetDecimalPrecision = _toInt256(10 ** ICToken(_asset).decimals());
-        _assetAggregator = _aggregator;
     }
 
     /// PUBLIC FUNCTIONS ///
-
-    /// @notice Returns the underlying aggregator address.
-    /// @return r The underlying aggregator address.
-    function underlyingAggregator() public view override returns (address r) {
-        r = _assetAggregator;
-    }
 
     /// @notice Returns the adjusted `answer` based on the current exchange
     ///         rate between the wrapped asset and the underlying aggregator.

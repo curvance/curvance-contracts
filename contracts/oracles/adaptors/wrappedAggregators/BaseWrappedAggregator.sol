@@ -5,25 +5,60 @@ import { WAD } from "contracts/libraries/ConstantsLib.sol";
 
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 
+/// @title Curvance Base Wrapped Aggregator.
+/// @notice Modifies an oracle aggregator to return the price for a different
+///         asset, based on the exchange rate between them.
+/// @dev Curvance wrapped aggregators are intended to hook up to any
+///      onchain push based oracle that supports rounds of data with the
+///      "latestRoundData" function interface (see "IChainlink"). An exchange
+///      rate between the oracle aggregator's asset and the wrapped
+///      aggregator's asset is calculated and applied to the underlying
+///      aggregator's answer.
+///
+///      Validation is done on contract deployment to ensure that the linked
+///      contracts have the expected asset addresses supported and that any
+///      difference in decimals between the assets MUST be adjusted so that
+///      the new answer's decimals batches the underlying aggregator's
+///      decimals.
+///
+///      These child contract aggregators should then be listed in the
+///      corresponding adaptor (e.g. "ChainlinkAdaptor",
+///      "RedstoneClassicAdaptor") to price assets inside Curvance Markets.
+///
 abstract contract BaseWrappedAggregator is IChainlink {
     /// CONSTANTS ///
 
+    /// @notice The address of the underlying asset aggregator.
+    IChainlink internal immutable _assetAggregator;
     /// @notice The oracle adaptor type, calculated via keccak256 of the
     ///         oracle adaptor's name.
-    uint256 internal immutable _adaptorType = uint256(keccak256(abi.encode("WrappedAggregator")));
+    uint256 internal immutable _adaptorType =
+        uint256(keccak256(abi.encode("WrappedAggregator")));
 
     /// ERRORS ///
 
     error BaseWrappedAggregator__InvalidConfig();
     error BaseWrappedAggregator__UintToIntError();
 
+    constructor(address _aggregator) {
+        // Validate we properly get a price from underlying aggregator, both
+        // that the function call did not revert but also we didnt get a 0 or
+        // negative value.
+        (, int256 answer,,,) = IChainlink(_aggregator).latestRoundData();
+        if (answer <= 0) {
+            revert BaseWrappedAggregator__InvalidConfig();
+        }
+
+        _assetAggregator = IChainlink(_aggregator);
+    }
+
 
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Returns the number of decimals the aggregator responds with.
-    /// @return The number of decimals the aggregator responds with.
-    function decimals() external view returns (uint8) {
-        return IChainlink(underlyingAggregator()).decimals();
+    /// @return result The number of decimals the aggregator responds with.
+    function decimals() external view returns (uint8 result) {
+        result = _assetAggregator.decimals();
     }
 
     /// @notice Returns the latest oracle data from the aggregator,
@@ -47,9 +82,42 @@ abstract contract BaseWrappedAggregator is IChainlink {
             uint80 answeredInRound
         )
     {
-        (roundId, answer, startedAt, updatedAt, answeredInRound) = IChainlink(
-            underlyingAggregator()
-        ).latestRoundData();
+        (roundId, answer, startedAt, updatedAt, answeredInRound) =
+            _assetAggregator.latestRoundData();
+
+        answer = getAdjustedAnswer(answer);
+    }
+
+    /// @notice Get the latest round ID.
+    /// @return result The latest round ID.
+    function latestRound() external view override returns (uint256 result) {
+        result = _assetAggregator.latestRound();
+    }
+
+    /// @notice Returns the oracle data from the aggregator for `_roundId`,
+    ///         adjusted by the wrapper.
+    /// @param _roundId The round ID to retrieve data from the aggregator.
+    /// @return roundId The round ID from the aggregator for which the data
+    ///                 was retrieved.
+    ///         answer The price returned by the aggregator,
+    ///                adjusted by the wrapper.
+    ///         startedAt The timestamp the `_roundId` was started.
+    ///         updatedAt The timestamp the `_roundId` last was updated.
+    ///         answeredInRound The round ID of the round in which `answer`
+    ///                         was computed.
+    function getRoundData(uint80 _roundId)
+        external
+        view
+        returns (
+            uint80 roundId,
+            int256 answer,
+            uint256 startedAt,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        )
+    {
+        (roundId, answer, startedAt, updatedAt, answeredInRound) =
+            _assetAggregator.getRoundData(_roundId);
 
         answer = getAdjustedAnswer(answer);
     }
@@ -65,9 +133,10 @@ abstract contract BaseWrappedAggregator is IChainlink {
     /// PUBLIC FUNCTIONS TO OVERRIDE ///
 
     /// @notice Returns the underlying aggregator address.
-    /// @dev Overridden in implemented wrapped oracle aggregators.
-    /// @return The underlying aggregator address.
-    function underlyingAggregator() public view virtual returns (address);
+    /// @return result The underlying aggregator address.
+    function underlyingAggregator() public view returns (IChainlink result) {
+        result = _assetAggregator;
+    }
 
     /// @notice Returns the adjusted `answer` based on the current exchange
     ///         rate between the wrapped asset and the underlying aggregator.

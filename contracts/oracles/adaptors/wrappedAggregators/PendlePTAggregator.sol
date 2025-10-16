@@ -10,6 +10,25 @@ import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 
+/// @title Curvance Pendle Principal Token Aggregator.
+/// @notice Modifies an oracle aggregator to return the price for a related
+///         Pendle principal token, based on the exchange rate between them.
+/// @dev Curvance Pendle PT aggregators are intended to hook up to any
+///      onchain push based oracle that supports rounds of data with the
+///      "latestRoundData" function interface (see "IChainlink"). An exchange
+///      rate between the oracle aggregator's asset and the principal token
+///      is calculated and applied to the underlying aggregator's answer.
+///
+///      Validation is done on contract deployment to ensure that the linked
+///      contracts have the expected asset addresses supported and that any
+///      difference in decimals between the assets MUST be adjusted so that
+///      the new answer's decimals batches the underlying aggregator's
+///      decimals.
+///
+///      These aggregators should then be listed in the corresponding adaptor
+///      (e.g. "ChainlinkAdaptor", "RedstoneClassicAdaptor") to price assets
+///      inside Curvance Markets.
+///
 contract PendlePTAggregator is BaseWrappedAggregator {
     /// CONSTANTS ///
 
@@ -30,8 +49,6 @@ contract PendlePTAggregator is BaseWrappedAggregator {
     /// @notice The expanded decimal precision (10 ** decimals) for
     ///         `asset` asset, in int256 form.
     int256 internal immutable _assetDecimalPrecision;
-    /// @notice The address of the underlying asset aggregator.
-    address internal immutable _assetAggregator;
 
     /// CONSTRUCTOR ///
     
@@ -40,7 +57,7 @@ contract PendlePTAggregator is BaseWrappedAggregator {
         address _asset,
         address _aggregator,
         uint256 _discountOneYearBPS
-    ) {
+    ) BaseWrappedAggregator(_aggregator) {
         // Adjust input from `BPS` to `WAD` since we set protocol values in
         // BPS for consistency.
         _discountOneYearBPS = _discountOneYearBPS * 1e14;
@@ -67,16 +84,9 @@ contract PendlePTAggregator is BaseWrappedAggregator {
         _discountOneYear = _discountOneYearBPS;
         _PTDecimalPrecision = 10 ** ICToken(_PT).decimals();
         _assetDecimalPrecision = _toInt256(10 ** ICToken(_asset).decimals());
-        _assetAggregator = _aggregator;
     }
 
     /// PUBLIC FUNCTIONS ///
-
-    /// @notice Returns the underlying aggregator address.
-    /// @return r The underlying aggregator address.
-    function underlyingAggregator() public view override returns (address r) {
-        r = _assetAggregator;
-    }
 
     /// @notice Returns the adjusted `answer` based on the current exchange
     ///         rate between the wrapped asset and the underlying aggregator.

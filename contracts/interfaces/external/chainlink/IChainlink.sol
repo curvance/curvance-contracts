@@ -13,14 +13,22 @@ interface IChainlink {
     ///         updatedAt The timestamp the current round last was updated.
     ///         answeredInRound The round ID of the round in which `answer`
     ///                         was computed.
-    function latestRoundData()
-        external
-        view
-        returns (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        );
+    function latestRoundData() external view returns (
+        uint80 roundId,
+        int256 answer,
+        uint256 startedAt,
+        uint256 updatedAt,
+        uint80 answeredInRound
+    );
+    
+    /// @notice Returns the latest roundID the aggregator responds with.
+    function latestRound() external view returns (uint256);
+
+    function getRoundData(uint80 _roundId) external view returns (
+        uint80 roundId,
+        int256 answer,
+        uint256 startedAt,
+        uint256 updatedAt,
+        uint80 answeredInRound
+    );
 }
