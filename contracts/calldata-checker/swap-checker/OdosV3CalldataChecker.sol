@@ -48,19 +48,20 @@ contract OdosV3CalldataChecker is BaseSwapChecker {
         address executor;
         bytes memory path;
         if (funcSigHash == IOdosRouterV3.swap.selector) {
-            (IOdosRouterV3.swapTokenInfo memory tokenInfo,
+            (
+                IOdosRouterV3.swapTokenInfo memory tokenInfo,
                 bytes memory pathDefinition, 
                 address exec, 
                 /*IOdosRouterV3.swapReferralInfo memory referralInfo*/
-                ) = abi.decode(
-                _getFuncParams(swapAction.call),
-                (
-                    IOdosRouterV3.swapTokenInfo,
-                    bytes,
-                    address,
-                    IOdosRouterV3.swapReferralInfo
-                )
-            );
+            ) = abi.decode(
+                    _getFuncParams(swapAction.call),
+                    (
+                        IOdosRouterV3.swapTokenInfo, 
+                        bytes, 
+                        address, 
+                        IOdosRouterV3.swapReferralInfo
+                    )
+                );
             recipient = tokenInfo.outputReceiver;
             inputToken = tokenInfo.inputToken;
             inputAmount = tokenInfo.inputAmount;
