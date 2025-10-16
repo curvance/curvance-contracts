@@ -7,6 +7,11 @@ import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract PythAdaptorMulticallChecker is BaseMulticallChecker {
+    /// CONSTANTS ///
+
+    uint256 public constant _PYTH_ADAPTOR_TYPE =
+        uint256(keccak256(abi.encode("PythAdaptor")));
+
     /// CONSTRUCTOR ///
 
     /// @param cr The address of the Central Registry contract.
@@ -30,7 +35,7 @@ contract PythAdaptorMulticallChecker is BaseMulticallChecker {
     ) external view override {
         // Validate `target` is actually a Pyth oracle adaptor. This will also
         // fail if `target` does not properly implement `IOracleAdaptor`.
-        _checkIsApprovedAdaptor(target, uint256(keccak256(abi.encode("PythAdaptor"))));
+        _checkIsApprovedAdaptor(target, _PYTH_ADAPTOR_TYPE);
 
         if (
             _getFuncSigHash(data) == PythAdaptor
