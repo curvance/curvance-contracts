@@ -11,7 +11,9 @@ import { IOdosRouterV3 } from "contracts/interfaces/external/odos/IOdosRouterV3.
 /// @dev NOTE: Currently built for Router V3.
 contract OdosV3CalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
-    address immutable public _ODOS_EXECUTOR;
+
+    /// @notice The address of the Odos Executor on this chain.
+    address immutable public ODOS_EXECUTOR;
 
     /// CONSTRUCTOR ///
 
@@ -20,7 +22,7 @@ contract OdosV3CalldataChecker is BaseSwapChecker {
         address _target,
         address _odosExecutor
     ) BaseSwapChecker(_target) {
-        _ODOS_EXECUTOR = _odosExecutor;
+        ODOS_EXECUTOR = _odosExecutor;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -89,7 +91,7 @@ contract OdosV3CalldataChecker is BaseSwapChecker {
         }
 
         // Additional validations to restrict execution routing fields.
-        if (executor != _ODOS_EXECUTOR) {
+        if (executor != ODOS_EXECUTOR) {
             revert CalldataChecker__TargetError();
         }
 

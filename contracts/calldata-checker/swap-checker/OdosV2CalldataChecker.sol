@@ -11,7 +11,9 @@ import { IOdosRouterV2 } from "contracts/interfaces/external/odos/IOdosRouterV2.
 /// @dev NOTE: Currently built for Router V2.
 contract OdosV2CalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
-    address immutable public _ODOS_EXECUTOR;
+
+    /// @notice The address of the Odos Executor on this chain.
+    address immutable public ODOS_EXECUTOR;
 
     /// CONSTRUCTOR ///
 
@@ -20,7 +22,7 @@ contract OdosV2CalldataChecker is BaseSwapChecker {
         address _target,
         address _odosExecutor
     ) BaseSwapChecker(_target) {
-        _ODOS_EXECUTOR = _odosExecutor;
+        ODOS_EXECUTOR = _odosExecutor;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -88,7 +90,7 @@ contract OdosV2CalldataChecker is BaseSwapChecker {
             revert CalldataChecker__OutputTokenError();
         }
 
-        if (executor != _ODOS_EXECUTOR) {
+        if (executor != ODOS_EXECUTOR) {
             revert CalldataChecker__TargetError();
         }
 
