@@ -669,7 +669,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
             // If the new `vertexMultiplierMax` is below `vertexMultiplier`
             // we should clamp it down to the new maximum.
             if (vertexMultiplierMax < cachedVertexMultiplier) {
-                cachedVertexMultiplier = vertexMultiplierMax;
+                vertexMultiplier = vertexMultiplierMax;
             }
         }
 
