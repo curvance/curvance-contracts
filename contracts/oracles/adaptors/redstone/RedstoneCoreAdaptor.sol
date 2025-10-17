@@ -25,9 +25,9 @@ contract RedstoneCoreAdaptor is
     /// @param symbolHash The bytes32 encoded hash of the price feed.
     struct AssetConfig {
         uint8 decimals;
-        uint16 heartbeat;
+        uint8 heartbeat;
         uint48 redstoneTimestamp;
-        uint184 price;
+        uint192 price;
         bytes32 symbolHash;
     }
 
@@ -35,10 +35,12 @@ contract RedstoneCoreAdaptor is
 
     /// @notice If type(uint256).max is specified for an asset heartbeat,
     ///         `DEFAULT_HEARTBEAT` is used instead.
-    /// @dev 5 minutes = 300 seconds.
+    /// @dev 1 minutes = 60 seconds.
     ///      We use type(uint256).max instead of 0 for trigger as we may want
     ///      0 second requirement on redstone pull oracles.
-    uint256 public constant DEFAULT_HEARTBEAT = 5 minutes;
+    ///      NOTE: Redstone Core Adaptor is not intended for slower block time
+    ///            chains such as ETH L1.
+    uint256 public constant DEFAULT_HEARTBEAT = 1 minutes;
     /// @notice The smallest value that Redstone Core unique signer threshold
     ///         can be inside Curvance.
     uint256 public constant MINIMUM_SIGNERS_THRESHOLD_ALLOWED = 3;
@@ -180,16 +182,14 @@ contract RedstoneCoreAdaptor is
         }
 
         uint256 price = getOracleNumericValueFromTxMsg(config.symbolHash);
-        // Adjust price pulled if necessary.
-        price = _adjustPrice(asset, inUSD, price, config.decimals);
 
         // Validate `price` is not at or above the maximum value allowed,
         // and `price` is not truncated or misreported with a 0 value.
-        if (price == 0 || price > type(uint184).max) {
+        if (price == 0 || price > type(uint192).max) {
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
-        config.price = uint184(price);
+        config.price = uint192(price);
         config.redstoneTimestamp = redstoneTimestamp;
 
         /// @solidity memory-safe-assembly
@@ -430,7 +430,8 @@ contract RedstoneCoreAdaptor is
             return result;
         }
 
-        result.price = config.price;
+        // Adjust price pulled if necessary.
+        result.price = _adjustPrice(asset, inUSD, config.price, config.decimals);
     }
 
     /// @dev This logic replicates RedstoneDefaultsLib.validateTimestamp
