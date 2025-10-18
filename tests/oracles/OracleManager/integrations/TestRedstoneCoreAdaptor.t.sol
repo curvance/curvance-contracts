@@ -263,4 +263,14 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
 
         assertNotEq(errorCode, 0, "We expect an error message returned since the price feed should be stale now");
     }
+
+    function test_maxUint256ValueUsesDefaultHeartbeat() public {
+        // Use max uint256 value to use default heartbeat
+        adaptor.addAsset(_WETH_ADDRESS, true, 8, type(uint256).max);
+
+        (uint8 decimals, uint8 heartbeat, , , ) = adaptor.assetConfig(_WETH_ADDRESS, true);
+
+        assertEq(decimals, 8);
+        assertEq(uint256(heartbeat), adaptor.DEFAULT_HEARTBEAT());
+    }
 }
