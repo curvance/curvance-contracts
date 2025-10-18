@@ -131,7 +131,7 @@ library SwapperLib {
         }
 
         // Calculate % slippage from executed swap.
-        uint256 slippage = FixedPointMathLib.mulDiv(
+        uint256 slippage = FixedPointMathLib.mulDivUp(
             valueIn - valueOut,
             BPS,
             valueIn

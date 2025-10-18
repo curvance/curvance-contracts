@@ -101,7 +101,7 @@ contract OdosV2CalldataChecker is BaseSwapChecker {
         }
 
         if (referralCode != 0) {
-            revert CalldataChecker__ReferralCodeError();
+            revert CalldataChecker__ReferralError();
         }
     }
 }

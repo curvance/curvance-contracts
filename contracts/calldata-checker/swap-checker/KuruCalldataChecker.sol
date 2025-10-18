@@ -36,11 +36,13 @@ contract KuruCalldataChecker is BaseSwapChecker {
         address inputToken;
         uint256 inputAmount;
         address outputToken;
+        address feeCollectorAddress;
+        address referrerAddress;
         if (funcSigHash == IKuruFlowRouter.executeSwap.selector) {
             (
                 IKuruFlowRouter.SwapIntent memory swapIntent,
-                ,  // FeeCollection, not validated.
-                    // bytes program, not validated.
+                IKuruFlowRouter.FeeCollection memory feeCollection,
+                bytes memory program
             ) = abi.decode(
                 _getFuncParams(swapAction.call),
                 (
@@ -53,6 +55,8 @@ contract KuruCalldataChecker is BaseSwapChecker {
             inputToken = swapIntent.tokenUserSells;
             inputAmount = swapIntent.amountUserSells;
             outputToken = swapIntent.tokenUserBuys;
+            feeCollectorAddress = feeCollection.feeCollectorAddress;
+            referrerAddress = feeCollection.referrerAddress;
         } else {
             revert CalldataChecker__InvalidFuncSig();
         }
@@ -71,6 +75,14 @@ contract KuruCalldataChecker is BaseSwapChecker {
 
         if (outputToken != swapAction.outputToken) {
             revert CalldataChecker__OutputTokenError();
+        }
+
+        if (feeCollectorAddress != address(0)) {
+            revert CalldataChecker__ReferralError();
+        }
+
+        if (referrerAddress != address(0)) {
+            revert CalldataChecker__ReferralError();
         }
     }
 }

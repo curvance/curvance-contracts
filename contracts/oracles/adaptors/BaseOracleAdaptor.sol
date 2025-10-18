@@ -305,7 +305,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 ips,
         uint256 price
     ) internal pure returns (uint256 r) {
-        r = FixedPointMathLib.mulDiv(price, ((timePassed * ips) + WAD), WAD);
+        r = FixedPointMathLib.fullMulDiv(price, ((timePassed * ips) + WAD), WAD);
     }
 
     /// @notice Checks whether `asset` is supported by the adaptor or not.
