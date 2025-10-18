@@ -256,7 +256,7 @@ contract RedstoneCoreAdaptor is
         AssetConfig storage config = assetConfig[asset][inUSD];
 
         config.symbolHash = symbolHash;
-        config.heartbeat = uint16(heartbeat != type(uint256).max ?
+        config.heartbeat = uint8(heartbeat != type(uint256).max ?
             heartbeat : DEFAULT_HEARTBEAT);
         // If decimals == 0 we use default 8 decimals that
         // Redstone typically provides prices in.

@@ -49,12 +49,13 @@ contract OdosV2CalldataChecker is BaseSwapChecker {
         address outputToken;
         address executor;
         bytes memory path;
+        uint32 referralCode;
         if (funcSigHash == IOdosRouterV2.swap.selector) {
             (
                 IOdosRouterV2.swapTokenInfo memory tokenInfo,
                 bytes memory pathDefinition, 
                 address exec,
-                /*uint32 refCode*/
+                uint32 refCode
             ) = abi.decode(
                     _getFuncParams(swapAction.call),
                     (
@@ -70,6 +71,7 @@ contract OdosV2CalldataChecker is BaseSwapChecker {
             outputToken = tokenInfo.outputToken;
             executor = exec;
             path = pathDefinition;
+            referralCode = refCode;
         } else {
             revert CalldataChecker__InvalidFuncSig();
         }
@@ -96,6 +98,10 @@ contract OdosV2CalldataChecker is BaseSwapChecker {
 
         if (path.length == 0) {
             revert CalldataChecker__InvalidFuncSig();
+        }
+
+        if (referralCode != 0) {
+            revert CalldataChecker__ReferralCodeError();
         }
     }
 }

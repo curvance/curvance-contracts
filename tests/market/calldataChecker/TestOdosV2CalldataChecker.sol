@@ -10,6 +10,7 @@ import "tests/market/TestBaseMarketIsolated.sol";
 
 contract TestOdosV2CalldataChecker is TestBaseMarketIsolated {
     address public odosRouterV2 = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
+    address public odosExecutor = 0x365084B05Fa7d5028346bD21D842eD0601bAB5b8;
     OdosV2CalldataChecker public checker;
 
     SwapperLib.Swap public swapAction;
@@ -22,7 +23,7 @@ contract TestOdosV2CalldataChecker is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 
-        checker = new OdosV2CalldataChecker(odosRouterV2);
+        checker = new OdosV2CalldataChecker(odosRouterV2, odosExecutor);
     }
 
     function testCheckCallDataRevert__TargetError() public {
