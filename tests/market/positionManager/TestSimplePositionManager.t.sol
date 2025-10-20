@@ -5,6 +5,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
 import { SimpleCToken } from "contracts/market/token/SimpleCToken.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import { MockSimpleCToken } from "contracts/mocks/MockSimpleCToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IBorrowableCToken } from "contracts/interfaces/IBorrowableCToken.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
@@ -17,6 +18,7 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
     address public user;
 
     SimplePositionManager public positionManager;
+    MockSimpleCToken internal unlistedCToken;
 
     receive() external payable {}
 
@@ -65,6 +67,12 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         marketManagerIsolated.addPositionManager(address(positionManager));
 
         _provideEnoughLiquidityForLeverage();
+
+        unlistedCToken = new MockSimpleCToken(
+            ICentralRegistry(address(centralRegistry)),
+            address(usdc),
+            address(marketManagerIsolated)
+        );
     }
 
     function testRevert_LeverageInvalidSwapTarget() public {
@@ -112,6 +120,73 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidParam()")));
         positionManager.leverage(leverageAction, 0.05e18);
         
+        vm.stopPrank();
+    }
+
+    function test_onBorrow_fail_unlistedCollateralCToken() public {
+        vm.startPrank(user);
+
+        // Setup collateral
+        _prepareUSDC(user, 1_000e6);
+        usdc.approve(address(borrowableCUSDC), 1_000e6);
+        borrowableCUSDC.depositAsCollateral(1_000e6, user);
+
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = 1 ether;
+        // use unlisted cToken
+        leverageAction.cToken = ICToken(address(unlistedCToken));
+        
+        // placeholder swap data
+        leverageAction.swapAction.inputToken = address(dai);
+        leverageAction.swapAction.inputAmount = leverageAction.borrowAssets;
+        leverageAction.swapAction.outputToken = address(usdc);
+        leverageAction.swapAction.target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageAction.swapAction.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            leverageAction.borrowAssets,
+            0,
+            path,
+            address(positionManager),
+            block.timestamp
+        );
+        leverageAction.swapAction.slippage = 0.3e18;
+
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__Unauthorized()")));
+        positionManager.leverage(leverageAction, 0.05e18);
+
+        vm.stopPrank();
+    }
+
+    function test_onRedeem_fail_unlistedBorrowableCToken() public {
+        vm.startPrank(user);
+        deal(address(usdc), user, 1_000e6);
+        usdc.approve(address(borrowableCUSDC), 1_000e6);
+        borrowableCUSDC.deposit(1_000e6, user);
+        borrowableCUSDC.postCollateral(1_000e6);
+
+        SimplePositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(borrowableCUSDC));
+        deleverageAction.collateralAssets = 10e6;
+        // use unlisted cToken
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(unlistedCToken));
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+
+        // placeholder swap data
+        deleverageAction.swapActions[0].inputToken = address(usdc);
+        deleverageAction.swapActions[0].inputAmount = 10e6;
+        deleverageAction.swapActions[0].outputToken = address(dai);
+        deleverageAction.swapActions[0].target = address(_UNISWAP_V2_ROUTER);
+        deleverageAction.swapActions[0].call = hex"01";
+        deleverageAction.swapActions[0].slippage = 0.3e18;
+        deleverageAction.repayAssets = 0;
+
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__Unauthorized()")));
+        positionManager.deleverage(deleverageAction, 0.05e18);
+
         vm.stopPrank();
     }
 

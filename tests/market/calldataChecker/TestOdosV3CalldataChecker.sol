@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import { OdosV3CalldataChecker } from "contracts/calldata-checker/swap-checker/OdosV3CalldataChecker.sol";
 import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
+import { IOdosRouterV3 } from "contracts/interfaces/external/odos/IOdosRouterV3.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
@@ -114,6 +115,147 @@ contract TestOdosV3CalldataChecker is TestBaseMarketIsolated {
         // Generate from Odos api.
         swapAction
             .call = hex"30f80b4c000000000000000000000000d533a949740bb3306d119cc777fa900ba034cd5200000000000000000000000000000000000000000000021e19e0c9bab2400000000000000000000000000000365084b05fa7d5028346bd21d842ed0601bab5b80000000000000000000000006b3595068778dd592e39a122f4f5a5cf09c90fe200000000000000000000000000000000000000000000021b5ae39aa321200000000000000000000000000000000000000000000000000219bcaa16d86660000000000000000000000000000047e2d28169738039755586743e2dfcf3bd643f860000000000000000000000000000000000000000000000000000000000000180000000000000000000000000365084b05fa7d5028346bd21d842ed0601bab5b80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000070010205005501010203020102030001010403001eff00000000000000000000004ebdf703948ddcea3b11f675b4d1fba9d2414a14d533a949740bb3306d119cc777fa900ba034cd52c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2795065dcc9f64b5614c407a6efdc400da6221fb000000000000000000000000000000000";
+
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function testSwap_fail_executorMismatch() public {
+        recipient = address(0x47E2D28169738039755586743E2dfCF3bd643f86);
+        swapAction.inputToken = 0xD533a949740bb3306d119CC777fa900bA034cd52;
+        swapAction.inputAmount = 1e18;
+        swapAction.outputToken = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
+        swapAction.target = odosRouterV3;
+
+        IOdosRouterV3.swapTokenInfo memory info = IOdosRouterV3.swapTokenInfo({
+            inputToken: swapAction.inputToken,
+            inputAmount: swapAction.inputAmount,
+            inputReceiver: address(0x1), // placeholder receiver
+            outputToken: swapAction.outputToken,
+            outputQuote: 0,
+            outputMin: 0,
+            outputReceiver: recipient
+        });
+        bytes memory path = hex"01"; // Placeholder path
+        address vitalik = address(0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045);
+        IOdosRouterV3.swapReferralInfo memory ref = IOdosRouterV3.swapReferralInfo({
+            code: 0,
+            fee: 0,
+            feeRecipient: address(0)
+        });
+
+        swapAction.call = abi.encodeWithSelector(
+            IOdosRouterV3.swap.selector,
+            info,
+            path,
+            vitalik, // wrong executor
+            ref
+        );
+
+        vm.expectRevert(BaseSwapChecker.CalldataChecker__TargetError.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function testSwap_fail_emptyPath() public {
+        recipient = address(0x47E2D28169738039755586743E2dfCF3bd643f86);
+        swapAction.inputToken = 0xD533a949740bb3306d119CC777fa900bA034cd52;
+        swapAction.inputAmount = 1e18;
+        swapAction.outputToken = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
+        swapAction.target = odosRouterV3;
+
+        IOdosRouterV3.swapTokenInfo memory info = IOdosRouterV3.swapTokenInfo({
+            inputToken: swapAction.inputToken,
+            inputAmount: swapAction.inputAmount,
+            inputReceiver: address(0x1), // placeholder receiver
+            outputToken: swapAction.outputToken,
+            outputQuote: 0,
+            outputMin: 0,
+            outputReceiver: recipient
+        });
+        bytes memory path = hex""; // Empty path
+        IOdosRouterV3.swapReferralInfo memory ref = IOdosRouterV3.swapReferralInfo({
+            code: 0,
+            fee: 0,
+            feeRecipient: address(0)
+        });
+
+        swapAction.call = abi.encodeWithSelector(
+            IOdosRouterV3.swap.selector,
+            info,
+            path,
+            odosExecutor,
+            ref
+        );
+
+        vm.expectRevert(BaseSwapChecker.CalldataChecker__InvalidFuncSig.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function testSwap_fail_nonZeroReferral() public {
+        recipient = address(0x47E2D28169738039755586743E2dfCF3bd643f86);
+        swapAction.inputToken = 0xD533a949740bb3306d119CC777fa900bA034cd52;
+        swapAction.inputAmount = 1e18;
+        swapAction.outputToken = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
+        swapAction.target = odosRouterV3;
+
+        IOdosRouterV3.swapTokenInfo memory info = IOdosRouterV3.swapTokenInfo({
+            inputToken: swapAction.inputToken,
+            inputAmount: swapAction.inputAmount,
+            inputReceiver: address(0x1), // placeholder receiver
+            outputToken: swapAction.outputToken,
+            outputQuote: 0,
+            outputMin: 0,
+            outputReceiver: recipient
+        });
+        bytes memory path = hex"01"; // Placeholder path
+        IOdosRouterV3.swapReferralInfo memory ref = IOdosRouterV3.swapReferralInfo({
+            code: 1,
+            fee: 0,
+            feeRecipient: address(0)
+        });
+
+        swapAction.call = abi.encodeWithSelector(
+            IOdosRouterV3.swap.selector,
+            info,
+            path,
+            odosExecutor,
+            ref
+        );
+
+        vm.expectRevert(BaseSwapChecker.CalldataChecker__ReferralError.selector);
+        checker.checkCalldata(swapAction, recipient);
+    }
+
+    function testSwap_success_validExecutorPathZeroReferral() public {
+        recipient = address(0x47E2D28169738039755586743E2dfCF3bd643f86);
+        swapAction.inputToken = 0xD533a949740bb3306d119CC777fa900bA034cd52;
+        swapAction.inputAmount = 1e18;
+        swapAction.outputToken = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
+        swapAction.target = odosRouterV3;
+
+        IOdosRouterV3.swapTokenInfo memory info = IOdosRouterV3.swapTokenInfo({
+            inputToken: swapAction.inputToken,
+            inputAmount: swapAction.inputAmount,
+            inputReceiver: address(0x1), // placeholder receiver
+            outputToken: swapAction.outputToken,
+            outputQuote: 0,
+            outputMin: 0,
+            outputReceiver: recipient
+        });
+        bytes memory path = hex"01"; // Placeholder path
+        address executor = odosExecutor;
+        IOdosRouterV3.swapReferralInfo memory ref = IOdosRouterV3.swapReferralInfo({
+            code: 0,
+            fee: 0,
+            feeRecipient: address(0)
+        });
+
+        swapAction.call = abi.encodeWithSelector(
+            IOdosRouterV3.swap.selector,
+            info,
+            path,
+            executor,
+            ref
+        );
 
         checker.checkCalldata(swapAction, recipient);
     }
