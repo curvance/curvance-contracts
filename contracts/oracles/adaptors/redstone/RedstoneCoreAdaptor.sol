@@ -14,9 +14,6 @@ contract RedstoneCoreAdaptor is
     /// TYPES ///
 
     /// @notice Stores configuration data for Redstone price sources.
-    /// @param heartbeat The max amount of time allowed between price updates.
-    ///                  type(uint256).max defaults to using
-    ///                  `DEFAULT_HEARTBEAT`.
     /// @param decimals Returns the number of decimals the Redstone price feed
     ///                 responds with.
     /// @param redstoneTimestamp The price timestamp reported by Redstone
@@ -25,33 +22,38 @@ contract RedstoneCoreAdaptor is
     /// @param symbolHash The bytes32 encoded hash of the price feed.
     struct AssetConfig {
         uint8 decimals;
-        uint8 heartbeat;
         uint48 redstoneTimestamp;
-        uint192 price;
+        uint200 price;
         bytes32 symbolHash;
     }
 
     /// CONSTANTS ///
 
-    /// @notice If type(uint256).max is specified for an asset heartbeat,
-    ///         `DEFAULT_HEARTBEAT` is used instead.
-    /// @dev 1 minutes = 60 seconds.
-    ///      We use type(uint256).max instead of 0 for trigger as we may want
-    ///      0 second requirement on redstone pull oracles.
-    ///      NOTE: Redstone Core Adaptor is not intended for slower block time
-    ///            chains such as ETH L1.
-    uint256 public constant DEFAULT_HEARTBEAT = 1 minutes;
     /// @notice The smallest value that Redstone Core unique signer threshold
     ///         can be inside Curvance.
     uint256 public constant MINIMUM_SIGNERS_THRESHOLD_ALLOWED = 3;
     /// @notice The maximum number of signers allowed inside this adaptor.
     uint256 public constant MAXIMUM_SIGNERS_ALLOWED = 255;
-    /// @notice The maximum timestamp delay from block.timestamp that is
-    ///         acceptable.
-    uint256 constant DEFAULT_MAX_DATA_TIMESTAMP_DELAY_SECONDS = 3 minutes;
+    /// @notice The maximum possible value settable on deployment for this
+    ///         Redstone Core Adaptor's maximum timestamp delay from
+    ///         block.timestamp that is acceptable.
+    uint256 constant MAXIMUM_DEFAULT_HEARTBEAT_ALLOWED = 1 minutes;
     /// @notice The maximum timestamp ahead from block.timestamp that is
     ///         acceptable.
     uint256 constant DEFAULT_MAX_DATA_TIMESTAMP_AHEAD_SECONDS = 1 minutes;
+
+    /// @notice The maximum timestamp delay from block.timestamp that is
+    ///         acceptable, in seconds.
+    /// @dev This is one value for all assets because its tied to user sourced
+    ///      offchain prices being processed in time by the blockchain not
+    ///      onchain procedural/deviation updates like models like Chainlink
+    ///      price feeds or Redstone classic. If theres a real argument for
+    ///      different `DEFAULT_HEARTBEAT` values due to asset volatility
+    ///      multiple redstone core adaptors can be deployed.
+    ///      Its intentional that this is not configurable via a setter, if a
+    ///      chain speeds up its block times a new adaptor version can be
+    ///      deployed and updated in the Oracle Manager.
+    uint256 public immutable DEFAULT_HEARTBEAT;
 
     /// STORAGE ///
 
@@ -107,7 +109,8 @@ contract RedstoneCoreAdaptor is
         ICentralRegistry cr,
         address[] memory signers,
         uint256 uniqueSignersThreshold_,
-        string memory nativeSymbol
+        string memory nativeSymbol,
+        uint256 defaultHeartbeat
     ) BaseOracleAdaptor(
         cr,
         "RedstoneCoreAdaptor"
@@ -131,6 +134,17 @@ contract RedstoneCoreAdaptor is
         if (MAXIMUM_SIGNERS_ALLOWED < numSigners) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
         }
+
+        // Validate that the attached heartbeat is not too long as this
+        // potentially opens up price selection attack vectors if too long.
+        if (defaultHeartbeat > MAXIMUM_DEFAULT_HEARTBEAT_ALLOWED) {
+            revert RedstoneCoreAdaptor__InvalidConfiguration();
+        }
+
+        // Enforce maximum default heartbeat allowed for Ethereum L1 whereas
+        // other chains can potentially be lower due to shorter block times.
+        DEFAULT_HEARTBEAT = block.chainid == 1 ?
+            MAXIMUM_DEFAULT_HEARTBEAT_ALLOWED : defaultHeartbeat;
 
         for (uint256 i; i < numSigners; ++i) {
             address signer = signers[i];
@@ -185,11 +199,11 @@ contract RedstoneCoreAdaptor is
 
         // Validate `price` is not at or above the maximum value allowed,
         // and `price` is not truncated or misreported with a 0 value.
-        if (price == 0 || price > type(uint192).max) {
+        if (price == 0 || price > type(uint200).max) {
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
-        config.price = uint192(price);
+        config.price = uint200(price);
         config.redstoneTimestamp = redstoneTimestamp;
 
         /// @solidity memory-safe-assembly
@@ -228,16 +242,9 @@ contract RedstoneCoreAdaptor is
     function addAsset(
         address asset,
         bool inUSD,
-        uint8 decimals,
-        uint256 heartbeat
+        uint8 decimals
     ) external {
         _checkElevatedPermissions();
-
-        if (heartbeat != type(uint256).max) {
-            if (heartbeat > DEFAULT_HEARTBEAT) {
-                revert RedstoneCoreAdaptor__InvalidConfiguration();
-            }
-        }
 
         bytes32 symbolHash;
         if (inUSD) {
@@ -256,8 +263,6 @@ contract RedstoneCoreAdaptor is
         AssetConfig storage config = assetConfig[asset][inUSD];
 
         config.symbolHash = symbolHash;
-        config.heartbeat = uint8(heartbeat != type(uint256).max ?
-            heartbeat : DEFAULT_HEARTBEAT);
         // If decimals == 0 we use default 8 decimals that
         // Redstone typically provides prices in.
         config.decimals = decimals != 0 ? decimals : 8;
@@ -424,7 +429,7 @@ contract RedstoneCoreAdaptor is
         uint256 timestampInSeconds = config.redstoneTimestamp / 1000;
         if (
             timestampInSeconds < block.timestamp &&
-            block.timestamp - timestampInSeconds > config.heartbeat
+            block.timestamp - timestampInSeconds > DEFAULT_HEARTBEAT
         ) {
             result.hadError = true;
             return result;
@@ -457,8 +462,7 @@ contract RedstoneCoreAdaptor is
                 revert RedstoneCoreAdaptor__StalePrice();
             }
         } else if (
-            (block.timestamp - receivedTimestampSeconds) >
-            DEFAULT_MAX_DATA_TIMESTAMP_DELAY_SECONDS
+            (block.timestamp - receivedTimestampSeconds) > DEFAULT_HEARTBEAT
         ) {
             revert RedstoneCoreAdaptor__StalePrice();
         }
