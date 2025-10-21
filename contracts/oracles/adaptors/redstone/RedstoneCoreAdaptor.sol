@@ -199,6 +199,8 @@ contract RedstoneCoreAdaptor is
 
         // Validate `price` is not at or above the maximum value allowed,
         // and `price` is not truncated or misreported with a 0 value.
+        // This is so people cannot write a bad price and brick other core
+        // price reads due to backwards timestamp price updates being blocked.
         if (price == 0 || price > type(uint200).max) {
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
@@ -425,14 +427,15 @@ contract RedstoneCoreAdaptor is
         AssetConfig memory config = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
         
-        // Validate the price returned is not stale.
+        // Validate the price returned is not stale, we already check
+        // price == 0 in `writePrice` so we just need staleness check 
+        // for parity with baseOracleAdaptor `_verifyData`.
         uint256 timestampInSeconds = config.redstoneTimestamp / 1000;
         if (
             timestampInSeconds < block.timestamp &&
             block.timestamp - timestampInSeconds > DEFAULT_HEARTBEAT
         ) {
             result.hadError = true;
-            return result;
         }
 
         // Adjust price pulled if necessary.
