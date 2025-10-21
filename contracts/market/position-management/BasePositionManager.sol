@@ -99,6 +99,9 @@ abstract contract BasePositionManager is
         // Deposit and collateralize `collateralAsset` in cToken contract.
         cToken.depositAsCollateral(assets, msg.sender);
 
+        // Remove any excess approval.
+        SwapperLib._removeApprovalIfNeeded(collateralAsset, address(cToken));
+
         _;
     }
 
@@ -374,11 +377,7 @@ abstract contract BasePositionManager is
         uint256 amount = IERC20(collateralAsset).balanceOf(address(this));
 
         // Approve `amount` of `collateralAsset` to `cToken` contract.
-        SwapperLib._approveIfNeeded(
-            collateralAsset,
-            address(cToken),
-            amount
-        );
+        SwapperLib._approveIfNeeded(collateralAsset, address(cToken), amount);
 
         // Enter Curvance collateral position.
         cToken.depositAsCollateral(amount, owner);
@@ -391,10 +390,7 @@ abstract contract BasePositionManager is
         }
 
         // Remove any excess approval.
-        SwapperLib._removeApprovalIfNeeded(
-            collateralAsset,
-            address(cToken)
-        );
+        SwapperLib._removeApprovalIfNeeded(collateralAsset, address(cToken));
     }
 
     /// @notice Callback function to execute post redemption of `cToken`'s

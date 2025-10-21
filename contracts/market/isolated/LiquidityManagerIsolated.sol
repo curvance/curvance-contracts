@@ -213,19 +213,16 @@ abstract contract LiquidityManagerIsolated {
     /// @dev 9772 = 97.72%.
     ///      ~44x leverage calculated from: 1 / (1 - Collateralization Ratio).
     uint256 public constant MAX_COLL_RATIO_CORRELATED = 9772;
-
     /// @notice Maximum collateralization ratio, in BPS.
     /// @dev 9696 = 96.96%.
     ///      ~33x leverage calculated from: 1 / (1 - Collateralization Ratio).
     uint256 public constant MAX_COLL_RATIO_UNCORRELATED = 9696;
-
     /// @notice Buffer to ensure orderflow auction-based liquidations have
     ///         priority versus basic liquidations, for correlated assets,
     ///         in `BPS`.
     /// @dev 9990 = 99.9%. Multiplied then divided by `BPS` = 10 bps buffer
     ///                    auction liquidation priority for correlated assets.
     uint256 public constant AUCTION_BUFFER_CORRELATED = 9990;
-
     /// @notice Buffer to ensure orderflow auction-based liquidations have
     ///         priority versus basic liquidations, for uncorrelated assets,
     ///         in `BPS`.
@@ -253,7 +250,6 @@ abstract contract LiquidityManagerIsolated {
     ///         collateral $ value by `AUCTION_BUFFER` then dividing by `BPS`.
     ///         Denominated in `BPS`, e.g. 9990 = 99.9% -> 10 bps priority.
     uint256 public immutable AUCTION_BUFFER;
-
     /// @notice Minimum excess collateral requirement before soft liquidation
     ///         can occur, in `BPS`, e.g. 9950 = 99.5% -> 50 bps drop before a
     ///         liquidation can step in, used during `updateTokenConfig`.
