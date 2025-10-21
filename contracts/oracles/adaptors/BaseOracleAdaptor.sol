@@ -118,12 +118,21 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ) external {
         _checkMarketPermissions();
 
-        // Validate the starting timestamp is not in the future or too "now".
-        if (
-            timestampStart > block.timestamp ||
-            block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
-        ) {
-            revert BaseOracleAdaptor__InvalidTimestamp();
+        // Validate timestamp configuration depending on whether dynamic scaling is 
+        // enabled. If ips == 0, timestampStart must be exactly 0 
+        // (unused in static mode).
+        // Otherwise, enforce it is not in the future or too "now".
+        if (ips == 0) {
+            if (timestampStart != 0) {
+                revert BaseOracleAdaptor__InvalidTimestamp();
+            }
+        } else {
+            if (
+                timestampStart > block.timestamp ||
+                block.timestamp - timestampStart < _MINIMUM_TIMESTAMP_BUFFER
+            ) {
+                revert BaseOracleAdaptor__InvalidTimestamp();
+            }
         }
 
         // Validate that growth rate will fit in 40 bit slot allocated.
@@ -131,8 +140,9 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        // Validate that max price will fit in the 96 bit slot allocated.
-        if (basePrice > type(uint96).max) {
+        // Validate basePrice is not 0 and that max price will fit in the 
+        // 96 bit slot allocated.
+        if (basePrice == 0 || basePrice > type(uint96).max) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
@@ -143,6 +153,10 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         }
 
         PricingResult memory result = this.getPrice(asset, inUSD, true);
+        // Validate the feed did not return an error.
+        if (result.hadError) {
+            revert BaseOracleAdaptor__InvalidConfig();
+        }
 
         // Having a minimum price above the current price does not make sense,
         // implying that asset price behaves differently than our PriceGuard
