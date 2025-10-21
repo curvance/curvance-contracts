@@ -33,7 +33,7 @@ import { CommonLib } from "contracts/libraries/CommonLib.sol";
 ///      debt.
 ///
 ///      The "Native Vault" contract is the position manager for working with
-///      native-token based erc4626 tokens such as shMON or aprMON. No type
+///      native-token based erc4626-like tokens such as shMON or aprMON. No type
 ///      specific "_swapCollateralAssetToDebtAsset" is written as execution is
 ///      intended to be the same as the "simple" position manager where
 ///      collateral is simply swapped via dex aggregator. The expectation is

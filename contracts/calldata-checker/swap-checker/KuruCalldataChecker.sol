@@ -9,6 +9,16 @@ import { IKuruFlowRouter } from "contracts/interfaces/external/kuru/IKuruRouter.
 
 /// @notice Inspects the calldata for an Kuru related swap action.
 contract KuruCalldataChecker is BaseSwapChecker {
+    /// CONSTANTS ///
+
+    /// @notice Native token placeholder address that Kuru does not recognize.
+    address constant INVALID_NATIVE_PLACEHOLDER =
+        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    /// ERRORS ///
+
+    error KuruCalldataChecker__InvalidNativeTokenAddress();
+
     /// CONSTRUCTOR ///
 
     /// @param _target The address of the Kuru Router contract.
@@ -69,12 +79,22 @@ contract KuruCalldataChecker is BaseSwapChecker {
             revert CalldataChecker__InputTokenError();
         }
 
+        // Kuru only recognizes address(0) as native.
+        if (inputToken == INVALID_NATIVE_PLACEHOLDER) {
+            revert KuruCalldataChecker__InvalidNativeTokenAddress();
+        }
+
         if (inputAmount != swapAction.inputAmount) {
             revert CalldataChecker__InputAmountError();
         }
 
         if (outputToken != swapAction.outputToken) {
             revert CalldataChecker__OutputTokenError();
+        }
+
+        // Kuru only recognizes address(0) as native.
+        if (outputToken == INVALID_NATIVE_PLACEHOLDER) {
+            revert KuruCalldataChecker__InvalidNativeTokenAddress();
         }
 
         if (feeCollectorAddress != address(0)) {

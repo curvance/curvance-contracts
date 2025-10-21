@@ -157,7 +157,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     uint256 internal constant _MIN_VERTEX_START = 0.5e18;
     /// @notice The maximum rate at which `vertexMultiplier` is adjusted,
     ///         in BPS on top of base rate (1 `BPS`).
-    ///         E.g. 1 * BPS = 200% multiplied to vertex interest rate per
+    ///         E.g. 1 * BPS = 120% multiplied to vertex interest rate per
     ///         `ADJUSTMENT_RATE` at 100% utilization.
     uint256 internal constant _MAX_VERTEX_ADJUSTMENT_VELOCITY = 2000;
     /// @notice The minimum rate at which `vertexMultiplier` is adjusted,
@@ -200,7 +200,6 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     error DynamicIRM__InvalidToken();
     error DynamicIRM__InvalidUtilizationStart();
     error DynamicIRM__InvalidInterestRatePerYear();
-    error DynamicIRM__InvalidAdjustmentRate();
     error DynamicIRM__InvalidAdjustmentVelocity();
     error DynamicIRM__InvalidDecayRate();
     error DynamicIRM__InvalidMultiplierMax();

@@ -54,13 +54,15 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 ///      data quality returned within the system. Oracle Adaptors handle
 ///      checks such as price staleness, decimal offsetting, and ecosystem
 ///      specific logic. All this is abstracted away from the Oracle Manager,
-///      all data is returned in a standardized format of 18 decimals with a
-///      minimum price of 1, and a maximum price of 2^240 - 1. Though,
-///      some oracle adaptors have lower maximums, which will natively
-///      restrict the maximum price returned. Such as Chainlink's uint192
-///      maximum. When using the Oracle Manager, verify what oracle adaptors
-///      will be used behind the scenes if you want to impose heavier
-///      restrictions on minimum/maximum price.
+///      all data is returned in a standardized format of 18 decimals. Prices
+///      must be positive (> 0). When PriceGuards are configured on an adaptor,
+///      minimum and maximum prices are enforced via the guard's `minPrice`
+///      (uint80) and `basePrice` (uint96) parameters respectively. When no
+///      PriceGuard is configured, prices can range up to uint256.max with no
+///      upper constraint beyond what the underlying oracle feed supports.
+///      When using the Oracle Manager, verify what PriceGuard configurations
+///      are active for the oracle adaptors to understand the effective
+///      minimum/maximum price constraints.
 ///
 ///      Oracle Adaptors also can be used to introduce realtime information
 ///      based on offchain logic such as dynamic liquidation penalties.

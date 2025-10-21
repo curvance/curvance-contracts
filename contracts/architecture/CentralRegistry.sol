@@ -661,7 +661,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Sets the voting power boost received by locks using
     ///         Continuous Lock mode.
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
-    ///      must be a positive boost i.e. > 1.01 or greater multiplier.
+    ///      must be a positive boost i.e. > 1 or greater multiplier.
     ///      Emits a {MultiplierSet} event.
     /// @param value The new voting power boost for continuous lock mode
     ///              vote escrowed cve positions, in `BPS`.
@@ -682,7 +682,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Sets the emissions boost received by choosing to lock
     ///         emissions in veCVE.
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
-    ///      must be a positive boost i.e. > 1.01 or greater multiplier.
+    ///      must be a positive boost i.e. > 1 or greater multiplier.
     ///      Emits a {MultiplierSet} event.
     /// @param value The new emissions boost for opting to take emissions
     ///              in a vote escrowed cve position instead of liquid CVE,
@@ -1072,8 +1072,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         emit PermissionsUpdated("Auction", addressApproved, false);
     }
 
-    //// @notice Authorizes an address to manage markets.
-    /// @notice Adds a Harvester contract for use in Curvance.
+    /// @notice Authorizes an address to manage markets.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Cannot be a supported Harvester contract prior.
     ///      Emits a {PermissionsUpdated} event.
@@ -1093,7 +1092,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     //// @notice Deauthorizes an address to manage markets.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
-    ///      Has to be a supported Harvester contract prior.
     ///      Emits a {PermissionsUpdated} event.
     /// @param addressApproved The address to remove market permissions from
     ///                        inside Curvance.
@@ -1172,6 +1170,17 @@ contract CentralRegistry is ERC165, ActionRegistry {
         // Validate `chainId` is not currently supported, and `config`
         // is configured properly to support `chainId`.
         if (chainConfig[chainId].isSupported || !config.isSupported) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        // Prevent `chainId` from being 0 to avoid confusion with
+        // non-existent mappings.
+        if (chainId == 0) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        // Ensure `messagingChainId` is not already mapped to another chain.
+        if (messagingToGETHChainId[config.messagingChainId] != 0) {
             revert CentralRegistry__InvalidParameter();
         }
 

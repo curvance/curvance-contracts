@@ -274,11 +274,12 @@ abstract contract BaseZapper is ReentrancyGuard {
     /// @param cToken The Curvance cToken address.
     /// @param asset The input token address, should match `cToken`.asset().
     function _checkAddresses(address cToken, address asset) internal view {
-        // Validate `cToken` exists, otherwise revert the whole zap action.
+        // Validate `cToken` is not the zero address.
         if (cToken == address(0)) {
             revert BaseZapper__ExecutionError();
         }
 
+        // Validate `cToken` is listed in the Market Manager.
         IMarketManager mm = ICToken(cToken).marketManager();
         if (
             !centralRegistry.isMarketManager(address(mm)) ||

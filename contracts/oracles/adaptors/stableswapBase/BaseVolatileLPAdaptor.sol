@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
-import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, NO_ERROR } from "contracts/libraries/ConstantsLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -104,7 +104,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         (price0, errorCode) = om.getPrice(config.token0, inUSD, getLower);
 
         // Validate we did not run into any errors pricing token0.
-        if (errorCode > 0) {
+        if (errorCode > NO_ERROR) {
             result.hadError = true;
             return result;
         }
@@ -112,7 +112,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         (price1, errorCode) = om.getPrice(config.token1, inUSD, getLower);
 
         // Validate we did not run into any errors pricing token1.
-        if (errorCode > 0) {
+        if (errorCode > NO_ERROR) {
             result.hadError = true;
             return result;
         }

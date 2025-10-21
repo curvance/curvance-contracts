@@ -157,8 +157,9 @@ abstract contract BasePositionManager is
     ///      in `checkSlippage` modifier.
     ///      NOTE: This position manager MUST be recognized as an official
     ///            Position Manager by the market manager connected to
-    ///            `action.cToken`. Otherwise, the leveraged deposit will
-    ///            fail.
+    ///            `action.cToken`. Also, the caller MUST have approved this smart 
+    ///            contract to have delegated actions inside `action.cToken`.
+    ///            Otherwise, the leveraged deposit will fail.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param action Instructions for a leverage action containing:
     ///               borrowableCToken Address of the borrowableCToken that

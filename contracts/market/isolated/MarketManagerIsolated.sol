@@ -5,7 +5,8 @@ import { LiquidityManagerIsolated, CommonLib, ICToken, IOracleManager } from "co
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
-import { BPS, WAD, WAD_SQUARED, WAD_SQUARED_BPS_OFFSET } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD, WAD_SQUARED, WAD_SQUARED_BPS_OFFSET,
+        BAD_SOURCE, CAUTION, NO_ERROR } from "contracts/libraries/ConstantsLib.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
@@ -782,10 +783,15 @@ contract MarketManagerIsolated is
         // less than the base liquidation incentive.
         // Validate maximum liquidation incentive and default is
         // equal or higher than the minimum liquidation incentive.
+        // Validate minimum liquidation incentive is non-zero to ensure
+        // liquidators have economic incentive to perform liquidations.
+        // Validate both hard and max liquidation incentives do not exceed
+        // the protocol maximum.
         if (
             c.liqIncBase >= c.liqIncHard || c.liqIncBase > c.liqIncMax ||
             c.liqIncBase < c.liqIncMin || c.liqIncMin >= c.liqIncMax ||
-            c.liqIncMax > MAX_LIQUIDATION_INCENTIVE
+            c.liqIncMax > MAX_LIQUIDATION_INCENTIVE || c.liqIncMin == 0 ||
+            c.liqIncHard > MAX_LIQUIDATION_INCENTIVE
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -805,6 +811,18 @@ contract MarketManagerIsolated is
         if (
             c.closeFactorBase > MAX_BASE_CFACTOR ||
             c.closeFactorBase < MIN_BASE_CFACTOR
+        ) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        // Validate closeFactorMin and closeFactorMax are properly configured.
+        // closeFactorBase should be between min and max, min should be less
+        // than max, and max cannot exceed BPS.
+        if (
+            c.closeFactorBase > c.closeFactorMax ||
+            c.closeFactorBase < c.closeFactorMin ||
+            c.closeFactorMin >= c.closeFactorMax ||
+            c.closeFactorMax > BPS
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -845,7 +863,7 @@ contract MarketManagerIsolated is
             .getPrice(c.cToken, true, true);
 
         // Validate that we get a usable price.
-        if (errorCode == 2) {
+        if (errorCode == BAD_SOURCE) {
             revert MarketManager__PriceError();
         }
 
@@ -916,7 +934,7 @@ contract MarketManagerIsolated is
     /// @notice Admin function to set Curvance token collateralization status.
     /// @dev Requires timelock authority if unpausing.
     ///      Emits a {TokenActionPaused} event.
-    /// @param cToken The Curvance token to set minting status for.
+    /// @param cToken The Curvance token to set collateralization status for.
     /// @param state Whether the desired action is pausing or unpausing.
     function setCollateralizationPaused(address cToken, bool state) external {
         _checkAuthorizedPermissions(state);

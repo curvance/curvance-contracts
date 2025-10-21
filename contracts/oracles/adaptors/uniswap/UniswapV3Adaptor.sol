@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { NO_ERROR } from "contracts/libraries/ConstantsLib.sol";
 
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
@@ -149,7 +150,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
                 om.getPrice(config.quoteToken, true, getLower);
 
             // Validate we did not run into any errors pricing the quote asset.
-            if (errorCode > 0) {
+            if (errorCode > NO_ERROR) {
                 result.hadError = true;
                 return result;
             }
@@ -173,7 +174,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
                 om.getPrice(config.quoteToken, false, getLower);
 
             // Validate we did not run into any errors pricing the quote asset.
-            if (errorCode > 0) {
+            if (errorCode > NO_ERROR) {
                 result.hadError = true;
                 return result;
             }

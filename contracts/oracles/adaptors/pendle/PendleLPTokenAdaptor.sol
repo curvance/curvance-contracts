@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
-import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { WAD, NO_ERROR } from "contracts/libraries/ConstantsLib.sol";
 
 import { PendleLpOracleLib } from "contracts/libraries/external/pendle/PendleLpOracleLib.sol";
 
@@ -101,7 +101,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
                 .getPrice(config.quoteAsset, inUSD, getLower);
 
         // Validate we did not run into any errors pricing the quote asset.
-        if (errorCode > 0) {
+        if (errorCode > NO_ERROR) {
             result.hadError = true;
             return result;
         }

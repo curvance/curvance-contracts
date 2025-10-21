@@ -24,7 +24,7 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 ///      approval from the account being collateralized on behalf of.
 ///
 ///      The "Native Vault" contract is the zapper for working with
-///      native-token based erc4626 tokens such as shMON or aprMON. No type
+///      native-token based erc4626-like tokens such as shMON or aprMON. No type
 ///      specific "redeemAnd" is written as execution is intended to be the
 ///      as the "simple" zappers where redemptions are done directly on the
 ///      corresponding cToken.

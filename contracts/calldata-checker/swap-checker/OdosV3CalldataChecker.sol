@@ -12,8 +12,16 @@ import { IOdosRouterV3 } from "contracts/interfaces/external/odos/IOdosRouterV3.
 contract OdosV3CalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
 
+    /// @notice Native token placeholder address that Odos does not recognize.
+    address constant INVALID_NATIVE_PLACEHOLDER =
+        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     /// @notice The address of the Odos Executor on this chain.
     address immutable public ODOS_EXECUTOR;
+
+    /// ERRORS ///
+
+    error OdosCalldataChecker__InvalidNativeTokenAddress();
 
     /// CONSTRUCTOR ///
 
@@ -84,12 +92,22 @@ contract OdosV3CalldataChecker is BaseSwapChecker {
             revert CalldataChecker__InputTokenError();
         }
 
+        // Odos only recognizes address(0) as native.
+        if (inputToken == INVALID_NATIVE_PLACEHOLDER) {
+            revert OdosCalldataChecker__InvalidNativeTokenAddress();
+        }
+
         if (inputAmount != swapAction.inputAmount) {
             revert CalldataChecker__InputAmountError();
         }
 
         if (outputToken != swapAction.outputToken) {
             revert CalldataChecker__OutputTokenError();
+        }
+
+        // Odos only recognizes address(0) as native.
+        if (outputToken == INVALID_NATIVE_PLACEHOLDER) {
+            revert OdosCalldataChecker__InvalidNativeTokenAddress();
         }
 
         if (executor != ODOS_EXECUTOR) {

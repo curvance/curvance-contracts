@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
-import { BPS, WAD } from "contracts/libraries/ConstantsLib.sol";
+import { BPS, WAD, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -233,7 +233,7 @@ contract ProtocolReader {
     ) public view returns (uint256 price, uint256 errorCode) {
         (price, errorCode) = _getOracleManager()
             .getPrice(asset, inUSD, getLower);
-        if (errorCode == 2) {
+        if (errorCode == BAD_SOURCE) {
             price = 0;
         }
     }

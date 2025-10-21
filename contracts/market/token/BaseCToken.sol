@@ -954,7 +954,7 @@ abstract contract BaseCToken is
         address by,
         address receiver
     ) internal {
-        // Need to transfer before minting or ERC777s could reenter.
+        // Transfer the underlying assets to the contract.
         SafeTransferLib.safeTransferFrom(asset(), by, address(this), assets);
 
         // Vests any rewards,if there are any, then update `_totalAssets`
