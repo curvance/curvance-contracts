@@ -209,16 +209,60 @@ abstract contract LiquidityManagerIsolated {
 
     /// CONSTANTS ///
 
+    /// @notice Maximum collateralization ratio, in BPS.
+    /// @dev 9772 = 97.72%.
+    ///      ~44x leverage calculated from: 1 / (1 - Collateralization Ratio).
+    uint256 public constant MAX_COLL_RATIO_CORRELATED = 9772;
+
+    /// @notice Maximum collateralization ratio, in BPS.
+    /// @dev 9696 = 96.96%.
+    ///      ~33x leverage calculated from: 1 / (1 - Collateralization Ratio).
+    uint256 public constant MAX_COLL_RATIO_UNCORRELATED = 9696;
+
     /// @notice Buffer to ensure orderflow auction-based liquidations have
-    ///         priority versus basic liquidations, in `BPS`.
-    /// @dev 9990 = 99.9%. Multiplied then divided by `BPS` = 10 bps buffer.
-    uint256 public constant AUCTION_BUFFER = 9990;
+    ///         priority versus basic liquidations, for correlated assets,
+    ///         in `BPS`.
+    /// @dev 9990 = 99.9%. Multiplied then divided by `BPS` = 10 bps buffer
+    ///                    auction liquidation priority for correlated assets.
+    uint256 public constant AUCTION_BUFFER_CORRELATED = 9990;
+
+    /// @notice Buffer to ensure orderflow auction-based liquidations have
+    ///         priority versus basic liquidations, for uncorrelated assets,
+    ///         in `BPS`.
+    /// @dev 9950 = 99.5%. Multiplied then divided by `BPS` = 50 bps buffer
+    ///                    auction liquidation priority for uncorrelated assets.
+    uint256 public constant AUCTION_BUFFER_UNCORRELATED = 9950;
+    /// @notice Enforced Liquidity buffer provided to users before a liquidation
+    ///         can occur related to a maximum leverage position. This value is
+    ///         added with `AUCTION_BUFFER` to determine
+    ///         `MIN_LIQUIDATION_BUFFER_REQUIRED` inside a market, in `BPS`.
+    /// @dev 25 = 0.25%. An additional 25 basis points buffer ahead of auction
+    ///      buffer before a liquidation can trigger.
+    uint256 public constant EXTRA_BUFFER_BEFORE_LIQUIDATION = 25;
+
+    /// @notice Whether this market is for correlated assets or not, this
+    ///         impacts auction buffer and maximum theoretical
+    ///         collateralization ratio allowed.
+    bool public immutable IS_CORRELATED_ASSET_MARKET;
+    /// @notice Maximum collateralization ratio ratio allowed for any asset
+    ///         inside this market, in `BPS`, e.g. 9696 = 96.96%, or ~33x
+    ///         leverage calculated from: 1 / (1 - Collateralization Ratio).
+    uint256 public immutable MAX_COLL_RATIO;
+    /// @notice Buffer to ensure auction-based liquidations have priority
+    ///         versus basic liquidations by multiplying a user's active
+    ///         collateral $ value by `AUCTION_BUFFER` then dividing by `BPS`.
+    ///         Denominated in `BPS`, e.g. 9990 = 99.9% -> 10 bps priority.
+    uint256 public immutable AUCTION_BUFFER;
+
+    /// @notice Minimum excess collateral requirement before soft liquidation
+    ///         can occur, in `BPS`, e.g. 9950 = 99.5% -> 50 bps drop before a
+    ///         liquidation can step in, used during `updateTokenConfig`.
+    uint256 public immutable MIN_LIQUIDATION_BUFFER_REQUIRED;
     /// @notice Minimum loan size allowed inside Curvance that can be created
     ///         from a new line of credit inside a market.
     /// @dev This restriction is to minimize the potential of debt positions
     ///      being created that cannot not be profitably closed.
-    uint256 public immutable MIN_ACTIVE_LOAN_SIZE;
-
+    uint256 public immutable MIN_INITIAL_LOAN_SIZE;
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
@@ -248,14 +292,34 @@ abstract contract LiquidityManagerIsolated {
     /// @param cr The address of the Protocol Central Registry.
     /// @param minLoanSize The minimum active loan size for this isolated
     ///                    market (must be between $10-$100 in WAD).
-    constructor(ICentralRegistry cr, uint256 minLoanSize) {
+    /// @param isCorrelatedMarket Whether this market is for correlated assets
+    ///                           or not, this impacts auction buffer and
+    ///                           maximum theoretical collateralization
+    ///                           ratio allowed.
+    constructor(
+        ICentralRegistry cr,
+        uint256 minLoanSize,
+        bool isCorrelatedMarket
+    ) {
         if (minLoanSize < 10e18 || minLoanSize > 100e18) {
             revert LiquidityManager__InsufficientLoanSize();
         }
-
         CentralRegistryLib._isCentralRegistry(cr);
+
         centralRegistry = cr;
-        MIN_ACTIVE_LOAN_SIZE = minLoanSize;
+        MIN_INITIAL_LOAN_SIZE = minLoanSize;
+        IS_CORRELATED_ASSET_MARKET = isCorrelatedMarket;
+        MAX_COLL_RATIO = isCorrelatedMarket ?
+            MAX_COLL_RATIO_CORRELATED :
+            MAX_COLL_RATIO_UNCORRELATED;
+        AUCTION_BUFFER = isCorrelatedMarket ? AUCTION_BUFFER_CORRELATED :
+            AUCTION_BUFFER_UNCORRELATED;
+
+        // Calculates the minimum liquidation buffer the market needs to give
+        // users before liquidation. E.g. 9950 auction buffer - 25 extra
+        // buffer = 9925 or 75 bps buffer from max leverage to liquidation.
+        MIN_LIQUIDATION_BUFFER_REQUIRED =
+            AUCTION_BUFFER - EXTRA_BUFFER_BEFORE_LIQUIDATION;
     }
 
     /// @notice Determine `account`'s current status between collateral,
@@ -450,7 +514,7 @@ abstract contract LiquidityManagerIsolated {
                     // This means we can check terminal newDebt value here
                     // and know its only including current and
                     // hypothetical new debt.
-                    if (newDebt < MIN_ACTIVE_LOAN_SIZE) {
+                    if (newDebt < MIN_INITIAL_LOAN_SIZE) {
                         revert LiquidityManager__InsufficientLoanSize();
                     }
 
@@ -564,8 +628,8 @@ abstract contract LiquidityManagerIsolated {
         } else {
             lFactor = r.debt >= r.cHard ? WAD // Indicates hard liquidation.
             // Indicates soft liquidation, we round up here in favor of the
-            // protocol, we know that we wont run into a value > WAD due to cHard
-            // being at least 1 higher than debt.
+            // protocol, we know that we wont run into a value > WAD due to
+            // cHard being at least 1 higher than debt.
             : FixedPointMathLib.mulDivUp(r.debt - r.cSoft, WAD, r.cHard - r.cSoft);
         }
     }

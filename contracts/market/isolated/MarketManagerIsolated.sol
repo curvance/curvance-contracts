@@ -96,12 +96,6 @@ contract MarketManagerIsolated is
     uint256 public constant MIN_EXCESS_COLL_REQUIRED = 100;
     /// @notice Minimum excess collateral requirement before soft liquidation
     ///         can occur, in `BPS`.
-    /// @dev 9935 = (`BPS` - `BUFFER_REQUIRED`) = 0.65% liquidation buffer.
-    uint256 public constant MIN_LIQUIDATION_BUFFER_REQUIRED = 9935;
-    /// @notice Maximum collateralization ratio, in `BPS`.
-    /// @dev 9800 = 98%.
-    ///      Maximum 50x leverage (1 / (1 - Collateralization Ratio)).
-    uint256 public constant MAX_COLLATERALIZATION_RATIO = 9800;
     /// @notice The maximum liquidation incentive, in `BPS`.
     /// @dev 3000 = 30%.
     uint256 public constant MAX_LIQUIDATION_INCENTIVE = 3000;
@@ -118,6 +112,7 @@ contract MarketManagerIsolated is
     ///      borrower experiences a minimum 2 interest rate adjustments from a
     ///      standard borrow action (10 minute interest rate adjustment rate).
     uint256 public constant MIN_HOLD_PERIOD = 20 minutes;
+
     /// @dev Limit for market debt cap to max sure outstanding user debt
     ///      never overflows `outstandingDebt` value inside _debtOf.
     uint256 internal constant _MAX_DEBT_CAP = type(uint160).max;
@@ -207,10 +202,15 @@ contract MarketManagerIsolated is
     /// @param cr The address of the Protocol Central Registry.
     /// @param minLoanSize The minimum active loan size for this isolated
     ///                    market (must be between $10-$100 in WAD).
+    /// @param isCorrelatedMarket Whether this market is for correlated assets
+    ///                           or not, this impacts auction buffer and
+    ///                           maximum theoretical collateralization
+    ///                           ratio allowed.
     constructor(
         ICentralRegistry cr,
-        uint256 minLoanSize
-    ) LiquidityManagerIsolated(cr, minLoanSize) {}
+        uint256 minLoanSize,
+        bool isCorrelatedMarket
+    ) LiquidityManagerIsolated(cr, minLoanSize, isCorrelatedMarket) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -767,7 +767,7 @@ contract MarketManagerIsolated is
         // collateral dries up so hard liquidation should be less collateral
         // than soft liquidation.
         if (
-            c.collRatio > MAX_COLLATERALIZATION_RATIO ||
+            c.collRatio > MAX_COLL_RATIO ||
             c.collReqSoft > MAX_COLLATERAL_REQUIREMENT ||
             c.collReqHard >= c.collReqSoft
         ) {
@@ -1141,9 +1141,9 @@ contract MarketManagerIsolated is
 
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
-    /// @dev Will natively revert if a hypothetical borrow will result in a
-    ///      loan less than `MIN_ACTIVE_LOAN_SIZE`, set in `LiquidityManager`.
-    ///      May emit a {PositionUpdated} event.
+    /// @dev Will natively revert if a hypothetical new borrow will result in
+    ///      a loan less than `MIN_INITIAL_LOAN_SIZE`,
+    ///      set in `LiquidityManager`. May emit a {PositionUpdated} event.
     /// @param debtToken The token to borrow from.
     /// @param assets The amount of underlying the account would borrow.
     /// @param account The account which would borrow the asset.
