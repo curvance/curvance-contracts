@@ -47,28 +47,28 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             ICentralRegistry(address(centralRegistry)),
             redstoneSigners,
             3,
-            "ETH"
+            "ETH",
+            1 minutes
         );
-        adaptor.addAsset(_WBTC_ADDRESS, true, 8, adaptor.DEFAULT_HEARTBEAT());
-        adaptor.addAsset(_WBTC_ADDRESS, false, 18, adaptor.DEFAULT_HEARTBEAT());
+        adaptor.addAsset(_WBTC_ADDRESS, true, 8);
+        adaptor.addAsset(_WBTC_ADDRESS, false, 18);
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         oracleManager.addApprovedAdaptor(address(adaptor));
     }
 
-    function test_fail_AddAsset__InvalidHeartbeat() public {
-        // Should revert when heartbeat > DEFAULT_HEARTBEAT.
-        uint256 invalidHeartbeat = adaptor.DEFAULT_HEARTBEAT() + 1;
+    // function test_fail_AddAsset__InvalidHeartbeat() public {
+    //     // Should revert when heartbeat > DEFAULT_HEARTBEAT.
+    //     uint256 invalidHeartbeat = adaptor.DEFAULT_HEARTBEAT() + 1;
         
-        vm.expectRevert(RedstoneCoreAdaptor.RedstoneCoreAdaptor__InvalidConfiguration.selector);
-        adaptor.addAsset(
-            _WBTC_ADDRESS,
-            true,
-            8,
-            invalidHeartbeat
-        );
-    }
+    //     vm.expectRevert(RedstoneCoreAdaptor.RedstoneCoreAdaptor__InvalidConfiguration.selector);
+    //     adaptor.addAsset(
+    //         _WBTC_ADDRESS,
+    //         true,
+    //         8
+    //     );
+    // }
 
     function testAddNewSignersUpdatePriceWithNewSigners() public {
         address[] memory newSigners = new address[](3);
@@ -185,7 +185,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             redstoneSignerKeys
         );
 
-        (, , , , bytes32 symbolHash) = adaptor.assetConfig(_WBTC_ADDRESS, true);
+        (, , , bytes32 symbolHash) = adaptor.assetConfig(_WBTC_ADDRESS, true);
         assertEq(symbolHash, bytes32("WBTC"));
         
         bytes memory encodedFunction = abi.encodeWithSignature(
@@ -216,61 +216,61 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         assertEq(price, 60000e18, "We expect to get the 60k price back from the payload we built");
     }
 
-    function testZeroHeartBeatRequiresPriceUpdateInEverySecond() public {
-        adaptor.addAsset(_WETH_ADDRESS, true, 8, 0);
+    // function testZeroHeartBeatRequiresPriceUpdateInEverySecond() public {
+    //     adaptor.addAsset(_WETH_ADDRESS, true, 8);
 
-        bytes memory redstonePayload = getRedstonePayload(
-            "WETH:3000:8",
-            redstoneSignerKeys
-        );
+    //     bytes memory redstonePayload = getRedstonePayload(
+    //         "WETH:3000:8",
+    //         redstoneSignerKeys
+    //     );
 
-        (, , , , bytes32 symbolHash) = adaptor.assetConfig(_WETH_ADDRESS, true);
-        assertEq(symbolHash, bytes32("WETH"));
+    //     (, , , , bytes32 symbolHash) = adaptor.assetConfig(_WETH_ADDRESS, true);
+    //     assertEq(symbolHash, bytes32("WETH"));
 
-        bytes memory encodedFunction = abi.encodeWithSignature(
-            "writePrice(address,bool,uint48)",
-            _WETH_ADDRESS,
-            true,
-            uint48(block.timestamp * 1000)
-        );
-        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
-            encodedFunction,
-            redstonePayload
-        );
+    //     bytes memory encodedFunction = abi.encodeWithSignature(
+    //         "writePrice(address,bool,uint48)",
+    //         _WETH_ADDRESS,
+    //         true,
+    //         uint48(block.timestamp * 1000)
+    //     );
+    //     bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+    //         encodedFunction,
+    //         redstonePayload
+    //     );
 
-        // Securely getting oracle value
-        (bool success, ) = address(adaptor).call(
-            encodedFunctionWithRedstonePayload
-        );
-        assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
+    //     // Securely getting oracle value
+    //     (bool success, ) = address(adaptor).call(
+    //         encodedFunctionWithRedstonePayload
+    //     );
+    //     assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
 
-        oracleManager.addAssetPriceFeed(_WETH_ADDRESS, address(adaptor));
+    //     oracleManager.addAssetPriceFeed(_WETH_ADDRESS, address(adaptor));
 
-        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
-            _WETH_ADDRESS,
-            true,
-            false
-        );
-        assertEq(errorCode, 0, "Should have had no error code returned when pricing via redstone core adaptor");
-        assertEq(price, 3000e18, "We expect to get the 3k price back from the payload we built");
+    //     (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+    //         _WETH_ADDRESS,
+    //         true,
+    //         false
+    //     );
+    //     assertEq(errorCode, 0, "Should have had no error code returned when pricing via redstone core adaptor");
+    //     assertEq(price, 3000e18, "We expect to get the 3k price back from the payload we built");
 
-        vm.warp(block.timestamp + 1);
-        (price, errorCode) = oracleManager.getPrice(
-            _WETH_ADDRESS,
-            true,
-            false
-        );
+    //     vm.warp(block.timestamp + 1);
+    //     (price, errorCode) = oracleManager.getPrice(
+    //         _WETH_ADDRESS,
+    //         true,
+    //         false
+    //     );
 
-        assertNotEq(errorCode, 0, "We expect an error message returned since the price feed should be stale now");
-    }
+    //     assertNotEq(errorCode, 0, "We expect an error message returned since the price feed should be stale now");
+    // }
 
-    function test_maxUint256ValueUsesDefaultHeartbeat() public {
-        // Use max uint256 value to use default heartbeat
-        adaptor.addAsset(_WETH_ADDRESS, true, 8, type(uint256).max);
+    // function test_maxUint256ValueUsesDefaultHeartbeat() public {
+    //     // Use max uint256 value to use default heartbeat
+    //     adaptor.addAsset(_WETH_ADDRESS, true, 8);
 
-        (uint8 decimals, uint8 heartbeat, , , ) = adaptor.assetConfig(_WETH_ADDRESS, true);
+    //     (uint8 decimals, uint8 heartbeat, , , ) = adaptor.assetConfig(_WETH_ADDRESS, true);
 
-        assertEq(decimals, 8);
-        assertEq(uint256(heartbeat), adaptor.DEFAULT_HEARTBEAT());
-    }
+    //     assertEq(decimals, 8);
+    //     assertEq(uint256(heartbeat), adaptor.DEFAULT_HEARTBEAT());
+    // }
 }

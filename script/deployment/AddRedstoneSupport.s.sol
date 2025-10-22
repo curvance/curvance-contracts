@@ -49,7 +49,7 @@ contract AddRedstoneSupport is DeployScript {
         IERC20 token = IERC20(asset);
 
         // Add oracle support
-        adaptor.addAsset(asset, true, token.decimals(), 10 minutes);
+        adaptor.addAsset(asset, true, token.decimals());
         adaptor.assetConfig(asset, true);
 
         // Push the first price on-chain
@@ -89,7 +89,7 @@ contract AddRedstoneSupport is DeployScript {
         redstoneSigners[2] = 0x51Ce04Be4b3E32572C4Ec9135221d0691Ba7d202;
         redstoneSigners[3] = 0xDD682daEC5A90dD295d14DA4b0bec9281017b5bE;
 
-        RedstoneCoreAdaptor adaptor = new RedstoneCoreAdaptor(icr, redstoneSigners, 3, "ETH");
+        RedstoneCoreAdaptor adaptor = new RedstoneCoreAdaptor(icr, redstoneSigners, 3, "ETH", 1 minutes);
         emit ContractDeployed(
             address(adaptor),
             "adaptors.RedstoneCoreAdaptor"

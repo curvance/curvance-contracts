@@ -9,7 +9,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 contract MarketManagerIsolatedHarness is MarketManagerIsolated {
 
 	constructor(address centralRegistry_, uint256 minLoan)
-		MarketManagerIsolated(ICentralRegistry(centralRegistry_), minLoan)
+		MarketManagerIsolated(ICentralRegistry(centralRegistry_), minLoan, false)
 	{}
 
 	function hypotheticalLiquidityOf(

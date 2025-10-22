@@ -84,7 +84,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         uint256 priceDecimals = mockDaiFeed.decimals();
         (, int256 daiPrice, , , ) = mockDaiFeed.latestRoundData();
 
-        uint256 minimumBorrowAmount = (marketManagerIsolated.MIN_ACTIVE_LOAN_SIZE() *
+        uint256 minimumBorrowAmount = (marketManagerIsolated.MIN_INITIAL_LOAN_SIZE() *
             (10 ** priceDecimals)) / uint256(daiPrice);
 
         // try borrow() with insufficient loan size
