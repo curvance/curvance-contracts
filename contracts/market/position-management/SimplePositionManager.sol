@@ -48,6 +48,12 @@ contract SimplePositionManager is BasePositionManager {
     ///         cToken that a user is currently putting up as collateral
     ///         against the borrowableCToken debt position, creating a
     ///         leveraged spot position.
+    /// @dev Same-asset leverage (debt == collateral):
+    ///      - No swap data is required, but`swapAction.call` and `swapAction.target` must be empty.
+    ///      - Protocol fee is taken before this function: `action.borrowAssets` is post-fee.
+    ///      - Users may optionally set `swapAction.inputAmount` to assert fee-consistency; if set,
+    ///        it must equal `action.borrowAssets` (post-fee). If omitted, the tx will not revert
+    ///        solely due to an unexpected fee change on this path.
     /// @param action Instructions for a leverage action containing:
     ///               borrowableCToken Address of the borrowableCToken that
     ///                                will be borrowed from and assets
@@ -71,7 +77,13 @@ contract SimplePositionManager is BasePositionManager {
 
         if (debtAsset == collateralAsset) {
             // No swap should be provided if assets match to avoid arbitrary calls.
-            if (swapAction.call.length != 0 || swapAction.target != address(0)) {
+            if (swapAction.call.length != 0 || 
+                swapAction.target != address(0)
+                ) {
+                revert BasePositionManager__InvalidParam();
+            }
+            // Optional assertion: if provided, inputAmount must match post-fee amount.
+            if (swapAction.inputAmount != action.borrowAssets) {
                 revert BasePositionManager__InvalidParam();
             }
             return;
@@ -96,6 +108,12 @@ contract SimplePositionManager is BasePositionManager {
     ///         then swapped into the underlying of an borrowableCToken that a
     ///         user is currently borrowing from, partially or fully closing a
     ///         leveraged spot position.
+    /// @dev Same-asset leverage (debt == collateral):
+    ///      - No swap data is required, but`swapAction.call` and `swapAction.target` must be empty.
+    ///      - Protocol fee is taken before this function: `action.borrowAssets` is post-fee.
+    ///      - Users may optionally set `swapAction.inputAmount` to assert fee-consistency; if set,
+    ///        it must equal `action.borrowAssets` (post-fee). If omitted, the tx will not revert
+    ///        solely due to an unexpected fee change on this path.
     /// @param action Instructions for a deleverage action containing:
     ///               cToken Address of the cToken that will be redeemed from
     ///                      and assets swapped into `borrowableCToken` asset.
@@ -118,18 +136,37 @@ contract SimplePositionManager is BasePositionManager {
         address collateralAsset = action.cToken.asset();
         address debtAsset = action.borrowableCToken.asset();
         
-        SwapperLib.Swap memory swapAction = swapActions[0];
-
+        // Same-asset deleverage: allow no swap data.
         if (debtAsset == collateralAsset) {
+            if (swapActions.length == 0) {
+                return;
+            }
+            if (swapActions.length != 1) {
+                revert BasePositionManager__InvalidParam();
+            }
+
+            SwapperLib.Swap memory noSwapAction = swapActions[0];
+
             // No swap should be provided if assets match to avoid arbitrary calls.
-            if (swapAction.call.length != 0 || swapAction.target != address(0)) {
+            if (noSwapAction.call.length != 0 || noSwapAction.target != address(0))
+            {
+                revert BasePositionManager__InvalidParam();
+            }
+
+            // Optional assertion: if provided, inputAmount must match post-fee amount.
+            if (noSwapAction.inputAmount != action.collateralAssets) {
                 revert BasePositionManager__InvalidParam();
             }
             return;
         }
+        
+        // For simple actions there should only ever be one swap.
+        if (swapActions.length != 1) {
+            revert BasePositionManager__InvalidParam();
+        }
+        SwapperLib.Swap memory swapAction = swapActions[0];
 
         if (
-            swapActions.length != 1 ||
             swapAction.call.length == 0 ||
             swapAction.target == address(0) ||
             swapAction.inputToken != collateralAsset ||
