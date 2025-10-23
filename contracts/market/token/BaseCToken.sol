@@ -202,9 +202,8 @@ abstract contract BaseCToken is
 
         _accrueIfNeeded();
 
-        // We can pull _totalAssets directly here since any pending
-        // yield are already vested via _accrueIfNeeded().
-        uint256 ta = _totalAssets;
+        // Use up-to-date total assets including any pending vesting via getter.
+        uint256 ta = _getTotalAssets();
         uint256 balance = _checkRedemption(assets, owner, ta);
         // No need to check for rounding error, previewWithdraw rounds up.
         uint256 shares = _previewWithdraw(assets, ta);
@@ -780,10 +779,8 @@ abstract contract BaseCToken is
 
         // Execute deposit.
         // No need to check for rounding error, previewMint rounds up.
-        // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via _accrueIfNeeded().
         _processDeposit(
-            assets = _previewMint(shares, _totalAssets),
+            assets = _previewMint(shares, _getTotalAssets()),
             shares,
             msg.sender,
             receiver
@@ -810,9 +807,8 @@ abstract contract BaseCToken is
     ) internal virtual returns (uint256 shares) {
         _accrueIfNeeded();
 
-        // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via _accrueIfNeeded().
-        uint256 ta = _totalAssets;
+        // Use up-to-date total assets including any pending vesting via getter.
+        uint256 ta = _getTotalAssets();
         uint256 balance = _checkRedemption(assets, owner, ta);
 
         // Validate caller is allowed to withdraw `shares` on behalf of
@@ -867,9 +863,8 @@ abstract contract BaseCToken is
     ) internal virtual returns (uint256 assets) {
         _accrueIfNeeded();
 
-        // We can pull _totalAssets directly here since any pending
-        // rewards are already vested via _accrueIfNeeded().
-        uint256 ta = _totalAssets;
+        // Use up-to-date total assets including any pending vesting via getter.
+        uint256 ta = _getTotalAssets();
         uint256 balance = _checkRedemption(
             assets = _convertToAssets(shares, ta),
             owner,
@@ -1143,6 +1138,11 @@ abstract contract BaseCToken is
     /// @dev Returns the decimals of the underlying asset.
     function _underlyingDecimals() internal view override returns (uint8) {
         return _decimals;
+    }
+
+    /// @dev Override to disable virtual shares since _decimalsOffset is 0.
+    function _useVirtualShares() internal pure override returns (bool) {
+        return false;
     }
 
     /// @notice Returns the total amount of the underlying asset in the vault,

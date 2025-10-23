@@ -1349,9 +1349,9 @@ contract MarketManagerIsolated is
     ///                           in.
     ///              debtUnderlyingPrice The current price of the underlying
     ///                                  token of `debtToken`.
-    ///              auctionBuffer The current buffer that `cSoft` is
-    ///                            multiplied against, 10 bps, or 0  if not
-    ///                            an auction-based liquidation.
+    ///              auctionBuffer The current buffer that `cSoft` and `cHard` are
+    ///                            multiplied against, 10 bps, or 0 if not an
+    ///                            auction-based liquidation.
     /// @param aData An AccountLiqData struct containing:
     ///              lFactor Empty variable to hold an account's liquidation
     ///                      factor later.
@@ -1523,8 +1523,8 @@ contract MarketManagerIsolated is
     ///                            in.
     ///               debtUnderlyingPrice The current price of the underlying
     ///                                   token of `debtToken`.
-    ///               auctionBuffer The current buffer that `cSoft` is
-    ///                             multiplied against, 10 bps, or 0  if not
+    ///               auctionBuffer The current buffer that `cSoft` and `cHard` are
+    ///                             multiplied against, 10 bps, or 0 if not an
     ///                             an auction-based liquidation.
     /// @return aData An AccountLiqData struct containing:
     ///               lFactor Empty variable to hold an account's liquidation

@@ -107,6 +107,10 @@ abstract contract BasePositionManager is
 
     /// @dev Checks slippage prior to and after leverage/deleverage action,
     ///      works similar to reentryguard with pre and post checks.
+    ///      NOTE: This slippage check is primarily a sanity check rather than
+    ///      a security guarantee that users should rely on for protection.
+    ///      Users should perform their own slippage calculations and validations
+    ///      before executing leverage/deleverage operations.
     /// @param slippage Slippage accepted by the user for execution of
     ///                 `action` leverage action, in `WAD`.
     modifier checkSlippage(address account, uint256 slippage) {

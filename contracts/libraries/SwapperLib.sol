@@ -47,6 +47,7 @@ library SwapperLib {
     error SwapperLib__UnknownCalldata();
     error SwapperLib__TokenPrice(address inputToken);
     error SwapperLib__Slippage(uint256 slippage);
+    error SwapperLib__SameTokens();
 
     /// INTERNAL FUNCTIONS ///
 
@@ -67,6 +68,14 @@ library SwapperLib {
         ICentralRegistry cr,
         Swap memory action
     ) internal returns (uint256 outAmount) {
+        address outputToken = action.outputToken;
+        address inputToken = action.inputToken;
+
+        // Do not use this library if the tokens are the same.
+        if (inputToken == outputToken) {
+            revert SwapperLib__SameTokens();
+        }
+
         address callDataChecker = cr.externalCalldataChecker(action.target);
 
         // Validate we know how to verify this calldata.
@@ -79,13 +88,13 @@ library SwapperLib {
             .checkCalldata(action, address(this));
 
         // Approve `action.inputToken` to target contract, if necessary.
-        _approveIfNeeded(action.inputToken, action.target, action.inputAmount);
+        _approveIfNeeded(inputToken, action.target, action.inputAmount);
 
         // Cache output token from struct for easier querying.
-        address outputToken = action.outputToken;
+        
         uint256 balanceBefore = CommonLib._balanceOf(outputToken);
 
-        uint256 callValue = CommonLib._isNative(action.inputToken) ?
+        uint256 callValue = CommonLib._isNative(inputToken) ?
             action.inputAmount : 0;
 
         // Execute the swap.
@@ -96,7 +105,7 @@ library SwapperLib {
         );
 
         // Remove any excess approval.
-        _removeApprovalIfNeeded(action.inputToken, action.target);
+        _removeApprovalIfNeeded(inputToken, action.target);
 
         outAmount = CommonLib._balanceOf(outputToken) - balanceBefore;
     }

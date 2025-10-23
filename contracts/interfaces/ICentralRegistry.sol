@@ -161,7 +161,7 @@ interface ICentralRegistry {
 
     /// @notice Returns whether a user has delegation disabled.
     /// @param user The user to check delegation status for.
-    function checkDelegationDisabled(
+    function checkNewDelegationDisabled(
         address user
     ) external view returns (bool);
 

@@ -214,7 +214,7 @@ abstract contract ActionRegistry is IActionRegistry {
     ///             disabled for.
     /// @return result Indicates whether `user` has delegation disabled
     ///                or not, true = disabled, false = not disabled.
-    function checkDelegationDisabled(
+    function checkNewDelegationDisabled(
         address user
     ) external view returns (bool result) {
         UserConfig memory config = _userConfig[user];

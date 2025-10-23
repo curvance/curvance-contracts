@@ -416,7 +416,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @dev    Computed as: marketOutstandingDebt + underlyingBalance - totalAssets.
     /// @return excess The recoverable excess underlying amount, or 0 if none.
     function skimAvailable() external view returns (uint256 excess) {
-        uint256 cachedAssets = _totalAssets;
+        uint256 cachedAssets = _getTotalAssets();
         uint256 debtPlusBalance = marketOutstandingDebt +
             IERC20(_asset).balanceOf(address(this)) - _BASE_UNDERLYING_RESERVE;
         if (debtPlusBalance <= cachedAssets) {
@@ -437,7 +437,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         _checkDaoPermissions();
 
         address underlying = asset();
-        uint256 cachedAssets = _totalAssets;
+        uint256 cachedAssets = _getTotalAssets();
         uint256 debtPlusBalance = marketOutstandingDebt +
             IERC20(underlying).balanceOf(address(this)) - _BASE_UNDERLYING_RESERVE;
 
@@ -518,7 +518,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // manipulate marketOutstandingDebt above total underlying assets
         // inside the system since there will always be at least
         // _BASE_UNDERLYING_RESERVE excess inside the market.
-        result = _totalAssets - marketOutstandingDebt - _BASE_UNDERLYING_RESERVE;
+        result = _getTotalAssets() - marketOutstandingDebt - _BASE_UNDERLYING_RESERVE;
     }
 
     /// @notice Returns whether the underlying token can be borrowed.

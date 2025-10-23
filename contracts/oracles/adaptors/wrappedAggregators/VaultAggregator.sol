@@ -4,6 +4,8 @@ pragma solidity 0.8.28;
 import { BaseWrappedAggregator, WAD } from "contracts/oracles/adaptors/wrappedAggregators/BaseWrappedAggregator.sol";
 
 import { ICToken } from "contracts/interfaces/ICToken.sol";
+import { IERC4626 } from "lib/openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 /// @title Curvance Vault Aggregator.
 /// @notice Modifies an oracle aggregator to return the price for a related
@@ -51,8 +53,8 @@ contract VaultAggregator is BaseWrappedAggregator {
         vault = _vault;
         asset = _asset;
 
-        _vaultDecimalPrecision = 10 ** ICToken(_vault).decimals();
-        _assetDecimalPrecision = _toInt256(10 ** ICToken(_asset).decimals());
+        _vaultDecimalPrecision = 10 ** IERC4626(_vault).decimals();
+        _assetDecimalPrecision = _toInt256(10 ** IERC20(_asset).decimals());
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -79,8 +81,7 @@ contract VaultAggregator is BaseWrappedAggregator {
         uint256 result
     ) {
         // Return exchange rate in `_vaultDecimalPrecision` format directly.
-        // We can use ICToken since its an erc4626 vault itself.
-        result = ICToken(vault).convertToAssets(_vaultDecimalPrecision);
+        result = IERC4626(vault).convertToAssets(_vaultDecimalPrecision);
     }
 
     /// @notice Validates whether `_vault`'s asset() is `_asset`.

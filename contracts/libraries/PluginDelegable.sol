@@ -68,7 +68,7 @@ abstract contract PluginDelegable is IPluginDelegable {
             revert PluginDelegable_InvalidParameter();
         }
 
-        if (centralRegistry.checkDelegationDisabled(msg.sender)) {
+        if (centralRegistry.checkNewDelegationDisabled(msg.sender)) {
             revert PluginDelegable__DelegatingDisabled();
         }
 
@@ -112,10 +112,10 @@ abstract contract PluginDelegable is IPluginDelegable {
     /// @param user The user to check delegation status for.
     /// @return result Indicates whether `user` has delegation disabled
     ///                or not, true = disabled, false = not disabled.
-    function checkDelegationDisabled(
+    function checkNewDelegationDisabled(
         address user
     ) external view returns (bool result) {
-        result = centralRegistry.checkDelegationDisabled(user);
+        result = centralRegistry.checkNewDelegationDisabled(user);
     }
 
     /// INTERNAL FUNCTIONS ///

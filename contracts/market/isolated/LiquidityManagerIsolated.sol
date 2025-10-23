@@ -192,9 +192,9 @@ abstract contract LiquidityManagerIsolated {
     /// @param debtDecimals The decimals that `debtToken` is measured in.
     /// @param debtUnderlyingPrice The current price of the underlying token
     ///                            of `debtToken`.
-    /// @param auctionBuffer The current buffer that `cSoft` is multiplied
-    ///                      against, 10 bps, or 0 if not an auction-based
-    ///                      liquidation.
+    /// @param auctionBuffer The current buffer that `cSoft` and `cHard` are 
+    ///                      multiplied against, 10 bps, or 0 if not an 
+    ///                      auction-based liquidation.
     struct TokenLiqData {
         address collateralToken;
         uint256 collateralReqSoft;
@@ -558,8 +558,8 @@ abstract contract LiquidityManagerIsolated {
     ///                           in.
     ///              debtUnderlyingPrice The current price of the underlying
     ///                                  token of `debtToken`.
-    ///              auctionBuffer The current buffer that `cSoft` is
-    ///                            multiplied against, 10 bps, or 0  if not
+    ///              auctionBuffer The current buffer that `cSoft` and `cHard` 
+    ///                            are multiplied against, 10 bps, or 0 if not
     ///                            an auction-based liquidation.
     ///  @return lFactor The liquidation factor where:
     ///                  0: No liquidation (account is healthy).

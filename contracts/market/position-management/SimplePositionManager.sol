@@ -115,13 +115,9 @@ contract SimplePositionManager is BasePositionManager {
     ) internal virtual override {
         SwapperLib.Swap[] memory swapActions = action.swapActions;
         
-        // For simple actions there should only ever be one swap.
-        if (swapActions.length != 1) {
-            revert BasePositionManager__InvalidParam();
-        }
-
         address collateralAsset = action.cToken.asset();
         address debtAsset = action.borrowableCToken.asset();
+        
         SwapperLib.Swap memory swapAction = swapActions[0];
 
         if (debtAsset == collateralAsset) {
@@ -133,6 +129,7 @@ contract SimplePositionManager is BasePositionManager {
         }
 
         if (
+            swapActions.length != 1 ||
             swapAction.call.length == 0 ||
             swapAction.target == address(0) ||
             swapAction.inputToken != collateralAsset ||
