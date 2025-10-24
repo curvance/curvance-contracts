@@ -377,6 +377,11 @@ contract RedstoneCoreAdaptor is
         emit SignerUpdated(currentSigner, false);
     }
 
+    /// @notice Returns an asset's price feed deviation threshold.
+    /// @dev INTENTIONALLY RETURNS 0 AS THIS IS ATTACHED TRANSACTION DATA.
+    /// @return result The asset's price feed deviation threshold value.
+    function deviationThreshold(address) external view returns (uint256 result) {}
+
     /// PUBLIC FUNCTIONS ///
 
     function getAuthorisedSignerIndex(

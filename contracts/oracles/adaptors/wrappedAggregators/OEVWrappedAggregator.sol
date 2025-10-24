@@ -52,10 +52,6 @@ contract OEVWrappedAggregator is IChainlink {
 
     /// @notice The address of the underlying asset aggregator.
     IChainlink internal immutable _assetAggregator;
-    /// @notice The oracle adaptor type, calculated via keccak256 of the
-    ///         oracle adaptor's name.
-    uint256 internal immutable _adaptorType =
-        uint256(keccak256(abi.encode("OEVWrappedAggregator")));
     /// @dev Mask of `MAX_ROUND_DELAY` entry in `_aggregatorConfig`.
     uint256 internal constant _BITMASK_MAX_ROUND_DELAY = (1 << 8) - 1;
     /// @dev Mask of round processing entries
@@ -243,14 +239,6 @@ contract OEVWrappedAggregator is IChainlink {
     ) {
         (roundId, answer, startedAt, updatedAt, answeredInRound) =
             _assetAggregator.getRoundData(_roundId);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return result The adaptor's type.
-    function adaptorType() external view returns (uint256 result) {
-        result = _adaptorType;
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///

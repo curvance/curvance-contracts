@@ -72,6 +72,29 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 ///      each other. "Don't trust, verify."
 ///
 contract OracleManager is IOracleManager {
+    /// TYPES ///
+
+    /// @notice Storage structure for asset pricing configuration from various
+    ///         oracle pricing adaptors.
+    /// @param badSourceBound The bound value allowed between adaptor prices
+    ///                     before `BAD_SOURCE` error code is returned, in
+    ///                     `BPS`. An additional `BPS` is added to the value
+    ///                     to save runtime gas costs during `_checkBounds`
+    ///                     call.
+    /// @param cautionBound The bound value allowed between adaptor prices
+    ///                     before `CAUTION` error code is returned, in `BPS`.
+    ///                     An additional `BPS` is added to the value to save
+    ///                     runtime gas costs during `_checkBounds` call.
+    /// @dev 10050 = 0.5% = 50 basis point price feed deviation allowed.
+    /// @param adaptors Array containing all pricing adaptors an asset is
+    ///                 dependent on, maximum 2, 0 dependencies means the
+    ///                 asset is not.
+    struct PricingConfig {
+        uint16 badSourceBound;
+        uint16 cautionBound;
+        address[] adaptors;
+    }
+
     /// CONSTANTS ///
 
     /// @notice Address identifying a chain's native token.
@@ -79,7 +102,7 @@ contract OracleManager is IOracleManager {
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     /// @notice Time to pass before accepting answers when sequencer
     ///         comes back up, in seconds.
-    uint256 public constant GRACE_PERIOD_TIME = 600;
+    uint256 public constant GRACE_PERIOD_TIME = 300;
     /// @notice Maximum value that a price divergence flag can be set as
     ///         inside the protocol.
     /// @dev 1.03e4 = 3.0%.
@@ -89,26 +112,44 @@ contract OracleManager is IOracleManager {
     /// @dev 1.002e4 = 0.2%.
     uint256 public constant MIN_DIVERGENCE_VALUE = 10020;
 
+    /// @notice The minimum value that must be given to deviation bound values
+    ///         when compared to the largest adaptor's deviation threshold
+    ///         configuration, in `BPS`.
+    /// @dev 20 = 0.2% buffer above largest adaptor deviation threshold
+    ///      configuration, e.g. 1% deviation = 1.2% minimum caution bound
+    ///      value.
+    uint256 public constant MIN_DEVIATION_BUFFER = 20;
+
+    /// @notice The default deviation bound values between `CAUTION` and
+    ///         `BAD_SOURCE`, only used when an asset's deviation bounds
+    ///         need to be updated due to an adaptor changing a price feeds
+    ///         recorded deviation threshold configuration.
+    uint256 public constant DEFAULT_DEVIATION_DIFFERENCE = 50;
+
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
     /// STORAGE ///
 
-    /// @notice The maximum allowed price feed divergence between prices
-    ///         before `CAUTION` error code is returned, in `BPS`.
-    /// @dev 10050 = 0.5% = 50 basis point price feed deviation allowed.
-    uint128 public cautionPriceDivergence = 10050;
-    /// @notice The maximum allowed price feed divergence between prices
-    ///         before `BAD_SOURCE` error code is returned, in `BPS`.
-    /// @dev 10100 = 1% = 100 basis point price feed deviation allowed.
-    uint128 public badSourcePriceDivergence = 10100;
-
+    /// @notice Whether an address is an approved Curvance price feed adaptor.
+    /// @dev Adaptor address => Approved for usage.
     // Address => Adaptor approval status.
     mapping(address => bool) public isApprovedAdaptor;
-    // Address => Price Feed addresses.
-    mapping(address => address[]) public assetPriceFeeds;
+    /// @notice Pricing configuration data for an asset.
+    /// @dev Token address => Pricing configuration for `asset`.
+    mapping(address => PricingConfig) public assetPricingConfig;
     // Address => Curvance token underlying asset address.
     mapping(address => address) public cTokens;
+
+    /// EVENTS ///
+
+    event AdaptorDependencyAdded(address asset, address adaptor);
+    event AdaptorDependencyRemoved(address asset, address adaptor);
+    event AssetDeviationBoundsSet(
+        address asset,
+        uint256 badSourceBound,
+        uint256 cautionBound
+    );
 
     /// ERRORS ///
 
@@ -128,76 +169,148 @@ contract OracleManager is IOracleManager {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Adds a new price feed for a specific asset.
-    /// @dev Requires that the feed address is an approved adaptor,
-    ///      and that the asset doesn't already have two feeds.
-    /// @param asset The address of the asset.
-    /// @param feed The address of the new feed.
-    function addAssetPriceFeed(address asset, address feed) external {
+    /// @notice Adds a new dependency for pricing `asset` on `adaptor`. If
+    ///         this is the second adaptor dependency, set divergence values
+    ///         too, validating they are safe based on price feed deviation.
+    /// @dev Requires that `adaptor` is an approved adaptor, and that `asset`
+    ///      does not already have two adaptor dependencies.
+    ///      May emit an {AssetDeviationBoundsSet} event.
+    /// @param asset The address of the asset to add a new pricing adaptor
+    ///              dependency for.
+    /// @param adaptor The address of the new adaptor to add dependency to.
+    /// @param badSourceBound The new maximum price divergence before a
+    ///                       `BAD_SOURCE` error code is returned, only
+    ///                       used when adding a second adaptor dependency.
+    /// @param cautionBound The new maximum price divergence before a
+    ///                     `CAUTION` error code is returned, only used when
+    ///                     adding a second adaptor dependency.
+    function addAssetPricingAdaptor(
+        address asset,
+        address adaptor,
+        uint256 badSourceBound,
+        uint256 cautionBound
+    ) external {
         _checkElevatedPermissions();
-        _addFeed(asset, feed);
+        _addAssetPricingAdaptor(asset, adaptor);
+
+        // Pull `asset` pricing config data after the new adaptor has been
+        // added.
+        PricingConfig storage config = assetPricingConfig[asset];
+
+        // If there are not two adaptor dependencies we can skip this logic.
+        if (config.adaptors.length > 1) {
+            _setDivergenceFlags(asset, config, badSourceBound, cautionBound);
+        }
     }
 
-    /// @notice Replaces one price feed with a new price feed for a specific
-    ///         asset.
-    /// @dev Requires that the feed address is an approved adaptor,
-    ///      and that the asset has at least one feed.
-    /// @param asset The address of the asset.
-    /// @param feedToAdd The address of the feed to remove.
-    /// @param feedToAdd The address of the new feed.
-    function replaceAssetPriceFeed(
+    /// @notice Replaces the dependency on pricing from `adaptorToRemove` for
+    ///         `asset` in favor of adding dependency on pricing to
+    ///         `adaptorToAdd`.
+    /// @dev Requires that `adaptorToAdd` is an approved adaptor, and that
+    ///      `asset` currently has at least one adaptor configured. Which
+    ///      should include `adaptorToRemove`.
+    ///      May emit an {AssetDeviationBoundsSet} event.
+    /// @param asset The address of the asset to adjust pricing adaptors for.
+    /// @param adaptorToRemove The address of the adaptor to remove dependency
+    ///                        from.
+    /// @param adaptorToAdd The address of the new adaptor to add dependency
+    ///                     to.
+    /// @param badSourceBound The new maximum price divergence before a
+    ///                       `BAD_SOURCE` error code is returned, only
+    ///                       used when replacing a second adaptor dependency.
+    /// @param cautionBound The new maximum price divergence before a
+    ///                     `CAUTION` error code is returned, only used when
+    ///                     replacing a second adaptor dependency.
+    function replaceAssetPricingAdaptor(
         address asset,
-        address feedToRemove,
-        address feedToAdd
+        address adaptorToRemove,
+        address adaptorToAdd,
+        uint256 badSourceBound,
+        uint256 cautionBound
     ) external {
         _checkElevatedPermissions();
 
         // Validate that the feeds are not identical as there would be no
         // point to replace a feed with itself.
-        if (feedToRemove == feedToAdd) {
+        if (adaptorToRemove == adaptorToAdd) {
             revert OracleManager__InvalidParameter();
         }
 
-        _removeFeed(asset, feedToRemove);
-        _addFeed(asset, feedToAdd);
+        _removeAssetPricingAdaptor(asset, adaptorToRemove);
+        _addAssetPricingAdaptor(asset, adaptorToAdd);
+
+        // Pull `asset` pricing config data after the new adaptor has been
+        // added.
+        PricingConfig storage config = assetPricingConfig[asset];
+
+        // If there are not two adaptor dependencies we can skip this logic.
+        if (config.adaptors.length > 1) {
+            _setDivergenceFlags(asset, config, badSourceBound, cautionBound);
+        }
     }
 
-    /// @notice Removes a price feed for a specific asset.
-    /// @dev Requires that the feed exists for the asset.
-    /// @param asset The address of the asset.
-    /// @param feed The address of the feed to be removed.
-    function removeAssetPriceFeed(address asset, address feed) external {
+    /// @notice Removes the dependency on pricing from `adaptor` for `asset`.
+    /// @dev Requires that `adaptor` is currently being used for pricing
+    ///      `asset`.
+    ///      NOTE: This intentionally does not modify asset deviation values
+    ///            because they simply wont be used if there are less than two
+    ///            pricing adaptors in use, so no reason to delete data as
+    ///            when a second pricing adaptor is configured the deviation
+    ///            has the opportunity be to reconfigured anyway.
+    /// @param asset The address of the asset to remove pricing adaptor
+    ///              dependency from.
+    /// @param adaptor The address of the adaptor to remove dependency from.
+    function removeAssetPricingAdaptor(address asset, address adaptor) external {
         _checkElevatedPermissions();
-        _removeFeed(asset, feed);
+        _removeAssetPricingAdaptor(asset, adaptor);
     }
 
-    /// @notice Removes a price feed for a specific asset
-    ///         triggered by an adaptors notification.
-    /// @dev Requires that the feed exists for the asset.
-    /// @param asset The address of the asset.
+    /// @notice Potentially removes the dependency on pricing from `adaptor`
+    ///         for `asset`, triggered by an adaptor's notification of a price
+    ///         feed's removal.
+    /// @notice Removes a pricing adaptor for `asset` triggered by an
+    ///         adaptor's notification of a price feed's removal.
+    /// @dev Requires that the adaptor is currently being used for pricing
+    ///      for `asset`.
+    ///      NOTE: This intentionally does not modify asset deviation values
+    ///            because they simply wont be used if there are less than two
+    ///            pricing adaptors in use, so no reason to delete data as
+    ///            when a second pricing adaptor is configured the deviation
+    ///            has the opportunity be to reconfigured anyway.
+    /// @param asset The address of the asset to potentially remove the
+    ///              pricing adaptor dependency from depending on current
+    ///              `asset` configuration.
     function notifyFeedRemoval(address asset) external {
         _checkIsApprovedAdaptor(msg.sender);
-        uint256 numFeeds = _checkFeeds(asset);
+
+        address[] memory adaptors = assetPricingConfig[asset].adaptors;
+        uint256 numAdaptors = adaptors.length;
 
         // Validate calling adaptor is a currently supported used for `asset`.
         // If unused can return immediately.
-        if (numFeeds > 1) {
-            if (
-                assetPriceFeeds[asset][0] != msg.sender &&
-                assetPriceFeeds[asset][1] != msg.sender
-            ) {
+        if (numAdaptors > 1) {
+            if (adaptors[0] != msg.sender && adaptors[1] != msg.sender) {
                 return;
             }
         } else {
-            if (numFeeds == 0) {
+            if (numAdaptors == 0) {
                 return;
             }
 
-            if (assetPriceFeeds[asset][0] != msg.sender) {
+            if (adaptors[0] != msg.sender) {
                 return;
             }
         }
-        _removeFeed(asset, msg.sender);
+        _removeAssetPricingAdaptor(asset, msg.sender);
+    }
+
+    /// @notice Returns the adaptors used for pricing `asset`.
+    /// @param asset The address of the asset to get pricing adaptors for.
+    /// @return result The current adaptor(s) used for pricing `asset`.
+    function getPricingAdaptors(
+        address asset
+    ) external view returns(address[] memory result) {
+        result = assetPricingConfig[asset].adaptors;
     }
 
     /// @notice Adds a new Curvance token to the Oracle Manager.
@@ -290,45 +403,83 @@ contract OracleManager is IOracleManager {
         delete isApprovedAdaptor[adaptorToRemove];
     }
 
-    /// @notice Sets a new maximum divergence for price feeds
-    ///         before CAUTION or BAD_SOURCE error codes are activated.
-    /// @param newCaution The new maximum price divergence before a
-    ///                   `CAUTION` error code is returned.
-    /// @param newBadSource The new maximum price divergence before a
-    ///                     `BAD_SOURCE` error code is returned.
+    /// @notice Sets new maximum divergence bound values for pricing adaptors
+    ///         before `CAUTION` or `BAD_SOURCE` error codes are activated
+    ///         for `asset`.
+    /// @dev Only allowed if there are two adaptor dependencies configured
+    ///      already. Emits an {AssetDeviationBoundsSet} event.
+    /// @param asset The address of the asset to set pricing divergence bound
+    ///              values for.
+    /// @param badSourceBound The new maximum price divergence before a
+    ///                       `BAD_SOURCE` error code is returned.
+    /// @param cautionBound The new maximum price divergence before a
+    ///                     `CAUTION` error code is returned.
     function setDivergenceFlags(
-        uint256 newCaution,
-        uint256 newBadSource
+        address asset,
+        uint256 badSourceBound,
+        uint256 cautionBound
     ) external {
         _checkElevatedPermissions();
+        PricingConfig storage config = assetPricingConfig[asset];
 
-        // Validate that the `CAUTION` error code will not occur after
-        // `BAD_SOURCE`, because `BAD_SOURCE` is the more significant error
-        // than `CAUTION`.
-        if (newCaution >= newBadSource) {
+        // If there are not two adaptor dependencies we can skip this logic.
+        if (config.adaptors.length < 2) {
             revert OracleManager__InvalidParameter();
         }
 
-        // Validate divergence values are within acceptable value range.
-        if (
-            newCaution > MAX_DIVERGENCE_VALUE ||
-            newCaution < MIN_DIVERGENCE_VALUE ||
-            newBadSource > MAX_DIVERGENCE_VALUE ||
-            newBadSource < MIN_DIVERGENCE_VALUE
-        ) {
-            revert OracleManager__InvalidParameter();
-        }
-
-        cautionPriceDivergence = uint128(newCaution);
-        badSourcePriceDivergence = uint128(newBadSource);
+        _setDivergenceFlags(asset, config, badSourceBound, cautionBound);
     }
 
-    /// @notice Returns the price feeds for `asset`.
-    /// @param asset The address of the asset to get price feeds of.
-    function getPriceFeeds(
-        address asset
-    ) external view returns(address[] memory) {
-        return assetPriceFeeds[asset];
+    /// @notice Potentially removes the dependency on pricing from `adaptor`
+    ///         for `asset`, triggered by an adaptor's notification of a price
+    ///         feed's removal.
+    /// @notice Removes a pricing adaptor for `asset` triggered by an
+    ///         adaptor's notification of a price feed's removal.
+    /// @dev Requires that the adaptor is currently being used for pricing
+    ///      for `asset`. May emit an {AssetDeviationBoundsSet} event.
+    /// @param asset The address of the asset to potentially remove the
+    ///              pricing adaptor dependency from depending on current
+    ///              `asset` configuration.
+    function notifyDeviationUpdated(
+        address asset,
+        uint256 newDeviationThreshold
+    ) external {
+        _checkIsApprovedAdaptor(msg.sender);
+
+        PricingConfig storage config = assetPricingConfig[asset];
+        // If there are not two adaptor dependencies we can skip this logic.
+        if (config.adaptors.length < 2) {
+            return;
+        }
+
+        address otherAdaptor = config.adaptors[0] == msg.sender ?
+            config.adaptors[1] : config.adaptors[0];
+        uint256 otherDeviationThreshold = IOracleAdaptor(otherAdaptor)
+            .deviationThreshold(asset);
+        // If the other adaptor dependency is "stricter" than the calling
+        // dependency we can skip the checks below as there will not be a
+        // need to adjust error code bounds.
+        if (otherDeviationThreshold > newDeviationThreshold) {
+            return;
+        }
+
+        // Make sure that caution flag will not get triggered by
+        // oracles natural deviation before an update.
+        uint256 newMinCautionBound =
+            newDeviationThreshold + MIN_DEVIATION_BUFFER;
+        // If the new deviation threshold breaks the current configured
+        // deviation bound values, set some temporary ones until the Oracle
+        // Manager can be updated directly.
+        // We remove BPS from `config.cautionBound` because we store the
+        // value with an extra BPS for better runtime gas costs.
+        if (config.cautionBound - BPS <= newMinCautionBound) {
+            _setDivergenceFlags(
+                asset,
+                config,
+                newMinCautionBound + DEFAULT_DEVIATION_DIFFERENCE,
+                newMinCautionBound
+            );
+        }
     }
 
     /// @notice Checks if a given asset is supported by the Oracle Manager.
@@ -339,10 +490,10 @@ contract OracleManager is IOracleManager {
     function isSupportedAsset(address asset) external view returns (bool) {
         address cTokenUnderlying = cTokens[asset];
         if (cTokenUnderlying != address(0)) {
-            return assetPriceFeeds[cTokenUnderlying].length > 0;
+            return assetPricingConfig[cTokenUnderlying].adaptors.length > 0;
         }
 
-        return assetPriceFeeds[asset].length > 0;
+        return assetPricingConfig[asset].adaptors.length > 0;
     }
 
     /// @notice Check whether L2 sequencer is valid or down.
@@ -358,10 +509,9 @@ contract OracleManager is IOracleManager {
     /// @notice Retrieves the price of a specified asset from either single
     ///         or dual oracles.
     /// @dev If the asset has one oracle, it fetches the price from a single
-    ///      feed.
-    ///      If it has two or more oracles, it fetches the price from both
-    ///      feeds.
-    ///      Additionally checks Chainlink L2 sequencer via `_isSequencerValid()`
+    ///      feed. If it has two or more oracles, it fetches the price from both
+    ///      feeds. Additionally, also checks Chainlink L2 sequencer via
+    ///      `_isSequencerValid()`
     ///      and returns `(0, BAD_SOURCE)` if down, even for non-Chainlink
     ///      adaptors. This is by design.
     /// @param asset The address of the asset to retrieve the price for.
@@ -546,92 +696,124 @@ contract OracleManager is IOracleManager {
         bool inUSD,
         bool getLower
     ) internal view returns (uint256 price, uint256 errorCode) {
-        // Route pricing to a single feed source or dual feed source.
-        if (_checkFeeds(asset) > 1) {
-            (price, errorCode) = _getPriceDualFeed(asset, inUSD, getLower);
+        PricingConfig memory config = assetPricingConfig[asset];
+        uint256 numAdaptors = config.adaptors.length;
+        if (numAdaptors == 0) {
+            revert OracleManager__NotSupported();
+        }
+
+        // Get price from a single adaptor source or dual adaptor source.
+        if (numAdaptors > 1) {
+            (price, errorCode) =
+                _getPriceDualAdaptor(asset, config, inUSD, getLower);
         } else {
             bool hadError;
-            (price, hadError) = _getPriceFromFeed(asset, 0, inUSD, getLower);
+            (price, hadError) =
+                _getPriceFromAdaptor(asset, config.adaptors[0], inUSD, getLower);
             if (hadError) {
                 errorCode = BAD_SOURCE;
             }
         }
 
-        // If somehow a feed returns a price of 0,
-        // make sure we trigger the BAD_SOURCE flag.
+        // If somehow an adaptor returns a price of 0, make sure a BAD_SOURCE
+        // flag is bubbled up.
         if (price == 0 && errorCode < BAD_SOURCE) {
             errorCode = BAD_SOURCE;
         }
     }
 
-    /// @notice Adds a price feed for a specific asset.
-    /// @dev Requires that the feed is not supported for `asset`.
-    /// @param asset The address of the asset.
-    /// @param feed The address of the feed to be added.
-    function _addFeed(address asset, address feed) internal {
-        // Validate that the proposed feed is approved for usage.
-        _checkIsApprovedAdaptor(feed);
+    /// @notice Adds a new dependency for pricing `asset` on `adaptor`. If
+    ///         this is the second adaptor dependency, set divergence values
+    ///         too, validating they are safe based on price feed deviation.
+    /// @dev Requires that `adaptor` is an approved adaptor, and that `asset`
+    ///      does not already have two adaptor dependencies.
+    /// @param asset The address of the asset to add a new pricing adaptor
+    ///              dependency for.
+    /// @param adaptor The address of the new adaptor to add dependency to.
+    function _addAssetPricingAdaptor(address asset, address adaptor) internal {
+        // Validate that `adaptor` is approved for pricing usage.
+        _checkIsApprovedAdaptor(adaptor);
 
-        // Validate that the feed supports the proposed asset.
-        if (!IOracleAdaptor(feed).isSupportedAsset(asset)) {
+        // Validate that the adaptor supports pricing `asset`.
+        if (!IOracleAdaptor(adaptor).isSupportedAsset(asset)) {
             revert OracleManager__InvalidParameter();
         }
 
-        uint256 numPriceFeeds = assetPriceFeeds[asset].length;
+        address[] storage adaptors = assetPricingConfig[asset].adaptors;
+        uint256 numAdaptors = adaptors.length;
 
-        // Validate that we do not already have 2 or more feeds for `asset`.
-        if (numPriceFeeds >= 2) {
+        // Validate that we do not already have 2 pricing adaptors configured
+        // for `asset`.
+        if (numAdaptors > 1) {
             revert OracleManager__InvalidParameter();
         }
 
-        // Validate that the feed proposed is not a duplicate
-        // of a supported feed for `asset`.
-        if (numPriceFeeds != 0 && assetPriceFeeds[asset][0] == feed) {
+        // If there is already an adaptor dependency for `asset` make sure
+        // that it is not `adaptor`, which would duplicate the dependency.
+        // Validate that the adaptor proposed is not a duplicate of the
+        // current adaptor of a supported feed for `asset`.
+        if (numAdaptors != 0 && adaptors[0] == adaptor) {
             revert OracleManager__InvalidParameter();
         }
 
-        // Validate that the feed returns a usable price for us with a sample
-        // query.
-        IOracleAdaptor.PricingResult memory result = IOracleAdaptor(feed)
+        // Validate that the adaptor returns an acceptable price for `asset`
+        // by sampling a price call.
+        IOracleAdaptor.PricingResult memory result = IOracleAdaptor(adaptor)
             .getPrice(asset, true, true);
 
         if (result.price == 0 || result.hadError) {
             revert OracleManager__InvalidParameter();
         }
 
-        assetPriceFeeds[asset].push(feed);
+        adaptors.push(adaptor);
+        emit AdaptorDependencyAdded(asset, adaptor);
     }
 
-    /// @notice Removes a price feed for a specific asset.
-    /// @dev Requires that the feed exists for `asset`.
-    /// @param asset The address of the asset.
-    /// @param feed The address of the feed to be removed.
-    function _removeFeed(address asset, address feed) internal {
-        // If theres two feeds, figure out which to remove,
-        // otherwise we know the feed to remove is the first entry.
-        if (_checkFeeds(asset) > 1) {
-            // Check whether `feed` is a currently supported feed for `asset`.
-            if (
-                assetPriceFeeds[asset][0] != feed &&
-                assetPriceFeeds[asset][1] != feed
-            ) {
+    /// @notice Removes the dependency on pricing from `adaptor` for `asset`.
+    /// @dev Requires that `adaptor` is currently being used for pricing
+    ///      `asset`.
+    ///      NOTE: This intentionally does not modify asset deviation values
+    ///            because they simply wont be used if there are less than two
+    ///            pricing adaptors in use, so no reason to delete data as
+    ///            when a second pricing adaptor is configured the deviation
+    ///            has the opportunity be to reconfigured anyway.
+    /// @param asset The address of the asset to remove pricing adaptor
+    ///              dependency from.
+    /// @param adaptor The address of the adaptor to remove dependency from.
+    function _removeAssetPricingAdaptor(
+        address asset,
+        address adaptor
+    ) internal {
+        // If theres two adaptor dependencies, figure out which to remove,
+        // otherwise we know the adaptor to remove is the first entry.
+        address[] storage adaptors = assetPricingConfig[asset].adaptors;
+        uint256 numAdaptors = adaptors.length;
+        if (numAdaptors == 0) {
+            revert OracleManager__NotSupported();
+        }
+
+        if (numAdaptors > 1) {
+            // Check whether `adaptor` is a currently dependency for pricing
+            // `asset`.
+            if (adaptors[0] != adaptor && adaptors[1] != adaptor) {
                 revert OracleManager__NotSupported();
             }
 
-            // We want to remove the first feed of two,
-            // so move the second feed to slot one.
-            if (assetPriceFeeds[asset][0] == feed) {
-                assetPriceFeeds[asset][0] = assetPriceFeeds[asset][1];
+            // We want to remove the first adaptor dependency of the two,
+            // so move the second adaptor dependency to slot one.
+            if (adaptors[0] == adaptor) {
+                adaptors[0] = adaptors[1];
             }
         } else {
-            if (assetPriceFeeds[asset][0] != feed) {
+            if (adaptors[0] != adaptor) {
                 revert OracleManager__NotSupported();
             }
         }
-        // We know the feed exists, but we cannot use `isApprovedAdaptor` as
-        // we could have removed it as an approved adaptor prior.
-
-        assetPriceFeeds[asset].pop();
+        // We know the adaptor exists, but we cannot use `isApprovedAdaptor`
+        // as we could have removed it as an approved adaptor prior to this
+        // function call.
+        adaptors.pop();
+        emit AdaptorDependencyRemoved(asset, adaptor);
     }
 
     /// @notice Retrieves the price of a specified asset from two specific
@@ -641,22 +823,24 @@ contract OracleManager is IOracleManager {
     ///      price from the working feed along with a CAUTION flag.
     ///      Otherwise, it returns (price, NO_ERROR).
     /// @param asset The address of the asset to retrieve the price for.
+    /// @param config The current pricing configuration of `asset`.
     /// @param inUSD Specifies whether the price format should be in
     ///              USD (true) or a chain's native token (false).
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
     /// @return uint256 The current price of `asset`.
     /// @return bool An error flag (if any).
-    function _getPriceDualFeed(
+    function _getPriceDualAdaptor(
         address asset,
+        PricingConfig memory config,
         bool inUSD,
         bool getLower
     ) internal view returns (uint256, uint256) {
-        (uint256 price0, bool error0) = _getPriceFromFeed(
-            asset, 0, inUSD, getLower
+        (uint256 price0, bool error0) = _getPriceFromAdaptor(
+            asset, config.adaptors[0], inUSD, getLower
         );
-        (uint256 price1, bool error1)= _getPriceFromFeed(
-            asset, 1, inUSD, getLower
+        (uint256 price1, bool error1)= _getPriceFromAdaptor(
+            asset, config.adaptors[1], inUSD, getLower
         );
 
         // Check if we had any working price feeds,
@@ -668,8 +852,8 @@ contract OracleManager is IOracleManager {
         // borrowing/redemption.
         if (error0 || error1) {
             // We know based on context of when this if statement block is
-            // called that one but not both feeds have an error.
-            // So, if feed0 had the error, feed1 is usable, and vice versa.
+            // called that one but not both adaptors have an error. So, if
+            // adaptor0 had the error, adaptor1 is usable, and vice versa.
             if (error0) {
                 return (price1, CAUTION);
             }
@@ -677,7 +861,12 @@ contract OracleManager is IOracleManager {
             return (price0, CAUTION);
         }
 
-        uint256 errorCode = _checkBounds(price0, price1);
+        uint256 errorCode = _checkBounds(
+            price0,
+            price1,
+            config.badSourceBound,
+            config.cautionBound
+        );
         if (getLower) {
             return (price1 < price0 ? price1 : price0, errorCode);
         }
@@ -685,26 +874,23 @@ contract OracleManager is IOracleManager {
         return (price1 > price0 ? price1 : price0, errorCode);
     }
 
-    /// @notice Retrieves the price of a specified asset from a specific
-    ///         price feed.
-    /// @dev Fetches the price from the nth price feed for the asset,
-    ///      where n is feedNumber.
-    ///      Converts the price to USD if necessary.
+    /// @notice Retrieves the price of `asset` from `adaptor`.
+    /// @dev Converts the price received to `inUSD` if necessary.
     /// @param asset The address of the asset to retrieve the price for.
-    /// @param feedNumber The index number of the feed to use.
+    /// @param adaptor The address of the pricing adaptor to use for pricing
+    ///                `asset`.
     /// @param inUSD Specifies whether the price format should be in
     ///              USD (true) or a chain's native token (false).
     /// @param getLower Whether the lower or higher price should be returned
-    ///                 if two feeds are available.
+    ///                 if there are two adaptor dependencies.
     /// @return uint256 The current price of `asset`.
     /// @return bool Whether the adaptor ran into an error when pricing.
-    function _getPriceFromFeed(
+    function _getPriceFromAdaptor(
         address asset,
-        uint256 feedNumber,
+        address adaptor,
         bool inUSD,
         bool getLower
     ) internal view returns (uint256, bool) {
-        address adaptor = assetPriceFeeds[asset][feedNumber];
         _checkIsApprovedAdaptor(adaptor);
 
         IOracleAdaptor.PricingResult memory result = IOracleAdaptor(adaptor)
@@ -715,7 +901,8 @@ contract OracleManager is IOracleManager {
             return (0, true);
         }
 
-        // If the feed denomination is not in the proper form, modify it.
+        // If the adaptor's price denomination is not in the proper form,
+        // modify it.
         if (result.inUSD != inUSD) {
             uint256 newPrice;
             (newPrice, result.hadError) =
@@ -738,7 +925,7 @@ contract OracleManager is IOracleManager {
     /// @dev The price is deemed valid if the data from the Oracle Manager
     ///      is fresh and a positive value.
     /// @param getLower Whether the lower or higher price should be returned
-    ///                 if two feeds are available.
+    ///                 if there are two adaptor dependencies.
     /// @return price The current price of `native`.
     /// @return hadError Whether the adaptor ran into an error when pricing
     ///                  `native`.
@@ -807,25 +994,88 @@ contract OracleManager is IOracleManager {
         return (currentPrice * WAD) / conversionRate;
     }
 
-    /// @notice Processes the price data from two different feeds.
+    /// @notice Sets a new maximum divergence for pricing adaptors before
+    ///         CAUTION or BAD_SOURCE error codes are activated for `asset`.
+    /// @dev Only allowed if there are two adaptor dependencies configured
+    ///      already.
+    /// @param asset The address of the asset to set pricing divergence values
+    ///              for.
+    /// @param badSourceBound The new maximum price divergence before a
+    ///                     `BAD_SOURCE` error code is returned.
+    /// @param cautionBound The new maximum price divergence before a
+    ///                   `CAUTION` error code is returned.
+    function _setDivergenceFlags(
+        address asset,
+        PricingConfig storage config,
+        uint256 badSourceBound,
+        uint256 cautionBound
+    ) internal {
+        // Validate that the `CAUTION` error code should never occur that the
+        // same time or after `BAD_SOURCE`, because `BAD_SOURCE` is the more
+        // significant error than `CAUTION`.
+        if (badSourceBound <= cautionBound) {
+            revert OracleManager__InvalidParameter();
+        }
+
+        // Validate bound values are within acceptable value range.
+        if (
+            cautionBound < MIN_DIVERGENCE_VALUE ||
+            badSourceBound > MAX_DIVERGENCE_VALUE
+        ) {
+            revert OracleManager__InvalidParameter();
+        }
+
+        uint256 deviation0 =
+            IOracleAdaptor(config.adaptors[0]).deviationThreshold(asset);
+        uint256 deviation1 =
+            IOracleAdaptor(config.adaptors[1]).deviationThreshold(asset);
+        uint256 largestDeviation = deviation0 > deviation1 ?
+            deviation0 : deviation1;
+
+        // Make sure that caution flag will not get triggered by
+        // oracles natural deviation before an update.
+        if (cautionBound <= largestDeviation + MIN_DEVIATION_BUFFER) {
+            revert OracleManager__InvalidParameter();
+        }
+
+        // Add `BPS` to the value to save converting to a BPS premium
+        // e.g. 10200 for 2% at runtime.
+        config.badSourceBound = uint16(badSourceBound + BPS);
+        config.cautionBound = uint16(cautionBound + BPS);
+        emit AssetDeviationBoundsSet(
+            asset,
+            badSourceBound + BPS,
+            cautionBound + BPS
+        );
+    }
+
+    /// @notice Processes the price data from two different adaptors.
     /// @dev Checks for divergence between two prices.
     ///      If the divergence is more than allowed, it returns (0, CAUTION)
     ///      or (0, BAD_SOURCE) depending on the level of diversion.
-    /// @param a The price from the first feed.
-    /// @param b The price from the second feed.
+    /// @param a The price received from the first adaptor.
+    /// @param b The price received from the second adaptor.
+    /// @param badSourceBound The bound value where divergence in price
+    ///                       between `a` and `b` should return the
+    ///                       `BAD_SOURCE` error code.
+    /// @param cautionBound The bound value where divergence in price between
+    ///                     `a` and `b` should return the `CAUTION` error
+    ///                     code.
     /// @return Returns the appropriate error code depending on price
     ///         divergence.
     function _checkBounds(
         uint256 a,
-        uint256 b
-    ) internal view returns (uint256) {
+        uint256 b,
+        uint256 badSourceBound,
+        uint256 cautionBound
+    ) internal pure returns (uint256) {
         if (a <= b) {
-            // Check if both feeds are within `f.caution` of each other.
-            if (((a * cautionPriceDivergence) / BPS) < b) {
-                // Notify that the price is dangerous and to treat data as a
-                // bad source because we are outside the accepted range of
+            // Check if both adaptor are within `cautionBound` of each other.
+            if (((a * cautionBound) / BPS) < b) {
+                // Notify that the price is dangerous and to treat data as
+                // invalid because we are outside the accepted range of
                 // divergence.
-                if (((a * badSourcePriceDivergence) / BPS) < b) {
+                if (((a * badSourceBound) / BPS) < b) {
                     return BAD_SOURCE;
                 }
 
@@ -837,12 +1087,11 @@ contract OracleManager is IOracleManager {
             return NO_ERROR;
         }
 
-        // Check if both feeds are within `f.caution` of each other.
-        if (((b * cautionPriceDivergence) / BPS) < a) {
-            // Notify that the price is dangerous and to treat data as a
-            // bad source because we are outside the accepted range of
-            // divergence.
-            if (((b * badSourcePriceDivergence) / BPS) < a) {
+        // Check if both feeds are within `cautionBound` of each other.
+        if (((b * cautionBound) / BPS) < a) {
+            // Notify that the price is dangerous and to treat data as invalid
+            // because we are outside the accepted range of divergence.
+            if (((b * badSourceBound) / BPS) < a) {
                 return BAD_SOURCE;
             }
 
@@ -852,18 +1101,6 @@ contract OracleManager is IOracleManager {
         }
 
         return NO_ERROR;
-    }
-
-    /// @notice Checks whether `asset` has supported adaptor feeds or not.
-    ///         Reverts if `asset` is no approved feeds.
-    /// @param asset The address of the asset to check.
-    /// @return f The number of supported feeds for `asset`.
-    function _checkFeeds(address asset) internal view returns (uint256 f) {
-        f = assetPriceFeeds[asset].length;
-        // Validate we have a feed or feeds to price `asset`.
-        if (f == 0) {
-            revert OracleManager__NotSupported();
-        }
     }
 
     /// @notice Checks whether `adaptor` is an approved adaptor or not.

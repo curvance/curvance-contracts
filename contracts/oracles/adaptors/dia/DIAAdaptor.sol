@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, CommonLib, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { IDiaOracle } from "contracts/interfaces/external/dia/IDiaOracle.sol";
 
@@ -30,6 +30,11 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// @dev Token address => inUSD => Price feed configuration for `asset`.
     mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
+    /// @notice The current deviation value for an asset's configured price
+    ///         feed, in `BPS`.
+    /// @dev Token address => feed deviation threshold, in `BPS`.
+    mapping(address => uint256) internal _assetDeviationThreshold;
+
     /// EVENTS ///
 
     event AssetAdded(address asset, AssetConfig config, bool isUpdate);
@@ -37,6 +42,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// ERRORS ///
 
     error DIAAdaptor__InvalidHeartbeat();
+    error DIAAdaptor__InvalidDeviationThreshold();
 
     /// CONSTRUCTOR ///
 
@@ -50,21 +56,34 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Adds pricing support for `asset` via a new DIA feed.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
+    ///      NOTE: BE VERY CAREFUL SETTING `feedDeviationThreshold`, AN
+    ///            INCORRECT VALUE CAN LOCK LIQUIDATIONS UNINTENTIONALLY.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
-    /// @param adaptor The adaptor configuration
+    /// @param config The asset's adaptor configuration.
+    /// @param feedDeviationThreshold The price feed deviation threshold value
+    ///                               configured by the oracle provider.
     function addAsset(
         address asset,
         bool inUSD,
-        AssetConfig memory adaptor
+        AssetConfig memory config,
+        uint256 feedDeviationThreshold
     ) external {
         _checkElevatedPermissions();
 
+        // Validate the deviation threshold is not too long.
+        if (feedDeviationThreshold > MAX_ALLOWED_DEVIATION_VALUE) {
+            revert DIAAdaptor__InvalidDeviationThreshold();
+        }
+
         // Save `config` and update mapping that we support `asset` now.
-        assetConfig[asset][inUSD] = adaptor;
+        assetConfig[asset][inUSD] = config;
+        _assetDeviationThreshold[asset] = feedDeviationThreshold;
+        CommonLib._oracleManager(centralRegistry)
+            .notifyDeviationUpdated(asset, feedDeviationThreshold);
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -73,7 +92,16 @@ contract DIAAdaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit AssetAdded(asset, adaptor, isUpdate);
+        emit AssetAdded(asset, config, isUpdate);
+    }
+
+    /// @notice Returns an asset's price feed deviation threshold.
+    /// @param asset The asset to return the price feed deviation threshold for.
+    /// @return result The asset's price feed deviation threshold value.
+    function deviationThreshold(
+        address asset
+    ) external view returns (uint256 result) {
+        result = _assetDeviationThreshold[asset];
     }
 
     /// INTERNAL FUNCTIONS ///

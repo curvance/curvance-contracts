@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, CommonLib, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
 
@@ -43,6 +43,11 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     /// @dev Token address => inUSD => Price feed configuration for `asset`.
     mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
+    /// @notice The current deviation value for an asset's configured price
+    ///         feed, in `BPS`.
+    /// @dev Token address => feed deviation threshold, in `BPS`.
+    mapping(address => uint256) internal _assetDeviationThreshold;
+
     /// EVENTS ///
 
     event AssetAdded(address asset, AssetConfig config, bool isUpdate);
@@ -51,6 +56,7 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
     error ChainsightAdaptor__InvalidPriceConfiguration();
     error ChainsightAdaptor__InvalidHeartbeat();
+    error ChainsightAdaptor__InvalidDeviationThreshold();
 
     /// CONSTRUCTOR ///
 
@@ -69,8 +75,10 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Adds a Chainsight Price Feed as an asset inside this adaptor.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
+    ///      NOTE: BE VERY CAREFUL SETTING `feedDeviationThreshold`, AN
+    ///            INCORRECT VALUE CAN LOCK LIQUIDATIONS UNINTENTIONALLY.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
@@ -81,46 +89,56 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     /// @param heartbeat Chainsight heartbeat to use when validating prices
     ///                  for `asset`. 0 = `DEFAULT_HEARTBEAT`.
     /// @param feedKey The ICP VRF randomized key for the asset feed.
+    /// @param feedDeviationThreshold The price feed deviation threshold value
+    ///                               configured by the oracle provider.
     function addAsset(
         address asset,
         bool inUSD,
         address sender,
         uint8 decimals,
         uint256 heartbeat,
-        bytes32 feedKey
+        bytes32 feedKey,
+        uint256 feedDeviationThreshold
     ) external {
         _checkElevatedPermissions();
         
+        // Validate the feed heartbeat is not too long.
         if (heartbeat > DEFAULT_HEARTBEAT) {
             revert ChainsightAdaptor__InvalidHeartbeat();
         }
 
-        // Validate that the Chainsight sender and feedKey from frontend
-        // properly return data as expected.
-        (
-            uint256 readPriceUnsigned,
-        ) = MANAGEMENT_ORACLE.readAsUint256WithTimestamp(sender, feedKey);
-
-        (
-            int256 readPriceSigned,
-            uint256 readTimestampSigned
-        ) = MANAGEMENT_ORACLE.readAsInt256WithTimestamp(sender, feedKey);
-
-        if (uint256(readPriceSigned) != readPriceUnsigned) {
-            revert ChainsightAdaptor__InvalidPriceConfiguration();
+        // Validate the deviation threshold is not too long.
+        if (feedDeviationThreshold > MAX_ALLOWED_DEVIATION_VALUE) {
+            revert ChainsightAdaptor__InvalidDeviationThreshold();
         }
 
-        if (readPriceSigned <= 0) {
-            revert ChainsightAdaptor__InvalidPriceConfiguration();
-        }
+        {
+            // Validate that the Chainsight sender and feedKey from frontend
+            // properly return data as expected.
+            (
+                uint256 readPriceUnsigned,
+            ) = MANAGEMENT_ORACLE.readAsUint256WithTimestamp(sender, feedKey);
 
+            (
+                int256 readPriceSigned,
+                uint256 readTimestampSigned
+            ) = MANAGEMENT_ORACLE.readAsInt256WithTimestamp(sender, feedKey);
+
+            if (uint256(readPriceSigned) != readPriceUnsigned) {
+                revert ChainsightAdaptor__InvalidPriceConfiguration();
+            }
+
+            if (readPriceSigned <= 0) {
+                revert ChainsightAdaptor__InvalidPriceConfiguration();
+            }
+
+            if (block.timestamp - readTimestampSigned > heartbeat) {
+                revert ChainsightAdaptor__InvalidPriceConfiguration();
+            }
+        }
+        
         AssetConfig storage config = assetConfig[asset][inUSD];
-
         config.heartbeat = uint24(heartbeat != 0 ? heartbeat : DEFAULT_HEARTBEAT);
-
-        if (block.timestamp - readTimestampSigned > heartbeat) {
-            revert ChainsightAdaptor__InvalidPriceConfiguration();
-        }
 
         // Update `config` and make sure `isSupportedAsset` returns true
         // for `asset`.
@@ -128,6 +146,9 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
         config.feedKey = feedKey;
         config.decimals = uint8(decimals);
         config.isConfigured = true;
+        _assetDeviationThreshold[asset] = feedDeviationThreshold;
+        CommonLib._oracleManager(centralRegistry)
+            .notifyDeviationUpdated(asset, feedDeviationThreshold);
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -137,6 +158,15 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
+    }
+
+    /// @notice Returns an asset's price feed deviation threshold.
+    /// @param asset The asset to return the price feed deviation threshold for.
+    /// @return result The asset's price feed deviation threshold value.
+    function deviationThreshold(
+        address asset
+    ) external view returns (uint256 result) {
+        result = _assetDeviationThreshold[asset];
     }
 
     /// INTERNAL FUNCTIONS ///

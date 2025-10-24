@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
-import { BaseOracleAdaptor, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { BaseOracleAdaptor, CommonLib, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
@@ -38,6 +38,11 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// @dev Token address => inUSD => Price feed configuration for `asset`.
     mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
+    /// @notice The current deviation value for an asset's configured price
+    ///         feed, in `BPS`.
+    /// @dev Token address => feed deviation threshold, in `BPS`.
+    mapping(address => uint256) internal _assetDeviationThreshold;
+
     /// EVENTS ///
 
     event AssetAdded(address asset, AssetConfig config, bool isUpdate);
@@ -46,6 +51,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
     error Api3Adaptor__DAPINameHashError();
     error Api3Adaptor__InvalidHeartbeat();
+    error Api3Adaptor__InvalidDeviationThreshold();
 
     /// CONSTRUCTOR ///
 
@@ -55,8 +61,10 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Adds an Api3 Price Feed as an asset inside this adaptor.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
+    ///      NOTE: BE VERY CAREFUL SETTING `feedDeviationThreshold`, AN
+    ///            INCORRECT VALUE CAN LOCK LIQUIDATIONS UNINTENTIONALLY.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
@@ -64,17 +72,26 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// @param heartbeat Api3 heartbeat to use when validating prices
     ///                  for `asset`. 0 = `DEFAULT_HEARTBEAT`.
     /// @param ticker The ticker of the token to add pricing for.
+    /// @param feedDeviationThreshold The price feed deviation threshold value
+    ///                               configured by the oracle provider.
     function addAsset(
         address asset,
         bool inUSD,
         address proxyFeed,
         uint256 heartbeat,
-        string memory ticker
+        string memory ticker,
+        uint256 feedDeviationThreshold
     ) external {
         _checkElevatedPermissions();
         
+        // Validate the feed heartbeat is not too long.
         if (heartbeat > DEFAULT_HEARTBEAT) {
             revert Api3Adaptor__InvalidHeartbeat();
+        }
+
+        // Validate the deviation threshold is not too long.
+        if (feedDeviationThreshold > MAX_ALLOWED_DEVIATION_VALUE) {
+            revert Api3Adaptor__InvalidDeviationThreshold();
         }
 
         bytes32 dapiName = Bytes32Helper.toBytes32(ticker);
@@ -93,6 +110,9 @@ contract Api3Adaptor is BaseOracleAdaptor {
         config.dapiNameHash = dapiNameHash;
         config.proxyFeed = IProxy(proxyFeed);
         config.isConfigured = true;
+        _assetDeviationThreshold[asset] = feedDeviationThreshold;
+        CommonLib._oracleManager(centralRegistry)
+            .notifyDeviationUpdated(asset, feedDeviationThreshold);
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -102,6 +122,15 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
+    }
+
+    /// @notice Returns an asset's price feed deviation threshold.
+    /// @param asset The asset to return the price feed deviation threshold for.
+    /// @return result The asset's price feed deviation threshold value.
+    function deviationThreshold(
+        address asset
+    ) external view returns (uint256 result) {
+        result = _assetDeviationThreshold[asset];
     }
 
     /// INTERNAL FUNCTIONS ///

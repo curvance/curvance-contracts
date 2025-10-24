@@ -13,6 +13,11 @@ import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// CONSTANTS ///
 
+    /// @notice The maximum allowed deviation value for any supported price's
+    ///         feed, in `BPS`.
+    /// @dev 200 = 2%.
+    uint256 public constant MAX_ALLOWED_DEVIATION_VALUE = 200;
+
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 

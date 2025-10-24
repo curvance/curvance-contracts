@@ -25,7 +25,8 @@ abstract contract LiquidityManagerIsolated {
     ///                          `account` performed a liquidity focused
     ///                          action, which activates a cooldown period on
     ///                          redemptions/repayment/collateral removal.
-    /// @param assets Array of account assets.
+    /// @param assets Array containing all Curvance tokens an account has
+    ///               active liquidity positions in.
     struct AccountData {
         uint256 cooldownTimestamp;
         address[] assets;

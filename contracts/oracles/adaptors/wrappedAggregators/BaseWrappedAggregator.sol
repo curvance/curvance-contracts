@@ -30,10 +30,6 @@ abstract contract BaseWrappedAggregator is IChainlink {
 
     /// @notice The address of the underlying asset aggregator.
     IChainlink internal immutable _assetAggregator;
-    /// @notice The oracle adaptor type, calculated via keccak256 of the
-    ///         oracle adaptor's name.
-    uint256 internal immutable _adaptorType =
-        uint256(keccak256(abi.encode("WrappedAggregator")));
 
     /// ERRORS ///
 
@@ -123,14 +119,6 @@ abstract contract BaseWrappedAggregator is IChainlink {
             _assetAggregator.getRoundData(_roundId);
 
         answer = getAdjustedAnswer(answer);
-    }
-
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    /// @return result The adaptor's type.
-    function adaptorType() external view returns (uint256 result) {
-        result = _adaptorType;
     }
 
     /// PUBLIC FUNCTIONS TO OVERRIDE ///

@@ -1113,10 +1113,10 @@ contract ProtocolReader {
             asset = cTokenUnderlying;
         }
 
-        address[] memory feeds = om.getPriceFeeds(asset);
+        address[] memory adaptors = om.getPricingAdaptors(asset);
 
-        uint256 numFeeds = feeds.length;
-        if (numFeeds == 0) {
+        uint256 numAdaptors = adaptors.length;
+        if (numAdaptors == 0) {
             return (0, 0);
         }
 
@@ -1124,8 +1124,8 @@ contract ProtocolReader {
 
         // If the asset only has one price feed, we know it will be in
         // feed slot 0 so get both prices and return
-        if (numFeeds < 2) {
-            adaptor = feeds[0];
+        if (numAdaptors < 2) {
+            adaptor = adaptors[0];
             if (!om.isApprovedAdaptor(adaptor)) {
                 return (0, 0);
             }
@@ -1133,12 +1133,12 @@ contract ProtocolReader {
             return (IOracleAdaptor(adaptor).adaptorType(), 0);
         }
 
-        adaptor = feeds[0];
+        adaptor = adaptors[0];
         uint256 adaptorTypeA = om.isApprovedAdaptor(adaptor)
             ? IOracleAdaptor(adaptor).adaptorType()
             : 0;
 
-        adaptor = feeds[1];
+        adaptor = adaptors[1];
         uint256 adaptorTypeB = om.isApprovedAdaptor(adaptor)
             ? IOracleAdaptor(adaptor).adaptorType()
             : 0;
