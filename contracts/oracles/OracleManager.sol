@@ -104,13 +104,18 @@ contract OracleManager is IOracleManager {
     ///         comes back up, in seconds.
     uint256 public constant GRACE_PERIOD_TIME = 300;
     /// @notice Maximum value that a price divergence flag can be set as
-    ///         inside the protocol.
-    /// @dev 1.03e4 = 3.0%.
-    uint256 public constant MAX_DIVERGENCE_VALUE = 10300;
+    ///         inside the protocol, in `BPS`.
+    /// @dev 300 = 3.0%, in `BPS`.
+    uint256 public constant MAX_DIVERGENCE_VALUE = 300;
     /// @notice Minimum value that a price divergence flag can be set as
     ///         inside the protocol.
-    /// @dev 1.002e4 = 0.2%.
-    uint256 public constant MIN_DIVERGENCE_VALUE = 10020;
+    /// @dev 20 = 0.2%.
+    uint256 public constant MIN_DIVERGENCE_VALUE = 20;
+    /// @notice The default deviation bound values between `CAUTION` and
+    ///         `BAD_SOURCE`, only used when an asset's deviation bounds
+    ///         need to be updated due to an adaptor changing a price feeds
+    ///         recorded deviation threshold configuration.
+    uint256 public constant DEFAULT_DEVIATION_DIFFERENCE = 50;
     /// @notice The minimum value that must be given to deviation bound values
     ///         when compared to the largest adaptor's deviation threshold
     ///         configuration, in `BPS`.
@@ -118,11 +123,6 @@ contract OracleManager is IOracleManager {
     ///      configuration, e.g. 1% deviation = 1.2% minimum caution bound
     ///      value.
     uint256 public constant MIN_DEVIATION_BUFFER = 20;
-    /// @notice The default deviation bound values between `CAUTION` and
-    ///         `BAD_SOURCE`, only used when an asset's deviation bounds
-    ///         need to be updated due to an adaptor changing a price feeds
-    ///         recorded deviation threshold configuration.
-    uint256 public constant DEFAULT_DEVIATION_DIFFERENCE = 50;
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
@@ -197,7 +197,7 @@ contract OracleManager is IOracleManager {
 
         // If there are not two adaptor dependencies we can skip this logic.
         if (config.adaptors.length > 1) {
-            _setDivergenceFlags(asset, config, badSourceBound, cautionBound);
+            _setDivergenceBounds(asset, config, badSourceBound, cautionBound);
         }
     }
 
@@ -243,7 +243,7 @@ contract OracleManager is IOracleManager {
 
         // If there are not two adaptor dependencies we can skip this logic.
         if (config.adaptors.length > 1) {
-            _setDivergenceFlags(asset, config, badSourceBound, cautionBound);
+            _setDivergenceBounds(asset, config, badSourceBound, cautionBound);
         }
     }
 
@@ -412,7 +412,7 @@ contract OracleManager is IOracleManager {
     ///                       `BAD_SOURCE` error code is returned.
     /// @param cautionBound The new maximum price divergence before a
     ///                     `CAUTION` error code is returned.
-    function setDivergenceFlags(
+    function setDivergenceBounds(
         address asset,
         uint256 badSourceBound,
         uint256 cautionBound
@@ -425,7 +425,7 @@ contract OracleManager is IOracleManager {
             revert OracleManager__InvalidParameter();
         }
 
-        _setDivergenceFlags(asset, config, badSourceBound, cautionBound);
+        _setDivergenceBounds(asset, config, badSourceBound, cautionBound);
     }
 
     /// @notice Potentially removes the dependency on pricing from `adaptor`
@@ -471,7 +471,7 @@ contract OracleManager is IOracleManager {
         // We remove BPS from `config.cautionBound` because we store the
         // value with an extra BPS for better runtime gas costs.
         if (config.cautionBound - BPS <= newMinCautionBound) {
-            _setDivergenceFlags(
+            _setDivergenceBounds(
                 asset,
                 config,
                 newMinCautionBound + DEFAULT_DEVIATION_DIFFERENCE,
@@ -1002,7 +1002,7 @@ contract OracleManager is IOracleManager {
     ///                     `BAD_SOURCE` error code is returned.
     /// @param cautionBound The new maximum price divergence before a
     ///                   `CAUTION` error code is returned.
-    function _setDivergenceFlags(
+    function _setDivergenceBounds(
         address asset,
         PricingConfig storage config,
         uint256 badSourceBound,
