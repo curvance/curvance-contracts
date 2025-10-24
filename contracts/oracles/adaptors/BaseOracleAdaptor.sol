@@ -145,15 +145,15 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        // Validate basePrice is not 0 and that max price will fit in the 
-        // 96 bit slot allocated.
-        if (basePrice == 0 || basePrice > type(uint96).max) {
+        // Validate basePrice is not 0 and that base price will fit in the 
+        // 88 bit slot allocated.
+        if (basePrice == 0 || basePrice > type(uint88).max) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 
-        // Validate that min and max price logic are not inverted and that the
-        // minimum price will not overflow.
-        if (minPrice > basePrice || minPrice > type(uint80).max) {
+        // Validate that min and max price logic are not inverted, we can then
+        // skip the storage slot check since basePrice > minPrice.
+        if (minPrice > basePrice) {
             revert BaseOracleAdaptor__InvalidConfig();
         }
 

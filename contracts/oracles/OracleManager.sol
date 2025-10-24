@@ -32,22 +32,22 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 ///      The Oracle Manager also relays feedback based on any issues that
 ///      occurred during pricing an asset. This takes the form of three error
 ///      codes that are returned on querying a price or prices:
-///      - An error code of 0 corresponds to no error occurred during pricing.
-///      - An error code of 1 corresponds to moderate issues occurring
-///        during pricing, inside Curvance this results in new borrowing
-///        queries being blocked.
-///      - An error code of 2 corresponds to large issues occurring during
-///        pricing, inside Curvance this results in all actions being paused
-///        involving that asset.
+///      - An error code of 0 (NO_ERROR) corresponds to no error occurred
+///        during pricing.
+///      - An error code of 1 (CAUTION) corresponds to moderate issues
+///        occurring during pricing, inside Curvance this results in new
+///        borrowing, and redemption actions being blocked.
+///      - An error code of 2 (BAD_SOURCE) corresponds to large issues
+///        occurring during pricing, inside Curvance this results in new
+///        borrowing, redemptions, and liquidation actions being blocked.
 ///
 ///      "Circuit Breakers" have been introduced, that can be triggered based
-///      on the prices returned to the Oracle Manager. If prices diverge
-///      heavily, error codes can be returned. Based on current default
-///      configurations:
-///      - An error code of 1 will be triggered by a 50 basis point or greater
-///        price divergence.
-///      - An error code of 2 will be triggered by a 100 basis point or greater
-///        price divergence.
+///      on the prices returned to the Oracle Manager by adaptors. If prices
+///      diverge heavily, error codes can be returned.
+///      - An error code of 1 will be triggered by a deviation between pricing
+///        adaptors of >= `cautionBound` for the corresponding asset.
+///      - An error code of 2 will be triggered by a deviation between pricing
+///        adaptors of >= `badSourceBound` for the corresponding asset.
 ///
 ///      Oracle Adaptors can be added or removed by the DAO which can change
 ///      how an asset is priced. This allows for continually improving the
@@ -111,7 +111,6 @@ contract OracleManager is IOracleManager {
     ///         inside the protocol.
     /// @dev 1.002e4 = 0.2%.
     uint256 public constant MIN_DIVERGENCE_VALUE = 10020;
-
     /// @notice The minimum value that must be given to deviation bound values
     ///         when compared to the largest adaptor's deviation threshold
     ///         configuration, in `BPS`.
@@ -119,7 +118,6 @@ contract OracleManager is IOracleManager {
     ///      configuration, e.g. 1% deviation = 1.2% minimum caution bound
     ///      value.
     uint256 public constant MIN_DEVIATION_BUFFER = 20;
-
     /// @notice The default deviation bound values between `CAUTION` and
     ///         `BAD_SOURCE`, only used when an asset's deviation bounds
     ///         need to be updated due to an adaptor changing a price feeds
