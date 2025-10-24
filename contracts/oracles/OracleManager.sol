@@ -43,7 +43,7 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 ///
 ///      "Circuit Breakers" have been introduced, that can be triggered based
 ///      on the prices returned to the Oracle Manager by adaptors. If prices
-///      diverge heavily, error codes can be returned.
+///      deviate heavily, error codes can be returned.
 ///      - An error code of 1 will be triggered by a deviation between pricing
 ///        adaptors of >= `cautionBound` for the corresponding asset.
 ///      - An error code of 2 will be triggered by a deviation between pricing
@@ -103,14 +103,14 @@ contract OracleManager is IOracleManager {
     /// @notice Time to pass before accepting answers when sequencer
     ///         comes back up, in seconds.
     uint256 public constant GRACE_PERIOD_TIME = 300;
-    /// @notice Maximum value that a price divergence flag can be set as
+    /// @notice Maximum value that a price deviation bound can be set as
     ///         inside the protocol, in `BPS`.
     /// @dev 300 = 3.0%, in `BPS`.
-    uint256 public constant MAX_DIVERGENCE_VALUE = 300;
-    /// @notice Minimum value that a price divergence flag can be set as
+    uint256 public constant MAX_DEVIATION_BOUND = 300;
+    /// @notice Minimum value that a price deviation bound can be set as
     ///         inside the protocol.
     /// @dev 20 = 0.2%.
-    uint256 public constant MIN_DIVERGENCE_VALUE = 20;
+    uint256 public constant MIN_DEVIATION_BOUND = 20;
     /// @notice The default deviation bound values between `CAUTION` and
     ///         `BAD_SOURCE`, only used when an asset's deviation bounds
     ///         need to be updated due to an adaptor changing a price feeds
@@ -168,7 +168,7 @@ contract OracleManager is IOracleManager {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Adds a new dependency for pricing `asset` on `adaptor`. If
-    ///         this is the second adaptor dependency, set divergence values
+    ///         this is the second adaptor dependency, set deviation values
     ///         too, validating they are safe based on price feed deviation.
     /// @dev Requires that `adaptor` is an approved adaptor, and that `asset`
     ///      does not already have two adaptor dependencies.
@@ -176,10 +176,10 @@ contract OracleManager is IOracleManager {
     /// @param asset The address of the asset to add a new pricing adaptor
     ///              dependency for.
     /// @param adaptor The address of the new adaptor to add dependency to.
-    /// @param badSourceBound The new maximum price divergence before a
+    /// @param badSourceBound The new maximum price deviation before a
     ///                       `BAD_SOURCE` error code is returned, only
     ///                       used when adding a second adaptor dependency.
-    /// @param cautionBound The new maximum price divergence before a
+    /// @param cautionBound The new maximum price deviation before a
     ///                     `CAUTION` error code is returned, only used when
     ///                     adding a second adaptor dependency.
     function addAssetPricingAdaptor(
@@ -197,7 +197,7 @@ contract OracleManager is IOracleManager {
 
         // If there are not two adaptor dependencies we can skip this logic.
         if (config.adaptors.length > 1) {
-            _setDivergenceBounds(asset, config, badSourceBound, cautionBound);
+            _setDeviationBounds(asset, config, badSourceBound, cautionBound);
         }
     }
 
@@ -213,10 +213,10 @@ contract OracleManager is IOracleManager {
     ///                        from.
     /// @param adaptorToAdd The address of the new adaptor to add dependency
     ///                     to.
-    /// @param badSourceBound The new maximum price divergence before a
+    /// @param badSourceBound The new maximum price deviation before a
     ///                       `BAD_SOURCE` error code is returned, only
     ///                       used when replacing a second adaptor dependency.
-    /// @param cautionBound The new maximum price divergence before a
+    /// @param cautionBound The new maximum price deviation before a
     ///                     `CAUTION` error code is returned, only used when
     ///                     replacing a second adaptor dependency.
     function replaceAssetPricingAdaptor(
@@ -243,7 +243,7 @@ contract OracleManager is IOracleManager {
 
         // If there are not two adaptor dependencies we can skip this logic.
         if (config.adaptors.length > 1) {
-            _setDivergenceBounds(asset, config, badSourceBound, cautionBound);
+            _setDeviationBounds(asset, config, badSourceBound, cautionBound);
         }
     }
 
@@ -401,18 +401,18 @@ contract OracleManager is IOracleManager {
         delete isApprovedAdaptor[adaptorToRemove];
     }
 
-    /// @notice Sets new maximum divergence bound values for pricing adaptors
+    /// @notice Sets new maximum deviation bound values for pricing adaptors
     ///         before `CAUTION` or `BAD_SOURCE` error codes are activated
     ///         for `asset`.
     /// @dev Only allowed if there are two adaptor dependencies configured
     ///      already. Emits an {AssetDeviationBoundsSet} event.
-    /// @param asset The address of the asset to set pricing divergence bound
+    /// @param asset The address of the asset to set pricing deviation bound
     ///              values for.
-    /// @param badSourceBound The new maximum price divergence before a
+    /// @param badSourceBound The new maximum price deviation before a
     ///                       `BAD_SOURCE` error code is returned.
-    /// @param cautionBound The new maximum price divergence before a
+    /// @param cautionBound The new maximum price deviation before a
     ///                     `CAUTION` error code is returned.
-    function setDivergenceBounds(
+    function setDeviationBounds(
         address asset,
         uint256 badSourceBound,
         uint256 cautionBound
@@ -425,7 +425,7 @@ contract OracleManager is IOracleManager {
             revert OracleManager__InvalidParameter();
         }
 
-        _setDivergenceBounds(asset, config, badSourceBound, cautionBound);
+        _setDeviationBounds(asset, config, badSourceBound, cautionBound);
     }
 
     /// @notice Potentially removes the dependency on pricing from `adaptor`
@@ -462,7 +462,7 @@ contract OracleManager is IOracleManager {
         }
 
         // Make sure that caution flag will not get triggered by
-        // oracles natural deviation before an update.
+        // oracle's price feed natural deviation threshold before an update.
         uint256 newMinCautionBound =
             newDeviationThreshold + MIN_DEVIATION_BUFFER;
         // If the new deviation threshold breaks the current configured
@@ -471,7 +471,7 @@ contract OracleManager is IOracleManager {
         // We remove BPS from `config.cautionBound` because we store the
         // value with an extra BPS for better runtime gas costs.
         if (config.cautionBound - BPS <= newMinCautionBound) {
-            _setDivergenceBounds(
+            _setDeviationBounds(
                 asset,
                 config,
                 newMinCautionBound + DEFAULT_DEVIATION_DIFFERENCE,
@@ -721,8 +721,9 @@ contract OracleManager is IOracleManager {
     }
 
     /// @notice Adds a new dependency for pricing `asset` on `adaptor`. If
-    ///         this is the second adaptor dependency, set divergence values
-    ///         too, validating they are safe based on price feed deviation.
+    ///         this is the second adaptor dependency, set deviation values
+    ///         too, validating they are safe based on adaptor's price feed
+    ///         deviation threshold.
     /// @dev Requires that `adaptor` is an approved adaptor, and that `asset`
     ///      does not already have two adaptor dependencies.
     /// @param asset The address of the asset to add a new pricing adaptor
@@ -992,17 +993,17 @@ contract OracleManager is IOracleManager {
         return (currentPrice * WAD) / conversionRate;
     }
 
-    /// @notice Sets a new maximum divergence for pricing adaptors before
+    /// @notice Sets a new maximum deviation for pricing adaptors before
     ///         CAUTION or BAD_SOURCE error codes are activated for `asset`.
     /// @dev Only allowed if there are two adaptor dependencies configured
     ///      already.
-    /// @param asset The address of the asset to set pricing divergence values
+    /// @param asset The address of the asset to set pricing deviation values
     ///              for.
-    /// @param badSourceBound The new maximum price divergence before a
+    /// @param badSourceBound The new maximum price deviation before a
     ///                     `BAD_SOURCE` error code is returned.
-    /// @param cautionBound The new maximum price divergence before a
+    /// @param cautionBound The new maximum price deviation before a
     ///                   `CAUTION` error code is returned.
-    function _setDivergenceBounds(
+    function _setDeviationBounds(
         address asset,
         PricingConfig storage config,
         uint256 badSourceBound,
@@ -1017,8 +1018,8 @@ contract OracleManager is IOracleManager {
 
         // Validate bound values are within acceptable value range.
         if (
-            cautionBound < MIN_DIVERGENCE_VALUE ||
-            badSourceBound > MAX_DIVERGENCE_VALUE
+            cautionBound < MIN_DEVIATION_BOUND ||
+            badSourceBound > MAX_DEVIATION_BOUND
         ) {
             revert OracleManager__InvalidParameter();
         }
@@ -1047,20 +1048,24 @@ contract OracleManager is IOracleManager {
         );
     }
 
-    /// @notice Processes the price data from two different adaptors.
-    /// @dev Checks for divergence between two prices.
-    ///      If the divergence is more than allowed, it returns (0, CAUTION)
-    ///      or (0, BAD_SOURCE) depending on the level of diversion.
-    /// @param a The price received from the first adaptor.
-    /// @param b The price received from the second adaptor.
-    /// @param badSourceBound The bound value where divergence in price
+    /// @notice Reviews the report prices from both pricing adaptors,
+    ///         returning an appropriate error code if the deviation between
+    ///         prices is significant enough.
+    /// @dev If the deviation is less than `cautionBound`, returns `NO_ERROR`.
+    ///      If the deviation is more than `cautionBound` but less than
+    ///      `badSourceBound`, returns `CAUTION`.
+    ///      If the deviation is more than `badSourceBound`, returns
+    ///      `BAD_SOURCE`.
+    /// @param a The price reported by the first adaptor.
+    /// @param b The price reported by the second adaptor.
+    /// @param badSourceBound The bound value where deviation in price
     ///                       between `a` and `b` should return the
     ///                       `BAD_SOURCE` error code.
-    /// @param cautionBound The bound value where divergence in price between
+    /// @param cautionBound The bound value where deviation in price between
     ///                     `a` and `b` should return the `CAUTION` error
     ///                     code.
-    /// @return Returns the appropriate error code depending on price
-    ///         divergence.
+    /// @return Returns the appropriate error code depending on deviation
+    ///         between adaptor's reported prices.
     function _checkBounds(
         uint256 a,
         uint256 b,
@@ -1072,13 +1077,13 @@ contract OracleManager is IOracleManager {
             if (((a * cautionBound) / BPS) < b) {
                 // Notify that the price is dangerous and to treat data as
                 // invalid because we are outside the accepted range of
-                // divergence.
+                // deviation.
                 if (((a * badSourceBound) / BPS) < b) {
                     return BAD_SOURCE;
                 }
 
                 // Notify that the price should be taken with caution because
-                // we are outside the accepted range of divergence.
+                // we are outside the accepted range of deviation.
                 return CAUTION;
             }
 
@@ -1088,13 +1093,13 @@ contract OracleManager is IOracleManager {
         // Check if both feeds are within `cautionBound` of each other.
         if (((b * cautionBound) / BPS) < a) {
             // Notify that the price is dangerous and to treat data as invalid
-            // because we are outside the accepted range of divergence.
+            // because we are outside the accepted range of deviation.
             if (((b * badSourceBound) / BPS) < a) {
                 return BAD_SOURCE;
             }
 
             // Notify that the price should be taken with caution because
-            // we are outside the accepted range of divergence.
+            // we are outside the accepted range of deviation.
             return CAUTION;
         }
 
