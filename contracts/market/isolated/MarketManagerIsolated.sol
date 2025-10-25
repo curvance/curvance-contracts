@@ -154,9 +154,6 @@ contract MarketManagerIsolated is
     /// @notice Whether token transfers are paused.
     /// @dev 1 = unpaused; 2 = paused.
     uint8 public transferPaused = 1;
-    /// @notice Whether token liquidations are paused.
-    /// @dev 1 = unpaused; 2 = paused.
-    uint8 public seizePaused = 1;
     /// @notice Whether token redemptions are paused.
     /// @dev 1 = unpaused; 2 = paused.
     uint8 public redeemPaused = 1;
@@ -615,10 +612,6 @@ contract MarketManagerIsolated is
         address collateralToken,
         address debtToken
     ) external view {
-        if (seizePaused == 2) {
-            revert MarketManager__Paused();
-        }
-
         _checkIsListedToken(collateralToken);
         _checkIsListedToken(debtToken);
 
@@ -977,17 +970,6 @@ contract MarketManagerIsolated is
 
         transferPaused = state ? 2 : 1;
         emit ActionPaused("Transfer Paused", state);
-    }
-
-    /// @notice Admin function to set market-wide seize status.
-    /// @dev Requires timelock authority if unpausing.
-    ///      Emits an {ActionPaused} event.
-    /// @param state Whether the desired action is pausing or unpausing.
-    function setSeizePaused(bool state) external {
-        _checkAuthorizedPermissions(state);
-
-        seizePaused = state ? 2 : 1;
-        emit ActionPaused("Seize Paused", state);
     }
 
     /// @notice Adds an position management address for complex
