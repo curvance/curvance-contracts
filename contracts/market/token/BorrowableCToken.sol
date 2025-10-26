@@ -836,6 +836,9 @@ contract BorrowableCToken is BaseCTokenWithYield {
         if (assetsToVest > 0) {
             // `assetsToVest` is new outstanding debt in assets so we
             // need to divide by `outstandingDebt` so its in % form.
+            // Rounding up here can cause individual user debt to be increased
+            // more heavily than expected when a cToken has extremely low
+            // borrow utilization, this is intentional.
             marketDebtIndex =
                 _mulDivUp(assetsToVest, marketDebtIndex, outstandingDebt)
                     + marketDebtIndex;

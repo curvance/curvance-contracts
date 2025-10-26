@@ -7,6 +7,7 @@ import { WAD } from "contracts/libraries/ConstantsLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuardTransient.sol";
 
 import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
+import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
@@ -64,7 +65,8 @@ abstract contract BaseCToken is
     ERC4626,
     PluginDelegable,
     ReentrancyGuard,
-    Multicall
+    Multicall,
+    ERC165
 {
     /// CONSTANTS ///
 
@@ -649,9 +651,10 @@ abstract contract BaseCToken is
     /// @return result Whether the contract implements the interface.
     function supportsInterface(
         bytes4 interfaceId
-    ) public pure virtual returns (bool result) {
+    ) public view virtual override returns (bool result) {
         result = interfaceId == type(ICToken).interfaceId ||
-            interfaceId == type(ERC4626).interfaceId;
+            interfaceId == type(ERC4626).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 
     /// @notice Returns the total number of assets backing shares.

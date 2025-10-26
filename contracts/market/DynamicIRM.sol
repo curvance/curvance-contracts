@@ -129,9 +129,9 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
 
     /// @notice The interval at which interest rates are adjusted, in seconds.
     /// @dev 10 minutes = 600 seconds.
-    ///      The 10 minute adjustment rate is intentionally set so that every
-    ///      borrower experiences a minimum 2 interest rate adjustments from a
-    ///      standard borrow action (20 minute minimum holding period).
+    ///      The 10 minute adjustment rate is set so that borrowers experience
+    ///      on average 2 interest rate adjustments from a standard borrow
+    ///      action (20 minute minimum holding period).
     uint256 public constant ADJUSTMENT_RATE = 10 minutes;
     
     /// @notice Curvance DAO hub.
