@@ -2,10 +2,12 @@
 pragma solidity 0.8.28;
 
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
+import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
+import { IRedstone } from "contracts/interfaces/external/redstone/IRedstone.sol";
 
 /// @title Curvance Oracle Extractable Value Wrapped Aggregator.
 /// @notice Delays oracle updates in specific values to capture value usually
@@ -28,7 +30,11 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 ///      (e.g. "ChainlinkAdaptor", "RedstoneClassicAdaptor") to price assets
 ///      inside Curvance Markets.
 ///
-contract OEVWrappedAggregator is IChainlink {
+///      NOTE: This should work for nearly all Chainlink aggregators, but,
+///            this only works for specific Redstone implements which
+///            implement historical rounds, which is not always true, offchain
+///            validation must be done before deploying! 
+contract OEVWrappedAggregator is IChainlink, IRedstone {
     /// CONSTANTS ///
 
     /// @notice The maximum value ever allowed for `MAX_ROUND_DELAY` or
@@ -50,8 +56,6 @@ contract OEVWrappedAggregator is IChainlink {
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
-    /// @notice The address of the underlying asset aggregator.
-    IChainlink internal immutable _assetAggregator;
     /// @dev Mask of `MAX_ROUND_DELAY` entry in `_aggregatorConfig`.
     uint256 internal constant _BITMASK_MAX_ROUND_DELAY = (1 << 8) - 1;
     /// @dev Mask of round processing entries
@@ -61,6 +65,12 @@ contract OEVWrappedAggregator is IChainlink {
     uint256 internal constant _BITPOS_MAX_ROUND_DECREMENTS = 8;
     /// @dev The bit position of `ROUND_ID` in `_aggregatorConfig`.
     uint256 internal constant _BITPOS_ROUND_ID = 16;
+
+    /// @notice The address of the underlying asset aggregator.
+    IChainlink internal immutable _assetAggregator;
+    /// @notice The DataFeedId attached to this aggregator, used inside
+    ///         Redstone Classic underlying aggregators.
+    bytes32 internal immutable _dataFeedId;
 
     /// STORAGE ///
 
@@ -105,7 +115,8 @@ contract OEVWrappedAggregator is IChainlink {
         ICentralRegistry cr,
         address aggregator,
         uint256 maxRoundDelay,
-        uint256 maxRoundDecrements
+        uint256 maxRoundDecrements,
+        string memory id
     ) {
         CentralRegistryLib._isCentralRegistry(cr);
 
@@ -120,6 +131,8 @@ contract OEVWrappedAggregator is IChainlink {
 
         centralRegistry = cr;
         _assetAggregator = IChainlink(aggregator);
+        _dataFeedId = Bytes32Helper.toBytes32(id);
+
         // We pass 0 for cached _aggregatorConfig since it should be empty
         // at this point.
         _setConfigValues(0, maxRoundDelay, maxRoundDecrements, roundId);
@@ -148,7 +161,10 @@ contract OEVWrappedAggregator is IChainlink {
 
     /// @notice Returns the number of decimals the aggregator responds with.
     /// @return result The number of decimals the aggregator responds with.
-    function decimals() external view returns (uint8 result) {
+    function decimals() external view override (
+        IChainlink,
+        IRedstone
+    ) returns (uint8 result) {
         result = _assetAggregator.decimals();
     }
 
@@ -167,6 +183,7 @@ contract OEVWrappedAggregator is IChainlink {
     function latestRoundData()
         external
         view
+        override (IChainlink, IRedstone)
         returns (
             uint80 roundId,
             int256 answer,
@@ -241,12 +258,19 @@ contract OEVWrappedAggregator is IChainlink {
             _assetAggregator.getRoundData(_roundId);
     }
 
+    /// @notice Returns the DataFeedId of the Redstone price feed, equal to
+    ///         address(0) for oracles that do not utilize a data feed ID.
+    /// @return result The DataFeedId attached to this aggregator.
+    function getDataFeedId() external view returns (bytes32 result) {
+        result = _dataFeedId;
+    }
+
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
 
     /// @notice Update the price earlier than the standard update interval
     /// @dev Only callable by whitelisted addresses
     function updatePriceEarly() external {
-        _checkMarketPermissions();
+        _checkAuctionPermissions();
 
         // Get latest round data and validate it.
         (uint80 latestRoundId, int256 latestAnswer,, uint256 latestUpdatedAt,) =
@@ -286,7 +310,7 @@ contract OEVWrappedAggregator is IChainlink {
         uint256 maxRoundDelay,
         uint256 maxRoundDecrements
     ) external {
-        _checkMarketPermissions();
+        _checkAuctionPermissions();
         _setConfigValues(_aggregatorConfig, maxRoundDelay, maxRoundDecrements, 0);
     }
 
@@ -358,8 +382,8 @@ contract OEVWrappedAggregator is IChainlink {
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
-    function _checkMarketPermissions() internal view virtual {
-        if (!centralRegistry.hasMarketPermissions(msg.sender)) {
+    function _checkAuctionPermissions() internal view virtual {
+        if (!centralRegistry.hasAuctionPermissions(msg.sender)) {
             revert OEVWrappedAggregator__Unauthorized();
         }
     }

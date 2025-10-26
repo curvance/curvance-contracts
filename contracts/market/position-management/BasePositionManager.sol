@@ -384,7 +384,12 @@ abstract contract BasePositionManager is
         SwapperLib._approveIfNeeded(collateralAsset, address(cToken), amount);
 
         // Enter Curvance collateral position.
-        cToken.depositAsCollateral(amount, owner);
+        uint256 shares = cToken.depositAsCollateral(amount, owner);
+
+        // Make sure sufficient shares were received from deposit action.
+        if (shares < action.expectedShares) {
+            revert BasePositionManager__InvalidSlippage();
+        }
 
         uint256 remaining = IERC20(debtAsset).balanceOf(address(this));
 

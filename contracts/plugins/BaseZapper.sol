@@ -130,7 +130,7 @@ abstract contract BaseZapper is ReentrancyGuard {
             shares = ICToken(cToken).deposit(assets, receiver);
         }
 
-        // Make sure `receiver` got sufficient shares.
+        // Make sure sufficient shares were received from deposit action.
         if (shares < expectedShares) {
             revert BaseZapper__ExecutionError();
         }
@@ -174,7 +174,7 @@ abstract contract BaseZapper is ReentrancyGuard {
             );
         }
 
-        // Validate output of redemption is sufficient.
+        // Make sure sufficient assets were received from redemption action.
         if (assets < expectedAssets) {
             revert BaseZapper__ExecutionError();
         }

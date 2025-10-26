@@ -12,8 +12,9 @@ contract SavingsDaiAggregator is VaultAggregator {
     constructor(
         address sDai,
         address dai,
-        address daiAggregator
-    ) VaultAggregator(sDai, dai, daiAggregator) {}
+        address daiAggregator,
+        string memory id
+    ) VaultAggregator(sDai, dai, daiAggregator, id) {}
 
     /// INTERNAL FUNCTIONS ///
 

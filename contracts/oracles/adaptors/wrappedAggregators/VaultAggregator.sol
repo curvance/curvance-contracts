@@ -40,14 +40,15 @@ contract VaultAggregator is BaseWrappedAggregator {
     /// @notice The expanded decimal precision (10 ** decimals) for
     ///         `asset` asset, in int256 form.
     int256 internal immutable _assetDecimalPrecision;
-    
+
     /// CONSTRUCTOR ///
     
     constructor(
         address _vault,
         address _asset,
-        address _aggregator
-    ) BaseWrappedAggregator(_aggregator) {
+        address _aggregator,
+        string memory id
+    ) BaseWrappedAggregator(_aggregator, id) {
         _checkAssetConfig(_vault, _asset);
 
         vault = _vault;

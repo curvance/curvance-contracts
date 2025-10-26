@@ -56,8 +56,9 @@ contract PendlePTAggregator is BaseWrappedAggregator {
         address _PT,
         address _asset,
         address _aggregator,
-        uint256 _discountOneYearBPS
-    ) BaseWrappedAggregator(_aggregator) {
+        uint256 _discountOneYearBPS,
+        string memory id
+    ) BaseWrappedAggregator(_aggregator, id) {
         // Adjust input from `BPS` to `WAD` since we set protocol values in
         // BPS for consistency.
         _discountOneYearBPS = _discountOneYearBPS * 1e14;

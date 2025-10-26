@@ -11,8 +11,9 @@ contract WstETHAggregator is VaultAggregator {
     constructor(
         address wstETH,
         address stETH,
-        address stETHAggregator
-    ) VaultAggregator(wstETH, stETH, stETHAggregator) {}
+        address stETHAggregator,
+        string memory id
+    ) VaultAggregator(wstETH, stETH, stETHAggregator, id) {}
 
     /// INTERNAL FUNCTIONS ///
 

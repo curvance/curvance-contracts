@@ -16,6 +16,8 @@ interface IPositionManager {
     ///                     in assets.
     /// @param cToken Curvance token assets that borrowed funds will be
     ///               swapped into.
+    /// @param expectedShares The expected shares received from depositing
+    ///                       into `cToken` with swapped `borrowAssets`.
     /// @param swapAction Swap action instructions converting debt asset into
     ///                   collateral asset to facilitate leveraging.
     /// @param auxData Optional auxiliary data for execution of a leverage
@@ -24,6 +26,7 @@ interface IPositionManager {
         IBorrowableCToken borrowableCToken;
         uint256 borrowAssets;
         ICToken cToken;
+        uint256 expectedShares;
         SwapperLib.Swap swapAction;
         bytes auxData;
     }

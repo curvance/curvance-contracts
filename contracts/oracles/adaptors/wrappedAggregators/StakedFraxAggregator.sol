@@ -11,8 +11,9 @@ contract StakedFraxAggregator is VaultAggregator {
     constructor(
         address sFrax,
         address frax,
-        address fraxAggregator
-    ) VaultAggregator(sFrax, frax, fraxAggregator) {}
+        address fraxAggregator,
+        string memory id
+    ) VaultAggregator(sFrax, frax, fraxAggregator, id) {}
 
     /// INTERNAL FUNCTIONS ///
 

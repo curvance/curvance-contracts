@@ -2,8 +2,10 @@
 pragma solidity 0.8.28;
 
 import { WAD } from "contracts/libraries/ConstantsLib.sol";
+import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
+import { IRedstone } from "contracts/interfaces/external/redstone/IRedstone.sol";
 
 /// @title Curvance Base Wrapped Aggregator.
 /// @notice Modifies an oracle aggregator to return the price for a different
@@ -25,11 +27,14 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 ///      corresponding adaptor (e.g. "ChainlinkAdaptor",
 ///      "RedstoneClassicAdaptor") to price assets inside Curvance Markets.
 ///
-abstract contract BaseWrappedAggregator is IChainlink {
+abstract contract BaseWrappedAggregator is IChainlink, IRedstone {
     /// CONSTANTS ///
 
     /// @notice The address of the underlying asset aggregator.
     IChainlink internal immutable _assetAggregator;
+    /// @notice The DataFeedId attached to this aggregator, used inside
+    ///         Redstone Classic underlying aggregators.
+    bytes32 internal immutable _dataFeedId;
 
     /// ERRORS ///
 
@@ -38,7 +43,8 @@ abstract contract BaseWrappedAggregator is IChainlink {
 
     /// @param aggregator The underlying aggregator to wrap additional logic
     ///                   around to price a different asset.
-    constructor(address aggregator) {
+    /// @param id The dataFeedId of the token to add pricing for.
+    constructor(address aggregator, string memory id) {
         (uint256 roundId, int256 answer,,uint256 updatedAt,) =
             IChainlink(aggregator).latestRoundData();
         // This check should basically never fail but its here incase somehow
@@ -49,6 +55,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
         }
 
         _assetAggregator = IChainlink(aggregator);
+        _dataFeedId = Bytes32Helper.toBytes32(id);
     }
 
 
@@ -56,7 +63,10 @@ abstract contract BaseWrappedAggregator is IChainlink {
 
     /// @notice Returns the number of decimals the aggregator responds with.
     /// @return result The number of decimals the aggregator responds with.
-    function decimals() external view returns (uint8 result) {
+    function decimals() external view override (
+        IChainlink,
+        IRedstone
+    ) returns (uint8 result) {
         result = _assetAggregator.decimals();
     }
 
@@ -73,6 +83,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
     function latestRoundData()
         external
         view
+        override (IChainlink, IRedstone)
         returns (
             uint80 roundId,
             int256 answer,
@@ -119,6 +130,13 @@ abstract contract BaseWrappedAggregator is IChainlink {
             _assetAggregator.getRoundData(_roundId);
 
         answer = getAdjustedAnswer(answer);
+    }
+
+    /// @notice Returns the DataFeedId of the Redstone price feed, equal to
+    ///         address(0) for oracles that do not utilize a data feed ID.
+    /// @return result The DataFeedId attached to this aggregator.
+    function getDataFeedId() external view returns (bytes32 result) {
+        result = _dataFeedId;
     }
 
     /// PUBLIC FUNCTIONS TO OVERRIDE ///
