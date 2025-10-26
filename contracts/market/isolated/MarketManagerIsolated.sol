@@ -1442,10 +1442,11 @@ contract MarketManagerIsolated is
             }
         }
 
-        // If the necessary shares of collateral to liquidate `account`'s
-        // overall debt is above their shares posted, theres bad debt
-        // that should be socialized among lenders.
-        uint256 sharesNeeded = _mulDiv(
+        // If the necessary collateral shares to liquidate `account`'s debt is
+        // more than their shares posted, there is bad debt that should be
+        // socialized among lenders, calculate using the same formula we used
+        // for `liquidatedShares`.
+        uint256 sharesNeeded = FixedPointMathLib.mulDivUp(
             aData.debtBalance,
             debtToCollateral,
             WAD_SQUARED

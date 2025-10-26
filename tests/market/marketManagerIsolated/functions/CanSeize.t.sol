@@ -7,12 +7,12 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 contract CanSeizeTest is TestBaseMarketIsolated {
-    function test_canSeize_fail_whenCTokenNotListed() public {
+    function test_canSeize_fail_whenCollateralTokenNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.canSeize(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
     }
 
-    function test_canSeize_fail_whenETokenNotListed() public {
+    function test_canSeize_fail_whenDebtTokenNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManagerIsolated.canSeize(address(pendleStrategyCTokenSTETH), address(borrowableCUSDC));
     }
