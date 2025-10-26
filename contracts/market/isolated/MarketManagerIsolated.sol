@@ -1456,9 +1456,9 @@ contract MarketManagerIsolated is
             // by looking at the ratio of `sharesPosted` vs `sharesNeeded`.
             // E.g. `sharesPosted` = `sharesNeeded` / 2 means 50%
             // of debt should be recognized as bad debt.
-            badDebt = FixedPointMathLib.fullMulDiv(
+            badDebt = FixedPointMathLib.fullMulDivUp(
                 FixedPointMathLib.fullMulDiv(debtAmount, sharesNeeded, sharesPosted),
-                WAD_SQUARED - _mulDiv(WAD_SQUARED, sharesPosted, sharesNeeded),
+                WAD_SQUARED - FixedPointMathLib.fullMulDiv(WAD_SQUARED, sharesPosted, sharesNeeded),
                 WAD_SQUARED
             );
 

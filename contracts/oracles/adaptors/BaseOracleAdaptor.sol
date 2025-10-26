@@ -197,10 +197,11 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ///              USD (true) or a chain's native token (false).
     function disableGuardedPriceConfig(address asset, bool inUSD) external {
         _checkMarketPermissions();
-        delete priceGuards[asset][inUSD];
+        _disableGuardedPriceConfig(asset, inUSD);
     }
 
-    /// @notice Removes a supported asset from the adaptor.
+    /// @notice Removes a supported asset from the adaptor, and any price
+    ///         guard configured.
     /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
@@ -212,6 +213,8 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         // Notify the adaptor to stop supporting the asset.
         delete isSupportedAsset[asset];
         _wipeAssetConfigs(asset);
+        _disableGuardedPriceConfig(asset, true);
+        _disableGuardedPriceConfig(asset, false);
 
         // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
@@ -325,6 +328,15 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 price
     ) internal pure returns (uint256 r) {
         r = FixedPointMathLib.fullMulDiv(price, ((timePassed * ips) + WAD), WAD);
+    }
+
+    /// @notice Disables any PriceGuard active when pricing `asset`
+    ///         denominated either USD or native tokens depending on `inUSD`.
+    /// @param asset The address of the asset to disable any PriceGuard data on.
+    /// @param inUSD Specifies whether the PriceGuard disabled should be in
+    ///              USD (true) or a chain's native token (false).
+    function _disableGuardedPriceConfig(address asset, bool inUSD) internal {
+        delete priceGuards[asset][inUSD];
     }
 
     /// @notice Checks whether `asset` is supported by the adaptor or not.

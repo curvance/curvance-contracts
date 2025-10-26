@@ -9,7 +9,7 @@ import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 /// @notice Facilitates locking a users token transferability or plugin
 ///         approvals as a secondary protective layer against phishing
 ///         attempts.
-/// @dev `ActionRegistry` enables the plugin system, a new
+/// @dev `ActionRegistry` enables the plugin system. A new
 ///      primitive allowing for "delegation" of specific actions to any
 ///      address, providing that address authority on behalf of the user in
 ///      the smart contract. Approvals can also be mass revoked via the
@@ -18,11 +18,12 @@ import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 ///      time. This facilitates better management of approvals inside
 ///      Curvance versus conventional implementations on top of the EVM.
 ///
-///      Second, `ActionRegistry` enables the locking system,
-///      which operates as an optional 2FA setting to reduce the potential of
-///      a successful phishing attempt on a user. A cooldown can be set for
-///      token transfers and plugin delegation that activates after an action
-///      lock is enabled.
+///      Second, `ActionRegistry` enables a locking system. This operates as
+///      an optional "2FA" setting to reduce the potential of a successful
+///      phishing attempt on a user. A cooldown can be set for token transfers
+///      and plugin delegation that activates after an action lock is enabled.
+///      NOTE: This does not apply to second order actions such as Zapping to
+///            external addresses, borrowing to external addresses, etc.
 ///
 ///      Integrators of the transfer lock call can expect roughly a
 ///      3% increase to transfer calls for optimized ERC20 implementations.
