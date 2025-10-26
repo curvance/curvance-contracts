@@ -32,11 +32,12 @@ import { IVotingHub } from "contracts/interfaces/IVotingHub.sol";
 ///        operating team for any action, or the "Emergency Council" made up
 ///        of both Curvance Collective members and external stakeholders.
 ///
-///      All values inside Curvance are entered in basis point form. However,
-///      Fees are recorded internally in `WAD` format, or 1e18. Rather than
-///      `BPS`, or 1e4, for improved precision in calculations.
-///      As a result, you will see multiplier values stored in 1e4 form,
-///      and fees stored in 1e18 form.
+///      All values inside Curvance are entered and stored in
+///      `BPS` (basis points) form. However, fees are often accessed
+///      simultaneously at run time while multipliers are accessed separately
+///      meaning we store multipliers in uint256 storage slots to save
+///      conversion costs and save fees in uint16 storage slots to saved SLOAD
+///      costs. 
 ///
 ///      The Central Registry manages the plugin system, creating a new
 ///      primitive allowing for "delegation" of specific actions to any
@@ -155,10 +156,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Protocol fee on leverage usage, in `BPS`.
     uint16 public protocolLeverageFee;
 
-    /// @notice % fee on accrued interest payments from borrowers inside
-    ///         permissionless Curvance Markets.
-    /// @dev Market Manager => Protocol Accrued interest fee, in `BPS`.
-    mapping(address => uint256) public protocolInterestFee;
+    /// @notice Returns default fee on interest generated from active loans,
+    ///         in `BPS`.
+    /// @dev 2000 = 20%. Can be overridden inside particular token contracts.
+    uint16 public defaultProtocolInterestFee = 2000;
 
     // AUCTION TRANSACTION STORAGE
 
@@ -251,7 +252,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     event GenesisEpochUpdated(uint256 newGenesisEpoch);
     event FeeSet(string indexed fee, uint256 newFee);
     event FeeTokenSet(address newAddress);
-    event InterestFeeSet(address indexed market, uint256 newFee);
+    event DefaultInterestFeeSet(uint256 newFee);
     event MultiplierSet(string indexed multiplier, uint256 newMultiplier);
     event SlippageLimit(uint256 newSlippage);
     event CoreContractUpdated(string indexed coreType, address core);
@@ -608,15 +609,13 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Sets the fee taken by Curvance DAO on interest generated.
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
     ///      can only have a maximum value of 60%.
-    ///      Emits an {InterestFeeSet} event.
+    ///      Emits an {DefaultInterestFeeSet} event.
     ///      NOTE: `protocolInterestFee` is only used for new markets deployed
     ///            after this function is called and will not impact already
     ///            deployed markets or borrowableCTokens.
-    /// @param market The address of the market manager to configure
-    ///               interest fees of.
     /// @param value The new fee to take on interest generated
     ///              by a debt token, in `BPS`.
-    function setProtocolInterestFee(address market, uint256 value) external {
+    function setDefaultProtocolInterestFee(uint256 value) external {
         _checkElevatedPermissions();
 
         // Interest fee cannot be more than 60%.
@@ -624,13 +623,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
             revert CentralRegistry__InvalidParameter();
         }
 
-        // Validate that you're setting the fee for an actual market manager.
-        if (!isMarketManager[market]) {
-            revert CentralRegistry__InvalidParameter();
-        }
-
-        protocolInterestFee[market] = value;
-        emit InterestFeeSet(market, value);
+        defaultProtocolInterestFee = uint16(value);
+        emit DefaultInterestFeeSet(value);
     }
 
     /// @notice Sets the early unlock penalty value for when users unlock
@@ -907,24 +901,12 @@ contract CentralRegistry is ERC165, ActionRegistry {
         }
     }
 
-    /// @notice Adds a new Market Manager and corresponding interest fee
-    ///         configurations.
-    /// @dev Only callable on a 5-day delay or by the Emergency Council,
-    ///      can only have a maximum value of 60% interest fee.
-    ///      Cannot be a supported Market Manager contract prior.
-    ///      Emits a {PermissionsUpdated} and {InterestFeeSet} events.
-    ///      NOTE: `marketInterestFee` is only used for new markets deployed
-    ///            after this function is called and will not impact already
-    ///            deployed markets or borrowableCTokens.
+    /// @notice Adds a new Market Manager.
+    /// @dev Only callable on a 5-day delay or by the Emergency Council.
+    ///      Emits a {PermissionsUpdated} events.
     /// @param newMarket The new Market Manager contract to support for use
     ///                  in Curvance.
-    /// @param marketInterestFee The portion of interest paid by borrowers
-    ///                          that goes to the protocol, for this Market
-    ///                          Manager.
-    function addMarketManager(
-        address newMarket,
-        uint256 marketInterestFee
-    ) external virtual {
+    function addMarketManager(address newMarket) external virtual {
         _checkElevatedPermissions();
 
         // Validate `newMarket` is not currently supported.
@@ -942,18 +924,11 @@ contract CentralRegistry is ERC165, ActionRegistry {
             revert CentralRegistry__InvalidParameter();
         }
 
-        /// Interest fee cannot be more than 60%.
-        if (marketInterestFee > 6000) {
-            revert CentralRegistry__InvalidParameter();
-        }
-
         // We store supported markets semi redundantly for offchain querying.
         _marketManagers.push(newMarket);
-        protocolInterestFee[newMarket] = marketInterestFee;
         isMarketManager[newMarket] = true;
 
         emit PermissionsUpdated("Market Manager", newMarket, true);
-        emit InterestFeeSet(newMarket, marketInterestFee);
     }
 
     /// @notice Removes a current market manager from Curvance.

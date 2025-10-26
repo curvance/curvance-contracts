@@ -42,7 +42,6 @@ contract DeployMarkets is DeployScript {
         string[] memory names,
         ListConfig[][] memory tokens,
         bool[] memory isCorrelatedMarkets,
-        uint256[] memory interestFees,
         address wrappedNative,
         AddPlugins.AvailablePlugins[] memory plugins
     ) external recordEvents {
@@ -55,7 +54,7 @@ contract DeployMarkets is DeployScript {
             ListConfig[] memory tokens = tokens[i];
 
             MarketManagerIsolated market = new MarketManagerIsolated(icr, 10e18, isCorrelatedMarkets[i]);
-            registry.addMarketManager(address(market), interestFees[i]);
+            registry.addMarketManager(address(market));
             emit ContractDeployed(
                 address(market),
                 string.concat(name, ".address")

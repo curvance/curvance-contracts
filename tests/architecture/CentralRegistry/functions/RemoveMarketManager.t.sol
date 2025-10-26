@@ -61,7 +61,7 @@ contract RemoveMarketManagerTest is TestBaseMarketIsolated {
     }
 
     function test_removeMarketManager_success() public {
-        centralRegistry.addMarketManager(newMarket, 5000);
+        centralRegistry.addMarketManager(newMarket);
 
         vm.expectEmit(true, true, true, true);
         emit PermissionsUpdated("Market Manager", newMarket, false);

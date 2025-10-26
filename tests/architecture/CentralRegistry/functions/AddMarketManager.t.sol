@@ -35,29 +35,22 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__Unauthorized.selector
         );
-        centralRegistry.addMarketManager(newMarket, 5000);
+        centralRegistry.addMarketManager(newMarket);
     }
 
     function test_addMarketManager_fail_whenMarketAlreadyAdded() public {
-        centralRegistry.addMarketManager(newMarket, 5000);
+        centralRegistry.addMarketManager(newMarket);
         vm.expectRevert(
             CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
-        centralRegistry.addMarketManager(newMarket, 5000);
+        centralRegistry.addMarketManager(newMarket);
     }
 
     function test_addMarketManager_fail_whenNoSupportForERC165() public {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__InvalidParameter.selector
         );
-        centralRegistry.addMarketManager(user1, 5000);
-    }
-
-    function test_addMarketManager_fail_whenFeeTooHigh() public {
-        vm.expectRevert(
-            CentralRegistry.CentralRegistry__InvalidParameter.selector
-        );
-        centralRegistry.addMarketManager(newMarket, 6001);
+        centralRegistry.addMarketManager(user1);
     }
 
     function test_addMarketManager_success() public {
@@ -68,7 +61,7 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
         vm.expectEmit(true, true, true, true);
         emit PermissionsUpdated("Market Manager", newMarket, true);
 
-        centralRegistry.addMarketManager(newMarket, 5000);
+        centralRegistry.addMarketManager(newMarket);
 
         assertTrue(centralRegistry.isMarketManager(newMarket));
         assertEq(
@@ -87,15 +80,15 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
         MarketManagerIsolated marketManager = 
         new MarketManagerIsolated(ICentralRegistry(address(centralRegistry)), 10e18, false);
         
-        // Add market manager with actual implementation
+        // Add market manager with actual implementation, 20% default interest rate.
         vm.prank(centralRegistry.emergencyCouncil());
-        centralRegistry.addMarketManager(address(marketManager), 1000); // 10% interest fee
+        centralRegistry.addMarketManager(address(marketManager));
         
-        // Verify market is registered correctly
+        // Verify market is registered correctly.
         assertTrue(centralRegistry.isMarketManager(address(marketManager)));
-        assertEq(centralRegistry.protocolInterestFee(address(marketManager)), 1000); // 10% interest fee
+        assertEq(centralRegistry.protocolInterestFee(address(marketManager)), 2000); // 20% interest fee
         
-        // Verify market manager's central registry reference
+        // Verify market manager's central registry reference.
         assertEq(address(marketManager.centralRegistry()), address(centralRegistry));
     }
     

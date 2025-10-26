@@ -97,7 +97,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Assign the portion of interest paid by borrowers that goes to the
         // protocol.
-        _setInterestFee(centralRegistry.protocolInterestFee(mm));
+        _setInterestFee(centralRegistry.defaultProtocolInterestFee());
     }
 
     /// @notice Returns the current vesting yield information.

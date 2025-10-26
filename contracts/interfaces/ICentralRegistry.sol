@@ -111,34 +111,33 @@ interface ICentralRegistry {
     /// @notice Returns domain value.
     function domain() external view returns (uint32);
 
-    /// @notice Returns protocol gas fee on harvest, in `WAD`.
+    /// @notice Returns protocol gas fee on harvest, in `BPS`.
     function protocolCompoundFee() external view returns (uint256);
 
-    /// @notice Returns protocol yield fee on strategy harvest, in `WAD`.
+    /// @notice Returns protocol yield fee on strategy harvest, in `BPS`.
     function protocolYieldFee() external view returns (uint256);
 
     /// @notice Returns protocol yield + gas fee on strategy harvest,
-    ///         in `WAD`.
+    ///         in `BPS`.
     function protocolHarvestFee() external view returns (uint256);
 
-    /// @notice Returns protocol fee on leverage actions, in `WAD`.
+    /// @notice Returns protocol fee on leverage actions, in `BPS`.
     function protocolLeverageFee() external view returns (uint256);
 
-    /// @notice Returns protocol fee on interest generated in `market`.
-    function protocolInterestFee(
-        address market
-    ) external view returns (uint256);
+    /// @notice Returns default fee on interest generated from active loans,
+    ///         in `BPS`.
+    function defaultProtocolInterestFee() external view returns (uint256);
 
-    /// @notice Returns earlyUnlockPenaltyMultiplier value, in `Basis Points`.
+    /// @notice Returns earlyUnlockPenaltyMultiplier value, in `BPS`.
     function earlyUnlockPenaltyMultiplier() external view returns (uint256);
 
-    /// @notice Returns voteBoostMultiplier value, in `Basis Points`.
+    /// @notice Returns voteBoostMultiplier value, in `BPS`.
     function voteBoostMultiplier() external view returns (uint256);
 
-    /// @notice Returns lockBoostMultiplier value, in `Basis Points`.
+    /// @notice Returns lockBoostMultiplier value, in `BPS`.
     function lockBoostMultiplier() external view returns (uint256);
 
-    /// @notice Returns swap slippage limit, in `WAD`.
+    /// @notice Returns swap slippage limit, in `BPS`.
     function slippageLimit() external view returns (uint256);
 
     /// @notice Returns an array of Chain IDs recorded in the Crosschain

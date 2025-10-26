@@ -714,44 +714,45 @@ contract MarketManagerIsolated is
         emit TokenListed(token1);
     }
 
-    /// @notice Sets token liquidity configuration values for `c.cToken` a
-    ///         listed cToken inside this market.
+    /// @notice Sets token liquidity configuration values for
+    ///         `inputConfig.cToken` a listed cToken inside this market.
     /// @dev Emits a {TokenConfigUpdated} event.
     /// @param c A TokenConfig struct containing:
     ///               cToken The Curvance token to update liquidity 
     ///                      configuration values of.
     ///               collRatio The ratio at which $1 of collateral can be
-    ///                         borrowed against, for `c.cToken`, in basis
-    ///                         points.
+    ///                         borrowed against, for `inputConfig.cToken`,
+    ///                         in `BPS`.
     ///               collReqSoft The premium of excess collateral
-    ///                           required to avoid soft liquidation,
-    ///                           in basis points.
+    ///                           required to avoid soft liquidation, in `BPS`.
     ///               collReqHard The premium of excess collateral
-    ///                           required to avoid hard liquidation,
-    ///                           in basis points.
+    ///                           required to avoid hard liquidation, in `BPS`.
     ///               liqIncBase The default liquidation incentive for
-    ///                          `c.cToken`, in basis points.
+    ///                          `inputConfig.cToken`, in `BPS`.
     ///               liqIncHard The hard liquidation incentive for
-    ///                          `c.cToken`, in basis points.
+    ///                          `inputConfig.cToken`, in `BPS`.
     ///               liqIncMin The minimum possible liquidation incentive for
-    ///                         `c.cToken` during an auction, in basis points.
+    ///                         `inputConfig.cToken` during an auction,
+    ///                          in `BPS`.
     ///               liqIncMax The maximum possible liquidation incentive for
-    ///                         `c.cToken` during an auction, in basis points.
+    ///                         `inputConfig.cToken` during an auction,
+    ///                         in `BPS`.
     ///               closeFactorBase Maximum % that a liquidator can repay
-    ///                               when soft liquidating `c.cToken` for an
-    ///                               account.
+    ///                               when soft liquidating
+    ///                               `inputConfig.cToken` for an account.
     ///               closeFactorMin The minimum possible close factor for
-    ///                              `c.cToken` during an auction, in basis
-    ///                              points.
+    ///                              `inputConfig.cToken` during an auction,
+    ///                              in `BPS`.
     ///               closeFactorMax The maximum possible close factor for
-    ///                              `c.cToken` during an auction, in basis
-    ///                              points.
+    ///                              `inputConfig.cToken` during an auction,
+    ///                               in `BPS`.
     ///               collateralCap The maximum amount of shares that can be
-    ///                             collateralized of `c.cToken` inside this
-    ///                             market.
+    ///                             collateralized of `inputConfig.cToken`
+    ///                             inside this market.
     ///               debtCap The maximum amount of assets that can be
-    ///                       borrowed of `c.cToken` inside this market.
-    function updateTokenConfig(TokenConfig memory c) external {
+    ///                       borrowed of `inputConfig.cToken` inside this
+    ///                       market.
+    function updateTokenConfig(TokenConfig memory inputConfig) external {
         _checkIsListedToken(c.cToken);
         _checkMarketPermissions();
 
@@ -761,9 +762,9 @@ contract MarketManagerIsolated is
         // collateral dries up so hard liquidation should be less collateral
         // than soft liquidation.
         if (
-            c.collRatio > MAX_COLL_RATIO ||
-            c.collReqSoft > MAX_COLLATERAL_REQUIREMENT ||
-            c.collReqHard >= c.collReqSoft
+            inputConfig.collRatio > MAX_COLL_RATIO ||
+            inputConfig.collReqSoft > MAX_COLLATERAL_REQUIREMENT ||
+            inputConfig.collReqHard >= inputConfig.collReqSoft
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -781,10 +782,13 @@ contract MarketManagerIsolated is
         // Validate both hard and max liquidation incentives do not exceed
         // the protocol maximum.
         if (
-            c.liqIncBase >= c.liqIncHard || c.liqIncBase > c.liqIncMax ||
-            c.liqIncBase < c.liqIncMin || c.liqIncMin >= c.liqIncMax ||
-            c.liqIncMax > MAX_LIQUIDATION_INCENTIVE || c.liqIncMin == 0 ||
-            c.liqIncHard > MAX_LIQUIDATION_INCENTIVE
+            inputConfig.liqIncBase >= inputConfig.liqIncHard ||
+            inputConfig.liqIncBase > inputConfig.liqIncMax ||
+            inputConfig.liqIncBase < inputConfig.liqIncMin ||
+            inputConfig.liqIncMin >= inputConfig.liqIncMax ||
+            inputConfig.liqIncMax > MAX_LIQUIDATION_INCENTIVE ||
+            inputConfig.liqIncMin == 0 ||
+            inputConfig.liqIncHard > MAX_LIQUIDATION_INCENTIVE
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -794,16 +798,16 @@ contract MarketManagerIsolated is
         // than are available. We do not need to check soft liquidation as the
         // restrictions are thinner than this case.
         if (
-            c.liqIncHard + MIN_EXCESS_COLL_REQUIRED > c.collReqHard ||
-            c.liqIncMax + MIN_EXCESS_COLL_REQUIRED > c.collReqHard
+            inputConfig.liqIncHard + MIN_EXCESS_COLL_REQUIRED > inputConfig.collReqHard ||
+            inputConfig.liqIncMax + MIN_EXCESS_COLL_REQUIRED > inputConfig.collReqHard
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Validate that soft liquidation is within acceptable bounds.
         if (
-            c.closeFactorBase > MAX_BASE_CFACTOR ||
-            c.closeFactorBase < MIN_BASE_CFACTOR
+            inputConfig.closeFactorBase > MAX_BASE_CFACTOR ||
+            inputConfig.closeFactorBase < MIN_BASE_CFACTOR
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -812,10 +816,10 @@ contract MarketManagerIsolated is
         // closeFactorBase should be between min and max, min should be less
         // than max, and max cannot exceed BPS.
         if (
-            c.closeFactorBase > c.closeFactorMax ||
-            c.closeFactorBase < c.closeFactorMin ||
-            c.closeFactorMin >= c.closeFactorMax ||
-            c.closeFactorMax > BPS
+            inputConfig.closeFactorBase > inputConfig.closeFactorMax ||
+            inputConfig.closeFactorBase < inputConfig.closeFactorMin ||
+            inputConfig.closeFactorMin >= inputConfig.closeFactorMax ||
+            inputConfig.closeFactorMax > BPS
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -824,36 +828,39 @@ contract MarketManagerIsolated is
         // than its `collRatio` and has a sufficient buffer against
         // soft liquidation.
         if (
-            c.collRatio > (MIN_LIQUIDATION_BUFFER_REQUIRED * AUCTION_BUFFER /
-                (BPS + c.collReqSoft))
+            inputConfig.collRatio >
+            (MIN_LIQUIDATION_BUFFER_REQUIRED * AUCTION_BUFFER / (BPS + c.collReqSoft))
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Validate that collateral is not trying to be turned on without
         // setting a collateralization ratio.
-        if (c.collRatio == 0 && c.collateralCap > 0) {
+        if (inputConfig.collRatio == 0 && inputConfig.collateralCap > 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Do not let people borrow assets if they are not intended to be.
-        if (c.debtCap > 0) {
-            if (c.debtCap > _MAX_DEBT_CAP || !ICToken(c.cToken).isBorrowable()) {
+        if (inputConfig.debtCap > 0) {
+            if (
+                inputConfig.debtCap > _MAX_DEBT_CAP ||
+                !ICToken(inputConfig.cToken).isBorrowable()
+            ) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
         }
 
-        CurvanceToken storage ct = _tokenConfig[c.cToken];
+        CurvanceToken storage storedConfig = _tokenConfig[c.cToken];
 
         // If this token already has collateralization enabled,
         // we cannot turn collateralization off completely as this
         // would cause downstream effects to the DLE.
-        if (ct.collRatio != 0 && c.collRatio == 0) {
+        if (storedConfig.collRatio != 0 && inputConfig.collRatio == 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         (, uint256 errorCode) = CommonLib._oracleManager(centralRegistry)
-            .getPrice(c.cToken, true, true);
+            .getPrice(inputConfig.cToken, true, true);
 
         // Validate that we get a usable price.
         if (errorCode == BAD_SOURCE) {
@@ -863,39 +870,39 @@ contract MarketManagerIsolated is
         // Set new collateralization ratio.
         // Note that a collateralization ratio of 0 corresponds to
         // no collateralization of `cToken`.
-        ct.collRatio = uint24(c.collRatio);
+        storedConfig.collRatio = uint24(inputConfig.collRatio);
 
         // Store the collateral requirement as a premium above `BPS`,
         // that way we can calculate solvency via division
         // efficiently in _liquidationStatusOf.
-        ct.collReqSoft = uint24(c.collReqSoft + BPS);
-        ct.collReqHard = uint24(c.collReqHard + BPS);
+        storedConfig.collReqSoft = uint24(inputConfig.collReqSoft + BPS);
+        storedConfig.collReqHard = uint24(inputConfig.collReqHard + BPS);
 
         // We use the liquidation incentive values as a premium in
         // `calculateLiquidatedTokens`, so it needs to be 1 + incentive.
-        ct.liqIncBase = uint16(BPS + c.liqIncBase);
-        ct.liqIncMin = uint16(BPS + c.liqIncMin);
-        ct.liqIncMax = uint16(BPS + c.liqIncMax);
+        storedConfig.liqIncBase = uint16(BPS + inputConfig.liqIncBase);
+        storedConfig.liqIncMin = uint16(BPS + inputConfig.liqIncMin);
+        storedConfig.liqIncMax = uint16(BPS + inputConfig.liqIncMax);
 
         // Store the distance between liquidation incentive A & B,
         // so we can quickly scale between [base, 100%] based on lFactor.
-        ct.liqIncCurve = uint16(c.liqIncHard - c.liqIncBase);
+        storedConfig.liqIncCurve = uint16(inputConfig.liqIncHard - inputConfig.liqIncBase);
 
         // Assign the base cFactor.
-        ct.closeFactorBase = uint16(c.closeFactorBase);
+        storedConfig.closeFactorBase = uint16(inputConfig.closeFactorBase);
         // Store the distance between base cFactor and 100%,
         // that way we can quickly scale between [base, 100%] based on lFactor.
-        ct.closeFactorCurve = uint16(BPS - c.closeFactorBase);
+        storedConfig.closeFactorCurve = uint16(BPS - inputConfig.closeFactorBase);
 
         // Assign the min and max effective closeFactor.
-        ct.closeFactorMin = uint16(c.closeFactorMin);
-        ct.closeFactorMax = uint16(c.closeFactorMax);
+        storedConfig.closeFactorMin = uint16(inputConfig.closeFactorMin);
+        storedConfig.closeFactorMax = uint16(inputConfig.closeFactorMax);
 
-        // Assign the collateral posted cap of `c.cToken`.
-        collateralCaps[c.cToken] = c.collateralCap;
+        // Assign the collateral posted cap of `inputConfig.cToken`.
+        collateralCaps[inputConfig.cToken] = inputConfig.collateralCap;
 
-        // Assign the outstanding debt cap of `c.cToken`.
-        debtCaps[c.cToken] = c.debtCap;
+        // Assign the outstanding debt cap of `inputConfig.cToken`.
+        debtCaps[inputConfig.cToken] = inputConfig.debtCap;
 
         emit TokenConfigUpdated(c);
     }
