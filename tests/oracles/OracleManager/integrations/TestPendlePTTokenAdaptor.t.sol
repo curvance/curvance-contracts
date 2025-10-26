@@ -66,11 +66,13 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
             100
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
+        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), 100, 50);
 
         PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
         assetConfig.market = IPMarket(_LP_STETH);
@@ -80,7 +82,7 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
         adapter.addAsset(_PT_STETH, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(adapter));
-        oracleManager.addAssetPriceFeed(_PT_STETH, address(adapter));
+        oracleManager.addAssetPricingAdaptor(_PT_STETH, address(adapter), 100, 50);
 
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _PT_STETH,
@@ -179,11 +181,13 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleManager {
             100
         );
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
+        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), 100, 50);
 
         PendlePrincipalTokenAdaptor.AssetConfig memory assetConfig;
         assetConfig.market = IPMarket(_LP_STETH);

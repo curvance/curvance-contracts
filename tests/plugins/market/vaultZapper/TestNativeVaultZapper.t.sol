@@ -69,7 +69,7 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
             0,
             100
         );
-        oracleManager.addAssetPriceFeed(SHMON_ADDRESS, address(chainlinkAdaptor));
+        oracleManager.addAssetPricingAdaptor(SHMON_ADDRESS, address(chainlinkAdaptor), 100, 50);
         oracleManager.addCTokenSupport(address(simpleCSHMON));
 
         chainlinkAdaptor.addAsset(
@@ -79,7 +79,7 @@ contract TestNativeVaultZapperWith is TestBaseMarketIsolated {
             0,
             100
         );
-        oracleManager.addAssetPriceFeed(_USDC_ADDRESS, address(chainlinkAdaptor));
+        oracleManager.addAssetPricingAdaptor(_USDC_ADDRESS, address(chainlinkAdaptor), 100, 50);
         oracleManager.addCTokenSupport(address(borrowableCUSDC));
 
         deal(SHMON_ADDRESS, address(this), 77777 ether);

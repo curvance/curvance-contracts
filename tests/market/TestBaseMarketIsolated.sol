@@ -635,7 +635,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         pendleAdaptor.addAsset(address(LP_wstETH_24Dec2025), assetConfig);
         oracleManager.addApprovedAdaptor(address(pendleAdaptor));
-        oracleManager.addAssetPriceFeed(address(LP_wstETH_24Dec2025), address(pendleAdaptor));
+        oracleManager.addAssetPricingAdaptor(address(LP_wstETH_24Dec2025), address(pendleAdaptor), 100, 50);
 
         return pendleAdaptor;
     }
@@ -1371,7 +1371,7 @@ contract TestBaseMarketIsolated is TestBase {
         address _PENDLE = 0x808507121B80c02388fAd14726482e061B8da827;
         MockV3Aggregator chainlinkPendleUsd = new MockV3Aggregator(18, 4.8e18);
         chainlinkAdaptor.addAsset(_PENDLE, true, address(chainlinkPendleUsd), 0, 100);
-        oracleManager.addAssetPriceFeed(_PENDLE, address(chainlinkAdaptor));
+        oracleManager.addAssetPricingAdaptor(_PENDLE, address(chainlinkAdaptor), 100, 50);
 
         address _UNISWAP_V3_SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
         centralRegistry.setExternalCalldataChecker(

@@ -87,8 +87,8 @@ contract TestPendlePtAggregator is TestBaseOracleManager {
         );
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(_ETH_ADDRESS, address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(PT_weETH_25JUN2026, address(chainlinkAdaptor));
+        oracleManager.addAssetPricingAdaptor(_ETH_ADDRESS, address(chainlinkAdaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(PT_weETH_25JUN2026, address(chainlinkAdaptor), 100, 50);
 
         (uint256 ptWeETH_USD_Price, uint256 errorCode) = oracleManager.getPrice(
             PT_weETH_25JUN2026,

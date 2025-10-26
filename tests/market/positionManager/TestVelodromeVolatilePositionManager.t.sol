@@ -70,9 +70,11 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             0,
             100
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
         chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
@@ -82,9 +84,11 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             0,
             100
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
 
         chainlinkEthUsd = new MockV3Aggregator(8, 2700e8);
@@ -102,13 +106,17 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
             0,
             100
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
 
         adaptor = new VelodromeVolatileLPAdaptor(
@@ -116,9 +124,11 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
         );
         adaptor.addAsset(_VELODROME_WETH_USDC);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _VELODROME_WETH_USDC,
-            address(adaptor)
+            address(adaptor),
+            100,
+            50
         );
 
         owner = address(this);

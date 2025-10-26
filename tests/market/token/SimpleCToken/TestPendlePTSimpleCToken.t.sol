@@ -52,7 +52,7 @@ contract TestPendlePTSimpleCToken is TestBaseMarketIsolated {
         adapter.addAsset(_PT_STETH, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(adapter));
-        oracleManager.addAssetPriceFeed(_PT_STETH, address(adapter));
+        oracleManager.addAssetPricingAdaptor(_PT_STETH, address(adapter), 100, 50);
 
         // start epoch
         vm.warp(gaugeManager.gaugeStartTime());

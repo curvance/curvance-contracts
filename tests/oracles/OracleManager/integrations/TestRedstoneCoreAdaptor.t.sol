@@ -118,7 +118,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         );
         assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
 
-        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50);
 
         // Verify price was updated correctly
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
@@ -205,7 +205,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         );
         assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
         
-        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50);
 
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _WBTC_ADDRESS,

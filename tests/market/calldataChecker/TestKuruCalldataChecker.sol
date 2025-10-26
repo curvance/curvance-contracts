@@ -84,13 +84,17 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
             100
         );
         
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             WMON_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
 
         oracleManager.addCTokenSupport(address(borrowableCUSDC_MONAD));

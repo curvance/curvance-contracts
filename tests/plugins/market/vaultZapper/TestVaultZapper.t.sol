@@ -432,7 +432,7 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
             0,
             100
         );
-        oracleManager.addAssetPriceFeed(_SFRAX_ADDRESS, address(chainlinkAdaptor));
+        oracleManager.addAssetPricingAdaptor(_SFRAX_ADDRESS, address(chainlinkAdaptor), 100, 50);
         oracleManager.addCTokenSupport(address(simpleCSFRAX));
 
         deal(_SFRAX_ADDRESS, address(this), 77777);

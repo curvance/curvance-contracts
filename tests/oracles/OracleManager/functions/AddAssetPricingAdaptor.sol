@@ -9,9 +9,11 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         vm.prank(address(1));
 
         vm.expectRevert(OracleManager.OracleManager__Unauthorized.selector);
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
     }
 
@@ -19,9 +21,11 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         vm.expectRevert(
             OracleManager.OracleManager__AdaptorIsNotApproved.selector
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
     }
 
@@ -33,9 +37,11 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(dualChainlinkAdaptor)
+            address(dualChainlinkAdaptor),
+            100,
+            50
         );
     }
 
@@ -45,9 +51,11 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
     }
 
@@ -59,9 +67,11 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
     }
 

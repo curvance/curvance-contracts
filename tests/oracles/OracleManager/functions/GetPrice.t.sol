@@ -116,8 +116,8 @@ contract GetPriceTest is TestBaseOracleManager {
         Oracle feed = new Oracle();
 
         oracleManager.addApprovedAdaptor(address(feed));
-        oracleManager.addAssetPriceFeed(_ETH_ADDRESS, address(feed));
-        oracleManager.addAssetPriceFeed(_FXS_TOKEN, address(feed));
+        oracleManager.addAssetPricingAdaptor(_ETH_ADDRESS, address(feed), 100, 50);
+        oracleManager.addAssetPricingAdaptor(_FXS_TOKEN, address(feed), 100, 50);
 
         (uint256 lower, ) = oracleManager.getPrice({
             asset: _FXS_TOKEN,

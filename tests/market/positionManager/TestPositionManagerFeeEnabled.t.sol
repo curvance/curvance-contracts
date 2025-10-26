@@ -94,9 +94,11 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             0,
             100
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
         chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8);
         chainlinkAdaptor.addAsset(
@@ -106,9 +108,11 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             0,
             100
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
 
         adaptor = new VelodromeStableLPAdaptor(
@@ -116,7 +120,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
         );
         adaptor.addAsset(_VELODROME_DAI_USDC);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_VELODROME_DAI_USDC, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_VELODROME_DAI_USDC, address(adaptor), 100, 50);
 
         owner = address(this);
         user = user1;

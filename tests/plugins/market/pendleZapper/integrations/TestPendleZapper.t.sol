@@ -60,7 +60,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         assetConfig.quoteAssetDecimals = 18;
         adaptor.addAsset(_LP_STETH, assetConfig);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_LP_STETH, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_LP_STETH, address(adaptor), 100, 50);
 
         pendleCTokenSTETH = new PendleLPCToken(
             ICentralRegistry(address(centralRegistry)),

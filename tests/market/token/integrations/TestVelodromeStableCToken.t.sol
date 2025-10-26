@@ -75,9 +75,11 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
             0,
             100
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _VELO_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
 
         chainlinkUSDC = new MockV3Aggregator(8, 1e8);
@@ -88,9 +90,11 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
             0,
             100
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
 
         centralRegistry.setSlippageLimit(6000);

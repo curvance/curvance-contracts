@@ -101,9 +101,11 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
 
     function _addSinglePriceFeed() internal initMainVariables {
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
     }
 
@@ -111,9 +113,11 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
         _addSinglePriceFeed();
 
         oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(dualChainlinkAdaptor)
+            address(dualChainlinkAdaptor),
+            100,
+            50
         );
     }
 }

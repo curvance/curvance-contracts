@@ -66,8 +66,8 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             0,
             100
         );
-        oracleManager.addAssetPriceFeed(_PENDLE, address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
+        oracleManager.addAssetPricingAdaptor(_PENDLE, address(chainlinkAdaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), 100, 50);
 
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
@@ -91,7 +91,7 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
         assetConfig.quoteAssetDecimals = 18;
         adaptor.addAsset(_LP_STETH, assetConfig);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_LP_STETH, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_LP_STETH, address(adaptor), 100, 50);
 
         owner = address(this);
         user = user1;

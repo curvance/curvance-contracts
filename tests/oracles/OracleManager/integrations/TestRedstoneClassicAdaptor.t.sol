@@ -121,9 +121,11 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
         }
 
         // Should successfully add to oracle manager
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             ETHX_ADDRESS,
-            address(redstoneClassicAdaptor)
+            address(redstoneClassicAdaptor),
+            100,
+            50
         );
     }
 

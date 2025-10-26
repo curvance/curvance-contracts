@@ -40,7 +40,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
 
     function testBorrowWithConvexLPCollateral() public {
         // remove STETH pricefeed made in base market setup
-        oracleManager.removeAssetPriceFeed(_STETH_ADDRESS, address(chainlinkAdaptor));
+        oracleManager.removeAssetPricingAdaptor(_STETH_ADDRESS, address(chainlinkAdaptor));
 
         chainlinkStethUsd = new MockV3Aggregator(8, 1500e8);
         chainlinkAdaptor.addAsset(
@@ -51,9 +51,11 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             100
         );
 
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             address(CONVEX_STETH_ETH_POOL),
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
 
         _refreshMockFeeds();

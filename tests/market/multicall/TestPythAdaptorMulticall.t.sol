@@ -87,16 +87,16 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         pythAdaptor.updateFeedsWithNative{ value: 1 ether }(priceUpdateData);
         
         // remove WBTC pricefeeds made in base market setup
-        oracleManager.removeAssetPriceFeed(
+        oracleManager.removeAssetPricingAdaptor(
             _WBTC_ADDRESS,
             address(chainlinkAdaptor)
         );
-        oracleManager.removeAssetPriceFeed(
+        oracleManager.removeAssetPricingAdaptor(
             _WBTC_ADDRESS,
             address(dualChainlinkAdaptor)
         );
         // Add the Pyth pythAdaptor as the price feed for WBTC.
-        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(pythAdaptor));
+        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(pythAdaptor), 100, 50);
 
         // start epoch
         vm.warp(gaugeManager.gaugeStartTime());

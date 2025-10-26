@@ -42,7 +42,7 @@ contract TestApi3Adaptor is TestBaseOracleManager {
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_ARB_ADDRESS, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_ARB_ADDRESS, address(adaptor), 100, 50);
     }
 
     function testReturnsCorrectPrice() public view {

@@ -11,7 +11,7 @@ contract RemoveAssetPriceFeedTest is TestBaseOracleManager {
         vm.prank(address(1));
 
         vm.expectRevert(OracleManager.OracleManager__Unauthorized.selector);
-        oracleManager.removeAssetPriceFeed(
+        oracleManager.removeAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor)
         );
@@ -19,7 +19,7 @@ contract RemoveAssetPriceFeedTest is TestBaseOracleManager {
 
     function test_removeAssetPriceFeed_fail_whenNoFeedsAvailable() public {
         vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
-        oracleManager.removeAssetPriceFeed(
+        oracleManager.removeAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor)
         );
@@ -31,14 +31,14 @@ contract RemoveAssetPriceFeedTest is TestBaseOracleManager {
         _addSinglePriceFeed();
 
         vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
-        oracleManager.removeAssetPriceFeed(_USDC_ADDRESS, address(1));
+        oracleManager.removeAssetPricingAdaptor(_USDC_ADDRESS, address(1));
     }
 
     function test_removeAssetPriceFeed_fail_whenDualFeedDoesNotExist() public {
         _addDualPriceFeed();
 
         vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
-        oracleManager.removeAssetPriceFeed(_USDC_ADDRESS, address(1));
+        oracleManager.removeAssetPricingAdaptor(_USDC_ADDRESS, address(1));
     }
 
     function test_removeAssetPriceFeed_success_whenRemoveSingleFeed() public {
@@ -48,7 +48,7 @@ contract RemoveAssetPriceFeedTest is TestBaseOracleManager {
         assertEq(adaptorsBefore.length, 1);
         assertEq(adaptorsBefore[0], address(chainlinkAdaptor));
 
-        oracleManager.removeAssetPriceFeed(
+        oracleManager.removeAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor)
         );
@@ -67,7 +67,7 @@ contract RemoveAssetPriceFeedTest is TestBaseOracleManager {
         assertEq(adaptorsBefore[0], address(chainlinkAdaptor));
         assertEq(adaptorsBefore[1], address(dualChainlinkAdaptor));
 
-        oracleManager.removeAssetPriceFeed(
+        oracleManager.removeAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor)
         );

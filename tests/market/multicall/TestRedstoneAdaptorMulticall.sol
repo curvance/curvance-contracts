@@ -100,16 +100,16 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         assertTrue(success);
 
        // Remove WBTC pricefeeds made in base market setup.
-        oracleManager.removeAssetPriceFeed(
+        oracleManager.removeAssetPricingAdaptor(
             _WBTC_ADDRESS,
             address(chainlinkAdaptor)
         );
-        oracleManager.removeAssetPriceFeed(
+        oracleManager.removeAssetPricingAdaptor(
             _WBTC_ADDRESS,
             address(dualChainlinkAdaptor)
         );
 
-        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(redstoneAdaptor));
+        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(redstoneAdaptor), 100, 50);
 
         // Start gauge system epoch.
         vm.warp(gaugeManager.gaugeStartTime());

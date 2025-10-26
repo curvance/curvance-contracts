@@ -65,21 +65,27 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         adaptor.addAsset(_WBTC_ADDRESS, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
 
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
+        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50);
     }
 
     function testRevertWhenUnderlyingChainAssetPriceNotSet() public {

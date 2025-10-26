@@ -70,13 +70,17 @@ contract TokensPeggedToSamePriceFeed is TestBaseMarketIsolated {
             100
         );
 
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDT_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _SUSDE_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
 
         oracleManager.addCTokenSupport(address(simpleSUSDE));

@@ -80,9 +80,11 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             0,
             100
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _AERO_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
 
         chainlinkWETH = new MockV3Aggregator(8, 2700e8);
@@ -93,9 +95,11 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             0,
             100
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
 
         chainlinkUSDC = new MockV3Aggregator(8, 1e8);
@@ -106,9 +110,11 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             0,
             100
         );
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
-            address(chainlinkAdaptor)
+            address(chainlinkAdaptor),
+            100,
+            50
         );
 
         adaptor = new VelodromeVolatileLPAdaptor(
@@ -116,9 +122,11 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
         );
         adaptor.addAsset(_AERODROME_WETH_USDC);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPriceFeed(
+        oracleManager.addAssetPricingAdaptor(
             _AERODROME_WETH_USDC,
-            address(adaptor)
+            address(adaptor),
+            100,
+            50
         );
 
         centralRegistry.setSlippageLimit(6000);
