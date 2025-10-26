@@ -1255,12 +1255,20 @@ contract MarketManagerIsolated is
             // If collateral is being directly removed by user intention,
             // or liquidation we can skip balance checks.
             if (forceRedeemCollateral) {
+                // Explicitly revert here if trying to redeem too much
+                // collateral rather than panic revert.
+                if (collateralRedeemed > collateralPosted) {
+                    revert MarketManager__InsufficientCollateral();
+                }
+
                 collateralRedeemed = shares;
             } else {
-                // If they want to redeem more `cToken` shares than they have
-                // idle, calculate how much collateral will be redeemed from
-                // the delta. Otherwise `collateralRedeemed` default value of 0
-                // is correct.
+                // We know that shares <= balance because of
+                // `_checkRedemption` check inside cToken contracts prior so
+                // no need for overflow check here. If they want to redeem
+                // more `cToken` shares than they have idle, calculate how
+                // much posted collateral will be redeemed from the delta.
+                // Otherwise `collateralRedeemed` = 0 is correct. 
                 if (collateralPosted + shares >= balance) {
                     collateralRedeemed = collateralPosted + shares - balance;
                 }

@@ -821,7 +821,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // This means that that shares minted will result in an exchange
             // rate matching the amount of vested assets lenders should
             // benefit from.
-            uint256 protocolFeeShares = FixedPointMathLib.fullMulDiv(
+            uint256 protocolFeeShares = FixedPointMathLib.fullMulDivUp(
                 protocolFee,
                 totalSupply(),
                 cachedTa + assetsToVest - protocolFee
