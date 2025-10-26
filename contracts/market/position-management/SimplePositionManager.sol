@@ -48,12 +48,12 @@ contract SimplePositionManager is BasePositionManager {
     ///         cToken that a user is currently putting up as collateral
     ///         against the borrowableCToken debt position, creating a
     ///         leveraged spot position.
-    /// @dev Same-asset leverage (debt == collateral):
-    ///      - No swap data is required, but`swapAction.call` and `swapAction.target` must be empty.
-    ///      - Protocol fee is taken before this function: `action.borrowAssets` is post-fee.
-    ///      - Users may optionally set `swapAction.inputAmount` to assert fee-consistency; if set,
-    ///        it must equal `action.borrowAssets` (post-fee). If omitted, the tx will not revert
-    ///        solely due to an unexpected fee change on this path.
+    /// @dev Integrating with fees:
+    ///      Protocol fee is taken before this function: `action.borrowAssets`
+    ///      is post-fee. Users may optionally set `swapAction.inputAmount` to
+    ///      assert fee-consistency; if set, it must equal
+    ///      `action.borrowAssets` (post-fee). If omitted, the tx will not
+    ///      revert solely due to an unexpected fee change on this path.
     /// @param action Instructions for a leverage action containing:
     ///               borrowableCToken Address of the borrowableCToken that
     ///                                will be borrowed from and assets
@@ -75,18 +75,11 @@ contract SimplePositionManager is BasePositionManager {
         address debtAsset = action.borrowableCToken.asset();
         address collateralAsset = action.cToken.asset();
 
+        // This check implies theyve selected the same cToken as both cToken
+        // and borrowableCToken, otherwise its not possible to have the same
+        // underlying.
         if (debtAsset == collateralAsset) {
-            // No swap should be provided if assets match to avoid arbitrary calls.
-            if (swapAction.call.length != 0 || 
-                swapAction.target != address(0)
-                ) {
-                revert BasePositionManager__InvalidParam();
-            }
-            // Optional assertion: if provided, inputAmount must match post-fee amount.
-            if (swapAction.inputAmount != action.borrowAssets) {
-                revert BasePositionManager__InvalidParam();
-            }
-            return;
+            revert BasePositionManager__InvalidParam();
         }
 
         if (

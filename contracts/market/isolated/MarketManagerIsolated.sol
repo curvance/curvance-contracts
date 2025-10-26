@@ -679,6 +679,11 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        // The same underlying asset cannot be listed twice in a market.
+        if (ICToken(token0).asset() == ICToken(token1).asset()) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
         // Validate that tokens are not already listed inside this market.
         if (tokensListed.length != 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
@@ -717,7 +722,7 @@ contract MarketManagerIsolated is
     /// @notice Sets token liquidity configuration values for
     ///         `inputConfig.cToken` a listed cToken inside this market.
     /// @dev Emits a {TokenConfigUpdated} event.
-    /// @param c A TokenConfig struct containing:
+    /// @param inputConfig A TokenConfig struct containing:
     ///               cToken The Curvance token to update liquidity 
     ///                      configuration values of.
     ///               collRatio The ratio at which $1 of collateral can be
@@ -753,7 +758,7 @@ contract MarketManagerIsolated is
     ///                       borrowed of `inputConfig.cToken` inside this
     ///                       market.
     function updateTokenConfig(TokenConfig memory inputConfig) external {
-        _checkIsListedToken(c.cToken);
+        _checkIsListedToken(inputConfig.cToken);
         _checkMarketPermissions();
 
         // Validate collateralization ratio is not above the maximum allowed,
@@ -829,7 +834,7 @@ contract MarketManagerIsolated is
         // soft liquidation.
         if (
             inputConfig.collRatio >
-            (MIN_LIQUIDATION_BUFFER_REQUIRED * AUCTION_BUFFER / (BPS + c.collReqSoft))
+            (MIN_LIQUIDATION_BUFFER_REQUIRED * AUCTION_BUFFER / (BPS + inputConfig.collReqSoft))
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -850,7 +855,7 @@ contract MarketManagerIsolated is
             }
         }
 
-        CurvanceToken storage storedConfig = _tokenConfig[c.cToken];
+        CurvanceToken storage storedConfig = _tokenConfig[inputConfig.cToken];
 
         // If this token already has collateralization enabled,
         // we cannot turn collateralization off completely as this
@@ -904,7 +909,7 @@ contract MarketManagerIsolated is
         // Assign the outstanding debt cap of `inputConfig.cToken`.
         debtCaps[inputConfig.cToken] = inputConfig.debtCap;
 
-        emit TokenConfigUpdated(c);
+        emit TokenConfigUpdated(inputConfig);
     }
 
     /// @notice Admin function to set market-wide liquidation status.
