@@ -117,11 +117,11 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         uint64 baseRatePerSecond;
         uint64 vertexRatePerSecond;
         uint64 vertexStart;
-        uint16 increaseThresholdStart;
-        uint16 decreaseThresholdEnd;
+        uint24 increaseThresholdStart;
+        uint24 decreaseThresholdEnd;
         uint16 adjustmentVelocity;
         uint16 decayPerAdjustment;
-        uint96 vertexMultiplierMax;
+        uint80 vertexMultiplierMax;
         address linkedToken;
     }
 
@@ -660,7 +660,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         config.vertexStart = uint64(vertexStart);
         config.adjustmentVelocity = uint16(adjustmentVelocity);
         config.decayPerAdjustment = uint16(decayPerAdjustment);
-        config.vertexMultiplierMax = uint96(vertexMultiplierMax);
+        config.vertexMultiplierMax = uint80(vertexMultiplierMax);
         if (vertexReset) {
             vertexMultiplier = WAD;
         } else {
@@ -681,7 +681,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // storage slot and `vertexStart` is set in `BPS` so we shouldnt lose
         // precision.
         config.increaseThresholdStart =
-            uint16((vertexStart + thresholdLength) / 1e14);
+            uint24((vertexStart + thresholdLength) / 1e14);
 
         // Dynamic rates start decreasing as soon as we are below desired
         // utilization (vertexStart) and maximizes an equal utilization down
@@ -689,7 +689,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // to save a storage slot and `vertexStart` is set in `BPS` so we
         // shouldnt lose precision.
         config.decreaseThresholdEnd =
-            uint16((vertexStart - thresholdLength) / 1e14);
+            uint24((vertexStart - thresholdLength) / 1e14);
 
         emit NewIRM(config);
     }

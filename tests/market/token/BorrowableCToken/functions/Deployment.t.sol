@@ -64,9 +64,7 @@ contract BorrowableCTokenDeploymentTest is TestBaseBorrowableCToken {
 
     function test_borrowableCTokenDeployment_success() public {
         vm.expectEmit(true, true, true, true);
-        uint256 newInterestFee = centralRegistry.protocolInterestFee(
-            address(marketManagerIsolated)
-        );
+        uint256 newInterestFee = centralRegistry.defaultProtocolInterestFee();
         emit NewInterestFee(0, newInterestFee);
 
         borrowableCUSDC = new BorrowableCToken(
@@ -86,9 +84,7 @@ contract BorrowableCTokenDeploymentTest is TestBaseBorrowableCToken {
     }
 
     function test_deploy_fail_whenCallingAccrueAfterDeployment() public {
-        uint256 newInterestFee = centralRegistry.protocolInterestFee(
-            address(marketManagerIsolated)
-        );
+        uint256 newInterestFee = centralRegistry.defaultProtocolInterestFee();
 
         borrowableCUSDC = new BorrowableCToken(
             ICentralRegistry(address(centralRegistry)),
