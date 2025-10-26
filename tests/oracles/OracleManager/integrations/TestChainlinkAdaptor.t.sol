@@ -43,7 +43,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0
+            0,
+            100
         );
 
         // Assert asset is now supported
@@ -70,7 +71,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             false,
             address(snxEthPriceFeed),
-            0
+            0,
+            100
         );
 
         // Test native configuration
@@ -122,7 +124,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0
+            0,
+            100
         );
 
         vm.stopPrank();
@@ -172,7 +175,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            3600 // custom heartbeat
+            3600, // custom heartbeat
+            100
         );
         
         (
@@ -199,7 +203,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            7200
+            7200,
+            100
         );
 
         // Verify updated heartbeat
@@ -219,7 +224,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            invalidHeartbeat
+            invalidHeartbeat,
+            100
         );
     }
 
@@ -238,7 +244,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0
+            0,
+            100
         );
         
         // Get USD price
@@ -260,7 +267,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             false,
             address(snxEthPriceFeed),
-            0
+            0,
+            100
         );
         
         IOracleAdaptor.PricingResult memory result =
@@ -280,7 +288,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             false,
             address(snxEthPriceFeed),
-            0
+            0,
+            100
         );
         
         // fallback to native
@@ -301,7 +310,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0
+            0,
+            100
         );
         
         // should fallback to USD
@@ -325,13 +335,15 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0
+            0,
+            100
         );
         chainlinkAdaptor.addAsset(
             SNX_ADDRESS,
             false,
             address(snxEthPriceFeed),
-            0
+            0,
+            100
         );
         
         // Will use USD feed
@@ -357,7 +369,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0
+            0,
+            100
         );
 
         // Test negative price
@@ -375,7 +388,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0
+            0,
+            100
         );
 
         // Test stale price
@@ -398,7 +412,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0
+            0,
+            100
         );
 
         // Test zero price

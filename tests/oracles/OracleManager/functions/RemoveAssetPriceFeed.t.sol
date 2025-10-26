@@ -44,43 +44,39 @@ contract RemoveAssetPriceFeedTest is TestBaseOracleManager {
     function test_removeAssetPriceFeed_success_whenRemoveSingleFeed() public {
         _addSinglePriceFeed();
 
-        assertEq(
-            oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0),
-            address(chainlinkAdaptor)
-        );
+        address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        assertEq(adaptorsBefore.length, 1);
+        assertEq(adaptorsBefore[0], address(chainlinkAdaptor));
 
         oracleManager.removeAssetPriceFeed(
             _USDC_ADDRESS,
             address(chainlinkAdaptor)
         );
 
+        address[] memory adaptorsAfter = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        assertEq(adaptorsAfter.length, 0);
         vm.expectRevert();
-        oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0);
+        address shouldRevert0 = adaptorsAfter[0];
     }
 
     function test_removeAssetPriceFeed_success_whenRemoveDualFeed() public {
         _addDualPriceFeed();
 
-        assertEq(
-            oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0),
-            address(chainlinkAdaptor)
-        );
-        assertEq(
-            oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1),
-            address(dualChainlinkAdaptor)
-        );
+        address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        assertEq(adaptorsBefore.length, 2);
+        assertEq(adaptorsBefore[0], address(chainlinkAdaptor));
+        assertEq(adaptorsBefore[1], address(dualChainlinkAdaptor));
 
         oracleManager.removeAssetPriceFeed(
             _USDC_ADDRESS,
             address(chainlinkAdaptor)
         );
 
-        assertEq(
-            oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0),
-            address(dualChainlinkAdaptor)
-        );
+        address[] memory adaptorsAfter = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        assertEq(adaptorsAfter.length, 1);
+        assertEq(adaptorsAfter[0], address(dualChainlinkAdaptor));
 
         vm.expectRevert();
-        oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1);
+        address shouldRevert1 = adaptorsAfter[1];
     }
 }

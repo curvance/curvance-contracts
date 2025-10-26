@@ -73,13 +73,15 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
             USDC_ADDRESS,
             true,
             address(chainlinkUSDC_WMON),
-            0
+            0,
+            100
         );
         chainlinkAdaptor.addAsset(
             WMON_ADDRESS,
             true,
             address(chainlinkWMON),
-            0
+            0,
+            100
         );
         
         oracleManager.addAssetPriceFeed(

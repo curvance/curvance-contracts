@@ -117,8 +117,8 @@ contract TestPriceGuard is TestBaseMarketIsolated {
         IOracleAdaptor.PriceGuard memory pg;
         pg.timestampStart = uint40(timestampStart1);
         pg.ips = 0;
-        pg.basePrice = uint96(3600e18);
-        pg.minPrice = uint80(3400e18);
+        pg.basePrice = uint88(3600e18);
+        pg.minPrice = uint88(3400e18);
 
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
         emit BaseOracleAdaptor.PriceGuardUpdated(pg);
@@ -150,8 +150,8 @@ contract TestPriceGuard is TestBaseMarketIsolated {
         IOracleAdaptor.PriceGuard memory pg;
         pg.timestampStart = uint40(timestampStart);
         pg.ips = 0;
-        pg.basePrice = uint96(3600e18);
-        pg.minPrice = uint80(3400e18);
+        pg.basePrice = uint88(3600e18);
+        pg.minPrice = uint88(3400e18);
 
         // Static constraints [3400, 3600]
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
@@ -195,7 +195,7 @@ contract TestPriceGuard is TestBaseMarketIsolated {
         IOracleAdaptor.PriceGuard memory pg;
         pg.timestampStart = uint40(timestampStart);
         pg.ips = uint40(increasePerSecond);
-        pg.basePrice = uint96(basePrice);
+        pg.basePrice = uint88(basePrice);
         pg.minPrice = uint80(minPrice);
 
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));
@@ -271,7 +271,7 @@ contract TestPriceGuard is TestBaseMarketIsolated {
         IOracleAdaptor.PriceGuard memory pg;
         pg.timestampStart = uint40(timestampStart);
         pg.ips = 0;
-        pg.basePrice = uint96(basePrice);
+        pg.basePrice = uint88(basePrice);
         pg.minPrice = uint80(minPrice);
 
         vm.expectEmit(true, true, true, true, address(chainlinkAdaptor));

@@ -28,15 +28,18 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
 
         oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
 
-        address feed0Before = oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0);
+        address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        address feed0Before = adaptorsBefore[0];
 
         vm.prank(address(dualChainlinkAdaptor));
         oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
 
         // does not change
-        assertEq(oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0), feed0Before);
+        address[] memory adaptorsAfter = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        assertEq(adaptorsAfter.length, 1);
+        assertEq(adaptorsAfter[0], feed0Before);
         vm.expectRevert();
-        oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1);
+        address shouldRevert1 = adaptorsAfter[1];
     }
 
     function test_notifyFeedRemoval_noop_whenDualFeedDoesNotExist() public {
@@ -44,54 +47,53 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
 
         oracleManager.addApprovedAdaptor(address(1));
 
-        address feed0Before = oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0);
-        address feed1Before = oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1);
+        address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        address feed0Before = adaptorsBefore[0];
+        address feed1Before = adaptorsBefore[1];
 
         vm.prank(address(1));
         oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
 
         // does not change
-        assertEq(oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0), feed0Before);
-        assertEq(oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1), feed1Before);
+        address[] memory adaptorsAfter = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        assertEq(adaptorsAfter.length, 2);
+        assertEq(adaptorsAfter[0], feed0Before);
+        assertEq(adaptorsAfter[1], feed1Before);
     }
 
     function test_notifyFeedRemoval_success_whenRemoveSingleFeed() public {
         _addSinglePriceFeed();
 
-        assertEq(
-            oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0),
-            address(chainlinkAdaptor)
-        );
+        address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        assertEq(adaptorsBefore.length, 1);
+        assertEq(adaptorsBefore[0], address(chainlinkAdaptor));
 
         vm.prank(address(chainlinkAdaptor));
         oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
 
+        address[] memory adaptorsAfter = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        assertEq(adaptorsAfter.length, 0);
         vm.expectRevert();
-        oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0);
+        address shouldRevert0 = adaptorsAfter[0];
     }
 
     function test_notifyFeedRemoval_success_whenRemoveDualFeed() public {
         _addDualPriceFeed();
 
-        assertEq(
-            oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0),
-            address(chainlinkAdaptor)
-        );
-        assertEq(
-            oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1),
-            address(dualChainlinkAdaptor)
-        );
+        address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        assertEq(adaptorsBefore.length, 2);
+        assertEq(adaptorsBefore[0], address(chainlinkAdaptor));
+        assertEq(adaptorsBefore[1], address(dualChainlinkAdaptor));
 
         vm.prank(address(chainlinkAdaptor));
         oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
 
-        assertEq(
-            oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0),
-            address(dualChainlinkAdaptor)
-        );
+        address[] memory adaptorsAfter = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        assertEq(adaptorsAfter.length, 1);
+        assertEq(adaptorsAfter[0], address(dualChainlinkAdaptor));
 
         vm.expectRevert();
-        oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1);
+        address shouldRevert2 = adaptorsAfter[1];
     }
 
     function test_notifyFeedRemoval_whenThirdAdaptorSupportsAsset() public {
@@ -103,26 +105,31 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
             _USDC_ADDRESS,
             true,
             _CHAINLINK_USDC_USD,
-            0
+            0,
+            100
         );
         thirdAdaptor.addAsset(
             _USDC_ADDRESS,
             false,
             _CHAINLINK_USDC_ETH,
-            0
+            0,
+            100
         );
 
         oracleManager.addApprovedAdaptor(address(thirdAdaptor));
 
-        address feed0Before = oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0);
-        address feed1Before = oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1);
+        address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        address feed0Before = adaptorsBefore[0];
+        address feed1Before = adaptorsBefore[1];
 
         vm.prank(address(thirdAdaptor));
         oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
 
         // assert that the feeds are not changed
-        assertEq(oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0), feed0Before);
-        assertEq(oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1), feed1Before);
+        address[] memory adaptorsAfter = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        assertEq(adaptorsAfter.length, 2);
+        assertEq(adaptorsAfter[0], feed0Before);
+        assertEq(adaptorsAfter[1], feed1Before);
     }
 
 }

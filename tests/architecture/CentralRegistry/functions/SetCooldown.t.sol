@@ -69,13 +69,13 @@ contract SetCooldownTest is TestBaseMarketIsolated {
 
         // Transfer and delegation locks should still be active after 9 days.
         assertTrue(centralRegistry.checkTransfersDisabled(user1));
-        assertTrue(centralRegistry.checkDelegationDisabled(user1));
+        assertTrue(centralRegistry.checkNewDelegationDisabled(user1));
 
         skip(1 days);
 
         // Locks should expire now that 10 days have passed.
         assertFalse(centralRegistry.checkTransfersDisabled(user1));
-        assertFalse(centralRegistry.checkDelegationDisabled(user1));
+        assertFalse(centralRegistry.checkNewDelegationDisabled(user1));
     }
 
     // User tries to decrease cooldown when there's an active lock,
@@ -104,13 +104,13 @@ contract SetCooldownTest is TestBaseMarketIsolated {
 
         // Transfer and delegation locks should still be active after 9 days.
         assertTrue(centralRegistry.checkTransfersDisabled(user1));
-        assertTrue(centralRegistry.checkDelegationDisabled(user1));
+        assertTrue(centralRegistry.checkNewDelegationDisabled(user1));
 
         skip(1 days);
 
         // Locks should expire now that 10 days have passed.
         assertFalse(centralRegistry.checkTransfersDisabled(user1));
-        assertFalse(centralRegistry.checkDelegationDisabled(user1));
+        assertFalse(centralRegistry.checkNewDelegationDisabled(user1));
 
     }
 
@@ -159,7 +159,7 @@ contract SetCooldownTest is TestBaseMarketIsolated {
         centralRegistry.setDelegableStatus(true);  // enable delegation lock
         centralRegistry.setDelegableStatus(false); // unlock triggers cooldown
         
-        assertTrue(centralRegistry.checkDelegationDisabled(user1));
+        assertTrue(centralRegistry.checkNewDelegationDisabled(user1));
         
         // try to decrease cooldown while delegation cooldown is active
         vm.expectRevert(ActionRegistry.ActionRegistry__CooldownActive.selector);
@@ -183,7 +183,7 @@ contract SetCooldownTest is TestBaseMarketIsolated {
 
         // verify protection is active
         assertTrue(centralRegistry.checkTransfersDisabled(user1));
-        assertTrue(centralRegistry.checkDelegationDisabled(user1));
+        assertTrue(centralRegistry.checkNewDelegationDisabled(user1));
 
         skip(1 days);
 
@@ -230,7 +230,7 @@ contract SetCooldownTest is TestBaseMarketIsolated {
         skip(11 days);
         
         assertFalse(centralRegistry.checkTransfersDisabled(user1));
-        assertFalse(centralRegistry.checkDelegationDisabled(user1));
+        assertFalse(centralRegistry.checkNewDelegationDisabled(user1));
         
         // now should be able set new cooldown
         vm.expectEmit(true, true, true, true);

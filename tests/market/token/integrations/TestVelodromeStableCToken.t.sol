@@ -72,7 +72,8 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
             _VELO_ADDRESS,
             true,
             address(chainlinkVELO),
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(
             _VELO_ADDRESS,
@@ -84,7 +85,8 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
             _USDC_ADDRESS,
             true,
             address(chainlinkUSDC),
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,

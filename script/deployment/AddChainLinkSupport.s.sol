@@ -24,8 +24,8 @@ contract AddChainLinkSupport is DeployScript {
         OracleManager manager = OracleManager(oracleManager);
         IERC20 token = IERC20(asset);
         ChainlinkAdaptor adaptor = ChainlinkAdaptor(adaptorAddress);
-        adaptor.addAsset(asset, feed.inUSD, feed.aggregator, feed.heartbeat);
-        manager.addAssetPriceFeed(asset, address(adaptor));
+        adaptor.addAsset(asset, feed.inUSD, feed.aggregator, feed.heartbeat, 100);
+        manager.addAssetPricingAdaptor(asset, address(adaptor), 100, 50);
     }
 
     function deployChainlinkAdaptor(

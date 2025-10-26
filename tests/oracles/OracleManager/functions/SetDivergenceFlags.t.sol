@@ -11,7 +11,7 @@ contract SetDivergenceFlagsTest is TestBaseOracleManager {
         vm.prank(address(1));
 
         vm.expectRevert(OracleManager.OracleManager__Unauthorized.selector);
-        oracleManager.setDivergenceFlags(10100, 10100);
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, 10100, 10100);
     }
 
     function test_setCautionDivergenceFlag_fail_whenDivergenceIsTooSmall()
@@ -20,7 +20,7 @@ contract SetDivergenceFlagsTest is TestBaseOracleManager {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.setDivergenceFlags(10001, 10100);
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, 10001, 10100);
     }
 
     function test_setCautionDivergenceFlag_fail_whenDivergenceIsTooLarge()
@@ -29,7 +29,7 @@ contract SetDivergenceFlagsTest is TestBaseOracleManager {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.setDivergenceFlags(12001, 10200);
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, 12001, 10200);
     }
 
     function test_setBadSourceDivergenceFlag_fail_whenCallerIsNotAuthorized()
@@ -38,7 +38,7 @@ contract SetDivergenceFlagsTest is TestBaseOracleManager {
         vm.prank(address(1));
 
         vm.expectRevert(OracleManager.OracleManager__Unauthorized.selector);
-        oracleManager.setDivergenceFlags(10200, 10200);
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, 10200, 10200);
     }
 
     function test_setBadSourceDivergenceFlag_fail_whenDivergenceIsTooSmall()
@@ -47,7 +47,7 @@ contract SetDivergenceFlagsTest is TestBaseOracleManager {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.setDivergenceFlags(10010, 10009);
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, 10010, 10009);
     }
 
     function test_setBadSourceDivergenceFlag_fail_whenDivergenceIsTooLarge()
@@ -56,7 +56,7 @@ contract SetDivergenceFlagsTest is TestBaseOracleManager {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.setDivergenceFlags(10100, 12001);
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, 10100, 12001);
     }
 
     function test_setDivergenceFlags_fail_whenCautionEqualToBadSource()
@@ -65,7 +65,7 @@ contract SetDivergenceFlagsTest is TestBaseOracleManager {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.setDivergenceFlags(10200, 10200);
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, 10200, 10200);
     }
 
     function test_setDivergenceFlags_fail_whenCautionLargerThanBadSource()
@@ -74,24 +74,29 @@ contract SetDivergenceFlagsTest is TestBaseOracleManager {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.setDivergenceFlags(10200, 10100);
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, 10200, 10100);
     }
 
     function test_setCautionDivergenceFlag_success() public {
-        assertEq(oracleManager.cautionPriceDivergence(), 10050);
+        (, uint16 cautionBoundBefore) = oracleManager.assetPricingConfig(_USDC_ADDRESS);
+        assertEq(uint256(cautionBoundBefore), 10050);
 
-        oracleManager.setDivergenceFlags(10100, 10200);
 
-        assertEq(oracleManager.cautionPriceDivergence(), 10100);
-        assertEq(oracleManager.badSourcePriceDivergence(), 10200);
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, 10100, 10200);
+
+        (uint16 badSourceBoundAfter, uint16 cautionBoundAfter) = oracleManager.assetPricingConfig(_USDC_ADDRESS);
+        assertEq(uint256(cautionBoundAfter), 10100);
+        assertEq(uint256(badSourceBoundAfter), 10200);
     }
 
     function test_setBadSourceDivergenceFlag_success() public {
-        assertEq(oracleManager.badSourcePriceDivergence(), 10100);
+        (uint16 badSourceBoundBefore, ) = oracleManager.assetPricingConfig(_USDC_ADDRESS);
+        assertEq(uint256(badSourceBoundBefore), 10100);
 
-        oracleManager.setDivergenceFlags(10100, 10150);
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, 10100, 10150);
 
-        assertEq(oracleManager.cautionPriceDivergence(), 10100);
-        assertEq(oracleManager.badSourcePriceDivergence(), 10150);
+        (uint16 badSourceBoundAfter, uint16 cautionBoundAfter) = oracleManager.assetPricingConfig(_USDC_ADDRESS);
+        assertEq(uint256(cautionBoundAfter), 10100);
+        assertEq(uint256(badSourceBoundAfter), 10150);
     }
 }

@@ -146,4 +146,51 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
             true
         );
     }
+
+    function test_updateDynamicIRM_clampsVertexMultiplier_whenLoweringMax_withoutReset() public {
+        // Increase utilization and push the multiplier above 1x
+        uint256 adjustmentRate = BorrowableCTokenIRM.ADJUSTMENT_RATE();
+
+        vm.startPrank(user1);
+        // Borrow in increments until utilization is higher than 85%
+        for (uint256 i = 0; i < 20; i++) {
+            uint256 util = BorrowableCTokenIRM.utilizationRate(
+                borrowableCUSDC.assetsHeld(),
+                borrowableCUSDC.marketOutstandingDebt()
+            );
+            if (util >= 0.85e18) {
+                break;
+            }
+            borrowableCUSDC.borrow(1_000e6, user1);
+        }
+        vm.stopPrank();
+
+        // skip a few adjustment periods
+        for (uint256 i = 0; i < 3; i++) {
+            skip(adjustmentRate);
+            borrowableCUSDC.accrueIfNeeded();
+        }
+
+        uint256 preUpdateMultiplier = BorrowableCTokenIRM.vertexMultiplier();
+        // Check that the multiplier is actually above 1x
+        assertGt(preUpdateMultiplier, 1e18, "vertexMultiplier should be > 1x before lowering max");
+
+        // Lower the vertexMultiplierMax to 1x without resetting
+        BorrowableCTokenIRM.updateDynamicIRM(
+            1000,
+            1000,
+            5000,
+            1000,
+            100,
+            10000, // vertexMultiplierMax -> 1x
+            false  // vertexReset
+        );
+
+        // Verify the current multiplier was clamped down to the new maximum (1e18)
+        assertEq(
+            BorrowableCTokenIRM.vertexMultiplier(),
+            1e18,
+            "vertexMultiplier should clamp to new vertexMultiplierMax"
+        );
+    }
 }

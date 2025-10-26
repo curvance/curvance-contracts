@@ -39,19 +39,22 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
             _ETH_ADDRESS,
             true,
             _CHAINLINK_ETH_USD,
-            0
+            0,
+            100
         );
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
             _CHAINLINK_ETH_USD,
-            0
+            0,
+            100
         );
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
             _CHAINLINK_USDC_USD,
-            0
+            0,
+            100
         );
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));

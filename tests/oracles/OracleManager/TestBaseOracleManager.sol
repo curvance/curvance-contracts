@@ -40,37 +40,43 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
             _ETH_ADDRESS,
             true,
             _CHAINLINK_ETH_USD,
-            0
+            0,
+            100
         );
         dualChainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
             true,
             _CHAINLINK_ETH_USD,
-            0
+            0,
+            100
         );
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
             _CHAINLINK_USDC_USD,
-            0
+            0,
+            100
         );
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             false,
             _CHAINLINK_USDC_ETH,
-            0
+            0,
+            100
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
             _CHAINLINK_USDC_USD,
-            0
+            0,
+            100
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             false,
             _CHAINLINK_USDC_ETH,
-            0
+            0,
+            100
         );
 
         vm.warp(centralRegistry.genesisEpoch());

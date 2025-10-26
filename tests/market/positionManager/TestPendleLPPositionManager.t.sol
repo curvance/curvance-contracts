@@ -56,13 +56,15 @@ contract TestPendleLPPositionManager is TestBaseMarketIsolated {
             _PENDLE,
             true,
             address(chainlinkPendleUsd),
-            0
+            0,
+            100
         );
         chainlinkAdaptor.addAsset(
             _STETH,
             true,
             _CHAINLINK_ETH_USD,
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(_PENDLE, address(chainlinkAdaptor));
         oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));

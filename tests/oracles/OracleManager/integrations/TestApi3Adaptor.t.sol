@@ -35,7 +35,8 @@ contract TestApi3Adaptor is TestBaseOracleManager {
             true,
             _DAPI_PROXY_ARB_USD,
             0,
-            _ARB_TICKER
+            _ARB_TICKER,
+            100
         );
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
@@ -77,7 +78,8 @@ contract TestApi3Adaptor is TestBaseOracleManager {
             true,
             _DAPI_PROXY_ARB_USD,
             invalidHeartbeat,
-            _ARB_TICKER
+            _ARB_TICKER,
+            100
         );
     }
 
@@ -88,7 +90,8 @@ contract TestApi3Adaptor is TestBaseOracleManager {
             true,
             _DAPI_PROXY_ARB_USD,
             0,
-            "ARB/USDC"
+            "ARB/USDC",
+            100
         );
     }
 
@@ -98,7 +101,8 @@ contract TestApi3Adaptor is TestBaseOracleManager {
             false,
             _DAPI_PROXY_ARB_USD,
             0,
-            _ARB_TICKER
+            _ARB_TICKER,
+            100
         );
     }
 

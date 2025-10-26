@@ -68,7 +68,8 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
             _STETH,
             true,
             _CHAINLINK_STETH_USD,
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 

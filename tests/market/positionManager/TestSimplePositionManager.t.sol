@@ -887,6 +887,43 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function testDepositAndLeverage_fail_onTinySlippage() public {
+        vm.startPrank(user);
+
+        // Provide deposit assets and approvals
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(positionManager), 1000e6);
+
+        uint256 amountForLeverage = 0.99e21;
+
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(borrowableCUSDC));
+        leverageAction.swapAction.inputToken = address(dai);
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = address(usdc);
+        leverageAction.swapAction.target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageAction.swapAction.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManager),
+            block.timestamp
+        );
+        leverageAction.swapAction.slippage = 0.3e18;
+
+        // Expect the sanity slippage check to revert due to extremely small tolerated slippage
+        vm.expectRevert(bytes4(keccak256("BasePositionManager__InvalidSlippage()")));
+        positionManager.depositAndLeverage(1000e6, leverageAction, 0.00001e18);
+
+        vm.stopPrank();
+    }
+
     function testDeLeverage() public {
         testLeverage();
 

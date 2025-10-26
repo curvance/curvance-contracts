@@ -91,7 +91,8 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             _DAI_ADDRESS,
             true,
             address(chainlinkDaiUsd),
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(
             _DAI_ADDRESS,
@@ -102,7 +103,8 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
             _USDC_ADDRESS,
             true,
             address(chainlinkUsdcUsd),
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,

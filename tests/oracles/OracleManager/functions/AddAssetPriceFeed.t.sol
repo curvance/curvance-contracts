@@ -66,22 +66,16 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
     }
 
     function test_addAssetPriceFeed_success() public {
-        vm.expectRevert();
-        oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0);
 
-        vm.expectRevert();
-        oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1);
+        address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        assertEq(adaptorsBefore.length, 0);
 
         _addDualPriceFeed();
 
-        assertEq(
-            oracleManager.assetPriceFeeds(_USDC_ADDRESS, 0),
-            address(chainlinkAdaptor)
-        );
-        assertEq(
-            oracleManager.assetPriceFeeds(_USDC_ADDRESS, 1),
-            address(dualChainlinkAdaptor)
-        );
+        address[] memory adaptorsAfter = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
+        assertEq(adaptorsAfter.length, 2);
+        assertEq(adaptorsAfter[0], address(chainlinkAdaptor));
+        assertEq(adaptorsAfter[1], address(dualChainlinkAdaptor));
 
         assertTrue(oracleManager.isSupportedAsset(_USDC_ADDRESS));
     }

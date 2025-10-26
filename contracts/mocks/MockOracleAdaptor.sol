@@ -52,6 +52,10 @@ contract MockOracleAdaptor is BaseOracleAdaptor {
         isSupportedAsset[asset] = true;
     }
 
+    function deviationThreshold(address) external view returns (uint256) {
+        
+    }
+
     /// @notice Retrieves the price of a given asset in `inUSD` price form.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD Whether `asset` should be priced in USD or native tokens.

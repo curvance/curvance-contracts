@@ -90,7 +90,8 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             _SFRAX_ADDRESS,
             true,
             address(sfrxAgg),
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(_SFRAX_ADDRESS, address(chainlinkAdaptor));
         oracleManager.addCTokenSupport(address(simpleCSFRAX));
@@ -100,7 +101,8 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             _FRAX_ADDRESS,
             true,
             _CHAINLINK_FRAX_USD,
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(_FRAX_ADDRESS, address(chainlinkAdaptor));
 

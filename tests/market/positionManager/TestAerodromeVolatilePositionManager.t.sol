@@ -59,7 +59,8 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             _DAI_ADDRESS,
             true,
             address(chainlinkDaiUsd),
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(
             _DAI_ADDRESS,
@@ -70,7 +71,8 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             _USDC_ADDRESS,
             true,
             address(chainlinkUsdcUsd),
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,
@@ -82,13 +84,15 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             _ETH_ADDRESS,
             true,
             address(chainlinkEthUsd),
-            0
+            0,
+            100
         );
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
             address(chainlinkEthUsd),
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(
             _ETH_ADDRESS,

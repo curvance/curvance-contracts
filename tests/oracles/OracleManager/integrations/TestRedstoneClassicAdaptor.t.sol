@@ -59,7 +59,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             true,
             ETHX_USD_PRICEFEED,
             0,
-            "ETHx"
+            "ETHx",
+            100
         );
 
         // Assert asset is now supported
@@ -86,7 +87,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             false,
             ETHX_ETH_PRICEFEED,
             0,
-            "ETHx/ETH"
+            "ETHx/ETH",
+            100
         );
 
         // Test native configuration
@@ -139,7 +141,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             true,
             ETHX_USD_PRICEFEED,
             0,
-            "ETHx"
+            "ETHx",
+            100
         );
 
         vm.stopPrank();
@@ -190,7 +193,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             true,
             ETHX_USD_PRICEFEED,
             3600, // custom heartbeat
-            "ETHx"
+            "ETHx",
+            100
         );
         
         (
@@ -218,7 +222,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             true,
             ETHX_USD_PRICEFEED,
             7200,
-            "ETHx"
+            "ETHx",
+            100
         );
 
         // Verify updated heartbeat
@@ -241,7 +246,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             true,
             ETHX_USD_PRICEFEED,
             invalidHeartbeat,
-            "ETHx"
+            "ETHx",
+            100
         );
     }
 
@@ -258,7 +264,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             true,
             ETHX_USD_PRICEFEED,
             0,
-            "ETHx"
+            "ETHx",
+            100
         );
         
         // Get USD price
@@ -278,7 +285,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             false,
             ETHX_ETH_PRICEFEED,
             0,
-            "ETHx/ETH"
+            "ETHx/ETH",
+            100
         );
         
         IOracleAdaptor.PricingResult memory result =
@@ -297,7 +305,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             false,
             ETHX_ETH_PRICEFEED,
             0,
-            "ETHx/ETH"
+            "ETHx/ETH",
+            100
         );
         
         // fallback to native
@@ -316,7 +325,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             true,
             ETHX_USD_PRICEFEED,
             0,
-            "ETHx"
+            "ETHx",
+            100
         );
         
         // should fallback to USD
@@ -335,14 +345,16 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             true,
             ETHX_USD_PRICEFEED,
             0,
-            "ETHx"
+            "ETHx",
+            100
         );
         redstoneClassicAdaptor.addAsset(
             ETHX_ADDRESS,
             false,
             ETHX_ETH_PRICEFEED,
             0,
-            "ETHx/ETH"
+            "ETHx/ETH",
+            100
         );
         
         // Will use USD feed
@@ -366,7 +378,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             true,
             address(mockEthxUsdPriceFeed),
             0,
-            "ETHx"
+            "ETHx",
+            100
         );
 
         mockEthxUsdPriceFeed.updateAnswer(100e8);
@@ -386,7 +399,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             true,
             address(mockEthxUsdPriceFeed),
             0,
-            "ETHx"
+            "ETHx",
+            100
         );
 
         mockEthxUsdPriceFeed.updateAnswer(-100e8);
@@ -404,7 +418,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             true,
             address(mockEthxUsdPriceFeed),
             0,
-            "ETHx"
+            "ETHx",
+            100
         );
         
         mockEthxUsdPriceFeed.updateRoundData(
@@ -427,7 +442,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             true,
             address(mockEthxUsdPriceFeed),
             0,
-            "ETHx"
+            "ETHx",
+            100
         );
 
         mockEthxUsdPriceFeed.updateAnswer(0);

@@ -418,7 +418,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     function skimAvailable() external view returns (uint256 excess) {
         uint256 cachedAssets = _getTotalAssets();
         uint256 debtPlusBalance = marketOutstandingDebt +
-            IERC20(_asset).balanceOf(address(this)) - _BASE_UNDERLYING_RESERVE;
+            IERC20(_asset).balanceOf(address(this));
         if (debtPlusBalance <= cachedAssets) {
             return 0;
         }
@@ -431,7 +431,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @dev Does not modify `_totalAssets` or any accounting to avoid
     ///      donation attacks.
     ///      Computed as: debtPlusBalance = marketOutstandingDebt + underlyingBalance
-    ///      excess = debtPlusBalance - totalAssets - _BASE_UNDERLYING_RESERVE.
+    ///      excess = debtPlusBalance - totalAssets.
     ///      Requires DAO permissions.
     function skim() external nonReentrant {
         _checkDaoPermissions();
@@ -439,7 +439,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         address underlying = asset();
         uint256 cachedAssets = _getTotalAssets();
         uint256 debtPlusBalance = marketOutstandingDebt +
-            IERC20(underlying).balanceOf(address(this)) - _BASE_UNDERLYING_RESERVE;
+            IERC20(underlying).balanceOf(address(this));
 
         if (debtPlusBalance <= cachedAssets) {
             revert BaseCToken__ZeroAmount();

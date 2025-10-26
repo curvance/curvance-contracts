@@ -47,7 +47,8 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
             _PENDLE,
             true,
             address(chainlinkPendleUsd),
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(_PENDLE, address(chainlinkAdaptor));
 

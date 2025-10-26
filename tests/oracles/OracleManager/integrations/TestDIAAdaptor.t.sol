@@ -27,7 +27,7 @@ contract TestDIAAdaptor is TestBaseOracleManager {
         data.decimals = 8;
         data.heartbeat = 24 hours;
         data.key = "BTC/USD";
-        adaptor.addAsset(_WBTC_ADDRESS, true, data);
+        adaptor.addAsset(_WBTC_ADDRESS, true, data, 100);
 
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));

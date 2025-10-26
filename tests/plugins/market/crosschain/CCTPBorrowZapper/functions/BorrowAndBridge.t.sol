@@ -35,39 +35,45 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
             _DAI_ADDRESS,
             true,
             address(mockDaiFeed),
-            0
+            0,
+            100
         );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
             address(mockDaiFeed),
-            0
+            0,
+            100
         );
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
             address(mockWethFeed),
-            0
+            0,
+            100
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
             address(mockWethFeed),
-            0
+            0,
+            100
         );
         mockRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
             false,
             address(mockRethFeed),
-            0
+            0,
+            100
         );
         dualChainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
             false,
             address(mockRethFeed),
-            0
+            0,
+            100
         );
         // start epoch
         vm.warp(gaugeManager.gaugeStartTime());

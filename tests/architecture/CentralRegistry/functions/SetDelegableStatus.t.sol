@@ -42,21 +42,21 @@ contract setDelegableStatusTest is TestBaseMarketIsolated {
     function test_setDelegableStatus_success() public {
         vm.startPrank(user1);
 
-        assertFalse(centralRegistry.checkDelegationDisabled(user1));
+        assertFalse(centralRegistry.checkNewDelegationDisabled(user1));
 
         vm.expectEmit(true, true, true, true);
         emit DelegableStatusChanged(user1, true, 0);
 
         centralRegistry.setDelegableStatus(true);
 
-        assertTrue(centralRegistry.checkDelegationDisabled(user1));
+        assertTrue(centralRegistry.checkNewDelegationDisabled(user1));
 
         vm.expectEmit(true, true, true, true);
         emit DelegableStatusChanged(user1, false, block.timestamp);
 
         centralRegistry.setDelegableStatus(false);
 
-        assertFalse(centralRegistry.checkDelegationDisabled(user1));
+        assertFalse(centralRegistry.checkNewDelegationDisabled(user1));
 
         vm.stopPrank();
     }

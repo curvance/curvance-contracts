@@ -77,7 +77,8 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             _AERO_ADDRESS,
             true,
             address(chainlinkAERO),
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(
             _AERO_ADDRESS,
@@ -89,7 +90,8 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             _WETH_ADDRESS,
             true,
             address(chainlinkWETH),
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(
             _WETH_ADDRESS,
@@ -101,7 +103,8 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             _USDC_ADDRESS,
             true,
             address(chainlinkUSDC),
-            0
+            0,
+            100
         );
         oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,

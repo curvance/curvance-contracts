@@ -34,8 +34,8 @@ contract AddRedstoneSupport is DeployScript {
         OracleManager manager = OracleManager(oracleManager);
         IERC20 token = IERC20(asset);
 
-        adaptor.addAsset(asset, feed.inUSD, feed.feed, feed.heartbeat, feed.id);
-        manager.addAssetPriceFeed(asset, address(adaptor));
+        adaptor.addAsset(asset, feed.inUSD, feed.feed, feed.heartbeat, feed.id, 100);
+        manager.addAssetPricingAdaptor(asset, address(adaptor), 100, 50);
     }
 
     function run(
@@ -64,7 +64,7 @@ contract AddRedstoneSupport is DeployScript {
         require(success, "Failed to write price");
 
         // Finalize oracle support
-        manager.addAssetPriceFeed(asset, address(adaptor));
+        manager.addAssetPricingAdaptor(asset, address(adaptor), 100, 50);
     }
 
     function deployRedstoneClassicAdaptor(

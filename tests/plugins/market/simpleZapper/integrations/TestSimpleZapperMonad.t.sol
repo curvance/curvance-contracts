@@ -47,11 +47,11 @@ contract TestSimpleZapperMonad is TestBaseMarketIsolated {
         ChainlinkAdaptor adaptor = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
         oracleManager.addApprovedAdaptor(address(adaptor));
 
-        adaptor.addAsset(SHMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0);
+        adaptor.addAsset(SHMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0, 100);
         oracleManager.addAssetPriceFeed(SHMON_ADDRESS, address(adaptor));
         oracleManager.addCTokenSupport(address(simpleCSHMON));
 
-        adaptor.addAsset(WMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0);
+        adaptor.addAsset(WMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0, 100);
         oracleManager.addAssetPriceFeed(WMON_ADDRESS, address(adaptor));
 
         borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
