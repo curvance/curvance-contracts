@@ -21,7 +21,8 @@ contract TestSavingsDaiAggregator is TestBase {
         aggregator = new SavingsDaiAggregator(
             _SDAI_ADDRESS,
             _DAI_ADDRESS,
-            _CHAINLINK_DAI_USD
+            _CHAINLINK_DAI_USD,
+            "100"
         );
     }
 
@@ -50,7 +51,8 @@ contract TestSavingsDaiAggregator is TestBase {
         aggregator = new SavingsDaiAggregator(
             _SDAI_ADDRESS,
             _DAI_ADDRESS,
-            _CHAINLINK_DAI_USD
+            _CHAINLINK_DAI_USD,
+            "100"
         );
 
         (, int256 sdaiPrice, , , ) = aggregator.latestRoundData();

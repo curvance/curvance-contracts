@@ -53,7 +53,7 @@ contract AddMockVaultFeedSupport is DeployScript {
                 ? 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
                 : assetToken;
             address vaultAgg = address(
-                new VaultAggregator(vaultToken, vaultAssetToken, fakeAgg)
+                new VaultAggregator(vaultToken, vaultAssetToken, fakeAgg, "100")
             );
             emit ContractDeployed(
                 vaultAgg,

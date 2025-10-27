@@ -30,11 +30,16 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
         ] = new ChainlinkAdaptor(ICentralRegistry(
             address(centralRegistry))
         );
+
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        
         dualChainlinkAdaptor = dualChainlinkAdaptors[
             block.chainid
         ] = new ChainlinkAdaptor(ICentralRegistry(
             address(centralRegistry))
         );
+
+        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
 
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
@@ -100,24 +105,28 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
     }
 
     function _addSinglePriceFeed() internal initMainVariables {
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        if (!oracleManager.isApprovedAdaptor(address(chainlinkAdaptor))) {
+            oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        }
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
-            100,
-            50
+            180,
+            130
         );
     }
 
     function _addDualPriceFeed() internal initMainVariables {
         _addSinglePriceFeed();
 
-        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
+        if (!oracleManager.isApprovedAdaptor(address(dualChainlinkAdaptor))) {
+            oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
+        }
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(dualChainlinkAdaptor),
-            100,
-            50
+            180,
+            130
         );
     }
 }

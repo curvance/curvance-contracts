@@ -84,7 +84,8 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         StakedFraxAggregator sfrxAgg = new StakedFraxAggregator(
             _SFRAX_ADDRESS,
             _FRAX_ADDRESS,
-            _CHAINLINK_FRAX_USD
+            _CHAINLINK_FRAX_USD,
+            "100"
         );
         chainlinkAdaptor.addAsset(
             _SFRAX_ADDRESS,

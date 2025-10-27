@@ -301,6 +301,9 @@ contract TestBaseMarketIsolated is TestBase {
         chainlinkAdaptor = chainlinkAdaptors[chainId] = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
+
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
             true,
@@ -358,7 +361,6 @@ contract TestBaseMarketIsolated is TestBase {
             100
         );
 
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
@@ -400,6 +402,8 @@ contract TestBaseMarketIsolated is TestBase {
             chainId
         ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
 
+        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
+
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
@@ -452,7 +456,6 @@ contract TestBaseMarketIsolated is TestBase {
             100
         );
 
-        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
         oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
             address(dualChainlinkAdaptor),
@@ -500,8 +503,7 @@ contract TestBaseMarketIsolated is TestBase {
             false
         );
         centralRegistry.addMarketManager(
-            address(marketManagerIsolated),
-            marketInterestFee
+            address(marketManagerIsolated)
         );
     }
 

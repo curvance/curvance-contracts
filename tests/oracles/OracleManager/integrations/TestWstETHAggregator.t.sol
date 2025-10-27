@@ -23,7 +23,8 @@ contract TestWstETHAggregator is TestBase {
         aggregator = new WstETHAggregator(
             _WSTETH_ADDRESS,
             _STETH_ADDRESS,
-            _CHAINLINK_STETH_USD
+            _CHAINLINK_STETH_USD,
+            "100"
         );
     }
     
@@ -53,7 +54,8 @@ contract TestWstETHAggregator is TestBase {
         aggregator = new WstETHAggregator(
             _WSTETH_ADDRESS,
             _STETH_ADDRESS,
-            _CHAINLINK_STETH_USD
+            _CHAINLINK_STETH_USD,
+            "100"
         );
 
         (, int256 wstethPrice, , , ) = aggregator.latestRoundData();

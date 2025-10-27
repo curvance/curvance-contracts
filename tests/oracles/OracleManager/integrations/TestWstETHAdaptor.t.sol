@@ -29,7 +29,8 @@ contract TestWstETHAdaptor is TestBaseOracleManager {
         aggregator = new WstETHAggregator(
             _WSTETH_ADDRESS,
             _STETH_ADDRESS,
-            _CHAINLINK_ETH_USD
+            _CHAINLINK_ETH_USD,
+            "100"
         );
         console2.log("Deployed WstETH Aggregator");
     }

@@ -20,7 +20,8 @@ contract TestStakedFraxAggregator is TestBase {
         aggregator = new StakedFraxAggregator(
             _SFRAX_ADDRESS,
             _FRAX_ADDRESS,
-            _CHAINLINK_FRAX_USD
+            _CHAINLINK_FRAX_USD,
+            "100"
         );
     }
 
@@ -50,7 +51,8 @@ contract TestStakedFraxAggregator is TestBase {
         aggregator = new StakedFraxAggregator(
             _SFRAX_ADDRESS,
             _FRAX_ADDRESS,
-            _CHAINLINK_FRAX_USD
+            _CHAINLINK_FRAX_USD,
+            "100"
         );
 
         (, int256 sfraxPrice, , , ) = aggregator.latestRoundData();

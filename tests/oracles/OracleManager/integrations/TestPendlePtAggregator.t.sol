@@ -33,7 +33,8 @@ contract TestPendlePtAggregator is TestBaseOracleManager {
             PT_weETH_25JUN2026,
             eETH,
             CHAINLINK_weETH_ETH,
-            10_000 + 1
+            10_000 + 1,
+            "100"
         );
 
     }
@@ -63,7 +64,8 @@ contract TestPendlePtAggregator is TestBaseOracleManager {
             PT_weETH_25JUN2026,
             eETH,
             CHAINLINK_weETH_ETH,
-            discountOneYearBPS
+            discountOneYearBPS,
+            "100"
         );
 
         chainlinkAdaptor = new ChainlinkAdaptor(
@@ -120,7 +122,8 @@ contract TestPendlePtAggregator is TestBaseOracleManager {
             PT_weETH_25JUN2026,
             eETH,
             CHAINLINK_ETH_USD,
-            discountOneYearBPS
+            discountOneYearBPS,
+            "100"
         );
     }
 

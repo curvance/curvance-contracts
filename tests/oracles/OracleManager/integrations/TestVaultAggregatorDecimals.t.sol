@@ -35,7 +35,7 @@ contract TestVaultAggregatorDecimals is TestBaseMarketIsolated {
         _deployVaultA();
         console2.log("==== test_checkPrice_VaultShareDecimals18AssetDecimal6 ====");
         console2.log("_CHAINLINK_USDC_USD = ", _CHAINLINK_USDC_USD);
-        VaultAggregator vaultAgg = new VaultAggregator(address(vaultA), _USDC_ADDRESS, _CHAINLINK_USDC_USD);
+        VaultAggregator vaultAgg = new VaultAggregator(address(vaultA), _USDC_ADDRESS, _CHAINLINK_USDC_USD, "100");
         console2.log("vaultAgg's decimals = ", vaultAgg.decimals());
 
         (, int256 price,, uint256 updatedAt, ) = vaultAgg.latestRoundData();

@@ -43,7 +43,7 @@ contract TestHypotheticalLiquidityOfFuzzed is TestBaseMarketIsolated {
 		marketManagerIsolated = marketManagersIsolated[block.chainid] = MarketManagerIsolated(
 			address(new MarketManagerIsolatedHarness(address(centralRegistry), 10e18))
 		);
-		centralRegistry.addMarketManager(address(marketManagerIsolated), marketInterestFee);
+		centralRegistry.addMarketManager(address(marketManagerIsolated));
 	}
 
 	function setUp() override public {
