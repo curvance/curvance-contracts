@@ -52,7 +52,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         _deployMarketManager();
         _deployOracleManager();
 
-        checker = new KuruCalldataChecker(kuruRouter);
+        checker = new KuruCalldataChecker(kuruRouter, address(0), address(0));
         centralRegistry.setExternalCalldataChecker(kuruRouter, address(checker));
 
         simpleZapper = new SimpleZapper(ICentralRegistry(address(centralRegistry)), WMON_ADDRESS);
