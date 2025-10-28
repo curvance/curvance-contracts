@@ -60,7 +60,7 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         _deployMarketManager();
         _deployOracleManager();
 
-        checker = new KuruCalldataChecker(kuruRouter);
+        checker = new KuruCalldataChecker(kuruRouter, address(0), address(0));
         centralRegistry.setExternalCalldataChecker(kuruRouter, address(checker));
 
         borrowableCUSDC_MONAD = _deployBorrowableCToken(USDC_ADDRESS);
