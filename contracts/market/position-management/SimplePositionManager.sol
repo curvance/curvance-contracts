@@ -71,17 +71,17 @@ contract SimplePositionManager is BasePositionManager {
         LeverageAction memory action,
         address /* receiver */
     ) internal virtual override {
-        SwapperLib.Swap memory swapAction = action.swapAction;
         address debtAsset = action.borrowableCToken.asset();
         address collateralAsset = action.cToken.asset();
 
-        // This check implies theyve selected the same cToken as both cToken
-        // and borrowableCToken, otherwise its not possible to have the same
-        // underlying.
+        // This check implies they have selected the same cToken as both
+        // cToken and borrowableCToken, otherwise its not possible to have
+        // the same underlying.
         if (debtAsset == collateralAsset) {
             revert BasePositionManager__InvalidParam();
         }
 
+        SwapperLib.Swap memory swapAction = action.swapAction;
         if (
             swapAction.call.length == 0 ||
             swapAction.target == address(0) ||
@@ -124,41 +124,23 @@ contract SimplePositionManager is BasePositionManager {
     function _swapCollateralAssetToDebtAsset(
         DeleverageAction memory action
     ) internal virtual override {
-        SwapperLib.Swap[] memory swapActions = action.swapActions;
-        
         address collateralAsset = action.cToken.asset();
         address debtAsset = action.borrowableCToken.asset();
         
-        // Same-asset deleverage: allow no swap data.
+        // This check implies they have selected the same cToken as both
+        // cToken and borrowableCToken, otherwise its not possible to have
+        // the same underlying.
         if (debtAsset == collateralAsset) {
-            if (swapActions.length == 0) {
-                return;
-            }
-            if (swapActions.length != 1) {
-                revert BasePositionManager__InvalidParam();
-            }
-
-            SwapperLib.Swap memory noSwapAction = swapActions[0];
-
-            // No swap should be provided if assets match to avoid arbitrary calls.
-            if (noSwapAction.call.length != 0 || noSwapAction.target != address(0))
-            {
-                revert BasePositionManager__InvalidParam();
-            }
-
-            // Optional assertion: if provided, inputAmount must match post-fee amount.
-            if (noSwapAction.inputAmount != action.collateralAssets) {
-                revert BasePositionManager__InvalidParam();
-            }
-            return;
-        }
-        
-        // For simple actions there should only ever be one swap.
-        if (swapActions.length != 1) {
             revert BasePositionManager__InvalidParam();
         }
-        SwapperLib.Swap memory swapAction = swapActions[0];
 
+        // For simple actions there should only ever be one swap.
+        if (action.swapActions.length != 1) {
+            revert BasePositionManager__InvalidParam();
+        }
+
+        // Load the one swap action.
+        SwapperLib.Swap memory swapAction = action.swapActions[0];
         if (
             swapAction.call.length == 0 ||
             swapAction.target == address(0) ||
