@@ -1431,7 +1431,7 @@ contract MarketManagerIsolated is
         }
         
         // Calculate how many shares should be liquidated.
-        liquidatedShares = FixedPointMathLib.mulDivUp(
+        liquidatedShares = FixedPointMathLib.mulDiv(
             debtAmount,
             debtToCollateral,
             WAD_SQUARED
@@ -1453,7 +1453,7 @@ contract MarketManagerIsolated is
             }
         } else {
             if (liquidatedShares > sharesPosted) {
-                debtAmount = FixedPointMathLib.fullMulDiv(
+                debtAmount = FixedPointMathLib.fullMulDivUp(
                     debtAmount,
                     sharesPosted,
                     liquidatedShares
@@ -1466,7 +1466,7 @@ contract MarketManagerIsolated is
         // more than their shares posted, there is bad debt that should be
         // socialized among lenders, calculate using the same formula we used
         // for `liquidatedShares`.
-        uint256 sharesNeeded = FixedPointMathLib.mulDivUp(
+        uint256 sharesNeeded = FixedPointMathLib.mulDiv(
             aData.debtBalance,
             debtToCollateral,
             WAD_SQUARED
@@ -1476,19 +1476,8 @@ contract MarketManagerIsolated is
             // by looking at the ratio of `sharesPosted` vs `sharesNeeded`.
             // E.g. `sharesPosted` = `sharesNeeded` / 2 means 50%
             // of debt should be recognized as bad debt.
-            badDebt = FixedPointMathLib.fullMulDivUp(
-                FixedPointMathLib.fullMulDiv(debtAmount, sharesNeeded, sharesPosted),
-                WAD_SQUARED - FixedPointMathLib.fullMulDiv(WAD_SQUARED, sharesPosted, sharesNeeded),
-                WAD_SQUARED
-            );
-
-            // If the adjusted debt values round slightly above
-            // `aData.debtBalance` (can happen in cases where collateral
-            // prices go down to a billionth of a cent we can clamp down
-            // badDebt so that invariants are not broken.
-            if (badDebt + debtAmount > aData.debtBalance) {
-                badDebt = aData.debtBalance - debtAmount;
-            }
+            badDebt = FixedPointMathLib
+                .fullMulDivUp(debtAmount, sharesNeeded, sharesPosted) - debtAmount;
         }
 
         // Calculate the maximum amount of debt that can be liquidated

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
+import { Multicall } from "contracts/libraries/Multicall.sol";
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
@@ -32,7 +33,12 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 ///      The "base" contract is the basis on which all zapper contracts are
 ///      built on top of.
 ///
-abstract contract BaseZapper is ReentrancyGuard {
+///      NOTE: Multicalling swapAndDeposit to perform multiple sequential
+///            actions or to update oracle prices is blocked for native gas
+///            token denominated actions to prevent double spend transaction
+///            failures from delegate call.
+///
+abstract contract BaseZapper is Multicall, ReentrancyGuard {
     /// TYPES ///
 
     /// @param cToken The address of the cToken corresponding to the
@@ -313,5 +319,15 @@ abstract contract BaseZapper is ReentrancyGuard {
         }
 
         SafeTransferLib.safeTransfer(token, receiver, amount);
+    }
+
+    /// @notice Returns the Central Registry contract in interface form.
+    function _getCentralRegistry()
+        internal
+        view
+        override
+        returns (ICentralRegistry)
+    {
+        return centralRegistry;
     }
 }

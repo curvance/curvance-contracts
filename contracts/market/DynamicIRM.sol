@@ -178,6 +178,11 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///         E.g. 1 * WAD = 100% Minimum `vertexMultiplierMax` value.
     uint256 internal constant _MINIMUM_VERTEX_MULTIPLIER_MAX = WAD;
 
+    /// @notice Very small adjustments in utilization can lose 1 decimal of
+    ///         precision when calculating inflection points with `BPS`
+    ///         denomination so we use 10 * BPS instead for
+    ///         `increaseThresholdStart` and `decreaseThresholdEnd`.
+    uint256 internal constant _INFLECTION_DENOMINATION = 1e13;
     /// STORAGE ///
 
     /// @notice The dynamic value applied to `vertexRatePerSecond`, increasing
@@ -386,7 +391,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // `util`, no precision loss as a result.
         if (
             multiplier == WAD &&
-            util < (1e14 * uint256(c.increaseThresholdStart))
+            util < (_INFLECTION_DENOMINATION * uint256(c.increaseThresholdStart))
         ) {
             return (ratePerSecond, ADJUSTMENT_RATE);
         }
@@ -432,7 +437,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // `util`, no precision loss as a result.
         if (
             multiplier == WAD &&
-            util < (1e14 * uint256(c.increaseThresholdStart))
+            util < (_INFLECTION_DENOMINATION * uint256(c.increaseThresholdStart))
         ) {
             return _vertexRate(
                 util,
@@ -681,7 +686,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // storage slot and `vertexStart` is set in `BPS` so we shouldnt lose
         // precision.
         config.increaseThresholdStart =
-            uint24((vertexStart + thresholdLength) / 1e14);
+            uint24((vertexStart + thresholdLength) / _INFLECTION_DENOMINATION);
 
         // Dynamic rates start decreasing as soon as we are below desired
         // utilization (vertexStart) and maximizes an equal utilization down
@@ -689,7 +694,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // to save a storage slot and `vertexStart` is set in `BPS` so we
         // shouldnt lose precision.
         config.decreaseThresholdEnd =
-            uint24((vertexStart - thresholdLength) / 1e14);
+            uint24((vertexStart - thresholdLength) / _INFLECTION_DENOMINATION);
 
         emit NewIRM(config);
     }
@@ -723,7 +728,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
         // Calculate decay rate.
         uint256 decay = _mulDiv(multiplier, c.decayPerAdjustment, BPS);
 
-        if (util <= (1e14 * uint256(c.increaseThresholdStart))) {
+        if (util <= (_INFLECTION_DENOMINATION * uint256(c.increaseThresholdStart))) {
             newMultiplier = multiplier - decay;
 
             // Check if decay rate sends new rate below 1.
@@ -738,7 +743,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
             c.adjustmentVelocity, // `adjustmentVelocity` in `BPS`.
             decay, // `decay` in `multiplier` aka `WAD`.
             util, // `current` in `WAD`.
-            1e14 * uint256(c.increaseThresholdStart) // `start` convert to WAD to match util.
+            _INFLECTION_DENOMINATION * uint256(c.increaseThresholdStart) // `start` convert to WAD to match util.
         );
 
         // Update and return with adjustment and decay rate applied.
@@ -786,7 +791,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
 
         // Convert `decreaseThresholdEnd` to `WAD` to be in same terms as
         // `util`, no precision loss as a result.
-        if (util <= (1e14 * uint256(c.decreaseThresholdEnd))) {
+        if (util <= (_INFLECTION_DENOMINATION * uint256(c.decreaseThresholdEnd))) {
             // Apply maximum adjustVelocity reduction (shift = 1).
             // We only need to adjust for `BPS` precision since `shift`
             // is not used here.
@@ -810,7 +815,7 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
             decay, // `decay` in `multiplier` aka `WAD`.
             util, // `current` in `WAD`.
             c.vertexStart, // `start` in `WAD`.
-            1e14 * uint256(c.decreaseThresholdEnd) // `end` convert to WAD to match util/vertexStart.
+            _INFLECTION_DENOMINATION * uint256(c.decreaseThresholdEnd) // `end` convert to WAD to match util/vertexStart.
         );
 
         // Update and return with adjustment and decay rate applied.
