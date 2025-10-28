@@ -114,7 +114,7 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
     }
 
     /// @notice Adds pricing support for `asset`, a Pendle principal token.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
     /// @param asset The address of the Pendle principal token to add pricing
     ///              support for.

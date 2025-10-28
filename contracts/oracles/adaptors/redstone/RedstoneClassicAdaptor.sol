@@ -72,7 +72,8 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
     /// @param feedProxy Redstone price feed proxy to use for pricing `asset`.
     /// @param heartbeat Redstone heartbeat to use when validating prices
     ///                  for `asset`. 0 = `DEFAULT_HEARTBEAT`.
-    /// @param id The dataFeedId of the token to add pricing for.
+    /// @param id The dataFeedId of the token to add pricing for,
+    ///           in string form.
     /// @param feedDeviationThreshold The price feed deviation threshold value
     ///                               configured by the oracle provider.
     function addAsset(

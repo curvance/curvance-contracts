@@ -129,7 +129,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
 
     /// @notice Adds pricing support for `asset`, an lp token for
     ///         a stable swap style stable liquidity pool.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
     /// @param asset The address of the lp token to add pricing support for.
     function addAsset(address asset) external {

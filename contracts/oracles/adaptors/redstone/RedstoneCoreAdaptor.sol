@@ -14,17 +14,18 @@ contract RedstoneCoreAdaptor is
     /// TYPES ///
 
     /// @notice Stores configuration data for Redstone price sources.
+    /// @param dataFeedId bytes32 value that uniquely identifies the Redstone
+    ///                   Core asset data feed.
     /// @param decimals Returns the number of decimals the Redstone price feed
     ///                 responds with.
     /// @param redstoneTimestamp The price timestamp reported by Redstone
     ///                          signers, in milliseconds.
     /// @param price The price recorded for an asset, in `WAD`.
-    /// @param symbolHash The bytes32 encoded hash of the price feed.
     struct AssetConfig {
+        bytes32 dataFeedId;
         uint8 decimals;
         uint48 redstoneTimestamp;
         uint200 price;
-        bytes32 symbolHash;
     }
 
     /// CONSTANTS ///
@@ -195,7 +196,7 @@ contract RedstoneCoreAdaptor is
             tstore(_TRANSIENT_REDSTONE_TIMESTAMP_KEY, redstoneTimestamp)
         }
 
-        uint256 price = getOracleNumericValueFromTxMsg(config.symbolHash);
+        uint256 price = getOracleNumericValueFromTxMsg(config.dataFeedId);
 
         // Validate `price` is not at or above the maximum value allowed,
         // and `price` is not truncated or misreported with a 0 value.
@@ -234,41 +235,34 @@ contract RedstoneCoreAdaptor is
     }
 
     /// @notice Add a Redstone Core Price Feed as an asset.
-    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
+    ///      NOTE: BE VERY CAREFUL SETTING `id`, AN INCORRECT VALUE CAN BLOCK
+    ///            PRICING UNINTENTIONALLY.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
     /// @param decimals The number of decimals the redstone core feed
     ///                 prices in.
+    /// @param id The dataFeedId of the token to add pricing for,
+    ///           in string form.
     function addAsset(
         address asset,
         bool inUSD,
-        uint8 decimals
+        uint8 decimals,
+        string memory id
     ) external {
         _checkElevatedPermissions();
-
-        bytes32 symbolHash;
-        if (inUSD) {
-            // Redstone Core does not append anything at the end of USD
-            // denominated feeds, so we use toBytes32 here.
-            symbolHash = Bytes32Helper._toBytes32(asset);
-        } else {
-            // Redstone Core appends "/" + the native chain token's symbol at
-            // the end of native denominated feeds, so we can compute the
-            // output with `toBytes32Symbol`.
-            symbolHash = Bytes32Helper._toBytes32Symbol(asset, _nativeSymbol);
-        }
 
         // Update `config` and make sure `isSupportedAsset` returns true
         // for `asset`.
         AssetConfig storage config = assetConfig[asset][inUSD];
 
-        config.symbolHash = symbolHash;
+        config.dataFeedId = Bytes32Helper.toBytes32(id);
         // If decimals == 0 we use default 8 decimals that
         // Redstone typically provides prices in.
         config.decimals = decimals != 0 ? decimals : 8;
-
+        
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
         if (isSupportedAsset[asset]) {
