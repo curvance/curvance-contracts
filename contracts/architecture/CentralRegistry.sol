@@ -111,7 +111,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///         vote outcomes to update onchain across all blockchains.
     address public votingHub;
 
-    /// @notice Array of all the addresses for all Curvance market managers
+    /// @notice Array of all the addresses for all Curvance Market Managers
     ///         on this chain.
     address[] internal _marketManagers;
 
@@ -210,7 +210,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     // CONTRACT MAPPINGS
     
-    /// @notice Indicates if an address is a market manager or not.
+    /// @notice Indicates if an address is a Market Manager or not.
     /// @dev Address => Market Manager status.
     mapping(address => bool) public isMarketManager;
 
@@ -914,7 +914,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
             revert CentralRegistry__InvalidParameter();
         }
 
-        // Ensure that `newMarket` is a market manager.
+        // Validate that `newMarket` is a Market Manager.
         if (
             !ERC165Checker.supportsInterface(
                 newMarket,
@@ -931,7 +931,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         emit PermissionsUpdated("Market Manager", newMarket, true);
     }
 
-    /// @notice Removes a current market manager from Curvance.
+    /// @notice Removes a current Market Manager from Curvance.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Has to be a supported Market Manager contract prior.
     ///      Emits a {PermissionsUpdated} event.
@@ -940,7 +940,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     function removeMarketManager(address marketApproved) public virtual {
         _checkElevatedPermissions();
 
-        // Validate `marketApproved` is currently supported.
+        // Validate `marketApproved` is a currently recognized Market Manager.
         if (!isMarketManager[marketApproved]) {
             revert CentralRegistry__InvalidParameter();
         }
@@ -1233,15 +1233,14 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// AUCTION CONFIGURATION LOGIC
 
     /// @notice Unlocks a market to process auction-based liquidations.
-    /// @param marketToUnlock The address of the market manager to unlock
-    ///                       auction-based liquidations with a specific
-    ///                       liquidation bonus.
+    /// @param marketToUnlock The address of the Market Manager to unlock
+    ///                       auction-based liquidations.
     function unlockAuctionForMarket(address marketToUnlock) external {
         if (!hasAuctionPermissions[msg.sender]) {
             revert CentralRegistry__Unauthorized();
         }
 
-        // Validate that you're unlocking an approved market manager.
+        // Validate that they are unlocking an approved Market Manager.
         if (!isMarketManager[marketToUnlock]) {
             revert CentralRegistry__InvalidParameter();
         }
@@ -1250,6 +1249,32 @@ contract CentralRegistry is ERC165, ActionRegistry {
         /// @solidity memory-safe-assembly
         assembly {
             tstore(_TRANSIENT_MARKET_UNLOCKED_KEY, marketToUnlockUint)
+        }
+    }
+
+    /// @notice Relocks a market for auction-based liquidations.
+    /// @param marketToLock The address of the Market Manager to lock
+    ///                     auction-based liquidations.
+    function resetAuctionForMarket(address marketToLock) external {
+        if (!hasAuctionPermissions[msg.sender]) {
+            revert CentralRegistry__Unauthorized();
+        }
+
+        uint256 result;
+        /// @solidity memory-safe-assembly
+        assembly {
+            result := tload(_TRANSIENT_MARKET_UNLOCKED_KEY)
+        }
+
+        // Validate that they are locking the currently unlocked
+        // Market Manager.
+        if (uint256(uint160(marketToLock)) != result) {
+            revert CentralRegistry__InvalidParameter();
+        }
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            tstore(_TRANSIENT_MARKET_UNLOCKED_KEY, 0)
         }
     }
 
