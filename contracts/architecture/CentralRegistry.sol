@@ -816,13 +816,13 @@ contract CentralRegistry is ERC165, ActionRegistry {
         // for some reason, do not remove their elevated permissioning.
         if (previousTimelock != emergencyCouncil) {
             delete hasElevatedPermissions[previousTimelock];
+            delete hasMarketPermissions[previousTimelock];
+            emit PermissionsUpdated("Market", previousTimelock, false);
 
             // If the previous Timelock also has DAO permissions
             // for some reason, do not remove their permissioning.
             if (previousTimelock != daoAddress) {
                 delete hasDaoPermissions[previousTimelock];
-                delete hasMarketPermissions[previousTimelock];
-                emit PermissionsUpdated("Market", previousTimelock, false);
             }
         }
 
