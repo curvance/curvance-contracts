@@ -105,11 +105,11 @@ contract KuruCalldataChecker is BaseSwapChecker {
             revert KuruCalldataChecker__InvalidNativeTokenAddress();
         }
 
-        if (feeCollectorAddress != address(0) && feeCollectorAddress != collector) {
+        if (feeCollectorAddress != collector) {
             revert CalldataChecker__ReferralError();
         }
 
-        if (referrerAddress != address(0) && referrerAddress != dao) {
+        if (referrerAddress != dao) {
             revert CalldataChecker__ReferralError();
         }
     }
