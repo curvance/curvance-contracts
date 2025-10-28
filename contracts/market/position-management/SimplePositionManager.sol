@@ -48,12 +48,6 @@ contract SimplePositionManager is BasePositionManager {
     ///         cToken that a user is currently putting up as collateral
     ///         against the borrowableCToken debt position, creating a
     ///         leveraged spot position.
-    /// @dev Integrating with fees:
-    ///      Protocol fee is taken before this function: `action.borrowAssets`
-    ///      is post-fee. Users may optionally set `swapAction.inputAmount` to
-    ///      assert fee-consistency; if set, it must equal
-    ///      `action.borrowAssets` (post-fee). If omitted, the tx will not
-    ///      revert solely due to an unexpected fee change on this path.
     /// @param action Instructions for a leverage action containing:
     ///               borrowableCToken Address of the borrowableCToken that
     ///                                will be borrowed from and assets
@@ -101,12 +95,6 @@ contract SimplePositionManager is BasePositionManager {
     ///         then swapped into the underlying of an borrowableCToken that a
     ///         user is currently borrowing from, partially or fully closing a
     ///         leveraged spot position.
-    /// @dev Same-asset leverage (debt == collateral):
-    ///      - No swap data is required, but`swapAction.call` and `swapAction.target` must be empty.
-    ///      - Protocol fee is taken before this function: `action.borrowAssets` is post-fee.
-    ///      - Users may optionally set `swapAction.inputAmount` to assert fee-consistency; if set,
-    ///        it must equal `action.borrowAssets` (post-fee). If omitted, the tx will not revert
-    ///        solely due to an unexpected fee change on this path.
     /// @param action Instructions for a deleverage action containing:
     ///               cToken Address of the cToken that will be redeemed from
     ///                      and assets swapped into `borrowableCToken` asset.
