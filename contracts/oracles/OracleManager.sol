@@ -438,6 +438,9 @@ contract OracleManager is IOracleManager {
     /// @param asset The address of the asset to potentially remove the
     ///              pricing adaptor dependency from depending on current
     ///              `asset` configuration.
+    /// @param newDeviationThreshold Adaptor's updated feed deviation for `asset`
+    ///          in bps. Used to recompute the minimum caution bound and auto-bump 
+    ///          stored bounds if needed.
     function notifyDeviationUpdated(
         address asset,
         uint256 newDeviationThreshold

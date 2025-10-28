@@ -95,6 +95,34 @@ contract TestPriceGuard is TestBaseMarketIsolated {
         );
     }
 
+    function test_fail_whenBasePriceIsZero() public {
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        chainlinkAdaptor.setGuardedPriceConfig(
+            _ETH_ADDRESS,
+            true,
+            0,
+            0,
+            0,
+            0
+        );
+    }
+
+    function test_fail_whenFeedHasErrorDuringConfig() public {
+        // Force hadError by setting the USD feed to zero
+        chainlinkEthUsd.updateAnswer(0);
+        chainlinkEthUsd.updateRoundData(1, 0, block.timestamp, block.timestamp);
+
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        chainlinkAdaptor.setGuardedPriceConfig(
+            _ETH_ADDRESS,
+            true,
+            0,
+            0,
+            3600e18,
+            3400e18
+        );
+    }
+
     function test_fail_whenMinPriceIsHigherThanCurrentPrice() public {
         uint256 timestampStart = block.timestamp - 8 days;
 

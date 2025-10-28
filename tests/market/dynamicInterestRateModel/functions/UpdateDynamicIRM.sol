@@ -193,4 +193,61 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
             "vertexMultiplier should clamp to new vertexMultiplierMax"
         );
     }
+
+    function test_DynamicIRM_threshold_resolution_audit1() public {
+            IRM.updateDynamicIRM(
+                1500,
+                1500,
+                9900,
+                1000,
+                150,
+                150000000,
+                true
+            );
+            IRM.updateDynamicIRM(
+                1500,
+                1500,
+                9899,
+                1000,
+                150,
+                150000000,
+                true
+            );
+            IRM.updateDynamicIRM(
+                1500,
+                1500,
+                9898,
+                1000,
+                150,
+                150000000,
+                true
+            );
+            IRM.updateDynamicIRM(
+                1500,
+                1500,
+                9897,
+                1000,
+                150,
+                150000000,
+                true
+            );
+            IRM.updateDynamicIRM(
+                1500,
+                1500,
+                9896,
+                1000,
+                150,
+                150000000,
+                true
+            );
+            IRM.updateDynamicIRM(
+                1500,
+                1500,
+                9895,
+                1000,
+                150,
+                150000000,
+                true
+            );
+        }
 }

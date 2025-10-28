@@ -29,9 +29,6 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         
         snxEthPriceFeed = new MockV3Aggregator(8, 1e8);
         snxUsdPriceFeed = new MockV3Aggregator(8, 1e8);
-
-        // Reinitialized because we're forking a different block than the base test
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
     }
 
     function test_success_AddPriceFeeds() public {
@@ -71,8 +68,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             false,
             address(snxEthPriceFeed),
-            0,
-            100
+            180,
+            130
         );
 
         // Test native configuration
@@ -92,7 +89,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             assertTrue(nativeIsConfigured);
 
             assertEq(nativeDecimals, 8);
-            assertEq(nativeHeartbeat, chainlinkAdaptor.DEFAULT_HEARTBEAT());
+            assertEq(nativeHeartbeat, 180);
         }
 
         // Verify both configurations are still valid
@@ -108,8 +105,8 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             SNX_ADDRESS,
             address(chainlinkAdaptor),
-            100,
-            50
+            180,
+            130
         );
     }
 
@@ -153,6 +150,88 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         assertFalse(isConfigured);
         assertEq(decimals, 0);
         assertEq(heartbeat, 0);
+    }
+
+    function test_removeAsset_success_clearsPriceGuards() public {
+        test_success_AddPriceFeeds();
+
+        // Set static price guard for both USD/Native
+        chainlinkAdaptor.setGuardedPriceConfig(
+            SNX_ADDRESS,
+            true,
+            0,
+            0,
+            2e18,
+            1e18
+        );
+        chainlinkAdaptor.setGuardedPriceConfig(
+            SNX_ADDRESS,
+            false,
+            0,
+            0,
+            2e18,
+            1e18
+        );
+
+        // Double check values aren't zero
+        IOracleAdaptor.PriceGuard memory pgUsd = chainlinkAdaptor.getPriceGuard(SNX_ADDRESS, true);
+        IOracleAdaptor.PriceGuard memory pgNative = chainlinkAdaptor.getPriceGuard(SNX_ADDRESS, false);
+        assertGt(pgUsd.basePrice, 0);
+        assertGt(pgNative.basePrice, 0);
+
+        // Remove asset
+        chainlinkAdaptor.removeAsset(SNX_ADDRESS);
+
+        // Guards should be wiped for both USD and native
+        IOracleAdaptor.PriceGuard memory pgUsdCleared = chainlinkAdaptor.getPriceGuard(SNX_ADDRESS, true);
+        IOracleAdaptor.PriceGuard memory pgNativeCleared = chainlinkAdaptor.getPriceGuard(SNX_ADDRESS, false);
+        assertEq(pgUsdCleared.basePrice, 0);
+        assertEq(pgUsdCleared.minPrice, 0);
+        assertEq(pgUsdCleared.timestampStart, 0);
+        assertEq(pgUsdCleared.ips, 0);
+
+        assertEq(pgNativeCleared.basePrice, 0);
+        assertEq(pgNativeCleared.minPrice, 0);
+        assertEq(pgNativeCleared.timestampStart, 0);
+        assertEq(pgNativeCleared.ips, 0);
+
+    }
+
+    function test_disableGuardedPriceConfig_success_onlyUSD() public {
+        test_success_AddPriceFeeds();
+
+        // Set static price guard for both USD/Native
+        chainlinkAdaptor.setGuardedPriceConfig(
+            SNX_ADDRESS,
+            true,
+            0,
+            0,
+            2e18,
+            1e18
+        );
+        chainlinkAdaptor.setGuardedPriceConfig(
+            SNX_ADDRESS,
+            false,
+            0,
+            0,
+            2e18,
+            1e18
+        );
+
+        // Disable only the USD side
+        chainlinkAdaptor.disableGuardedPriceConfig(SNX_ADDRESS, true);
+
+        IOracleAdaptor.PriceGuard memory pgUsdCleared = chainlinkAdaptor.getPriceGuard(SNX_ADDRESS, true);
+        IOracleAdaptor.PriceGuard memory pgNativeStill = chainlinkAdaptor.getPriceGuard(SNX_ADDRESS, false);
+
+        assertEq(pgUsdCleared.basePrice, 0);
+        assertEq(pgUsdCleared.minPrice, 0);
+        assertEq(pgUsdCleared.timestampStart, 0);
+        assertEq(pgUsdCleared.ips, 0);
+
+        // Native side remains set
+        assertGt(pgNativeStill.basePrice, 0);
+        assertGt(pgNativeStill.minPrice, 0);
     }
 
     function test_fail_UnauthorizedRemovePriceFeed() public {

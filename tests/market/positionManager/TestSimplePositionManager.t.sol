@@ -12,6 +12,7 @@ import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { BasePositionManager } from "contracts/market/position-management/BasePositionManager.sol";
 
 contract TestSimplePositionManager is TestBaseMarketIsolated {
     address public owner;
@@ -1208,6 +1209,99 @@ contract TestSimplePositionManager is TestBaseMarketIsolated {
             borrowableCUSDC.getSnapshot(user);
         assertGt(borrowableCUSDCSnapshot.collateralPosted, 1000e6);
         assertEq(borrowableCUSDCSnapshot.debtBalance, 0);
+
+        vm.stopPrank();
+    }
+
+    function test_leverage_fail_whenExpectedSharesTooHigh() public {
+        vm.startPrank(user);
+
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+        borrowableCUSDC.deposit(1000e6, user);
+        borrowableCUSDC.postCollateral(1000e6);
+
+        borrowableCDAI.borrow(100 ether, user);
+
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
+            user,
+            address(borrowableCDAI)
+        ) / 2;
+
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(borrowableCUSDC));
+        
+        // Set an unrealistically large expectedShares to force revert
+        leverageAction.expectedShares = type(uint256).max;
+        leverageAction.swapAction.inputToken = address(dai);
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = address(usdc);
+        leverageAction.swapAction.target = address(_UNISWAP_V2_ROUTER);
+
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageAction.swapAction.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManager),
+            block.timestamp
+        );
+        leverageAction.swapAction.slippage = 0.3e18;
+
+        vm.expectRevert(BasePositionManager.BasePositionManager__InvalidSlippage.selector);
+        positionManager.leverage(leverageAction, 0.05e18);
+
+        vm.stopPrank();
+    }
+
+    function test_leverage_succeed_whenExpectedSharesLow() public {
+        vm.startPrank(user);
+
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(borrowableCUSDC), 1000e6);
+
+        assertGt(borrowableCUSDC.deposit(1000e6, user), 0);
+        borrowableCUSDC.postCollateral(1000e6);
+        assertEq(borrowableCUSDC.balanceOf(user), 1000e6);
+
+        borrowableCDAI.borrow(100 ether, user);
+
+        uint256 amountForLeverage = _maxRemainingLeverageOfHelper(
+            user,
+            address(borrowableCDAI)
+        ) / 2;
+
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCDAI));
+        leverageAction.borrowAssets = amountForLeverage;
+        leverageAction.cToken = ICToken(address(borrowableCUSDC));
+
+        // Set tiny expectedShares to succeed
+        leverageAction.expectedShares = 1;
+        leverageAction.swapAction.inputToken = address(dai);
+        leverageAction.swapAction.inputAmount = amountForLeverage;
+        leverageAction.swapAction.outputToken = address(usdc);
+        leverageAction.swapAction.target = address(_UNISWAP_V2_ROUTER);
+
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageAction.swapAction.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManager),
+            block.timestamp
+        );
+        leverageAction.swapAction.slippage = 0.3e18;
+
+        positionManager.leverage(leverageAction, 0.05e18);
 
         vm.stopPrank();
     }
