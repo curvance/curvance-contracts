@@ -148,15 +148,15 @@ contract MarketManagerIsolated is
 
     /// MARKET STATE
 
-    /// @notice Whether liquidations are paused.
+    /// @notice Whether market-wide liquidations are paused.
     /// @dev 1 = unpaused; 2 = paused.
     uint8 public liquidationPaused = 1;
-    /// @notice Whether token transfers are paused.
-    /// @dev 1 = unpaused; 2 = paused.
-    uint8 public transferPaused = 1;
-    /// @notice Whether token redemptions are paused.
+    /// @notice Whether market-wide token redemptions are paused.
     /// @dev 1 = unpaused; 2 = paused.
     uint8 public redeemPaused = 1;
+    /// @notice Whether market-wide token transfers are paused.
+    /// @dev 1 = unpaused; 2 = paused.
+    uint8 public transferPaused = 1;
 
     /// @notice The total amount of `cToken` that can be posted as collateral,
     ///         in shares.
@@ -917,57 +917,18 @@ contract MarketManagerIsolated is
     ///      Emits an {ActionPaused} event.
     /// @param state Whether the desired action is pausing or unpausing.
     function setLiquidationPaused(bool state) external {
-        _checkAuthorizedPermissions(state);
+        _checkMarketPermissions();
 
         liquidationPaused = state ? 2 : 1;
         emit ActionPaused("Liquidation Paused", state);
     }
 
-    /// @notice Admin function to set Curvance token mint status.
-    /// @dev Requires timelock authority if unpausing.
-    ///      Emits a {TokenActionPaused} event.
-    /// @param cToken The Curvance token to set minting status for.
-    /// @param state Whether the desired action is pausing or unpausing.
-    function setMintPaused(address cToken, bool state) external {
-        _checkAuthorizedPermissions(state);
-        _checkIsListedToken(cToken);
-
-        _tokenConfig[cToken].mintPaused = state ? 2 : 1;
-        emit TokenActionPaused(cToken, "Mint Paused", state);
-    }
-
-    /// @notice Admin function to set Curvance token collateralization status.
-    /// @dev Requires timelock authority if unpausing.
-    ///      Emits a {TokenActionPaused} event.
-    /// @param cToken The Curvance token to set collateralization status for.
-    /// @param state Whether the desired action is pausing or unpausing.
-    function setCollateralizationPaused(address cToken, bool state) external {
-        _checkAuthorizedPermissions(state);
-        _checkIsListedToken(cToken);
-
-        _tokenConfig[cToken].collateralizationPaused = state ? 2 : 1;
-        emit TokenActionPaused(cToken, "Collateralization Paused", state);
-    }
-
-    /// @notice Admin function to set Curvance token borrow status.
-    /// @dev Requires timelock authority if unpausing.
-    ///      Emits a {TokenActionPaused} event.
-    /// @param cToken The Curvance token to set borrowing status for.
-    /// @param state Whether the desired action is pausing or unpausing.
-    function setBorrowPaused(address cToken, bool state) external {
-        _checkAuthorizedPermissions(state);
-        _checkIsListedToken(cToken);
-
-        _tokenConfig[cToken].borrowPaused = state ? 2 : 1;
-        emit TokenActionPaused(cToken, "Borrow Paused", state);
-    }
-
     /// @notice Admin function to set market-wide redemption status.
     /// @dev Requires timelock authority if unpausing.
     ///      Emits an {ActionPaused} event.
-    /// @param state Whether the desired action is pausing or unpausing.
+    /// @param state Whether redemptions should be paused or unpaused.
     function setRedeemPaused(bool state) external {
-        _checkAuthorizedPermissions(state);
+        _checkMarketPermissions();
 
         redeemPaused = state ? 2 : 1;
         emit ActionPaused("Redeem Paused", state);
@@ -976,15 +937,57 @@ contract MarketManagerIsolated is
     /// @notice Admin function to set market-wide transfer status.
     /// @dev Requires timelock authority if unpausing.
     ///      Emits an {ActionPaused} event.
-    /// @param state Whether the desired action is pausing or unpausing.
+    /// @param state Whether transfers should be paused or unpaused.
     function setTransferPaused(bool state) external {
-        _checkAuthorizedPermissions(state);
+        _checkMarketPermissions();
 
         transferPaused = state ? 2 : 1;
         emit ActionPaused("Transfer Paused", state);
     }
 
-    /// @notice Adds an position management address for complex
+    /// @notice Admin function to set token-specific Curvance token
+    ///         minting status.
+    /// @dev Requires timelock authority if unpausing.
+    ///      Emits a {TokenActionPaused} event.
+    /// @param cToken The Curvance token to set minting status for.
+    /// @param state Whether minting should be paused or unpaused.
+    function setMintPaused(address cToken, bool state) external {
+        _checkMarketPermissions();
+        _checkIsListedToken(cToken);
+
+        _tokenConfig[cToken].mintPaused = state ? 2 : 1;
+        emit TokenActionPaused(cToken, "Mint Paused", state);
+    }
+
+    /// @notice Admin function to set token-specific Curvance token
+    ///         collateralization status.
+    /// @dev Requires timelock authority if unpausing.
+    ///      Emits a {TokenActionPaused} event.
+    /// @param cToken The Curvance token to set collateralization status for.
+    /// @param state Whether collateralization should be paused or unpaused.
+    function setCollateralizationPaused(address cToken, bool state) external {
+        _checkMarketPermissions();
+        _checkIsListedToken(cToken);
+
+        _tokenConfig[cToken].collateralizationPaused = state ? 2 : 1;
+        emit TokenActionPaused(cToken, "Collateralization Paused", state);
+    }
+
+    /// @notice Admin function to set token-specific Curvance token
+    ///         borrowing status.
+    /// @dev Requires timelock authority if unpausing.
+    ///      Emits a {TokenActionPaused} event.
+    /// @param cToken The Curvance token to set borrowing status for.
+    /// @param state Whether borrowing should be paused or unpaused.
+    function setBorrowPaused(address cToken, bool state) external {
+        _checkMarketPermissions();
+        _checkIsListedToken(cToken);
+
+        _tokenConfig[cToken].borrowPaused = state ? 2 : 1;
+        emit TokenActionPaused(cToken, "Borrow Paused", state);
+    }
+
+    /// @notice Adds a new position manager address for complex
     ///         position actions.
     /// @dev Requires timelock authority.
     ///      Emits a {PositionManagerUpdated} event.
@@ -993,10 +996,8 @@ contract MarketManagerIsolated is
         _checkMarketPermissions();
 
         if (
-            !ERC165Checker.supportsInterface(
-                newPM,
-                type(IPositionManager).interfaceId
-            )
+            !ERC165Checker
+                .supportsInterface(newPM, type(IPositionManager).interfaceId)
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -1012,7 +1013,7 @@ contract MarketManagerIsolated is
         emit PositionManagerUpdated(newPM, true);
     }
 
-    /// @notice Removes an position management address for complex
+    /// @notice Removes a current position manager address from complex
     ///         position actions.
     /// @dev Requires timelock authority.
     ///      Emits a {PositionManagerUpdated} event.
@@ -1744,6 +1745,10 @@ contract MarketManagerIsolated is
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
+    ///      NOTE: Market Permissioned contracts should have corresponding
+    ///            restrictions handled within the contract itself such as
+    ///            enforcing a specific party to pause but not unpause
+    ///            markets.
     function _checkMarketPermissions() internal view virtual {
         if (!centralRegistry.hasMarketPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -1753,21 +1758,6 @@ contract MarketManagerIsolated is
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkAuctionPermissions() internal view {
         if (!centralRegistry.hasAuctionPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-    }
-
-    /// @dev Checks whether the caller has sufficient permissions based on
-    ///      `state`, turning something off is less "risky" than enabling
-    ///      something, so `state` = true has reduced permissioning compared
-    ///      to `state` = false.
-    function _checkAuthorizedPermissions(bool state) internal view {
-        if (state) {
-            _checkMarketPermissions();
-            return;
-        }
-
-        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
     }

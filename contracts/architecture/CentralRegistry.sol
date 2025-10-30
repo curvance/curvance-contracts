@@ -1051,6 +1051,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Cannot be a supported Harvester contract prior.
     ///      Emits a {PermissionsUpdated} event.
+    ///      NOTE: Market Permissioned contracts should have corresponding
+    ///            restrictions handled within the contract itself such as
+    ///            enforcing a specific party to pause but not unpause
+    ///            markets.
     /// @param newAddress The address to add market permissions to
     ///                   inside Curvance.
     function addMarketPermissions(address newAddress) external {
@@ -1068,6 +1072,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
     //// @notice Deauthorizes an address to manage markets.
     /// @dev Only callable on a 5-day delay or by the Emergency Council.
     ///      Emits a {PermissionsUpdated} event.
+    ///      NOTE: Market Permissioned contracts should have corresponding
+    ///            restrictions handled within the contract itself such as
+    ///            enforcing a specific party to pause but not unpause
+    ///            markets.
     /// @param addressApproved The address to remove market permissions from
     ///                        inside Curvance.
     function removeMarketPermissions(address addressApproved) external {
@@ -1180,9 +1188,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         address expectedMessagingHub,
         address expectedVotingHub
     ) external {
-        // Lower permissioning on removing chains as it will reduce risk to
-        // the system.
-        _checkDaoPermissions();
+        _checkElevatedPermissions();
 
         ChainConfig memory c = chainConfig[chainId];
 
