@@ -18,6 +18,8 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
     }
 
     function test_addAssetPriceFeed_fail_whenAdaptorIsNotApproved() public {
+        oracleManager.removeApprovedAdaptor(address(chainlinkAdaptor));
+        
         vm.expectRevert(
             OracleManager.OracleManager__AdaptorIsNotApproved.selector
         );

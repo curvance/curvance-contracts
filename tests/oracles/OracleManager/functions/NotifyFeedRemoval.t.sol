@@ -14,19 +14,19 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
         oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
     }
 
-    function test_notifyFeedRemoval_fail_whenNoFeedsAvailable() public {
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+    // No longer reverts
 
-        vm.prank(address(chainlinkAdaptor));
+    // function test_notifyFeedRemoval_fail_whenNoFeedsAvailable() public {
+    //     oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
-        oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
-    }
+    //     vm.prank(address(chainlinkAdaptor));
+
+    //     vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
+    //     oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
+    // }
 
     function test_notifyFeedRemoval_noop_whenSingleFeedDoesNotExist() public {
         _addSinglePriceFeed();
-
-        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
 
         address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
         address feed0Before = adaptorsBefore[0];
@@ -100,7 +100,7 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
         _addDualPriceFeed();
 
         ChainlinkAdaptor thirdAdaptor = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
-
+        oracleManager.addApprovedAdaptor(address(thirdAdaptor));
         thirdAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
@@ -115,8 +115,6 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
             0,
             100
         );
-
-        oracleManager.addApprovedAdaptor(address(thirdAdaptor));
 
         address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
         address feed0Before = adaptorsBefore[0];

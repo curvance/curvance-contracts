@@ -118,12 +118,10 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
 function test_getPricesForMarket_accruesAndUsesExchangeRateAndDebt() public {
     // Set up market with two borrowable cTokens.
     _deployBorrowableCDAI();
-    oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-    oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
     // switch to mock feeds to enable time skipping.
     _setMockFeedsInitial();
-    oracleManager.addAssetPricingAdaptor(_USDC_ADDRESS, address(chainlinkAdaptor), 100, 50);
-    oracleManager.addAssetPricingAdaptor(_DAI_ADDRESS, address(chainlinkAdaptor), 100, 50);
+    oracleManager.addAssetPricingAdaptor(_USDC_ADDRESS, address(chainlinkAdaptor), 150, 180);
+    oracleManager.addAssetPricingAdaptor(_DAI_ADDRESS, address(chainlinkAdaptor), 150, 180);
 
     oracleManager.addCTokenSupport(address(borrowableCDAI));
     oracleManager.addCTokenSupport(address(borrowableCUSDC));

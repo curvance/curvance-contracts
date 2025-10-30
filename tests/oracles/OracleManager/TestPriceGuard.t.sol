@@ -36,7 +36,7 @@ contract TestPriceGuard is TestBaseMarketIsolated {
     }
 
     function test_fail_whenBasePriceIsLessThanMinPrice() public {
-        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 timestampStart = 0;
 
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
         chainlinkAdaptor.setGuardedPriceConfig(
@@ -65,7 +65,7 @@ contract TestPriceGuard is TestBaseMarketIsolated {
     }
 
     function test_fail_whenBasePriceIsTooHigh() public {
-        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 timestampStart = 0;
         uint256 overflowedBasePrice = uint256(type(uint96).max) + 1;
 
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
@@ -80,11 +80,11 @@ contract TestPriceGuard is TestBaseMarketIsolated {
     }
 
     function test_fail_whenMinPriceIsTooHigh() public {
-        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 timestampStart = 0;
         uint256 basePrice = uint256(type(uint80).max) + 2;
         uint256 overflowedMinPrice = uint256(type(uint80).max) + 1;
 
-        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidConfig.selector);
+        vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__MinPriceAboveCurrentPrice.selector);
         chainlinkAdaptor.setGuardedPriceConfig(
             _ETH_ADDRESS,
             true,
@@ -124,7 +124,7 @@ contract TestPriceGuard is TestBaseMarketIsolated {
     }
 
     function test_fail_whenMinPriceIsHigherThanCurrentPrice() public {
-        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 timestampStart = 0;
 
         // minPrice too high: upper bound = 3,300
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__MinPriceAboveCurrentPrice.selector);
@@ -139,12 +139,13 @@ contract TestPriceGuard is TestBaseMarketIsolated {
     }
 
     function test_fail_whenTimestampStartEarlierThanExisting() public {
-        // Initial valid config
+        // Initial valid dynamic config
         uint256 timestampStart1 = block.timestamp - 8 days;
+        uint256 increasePerSecond = 3170979198; // ~10% per year
 
         IOracleAdaptor.PriceGuard memory pg;
         pg.timestampStart = uint40(timestampStart1);
-        pg.ips = 0;
+        pg.ips = uint40(increasePerSecond);
         pg.basePrice = uint88(3600e18);
         pg.minPrice = uint88(3400e18);
 
@@ -154,19 +155,19 @@ contract TestPriceGuard is TestBaseMarketIsolated {
             _WETH_ADDRESS,
             true,
             timestampStart1,
-            0,
+            increasePerSecond,
             3600e18,
             3400e18
         );
 
-        // Attempt to set with earlier timestampStart
+        // Attempt to set with earlier timestampStart (should revert)
         uint256 timestampStart2 = block.timestamp - 10 days;
         vm.expectRevert(BaseOracleAdaptor.BaseOracleAdaptor__InvalidTimestamp.selector);
         chainlinkAdaptor.setGuardedPriceConfig(
             _WETH_ADDRESS,
             true,
             timestampStart2,
-            0,
+            increasePerSecond,
             3600e18,
             3400e18
         );
@@ -174,7 +175,7 @@ contract TestPriceGuard is TestBaseMarketIsolated {
 
     // Static guard: enforce min and max constraints
     function test_success_StaticGuardAdjustPriceMinMax() public {
-        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 timestampStart = 0;
         IOracleAdaptor.PriceGuard memory pg;
         pg.timestampStart = uint40(timestampStart);
         pg.ips = 0;
@@ -291,7 +292,7 @@ contract TestPriceGuard is TestBaseMarketIsolated {
 
     // Dynamic guard with zero increase: behaves as static constraints
     function test_success_dynamicGuardZeroIncreaseBehavesStatic() public {
-        uint256 timestampStart = block.timestamp - 8 days;
+        uint256 timestampStart = 0;
         uint256 increasePerSecond = 0; // No increase per second.
         uint256 basePrice = 3600e18;
         uint256 minPrice = 3400e18;

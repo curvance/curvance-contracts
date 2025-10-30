@@ -31,6 +31,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
@@ -59,12 +60,13 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
             IStaticOracle(_UNISWAP_V3_ORACLE),
             _WETH_ADDRESS
         );
+        oracleManager.addApprovedAdaptor(address(adaptor));
+        
         UniswapV3Adaptor.AssetConfig memory assetConfig;
         assetConfig.priceSource = _WBTC_WETH;
         assetConfig.secondsAgo = 3600;
         adaptor.addAsset(_WBTC_ADDRESS, assetConfig);
 
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
@@ -83,8 +85,6 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
             100,
             50
         );
-
-        oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50);
     }
 

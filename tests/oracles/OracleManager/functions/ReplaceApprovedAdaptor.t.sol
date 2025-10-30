@@ -20,8 +20,6 @@ contract ReplaceApprovedAdaptorTest is TestBaseOracleManager {
     function test_replaceApprovedAdaptor_fail_whenAdaptorsAreIdentical()
         public
     {
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
@@ -34,9 +32,6 @@ contract ReplaceApprovedAdaptorTest is TestBaseOracleManager {
     function test_replaceApprovedAdaptor_fail_whenNewAdaptorIsAlreadyConfigured()
         public
     {
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
-
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
@@ -49,8 +44,6 @@ contract ReplaceApprovedAdaptorTest is TestBaseOracleManager {
     function test_replaceApprovedAdaptor_fail_whenCurrentAdaptorIsNotConfigured()
         public
     {
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
@@ -61,8 +54,9 @@ contract ReplaceApprovedAdaptorTest is TestBaseOracleManager {
     }
 
     function test_replaceApprovedAdaptor_success() public {
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+
         assertTrue(oracleManager.isApprovedAdaptor(address(chainlinkAdaptor)));
+        oracleManager.removeApprovedAdaptor(address(dualChainlinkAdaptor));
 
         oracleManager.replaceApprovedAdaptor(
             address(chainlinkAdaptor),

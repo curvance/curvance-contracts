@@ -65,8 +65,8 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             1 minutes
         );
 
-        redstoneAdaptor.addAsset(_WBTC_ADDRESS, true, 8);
-        redstoneAdaptor.addAsset(_WBTC_ADDRESS, false, 18);
+        redstoneAdaptor.addAsset(_WBTC_ADDRESS, true, 8, "WBTC");
+        redstoneAdaptor.addAsset(_WBTC_ADDRESS, false, 18, "WBTC");
 
         multicallChecker = new RedstoneAdaptorMulticallChecker(
             ICentralRegistry(address(centralRegistry))

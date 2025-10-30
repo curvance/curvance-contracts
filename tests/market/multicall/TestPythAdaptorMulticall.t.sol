@@ -63,6 +63,8 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             _WETH_ADDRESS
         );
 
+        oracleManager.addApprovedAdaptor(address(pythAdaptor));
+
         pythAdaptor.addAsset(
             _WBTC_ADDRESS,
             true,
@@ -78,7 +80,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             address(multicallChecker)
         );
 
-        oracleManager.addApprovedAdaptor(address(pythAdaptor));
+
 
         bytes[] memory priceUpdateData = new bytes[](1);
         priceUpdateData[

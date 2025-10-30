@@ -30,6 +30,11 @@ contract TestApi3Adaptor is TestBaseOracleManager {
         adaptor = new Api3Adaptor(ICentralRegistry(
             address(centralRegistry))
         );
+
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+
+        oracleManager.addApprovedAdaptor(address(adaptor));
+        
         adaptor.addAsset(
             _ARB_ADDRESS,
             true,
@@ -39,9 +44,6 @@ contract TestApi3Adaptor is TestBaseOracleManager {
             100
         );
 
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-
-        oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPricingAdaptor(_ARB_ADDRESS, address(adaptor), 100, 50);
     }
 

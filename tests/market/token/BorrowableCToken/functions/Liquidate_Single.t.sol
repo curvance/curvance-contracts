@@ -22,18 +22,25 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
     function test_liquidate_single_success() public {
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(user1);
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
+
+        uint256 initialMarketDebt = borrowableCUSDC.marketOutstandingDebt();
         
         borrowableCUSDC.accrueIfNeeded();
         
         uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(user1);
         uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
-        
-        assertGt(debtAfterAccrual, 1000e6);
+        uint256 totalMarketDebtAfterAccrual = borrowableCUSDC.marketOutstandingDebt();
+
         assertGt(debtAfterAccrual, debtBeforeAccrual);
         
-        uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 userDebtIncrease = debtAfterAccrual - debtBeforeAccrual;
+        uint256 totalMarketDebtIncrease = totalMarketDebtAfterAccrual - initialMarketDebt;
         uint256 assetsIncrease = totalAssetsAfterAccrual - totalAssetsBeforeAccrual;
-        assertEq(debtIncrease, assetsIncrease);
+        console2.log("debtIncrease", userDebtIncrease);
+        console2.log("assetsIncrease", assetsIncrease);
+        
+        assertEq(totalMarketDebtIncrease, assetsIncrease, "total debt and asset increase should be equal");
+        assertEq(userDebtIncrease, assetsIncrease, "debt increase should equal assets increase");
 
         address[] memory accounts = new address[](1);
         accounts[0] = user1;

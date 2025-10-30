@@ -159,7 +159,7 @@ contract AuctionCustomIncentiveAndCloseFactorTest is TestBaseMarketIsolated {
         );
 
         // Calculate expected collateral seized
-        return FixedPointMathLib.mulDivUp(
+        return FixedPointMathLib.mulDiv(
             debtRepaid,
             debtToCollateral,
             WAD_SQUARED

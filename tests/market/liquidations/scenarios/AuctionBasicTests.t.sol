@@ -250,7 +250,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
             (((incentive * debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
                 cTokenPrice) * collateralDecimals) / debtDecimals;
 
-        uint256 collateralLiquidated = FixedPointMathLib.mulDivUp(
+        uint256 collateralLiquidated = FixedPointMathLib.mulDiv(
             debtAmount,
             debtToCollateralMultiplier,
             WAD_SQUARED
@@ -275,7 +275,7 @@ contract AuctionBasicTests is TestBaseLiquidations {
             (((incentive * debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
                 cTokenPrice) * collateralDecimals) / debtDecimals;
         
-        uint256 collateralLiquidated = FixedPointMathLib.mulDivUp(
+        uint256 collateralLiquidated = FixedPointMathLib.mulDiv(
             debtAmount,
             debtToCollateralMultiplier,
             WAD_SQUARED

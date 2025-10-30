@@ -195,6 +195,7 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
     }
 
     function test_DynamicIRM_threshold_resolution_audit1() public {
+            vm.expectRevert(DynamicIRM.DynamicIRM__InvalidMultiplierMax.selector);
             IRM.updateDynamicIRM(
                 1500,
                 1500,
@@ -204,6 +205,7 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
                 150000000,
                 true
             );
+            vm.expectRevert(DynamicIRM.DynamicIRM__InvalidMultiplierMax.selector);
             IRM.updateDynamicIRM(
                 1500,
                 1500,
@@ -213,6 +215,7 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
                 150000000,
                 true
             );
+            vm.expectRevert(DynamicIRM.DynamicIRM__InvalidMultiplierMax.selector);
             IRM.updateDynamicIRM(
                 1500,
                 1500,
@@ -222,6 +225,7 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
                 150000000,
                 true
             );
+            vm.expectRevert(DynamicIRM.DynamicIRM__InvalidMultiplierMax.selector);
             IRM.updateDynamicIRM(
                 1500,
                 1500,
@@ -231,6 +235,7 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
                 150000000,
                 true
             );
+            vm.expectRevert(DynamicIRM.DynamicIRM__InvalidMultiplierMax.selector);
             IRM.updateDynamicIRM(
                 1500,
                 1500,
@@ -240,6 +245,7 @@ contract UpdateDynamicIRMTest is TestBaseDynamicIRM {
                 150000000,
                 true
             );
+            vm.expectRevert(DynamicIRM.DynamicIRM__InvalidMultiplierMax.selector);
             IRM.updateDynamicIRM(
                 1500,
                 1500,

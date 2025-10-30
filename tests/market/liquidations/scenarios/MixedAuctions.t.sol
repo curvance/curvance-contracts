@@ -38,11 +38,12 @@ contract MixedAuction is TestBaseLiquidations {
 
     address[] auctionBorrowers = [borrower1, borrower2];
     address[] regularBorrowers = [borrower3, borrower4];
-    uint256[] collateralAmounts = [2.0e18, 1.8e18, 1.9e18, 1.7e18];
+
+    uint256[] collateralAmounts = [2.2e18, 2.0e18, 1.9e18, 1.7e18];
     uint256[] borrowAmounts = [8_500e6, 7_800e6, 8_200e6, 7_400e6];
 
     // Auction parameters
-    uint256 validPenalty = 10400;
+    uint256 validPenalty = 10050;
     uint256 closeFactor = 5000;
 
     uint256[] debtBalancesPreLiquidation_auction;
@@ -145,12 +146,13 @@ contract MixedAuction is TestBaseLiquidations {
                 marketManagerId: 0
             }));
 
+        // Partial auctions: expect no bad debt
         totalBadDebtAuction = auctionLiqValuesBorrower1.badDebt + auctionLiqValuesBorrower2.badDebt;
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit BadDebtRecognized(totalBadDebtAuction, auctionPermsUser);
         emit Repay(auctionLiqValuesBorrower1.debtRepaid,auctionPermsUser, auctionBorrowers[0]);
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Repay(auctionLiqValuesBorrower2.debtRepaid,auctionPermsUser, auctionBorrowers[1]);
 
         borrowableCUSDC.liquidate(
@@ -292,11 +294,20 @@ contract MixedAuction is TestBaseLiquidations {
 
         usdc.approve(address(borrowableCUSDC), 100000e6);
 
-        // Assert BadDebtRecognized event is emitted with expected total bad debt
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit Repay(
+            regularLiqValuesBorrower3.debtRepaid + regularLiqValuesBorrower3.badDebt,
+            address(this),
+            regularBorrowers[0]
+        );
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit Repay(
+            regularLiqValuesBorrower4.debtRepaid + regularLiqValuesBorrower4.badDebt,
+            address(this),
+            regularBorrowers[1]
+        );
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit BadDebtRecognized(totalBadDebtRegular, address(this));
-        emit Repay(regularLiqValuesBorrower3.debtRepaid,address(this), regularBorrowers[0]);
-        emit Repay(regularLiqValuesBorrower4.debtRepaid,address(this), regularBorrowers[1]);
 
         borrowableCUSDC.liquidate(
             regularBorrowers,
@@ -337,10 +348,9 @@ contract MixedAuction is TestBaseLiquidations {
 
         totalBadDebtAuction = auctionLiqValuesBorrower1.badDebt + auctionLiqValuesBorrower2.badDebt;
 
-        // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit BadDebtRecognized(totalBadDebtAuction, auctionPermsUser);
         emit Repay(auctionLiqValuesBorrower1.debtRepaid,auctionPermsUser, auctionBorrowers[0]);
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Repay(auctionLiqValuesBorrower2.debtRepaid,auctionPermsUser, auctionBorrowers[1]);
 
         borrowableCUSDC.liquidate(
@@ -393,7 +403,6 @@ contract MixedAuction is TestBaseLiquidations {
         );
 
         // Assert Total borrows is reduced by the amount of debt repaid
-
         totalDebtRepaid = auctionLiqValuesBorrower1.debtRepaid +
             auctionLiqValuesBorrower2.debtRepaid +
             regularLiqValuesBorrower3.debtRepaid +
@@ -435,7 +444,7 @@ contract MixedAuction is TestBaseLiquidations {
 
         for(uint i = 0; i < 2; i++) {
             (, , , uint256 lFactorAfter) = _liquidationValuesOfHelper(marketManagerIsolated, auctionBorrowers[i]);
-
+            
             assertGt(lFactorAfter, 0, "Auction borrower should still have lFactor > 0");
         }
 

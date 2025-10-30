@@ -97,7 +97,7 @@ contract TestOnRedeemNativeRefund is TestBaseMarketIsolated {
 
         // Give dust to the manager 
         vm.deal(address(positionManager), .001 ether);
-        assertGt(address(positionManager).balance, 0.001 ether);
+        assertEq(address(positionManager).balance, 0.001 ether, "positionManager should have 0.001 ether");
 
         uint256 wethBefore = IERC20(_WETH_ADDRESS).balanceOf(user1);
         

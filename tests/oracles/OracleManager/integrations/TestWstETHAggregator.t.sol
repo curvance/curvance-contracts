@@ -24,7 +24,7 @@ contract TestWstETHAggregator is TestBase {
             _WSTETH_ADDRESS,
             _STETH_ADDRESS,
             _CHAINLINK_STETH_USD,
-            "100"
+            "wstETH"
         );
     }
     

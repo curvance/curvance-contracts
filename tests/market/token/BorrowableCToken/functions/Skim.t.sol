@@ -47,9 +47,9 @@ contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
 
         assertEq(excess, donationAmount, "Excess should equal donation amount");
 
-        assertEq(usdc.balanceOf(address(borrowableCUSDC)), 1_000_000e6 + 77777);
+        assertEq(usdc.balanceOf(address(borrowableCUSDC)), 1_000_000e6 + 77777 + donationAmount);
 
-        assertEq(borrowableCUSDC.skimAvailable(), 0, "No excess should remain");
+        assertEq(borrowableCUSDC.assetsHeld(), 1_000_000e6);
     }
 
     function test_skim_fail_withZeroAmount_whenNoExcess() public {

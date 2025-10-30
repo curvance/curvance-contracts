@@ -50,8 +50,8 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             "ETH",
             1 minutes
         );
-        adaptor.addAsset(_WBTC_ADDRESS, true, 8);
-        adaptor.addAsset(_WBTC_ADDRESS, false, 18);
+        adaptor.addAsset(_WBTC_ADDRESS, true, 8, "WBTC");
+        adaptor.addAsset(_WBTC_ADDRESS, false, 18, "WBTC");
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
@@ -185,8 +185,8 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             redstoneSignerKeys
         );
 
-        (, , , bytes32 symbolHash) = adaptor.assetConfig(_WBTC_ADDRESS, true);
-        assertEq(symbolHash, bytes32("WBTC"));
+        (bytes32 dataFeedId,,,) = adaptor.assetConfig(_WBTC_ADDRESS, true);
+        assertEq(dataFeedId, bytes32("WBTC"));
         
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool,uint48)",
@@ -323,6 +323,28 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
 
         // Skip 1 day, test that dynamic cap works and shows on read.
         skip(1 days);
+        redstonePayload = getRedstonePayload(
+            "WBTC:60000:8",
+            redstoneSignerKeys
+        );
+
+        // re-write price to update the timestamp
+        encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool,uint48)",
+            _WBTC_ADDRESS,
+            true,
+            uint48(block.timestamp * 1000)
+        );
+        encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+
+        (success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayload
+        );
+        assertTrue(success);
+
         uint256 timePassed1 = block.timestamp - start;
         uint256 cap1 = (basePrice * ((timePassed1 * ips) + 1e18)) / 1e18;
         (uint256 price1, uint256 err1) = oracleManager.getPrice(

@@ -39,6 +39,9 @@ contract TestWstETHAdaptor is TestBaseOracleManager {
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
+
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        
         chainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
             true,
@@ -60,7 +63,6 @@ contract TestWstETHAdaptor is TestBaseOracleManager {
             0,
             100
         );
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),

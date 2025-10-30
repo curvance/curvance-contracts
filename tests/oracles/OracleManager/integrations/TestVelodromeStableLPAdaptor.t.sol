@@ -33,6 +33,8 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
         adaptor = new VelodromeStableLPAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
+        oracleManager.addApprovedAdaptor(address(adaptor));
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         adaptor.addAsset(_VELODROME_DAI_USDC);
 
         chainlinkAdaptor.addAsset(
@@ -57,7 +59,6 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
             100
         );
 
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
@@ -76,8 +77,6 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
             100,
             50
         );
-
-        oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPricingAdaptor(_VELODROME_DAI_USDC, address(adaptor), 100, 50);
     }
 

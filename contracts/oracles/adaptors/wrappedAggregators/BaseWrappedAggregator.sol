@@ -50,7 +50,7 @@ abstract contract BaseWrappedAggregator is IChainlink, IRedstone {
         // This check should basically never fail but its here incase somehow
         // the deployer misconfigured the aggregator address, also doubles as
         // checking that the function call did not fail.
-        if (answer <= 0 || updatedAt > 0 || roundId == 0) {
+        if (answer <= 0 || updatedAt == 0 || roundId == 0) {
             revert BaseWrappedAggregator__InvalidConfig();
         }
 

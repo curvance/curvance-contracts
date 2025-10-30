@@ -15,6 +15,7 @@ contract AddRedstoneSupport is DeployScript {
     struct PullFeed {
         bytes payload;
         uint48 timestamp;
+        string id;
     }
 
     struct PushFeed {
@@ -49,7 +50,7 @@ contract AddRedstoneSupport is DeployScript {
         IERC20 token = IERC20(asset);
 
         // Add oracle support
-        adaptor.addAsset(asset, true, token.decimals());
+        adaptor.addAsset(asset, true, token.decimals(), feed.id);
         adaptor.assetConfig(asset, true);
 
         // Push the first price on-chain

@@ -16,12 +16,138 @@ contract ExtremeDropTest is TestBaseLiquidations {
         _setUpMarketPreLiquidation();
         _setUpBorrowerCollateral();
         _setUpBorrowerDebt();
-
-        // set DAI price to almost 0
-        mockDaiFeed.setMockAnswer(100);
     }
 
     function testLiquidateWithExtremeDrop() public {
+
+        // set DAI price to almost 0
+        mockDaiFeed.setMockAnswer(100);
+
+        skip(8 weeks);
+
+        _refreshMockFeeds();
+
+        uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
+        uint256 initialOutstandingDebt = borrowableCUSDC.marketOutstandingDebt();
+        uint256 initialUserCollateralPosted = borrowableCDAI.collateralPosted(user1);
+
+        borrowableCUSDC.accrueIfNeeded();
+
+        uint256 afterTotalAssets = borrowableCUSDC.totalAssets();
+        uint256 afterOutstandingDebt = borrowableCUSDC.marketOutstandingDebt();
+
+        assertEq(afterTotalAssets - initialTotalAssets,afterOutstandingDebt - initialOutstandingDebt, "invariant failed");
+        
+        ExpectedLiquidationValues memory expectedValues = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: user1,
+                collateralToken: address(borrowableCDAI),
+                borrowedToken: address(borrowableCUSDC),
+                isLiquidateExact: false,
+                liquidateExactAmount: 0,
+                isAuction: false,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            })
+        );
+
+        address[] memory borrowers = new address[](1);
+        borrowers[0] = user1;
+
+        _prepareUSDC(address(this), 100000e6);
+        usdc.approve(address(borrowableCUSDC), 100000e6);
+
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit BadDebtRecognized(
+            expectedValues.badDebt,
+            address(this));
+        emit Repay(expectedValues.debtRepaid + expectedValues.badDebt, address(this), user1);
+
+        borrowableCUSDC.liquidate(borrowers, address(borrowableCDAI));
+
+        assertEq(
+            afterOutstandingDebt - (expectedValues.debtRepaid + expectedValues.badDebt),
+            borrowableCUSDC.marketOutstandingDebt()
+        );
+
+        assertEq(
+            (initialUserCollateralPosted - expectedValues.collateralLiquidated),
+            borrowableCUSDC.collateralPosted(user1)
+        );
+
+        assertEq(borrowableCUSDC.collateralPosted(user1), 0);
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), 0);
+        assertEq(borrowableCUSDC.debtBalance(user1), 0);
+        
+    }
+
+    function testLiquidateWithCollateralDropBy90Percent() public {
+
+        // set DAI price to $0.10
+        mockDaiFeed.setMockAnswer(100000);
+
+        skip(8 weeks);
+
+        _refreshMockFeeds();
+
+        uint256 initialTotalAssets = borrowableCUSDC.totalAssets();
+        uint256 initialOutstandingDebt = borrowableCUSDC.marketOutstandingDebt();
+        uint256 initialUserCollateralPosted = borrowableCDAI.collateralPosted(user1);
+
+        borrowableCUSDC.accrueIfNeeded();
+
+        uint256 afterTotalAssets = borrowableCUSDC.totalAssets();
+        uint256 afterOutstandingDebt = borrowableCUSDC.marketOutstandingDebt();
+
+        assertEq(afterTotalAssets - initialTotalAssets,afterOutstandingDebt - initialOutstandingDebt, "invariant failed");
+        
+        ExpectedLiquidationValues memory expectedValues = _calculateExpectedLiquidationValues(
+            LiquidationParams({
+                borrower: user1,
+                collateralToken: address(borrowableCDAI),
+                borrowedToken: address(borrowableCUSDC),
+                isLiquidateExact: false,
+                liquidateExactAmount: 0,
+                isAuction: false,
+                isMultiMarketTest: false,
+                marketManagerId: 0
+            })
+        );
+
+        address[] memory borrowers = new address[](1);
+        borrowers[0] = user1;
+
+        _prepareUSDC(address(this), 100000e6);
+        usdc.approve(address(borrowableCUSDC), 100000e6);
+
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
+        emit BadDebtRecognized(
+            expectedValues.badDebt,
+            address(this));
+        emit Repay(expectedValues.debtRepaid + expectedValues.badDebt, address(this), user1);
+
+        borrowableCUSDC.liquidate(borrowers, address(borrowableCDAI));
+
+        assertEq(
+            afterOutstandingDebt - (expectedValues.debtRepaid + expectedValues.badDebt),
+            borrowableCUSDC.marketOutstandingDebt()
+        );
+
+        assertEq(
+            (initialUserCollateralPosted - expectedValues.collateralLiquidated),
+            borrowableCUSDC.collateralPosted(user1)
+        );
+
+        assertEq(borrowableCUSDC.collateralPosted(user1), 0, "collateral posted should be 0");
+        assertEq(borrowableCUSDC.marketOutstandingDebt(), 0, "market outstanding debt should be 0");
+        assertEq(borrowableCUSDC.debtBalance(user1), 0, "debt balance should be 0");
+        
+    }
+
+    function testLiquidateWithCollateralDropBy99Percent() public {
+
+        // set DAI price to $0.01
+        mockDaiFeed.setMockAnswer(10000);
 
         skip(8 weeks);
 

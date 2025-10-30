@@ -15,6 +15,7 @@ contract RemoveApprovedAdaptorTest is TestBaseOracleManager {
     }
 
     function test_removeApprovedAdaptor_fail_whenAdaptorDoesNotExist() public {
+        oracleManager.removeApprovedAdaptor(address(chainlinkAdaptor));
         vm.expectRevert(
             OracleManager.OracleManager__AdaptorIsNotApproved.selector
         );
@@ -22,7 +23,6 @@ contract RemoveApprovedAdaptorTest is TestBaseOracleManager {
     }
 
     function test_removeApprovedAdaptor_success() public {
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         assertTrue(oracleManager.isApprovedAdaptor(address(chainlinkAdaptor)));
 

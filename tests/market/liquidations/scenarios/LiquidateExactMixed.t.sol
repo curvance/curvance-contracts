@@ -121,10 +121,10 @@ contract LiquidateExactMix is TestBaseLiquidations {
         vm.startPrank(first_liquidator);
         usdc.approve(address(borrowableCUSDC), amountToRepayPartial[0]);
 
-        // expect bad debt emit and debt repaid
+        // expect events in order
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit BadDebtRecognized(expectedLiqValues_first.badDebt, first_liquidator);
         emit Repay(totalDebtPaid_first, first_liquidator, borrower1);
+        emit BadDebtRecognized(expectedLiqValues_first.badDebt, first_liquidator);
 
         borrowableCUSDC.liquidateExact(
             amountToRepayPartial,
@@ -175,10 +175,10 @@ contract LiquidateExactMix is TestBaseLiquidations {
         vm.startPrank(second_liquidator);
         usdc.approve(address(borrowableCUSDC), amountToRepayPartial[0]);
 
-        // expect bad debt emit and debt repaid
+        // expect events in order
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit BadDebtRecognized(expectedLiqValues_second.badDebt, second_liquidator);
         emit Repay(totalDebtPaid_second, second_liquidator, borrower1);
+        emit BadDebtRecognized(expectedLiqValues_second.badDebt, second_liquidator);
 
         // The second liquidation should have the same expected result as the first
 
@@ -226,8 +226,8 @@ contract LiquidateExactMix is TestBaseLiquidations {
 
         // expect bad debt emit and debt repaid
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit BadDebtRecognized(expectedLiqValues_third.badDebt, third_liquidator);
         emit Repay(totalDebtPaid_third, third_liquidator, borrower1);
+        emit BadDebtRecognized(expectedLiqValues_third.badDebt, third_liquidator);
 
         borrowableCUSDC.liquidate(
             borrowers,

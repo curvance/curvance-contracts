@@ -33,6 +33,10 @@ contract TestPythAdaptor is TestBaseOracleManager {
             _WETH_ADDRESS
         );
 
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+
+        oracleManager.addApprovedAdaptor(address(adaptor));
+
         adaptor.addAsset(
             _WBTC_ADDRESS,
             true,
@@ -41,10 +45,6 @@ contract TestPythAdaptor is TestBaseOracleManager {
             100
         );
         vm.warp(1711335100);
-
-        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
-
-        oracleManager.addApprovedAdaptor(address(adaptor));
     }
 
     function testReturnsCorrectPrice() public {

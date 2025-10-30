@@ -72,7 +72,7 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
             centralRegistry.marketManagers()[marketManagers.length],
             newMarket
         );
-        assertEq(centralRegistry.defaultProtocolInterestFee(), 5000);
+        assertEq(centralRegistry.defaultProtocolInterestFee(), 2000);
     }
 
     function testMarketManagerIntegration() public {

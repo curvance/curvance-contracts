@@ -27,6 +27,9 @@ contract ReplaceAssetPricingAdaptorTest is TestBaseOracleManager {
     {
         _addSinglePriceFeed();
 
+        // Ensure the adaptor to add is not approved for this test case
+        oracleManager.removeApprovedAdaptor(address(dualChainlinkAdaptor));
+
         vm.expectRevert(
             OracleManager.OracleManager__AdaptorIsNotApproved.selector
         );
@@ -83,7 +86,6 @@ contract ReplaceAssetPricingAdaptorTest is TestBaseOracleManager {
     }
 
     function test_replaceAssetPriceFeed_success() public {
-        vm.expectRevert();
         address[] memory adaptors = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
         assertEq(adaptors.length, 0);
 
@@ -95,8 +97,6 @@ contract ReplaceAssetPricingAdaptorTest is TestBaseOracleManager {
         );
 
         assertTrue(oracleManager.isSupportedAsset(_USDC_ADDRESS));
-
-        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
 
         oracleManager.replaceAssetPricingAdaptor(
             _USDC_ADDRESS,

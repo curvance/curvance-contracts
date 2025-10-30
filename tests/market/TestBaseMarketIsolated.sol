@@ -1101,9 +1101,9 @@ contract TestBaseMarketIsolated is TestBase {
             expectedLiquidationValues.debtRepaid = maxAmount;
         }
 
-        console2.log("debtRepaid after if(params.isLiquidateExact) ", expectedLiquidationValues.debtRepaid);
+        console2.log("debtRepaid initial ", expectedLiquidationValues.debtRepaid);
 
-        expectedLiquidationValues.collateralLiquidated = FixedPointMathLib.mulDivUp(
+        expectedLiquidationValues.collateralLiquidated = FixedPointMathLib.mulDiv(
             expectedLiquidationValues.debtRepaid,
             debtToCollateral,
             WAD_SQUARED
@@ -1112,8 +1112,9 @@ contract TestBaseMarketIsolated is TestBase {
         console2.log("collateralLiquidated", expectedLiquidationValues.collateralLiquidated);
         console2.log("collateralAvailable", collateralAvailable);
 
-        if (expectedLiquidationValues.collateralLiquidated > collateralAvailable) {
-            expectedLiquidationValues.debtRepaid = FixedPointMathLib.fullMulDiv(
+        // only cap when not liquidateExact
+        if (!params.isLiquidateExact && expectedLiquidationValues.collateralLiquidated > collateralAvailable) {
+            expectedLiquidationValues.debtRepaid = FixedPointMathLib.fullMulDivUp(
                 expectedLiquidationValues.debtRepaid,
                 collateralAvailable,
                 expectedLiquidationValues.collateralLiquidated
@@ -1121,9 +1122,13 @@ contract TestBaseMarketIsolated is TestBase {
             expectedLiquidationValues.collateralLiquidated = collateralAvailable;
         }
 
-        console2.log("debtRepaid after collateralLiquidated > collateralAvailable ", expectedLiquidationValues.debtRepaid);
+        console2.log("debtRepaid after cap ", expectedLiquidationValues.debtRepaid);
 
-        expectedLiquidationValues.collateralRequired = (debtBalance * debtToCollateral) / WAD_SQUARED;
+        expectedLiquidationValues.collateralRequired = FixedPointMathLib.mulDiv(
+            debtBalance,
+            debtToCollateral,
+            WAD_SQUARED
+        );
 
         expectedLiquidationValues.badDebt = _calculateExpectedBadDebt(
             params.borrower,
@@ -1214,12 +1219,12 @@ contract TestBaseMarketIsolated is TestBase {
         console2.log("data.liqInc in helper", data.liqInc);
         console2.log("cFactor in helper", cFactor);
 
-        // debtToCollateral unchanged
-        debtToCollateral =
-            (((data.liqInc * data.debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
-                data.collateralTokenPrice) *
-                    data.collateralTokenDecimals) / data.debtTokenDecimals;
-
+        debtToCollateral = FixedPointMathLib.fullMulDiv(
+            (data.liqInc * data.debtTokenPrice * WAD_SQUARED_BPS_OFFSET) /
+                data.collateralTokenPrice,
+            data.collateralTokenDecimals,
+            data.debtTokenDecimals
+        );
         console2.log("debtToCollateral in helper", debtToCollateral);
                 
     }
@@ -1253,29 +1258,22 @@ contract TestBaseMarketIsolated is TestBase {
         console2.log("collateralLiquidated", _collateralLiquidated);
         console2.log("remaining debt", debtBalance - _debtAmount);
         console2.log("remaining collateral shares", collateralAvailable - _collateralLiquidated);
-        
+
         if (_collateralRequired > collateralAvailable) {
-            // of debt should be recognized as bad debt.
             badDebt = FixedPointMathLib.fullMulDiv(
-                FixedPointMathLib.mulDiv(
-                    _debtAmount,
-                    _collateralRequired,
-                    collateralAvailable
-                ),
-                WAD_SQUARED - FixedPointMathLib.mulDiv(
-                    WAD_SQUARED,
-                    collateralAvailable,
-                    _collateralRequired
-                ),
-                WAD_SQUARED
-            );
+                _debtAmount,
+                _collateralRequired,
+                collateralAvailable
+            ) - _debtAmount;
 
             console2.log("badDebt", badDebt);
 
-            if (badDebt + _debtAmount > debtBalance) {
-                badDebt = debtBalance - _debtAmount;
+            // Clamp to remaining debt
+            uint256 remainingDebt = debtBalance - _debtAmount;
+            if (badDebt > remainingDebt) {
+                badDebt = remainingDebt;
             }
-        }    
+        }
     }
 
     function _calculateAuctionLFactor(

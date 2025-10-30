@@ -247,15 +247,19 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         uint256 expectedYield = (initialMarketDebt * borrowRate * timeElapsed) / 1e18;
         assertEq(assetIncrease, expectedYield, "actual yield should match calculated yield");
         
-        // dao gets 10% of interest as new shares
-        uint256 expectedProtocolFee = (assetIncrease * 1000) / 10000;
+        // dao gets 20% of interest as new shares, rounded up like the contract
+        uint256 expectedProtocolFee = FixedPointMathLib.fullMulDivUp(
+            assetIncrease,
+            borrowableCUSDC.interestFee(),
+            BPS
+        );
         uint256 actualProtocolFee = borrowableCUSDC.convertToAssets(afterDaoShares);  
-        assertEq(actualProtocolFee, expectedProtocolFee, "Protocol fee should be 10% of interest");
+        assertEq(actualProtocolFee, expectedProtocolFee, "Protocol fee should equal fee% of interest");
         
-        // LP gets their 90% through increased exchange value
+        // LP gets their 80% through increased exchange value
         uint256 lpValueIncrease = borrowableCUSDC.convertToAssets(1000e6) - 1000e6;
-        uint256 expectedLpIncrease = (assetIncrease * 9000) / 10000;
-        assertEq(lpValueIncrease, expectedLpIncrease, "LP should get 90% of interest");
+        uint256 expectedLpIncrease = (assetIncrease * (0.8e18)) / 1e18;
+        assertEq(lpValueIncrease, expectedLpIncrease, "LP should get 80% of interest");
 
         assertEq(borrowableCUSDC.debtBalance(user1), 500e6 + assetIncrease, "Borrower debt should increase by total interest amount");
         assertEq(borrowableCUSDC.balanceOf(liquidityProvider), 1000e6, "LP shares should not change");
@@ -308,11 +312,15 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         uint256 expectedYield = (initialMarketDebt * borrowRate * 30 minutes) / 1e18;
         assertEq(totalAssetsIncrease, expectedYield, "Actual yield should match calculated yield");
 
-        // dao gets exactly 10% of interest as new shares
+        // dao gets exactly 20% of interest as new shares (rounded up)
         uint256 protocolFeeAssetValue = borrowableCUSDC.convertToAssets(daoSharesIncrease);
-        uint256 expectedProtocolFee = (totalAssetsIncrease * 1000) / 10000;
+        uint256 expectedProtocolFee = FixedPointMathLib.fullMulDivUp(
+            totalAssetsIncrease,
+            borrowableCUSDC.interestFee(),
+            BPS
+        );
         
-        assertEq(protocolFeeAssetValue, expectedProtocolFee,"Protocol fee should be exactly 10% of interest");
+        assertEq(protocolFeeAssetValue, expectedProtocolFee,"Protocol fee should be exactly 20% of interest");
         
         // CRITICAL INVARIANT! TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!
         assertEq(finalMarketDebt - initialMarketDebt, finalTotalAssets - initialTotalAssets, " TOTAL MARKET DEBT INCREASE SHOULD BE EQUAL TO TOTAL ASSETS INCREASE!");
@@ -430,10 +438,14 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
             // assert yield
             assertEq(debtIncrease, expectedYield, "Yield should match for loop");
             
-            // assert protocol fee
+            // assert protocol fee (rounded up)
             uint256 protocolFeeValue = borrowableCUSDC.convertToAssets(daoSharesIncrease);
-            uint256 expectedProtocolFee = (debtIncrease * borrowableCUSDC.interestFee()) / BPS;
-            assertEq(protocolFeeValue, expectedProtocolFee, "Protocol fee should be exactly 10% per loop");
+            uint256 expectedProtocolFee = FixedPointMathLib.fullMulDivUp(
+                debtIncrease,
+                borrowableCUSDC.interestFee(),
+                BPS
+            );
+            assertEq(protocolFeeValue, expectedProtocolFee, "Protocol fee should be exactly 20% per loop");
             
             // LP value validation with 1-unit tolerance
             // Protocol uses mulDivUp for debt/fee calculations,(which favors protocol), and mulDiv for 
@@ -441,8 +453,8 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
             // differences that compound across multiple accruals
             uint256 currentLpValue = borrowableCUSDC.convertToAssets(borrowableCUSDC.balanceOf(liquidityProvider));
             uint256 lpValueIncrease = currentLpValue - previousLpValue;
-            uint256 expectedLpIncrease = (debtIncrease * (0.9e18)) / 1e18;
-            assertApproxEqAbs(lpValueIncrease, expectedLpIncrease, 1, "LP should get ~90% per loop");
+            uint256 expectedLpIncrease = (debtIncrease * (0.8e18)) / 1e18;
+            assertEq(lpValueIncrease, expectedLpIncrease, "LP should get ~80% per loop");
             console2.log("lpValueIncrease", lpValueIncrease);
             console2.log("expectedLpIncrease", expectedLpIncrease);
             

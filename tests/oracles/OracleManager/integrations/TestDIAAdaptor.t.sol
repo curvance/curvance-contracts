@@ -22,6 +22,8 @@ contract TestDIAAdaptor is TestBaseOracleManager {
             _DIA_ORACLE
         );
 
+        oracleManager.addApprovedAdaptor(address(adaptor));
+
         DIAAdaptor.AssetConfig memory data;
         data.isConfigured = true;
         data.decimals = 8;
@@ -29,7 +31,7 @@ contract TestDIAAdaptor is TestBaseOracleManager {
         data.key = "BTC/USD";
         adaptor.addAsset(_WBTC_ADDRESS, true, data, 100);
 
-        oracleManager.addApprovedAdaptor(address(adaptor));
+
         oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50);
     }
 
