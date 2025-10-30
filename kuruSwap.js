@@ -64,6 +64,7 @@ async function quote(wallet, tokenIn, tokenOut, amount) {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
+            // "X-API-Key": "ad5944c136775d648c2530a4950188c3",
             "Authorization": `Bearer ${jwt}`
         },
         body: JSON.stringify(payload),
@@ -80,4 +81,4 @@ async function quote(wallet, tokenIn, tokenOut, amount) {
 
     return data;
 }
-// Test: node kuruSwap.js 0xe2165a834F93C39483123Ac31533780b9c679ed4, 0x3a98250F98Dd388C211206983453837C8365BDc1, 0xf817257fed379853cDe0fa4F97AB987181B1E5Ea, 5000000000000000000
+// Test: node kuruSwap.js 0xe2165a834F93C39483123Ac31533780b9c679ed4 0x3a98250F98Dd388C211206983453837C8365BDc1 0xf817257fed379853cDe0fa4F97AB987181B1E5Ea 5000000000000000000
