@@ -185,14 +185,15 @@ abstract contract LiquidityManagerIsolated {
     ///                          below this will cause a soft liquidation.
     /// @param collateralReqHard The collateral requirement where dipping
     ///                          below this will cause a hard liquidation.
-    /// @param collateralSharesPrice The current price of `collateralToken`.
+    /// @param collateralSharesPrice The current price of `collateralToken`,
+    ///                              in `shares`.
     /// @param collateralDecimals The decimals that `collateralToken` is
     ///                           measured in.
     /// @param debtToken The address of the Curvance token to be repaid during
     ///                  the liquidation.
     /// @param debtDecimals The decimals that `debtToken` is measured in.
     /// @param debtUnderlyingPrice The current price of the underlying token
-    ///                            of `debtToken`.
+    ///                            of `debtToken`, in `assets`.
     /// @param auctionBuffer The current buffer that `cSoft` and `cHard` are 
     ///                      multiplied against, 10 bps, or 0 if not an 
     ///                      auction-based liquidation.

@@ -1419,10 +1419,12 @@ contract MarketManagerIsolated is
         // shares to seize.
         // Convert liqInc to WAD via `WAD_SQUARED_BPS_OFFSET` so we dont run
         // into precision loss from only multiplying into WAD_SQUARED form.
-        uint256 debtToCollateral =
-            (((aData.liqInc * tData.debtUnderlyingPrice * WAD_SQUARED_BPS_OFFSET) /
-                tData.collateralSharesPrice) * tData.collateralDecimals) /
-                    tData.debtDecimals;
+        uint256 debtToCollateral = FixedPointMathLib.fullMulDiv(
+            (aData.liqInc * tData.debtUnderlyingPrice * WAD_SQUARED_BPS_OFFSET) /
+                tData.collateralSharesPrice,
+            tData.collateralDecimals,
+            tData.debtDecimals
+        );
         uint256 maxDebt = (aData.closeFactor * aData.debtBalance) / BPS;
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
         // otherwise liquidate the maximum amount possible.
@@ -1452,6 +1454,8 @@ contract MarketManagerIsolated is
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
         } else {
+            // If there is not enough shares available for liquidation,
+            // liquidate what is available.
             if (liquidatedShares > sharesPosted) {
                 debtAmount = FixedPointMathLib.fullMulDivUp(
                     debtAmount,
@@ -1472,12 +1476,28 @@ contract MarketManagerIsolated is
             WAD_SQUARED
         );
         if (sharesNeeded > sharesPosted) {
-            // Get the ratio at which `account` is undercollateralized
-            // by looking at the ratio of `sharesPosted` vs `sharesNeeded`.
-            // E.g. `sharesPosted` = `sharesNeeded` / 2 means 50%
-            // of debt should be recognized as bad debt.
+            // Calculate total debt necessary to compensate liquidators
+            // in full based on `sharesNeeded` vs `sharesPosted`.
+            // `sharesPosted` = `sharesNeeded` / 2 means 50%
+            // of debt should be recognized as bad debt, so this 
+            // intermediary step for `badDebt` would be 2x `debtAmount`.
             badDebt = FixedPointMathLib
-                .fullMulDivUp(debtAmount, sharesNeeded, sharesPosted) - debtAmount;
+                .fullMulDiv(debtAmount, sharesNeeded, sharesPosted);
+
+            // Calculate if compensation calculation will overflow, this can
+            // happen in scenarios where collateral goes to near 0.
+            // If it would cause an underflow -> clamp the bad debt down,
+            // siding with lenders over liquidators.
+            if (badDebt > aData.debtBalance - debtAmount) {
+                // CASE: Unhappy path, collateral went to near zero, reduce
+                // bad debt and keep liquidator's `debtAmount` consistent.
+                badDebt = aData.debtBalance - debtAmount;
+            } else {
+                // CASE: Happy path, normal calculation of recognizing bad
+                // debt pro-rata based on shortfall of `sharesNeeded` versus
+                // sharesPosted.
+                badDebt = badDebt - debtAmount;
+            }
         }
 
         // Calculate the maximum amount of debt that can be liquidated
