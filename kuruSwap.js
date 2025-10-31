@@ -68,8 +68,8 @@ async function quote(wallet, tokenIn, tokenOut, amount, _referrerAddress) {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            // "X-API-Key": "ad5944c136775d648c2530a4950188c3",
-            "Authorization": `Bearer ${jwt}`
+            "X-API-Key": "ad5944c136775d648c2530a4950188c3",
+            // "Authorization": `Bearer ${jwt}`
         },
         body: JSON.stringify(payload),
     });
