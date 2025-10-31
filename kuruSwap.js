@@ -60,14 +60,13 @@ async function getJwt(wallet) {
 }
 
 async function quote(wallet, tokenIn, tokenOut, amount, _referrerAddress) {
-    const jwt = await getJwt(wallet);
+    // const jwt = await getJwt(wallet);
     const payload = {
         userAddress: wallet,
         tokenIn: tokenIn,
         tokenOut: tokenOut,
         amount: amount,
         autoSlippage: true,
-        slippageTolerance: 50,
         referrerAddress: _referrerAddress,
         referrerFeeBps: 10,
     };
