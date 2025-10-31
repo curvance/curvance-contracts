@@ -1728,4 +1728,24 @@ contract TestBaseMarketIsolated is TestBase {
 
         return vm.ffi(args);
     }
+
+	function _getKuruAmountOut(
+		address wallet,
+		address tokenIn,
+		address tokenOut,
+		uint256 amount
+	) public returns (uint256) {
+		string[] memory args = new string[](8);
+		args[0] = "node";
+		args[1] = "kuruSwap.js";
+		args[2] = vm.toString(wallet);
+		args[3] = vm.toString(tokenIn);
+		args[4] = vm.toString(tokenOut);
+		args[5] = vm.toString(amount);
+		args[6] = vm.toString(centralRegistry.daoAddress());
+		args[7] = "amountOut";
+
+		bytes memory out = vm.ffi(args);
+		return vm.parseUint(string(out));
+	}
 }

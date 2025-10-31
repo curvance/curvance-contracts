@@ -8,7 +8,7 @@ main().catch(err => {
 async function main() {
     const args = process.argv.slice(2);
     if (args.length < 5) {
-        throw new Error("You have to provide the following arguments (in order): wallet, tokenIn, tokenOut, amount, _ref\n");
+        throw new Error("You have to provide the following arguments (in order): wallet, tokenIn, tokenOut, amount, _ref [mode]\n");
     }
 
     const wallet = args[0];
@@ -16,17 +16,25 @@ async function main() {
     const tokenOut = args[2];
     const amount = args[3];
     const referrerAddressArg = args[4];
+    const mode = args[5] || "calldata"; // modes: 'calldata' | 'amountOut'
 
     const response = await quote(wallet, tokenIn, tokenOut, amount, referrerAddressArg);
     // Wait 1 second to avoid rate limiting if the contract is hitting this FFI call multiple times.
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     const calldata = response && response.transaction && response.transaction.calldata;
-    if (!calldata || typeof calldata !== "string") {
-        throw new Error("Failed to get calldata from response");
+    if (mode === "amountOut") {
+        const minOut = response && (response.minOut || response.output);
+        if (!minOut || typeof minOut !== "string") {
+            throw new Error("Failed to get minOut/output from response");
+        }
+        process.stdout.write(minOut);
+    } else {
+        if (!calldata || typeof calldata !== "string") {
+            throw new Error("Failed to get calldata from response");
+        }
+        process.stdout.write(calldata);
     }
-
-    process.stdout.write(calldata);
     process.exit(0);
 }
 

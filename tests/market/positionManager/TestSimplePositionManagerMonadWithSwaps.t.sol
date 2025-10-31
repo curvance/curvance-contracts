@@ -35,20 +35,15 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
     SwapperLib.Swap public swapAction;
     address public recipient;
 
-    bytes public leverageCalldata =
-        hex"ce1e7030000000000000000000000000760afe86e5de5fa0ee542fc7b7b713e1c542570100000000000000000000000000000000000000000000000634bffef99284e304000000000000000000000000f817257fed379853cde0fa4f97ab987181b1e5ea0000000000000000000000000000000000000000000000000000000016999fca000000000000000000000000c45f0add4981076928537490f8c0e24944288947000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000006e02f817257fed379853cde0fa4f97ab987181b1e5ea02ffec017c2253a768e4aa90afa9f9f246d8728064ee4c42008b7dcf2b92f350ddc30132160254d3481ad14540001301f3e3e0c0bb82ababe2c825822a30cc94d184dcf1008b7dcf2b92f350ddc30132160254d3481ad14540000000000000000000000000000000000000";
+    address public feeCollectorAddress = 0xc45F0aDD4981076928537490F8C0e24944288947;
 
-    bytes public deleverageCalldata =
-        hex"ce1e7030000000000000000000000000f817257fed379853cde0fa4f97ab987181b1e5ea000000000000000000000000000000000000000000000000000000000f7c36bf000000000000000000000000760afe86e5de5fa0ee542fc7b7b713e1c54257010000000000000000000000000000000000000000000000047fdb3c3f456c0000000000000000000000000000c45f0add4981076928537490f8c0e24944288947000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000004502760afe86e5de5fa0ee542fc7b7b713e1c542570101ffff00264e9b75723d75e3c607627d8e21d2c758db4c80008b7dcf2b92f350ddc30132160254d3481ad14540000bb8000000000000000000000000000000000000000000000000000000";
 
     receive() external payable {}
 
     fallback() external payable {}
 
     function setUp() public override {
-        // _fork("ETH_NODE_URI_MONAD", 41354880);
-
-        uint256 forkId = vm.createSelectFork("https://monad-testnet.drpc.org", 41354880);
+        _fork("ETH_NODE_URI_MONAD");
 
         _initMainConstantVariables();
 
@@ -60,7 +55,7 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         _deployMarketManager();
         _deployOracleManager();
 
-        checker = new KuruCalldataChecker(kuruRouter, address(0), address(0));
+        checker = new KuruCalldataChecker(kuruRouter, feeCollectorAddress, address(centralRegistry.daoAddress()));
         centralRegistry.setExternalCalldataChecker(kuruRouter, address(checker));
 
         borrowableCUSDC_MONAD = _deployBorrowableCToken(USDC_ADDRESS);
@@ -136,7 +131,12 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         leverageAction.swapAction.inputAmount = maxDebtBorrowable;
         leverageAction.swapAction.outputToken = WMON_ADDRESS;
         leverageAction.swapAction.target = address(kuruRouter);
-        leverageAction.swapAction.call = leverageCalldata;
+		leverageAction.swapAction.call = _getKuruCalldata(
+			address(positionManager),
+			USDC_ADDRESS,
+			WMON_ADDRESS,
+			maxDebtBorrowable
+		);
         leverageAction.swapAction.slippage = 0.5e18;
 
         positionManager.leverage(leverageAction, 0.5e18);
@@ -156,9 +156,15 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         testLeverage_TestVaultPositionManagerMonadWithSwaps();
         skip(20 minutes);
 
-        // Withdraw 83 WMON and repay corresponding debt (50%)
-        uint256 collateralAssetsToWithdraw = 83e18; // (83 wMON * ~$3.19 = $264.77)
-        uint256 debtToRepay = 259e6; // Repay 259 USDC (minOut from quote is ~259 USDC)
+
+		uint256 collateralBefore = borrowableCWMON.balanceOf(user1);
+		uint256 debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
+		uint256 collateralAssetsToWithdraw = collateralBefore / 2; // withdraw 50% collateral
+		// quote prices from kuru api
+		uint256 minOutUSDC = _getKuruAmountOut(address(positionManager), WMON_ADDRESS, USDC_ADDRESS, collateralAssetsToWithdraw);
+	
+		uint256 bufferedMinOut = (minOutUSDC * 97) / 100;
+		uint256 debtToRepay = bufferedMinOut;
 
         SimplePositionManager.DeleverageAction memory deleverageAction;
         deleverageAction.cToken = ICToken(address(borrowableCWMON));
@@ -171,11 +177,16 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         deleverageAction.swapActions[0].inputAmount = collateralAssetsToWithdraw;
         deleverageAction.swapActions[0].outputToken = USDC_ADDRESS;
         deleverageAction.swapActions[0].target = address(kuruRouter);
-        deleverageAction.swapActions[0].call = deleverageCalldata;
+		deleverageAction.swapActions[0].call = _getKuruCalldata(
+			address(positionManager),
+			WMON_ADDRESS,
+			USDC_ADDRESS,
+			collateralAssetsToWithdraw
+		);
         deleverageAction.swapActions[0].slippage = 0.5e18;
 
-        uint256 collateralBefore = borrowableCWMON.balanceOf(user1);
-        uint256 debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
+		collateralBefore = borrowableCWMON.balanceOf(user1);
+		debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
         uint256 usdcWalletBefore = IERC20(USDC_ADDRESS).balanceOf(user1);
 
         vm.startPrank(user1);

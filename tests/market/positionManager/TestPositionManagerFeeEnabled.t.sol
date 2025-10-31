@@ -30,7 +30,7 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
     address internal _VELODROME_DAI_USDC =
         0x19715771E30c93915A5bbDa134d782b81A820076;
     address public odosRouterV2 = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
-    address public odosExecutor = 0x365084B05Fa7d5028346bD21D842eD0601bAB5b8;
+    address public odosExecutor = 0xB8fc6Bf89E16e66b5FA9aA44b8393a588Cf1e77c;
     IVeloGauge public gauge =
         IVeloGauge(0x6998089F6bDd9c74C7D8d01b99d7e379ccCcb02D);
     IVeloPairFactory public veloPairFactory =
