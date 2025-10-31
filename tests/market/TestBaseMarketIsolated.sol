@@ -1710,4 +1710,22 @@ contract TestBaseMarketIsolated is TestBase {
         mockStethFeed.setMockAnswer(int256(requiredStethPrice));
         mockStethFeed.setMockUpdatedAt(block.timestamp);
     }
+
+    function _getKuruCalldata(
+        address wallet,
+        address tokenIn,
+        address tokenOut,
+        uint256 amount
+    ) public returns (bytes memory) {
+        string[] memory args = new string[](7);
+        args[0] = "node";
+        args[1] = "kuruSwap.js";
+        args[2] = vm.toString(wallet);
+        args[3] = vm.toString(tokenIn);
+        args[4] = vm.toString(tokenOut);
+        args[5] = vm.toString(amount);
+        args[6] = vm.toString(centralRegistry.daoAddress());
+
+        return vm.ffi(args);
+    }
 }

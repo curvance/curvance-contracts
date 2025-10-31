@@ -40,9 +40,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
     fallback() external payable {}
 
     function setUp() public override {
-        // _fork("ETH_NODE_URI_MONAD", 41450292);
-
-        uint256 forkId = vm.createSelectFork("https://monad-testnet.drpc.org", 41450292);
+        _fork("ETH_NODE_URI_MONAD");
 
         _initMainConstantVariables();
 
@@ -194,15 +192,23 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
         swapAction.target = kuruRouter;
-        swapAction.call = callData;
+        bytes memory ffiCalldata = _getKuruCalldata(
+            recipient,
+            USDC_ADDRESS,
+            WMON_ADDRESS,
+            5e6
+        );
+        swapAction.call = ffiCalldata;
 
         deal(USDC_ADDRESS, address(this), 5e6);
         IERC20(USDC_ADDRESS).approve(address(simpleZapper), 5e6);
 
         borrowableCWMON.setDelegateApproval(address(simpleZapper), true);
 
+        uint256 cWMONBalanceBefore = borrowableCWMON.balanceOf(address(this));
+
         simpleZapper.swapAndDeposit(address(borrowableCWMON), true, swapAction, 0, true, address(this));
 
-        assertEq(borrowableCWMON.balanceOf(address(this)), 1523425731895223420);
+        assertGt(borrowableCWMON.balanceOf(address(this)), cWMONBalanceBefore);
     }
 }

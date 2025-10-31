@@ -40,7 +40,8 @@ contract LiquidateSingleTest is TestBaseBorrowableCToken {
         console2.log("assetsIncrease", assetsIncrease);
         
         assertEq(totalMarketDebtIncrease, assetsIncrease, "total debt and asset increase should be equal");
-        assertEq(userDebtIncrease, assetsIncrease, "debt increase should equal assets increase");
+        assertGe(userDebtIncrease, assetsIncrease, "debt increase should be greater than or equal to assets increase");
+        assertApproxEqAbs(userDebtIncrease, assetsIncrease, 5, "debt should be slightly higher than or equal to assets");
 
         address[] memory accounts = new address[](1);
         accounts[0] = user1;

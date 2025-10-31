@@ -7,23 +7,27 @@ main().catch(err => {
 
 async function main() {
     const args = process.argv.slice(2);
-    if (args.length < 4) {
-        throw new Error("You have to provide the following arguments (in order): wallet, tokenIn, tokenOut, amount, slippageTolerance (optional)\n");
+    if (args.length < 5) {
+        throw new Error("You have to provide the following arguments (in order): wallet, tokenIn, tokenOut, amount, _ref\n");
     }
 
     const wallet = args[0];
     const tokenIn = args[1];
     const tokenOut = args[2];
     const amount = args[3];
-    const slippageTolerance = args[4] ?? null;
+    const referrerAddressArg = args[4];
 
-    console.log(wallet, tokenIn, tokenOut, amount, slippageTolerance);
-    const response = await quote(wallet, tokenIn, tokenOut, amount, slippageTolerance);
+    const response = await quote(wallet, tokenIn, tokenOut, amount, referrerAddressArg);
     // Wait 1 second to avoid rate limiting if the contract is hitting this FFI call multiple times.
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    console.log(response);
-    return response;
+    const calldata = response && response.transaction && response.transaction.calldata;
+    if (!calldata || typeof calldata !== "string") {
+        throw new Error("Failed to get calldata from response");
+    }
+
+    process.stdout.write(calldata);
+    process.exit(0);
 }
 
 async function getJwt(wallet) {
@@ -47,7 +51,7 @@ async function getJwt(wallet) {
     return data.token;
 }
 
-async function quote(wallet, tokenIn, tokenOut, amount) {
+async function quote(wallet, tokenIn, tokenOut, amount, _referrerAddress) {
     const jwt = await getJwt(wallet);
     const payload = {
         userAddress: wallet,
@@ -56,7 +60,7 @@ async function quote(wallet, tokenIn, tokenOut, amount) {
         amount: amount,
         autoSlippage: true,
         slippageTolerance: 50,
-        referrerAddress: "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
+        referrerAddress: _referrerAddress,
         referrerFeeBps: 10,
     };
 
@@ -70,10 +74,7 @@ async function quote(wallet, tokenIn, tokenOut, amount) {
         body: JSON.stringify(payload),
     });
 
-    console.log(JSON.stringify(payload));
-
     if(!resp.ok) {
-        console.log(resp);
         throw new Error(`Failed to fetch quote: ${resp.status} ${resp.statusText}`);
     }
 
