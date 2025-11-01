@@ -69,7 +69,7 @@ library SwapperLib {
         Swap memory action
     ) internal returns (uint256 outAmount) {
 
-        if (action.slippage > BPS) {
+        if (action.slippage >= WAD) {
             revert SwapperLib__Slippage(action.slippage);
         }
 
