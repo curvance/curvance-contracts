@@ -374,7 +374,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(positionManager),
             type(uint256).max
         );
-        leverageAction.swapAction.slippage = 2e18;
+        leverageAction.swapAction.slippage = 0.05e18;
         leverageAction.auxData = abi.encode(0);
 
         positionManager.depositAndLeverage(
