@@ -68,6 +68,11 @@ library SwapperLib {
         ICentralRegistry cr,
         Swap memory action
     ) internal returns (uint256 outAmount) {
+
+        if (action.slippage > BPS) {
+            revert SwapperLib__Slippage(action.slippage);
+        }
+
         address outputToken = action.outputToken;
         address inputToken = action.inputToken;
 

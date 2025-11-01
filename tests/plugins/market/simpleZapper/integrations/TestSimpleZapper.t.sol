@@ -7,6 +7,7 @@ import { BaseZapper } from "contracts/plugins/BaseZapper.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { SimpleCToken, IERC20 } from "contracts/market/token/SimpleCToken.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
+import { Multicall } from "contracts/libraries/Multicall.sol";
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
@@ -383,5 +384,191 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertGt(simpleCUSDC.balanceOf(user1), 99e6);
+    }
+
+    function test_Multicall_fail_native_doubleZap() public {
+
+        uint256 ethAmount = 1 ether;
+        vm.deal(user1, ethAmount);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+        swapAction.inputAmount = ethAmount;
+        swapAction.outputToken = _USDC_ADDRESS;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.slippage = 0;
+
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _WETH_ADDRESS;
+        params.tokenOut = _USDC_ADDRESS;
+        params.fee = 100;
+        params.recipient = address(simpleZapper);
+        params.deadline = block.timestamp;
+        params.amountIn = ethAmount;
+        params.amountOutMinimum = 0;
+        params.sqrtPriceLimitX96 = 0;
+        swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector,
+            params
+        );
+
+        Multicall.MulticallAction[] memory calls = new Multicall.MulticallAction[](2);
+
+        bytes memory data = abi.encodeWithSelector(
+            simpleZapper.swapAndDeposit.selector,
+            address(simpleCUSDC),
+            false, // depositAsWrappedNative
+            swapAction,
+            0,
+            false,
+            user1
+        );
+
+        calls[0].target = address(simpleZapper);
+        calls[0].isPriceUpdate = false;
+        calls[0].data = data;
+
+        calls[1].target = address(simpleZapper);
+        calls[1].isPriceUpdate = false;
+        calls[1].data = data;
+
+        // if (inputAmount != msg.value) {
+        //     revert BaseZapper__ExecutionError();
+        // }
+        vm.prank(user1);
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+        simpleZapper.multicall(calls);
+    }
+
+    function test_Multicall_success_nonNative() public {
+
+        uint256 total = 10e6;
+        uint256 half = total / 2;
+        _prepareUSDC(user1, total);
+        vm.startPrank(user1);
+        usdc.approve(address(simpleZapper), total);
+
+        SwapperLib.Swap memory swap1;
+        swap1.inputToken = _USDC_ADDRESS;
+        swap1.inputAmount = half;
+        swap1.outputToken = _USDC_ADDRESS;
+
+        SwapperLib.Swap memory swap2 = swap1;
+
+        Multicall.MulticallAction[] memory calls = new Multicall.MulticallAction[](2);
+
+        calls[0].target = address(simpleZapper);
+        calls[0].isPriceUpdate = false;
+        calls[0].data = abi.encodeWithSelector(
+            simpleZapper.swapAndDeposit.selector,
+            address(simpleCUSDC),
+            false,
+            swap1,
+            0,
+            false,
+            user1
+        );
+
+        calls[1].target = address(simpleZapper);
+        calls[1].isPriceUpdate = false;
+        calls[1].data = abi.encodeWithSelector(
+            simpleZapper.swapAndDeposit.selector,
+            address(simpleCUSDC),
+            false,
+            swap2,
+            0,
+            false,
+            user1
+        );
+
+        uint256 balanceBefore = simpleCUSDC.balanceOf(user1);
+        simpleZapper.multicall(calls);
+        vm.stopPrank();
+
+        uint256 balanceAfter = simpleCUSDC.balanceOf(user1);
+
+        assertGt(balanceAfter - balanceBefore, 0);
+    }
+
+    function test_swapAndDeposit_fail_whenMsgValueNonZeroWithNonNativeSwap() public {
+
+        uint256 total = 10e6;
+        deal(user1, 10 ether);
+        _prepareUSDC(user1, total);
+        vm.startPrank(user1);
+        usdc.approve(address(simpleZapper), total);
+
+        SwapperLib.Swap memory swap1;
+        swap1.inputToken = _USDC_ADDRESS;
+        swap1.inputAmount = total;
+        swap1.outputToken = _USDC_ADDRESS;
+
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+
+        simpleZapper.swapAndDeposit{value: 10 ether}(
+            address(simpleCUSDC),
+            false,
+            swap1,
+            0,
+            false,
+            user1
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_swapAndRepay_fail_whenMsgValueNonZeroWithNonNativeSwap() public {
+
+        uint256 total = 100e6;
+        _prepareUSDC(user1, total);
+        vm.startPrank(user1);
+        usdc.approve(address(simpleCUSDC), total);
+
+        simpleCUSDC.depositAsCollateral(100e6, user1);
+        borrowableCDAI.borrow(20e18, user1);
+
+        skip(20 minutes);
+
+        borrowableCDAI.setDelegateApproval(address(simpleZapper), true);
+
+        _prepareUSDC(user1, 20e6);
+
+        usdc.approve(address(simpleZapper), 20e6);
+
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = address(usdc);
+        swapAction.inputAmount = 20e6;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.outputToken = address(dai);
+
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _USDC_ADDRESS;
+        params.tokenOut = _DAI_ADDRESS;
+        params.fee = 100;
+        params.recipient = address(simpleZapper);
+        params.deadline = block.timestamp;
+        params.amountIn = 20e6;
+        params.amountOutMinimum = 0;
+        params.sqrtPriceLimitX96 = 0;
+        swapAction.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector,
+            params
+        );
+
+        vm.deal(user1, 100 ether);
+
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+
+        simpleZapper.swapAndRepay{value: 100 ether}(
+            address(borrowableCDAI),
+            false,
+            swapAction,
+            19e18,
+            user1
+        );
+
+        vm.stopPrank();
+
+
     }
 }

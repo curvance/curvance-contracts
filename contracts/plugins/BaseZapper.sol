@@ -267,6 +267,11 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
             return;
         }
 
+        // For ERC20 input flows, there should be no msg.value.
+        if (msg.value != 0) {
+            revert BaseZapper__ExecutionError();
+        }
+
         SafeTransferLib.safeTransferFrom(
             inputToken,
             msg.sender,

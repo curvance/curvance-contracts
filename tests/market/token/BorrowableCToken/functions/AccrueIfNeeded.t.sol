@@ -260,7 +260,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         uint256 lpValueIncrease = borrowableCUSDC.convertToAssets(1000e6) - 1000e6;
         uint256 expectedLpIncrease = (assetIncrease * (0.8e18)) / 1e18;
         assertLe(lpValueIncrease, expectedLpIncrease, "LP should get 80% of interest");
-        assertApproxEqAbs(lpValueIncrease, expectedLpIncrease, 5, "Debt should be slightly higher than lp value");
+        assertApproxEqAbs(lpValueIncrease, expectedLpIncrease, 1, "Debt should be at most 1 wei higher than lp value from rounding");
 
         assertEq(borrowableCUSDC.debtBalance(user1), 500e6 + assetIncrease, "Borrower debt should increase by total interest amount");
         assertEq(borrowableCUSDC.balanceOf(liquidityProvider), 1000e6, "LP shares should not change");
@@ -456,7 +456,7 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
             uint256 lpValueIncrease = currentLpValue - previousLpValue;
             uint256 expectedLpIncrease = (debtIncrease * (0.8e18)) / 1e18;
             assertLe(lpValueIncrease, expectedLpIncrease, "LP should get ~80% per loop");
-            assertApproxEqAbs(lpValueIncrease, expectedLpIncrease, 5, "debt should increase slightly over value");
+            assertApproxEqAbs(lpValueIncrease, expectedLpIncrease, 1, "Debt should be at most 1 wei higher than lp value from rounding");
             console2.log("lpValueIncrease", lpValueIncrease);
             console2.log("expectedLpIncrease", expectedLpIncrease);
             
