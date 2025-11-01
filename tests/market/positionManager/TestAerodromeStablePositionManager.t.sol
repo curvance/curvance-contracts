@@ -404,7 +404,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         deleverageAction.swapActions[0].inputAmount = usdcAmount;
         deleverageAction.swapActions[0].outputToken = _DAI_ADDRESS;
         deleverageAction.swapActions[0].target = address(aeroRouter);
-        deleverageAction.swapActions[0].slippage = 1e18;
+        deleverageAction.swapActions[0].slippage = 0.05e18;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _USDC_ADDRESS;
         routes[0].to = _DAI_ADDRESS;
@@ -522,7 +522,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         deleverageAction.swapActions[0].inputAmount = usdcAmount;
         deleverageAction.swapActions[0].outputToken = _DAI_ADDRESS;
         deleverageAction.swapActions[0].target = address(aeroRouter);
-        deleverageAction.swapActions[0].slippage = 1e18;
+        deleverageAction.swapActions[0].slippage = 0.05e18;
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _USDC_ADDRESS;
         routes[0].to = _DAI_ADDRESS;

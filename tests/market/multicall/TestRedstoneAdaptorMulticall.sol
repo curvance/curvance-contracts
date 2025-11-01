@@ -295,7 +295,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         leverageAction.swapAction.inputAmount = amountForLeverage;
         leverageAction.swapAction.outputToken = _WBTC_ADDRESS;
         leverageAction.swapAction.target = address(_UNISWAP_V3_SWAP_ROUTER);
-        leverageAction.swapAction.slippage = 2e18;
+        leverageAction.swapAction.slippage = 0.05e18;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _USDC_ADDRESS;
         params.tokenOut = _WBTC_ADDRESS;

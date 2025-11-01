@@ -599,7 +599,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.swapAction.call = abi.encodeWithSelector(
             IUniswapV3Router.exactInput.selector, params
         );
-        leverageAction.swapAction.slippage = 1e18;
+        leverageAction.swapAction.slippage = 0.05e18;
 
         vm.stopPrank();
         centralRegistry.setSlippageLimit(10000);
