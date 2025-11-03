@@ -365,7 +365,7 @@ contract UpdateTokenConfigTest is TestBaseMarketIsolated {
         tokenConfig.closeFactorMax = 5000;
         tokenConfig.closeFactorBase = 2000;
         tokenConfig.collateralCap = 100_000e18;
-        tokenConfig.debtCap = 1e49; // Cap for debt limits in 2^160-1 or 1.4615e48.
+        tokenConfig.debtCap = 9e40; // Cap for debt limits in 2^136-1 or 8.71e40.
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector);
         marketManagerIsolated.updateTokenConfig(tokenConfig);

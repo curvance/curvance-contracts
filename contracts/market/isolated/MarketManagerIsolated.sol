@@ -116,7 +116,7 @@ contract MarketManagerIsolated is
 
     /// @dev Limit for market debt cap to max sure outstanding user debt
     ///      never overflows `outstandingDebt` value inside _debtOf.
-    uint256 internal constant _MAX_DEBT_CAP = type(uint160).max;
+    uint256 internal constant _MAX_DEBT_CAP = type(uint136).max;
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvalidParameter()")))`
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0x65513fc1;
     /// @dev `bytes4(keccak256(bytes("MarketManager__Unauthorized()")))`
