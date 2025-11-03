@@ -864,10 +864,20 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        // Validate we get a safe price when pricing both as a debt or
+        // collateral asset, even if the asset cannot be collateralized.
         (, uint256 errorCode) = CommonLib._oracleManager(centralRegistry)
             .getPrice(inputConfig.cToken, true, true);
 
-        // Validate that we get a usable price.
+        // Validate a safe price for our more important action, liquidations.
+        if (errorCode == BAD_SOURCE) {
+            revert MarketManager__PriceError();
+        }
+
+        (, errorCode) = CommonLib._oracleManager(centralRegistry)
+            .getPrice(inputConfig.cToken, true, false);
+
+        // Validate a safe price for our more important action, liquidations.
         if (errorCode == BAD_SOURCE) {
             revert MarketManager__PriceError();
         }
