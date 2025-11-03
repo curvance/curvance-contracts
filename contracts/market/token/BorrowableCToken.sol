@@ -74,6 +74,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     error BorrowableCToken__DebtPositionActive();
     error BorrowableCToken__InvalidParameter();
     error BorrowableCToken__InsufficientAssetsHeld();
+    error BorrowableCToken__DepositsNotInitialized();
 
     /// CONSTRUCTOR ///
 
@@ -507,10 +508,14 @@ contract BorrowableCToken is BaseCTokenWithYield {
     /// @notice Gets balance of borrowable assets held by this
     ///         borrowableCToken contract.
     /// @dev This excludes changes in assets by the current transaction,
-    ///      if any. NOTE: This will revert until the token is enabled via
-    ///      initializeDeposits().
+    ///      if any.
     /// @return result The quantity of borrowable assets held by the market.
     function assetsHeld() public view returns (uint256 result) {
+        uint256 currentAssets = _getTotalAssets();
+        if (currentAssets == 0) {
+            revert BorrowableCToken__DepositsNotInitialized();
+        }
+
         // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
         // the market never actually runs out of assets and may introduce
         // invariant manipulation.
@@ -518,7 +523,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // manipulate marketOutstandingDebt above total underlying assets
         // inside the system since there will always be at least
         // _BASE_UNDERLYING_RESERVE excess inside the market.
-        result = _getTotalAssets() - marketOutstandingDebt - _BASE_UNDERLYING_RESERVE;
+        result = currentAssets - marketOutstandingDebt - _BASE_UNDERLYING_RESERVE;
     }
 
     /// @notice Returns whether the underlying token can be borrowed.
