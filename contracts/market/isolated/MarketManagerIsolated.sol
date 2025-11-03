@@ -1483,7 +1483,7 @@ contract MarketManagerIsolated is
             // of debt should be recognized as bad debt, so this 
             // intermediary step for `badDebt` would be 2x `debtAmount`.
             badDebt = FixedPointMathLib
-                .fullMulDiv(debtAmount, sharesNeeded, sharesPosted);
+                .fullMulDivUp(debtAmount, sharesNeeded, sharesPosted);
 
             // Calculate if compensation calculation will overflow, this can
             // happen in scenarios where collateral goes to near 0.
