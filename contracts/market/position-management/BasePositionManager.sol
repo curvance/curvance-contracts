@@ -343,21 +343,20 @@ abstract contract BasePositionManager is
         address owner,
         LeverageAction memory action
     ) external override {
-        if (
-            !marketManager.isListed(borrowableCToken) ||
-            msg.sender != borrowableCToken
-        ) {
-            revert BasePositionManager__Unauthorized();
-        }
+        ICToken cToken = action.cToken;
 
         // Validate action.cToken is a listed Curvance market to prevent callbacks
         // through untrusted tokens during the callback context.
-        if (!marketManager.isListed(address(action.cToken))) {
+        if (!marketManager.isListed(address(cToken))) {
             revert BasePositionManager__Unauthorized();
         }
 
+        // Cache debt asset address.
         address debtAsset = IBorrowableCToken(borrowableCToken).asset();
-        // Take protocol fee, if any.
+
+        // Validate that `cToken` is listed inside `marketManager` and is the
+        // caller, then that the action instructions are built correct, then
+        // take the protocol fee, if any.
         action.borrowAssets = _validateInputsAndApplyFee(
             borrowableCToken,
             borrowAssets,
@@ -365,12 +364,6 @@ abstract contract BasePositionManager is
             action.borrowAssets,
             debtAsset
         );
-
-        // We do not need to check whether cToken is listed
-        // or not as even if they found a way to input a malicious
-        // token here the post conditional solvency check will revert
-        // the whole operation.
-        ICToken cToken = action.cToken;
 
         // Unwrap leverage instructions for collateral deposit.
         address collateralAsset = cToken.asset();
@@ -430,21 +423,18 @@ abstract contract BasePositionManager is
         address owner,
         DeleverageAction memory action
     ) external override {
-        if (
-            !marketManager.isListed(cToken) ||
-            msg.sender != cToken
-        ) {
+        IBorrowableCToken borrowableCToken = action.borrowableCToken;
+
+        if (!marketManager.isListed(address(borrowableCToken))) {
             revert BasePositionManager__Unauthorized();
         }
 
-        // Validate action.borrowableCToken is a listed Curvance market to prevent
-        // callbacks through untrusted tokens during the callback context.
-        if (!marketManager.isListed(address(action.borrowableCToken))) {
-            revert BasePositionManager__Unauthorized();
-        }
-
+        // Cache collateral asset address.
         address collateralAsset = ICToken(cToken).asset();
-        // Take protocol fee, if any.
+
+        // Validate that `cToken` is listed inside `marketManager` and is the
+        // caller, then that the action instructions are built correct, then
+        // take the protocol fee, if any.
         action.collateralAssets = _validateInputsAndApplyFee(
             cToken,
             collateralAssets,
@@ -455,12 +445,6 @@ abstract contract BasePositionManager is
 
         // Swap redeemed `collateralAsset` assets into debt token assets.
         _swapCollateralAssetToDebtAsset(action);
-
-        // We do not need to check whether `borrowableCToken` is listed
-        // or not as even if they found a way to input a malicious
-        // token here the post conditional solvency check will revert
-        // the whole operation.
-        IBorrowableCToken borrowableCToken = action.borrowableCToken;
 
         // Unwrap deleverage instructions for debt repayment.
         address debtAsset = borrowableCToken.asset();
@@ -559,26 +543,32 @@ abstract contract BasePositionManager is
     ) internal returns (uint256) {
         // Validate that the token itself is executing the callback and
         // `cToken` is actually listed in this Market Manager.
+        // This is technically a redundant check with the checks in
+        // `_leverage` and `_deleverage` but its worth checking again incase
+        // cToken was somehow tricked into preforming arbitrary actions.
         if (msg.sender != cToken || !marketManager.isListed(cToken)) {
             revert BasePositionManager__Unauthorized();
         }
 
+        // Validate enough `cTokenUnderlying` was received to preform desired
+        // action.
         if (IERC20(cTokenUnderlying).balanceOf(address(this)) < assets) {
             revert BasePositionManager__InvalidAmount();
         }
 
+        // Validate that calldata matches explicit action inputs.
         if (cToken != address(actionToken) || assets != actionAssets) {
             revert BasePositionManager__InvalidParam();
         }
 
-        // Fee is rounded up in favor of protocol.
+        // Calculate protocol fee, rounded up, in favor of protocol.
         uint256 fee = FixedPointMathLib.mulDivUp(
             actionAssets,
             centralRegistry.protocolLeverageFee(),
             BPS
         );
 
-        // Apply protocol fee, if any to apply.
+        // Apply protocol fee, if there is any.
         if (fee > 0) {
             actionAssets -= fee;
             SafeTransferLib.safeTransfer(
@@ -614,6 +604,11 @@ abstract contract BasePositionManager is
         LeverageAction memory action,
         address account
     ) internal {
+        // Validate `action.borrowableCToken` is a known Curvance token.
+        if (!marketManager.isListed(address(action.borrowableCToken))) {
+            revert BasePositionManager__Unauthorized();
+        }
+
         action.borrowableCToken.borrowForPositionManager(
             action.borrowAssets,
             account,
@@ -643,6 +638,11 @@ abstract contract BasePositionManager is
         DeleverageAction memory action,
         address account
     ) internal {
+        // Validate `action.cToken` is a known Curvance token.
+        if (!marketManager.isListed(address(action.cToken))) {
+            revert BasePositionManager__Unauthorized();
+        }
+
         action.cToken.withdrawByPositionManager(
             action.collateralAssets,
             account,
