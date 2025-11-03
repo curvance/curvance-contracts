@@ -884,7 +884,7 @@ contract MarketManagerIsolated is
         storedConfig.collReqHard = uint24(inputConfig.collReqHard + BPS);
 
         // We use the liquidation incentive values as a premium in
-        // `calculateLiquidatedTokens`, so it needs to be 1 + incentive.
+        // `_canLiquidate`, so it needs to be 1 + incentive.
         storedConfig.liqIncBase = uint16(BPS + inputConfig.liqIncBase);
         storedConfig.liqIncMin = uint16(BPS + inputConfig.liqIncMin);
         storedConfig.liqIncMax = uint16(BPS + inputConfig.liqIncMax);
