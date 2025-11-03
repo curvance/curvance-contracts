@@ -109,6 +109,10 @@ contract PythAdaptor is BaseOracleAdaptor {
         _checkElevatedPermissions();
 
         if (heartbeat != type(uint256).max) {
+            // Apply `HEARTBEAT_GRACE_PERIOD` to `heartbeat` to make sure it
+            // was not missed.
+            heartbeat = heartbeat + HEARTBEAT_GRACE_PERIOD;
+
             // Validate the feed heartbeat is not too long if it is not
             // using the default value.
             if (heartbeat > DEFAULT_HEARTBEAT) {

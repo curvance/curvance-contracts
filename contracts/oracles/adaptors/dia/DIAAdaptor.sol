@@ -74,6 +74,10 @@ contract DIAAdaptor is BaseOracleAdaptor {
     ) external {
         _checkElevatedPermissions();
 
+        // Apply `HEARTBEAT_GRACE_PERIOD` to `config.heartbeat` to make sure
+        // it was not missed.
+        config.heartbeat = config.heartbeat + HEARTBEAT_GRACE_PERIOD;
+
         // Validate the deviation threshold is not too long.
         if (feedDeviationThreshold > MAX_ALLOWED_DEVIATION_VALUE) {
             revert DIAAdaptor__InvalidDeviationThreshold();

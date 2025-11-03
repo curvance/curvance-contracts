@@ -85,6 +85,10 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
         uint256 feedDeviationThreshold
     ) external {
         _checkElevatedPermissions();
+
+        // Apply `HEARTBEAT_GRACE_PERIOD` to `heartbeat` to make sure it
+        // was not missed.
+        heartbeat = heartbeat + HEARTBEAT_GRACE_PERIOD;
         
         // Validate the feed heartbeat is not too long.
         if (heartbeat > DEFAULT_HEARTBEAT) {
