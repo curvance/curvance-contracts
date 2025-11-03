@@ -406,6 +406,35 @@ contract TestVaultZapperWithTokens is TestBaseMarketIsolated {
         assertGt(balanceAfter, balanceBefore, "User should have received cToken shares");
     }
 
+    function test_vaultZapper_fail_swapAndDepositErc20WithMsgValue() public {
+        _setUpSimpleCSFRAX_borrowableCUSDC();
+
+        // Dummy values, we are reverting fairly early in the function.
+        SwapperLib.Swap memory swapAction;
+        swapAction.inputToken = _FRAX_ADDRESS;
+        swapAction.inputAmount = 1e18;
+        swapAction.target = _UNISWAP_V3_SWAP_ROUTER;
+        swapAction.outputToken = _FRAX_ADDRESS;
+        swapAction.call = "";
+
+        vm.deal(user1, 1); // Incorrectly attach 1 wei to the call
+
+        vm.startPrank(user1);
+
+        vm.expectRevert(BaseZapper.BaseZapper__ExecutionError.selector);
+
+        vaultZapper.swapAndDeposit{ value: 1 }(
+            address(simpleCSFRAX),
+            false,
+            swapAction,
+            0,
+            false,
+            user1
+        );
+
+        vm.stopPrank();
+    }
+
     // Market setup
 
     function _setUpSimpleCSFRAX_borrowableCUSDC() internal {
