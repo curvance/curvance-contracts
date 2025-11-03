@@ -3,6 +3,8 @@ pragma solidity 0.8.28;
 
 import { BaseOracleAdaptor, CommonLib, ICentralRegistry } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
+import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
+
 import { IDiaOracle } from "contracts/interfaces/external/dia/IDiaOracle.sol";
 
 contract DIAAdaptor is BaseOracleAdaptor {
@@ -23,6 +25,11 @@ contract DIAAdaptor is BaseOracleAdaptor {
     }
 
     /// STORAGE ///
+
+    /// @notice If zero is specified for a DIA asset heartbeat, this value
+    ///         value is used instead.
+    uint256 public constant DEFAULT_HEARTBEAT =
+        1 days + HEARTBEAT_GRACE_PERIOD;
 
     address public diaOracle;
 
@@ -77,6 +84,11 @@ contract DIAAdaptor is BaseOracleAdaptor {
         // Apply `HEARTBEAT_GRACE_PERIOD` to `config.heartbeat` to make sure
         // it was not missed.
         config.heartbeat = config.heartbeat + HEARTBEAT_GRACE_PERIOD;
+
+        // Validate the feed heartbeat is not too long.
+        if (config.heartbeat > DEFAULT_HEARTBEAT) {
+            revert DIAAdaptor__InvalidHeartbeat();
+        }
 
         // Validate the deviation threshold is not too long.
         if (feedDeviationThreshold > MAX_ALLOWED_DEVIATION_VALUE) {
