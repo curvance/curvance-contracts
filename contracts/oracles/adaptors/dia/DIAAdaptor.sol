@@ -84,7 +84,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
         // If we are not using the default heartbeat directly, apply
         // `HEARTBEAT_GRACE_PERIOD` to `heartbeat` to make sure it,
         // was not missed.
-        if (heartbeat != 0) {
+        if (config.heartbeat != 0) {
             config.heartbeat = config.heartbeat + HEARTBEAT_GRACE_PERIOD;
         }
 
