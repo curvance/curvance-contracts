@@ -189,7 +189,7 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
     }
 
     function test_success_UpdateExistingAsset() public {
-
+        // Add native feed, with 3600 heartbeat (without default grace period)
         redstoneClassicAdaptor.addAsset(
             ETHX_ADDRESS,
             true,
@@ -209,8 +209,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             true
         );
 
-        // Assert initial heartbeat
-        assertEq(heartbeat, 3600);
+        // Assert initial heartbeat, with default grace period added.
+        assertEq(heartbeat, 3600 + HEARTBEAT_GRACE_PERIOD);
 
         vm.expectEmit(true, false, false, false);
 
@@ -219,6 +219,7 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             ), true
         );
         
+        // Add native feed, with 7200 heartbeat (without default grace period)
         redstoneClassicAdaptor.addAsset(
             ETHX_ADDRESS,
             true,
@@ -233,7 +234,8 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
             ETHX_ADDRESS,
             true
         );
-        assertEq(updatedHeartbeat, 7200);
+        // Assert updated heartbeat, with default grace period added.
+        assertEq(updatedHeartbeat, 7200 + HEARTBEAT_GRACE_PERIOD);
     }
 
     function test_fail_InvalidHeartbeat() public {
