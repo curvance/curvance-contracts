@@ -1433,6 +1433,7 @@ contract TestBaseMarketIsolated is TestBase {
     function _setMockFeedsInitial() internal {
         /// STABLECOINS
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
@@ -1449,6 +1450,7 @@ contract TestBaseMarketIsolated is TestBase {
         );
 
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
@@ -1467,6 +1469,7 @@ contract TestBaseMarketIsolated is TestBase {
         /// ETH
 
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
@@ -1485,6 +1488,7 @@ contract TestBaseMarketIsolated is TestBase {
         /// RETH
 
         mockRethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
+        mockRethFeed.setMockUpdatedAt(block.timestamp);
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
             true,
@@ -1503,6 +1507,7 @@ contract TestBaseMarketIsolated is TestBase {
         /// BalRETHETH
 
         mockBalEthRethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
+        mockBalEthRethFeed.setMockUpdatedAt(block.timestamp);
         chainlinkAdaptor.addAsset(
             _BAL_WETH_RETH_ADDRESS,
             true,
@@ -1521,6 +1526,7 @@ contract TestBaseMarketIsolated is TestBase {
         /// STETH
 
         mockStethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
+        mockStethFeed.setMockUpdatedAt(block.timestamp);
         chainlinkAdaptor.addAsset(
             _STETH,
             true,
@@ -1535,8 +1541,9 @@ contract TestBaseMarketIsolated is TestBase {
             0,
             100
         );
-
+        console2.log("did it fail here at mocks?");
         oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), 250, 150);
+        console2.log("no it didnt");
         oracleManager.addAssetPricingAdaptor(_STETH, address(dualChainlinkAdaptor), 250, 150);
 
         // Pendle LP Token (wSTETH-24Dec2025) price is provided by PendleLPTokenAdaptor.
