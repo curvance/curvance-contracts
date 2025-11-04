@@ -769,8 +769,7 @@ contract OracleManager is IOracleManager {
 
         // Validate that the adaptor returns an acceptable price for `asset`
         // by sampling a price call with `getLower` = false.
-        result = IOracleAdaptor(adaptor)
-            .getPrice(asset, true, false);
+        result = IOracleAdaptor(adaptor).getPrice(asset, true, false);
 
         if (result.price == 0 || result.hadError) {
             revert OracleManager__InvalidParameter();

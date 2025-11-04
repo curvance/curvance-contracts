@@ -81,9 +81,12 @@ contract DIAAdaptor is BaseOracleAdaptor {
     ) external {
         _checkElevatedPermissions();
 
-        // Apply `HEARTBEAT_GRACE_PERIOD` to `config.heartbeat` to make sure
-        // it was not missed.
-        config.heartbeat = config.heartbeat + HEARTBEAT_GRACE_PERIOD;
+        // If we are not using the default heartbeat directly, apply
+        // `HEARTBEAT_GRACE_PERIOD` to `heartbeat` to make sure it,
+        // was not missed.
+        if (heartbeat != 0) {
+            config.heartbeat = config.heartbeat + HEARTBEAT_GRACE_PERIOD;
+        }
 
         // Validate the feed heartbeat is not too long.
         if (config.heartbeat > DEFAULT_HEARTBEAT) {
