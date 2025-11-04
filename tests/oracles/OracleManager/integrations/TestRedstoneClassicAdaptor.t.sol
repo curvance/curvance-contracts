@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
-import { TestBaseOracleManager } from "tests/oracles/OracleManager/TestBaseOracleManager.sol";
-import { IRedstone } from "contracts/interfaces/external/redstone/IRedstone.sol";
 import { RedstoneClassicAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneClassicAdaptor.sol";
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
+import { HEARTBEAT_GRACE_PERIOD } from "contracts/libraries/ConstantsLib.sol";
+
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+import { IRedstone } from "contracts/interfaces/external/redstone/IRedstone.sol";
+
+import { TestBaseOracleManager } from "tests/oracles/OracleManager/TestBaseOracleManager.sol";
 import { MockRedstoneClassicFeed } from "contracts/mocks/MockRedstoneClassicFeed.sol";
-import { console2 } from "forge-std/console2.sol";
 
 contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
 
@@ -49,8 +53,6 @@ contract TestRedstoneClassicAdaptor is TestBaseOracleManager {
     }
 
     function test_success_AddPriceFeeds() public {
-        console2.log("chain id", block.chainid);
-        
         // Assert asset not supported initially
         assertFalse(redstoneClassicAdaptor.isSupportedAsset(ETHX_ADDRESS));
 
