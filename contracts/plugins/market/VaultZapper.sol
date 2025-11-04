@@ -100,6 +100,8 @@ contract VaultZapper is SimpleZapper {
             outAmount = SwapperLib._swapUnsafe(centralRegistry, swapAction);
         }
 
+        // Approve `swapAction.outputToken` transfer to `vault` contract,
+        // if needed.
         SwapperLib._approveIfNeeded(
             swapAction.outputToken,
             address(vault),
@@ -108,6 +110,8 @@ contract VaultZapper is SimpleZapper {
 
         // Deposit into vault.
         outAmount = vault.deposit(outAmount, address(this));
+
+        // Remove any leftover approval, if any.
         SwapperLib._removeApprovalIfNeeded(
             swapAction.outputToken,
             address(vault)

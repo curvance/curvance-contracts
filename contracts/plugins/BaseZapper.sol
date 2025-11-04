@@ -141,7 +141,7 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
             revert BaseZapper__ExecutionError();
         }
 
-        // Remove any leftover approval.
+        // Remove any leftover approval, if any.
         SwapperLib._removeApprovalIfNeeded(asset, cToken);
     }
 
@@ -228,7 +228,7 @@ abstract contract BaseZapper is Multicall, ReentrancyGuard {
         // Execute repayment of outstanding debt.
         IBorrowableCToken(borrowableCToken).repayFor(repayAssets, receiver);
 
-        // Remove any excess approval.
+        // Remove any leftover approval, if any.
         SwapperLib._removeApprovalIfNeeded(debtAsset, borrowableCToken);
         assetsHeld -= repayAssets;
 
