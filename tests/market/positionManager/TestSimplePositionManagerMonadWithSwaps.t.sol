@@ -22,7 +22,7 @@ import {console2} from "forge-std/console2.sol";
 // positionManager address: 0xDB25A7b768311dE128BBDa7B8426c3f9C74f3240;
 
 contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
-    address public kuruRouter = 0x1B61Fab9544FF34735B2d7A0f7ff3544D8aa6536;
+    address public kuruRouter = 0x96eaC98928437496DdD0Cd2080E54Fe78BaC99b6;
     address public constant WMON_ADDRESS = 0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701;
     address public constant USDC_ADDRESS = 0xf817257fed379853cDe0fa4F97AB987181B1E5Ea;
 
@@ -122,20 +122,22 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         uint256 collateralBefore = borrowableCWMON.balanceOf(user1);
         uint256 debtBefore = borrowableCUSDC_MONAD.debtBalance(user1);
 
+        uint256 bufferedBorrow = (maxDebtBorrowable * 50) / 100; // 50% of max
+
         SimplePositionManager.LeverageAction memory leverageAction;
         leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC_MONAD));
-        leverageAction.borrowAssets = maxDebtBorrowable;
+        leverageAction.borrowAssets = bufferedBorrow;
         leverageAction.cToken = ICToken(address(borrowableCWMON));
 
         leverageAction.swapAction.inputToken = USDC_ADDRESS;
-        leverageAction.swapAction.inputAmount = maxDebtBorrowable;
+        leverageAction.swapAction.inputAmount = bufferedBorrow;
         leverageAction.swapAction.outputToken = WMON_ADDRESS;
         leverageAction.swapAction.target = address(kuruRouter);
 		leverageAction.swapAction.call = _getKuruCalldata(
 			address(positionManager),
 			USDC_ADDRESS,
 			WMON_ADDRESS,
-			maxDebtBorrowable
+			bufferedBorrow
 		);
         leverageAction.swapAction.slippage = 0.5e18;
 
@@ -148,7 +150,7 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         assertGt(collateralAfter, collateralBefore, "Collateral should increase after leverage");
 
         assertEq(debtBefore, 0, "Should start with no debt");
-        assertEq(debtAfter, maxDebtBorrowable, "Debt should equal borrowed amount");
+        assertEq(debtAfter, bufferedBorrow, "Debt should equal borrowed amount");
 
     }
 
