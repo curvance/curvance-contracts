@@ -1260,7 +1260,7 @@ contract TestBaseMarketIsolated is TestBase {
         console2.log("remaining collateral shares", collateralAvailable - _collateralLiquidated);
 
         if (_collateralRequired > collateralAvailable) {
-            badDebt = FixedPointMathLib.fullMulDiv(
+            badDebt = FixedPointMathLib.fullMulDivUp(
                 _debtAmount,
                 _collateralRequired,
                 collateralAvailable
