@@ -1541,9 +1541,7 @@ contract TestBaseMarketIsolated is TestBase {
             0,
             100
         );
-        console2.log("did it fail here at mocks?");
         oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), 250, 150);
-        console2.log("no it didnt");
         oracleManager.addAssetPricingAdaptor(_STETH, address(dualChainlinkAdaptor), 250, 150);
 
         // Pendle LP Token (wSTETH-24Dec2025) price is provided by PendleLPTokenAdaptor.
