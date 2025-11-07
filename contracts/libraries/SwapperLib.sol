@@ -42,6 +42,10 @@ library SwapperLib {
         bytes call;
     }
 
+    /// @notice Address identifying a chain's native token.
+    address public constant native =
+        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     /// ERRORS ///
 
     error SwapperLib__UnknownCalldata();
@@ -165,6 +169,12 @@ library SwapperLib {
         address token,
         uint256 amount
     ) internal view returns (uint256 result) {
+        // If token is native, normalize to address(0) so it is compatible 
+        // with the Oracle Manager.
+        if (token == address(0)) {
+            token = native;
+        }
+
         (uint256 price, uint256 errorCode) = om.getPrice(token, true, true);
         if (errorCode != NO_ERROR) {
             revert SwapperLib__TokenPrice(token);

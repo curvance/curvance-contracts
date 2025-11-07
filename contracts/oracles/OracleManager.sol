@@ -542,6 +542,8 @@ contract OracleManager is IOracleManager {
         if (cTokenUnderlying != address(0)) {
             cToken = asset;
             asset = cTokenUnderlying;
+        } else {
+            revert OracleManager__NotSupported();
         }
 
         (price, errorCode) = _getPrice(asset, inUSD, getLower);
