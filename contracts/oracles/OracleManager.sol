@@ -697,6 +697,9 @@ contract OracleManager is IOracleManager {
         bool inUSD,
         bool getLower
     ) internal view returns (uint256 price, uint256 errorCode) {
+        if (asset == address(0)) {
+            revert OracleManager__NotSupported();
+        }
         PricingConfig memory config = assetPricingConfig[asset];
         uint256 numAdaptors = config.adaptors.length;
         if (numAdaptors == 0) {
