@@ -211,11 +211,11 @@ abstract contract LiquidityManagerIsolated {
 
     /// CONSTANTS ///
 
-    /// @notice Maximum collateralization ratio, in BPS.
-    /// @dev 9772 = 97.72%.
-    ///      ~44x leverage calculated from: 1 / (1 - Collateralization Ratio).
-    uint256 public constant MAX_COLL_RATIO_CORRELATED = 9772;
-    /// @notice Maximum collateralization ratio, in BPS.
+    /// @notice Maximum collateralization ratio, in `BPS`.
+    /// @dev 9750 = 97.50%.
+    ///      ~40x leverage calculated from: 1 / (1 - Collateralization Ratio).
+    uint256 public constant MAX_COLL_RATIO_CORRELATED = 9750;
+    /// @notice Maximum collateralization ratio, in `BPS`.
     /// @dev 9696 = 96.96%.
     ///      ~33x leverage calculated from: 1 / (1 - Collateralization Ratio).
     uint256 public constant MAX_COLL_RATIO_UNCORRELATED = 9696;
@@ -289,7 +289,7 @@ abstract contract LiquidityManagerIsolated {
 
     /// @param cr The address of the Protocol Central Registry.
     /// @param minLoanSize The minimum active loan size for this isolated
-    ///                    market (must be between $10-$100 in WAD).
+    ///                    market, must be between $10 - $100 in `WAD`.
     /// @param isCorrelatedMarket Whether this market is for correlated assets
     ///                           or not, this impacts auction buffer and
     ///                           maximum theoretical collateralization

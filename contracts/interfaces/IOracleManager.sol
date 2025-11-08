@@ -81,17 +81,19 @@ interface IOracleManager {
     /// @notice Removes a pricing adaptor for `asset` triggered by an
     ///         adaptor's notification of a price feed's removal.
     /// @dev Requires that the adaptor is currently being used for pricing
-    ///      for `asset`.
-    ///      NOTE: This intentionally does not modify asset deviation values
-    ///            because they simply wont be used if there are less than two
-    ///            pricing adaptors in use, so no reason to delete data as
-    ///            when a second pricing adaptor is configured the deviation
-    ///            has the opportunity be to reconfigured anyway.
+    ///      for `asset`. May emit an {AssetDeviationBoundsSet} event.
     /// @param asset The address of the asset to potentially remove the
     ///              pricing adaptor dependency from depending on current
     ///              `asset` configuration.
+    /// @param inUSD Whether the deviation threshold for `asset` is for
+    ///              pricing in USD (inUSD = true) or native
+    ///              token (inUSD = false).
+    /// @param newDeviationThreshold Adaptor's updated feed deviation for `asset`
+    ///          in bps. Used to recompute the minimum caution bound and auto-bump 
+    ///          stored bounds if needed.
     function notifyDeviationUpdated(
         address asset,
+        bool inUSD,
         uint256 newDeviationThreshold
     ) external;
 

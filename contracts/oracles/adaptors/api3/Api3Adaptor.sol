@@ -40,8 +40,8 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
     /// @notice The current deviation value for an asset's configured price
     ///         feed, in `BPS`.
-    /// @dev Token address => feed deviation threshold, in `BPS`.
-    mapping(address => uint256) internal _assetDeviationThreshold;
+    /// @dev Token address => inUSD  => feed deviation threshold, in `BPS`.
+    mapping(address => mapping(bool => uint256)) internal _assetDeviationThreshold;
 
     /// EVENTS ///
 
@@ -117,9 +117,9 @@ contract Api3Adaptor is BaseOracleAdaptor {
         config.dapiNameHash = dapiNameHash;
         config.proxyFeed = IProxy(proxyFeed);
         config.isConfigured = true;
-        _assetDeviationThreshold[asset] = feedDeviationThreshold;
+        _assetDeviationThreshold[asset][inUSD] = feedDeviationThreshold;
         CommonLib._oracleManager(centralRegistry)
-            .notifyDeviationUpdated(asset, feedDeviationThreshold);
+            .notifyDeviationUpdated(asset, inUSD, feedDeviationThreshold);
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -132,12 +132,16 @@ contract Api3Adaptor is BaseOracleAdaptor {
     }
 
     /// @notice Returns an asset's price feed deviation threshold.
-    /// @param asset The asset to return the price feed deviation threshold for.
+    /// @param asset The asset to return the price feed deviation threshold
+    ///              for.
+    /// @param inUSD Whether the price feed deviation threshold is in
+    ///              USD (inUSD = true) or native token (inUSD = false).
     /// @return result The asset's price feed deviation threshold value.
     function deviationThreshold(
-        address asset
+        address asset,
+        bool inUSD
     ) external view returns (uint256 result) {
-        result = _assetDeviationThreshold[asset];
+        result = _assetDeviationThreshold[asset][inUSD];
     }
 
     /// INTERNAL FUNCTIONS ///

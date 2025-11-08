@@ -1431,8 +1431,11 @@ contract MarketManagerIsolated is
         // Convert liqInc to WAD via `WAD_SQUARED_BPS_OFFSET` so we dont run
         // into precision loss from only multiplying into WAD_SQUARED form.
         uint256 debtToCollateral = FixedPointMathLib.fullMulDiv(
-            (aData.liqInc * tData.debtUnderlyingPrice * WAD_SQUARED_BPS_OFFSET) /
-                tData.collateralSharesPrice,
+            FixedPointMathLib.fullMulDiv(
+                aData.liqInc * tData.debtUnderlyingPrice,
+                WAD_SQUARED_BPS_OFFSET,
+                tData.collateralSharesPrice
+            ),
             tData.collateralDecimals,
             tData.debtDecimals
         );
@@ -1444,7 +1447,7 @@ contract MarketManagerIsolated is
         }
         
         // Calculate how many shares should be liquidated.
-        liquidatedShares = FixedPointMathLib.mulDiv(
+        liquidatedShares = FixedPointMathLib.fullMulDiv(
             debtAmount,
             debtToCollateral,
             WAD_SQUARED
@@ -1481,7 +1484,7 @@ contract MarketManagerIsolated is
         // more than their shares posted, there is bad debt that should be
         // socialized among lenders, calculate using the same formula we used
         // for `liquidatedShares`.
-        uint256 sharesNeeded = FixedPointMathLib.mulDiv(
+        uint256 sharesNeeded = FixedPointMathLib.fullMulDiv(
             aData.debtBalance,
             debtToCollateral,
             WAD_SQUARED
