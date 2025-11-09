@@ -415,7 +415,7 @@ contract MarketManagerIsolated is
         if (redeemPaused == 2) {
             revert MarketManager__Paused();
         }
-        
+
         collateralRedeemed = _canRedeem(
             cToken,
             shares,
@@ -594,7 +594,7 @@ contract MarketManagerIsolated is
             // waste.
             debtAmounts[i] = action.debtRepaid;
 
-            /// Update prior account to current account.
+            // Update prior account to current account.
             priorAccount = cachedAccount;
         }
 
