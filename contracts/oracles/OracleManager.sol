@@ -4,6 +4,8 @@ pragma solidity 0.8.28;
 import { CentralRegistryLib } from "contracts/libraries/CentralRegistryLib.sol";
 import { WAD, BPS, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/ConstantsLib.sol";
 
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
@@ -129,18 +131,11 @@ contract OracleManager is IOracleManager {
     ///         inside the protocol.
     /// @dev 20 = 0.2%.
     uint256 public constant MIN_DEVIATION_BOUND = 20;
-    /// @notice The default deviation bound values between `CAUTION` and
-    ///         `BAD_SOURCE`, only used when an asset's deviation bounds
-    ///         need to be updated due to an adaptor changing a price feeds
-    ///         recorded deviation threshold configuration.
-    uint256 public constant DEFAULT_DEVIATION_DIFFERENCE = 50;
-    /// @notice The minimum value that must be given to deviation bound values
-    ///         when compared to the largest adaptor's deviation threshold
-    ///         configuration, in `BPS`.
-    /// @dev 20 = 0.2% buffer above largest adaptor deviation threshold
-    ///      configuration, e.g. 1% deviation = 1.2% minimum caution bound
-    ///      value.
-    uint256 public constant MIN_DEVIATION_BUFFER = 20;
+    /// @notice The minimum buffer between `CAUTION` bound and `BAD_SOURCE`
+    ///         bound when configuring bound values, in `BPS`.
+    /// @dev 20 = 0.2% minimum buffer before `BAD_SOURCE` value can
+    ///      be triggered.
+    uint256 public constant MIN_CAUTION_TO_BAD_SOURCE_DELTA = 20;
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
@@ -458,68 +453,6 @@ contract OracleManager is IOracleManager {
         _setDeviationBounds(asset, config, inUSD, badSourceBound, cautionBound);
     }
 
-    /// @notice Potentially removes the dependency on pricing from `adaptor`
-    ///         for `asset`, triggered by an adaptor's notification of a price
-    ///         feed's removal.
-    /// @notice Removes a pricing adaptor for `asset` triggered by an
-    ///         adaptor's notification of a price feed's removal.
-    /// @dev Requires that the adaptor is currently being used for pricing
-    ///      for `asset`. May emit an {AssetDeviationBoundsSet} event.
-    /// @param asset The address of the asset to potentially remove the
-    ///              pricing adaptor dependency from depending on current
-    ///              `asset` configuration.
-    /// @param inUSD Whether the deviation threshold for `asset` is for
-    ///              pricing in USD (inUSD = true) or native
-    ///              token (inUSD = false).
-    /// @param newDeviationThreshold Adaptor's updated feed deviation for `asset`
-    ///          in bps. Used to recompute the minimum caution bound and auto-bump 
-    ///          stored bounds if needed.
-    function notifyDeviationUpdated(
-        address asset,
-        bool inUSD,
-        uint256 newDeviationThreshold
-    ) external {
-        _checkIsApprovedAdaptor(msg.sender);
-
-        PricingConfig storage config = assetPricingConfig[asset];
-        // If there are not two adaptor dependencies we can skip this logic.
-        if (config.adaptors.length < 2) {
-            return;
-        }
-
-        address otherAdaptor = config.adaptors[0] == msg.sender ?
-            config.adaptors[1] : config.adaptors[0];
-        uint256 otherDeviationThreshold = IOracleAdaptor(otherAdaptor)
-            .deviationThreshold(asset, inUSD);
-        // If the other adaptor dependency is "stricter" than the calling
-        // dependency we can skip the checks below as there will not be a
-        // need to adjust error code bounds.
-        if (otherDeviationThreshold > newDeviationThreshold) {
-            return;
-        }
-
-        // Make sure that caution flag will not get triggered by
-        // oracle's price feed natural deviation threshold before an update.
-        uint256 newMinCautionBound =
-            newDeviationThreshold + MIN_DEVIATION_BUFFER;
-        // If the new deviation threshold breaks the current configured
-        // deviation bound values, set some temporary ones until the Oracle
-        // Manager can be updated directly.
-        uint256 currentCautionBound = inUSD ?
-            config.cautionBoundUSD : config.cautionBoundNative;
-        // We remove BPS from `config.cautionBound` because we store the
-        // value with an extra BPS for better runtime gas costs.
-        if (currentCautionBound - BPS <= newMinCautionBound) {
-            _setDeviationBounds(
-                asset,
-                config,
-                inUSD,
-                newMinCautionBound + DEFAULT_DEVIATION_DIFFERENCE,
-                newMinCautionBound
-            );
-        }
-    }
-
     /// @notice Checks if a given asset is supported by the Oracle Manager.
     /// @dev An asset is considered supported if it has one
     ///      or more associated price feeds.
@@ -586,7 +519,19 @@ contract OracleManager is IOracleManager {
         // Query the exchange rate between a Curvance token and its underlying
         // token and convert the price into WAD form.
         if (cToken != address(0)) {
-            price = (price * ICToken(cToken).exchangeRate()) / WAD;
+            if (getLower) {
+                price = FixedPointMathLib.mulDiv(
+                    price,
+                    ICToken(cToken).exchangeRate(),
+                    WAD
+                );
+            } else {
+                price = FixedPointMathLib.mulDivUp(
+                    price,
+                    ICToken(cToken).exchangeRate(),
+                    WAD
+                );
+            }
         }
     }
 
@@ -627,8 +572,11 @@ contract OracleManager is IOracleManager {
         if (errorCode >= errorCodeBreakpoint) {
             revert OracleManager__ErrorCodeFlagged();
         }
-        collateralSharesPrice = (collateralSharesPrice *
-            ICToken(collateralToken).exchangeRateUpdated()) / WAD;
+        collateralSharesPrice = FixedPointMathLib.mulDiv(
+            collateralSharesPrice,
+            ICToken(collateralToken).exchangeRateUpdated(),
+            WAD
+        );
 
         underlying = cTokens[debtToken];
         if (underlying == address(0)) {
@@ -690,7 +638,11 @@ contract OracleManager is IOracleManager {
                 );
                 // `getSnapshotUpdated` already accrues any pending assets so
                 // we can call `exchangeRate` directly.
-                prices[i] = (prices[i] * ICToken(asset).exchangeRate()) / WAD;
+                prices[i] = FixedPointMathLib.mulDiv(
+                    prices[i],
+                    ICToken(asset).exchangeRate(),
+                    WAD
+                );
             } else {
                 // If the asset is being borrowed the outstanding debt is
                 // measured in assets (underlying) using _getPrice.
@@ -964,7 +916,7 @@ contract OracleManager is IOracleManager {
             }
 
             return (
-                _convertNativeUSD(result.price, newPrice, result.inUSD),
+                _convertNativeUSD(result.price, newPrice, result.inUSD, getLower),
                 result.hadError
             );
         }
@@ -1031,19 +983,29 @@ contract OracleManager is IOracleManager {
     ///                       native token.
     ///                       If false -> Convert the price from native token
     ///                       to USD.
+    /// @param getLower Whether the lower or higher price should be returned.
     /// @return The converted price.
     function _convertNativeUSD(
         uint256 currentPrice,
         uint256 conversionRate,
-        bool currentlyInUSD
+        bool currentlyInUSD,
+        bool getLower
     ) internal pure returns (uint256) {
         if (!currentlyInUSD) {
             // The price denomination is in native token and we want USD.
-            return (currentPrice * conversionRate) / WAD;
+            if (getLower) {
+                return FixedPointMathLib.mulDiv(currentPrice, conversionRate, WAD);
+            }
+
+            return FixedPointMathLib.mulDivUp(currentPrice, conversionRate, WAD);
         }
 
         // The price denomination is in USD and we want native token.
-        return (currentPrice * WAD) / conversionRate;
+        if (getLower) {
+            return FixedPointMathLib.mulDiv(currentPrice, WAD, conversionRate);
+        }
+        
+        return FixedPointMathLib.mulDivUp(currentPrice, WAD, conversionRate);
     }
 
     /// @notice Sets a new maximum deviation for pricing adaptors before
@@ -1066,10 +1028,10 @@ contract OracleManager is IOracleManager {
         uint256 badSourceBound,
         uint256 cautionBound
     ) internal {
-        // Validate that the `CAUTION` error code should never occur that the
-        // same time or after `BAD_SOURCE`, because `BAD_SOURCE` is the more
-        // significant error than `CAUTION`.
-        if (badSourceBound <= cautionBound) {
+        // Validate that the `CAUTION` error code will not trigger too
+        // closely to `BAD_SOURCE` error code, because `BAD_SOURCE` is
+        // a more significant error than `CAUTION`.
+        if (badSourceBound < cautionBound + MIN_CAUTION_TO_BAD_SOURCE_DELTA) {
             revert OracleManager__InvalidParameter();
         }
 
@@ -1078,19 +1040,6 @@ contract OracleManager is IOracleManager {
             cautionBound < MIN_DEVIATION_BOUND ||
             badSourceBound > MAX_DEVIATION_BOUND
         ) {
-            revert OracleManager__InvalidParameter();
-        }
-
-        uint256 deviation0 =
-            IOracleAdaptor(config.adaptors[0]).deviationThreshold(asset, inUSD);
-        uint256 deviation1 =
-            IOracleAdaptor(config.adaptors[1]).deviationThreshold(asset, inUSD);
-        uint256 largestDeviation = deviation0 > deviation1 ?
-            deviation0 : deviation1;
-
-        // Make sure that caution flag will not get triggered by
-        // oracles natural deviation before an update.
-        if (cautionBound <= largestDeviation + MIN_DEVIATION_BUFFER) {
             revert OracleManager__InvalidParameter();
         }
 
@@ -1106,11 +1055,7 @@ contract OracleManager is IOracleManager {
             config.cautionBoundNative = uint16(cautionBound);
         }
         
-        emit AssetDeviationBoundsSet(
-            asset,
-            badSourceBound,
-            cautionBound
-        );
+        emit AssetDeviationBoundsSet(asset, badSourceBound, cautionBound);
     }
 
     /// @notice Reviews the report prices from both pricing adaptors,

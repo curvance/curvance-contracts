@@ -37,11 +37,6 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// @dev Token address => inUSD => Price feed configuration for `asset`.
     mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
-    /// @notice The current deviation value for an asset's configured price
-    ///         feed, in `BPS`.
-    /// @dev Token address => inUSD  => feed deviation threshold, in `BPS`.
-    mapping(address => mapping(bool => uint256)) internal _assetDeviationThreshold;
-
     /// EVENTS ///
 
     event AssetAdded(address asset, AssetConfig config, bool isUpdate);
@@ -49,7 +44,6 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// ERRORS ///
 
     error DIAAdaptor__InvalidHeartbeat();
-    error DIAAdaptor__InvalidDeviationThreshold();
 
     /// CONSTRUCTOR ///
 
@@ -93,16 +87,8 @@ contract DIAAdaptor is BaseOracleAdaptor {
             revert DIAAdaptor__InvalidHeartbeat();
         }
 
-        // Validate the deviation threshold is not too long.
-        if (feedDeviationThreshold > MAX_ALLOWED_DEVIATION_VALUE) {
-            revert DIAAdaptor__InvalidDeviationThreshold();
-        }
-
         // Save `config` and update mapping that we support `asset` now.
         assetConfig[asset][inUSD] = config;
-        _assetDeviationThreshold[asset][inUSD] = feedDeviationThreshold;
-        CommonLib._oracleManager(centralRegistry)
-            .notifyDeviationUpdated(asset, inUSD, feedDeviationThreshold);
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -112,19 +98,6 @@ contract DIAAdaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
-    }
-
-    /// @notice Returns an asset's price feed deviation threshold.
-    /// @param asset The asset to return the price feed deviation threshold
-    ///              for.
-    /// @param inUSD Whether the price feed deviation threshold is in
-    ///              USD (inUSD = true) or native token (inUSD = false).
-    /// @return result The asset's price feed deviation threshold value.
-    function deviationThreshold(
-        address asset,
-        bool inUSD
-    ) external view returns (uint256 result) {
-        result = _assetDeviationThreshold[asset][inUSD];
     }
 
     /// INTERNAL FUNCTIONS ///

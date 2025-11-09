@@ -164,11 +164,6 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
         emit AssetAdded(asset, config, isUpdate);
     }
 
-    /// @notice Returns an asset's price feed deviation threshold.
-    /// @dev INTENTIONALLY RETURNS 0 AS THIS IS AN ONCHAIN COMPUTED PRICE.
-    /// @return result The asset's price feed deviation threshold value.
-    function deviationThreshold(address) external view returns (uint256 result) {}
-
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Helper function to check whether the underlying PT TWAP
