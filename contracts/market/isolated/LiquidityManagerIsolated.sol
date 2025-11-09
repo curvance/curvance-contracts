@@ -446,13 +446,16 @@ abstract contract LiquidityManagerIsolated {
                     }
                 } else {
                     // CASE: There is collateral posted in this cToken,
-                    // the user can take on more debt.
-                    maxDebt += _collateralValue(
-                        snap.collateralPosted,
-                        prices[i],
-                        10 ** snap.decimals,
+                    // the user can take on more debt from lenders.
+                    maxDebt += _mulDiv(
+                        _assetValue(
+                            snap.collateralPosted,
+                            prices[i],
+                            10 ** snap.decimals,
+                            true
+                        ),
                         _tokenConfig[snap.asset].collRatio,
-                        true
+                        BPS
                     );
                 }
             } else {
@@ -469,8 +472,8 @@ abstract contract LiquidityManagerIsolated {
                         result.positionClosureNeeded = 2;
                     }
                 } else {
-                    // CASE: There is outstanding debt, add it to `newDebt` to
-                    // check against `maxDebt`.
+                    // CASE: There is outstanding debt to lenders, add it to
+                    // `newDebt` to check against `maxDebt`.
                     newDebt += _assetValue(
                         snap.debtBalance,
                         prices[i],
@@ -637,33 +640,6 @@ abstract contract LiquidityManagerIsolated {
         }
 
         return FixedPointMathLib.mulDivUp(amount, price, decimals);
-    }
-
-    /// @notice Calculates collateral value based on `shares`, `price`,
-    ///         `collRatio`, and adjusts for token decimals.
-    /// @param shares The cToken shares to calculate collateral value of.
-    /// @param price The asset's price, in `WAD`.
-    /// @param decimals The asset's decimals to adjust redemption value
-    ///                 into proper form.
-    /// @param collRatio The collateralization ratio of the asset, in `BPS`.
-    /// @return result The calculated collateral value.
-    function _collateralValue(
-        uint256 shares,
-        uint256 price,
-        uint256 decimals,
-        uint256 collRatio,
-        bool increasesCollateral
-    ) internal pure returns (uint256 result) {
-        result = _mulDiv(
-            _assetValue(
-                shares,
-                price,
-                decimals,
-                increasesCollateral
-            ),
-            collRatio,
-            BPS
-        );
     }
 
     /// @notice Calculates and adds soft and hard collateral values for
