@@ -150,12 +150,9 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
             return result;
         }
 
-        uint256 adjustedPrice = _adjustPrice(
-            asset,
-            inUSD,
-            uint256(price),
-            c.decimals
-        );
+        // Adjust price pulled, if necessary.
+        uint256 adjustedPrice =
+            _adjustPrice(asset, inUSD, uint256(price), c.decimals);
 
         result.hadError = _verifyData(adjustedPrice, updatedAt, c.heartbeat);
         result.price = adjustedPrice;

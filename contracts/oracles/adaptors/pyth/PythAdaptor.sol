@@ -217,6 +217,7 @@ contract PythAdaptor is BaseOracleAdaptor {
             return result;
         }
 
+        // Adjust price pulled, if necessary.
         uint256 adjustedPrice = _adjustPrice(
             asset,
             inUSD,

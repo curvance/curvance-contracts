@@ -420,20 +420,24 @@ contract RedstoneCoreAdaptor is
 
         AssetConfig memory config = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
-        
-        // Validate the price returned is not stale, we already check
-        // price == 0 in `writePrice` so we just need staleness check 
-        // for parity with baseOracleAdaptor `_verifyData`.
+
+        // Adjust price pulled, if necessary.
+        uint256 adjustedPrice =
+            _adjustPrice(asset, inUSD, config.price, config.decimals);
+
         uint256 timestampInSeconds = config.redstoneTimestamp / 1000;
+        // Validate the price returned is not stale, and that the price was
+        // not reduced to 0 by the price guard minimum price, giving us parity
+        // with BaseOracleAdaptor's `_verifyData`.
         if (
-            timestampInSeconds < block.timestamp &&
-            block.timestamp - timestampInSeconds > DEFAULT_HEARTBEAT
+            (timestampInSeconds < block.timestamp &&
+                block.timestamp - timestampInSeconds > DEFAULT_HEARTBEAT) ||
+            adjustedPrice == 0
         ) {
             result.hadError = true;
         }
 
-        // Adjust price pulled if necessary.
-        result.price = _adjustPrice(asset, inUSD, config.price, config.decimals);
+        result.price = adjustedPrice;
     }
 
     /// @dev This logic replicates RedstoneDefaultsLib.validateTimestamp
