@@ -116,8 +116,9 @@ contract RewardsDistribution is ReentrancyGuard {
             root = roots[i];
             config = rewardsConfig[root];
             // Validate that the claim data is correct and that there is not
-            // somehow insufficient tokens to distribute.
-            if (amounts[i] > config.rewardAmount) {
+            // somehow insufficient tokens to distribute, or that claim value
+            // is equal to 0.
+            if (amounts[i] > config.rewardAmount || amounts[i] == 0) {
                 revert RewardDistribution__ParametersAreInvalid();
             }
 
@@ -138,7 +139,7 @@ contract RewardsDistribution is ReentrancyGuard {
                 !_verify(
                     proofs[i],
                     root,
-                    keccak256(abi.encodePacked(msg.sender, amounts[i]))
+                    keccak256(abi.encodePacked(msg.sender, config.rewardToken, amounts[i]))
                 )
             ) {
                 revert RewardDistribution__NotEligible();
@@ -190,7 +191,7 @@ contract RewardsDistribution is ReentrancyGuard {
                     _verify(
                         proof,
                         root,
-                        keccak256(abi.encodePacked(user, amount))
+                        keccak256(abi.encodePacked(user, config.rewardToken, amount))
                     );
             }
         }
