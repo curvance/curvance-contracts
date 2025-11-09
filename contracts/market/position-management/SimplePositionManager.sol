@@ -71,7 +71,7 @@ contract SimplePositionManager is BasePositionManager {
         // This check implies they have selected the same cToken as both
         // cToken and borrowableCToken, otherwise its not possible to have
         // the same underlying.
-        if (debtAsset == collateralAsset) {
+        if (_isMatchingToken(debtAsset, collateralAsset)) {
             revert BasePositionManager__InvalidParam();
         }
 
@@ -118,7 +118,7 @@ contract SimplePositionManager is BasePositionManager {
         // This check implies they have selected the same cToken as both
         // cToken and borrowableCToken, otherwise its not possible to have
         // the same underlying.
-        if (debtAsset == collateralAsset) {
+        if (_isMatchingToken(debtAsset, collateralAsset)) {
             revert BasePositionManager__InvalidParam();
         }
 

@@ -175,6 +175,7 @@ contract Convex3PoolCToken is StrategyCToken {
                         revert StrategyCToken__UnapprovedAssetSwap();
                     }
 
+                    _checkSlippageInput(swapAction.slippage);
                     SwapperLib._swapSafe(centralRegistry, swapActions[i]);
                 }
             }

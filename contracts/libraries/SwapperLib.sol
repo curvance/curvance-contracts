@@ -76,7 +76,7 @@ library SwapperLib {
         address inputToken = action.inputToken;
 
         // Do not use this library if the tokens are the same.
-        if (inputToken == outputToken) {
+        if (_isMatchingToken(inputToken, outputToken)) {
             revert SwapperLib__SameTokens();
         }
 
@@ -154,7 +154,7 @@ library SwapperLib {
             valueIn
         );
 
-        if (slippage > action.slippage || slippage > cr.slippageLimit()) {
+        if (slippage > action.slippage) {
             revert SwapperLib__Slippage(slippage);
         }
     }
