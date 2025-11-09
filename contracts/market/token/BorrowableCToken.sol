@@ -412,48 +412,41 @@ contract BorrowableCToken is BaseCTokenWithYield {
         result = debtBalance(account);
     }
 
-    /// @notice Returns the amount of excess underlying that can be safely
-    ///         recovered without impacting user accounting.
-    /// @dev    Computed as: marketOutstandingDebt + underlyingBalance - totalAssets.
-    /// @return excess The recoverable excess underlying amount, or 0 if none.
-    function skimAvailable() external view returns (uint256 excess) {
-        uint256 cachedAssets = _getTotalAssets();
-        uint256 debtPlusBalance = marketOutstandingDebt +
-            IERC20(_asset).balanceOf(address(this));
-        if (debtPlusBalance <= cachedAssets) {
-            return 0;
-        }
-
-        excess = debtPlusBalance - cachedAssets; 
-    }
-
     /// @notice Recovers any accumulated excess underlying from rounding or
     ///         unsolicited donations, to the DAO address.
     /// @dev Does not modify `_totalAssets` or any accounting to avoid
-    ///      donation attacks.
-    ///      Computed as: debtPlusBalance = marketOutstandingDebt + underlyingBalance
+    ///      invariant manipulation.
+    ///      Computed as:
+    ///      debtPlusBalance = marketOutstandingDebt + underlyingBalance
     ///      excess = debtPlusBalance - totalAssets.
     ///      Requires DAO permissions.
     function skim() external nonReentrant {
         _checkDaoPermissions();
+        uint256 excess = skimAvailable();
 
-        address underlying = asset();
-        uint256 cachedAssets = _getTotalAssets();
-        uint256 debtPlusBalance = marketOutstandingDebt +
-            IERC20(underlying).balanceOf(address(this));
+        address daoAddress = centralRegistry.daoAddress();
+        SafeTransferLib.safeTransfer(asset(), daoAddress, excess);
 
+        emit ExcessRecovered(excess, daoAddress);
+    }
+
+    /// PUBLIC FUNCTIONS ///
+
+    /// @notice Returns the amount of excess underlying that can be safely
+    ///         recovered without impacting user accounting.
+    /// @dev Computed as:
+    ///      marketOutstandingDebt + underlyingBalance - totalAssets.
+    /// @return excess The recoverable excess underlying amount, or 0 if none.
+    function skimAvailable() public view returns (uint256 excess) {
+        uint256 cachedAssets = _totalAssets;
+        uint256 debtPlusBalance =
+            marketOutstandingDebt + IERC20(_asset).balanceOf(address(this));
         if (debtPlusBalance <= cachedAssets) {
             revert BaseCToken__ZeroAmount();
         }
 
-        uint256 excess = debtPlusBalance - cachedAssets;
-        address recipient = centralRegistry.daoAddress();
-        SafeTransferLib.safeTransfer(underlying, recipient, excess);
-
-        emit ExcessRecovered(excess, recipient);
+        excess = debtPlusBalance - cachedAssets; 
     }
-
-    /// PUBLIC FUNCTIONS ///
 
     /// @notice Get a snapshot of the cToken and `account` data.
     /// @dev Used by marketManager to more efficiently perform
@@ -511,7 +504,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///      if any.
     /// @return result The quantity of borrowable assets held by the market.
     function assetsHeld() public view returns (uint256 result) {
-        uint256 currentAssets = _getTotalAssets();
+        uint256 currentAssets = _totalAssets;
         if (currentAssets == 0) {
             revert BorrowableCToken__DepositsNotInitialized();
         }

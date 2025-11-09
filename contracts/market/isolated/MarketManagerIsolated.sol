@@ -412,6 +412,10 @@ contract MarketManagerIsolated is
         bool forceRedeemCollateral
     ) external returns (uint256 collateralRedeemed) {
         _checkIsToken(cToken);
+        if (redeemPaused == 2) {
+            revert MarketManager__Paused();
+        }
+        
         collateralRedeemed = _canRedeem(
             cToken,
             shares,
@@ -1267,10 +1271,6 @@ contract MarketManagerIsolated is
         bool isCollateral,
         bool forceRedeemCollateral
     ) internal returns (uint256 collateralRedeemed) {
-        if (redeemPaused == 2) {
-            revert MarketManager__Paused();
-        }
-
         _checkIsListedToken(cToken);
         _checkTransfersAllowed(account);
 
@@ -1280,7 +1280,7 @@ contract MarketManagerIsolated is
             if (forceRedeemCollateral) {
                 // Explicitly revert here if trying to redeem too much
                 // collateral rather than panic revert.
-                if (collateralRedeemed > collateralPosted) {
+                if (shares > collateralPosted) {
                     revert MarketManager__InsufficientCollateral();
                 }
 
