@@ -84,21 +84,16 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// @notice Adds pricing support for `asset` via a new Pyth feed.
     /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
-    ///      NOTE: BE VERY CAREFUL SETTING `feedDeviationThreshold`, AN
-    ///            INCORRECT VALUE CAN LOCK LIQUIDATIONS UNINTENTIONALLY.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
     /// @param heartbeat The max amount of time allowed between price updates.
     /// @param priceId The price id of the asset to price.
-    /// @param feedDeviationThreshold The price feed deviation threshold value
-    ///                               configured by the oracle provider.
     function addAsset(
         address asset,
         bool inUSD,
         uint256 heartbeat,
-        bytes32 priceId,
-        uint256 feedDeviationThreshold
+        bytes32 priceId
     ) external {
         _checkElevatedPermissions();
 

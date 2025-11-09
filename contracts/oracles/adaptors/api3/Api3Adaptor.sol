@@ -57,8 +57,6 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// @notice Adds an Api3 Price Feed as an asset inside this adaptor.
     /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
-    ///      NOTE: BE VERY CAREFUL SETTING `feedDeviationThreshold`, AN
-    ///            INCORRECT VALUE CAN LOCK LIQUIDATIONS UNINTENTIONALLY.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
@@ -66,15 +64,12 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// @param heartbeat Api3 heartbeat to use when validating prices
     ///                  for `asset`. 0 = `DEFAULT_HEARTBEAT`.
     /// @param ticker The ticker of the token to add pricing for.
-    /// @param feedDeviationThreshold The price feed deviation threshold value
-    ///                               configured by the oracle provider.
     function addAsset(
         address asset,
         bool inUSD,
         address proxyFeed,
         uint256 heartbeat,
-        string memory ticker,
-        uint256 feedDeviationThreshold
+        string memory ticker
     ) external {
         _checkElevatedPermissions();
 

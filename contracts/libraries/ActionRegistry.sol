@@ -22,6 +22,9 @@ import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 ///      an optional "2FA" setting to reduce the potential of a successful
 ///      phishing attempt on a user. A cooldown can be set for token transfers
 ///      and plugin delegation that activates after an action lock is enabled.
+///      Modifying this cooldown downward will automatically apply the full
+///      unmodified cooldown as an additional safety measure against malicious
+///      signatures attempting to bypass it.
 ///      NOTE: This does not apply to second order actions such as Zapping to
 ///            external addresses, borrowing to external addresses, etc.
 ///
@@ -31,7 +34,7 @@ import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 abstract contract ActionRegistry is IActionRegistry {
     /// TYPES ///
 
-    /// @title User Configuration
+    /// @title User Configuration for supported actions.
     /// @notice Struct containing information on a user's configuration values
     ///         for transfers and delegation inside Curvance.
     /// @param lockCooldown The cooldown period for the user's transfers and
@@ -89,11 +92,11 @@ abstract contract ActionRegistry is IActionRegistry {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Sets token transferability unlock cooldown.
-    /// @dev Emits a {CooldownSet} event. If a user is decreasing their
-    ///      cooldown, lock cooldown will automatically apply,
-    ///      delaying when transferability plugin approvals can be re-enabled,
-    ///      preventing a malicious party from tracking a user to decrease
-    ///      their cooldown to 0 and then phishing them.
+    /// @dev Emits a {CooldownSet} event. If a user decreases their cooldown,
+    ///      the unmodified lock cooldown will automatically apply, delaying
+    ///      when actions are re-enabled, preventing a malicious party from
+    ///      tricking a user into decreasing their cooldown to 0 and then
+    ///      phishing them.
     /// @param cooldown The length of time transferability and plugin approval
     ///                 should remain restricted after their lock has been
     ///                 disabled, in seconds.
@@ -209,11 +212,11 @@ abstract contract ActionRegistry is IActionRegistry {
         );
     }
 
-    /// @notice Checks whether `user` has delegation enabled or disabled
-    ///         for user actions inside Curvance.
-    /// @param user The address to check whether delegation is enabled or
-    ///             disabled for.
-    /// @return result Indicates whether `user` has delegation disabled
+    /// @notice Checks whether `user` has new delegation configuration enabled
+    ///         or disabled for user actions inside Curvance.
+    /// @param user The address to check whether new delegation configuration
+    ///        is enabled or disabled for.
+    /// @return result Indicates whether `user` has new delegations disabled
     ///                or not, true = disabled, false = not disabled.
     function checkNewDelegationDisabled(
         address user
@@ -224,9 +227,9 @@ abstract contract ActionRegistry is IActionRegistry {
     }
 
     /// @notice Sets a callers status for whether to allow new delegation
-    ///         or not.
+    ///         configuration or not.
     /// @param delegationDisabled Whether caller wants to allow new delegation
-    ///                           or not.
+    ///                           configuration or not.
     ///      Emits a {DelegableStatusChanged} event.
     function setDelegableStatus(bool delegationDisabled) external {
         UserConfig storage config = _userConfig[msg.sender];
@@ -240,7 +243,7 @@ abstract contract ActionRegistry is IActionRegistry {
 
         uint256 enableTimestamp;
 
-        // If the user is trying to enable delegation again,
+        // If the user is trying to enable delegation configuration again,
         // add their cooldown period, an added layer against phishing
         // attempts.
         if (!delegationDisabled) {

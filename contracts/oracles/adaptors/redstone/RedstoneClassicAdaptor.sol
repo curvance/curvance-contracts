@@ -58,8 +58,6 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
     /// @notice Adds pricing support for `asset` via a new Redstone feed.
     /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
-    ///      NOTE: BE VERY CAREFUL SETTING `feedDeviationThreshold`, AN
-    ///            INCORRECT VALUE CAN LOCK LIQUIDATIONS UNINTENTIONALLY.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
@@ -68,15 +66,12 @@ contract RedstoneClassicAdaptor is BaseOracleAdaptor {
     ///                  for `asset`. 0 = `DEFAULT_HEARTBEAT`.
     /// @param id The dataFeedId of the token to add pricing for,
     ///           in string form.
-    /// @param feedDeviationThreshold The price feed deviation threshold value
-    ///                               configured by the oracle provider.
     function addAsset(
         address asset,
         bool inUSD,
         address feedProxy,
         uint256 heartbeat,
-        string memory id,
-        uint256 feedDeviationThreshold
+        string memory id
     ) external {
         _checkElevatedPermissions();
 

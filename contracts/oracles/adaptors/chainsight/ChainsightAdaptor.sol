@@ -71,8 +71,6 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
     /// @notice Adds a Chainsight Price Feed as an asset inside this adaptor.
     /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
-    ///      NOTE: BE VERY CAREFUL SETTING `feedDeviationThreshold`, AN
-    ///            INCORRECT VALUE CAN LOCK LIQUIDATIONS UNINTENTIONALLY.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).

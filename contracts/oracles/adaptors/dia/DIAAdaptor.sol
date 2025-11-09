@@ -59,19 +59,14 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// @notice Adds pricing support for `asset` via a new DIA feed.
     /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
-    ///      NOTE: BE VERY CAREFUL SETTING `feedDeviationThreshold`, AN
-    ///            INCORRECT VALUE CAN LOCK LIQUIDATIONS UNINTENTIONALLY.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
     /// @param config The asset's adaptor configuration.
-    /// @param feedDeviationThreshold The price feed deviation threshold value
-    ///                               configured by the oracle provider.
     function addAsset(
         address asset,
         bool inUSD,
-        AssetConfig memory config,
-        uint256 feedDeviationThreshold
+        AssetConfig memory config
     ) external {
         _checkElevatedPermissions();
 
