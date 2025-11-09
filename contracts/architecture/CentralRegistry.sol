@@ -130,14 +130,15 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     // SLIPPAGE VALUES
 
-    /// @notice Protocol slippage limit for `swapSafe`.
-    /// @dev 1000 = 10%.
+    /// @notice Protocol slippage limit for "untrusted" strategy managers,
+    ///         addresses with `hasHarvestPermissions`.
+    /// @dev 300 = 3%.
     ///      This slippage configurable variable is not for an end all be all
     ///      slippage check, any external swap natively includes slippage and
     ///      only acts as a protective layer against secondary actions such as
     ///      providing liquidity into an LP token or from untrusted executed
     ///      like a harvester that could at some point be compromised.
-    uint16 public slippageLimit = 1000;
+    uint16 public slippageLimit = 300;
 
     // PROTOCOL VALUES
 
@@ -698,15 +699,15 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Sets the maximum slippage users can input with swap
     ///         instructions.
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
-    ///      must have a minimum value of 4%.
+    ///      must have a minimum value of 1%, and a maximum value of 20%.
     ///      Emits a {SlippageLimit} event.
     /// @param value The new slippage limit users can input on swap
     ///              instructions, in `BPS`.
     function setSlippageLimit(uint256 value) external {
         _checkElevatedPermissions();
 
-        // Slippage limit cannot be less than 4%.
-        if (value < 400) {
+        // Slippage limit cannot be less than 1%, or more than 20%.
+        if (value < 100 || value > 2000) {
             revert CentralRegistry__InvalidParameter();
         }
 
