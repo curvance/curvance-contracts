@@ -410,24 +410,43 @@ abstract contract LiquidityManagerIsolated {
         for (uint256 i; i < numAssets; ++i) {
             snap = snapshots[i];
 
+            // Generally `isCollateral` tells us if an entry is collateral or
+            // debt, but, on a fresh borrow position snapshot misreports
+            // `isCollateral` as true until its action is fully processed
+            // because debtBalance still equals 0 at getSnapshotUpdated level.
+            if (
+                action.cTokenModified == snap.asset && snap.isCollateral &&
+                action.borrowAssets > 0
+            ) {
+                // We can skip the error code check as we've already
+                // priced the share token which requires pricing the
+                // underlying token.
+                (prices[i], ) =
+                    CommonLib._oracleManager(centralRegistry).
+                        getPrice(snap.underlying, true, false);
+                // Adjust `isCollateral` to be false since this is a debt
+                // entry not a collateral entry.
+                delete snap.isCollateral;
+            }
+
             if (snap.isCollateral) {
-                // If there is no collateral posted and its not a
-                // position to be modified, clean up the position
-                // entry as the user was liquidated.
+                // If the user is redeeming collateral, offset their
+                // collateral posted.
+                if (action.cTokenModified == snap.asset) {
+                    snap.collateralPosted -= action.redemptionShares;
+                }
+
+                // CASE: There is no collateral posted. Either the position
+                // will be closed through a full redemption, or the user
+                // already had their position closed via liquidation.
                 if (snap.collateralPosted == 0) {
-                    // If there is no collateral posted and its not a
-                    // position to be modified, clean up the position
-                    // entry as the user was liquidated.
-                    if (action.cTokenModified != snap.asset) {
-                        positionsToClose[i] = true;
-                        if (result.positionClosureNeeded == 0) {
-                            result.positionClosureNeeded = 2;
-                        }
+                    positionsToClose[i] = true;
+                    if (result.positionClosureNeeded == 0) {
+                        result.positionClosureNeeded = 2;
                     }
                 } else {
-                    // There is collateral posted in this cToken,
-                    // increasing collateral, or more simply the user
-                    // can take on more debt.
+                    // CASE: There is collateral posted in this cToken,
+                    // the user can take on more debt.
                     maxDebt += _collateralValue(
                         snap.collateralPosted,
                         prices[i],
@@ -437,87 +456,33 @@ abstract contract LiquidityManagerIsolated {
                     );
                 }
             } else {
-                // If they have a debt balance, increment their debt.
-                if (snap.debtBalance > 0) {
+                if (action.cTokenModified == snap.asset) {
+                    snap.debtBalance += action.borrowAssets;
+                }
+
+                // CASE: There is no outstanding debt, clean up the position
+                // entry as the user was liquidated, otherwise add to the
+                // user's outstanding debt.
+                if (snap.debtBalance == 0) {
+                    positionsToClose[i] = true;
+                    if (result.positionClosureNeeded == 0) {
+                        result.positionClosureNeeded = 2;
+                    }
+                } else {
+                    // CASE: There is outstanding debt, add it to `newDebt` to
+                    // check against `maxDebt`.
                     newDebt += _assetValue(
                         snap.debtBalance,
                         prices[i],
                         10 ** snap.decimals,
                         false
                     );
-                } else {
-                    // If there is no debt and its not a position
-                    // to be modified, clean up the position entry as the
-                    // user was liquidated (bad debt insolvency).
-                    if (action.cTokenModified != snap.asset) {
-                        positionsToClose[i] = true;
-                        if (result.positionClosureNeeded == 0) {
-                            result.positionClosureNeeded = 2;
-                        }
-                    }
-                }
-            }
 
-            // Calculate impact of cTokenModified action.
-            if (action.cTokenModified == snap.asset) {
-                // If the token is collateral it cannot also be debt position,
-                // but, on a fresh borrow position snapshot can misreport
-                // a debt position as collateral until its fully opened
-                // because debtBalance still equals 0 at getSnapshot level.
-                if (snap.isCollateral && action.borrowAssets == 0) {
-                    // If they are trying to redeem more tokens than
-                    // they have, the transaction will fail before it
-                    // gets to this point, so no special case needed.
-                    if (snap.collateralPosted == action.redemptionShares) {
-                        positionsToClose[i] = true;
-                        if (result.positionClosureNeeded == 0) {
-                            result.positionClosureNeeded = 2;
-                        }
-                    }
-
-                    // Hypothetical redemption action, decreasing collateral
-                    // or more simply adding new debt.
-                    newDebt += _collateralValue(
-                        action.redemptionShares,
-                        prices[i],
-                        10 ** snap.decimals,
-                        _tokenConfig[snap.asset].collRatio,
-                        true
-                    );
-                } else {
-                    // Adjust debt asset price if it was accidently priced as
-                    // collateral, happens during an initial borrow when debt
-                    // is not documented yet.
-                    if (snap.isCollateral) {
-                        // We can skip the error code check as we've already
-                        // priced the share token which requires pricing the
-                        // underlying token.
-                        (prices[i], ) = CommonLib._oracleManager(centralRegistry).
-                            getPrice(snap.underlying, true, false);
-                    }
-
-                    // Hypothetical borrow action.
-                    newDebt += _assetValue(
-                        action.borrowAssets,
-                        prices[i],
-                        10 ** snap.decimals,
-                        false
-                    );
-
-                    // Initially, we would worry that newDebt can be
-                    // incremented during both borrow and redemption
-                    // actions but actions are done in isolation, so if
-                    // newDebt is increases here then cTokenModified will
-                    // never reach the redemption action block.
-                    // This means we can check terminal newDebt value here
-                    // and know its only including current and
-                    // hypothetical new debt.
+                    // Check `newDebt` to make sure the loan size will not be
+                    // too small for us to allow issuing the loan.
                     if (newDebt < MIN_INITIAL_LOAN_SIZE) {
                         revert LiquidityManager__InsufficientLoanSize();
                     }
-
-                    // We don't need to check for closing a position here
-                    // since borrow action will only expand a position.
                 }
             }
         }
