@@ -184,7 +184,7 @@ contract TestBaseMarketIsolated is TestBase {
         centralRegistry.setMessageTransmitter(
             address(new MockMessageTransmitter())
         );
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
 
         _prepareUSDC(
             address(centralRegistry.messageTransmitter()),

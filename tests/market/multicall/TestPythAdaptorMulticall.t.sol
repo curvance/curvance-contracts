@@ -233,7 +233,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
     }
 
     function testPositionLeverage() public {
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
 
         // provide fee to universal balance
         vm.deal(user1, 1 ether);

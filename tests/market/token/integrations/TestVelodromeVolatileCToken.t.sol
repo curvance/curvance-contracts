@@ -99,7 +99,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
             50
         );
 
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
     function testWethUsdcVolatilePool() public {

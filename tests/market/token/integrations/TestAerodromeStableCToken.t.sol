@@ -126,7 +126,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPricingAdaptor(_AERODROME_DAI_USDC, address(adaptor), true, 100, 50);
 
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
     function testDaiUsdcStablePool_fuzzed(uint256 amount0) public {

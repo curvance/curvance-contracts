@@ -95,7 +95,7 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
             _USDC_ADDRESS
         );
         centralRegistry.transferEmergencyCouncil(address(this));
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
     function _addSinglePriceFeed() internal initMainVariables {

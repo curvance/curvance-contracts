@@ -130,7 +130,7 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             50
         );
 
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
     function testWethUsdcVolatilePool_fuzzed(uint256 amount1) public {
