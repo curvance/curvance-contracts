@@ -131,14 +131,14 @@ contract CentralRegistry is ERC165, ActionRegistry {
     // SLIPPAGE VALUES
 
     /// @notice Protocol slippage limit for "untrusted" strategy managers,
-    ///         addresses with `hasHarvestPermissions`.
-    /// @dev 300 = 3%.
+    ///         addresses with `hasHarvestPermissions`, in WAD.
+    /// @dev 300e14 = 3%.
     ///      This slippage configurable variable is not for an end all be all
     ///      slippage check, any external swap natively includes slippage and
     ///      only acts as a protective layer against secondary actions such as
     ///      providing liquidity into an LP token or from untrusted executed
     ///      like a harvester that could at some point be compromised.
-    uint16 public slippageLimit = 300;
+    uint256 public slippageLimit = 300e14;
 
     // PROTOCOL VALUES
 
@@ -711,7 +711,9 @@ contract CentralRegistry is ERC165, ActionRegistry {
             revert CentralRegistry__InvalidParameter();
         }
 
-        slippageLimit = uint16(value);
+        // Convert input into `WAD` denomination for consistency with strategy
+        // calldata denomination.
+        slippageLimit = value * 1e14;
         emit SlippageLimit(value);
     }
 

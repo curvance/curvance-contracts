@@ -159,10 +159,10 @@ contract RewardsDistribution is ReentrancyGuard {
         }
     }
 
-    /// @notice Check whether a user has rewards to claim.
-    /// @param user Address of the user to check.
-    /// @param amount Amount to claim.
-    /// @param proof Array containing the merkle proof.
+    /// @notice Check whether a user has pending rewards to claim.
+    /// @param user Address of the user to check for pending rewards.
+    /// @param amount Amount of rewards expected to be pending claim.
+    /// @param proof Array containing the merkle proof for `root`.
     function canClaim(
         address user,
         bytes32 root,
@@ -277,7 +277,7 @@ contract RewardsDistribution is ReentrancyGuard {
         uint256 numRoots = currentRoots.length;
         bytes32 root;
         RewardsConfig memory config;
-        uint256 amountToWithdraw;
+        uint256 rewardsRemaining;
         address rewardToken;
 
         for (uint256 i; i < numRoots; ++i) {
@@ -289,14 +289,14 @@ contract RewardsDistribution is ReentrancyGuard {
                 revert RewardDistribution__ParametersAreInvalid();
             }
 
-            amountToWithdraw = config.rewardAmount;
+            rewardsRemaining = config.rewardAmount;
             rewardToken = config.rewardToken;
             delete rewardsConfig[root];
 
-            if (amountToWithdraw > 0) {
+            if (rewardsRemaining > 0) {
                 SafeTransferLib
-                    .safeTransfer(rewardToken, daoAddress, amountToWithdraw);
-                emit RewardsRemoved(root, rewardToken, amountToWithdraw);
+                    .safeTransfer(rewardToken, daoAddress, rewardsRemaining);
+                emit RewardsRemoved(root, rewardToken, rewardsRemaining);
             }
         }
     }
@@ -331,10 +331,7 @@ contract RewardsDistribution is ReentrancyGuard {
                 // Left shift by 5 is equivalent to multiplying by 0x20.
                 let end := add(offset, shl(5, mload(proof)))
                 // Iterate over proof elements to compute root hash.
-                for {
-                } 1 {
-
-                } {
+                for {} 1 {} {
                     // Slot of `leaf` in scratch space.
                     // If the condition is true: 0x20, otherwise: 0x00.
                     let scratch := shl(5, gt(leaf, mload(offset)))
