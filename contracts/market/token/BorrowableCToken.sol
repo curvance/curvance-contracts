@@ -59,7 +59,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// EVENTS ///
 
-    event DebtAccrued(uint256 newDebtAssets);
+    event DebtAccrued(uint256 newDebtAssets, uint256 protocolFeeAssets);
     event RatesAdjusted(uint256 debtPerSecond, uint256 nextAdjustment);
     event Borrow(uint256 assets, uint256 debtAssetsOwed, address account);
     event Repay(uint256 assets, uint256 debtAssetsOwed, address payer, address account);
@@ -850,7 +850,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // Update _totalAssets based on new assets recognized by protocol.
             _totalAssets = cachedTa + assetsToVest;
 
-            emit DebtAccrued(assetsToVest);
+            emit DebtAccrued(assetsToVest, protocolFee);
         }
 
         assembly {
