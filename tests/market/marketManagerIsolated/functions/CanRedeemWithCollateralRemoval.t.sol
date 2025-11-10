@@ -141,6 +141,12 @@ contract CanRedeemWithCollateralRemovalTest is TestBaseMarketIsolated {
     {
         uint256 tokensRedeemed = _ONE;
 
+        _prepareDAI(user1, tokensRedeemed);
+        vm.startPrank(user1);
+        dai.approve(address(borrowableCDAI), tokensRedeemed);
+        borrowableCDAI.depositAsCollateral(tokensRedeemed, user1);
+        vm.stopPrank();
+
         skip(20 minutes);
 
         borrowableCUSDC.accrueIfNeeded();

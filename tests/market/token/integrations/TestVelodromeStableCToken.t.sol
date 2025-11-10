@@ -154,7 +154,7 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
             address(veloCTokenUSDCDAI),
             type(uint256).max
         );
-        swapAction.slippage = 50e16;
+        swapAction.slippage = 0.2e18;
 
         veloCTokenUSDCDAI.harvest(abi.encode(swapAction, 1e14));
 

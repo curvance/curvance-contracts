@@ -82,7 +82,7 @@ contract TestAuraCToken is TestBaseMarketIsolated {
 
         SwapperLib.Swap[] memory swaps = new SwapperLib.Swap[](1);
         uint256 balAmount = 100 ether;
-        swaps[0].slippage = 0.3e18;
+        swaps[0].slippage = 0.2e18;
         swaps[0].inputToken = _BAL_ADDRESS;
         swaps[0].inputAmount = balAmount;
         swaps[0].outputToken = _WETH_ADDRESS;

@@ -252,7 +252,7 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             address(aeroCTokenWETHUSDC),
             type(uint256).max
         );
-        swapAction.slippage = 50e16;
+        swapAction.slippage = 0.2e18;
 
         aeroCTokenWETHUSDC.harvest(abi.encode(swapAction, 1e7));
 

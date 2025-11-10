@@ -315,7 +315,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
 
         // Happy path
         assertEq(errorCode, 0, "Should have had no error code returned");
-        assertEq(price, basePrice, "Price should be the base price if current price is below base price");
+        assertEq(price, 50_000e18, "Price should be 50k because it's below the base price and above the min price");
     }
 
     function test_PriceGuard_success_priceError_belowMinReturnsBadSource() public {
