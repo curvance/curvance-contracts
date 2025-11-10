@@ -5,6 +5,7 @@ import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { BaseCToken } from "contracts/market/token/BaseCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import "forge-std/console2.sol";
 
 contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
     event ExcessRecovered(uint256 assets, address recipient);
@@ -30,9 +31,9 @@ contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
         vm.stopPrank();
     }
 
-    function test_skimAvailable_success_returnsZero_whenNoExcess() public view {
-        uint256 excess = borrowableCUSDC.skimAvailable();
-        assertEq(excess, 0, "Should return 0 when no excess");
+    function test_skimAvailable_success_returnsZero_whenNoExcess() public {
+        vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
+        borrowableCUSDC.skimAvailable();
     }
 
     function test_skimAvailable_success_calculatesCorrectly_withDonation() public {
@@ -116,11 +117,12 @@ contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
         vm.prank(dao);
         borrowableCUSDC.skim();
 
-        // Should succeed without revert
-        assertEq(borrowableCUSDC.skimAvailable(), 0, "No excess should remain");
+        // should revert because there is no excess
+        vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
+        borrowableCUSDC.skimAvailable();
     }
 
-    function test_skimAvailable_success_capturesRounding() public {
+    function test_skimAvailable_success_capturesRounding_singleBorrower() public {
         deal(address(LP_wstETH_24Dec2025), borrower1, 10e18);
         vm.startPrank(borrower1);
         LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
@@ -135,6 +137,13 @@ contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
 
         skip(30 days);
         borrowableCUSDC.accrueIfNeeded();
+
+        // skip many vesting periods to accumulate interest
+        uint256 vestingPeriod = borrowableCUSDC.vestingPeriod();
+        for (uint256 i = 0; i < 100; i++) {
+            skip(vestingPeriod);
+            borrowableCUSDC.accrueIfNeeded();
+        }
         _refreshMockFeeds();
 
         // Repay all debt
@@ -148,7 +157,10 @@ contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
 
         // Check that there is excess due to rounding
         uint256 excess = borrowableCUSDC.skimAvailable();
-        assertTrue(excess >= 0, "Excess should be non-negative");
+        console2.log("skimAvailable excess", excess);
+        console2.log("marketOutstandingDebt", borrowableCUSDC.marketOutstandingDebt());
+        console2.log("contract balance", usdc.balanceOf(address(borrowableCUSDC)));
+        assertGt(excess, 0, "Excess should be positive due to rounding");
     }
 
     function test_skimAvailable_success_capturesRounding_multipleBorrowersAndCycles() public {
@@ -319,7 +331,10 @@ contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
 
         vm.prank(dao);
         borrowableCUSDC.skim();
-        assertEq(borrowableCUSDC.skimAvailable(), 0, "No excess after first skim");
+
+        // should revert because there is no excess
+        vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
+        borrowableCUSDC.skimAvailable();
 
         // Second donation and skim
         uint256 donation2 = 2000e6;
@@ -328,7 +343,9 @@ contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
 
         vm.prank(dao);
         borrowableCUSDC.skim();
-        assertEq(borrowableCUSDC.skimAvailable(), 0, "No excess after second skim");
+        // should revert because there is no excess
+        vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
+        borrowableCUSDC.skimAvailable();
 
         // Third donation and skim
         uint256 donation3 = 3000e6;
@@ -338,6 +355,7 @@ contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
         uint256 daoBalanceBefore = usdc.balanceOf(dao);
         vm.prank(dao);
         borrowableCUSDC.skim();
+        
         uint256 daoBalanceAfter = usdc.balanceOf(dao);
 
         assertEq(
@@ -345,6 +363,8 @@ contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
             donation3,
             "Third skim should recover third donation"
         );
-        assertEq(borrowableCUSDC.skimAvailable(), 0, "No excess after third skim");
+        // should revert because there is no excess
+        vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
+        borrowableCUSDC.skimAvailable();
     }
 }

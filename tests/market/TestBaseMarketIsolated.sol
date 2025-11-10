@@ -1317,7 +1317,7 @@ contract TestBaseMarketIsolated is TestBase {
             console2.log("Proceeding with harvest, netHarvestAmount > 0");
 
             SwapperLib.Swap[] memory swaps = new SwapperLib.Swap[](1);
-            swaps[0].slippage = 0.3e18;
+            swaps[0].slippage = 0.2e18;
             swaps[0].inputToken = _BAL_ADDRESS;
             swaps[0].inputAmount = netHarvestAmount;
             swaps[0].outputToken = _WETH_ADDRESS;
@@ -1389,7 +1389,7 @@ contract TestBaseMarketIsolated is TestBase {
         swaps[0].inputAmount = netHarvestAmount;
         swaps[0].outputToken = _WETH_ADDRESS;
         swaps[0].target = _UNISWAP_V3_SWAP_ROUTER;
-        swaps[0].slippage = 0.3e18;
+        swaps[0].slippage = 0.2e18;
 
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _PENDLE;
