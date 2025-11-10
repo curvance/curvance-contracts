@@ -7,7 +7,7 @@ import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
-    event Borrow(uint256 borrowAmount, address borrower);
+    event Borrow(uint256 assets, uint256 newDebtAssets, address account);
 
     function test_borrowableCTokenBorrowFor_fail_whenBorrowIsNotAllowed() public {
         marketManagerIsolated.setBorrowPaused(address(borrowableCUSDC), true);
@@ -118,7 +118,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         uint256 totalDebt = borrowableCUSDC.marketOutstandingDebt();
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Borrow(100e6, user1);
+        emit Borrow(100e6, 100e6, user1);
 
         vm.startPrank(user2);
         borrowableCUSDC.borrowFor(100e6, user1, user1);
@@ -162,7 +162,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         uint256 totalDebt = borrowableCUSDC.marketOutstandingDebt();
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Borrow(100e6, user1);
+        emit Borrow(100e6, 100e6, user1);
 
         vm.startPrank(user2);
         borrowableCUSDC.borrowFor(100e6, user2, user1);

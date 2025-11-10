@@ -59,9 +59,10 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// EVENTS ///
 
+    event DebtAccrued(uint256 newDebtAssets);
     event RatesAdjusted(uint256 debtPerSecond, uint256 nextAdjustment);
-    event Borrow(uint256 assets, address account);
-    event Repay(uint256 assets, address payer, address account);
+    event Borrow(uint256 assets, uint256 debtAssetsOwed, address account);
+    event Repay(uint256 assets, uint256 debtAssetsOwed, address payer, address account);
     event Flashloan(uint256 assets, uint256 assetsFee, address account);
     event BadDebtRecognized(uint256 assets, address liquidator);
     event NewIRM(address oldIRM, address newIRM, uint256 newVestingPeriod);
@@ -549,9 +550,10 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Calculate current account debt then add `assets`.
         // Then update account exchange rate, and total borrow balances.
+        uint256 debtOf = debtBalance(owner) + assets;
         _setDebtOf(
             owner,
-            uint176(debtBalance(owner) + assets),
+            uint176(debtOf),
             uint80(_vestingData >> _BITPOS_DEBT_INDEX)
         );
         marketOutstandingDebt = uint240(marketOutstandingDebt + assets);
@@ -559,7 +561,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Transfer underlying to `receiver`.
         SafeTransferLib.safeTransfer(asset(), receiver, assets);
 
-        emit Borrow(assets, owner);
+        emit Borrow(assets, debtOf, owner);
     }
 
     /// @notice Repays an outstanding loan of `account` through repayment
@@ -596,9 +598,10 @@ contract BorrowableCToken is BaseCTokenWithYield {
         SafeTransferLib.safeTransferFrom(asset(), payer, address(this), assets);
 
         // Update the account and market outstanding debt balance data.
+        debtOf = debtOf - assets;
         _setDebtOf(
             owner,
-            uint176(debtOf - assets),
+            uint176(debtOf),
             uint80(_vestingData >> _BITPOS_DEBT_INDEX)
         );
 
@@ -611,7 +614,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             marketOutstandingDebt = uint240(marketOutstandingDebt - assets);
         }
 
-        emit Repay(assets, payer, owner);
+        emit Repay(assets, debtOf, payer, owner);
         return assets;
     }
 
@@ -678,10 +681,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         uint80 cachedDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
         uint256 debtAmount;
+        uint256 debtOf;
         address account;
 
         for (uint256 i; i < numAccounts; ++i) {
-            // Cache the repayment amount.
+            // Cache the liquidation repayment amount.
             debtAmount = debtAmounts[i];
             // If theres no debt to repay for this user can
             // skip them.
@@ -694,12 +698,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // Calculate the new `account` outstanding debt, then update the
             // account's debt balance and debt index value.
             // Update the account and market outstanding debt balance data.
+            debtOf = debtBalance(account) - debtAmount;
             _setDebtOf(
                 account,
-                uint176(debtBalance(account) - debtAmount),
+                uint176(debtOf),
                 cachedDebtIndex
             );
-            emit Repay(debtAmount, liquidator, account);
+            emit Repay(debtAmount, debtOf, liquidator, account);
         }
 
         // We need to update marketOutstandingDebt for the total debt repaid
@@ -844,6 +849,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
             marketOutstandingDebt = uint240(outstandingDebt + assetsToVest);
             // Update _totalAssets based on new assets recognized by protocol.
             _totalAssets = cachedTa + assetsToVest;
+
+            emit DebtAccrued(assetsToVest);
         }
 
         assembly {

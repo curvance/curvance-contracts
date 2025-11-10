@@ -6,7 +6,7 @@ import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
-    event Borrow(uint256 borrowAmount, address borrower);
+    event Borrow(uint256 assets, uint256 newDebtAssets, address account);
 
     function test_borrowableCTokenBorrow_fail_whenBorrowIsNotAllowed() public {
         address borrower = makeAddr("borrower");
@@ -92,7 +92,7 @@ contract BorrowableCTokenBorrowTest is TestBaseBorrowableCToken {
         uint256 totalBorrows = borrowableCUSDC.marketOutstandingDebt();
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Borrow(100e6, address(this));
+        emit Borrow(100e6, 100e6, address(this));
 
         borrowableCUSDC.borrow(100e6, address(this));
 
