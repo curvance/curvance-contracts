@@ -40,11 +40,10 @@ contract TestApi3Adaptor is TestBaseOracleManager {
             true,
             _DAPI_PROXY_ARB_USD,
             0,
-            _ARB_TICKER,
-            100
+            _ARB_TICKER
         );
 
-        oracleManager.addAssetPricingAdaptor(_ARB_ADDRESS, address(adaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(_ARB_ADDRESS, address(adaptor), true, 100, 50);
     }
 
     function testReturnsCorrectPrice() public view {
@@ -80,8 +79,7 @@ contract TestApi3Adaptor is TestBaseOracleManager {
             true,
             _DAPI_PROXY_ARB_USD,
             invalidHeartbeat,
-            _ARB_TICKER,
-            100
+            _ARB_TICKER
         );
     }
 
@@ -92,8 +90,7 @@ contract TestApi3Adaptor is TestBaseOracleManager {
             true,
             _DAPI_PROXY_ARB_USD,
             0,
-            "ARB/USDC",
-            100
+            "ARB/USDC"
         );
     }
 
@@ -103,8 +100,7 @@ contract TestApi3Adaptor is TestBaseOracleManager {
             false,
             _DAPI_PROXY_ARB_USD,
             0,
-            _ARB_TICKER,
-            100
+            _ARB_TICKER
         );
     }
 

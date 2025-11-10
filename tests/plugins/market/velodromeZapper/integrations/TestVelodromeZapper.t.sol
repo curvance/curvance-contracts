@@ -66,12 +66,12 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
             _USDC_ADDRESS,
             true,
             address(chainlinkUsdcUsd),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -80,25 +80,25 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
             _ETH_ADDRESS,
             true,
             address(chainlinkEthUsd),
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
             address(chainlinkEthUsd),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -111,6 +111,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _VELODROME_WETH_USDC,
             address(adaptor),
+            true,
             100,
             50
         );

@@ -367,12 +367,12 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         ChainlinkAdaptor adaptor = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
         oracleManager.addApprovedAdaptor(address(adaptor));
 
-        adaptor.addAsset(SHMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0, 100);
-        oracleManager.addAssetPricingAdaptor(SHMON_ADDRESS, address(adaptor), 100, 50);
+        adaptor.addAsset(SHMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0);
+        oracleManager.addAssetPricingAdaptor(SHMON_ADDRESS, address(adaptor), true, 100, 50);
         oracleManager.addCTokenSupport(address(simpleCSHMON));
 
-        adaptor.addAsset(WMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0, 100);
-        oracleManager.addAssetPricingAdaptor(WMON_ADDRESS, address(adaptor), 100, 50);
+        adaptor.addAsset(WMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0);
+        oracleManager.addAssetPricingAdaptor(WMON_ADDRESS, address(adaptor), true, 100, 50);
 
         borrowableCWMON = _deployBorrowableCToken(WMON_ADDRESS);
         oracleManager.addCTokenSupport(address(borrowableCWMON));
@@ -462,12 +462,12 @@ contract TestNativeVaultPositionManager is TestBaseMarketIsolated {
         ChainlinkAdaptor adaptor = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
         oracleManager.addApprovedAdaptor(address(adaptor));
 
-        adaptor.addAsset(SHMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0, 100);
-        oracleManager.addAssetPricingAdaptor(SHMON_ADDRESS, address(adaptor), 100, 50);
+        adaptor.addAsset(SHMON_ADDRESS, true, _CHAINLINK_ETH_USD_MONAD, 0);
+        oracleManager.addAssetPricingAdaptor(SHMON_ADDRESS, address(adaptor), true, 100, 50);
         oracleManager.addCTokenSupport(address(simpleCSHMON));
 
-        adaptor.addAsset(_USDC_ADDRESS_MONAD, true, _CHAINLINK_USDC_USD_MONAD, 0, 100);
-        oracleManager.addAssetPricingAdaptor(_USDC_ADDRESS_MONAD, address(adaptor), 100, 50);
+        adaptor.addAsset(_USDC_ADDRESS_MONAD, true, _CHAINLINK_USDC_USD_MONAD, 0);
+        oracleManager.addAssetPricingAdaptor(_USDC_ADDRESS_MONAD, address(adaptor), true, 100, 50);
 
         borrowableCUSDC_monad = _deployBorrowableCToken(_USDC_ADDRESS_MONAD);
         oracleManager.addCTokenSupport(address(borrowableCUSDC_monad));

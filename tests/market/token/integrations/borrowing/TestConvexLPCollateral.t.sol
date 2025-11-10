@@ -47,13 +47,13 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             address(CONVEX_STETH_ETH_POOL),
             true,
             address(chainlinkStethUsd),
-            0,
-            100
+            0
         );
 
         oracleManager.addAssetPricingAdaptor(
             address(CONVEX_STETH_ETH_POOL),
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );

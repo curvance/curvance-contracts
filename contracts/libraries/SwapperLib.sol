@@ -76,7 +76,7 @@ library SwapperLib {
         address inputToken = action.inputToken;
 
         // Do not use this library if the tokens are the same.
-        if (_isMatchingToken(inputToken, outputToken)) {
+        if (CommonLib._isMatchingToken(inputToken, outputToken)) {
             revert SwapperLib__SameTokens();
         }
 

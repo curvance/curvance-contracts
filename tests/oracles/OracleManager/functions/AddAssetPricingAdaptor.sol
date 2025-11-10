@@ -12,6 +12,7 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -26,6 +27,7 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -42,6 +44,7 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(dualChainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -56,6 +59,7 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -72,6 +76,7 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );

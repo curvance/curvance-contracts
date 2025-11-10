@@ -77,20 +77,18 @@ contract TestPendlePtAggregator is TestBaseOracleManager {
             _ETH_ADDRESS,
             true,   // inUSD
             CHAINLINK_ETH_USD,
-            0,
-            100
+            0
         );
 
         chainlinkAdaptor.addAsset(
             PT_weETH_25JUN2026,
             false,  // not in USD
             address(aggregator),
-            0,
-            100
+            0
         );
 
-        oracleManager.addAssetPricingAdaptor(_ETH_ADDRESS, address(chainlinkAdaptor), 100, 50);
-        oracleManager.addAssetPricingAdaptor(PT_weETH_25JUN2026, address(chainlinkAdaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(_ETH_ADDRESS, address(chainlinkAdaptor), true, 100, 50);
+        oracleManager.addAssetPricingAdaptor(PT_weETH_25JUN2026, address(chainlinkAdaptor), true, 100, 50);
 
         (uint256 ptWeETH_USD_Price, uint256 errorCode) = oracleManager.getPrice(
             PT_weETH_25JUN2026,

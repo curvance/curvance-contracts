@@ -44,8 +44,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
             _STETH,
             true,
             _CHAINLINK_STETH_USD,
-            0,
-            100
+            0
         );
         // oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 
@@ -60,7 +59,13 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         assetConfig.quoteAssetDecimals = 18;
         adaptor.addAsset(_LP_STETH, assetConfig);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPricingAdaptor(_LP_STETH, address(adaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            _LP_STETH, 
+            address(adaptor), 
+            true, 
+            100, 
+            50
+            );
 
         pendleCTokenSTETH = new PendleLPCToken(
             ICentralRegistry(address(centralRegistry)),

@@ -308,92 +308,90 @@ contract TestBaseMarketIsolated is TestBase {
             _ETH_ADDRESS,
             true,
             address(chainlinkEthUsd),
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
             address(chainlinkEthUsd),
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
             address(chainlinkUsdcUsd),
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             false,
             address(chainlinkUsdcEth),
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
             address(chainlinkDaiUsd),
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             false,
             address(chainlinkDaiEth),
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
             false,
             address(chainlinkRethEth),
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _BAL_WETH_RETH_ADDRESS,
             false,
             address(chainlinkBalEthReth),
-            0,
-            100
+            0
         );
 
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             250,
             150
         );
         oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             250,
             150
         );
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             250,
             150
         );
         oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             250,
             150
         );
         oracleManager.addAssetPricingAdaptor(
             _RETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             250,
             150
         );
         oracleManager.addAssetPricingAdaptor(
             _BAL_WETH_RETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             250,
             150
         );
@@ -408,81 +406,79 @@ contract TestBaseMarketIsolated is TestBase {
             _WETH_ADDRESS,
             true,
             address(chainlinkEthUsd),
-            0,
-            100
+            0
         );
 
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
             address(chainlinkUsdcUsd),
-            0,
-            100
+            0
         );
 
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             false,
             address(chainlinkUsdcEth),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
             address(chainlinkDaiUsd),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             false,
             address(chainlinkDaiEth),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
             false,
             address(chainlinkRethEth),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _BAL_WETH_RETH_ADDRESS,
             false,
             address(chainlinkBalEthReth),
-            0,
-            100
+            0
         );
 
         oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
             address(dualChainlinkAdaptor),
+            true,
             250,
             150
         );
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(dualChainlinkAdaptor),
+            true,
             250,
             150
         );
         oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
             address(dualChainlinkAdaptor),
+            true,
             250,
             150
         );
         oracleManager.addAssetPricingAdaptor(
             _RETH_ADDRESS,
             address(dualChainlinkAdaptor),
+            true,
             250,
             150
         );
         oracleManager.addAssetPricingAdaptor(
             _BAL_WETH_RETH_ADDRESS,
             address(dualChainlinkAdaptor),
+            true,
             250,
             150
         );
@@ -637,7 +633,7 @@ contract TestBaseMarketIsolated is TestBase {
 
         pendleAdaptor.addAsset(address(LP_wstETH_24Dec2025), assetConfig);
         oracleManager.addApprovedAdaptor(address(pendleAdaptor));
-        oracleManager.addAssetPricingAdaptor(address(LP_wstETH_24Dec2025), address(pendleAdaptor), 250, 150);
+        oracleManager.addAssetPricingAdaptor(address(LP_wstETH_24Dec2025), address(pendleAdaptor), true, 250, 150);
 
         return pendleAdaptor;
     }
@@ -1370,8 +1366,8 @@ contract TestBaseMarketIsolated is TestBase {
         // Configure PENDLE price feed
         address _PENDLE = 0x808507121B80c02388fAd14726482e061B8da827;
         MockV3Aggregator chainlinkPendleUsd = new MockV3Aggregator(18, 4.8e18);
-        chainlinkAdaptor.addAsset(_PENDLE, true, address(chainlinkPendleUsd), 0, 100);
-        oracleManager.addAssetPricingAdaptor(_PENDLE, address(chainlinkAdaptor), 100, 50);
+        chainlinkAdaptor.addAsset(_PENDLE, true, address(chainlinkPendleUsd), 0);
+        oracleManager.addAssetPricingAdaptor(_PENDLE, address(chainlinkAdaptor), true, 100, 50);
 
         address _UNISWAP_V3_SWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
         centralRegistry.setExternalCalldataChecker(
@@ -1438,15 +1434,13 @@ contract TestBaseMarketIsolated is TestBase {
             _USDC_ADDRESS,
             true,
             address(mockUsdcFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
             address(mockUsdcFeed),
-            0,
-            100
+            0
         );
 
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
@@ -1455,15 +1449,13 @@ contract TestBaseMarketIsolated is TestBase {
             _DAI_ADDRESS,
             true,
             address(mockDaiFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
             address(mockDaiFeed),
-            0,
-            100
+            0
         );
 
         /// ETH
@@ -1474,15 +1466,13 @@ contract TestBaseMarketIsolated is TestBase {
             _WETH_ADDRESS,
             true,
             address(mockWethFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
             address(mockWethFeed),
-            0,
-            100
+            0
         );
 
         /// RETH
@@ -1493,15 +1483,13 @@ contract TestBaseMarketIsolated is TestBase {
             _RETH_ADDRESS,
             true,
             address(mockRethFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _RETH_ADDRESS,
             true,
             address(mockRethFeed),
-            0,
-            100
+            0
         );
 
         /// BalRETHETH
@@ -1512,15 +1500,13 @@ contract TestBaseMarketIsolated is TestBase {
             _BAL_WETH_RETH_ADDRESS,
             true,
             address(mockBalEthRethFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _BAL_WETH_RETH_ADDRESS,
             true,
             address(mockBalEthRethFeed),
-            0,
-            100
+            0
         );
 
         /// STETH
@@ -1531,18 +1517,16 @@ contract TestBaseMarketIsolated is TestBase {
             _STETH,
             true,
             address(mockStethFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _STETH,
             true,
             address(mockStethFeed),
-            0,
-            100
+            0
         );
-        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), 250, 150);
-        oracleManager.addAssetPricingAdaptor(_STETH, address(dualChainlinkAdaptor), 250, 150);
+        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), true, 250, 150);
+        oracleManager.addAssetPricingAdaptor(_STETH, address(dualChainlinkAdaptor), true, 250, 150);
 
         // Pendle LP Token (wSTETH-24Dec2025) price is provided by PendleLPTokenAdaptor.
         // Do not register a Chainlink mock feed for the LP to avoid dual-feed divergence.
@@ -1556,12 +1540,12 @@ contract TestBaseMarketIsolated is TestBase {
             _BAL_ADDRESS,
             true,
             address(mockBALFeed),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _BAL_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             250,
             150
         );
@@ -1575,12 +1559,12 @@ contract TestBaseMarketIsolated is TestBase {
             _AURA_ADDRESS,
             true,
             address(mockAURAFeed),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _AURA_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             250,
             150
         );
@@ -1592,25 +1576,25 @@ contract TestBaseMarketIsolated is TestBase {
             _WBTC_ADDRESS,
             true,
             address(mockWbtcFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WBTC_ADDRESS,
             true,
             address(mockWbtcFeed),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _WBTC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             250,
             150
         );
         oracleManager.addAssetPricingAdaptor(
             _WBTC_ADDRESS,
             address(dualChainlinkAdaptor),
+            true,
             250,
             150
         );

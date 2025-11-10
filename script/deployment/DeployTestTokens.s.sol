@@ -42,6 +42,7 @@ contract DeployTestTokens is DeployScript {
                 oracleManager.addAssetPricingAdaptor(
                     address(token),
                     address(adaptor),
+                    true,
                     100,
                     50
                 );

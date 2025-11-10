@@ -118,7 +118,13 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         );
         assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
 
-        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            true, 
+            100, 
+            50
+            );
 
         // Verify price was updated correctly
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
@@ -205,7 +211,13 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         );
         assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
         
-        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            true, 
+            100, 
+            50
+            );
 
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _WBTC_ADDRESS,
@@ -241,7 +253,13 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         assertTrue(success);
 
         // Register adaptor
-        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            true, 
+            100, 
+            50
+            );
 
         // Set a static guard with basePrice below stored price
         uint256 basePrice = 55000e18;
@@ -290,7 +308,13 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         assertTrue(success);
 
         // Register adaptor
-        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            true, 
+            100, 
+            50
+            );
 
         // Set dynamic price guard: basePrice below stored price
         uint256 basePrice = 55000e18;

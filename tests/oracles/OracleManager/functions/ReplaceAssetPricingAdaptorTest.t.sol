@@ -17,6 +17,7 @@ contract ReplaceAssetPricingAdaptorTest is TestBaseOracleManager {
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
             address(dualChainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -37,6 +38,7 @@ contract ReplaceAssetPricingAdaptorTest is TestBaseOracleManager {
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
             address(dualChainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -48,6 +50,7 @@ contract ReplaceAssetPricingAdaptorTest is TestBaseOracleManager {
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
             address(dualChainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -63,6 +66,7 @@ contract ReplaceAssetPricingAdaptorTest is TestBaseOracleManager {
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -80,6 +84,7 @@ contract ReplaceAssetPricingAdaptorTest is TestBaseOracleManager {
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
             address(dualChainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -102,6 +107,7 @@ contract ReplaceAssetPricingAdaptorTest is TestBaseOracleManager {
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
             address(dualChainlinkAdaptor),
+            true,
             100,
             50
         );

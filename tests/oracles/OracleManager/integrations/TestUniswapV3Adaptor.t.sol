@@ -37,22 +37,19 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
             _ETH_ADDRESS,
             true,
             _CHAINLINK_ETH_USD,
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
             _CHAINLINK_ETH_USD,
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
             _CHAINLINK_USDC_USD,
-            0,
-            100
+            0
         );
 
         adaptor = new UniswapV3Adaptor(
@@ -70,22 +67,31 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
-        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            true, 
+            100, 
+            50
+            );
     }
 
     function testRevertWhenUnderlyingChainAssetPriceNotSet() public {

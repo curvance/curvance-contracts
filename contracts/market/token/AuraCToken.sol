@@ -215,7 +215,7 @@ contract AuraCToken is StrategyCToken {
                         revert StrategyCToken__UnapprovedAssetSwap();
                     }
 
-                    _checkSlippageInput(swapAction.slippage);
+                    _checkSlippageInput(swapActions[i].slippage);
                     SwapperLib._swapSafe(centralRegistry, swapActions[i]);
                 }
             }

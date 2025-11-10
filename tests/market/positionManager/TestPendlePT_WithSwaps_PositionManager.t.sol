@@ -68,10 +68,9 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
             _STETH,
             true,
             _CHAINLINK_STETH_USD,
-            0,
-            100
+            0
         );
-        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(_STETH, address(chainlinkAdaptor), true, 100, 50);
 
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
@@ -93,7 +92,7 @@ contract TestPendlePT_WithSwaps_PositionManager is TestBaseMarketIsolated {
         adaptor.addAsset(_PT_STETH, assetConfig);
 
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPricingAdaptor(_PT_STETH, address(adaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(_PT_STETH, address(adaptor), true, 100, 50);
 
         owner = address(this);
         user = user1;
