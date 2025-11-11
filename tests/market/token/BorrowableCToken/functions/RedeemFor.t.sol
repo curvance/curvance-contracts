@@ -50,6 +50,14 @@ contract RedeemForTest is TestBaseMarketIsolated {
         _redeemBorrowableCDaiForUser1(_ONE);
     }
 
+    function test_borrowableCTokenRedeemFor_fail_whenRedemptionsAreDisabled() public {
+        marketManagerIsolated.setRedeemPaused(address(borrowableCDAI), true);
+        skip(20 minutes);
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
+        _redeemBorrowableCDaiForUser1(_ONE);
+    }
+
     function test_borrowableCTokenRedeemFor_fail_whenTransferIsDisabled() public {
         skip(20 minutes);
 

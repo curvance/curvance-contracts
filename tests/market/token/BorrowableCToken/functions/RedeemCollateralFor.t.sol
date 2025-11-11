@@ -48,7 +48,15 @@ contract RedeemCollateralForTest is TestBaseMarketIsolated {
         _redeemCollateralBorrowableCDaiForUser1(_ONE);
     }
 
-    function test_borrowableCTokenRedeemCollateral_fail_whenTransferIsDisabled() public {
+    function test_borrowableCTokenRedeemCollateralFor_fail_whenRedemptionsAreDisabled() public {
+        marketManagerIsolated.setRedeemPaused(address(borrowableCDAI), true);
+        skip(20 minutes);
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
+        _redeemCollateralBorrowableCDaiForUser1(_ONE);
+    }
+
+    function test_borrowableCTokenRedeemCollateralFor_fail_whenTransferIsDisabled() public {
         skip(20 minutes);
 
         vm.startPrank(user1);
@@ -59,7 +67,7 @@ contract RedeemCollateralForTest is TestBaseMarketIsolated {
         _redeemCollateralBorrowableCDaiForUser1(_ONE);
     }
 
-    function test_borrowableCTokenRedeemCollateral_fail_whenUser2Unauthorized() public {
+    function test_borrowableCTokenRedeemCollateralFor_fail_whenUser2Unauthorized() public {
         skip(20 minutes);
 
         vm.expectRevert(ERC20.InsufficientAllowance.selector);
@@ -69,7 +77,7 @@ contract RedeemCollateralForTest is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
-    function test_borrowableCTokenRedeemCollateral_fail_whenCooldownIsNotEnded() public {
+    function test_borrowableCTokenRedeemCollateralFor_fail_whenCooldownIsNotEnded() public {
         skip(20 minutes);
 
         vm.startPrank(user1);
@@ -82,7 +90,7 @@ contract RedeemCollateralForTest is TestBaseMarketIsolated {
         _redeemCollateralBorrowableCDaiForUser1(_ONE);
     }
 
-    function test_borrowableCTokenRedeemCollateral_fail_whenAmountIsZero() public {
+    function test_borrowableCTokenRedeemCollateralFor_fail_whenAmountIsZero() public {
         skip(20 minutes);
 
         vm.expectRevert(
@@ -92,14 +100,14 @@ contract RedeemCollateralForTest is TestBaseMarketIsolated {
         _redeemCollateralBorrowableCDaiForUser1(0);
     }
 
-    function test_borrowableCTokenRedeemCollateral_fail_whenRedeemAmountExceedsCTokens() public {
+    function test_borrowableCTokenRedeemCollateralFor_fail_whenRedeemAmountExceedsCTokens() public {
         skip(20 minutes);
 
         vm.expectRevert(BaseCToken.BaseCToken__InsufficientLiquidity.selector);
         _redeemCollateralBorrowableCDaiForUser1(10000e18);
     }
 
-    function test_borrowableCTokenRedeemCollateral_fail_whenCooldownActive() public {
+    function test_borrowableCTokenRedeemCollateralFor_fail_whenCooldownActive() public {
         _prepareDAI(user1, _ONE + _ONE);
 
         vm.startPrank(user1);
@@ -114,7 +122,7 @@ contract RedeemCollateralForTest is TestBaseMarketIsolated {
         _redeemCollateralBorrowableCDaiForUser1(_ONE);
     }
 
-    function test_borrowableCTokenRedeemCollateral_fail_whenCollateralIsRequired() public {
+    function test_borrowableCTokenRedeemCollateralFor_fail_whenCollateralIsRequired() public {
         _prepareUSDC(address(this), 2000e6);
         usdc.approve(address(borrowableCUSDC), 2000e6);
         borrowableCUSDC.deposit(2000e6, address(this));
@@ -136,7 +144,7 @@ contract RedeemCollateralForTest is TestBaseMarketIsolated {
         _redeemCollateralBorrowableCDaiForUser1(3900e18);
     }
 
-    function test_borrowableCTokenRedeemCollateral_success() public {
+    function test_borrowableCTokenRedeemCollateralFor_success() public {
         skip(20 minutes);
 
         uint256 underlyingBalance = dai.balanceOf(user1);
@@ -153,7 +161,7 @@ contract RedeemCollateralForTest is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.totalSupply(), totalSupply - collateralRedeemed);
     }
 
-    function test_borrowableCTokenRedeemCollateral_success_User2WithApproval() public {
+    function test_borrowableCTokenRedeemCollateralFor_success_User2WithApproval() public {
         skip(20 minutes);
 
         uint256 underlyingBalance = dai.balanceOf(user1);
@@ -174,7 +182,7 @@ contract RedeemCollateralForTest is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.totalSupply(), totalSupply - collateralRedeemed);
     }
 
-    function test_borrowableCTokenRedeemCollateral_success_whenCollateralIsInUse() public {
+    function test_borrowableCTokenRedeemCollateralFor_success_whenCollateralIsInUse() public {
         uint256 newTokensDeposited = 2000e18;
         uint256 tokensRedeemed = 1000e18;
 
@@ -210,7 +218,7 @@ contract RedeemCollateralForTest is TestBaseMarketIsolated {
         assertEq(borrowableCDAI.marketCollateralPosted(), totalCollateral - tokensRedeemed);
     }
 
-    function test_borrowableCTokenRedeemCollateral_success_whenCollateralNotIsInUse() public {
+    function test_borrowableCTokenRedeemCollateralFor_success_whenCollateralNotIsInUse() public {
         uint256 newTokensDeposited = 2000e18;
         uint256 collateralRedeemed = newTokensDeposited * 2;
 
