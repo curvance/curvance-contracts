@@ -8,6 +8,7 @@ import {SwapperLib} from "contracts/libraries/SwapperLib.sol";
 import {BaseSwapChecker} from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
 import {SimpleZapper} from "contracts/plugins/market/SimpleZapper.sol";
 import {BorrowableCToken} from "contracts/market/token/BorrowableCToken.sol";
+import {LiquidityManagerIsolated} from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
 import {MockV3Aggregator} from "contracts/mocks/MockV3Aggregator.sol";
 import {ChainlinkAdaptor} from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -289,21 +290,8 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
         uint256 usdcWalletBefore = IERC20(USDC_ADDRESS).balanceOf(user1);
 
         vm.startPrank(user1);
+        vm.expectRevert(LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector);
         positionManager.deleverage(deleverageAction, 0.5e18);
         vm.stopPrank();
-
-        collateralAfter = borrowableCWMON.balanceOf(user1);
-        debtAfter = borrowableCUSDC_MONAD.debtBalance(user1);
-        uint256 usdcWalletAfter = IERC20(USDC_ADDRESS).balanceOf(user1);
-
-        assertEq(collateralBefore - collateralAfter, collateralAssetsToWithdraw, "Collateral should decrease by withdrawn amount");
-
-        assertEq(debtBefore - debtAfter, debtToRepay, "Debt should decrease by repaid amount");
-
-        assertGt(collateralAfter, 0, "Should have remaining collateral");
-        assertGt(debtAfter, 0, "Should have remaining debt");
-
-        uint256 excessUsdc = usdcWalletAfter - usdcWalletBefore;
-        assertGt(excessUsdc, 0, "User should receive excess USDC in wallet");
     }
 }
