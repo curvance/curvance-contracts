@@ -200,8 +200,6 @@ contract RedstoneCoreAdaptor is
 
         // Validate `price` is not at or above the maximum value allowed,
         // and `price` is not truncated or misreported with a 0 value.
-        // This is so people cannot write a bad price and brick other core
-        // price reads due to backwards timestamp price updates being blocked.
         if (price == 0 || price > type(uint200).max) {
             revert RedstoneCoreAdaptor__InvalidPrice();
         }

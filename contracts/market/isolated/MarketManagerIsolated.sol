@@ -1502,7 +1502,7 @@ contract MarketManagerIsolated is
             // happen in scenarios where collateral goes to near 0.
             // If it would cause an underflow -> clamp the bad debt down,
             // siding with lenders over liquidators.
-            if (badDebt > aData.debtBalance - debtAmount) {
+            if (badDebt > aData.debtBalance) {
                 // CASE: Unhappy path, collateral went to near zero, reduce
                 // bad debt and keep liquidator's `debtAmount` consistent.
                 badDebt = aData.debtBalance - debtAmount;
