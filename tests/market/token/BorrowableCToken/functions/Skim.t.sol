@@ -138,7 +138,7 @@ contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
         skip(30 days);
         borrowableCUSDC.accrueIfNeeded();
 
-        // skip many vesting periods to accumulate interest
+        // Skip many vesting periods to accumulate interest.
         uint256 vestingPeriod = borrowableCUSDC.vestingPeriod();
         for (uint256 i = 0; i < 100; i++) {
             skip(vestingPeriod);
@@ -146,7 +146,7 @@ contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
         }
         _refreshMockFeeds();
 
-        // Repay all debt
+        // Repay all debt.
         uint256 debtBalance = borrowableCUSDC.debtBalance(borrower1);
         _prepareUSDC(borrower1, debtBalance);
 
