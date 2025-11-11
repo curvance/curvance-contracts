@@ -21,7 +21,7 @@ contract AuctionMultipleLiquidatedOthersNotTest is TestBaseLiquidations {
     address borrower4 = address(0x0000000000000000000000000000000000000004);
     address borrower5 = address(0x0000000000000000000000000000000000000005);
 
-    event Repay(uint256 assets, address payer, address account);
+    event Repay(uint256 assets, uint256 debtAssetsOwed, address payer, address account);
     event BadDebtRecognized(uint256 assets, address liquidator);
 
     function setUp() public override {
@@ -108,22 +108,25 @@ contract AuctionMultipleLiquidatedOthersNotTest is TestBaseLiquidations {
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Repay(
-            expectedLiquidationValuesBorrower1.debtRepaid + expectedLiquidationValuesBorrower1.badDebt, 
-            address(this), 
+            expectedLiquidationValuesBorrower1.debtRepaid + expectedLiquidationValuesBorrower1.badDebt,
+            user1DebtBefore - (expectedLiquidationValuesBorrower1.debtRepaid + expectedLiquidationValuesBorrower1.badDebt),
+            address(this),
             borrower1
         );
         
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Repay(
-            expectedLiquidationValuesBorrower2.debtRepaid + expectedLiquidationValuesBorrower2.badDebt, 
-            address(this), 
+            expectedLiquidationValuesBorrower2.debtRepaid + expectedLiquidationValuesBorrower2.badDebt,
+            user2DebtBefore - (expectedLiquidationValuesBorrower2.debtRepaid + expectedLiquidationValuesBorrower2.badDebt),
+            address(this),
             borrower2
         );
         
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Repay(
-            expectedLiquidationValuesBorrower3.debtRepaid + expectedLiquidationValuesBorrower3.badDebt, 
-            address(this), 
+            expectedLiquidationValuesBorrower3.debtRepaid + expectedLiquidationValuesBorrower3.badDebt,
+            user3DebtBefore - (expectedLiquidationValuesBorrower3.debtRepaid + expectedLiquidationValuesBorrower3.badDebt),
+            address(this),
             borrower3
         );
         
