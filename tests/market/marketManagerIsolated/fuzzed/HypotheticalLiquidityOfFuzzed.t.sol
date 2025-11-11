@@ -73,7 +73,7 @@ contract TestHypotheticalLiquidityOfFuzzed is TestBaseMarketIsolated {
 		mockDaiFeed.setMockAnswer(1e8);
 	}
 
-	function test_fuzz_hypotheticalLiquidityOf_positionPruning(uint256 depositDAI, uint256 borrowUSDC) public {
+	function test_fuzz_hypotheticalLiquidityOf_positionPruning(uint256 depositDAI, uint256 borrowUSDC, bool fullRepay) public {
 
 		depositDAI = bound(depositDAI, 1_000e18, 1_000_000e18);
 
@@ -90,52 +90,67 @@ contract TestHypotheticalLiquidityOfFuzzed is TestBaseMarketIsolated {
 
 		skip(20 minutes);
 
-		// Repay all debt + interest
+		// Repay all debt + interest or partially repay.
 		vm.startPrank(user1);
 		_prepareUSDC(user1, 10_000_000e6);
 		usdc.approve(address(borrowableCUSDC), type(uint256).max);
-		borrowableCUSDC.repay(0);
+		if (fullRepay) {
+			borrowableCUSDC.repay(0);
+		} else {
+			uint256 debt = borrowableCUSDC.debtBalanceUpdated(user1);
+			// repay half of the debt
+			uint256 repayAssets = debt / 2;
+			borrowableCUSDC.repay(repayAssets);
+		}
 		vm.stopPrank();
 
-		// After full repay debt position should be stale, but still present in assets.
+		// After repay, make sure pruning only occurs on full repay.
 		address[] memory assetsBefore = harness.assetsOf(user1);
 		(uint256 cSurplus, uint256 lDeficit, bool[] memory toClose) =
 			harness.hypotheticalLiquidityOf(user1, address(borrowableCDAI), 0, 0);
 
 		assertEq(lDeficit, 0, "liquidity should not be deficit");
 		assertGt(cSurplus, 0, "liquidity should have surplus");
-		assertEq(toClose.length, assetsBefore.length, "collateral position should be present");
+		if (fullRepay) {
+			assertEq(assetsBefore.length, 1, "only collateral position should be present");
+			assertEq(assetsBefore[0], address(borrowableCDAI), "only remaining position should be collateral");
+			assertEq(toClose.length, 1, "positionsToClose should be collateral");
+			assertFalse(toClose[0], "collateral should not be suggested to close");
+		} else {
+			assertEq(assetsBefore.length, 2, "both collateral and debt should be present");
+			uint256 collateralIndex = _getAssetIndexOf(assetsBefore, address(borrowableCDAI));
+			uint256 debtIndex = _getAssetIndexOf(assetsBefore, address(borrowableCUSDC));
+			assertEq(toClose.length, 2, "toClose should match active positions");
+			assertFalse(toClose[collateralIndex], "collateral should not be suggested to close");
+			assertFalse(toClose[debtIndex], "active debt should not be suggested to close");
+		}
 
-		uint256 debtIndex = _getAssetIndexOf(assetsBefore, address(borrowableCUSDC));
-		uint256 collateralIndex = _getAssetIndexOf(assetsBefore, address(borrowableCDAI));
+		if (fullRepay) {
+			// Trigger position pruning by removing a portion of collateral
+			vm.prank(user1);
+			borrowableCDAI.removeCollateral(depositDAI / 10);
 
-		assertTrue(toClose[debtIndex], "stale debt position should be suggested to close");
-		assertFalse(toClose[collateralIndex], "active collateral should not be suggested to close");
+			address[] memory assetsAfter = harness.assetsOf(user1);
+			assertEq(assetsAfter.length, 1, "only collateral position should remain");
+			assertEq(assetsAfter[0], address(borrowableCDAI), "remaining position should be collateral");
 
-		// Trigger position pruning by removing a portion of collateral
-		vm.prank(user1);
-		borrowableCDAI.removeCollateral(depositDAI / 10);
+			// Collateral position should be closed if removing all collateral
+			uint256 remaining = borrowableCDAI.collateralPosted(user1);
 
-		address[] memory assetsAfter = harness.assetsOf(user1);
-		assertEq(assetsAfter.length, 1, "only collateral position should remain");
-		assertEq(assetsAfter[0], address(borrowableCDAI), "remaining position should be collateral");
+			(, , bool[] memory toClose2) =
+				harness.hypotheticalLiquidityOf(user1, address(borrowableCDAI), remaining, 0);
 
-		// Collateral position should be closed if removing all collateral
-		uint256 remaining = borrowableCDAI.collateralPosted(user1);
+			assertEq(toClose2.length, 1, "one asset remains");
+			assertTrue(toClose2[0], "full redemption should close last position");
 
-		(, , bool[] memory toClose2) =
-			harness.hypotheticalLiquidityOf(user1, address(borrowableCDAI), remaining, 0);
+			// Execute full collateral removal
+			vm.prank(user1);
+			borrowableCDAI.removeCollateral(remaining);
 
-		assertEq(toClose2.length, 1, "one asset remains");
-		assertTrue(toClose2[0], "full redemption should close last position");
-
-		// Execute full collateral removal
-		vm.prank(user1);
-		borrowableCDAI.removeCollateral(remaining);
-
-		// Assert all positions are cleared
-		address[] memory assetsFinal = harness.assetsOf(user1);
-		assertEq(assetsFinal.length, 0, "all positions should be cleared");
+			// Assert all positions are cleared
+			address[] memory assetsFinal = harness.assetsOf(user1);
+			assertEq(assetsFinal.length, 0, "all positions should be cleared");
+		}
 	}
 
 	function _getAssetIndexOf(address[] memory assetsOf, address token) internal pure returns (uint256) {
