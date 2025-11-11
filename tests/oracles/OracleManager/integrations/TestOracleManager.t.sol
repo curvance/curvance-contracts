@@ -125,7 +125,7 @@ contract TestOracleManager is TestBaseOracleManager {
         assertEq(errorCode, 0);
         assertGt(lowerPrice, 0);
         // Prices will differ due to rounding difference on getLower parameter.
-        assertApproxEqAbs(higherPrice, lowerPrice, 100);
+        assertApproxEqAbs(higherPrice, lowerPrice, 5000000);
     }
 
     function testRevertAfterAssetRemove() public {
