@@ -4,8 +4,9 @@ pragma solidity 0.8.28;
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
-contract AddAssetPriceFeedTest is TestBaseOracleManager {
-    function test_addAssetPriceFeed_fail_whenCallerIsNotAuthorized() public {
+contract AddAssetPricingAdaptorTest is TestBaseOracleManager {
+    
+    function test_addAssetPricingAdaptor_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(1));
 
         vm.expectRevert(OracleManager.OracleManager__Unauthorized.selector);
@@ -18,7 +19,7 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         );
     }
 
-    function test_addAssetPriceFeed_fail_whenAdaptorIsNotApproved() public {
+    function test_addAssetPricingAdaptor_fail_whenAdaptorIsNotApproved() public {
         oracleManager.removeApprovedAdaptor(address(chainlinkAdaptor));
         
         vm.expectRevert(
@@ -33,7 +34,7 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         );
     }
 
-    function test_addAssetPriceFeed_fail_whenDualFeedIsAlreadyConfigured()
+    function test_addAssetPricingAdaptor_fail_whenDualFeedIsAlreadyConfigured()
         public
     {
         _addDualPriceFeed();
@@ -50,7 +51,7 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         );
     }
 
-    function test_addAssetPriceFeed_fail_whenFeedAlreadyAdded() public {
+    function test_addAssetPricingAdaptor_fail_whenFeedAlreadyAdded() public {
         _addSinglePriceFeed();
 
         vm.expectRevert(
@@ -65,7 +66,7 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         );
     }
 
-    function test_addAssetPriceFeed_fail_whenAssetIsNotSupported() public {
+    function test_addAssetPricingAdaptor_fail_whenAssetIsNotSupported() public {
         _addSinglePriceFeed();
 
         chainlinkAdaptor.removeAsset(_USDC_ADDRESS);
@@ -82,7 +83,7 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
         );
     }
 
-    function test_addAssetPriceFeed_success() public {
+    function test_addAssetPricingAdaptor_success() public {
 
         address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
         assertEq(adaptorsBefore.length, 0);

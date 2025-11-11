@@ -20,11 +20,17 @@ contract SetDeviationBoundsTest is TestBaseOracleManager {
         oracleManager.setDeviationBounds(_USDC_ADDRESS, true, 100, 100);
     }
 
-    function test_setDeviationBounds_fail_whenDeviationIsTooSmall() public {
+    function test_setDeviationBounds_fail_whenOnlyOnePricingAdaptor() public {
+        oracleManager.removeAssetPricingAdaptor(
+            _USDC_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+
+        // Reverts due only 1 configured adaptor attacked to `_USDC_ADDRESS`.
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.setDeviationBounds(_USDC_ADDRESS, true, 1, 100);
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, true, 150, 130);
     }
 
     function test_setDeviationBounds_fail_whenDeviationIsTooLarge() public {
@@ -39,22 +45,14 @@ contract SetDeviationBoundsTest is TestBaseOracleManager {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.setDeviationBounds(_USDC_ADDRESS, true, 129, 130);
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, true, 150, 20);
     }
 
-    function test_setDeviationBounds_fail_whenDeviationIsTooLarge() public {
+    function test_setDeviationBounds_fail_whenDeltaTooSmall() public {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        // badSource above MAX should revert
-        oracleManager.setDeviationBounds(_USDC_ADDRESS, true, 301, 130);
-    }
-
-    function test_setDeviationBounds_fail_whenCautionEqualToBadSource() public {
-        vm.expectRevert(
-            OracleManager.OracleManager__InvalidParameter.selector
-        );
-        oracleManager.setDeviationBounds(_USDC_ADDRESS, true, 150, 150);
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, true, 150, 140);
     }
 
     function test_setDeviationBounds_fail_whenCautionLargerThanBadSource() public {
