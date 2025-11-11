@@ -107,7 +107,8 @@ contract TestOracleManager is TestBaseOracleManager {
         );
         assertEq(errorCode, 0);
         assertGt(lowerPrice, 0);
-        assertEq(higherPrice, lowerPrice);
+        // Prices will differ due to rounding difference on getLower parameter.
+        assertNotEq(higherPrice, lowerPrice);
 
         (higherPrice, errorCode) = oracleManager.getPrice(
             _VELODROME_WETH_USDC,
@@ -124,7 +125,8 @@ contract TestOracleManager is TestBaseOracleManager {
         );
         assertEq(errorCode, 0);
         assertGt(lowerPrice, 0);
-        assertEq(higherPrice, lowerPrice);
+        // Prices will differ due to rounding difference on getLower parameter.
+        assertNotEq(higherPrice, lowerPrice);
     }
 
     function testRevertAfterAssetRemove() public {

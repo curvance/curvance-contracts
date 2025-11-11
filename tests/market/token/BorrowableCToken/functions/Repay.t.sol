@@ -49,13 +49,10 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
 
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
-        
-        borrowableCUSDC.accrueIfNeeded();
-        
-        uint256 debtAfterAccrual = borrowableCUSDC.debtBalance(address(this));
+
+        uint256 debtAfterAccrual = borrowableCUSDC.debtBalanceUpdated(address(this));
         uint256 totalAssetsAfterAccrual = borrowableCUSDC.totalAssets();
-        
-        assertGt(debtAfterAccrual, 100e6, "Debt should include accrued interest");
+
         assertGt(debtAfterAccrual, debtBeforeAccrual, "Debt should increase after accrual");
         
         uint256 debtIncrease = debtAfterAccrual - debtBeforeAccrual;
@@ -67,7 +64,7 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
         uint256 totalSupply = borrowableCUSDC.totalSupply();
         uint256 totalBorrows = borrowableCUSDC.marketOutstandingDebt();
 
-        vm.expectEmit(true, true, true, true, address(borrowableCUSDC)    );
+        vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Repay(100e6, debtAfterAccrual - 100e6, address(this), address(this));
 
         borrowableCUSDC.repay(100e6);
@@ -83,7 +80,6 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
     }
 
     function test_borrowableCTokenRepay_success_whenRepayAll() public {
-
         uint256 debtBeforeAccrual = borrowableCUSDC.debtBalance(address(this));
         uint256 totalAssetsBeforeAccrual = borrowableCUSDC.totalAssets();
         

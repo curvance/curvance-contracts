@@ -140,7 +140,7 @@ contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
 
         // Skip many vesting periods to accumulate interest.
         uint256 vestingPeriod = borrowableCUSDC.vestingPeriod();
-        for (uint256 i = 0; i < 100; i++) {
+        for (uint256 i = 0; i < 300; i++) {
             skip(vestingPeriod);
             borrowableCUSDC.accrueIfNeeded();
         }
