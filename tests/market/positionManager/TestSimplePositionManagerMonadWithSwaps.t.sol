@@ -110,10 +110,10 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
     }
 
     function testLeverage_TestVaultPositionManagerMonadWithSwaps() public {
-        deal(WMON_ADDRESS, user1, 50e18);
+        deal(WMON_ADDRESS, user1, 1000e18);
         vm.startPrank(user1);
-        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 50e18);
-        borrowableCWMON.depositAsCollateral(50e18, user1);
+        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 1000e18);
+        borrowableCWMON.depositAsCollateral(1000e18, user1);
 
         (,,, uint256 maxDebtBorrowable,,) = protocolReader.hypotheticalLeverageOf(
             user1, address(borrowableCWMON), address(borrowableCUSDC_MONAD), 0, 0
@@ -151,6 +151,7 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
 
         assertEq(debtBefore, 0, "Should start with no debt");
         assertEq(debtAfter, bufferedBorrow, "Debt should equal borrowed amount");
+
     }
 
     function testDeleverage_TestVaultPositionManagerMonadWithSwaps() public {
@@ -196,6 +197,103 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
 
         uint256 collateralAfter = borrowableCWMON.balanceOf(user1);
         uint256 debtAfter = borrowableCUSDC_MONAD.debtBalance(user1);
+        uint256 usdcWalletAfter = IERC20(USDC_ADDRESS).balanceOf(user1);
+
+        assertEq(collateralBefore - collateralAfter, collateralAssetsToWithdraw, "Collateral should decrease by withdrawn amount");
+
+        assertEq(debtBefore - debtAfter, debtToRepay, "Debt should decrease by repaid amount");
+
+        assertGt(collateralAfter, 0, "Should have remaining collateral");
+        assertGt(debtAfter, 0, "Should have remaining debt");
+
+        uint256 excessUsdc = usdcWalletAfter - usdcWalletBefore;
+        assertGt(excessUsdc, 0, "User should receive excess USDC in wallet");
+    }
+
+    function testDeleverage_belowMinLoan() public {
+        deal(WMON_ADDRESS, user1, 50e18);
+        vm.startPrank(user1);
+        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 50e18);
+        borrowableCWMON.depositAsCollateral(50e18, user1);
+
+        (,,, uint256 maxDebtBorrowable,,) = protocolReader.hypotheticalLeverageOf(
+            user1, address(borrowableCWMON), address(borrowableCUSDC_MONAD), 0, 0
+        );
+
+        uint256 collateralBefore = borrowableCWMON.balanceOf(user1);
+        uint256 debtBefore = borrowableCUSDC_MONAD.debtBalance(user1);
+
+        uint256 bufferedBorrow = (maxDebtBorrowable * 50) / 100; // 50% of max
+
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC_MONAD));
+        leverageAction.borrowAssets = bufferedBorrow;
+        leverageAction.cToken = ICToken(address(borrowableCWMON));
+
+        leverageAction.swapAction.inputToken = USDC_ADDRESS;
+        leverageAction.swapAction.inputAmount = bufferedBorrow;
+        leverageAction.swapAction.outputToken = WMON_ADDRESS;
+        leverageAction.swapAction.target = address(kuruRouter);
+		leverageAction.swapAction.call = _getKuruCalldata(
+			address(positionManager),
+			USDC_ADDRESS,
+			WMON_ADDRESS,
+			bufferedBorrow
+		);
+        leverageAction.swapAction.slippage = 0.5e18;
+
+        positionManager.leverage(leverageAction, 0.5e18);
+        vm.stopPrank();
+
+        uint256 collateralAfter = borrowableCWMON.balanceOf(user1);
+        uint256 debtAfter = borrowableCUSDC_MONAD.debtBalance(user1);
+
+        assertGt(collateralAfter, collateralBefore, "Collateral should increase after leverage");
+
+        assertEq(debtBefore, 0, "Should start with no debt");
+        assertEq(debtAfter, bufferedBorrow, "Debt should equal borrowed amount");
+
+        skip(20 minutes);
+
+
+		collateralBefore = borrowableCWMON.balanceOf(user1);
+		debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
+		uint256 collateralAssetsToWithdraw = collateralBefore / 10; // withdraw 10% collateral
+		// quote prices from kuru api
+		uint256 minOutUSDC = _getKuruAmountOut(address(positionManager), WMON_ADDRESS, USDC_ADDRESS, collateralAssetsToWithdraw);
+	
+		uint256 bufferedMinOut = (minOutUSDC * 97) / 100;
+		uint256 debtToRepay = bufferedMinOut;
+
+        SimplePositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(borrowableCWMON));
+        deleverageAction.collateralAssets = collateralAssetsToWithdraw;
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC_MONAD));
+        deleverageAction.repayAssets = debtToRepay;
+
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = WMON_ADDRESS;
+        deleverageAction.swapActions[0].inputAmount = collateralAssetsToWithdraw;
+        deleverageAction.swapActions[0].outputToken = USDC_ADDRESS;
+        deleverageAction.swapActions[0].target = address(kuruRouter);
+		deleverageAction.swapActions[0].call = _getKuruCalldata(
+			address(positionManager),
+			WMON_ADDRESS,
+			USDC_ADDRESS,
+			collateralAssetsToWithdraw
+		);
+        deleverageAction.swapActions[0].slippage = 0.5e18;
+
+		collateralBefore = borrowableCWMON.balanceOf(user1);
+		debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
+        uint256 usdcWalletBefore = IERC20(USDC_ADDRESS).balanceOf(user1);
+
+        vm.startPrank(user1);
+        positionManager.deleverage(deleverageAction, 0.5e18);
+        vm.stopPrank();
+
+        collateralAfter = borrowableCWMON.balanceOf(user1);
+        debtAfter = borrowableCUSDC_MONAD.debtBalance(user1);
         uint256 usdcWalletAfter = IERC20(USDC_ADDRESS).balanceOf(user1);
 
         assertEq(collateralBefore - collateralAfter, collateralAssetsToWithdraw, "Collateral should decrease by withdrawn amount");
