@@ -151,7 +151,6 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
 
         assertEq(debtBefore, 0, "Should start with no debt");
         assertEq(debtAfter, bufferedBorrow, "Debt should equal borrowed amount");
-
     }
 
     function testDeleverage_TestVaultPositionManagerMonadWithSwaps() public {
