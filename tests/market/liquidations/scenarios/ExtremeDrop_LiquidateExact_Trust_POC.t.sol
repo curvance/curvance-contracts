@@ -5,7 +5,7 @@ import { TestBaseLiquidations } from "tests/market/liquidations/TestBaseLiquidat
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { console2 } from "forge-std/console2.sol";
 
-contract ExtremeDropTest is TestBaseLiquidations {
+contract ExtremeDrop_LiquidateExact_Trust_POC is TestBaseLiquidations {
 
     event Repay(uint256 assets, address payer, address account);
     event BadDebtRecognized(uint256 assets, address liquidator);

@@ -176,7 +176,12 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
         swapAction.target = kuruRouter;
-        swapAction.call = callData;
+        swapAction.call = _getKuruCalldata(
+            address(this),
+            USDC_ADDRESS,
+            WMON_ADDRESS,
+            5e6
+        );
 
         console2.log("dao address", centralRegistry.daoAddress());
         console2.log("this address", address(this));
