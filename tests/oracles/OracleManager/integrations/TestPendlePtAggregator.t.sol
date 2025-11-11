@@ -92,8 +92,8 @@ contract TestPendlePtAggregator is TestBaseOracleManager {
 
         (uint256 ptWeETH_USD_Price, uint256 errorCode) = oracleManager.getPrice(
             PT_weETH_25JUN2026,
-            true,    // inUSD
-            false
+            true,    // inUSD = true, so price will return in USD denomination.
+            false // getLower = false so price will round up.
         );
 
         assertEq(errorCode, 0);
@@ -112,7 +112,7 @@ contract TestPendlePtAggregator is TestBaseOracleManager {
 
         // ETH/USD from chainlink: ~$4,709
         // PT-weETH/USD = 1.0544 * 4709 = ~$4,965.56
-        assertEq(ptWeETH_USD_Price, 4965565071651032072197, "PT-weETH/USD should be ~$4,965.56");
+        assertEq(ptWeETH_USD_Price, 4965565071651032072198, "PT-weETH/USD should be ~$4,965.56");
     }
 
     function _deployAggregatorCorrectly() internal {
