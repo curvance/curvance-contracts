@@ -136,8 +136,8 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         borrowableCDAI.repay(borrowBalanceBefore);
 
         // try full repay(), including all new interest accrued in loan.
-        borrowBalanceBefore = borrowableCDAI.debtBalanceUpdated(user1);
         exchangeRateBefore = borrowableCDAI.exchangeRate();
+        borrowBalanceBefore = borrowableCDAI.debtBalanceUpdated(user1);
         _prepareDAI(user1, borrowBalanceBefore);
         dai.approve(address(borrowableCDAI), borrowBalanceBefore);
         borrowableCDAI.repay(0);

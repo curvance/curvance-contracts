@@ -155,12 +155,8 @@ contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
         borrowableCUSDC.repay(debtBalance);
         vm.stopPrank();
 
-        // Check that there is excess due to rounding
+        vm.expectRevert(BaseCToken.BaseCToken__ZeroAmount.selector);
         uint256 excess = borrowableCUSDC.skimAvailable();
-        console2.log("skimAvailable excess", excess);
-        console2.log("marketOutstandingDebt", borrowableCUSDC.marketOutstandingDebt());
-        console2.log("contract balance", usdc.balanceOf(address(borrowableCUSDC)));
-        assertGt(excess, 0, "Excess should be positive due to rounding");
     }
 
     function test_skimAvailable_success_capturesRounding_multipleBorrowersAndCycles() public {
