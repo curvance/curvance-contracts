@@ -183,7 +183,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(aeroRouter)))
         );
 
-        centralRegistry.setSlippageLimit(60000);
+        centralRegistry.setSlippageLimit(20000);
     }
 
     function testInitialize() public view {

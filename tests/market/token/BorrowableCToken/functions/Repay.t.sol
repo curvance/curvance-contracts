@@ -5,7 +5,7 @@ import { TestBaseBorrowableCToken } from "../TestBaseBorrowableCToken.sol";
 import { BorrowableCToken } from "contracts/market/token/BorrowableCToken.sol";
 
 contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
-    event Repay(uint256 repayAmount, address payer, address borrower);
+    event Repay(uint256 assets, uint256 debtAssetsOwed, address payer, address account);
 
     function setUp() public override {
         super.setUp();
@@ -68,7 +68,7 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
         uint256 totalBorrows = borrowableCUSDC.marketOutstandingDebt();
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC)    );
-        emit Repay(100e6, address(this), address(this));
+        emit Repay(100e6, debtAfterAccrual - 100e6, address(this), address(this));
 
         borrowableCUSDC.repay(100e6);
 
@@ -115,7 +115,7 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
         }
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Repay(debtBalance, address(this), address(this));
+        emit Repay(debtBalance, 0, address(this), address(this));
 
         borrowableCUSDC.repay(0);
         
@@ -182,8 +182,7 @@ contract BorrowableCTokenRepayTest is TestBaseBorrowableCToken {
         _prepareUSDC(users[2], 1000e6);
         vm.startPrank(users[2]);
         usdc.approve(address(borrowableCUSDC), type(uint256).max);
-        // 3. user103 repay all his debt would revert because overflow
-        // vm.expectRevert();
+        // 3. user103 repay all his debt
         borrowableCUSDC.repay(0);
         vm.stopPrank();
     }
