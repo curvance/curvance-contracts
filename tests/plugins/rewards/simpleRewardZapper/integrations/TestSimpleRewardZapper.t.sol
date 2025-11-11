@@ -299,6 +299,9 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         vm.prank(user1);
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
 
+        // refresh mock feeds to allow repayment in canRedeemWithReview
+        _refreshMockFeeds();
+
         vm.prank(user1);
         simpleRewardZapper.claimSwapAndRepay(
             swapAction,

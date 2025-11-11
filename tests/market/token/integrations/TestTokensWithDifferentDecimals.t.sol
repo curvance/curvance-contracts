@@ -141,15 +141,15 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         skip(20 minutes);
 
         // try repay full
-        borrowBalanceBefore = borrowableCUSDC.debtBalance(user1);
         exchangeRateBefore = borrowableCUSDC.exchangeRate();
+        borrowBalanceBefore = borrowableCUSDC.debtBalanceUpdated(user1);
         _prepareUSDC(user1, borrowBalanceBefore);
         usdc.approve(address(borrowableCUSDC), borrowBalanceBefore);
         borrowableCUSDC.repay(borrowBalanceBefore);
         vm.stopPrank();
 
         assertEq(borrowableCUSDC.balanceOf(user1), 0);
-        assertGt(borrowableCUSDC.debtBalance(user1), 0);
+        assertEq(borrowableCUSDC.debtBalance(user1), 0);
         assertGt(borrowableCUSDC.exchangeRate(), exchangeRateBefore);
     }
 
