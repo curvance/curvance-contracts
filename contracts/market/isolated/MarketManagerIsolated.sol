@@ -485,6 +485,66 @@ contract MarketManagerIsolated is
         _checkHoldPeriod(account);
     }
 
+    /// @notice Checks if the account should be allowed to repay a borrow
+    ///         in the given market, may clean up positions.
+    /// @param cToken The Curvance token to verify the repayment of.
+    /// @param newNetDebt The new debt amount owed by `account` after
+    ///                   repayment.
+    /// @param debtAsset The debt asset being repaid to `cToken`.
+    /// @param decimals The decimals that `debtToken` is measured in.
+    /// @param account The account who will have their loan repaid.
+    function canRepayWithReview(
+        address cToken,
+        uint256 newNetDebt,
+        address debtAsset,
+        uint256 decimals,
+        address account
+    ) external {
+        _checkIsToken(cToken);
+        _checkHoldPeriod(account);
+
+        // Validate `account` actually has a debt position in `cToken`.
+        if (accountPositions[cToken][account] != 2) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        // If `account` is fully repaying their debt, we can close their
+        // position.
+        if (newNetDebt == 0) {
+            address[] memory assets = accountAssets[account].assets;
+            uint256 numAssets = assets.length;
+            bool[] memory positionsToClose = new bool[](numAssets);
+
+            for (uint256 i; i < numAssets; ++i) {
+                if (assets[i] == cToken) {
+                    positionsToClose[i] = true;
+                    break;
+                }
+            }
+            
+            _closePositionsIfNeeded(2, account, positionsToClose);
+            return;
+        }
+        (uint256 price, uint256 errorCode) =
+            CommonLib._oracleManager(centralRegistry)
+                .getPrice(debtAsset, true, false);
+
+        // If there an issue pricing we should bubble up an error since we
+        // cannot validate the loan size.
+        if (errorCode != 0) {
+            revert MarketManager__PriceError();
+        }
+
+        // Check `account`'s new debt position in $ and review if the loan
+        // size is too small for us to allow issuing the loan.
+        if (
+            _assetValue(newNetDebt, price, 10 ** decimals, false) <
+            MIN_LOAN_SIZE
+        ) {
+            revert LiquidityManager__InsufficientLoanSize();
+        }
+    }
+
     /// @notice Validates and processes batch liquidations for multiple
     ///         accounts, calculating collateral seizure amounts, debt
     ///         repayment, and bad debt based on account health and market
@@ -1169,7 +1229,7 @@ contract MarketManagerIsolated is
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
     /// @dev Will natively revert if a hypothetical new borrow will result in
-    ///      a loan less than `MIN_INITIAL_LOAN_SIZE`,
+    ///      a loan less than `MIN_LOAN_SIZE`,
     ///      set in `LiquidityManager`. May emit a {PositionUpdated} event.
     /// @param debtToken The token to borrow from.
     /// @param assets The amount of underlying the account would borrow.

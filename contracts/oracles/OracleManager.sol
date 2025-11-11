@@ -38,10 +38,11 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 ///        during pricing.
 ///      - An error code of 1 (CAUTION) corresponds to moderate issues
 ///        occurring during pricing, inside Curvance this results in new
-///        borrowing, and redemption actions being blocked.
+///        borrowing, repayment, and redemption actions being blocked.
 ///      - An error code of 2 (BAD_SOURCE) corresponds to large issues
 ///        occurring during pricing, inside Curvance this results in new
-///        borrowing, redemptions, and liquidation actions being blocked.
+///        borrowing, repayment, redemptions, and liquidation actions being
+///        blocked.
 ///
 ///      "Circuit Breakers" have been introduced, that can be triggered based
 ///      on the prices returned to the Oracle Manager by adaptors. If prices

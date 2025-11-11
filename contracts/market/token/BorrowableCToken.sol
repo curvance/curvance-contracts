@@ -580,9 +580,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Accrue interest if needed.
         _accrueIfNeeded();
 
-        // Validate that the payer is allowed to repay the loan.
-        marketManager.canRepay(address(this), owner);
-
         // Cache how much the account has to save gas.
         uint256 debtOf = debtBalance(owner);
 
@@ -597,8 +594,15 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         SafeTransferLib.safeTransferFrom(asset(), payer, address(this), assets);
 
-        // Update the account and market outstanding debt balance data.
-        debtOf = debtOf - assets;
+        // Validate that the payer is allowed to repay the loan, then update
+        // account data.
+        marketManager.canRepayWithReview(
+            address(this),
+            debtOf = debtOf - assets,
+            asset(),
+            decimals(),
+            owner
+        );
         _setDebtOf(
             owner,
             uint176(debtOf),

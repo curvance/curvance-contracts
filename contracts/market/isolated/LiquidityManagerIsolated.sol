@@ -260,7 +260,7 @@ abstract contract LiquidityManagerIsolated {
     ///         from a new line of credit inside a market.
     /// @dev This restriction is to minimize the potential of debt positions
     ///      being created that cannot not be profitably closed.
-    uint256 public immutable MIN_INITIAL_LOAN_SIZE;
+    uint256 public immutable MIN_LOAN_SIZE;
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
@@ -305,7 +305,7 @@ abstract contract LiquidityManagerIsolated {
         CentralRegistryLib._isCentralRegistry(cr);
 
         centralRegistry = cr;
-        MIN_INITIAL_LOAN_SIZE = minLoanSize;
+        MIN_LOAN_SIZE = minLoanSize;
         IS_CORRELATED_ASSET_MARKET = isCorrelatedMarket;
         MAX_COLL_RATIO = isCorrelatedMarket ?
             MAX_COLL_RATIO_CORRELATED :
@@ -483,7 +483,7 @@ abstract contract LiquidityManagerIsolated {
 
                     // Check `newDebt` to make sure the loan size will not be
                     // too small for us to allow issuing the loan.
-                    if (newDebt < MIN_INITIAL_LOAN_SIZE) {
+                    if (newDebt < MIN_LOAN_SIZE) {
                         revert LiquidityManager__InsufficientLoanSize();
                     }
                 }
