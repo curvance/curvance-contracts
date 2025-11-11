@@ -259,7 +259,7 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
 
 		collateralBefore = borrowableCWMON.balanceOf(user1);
 		debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
-		uint256 collateralAssetsToWithdraw = collateralBefore / 10; // withdraw 10% collateral
+		uint256 collateralAssetsToWithdraw = collateralBefore / 2; // withdraw 50% collateral
 		// quote prices from kuru api
 		uint256 minOutUSDC = _getKuruAmountOut(address(positionManager), WMON_ADDRESS, USDC_ADDRESS, collateralAssetsToWithdraw);
 	
