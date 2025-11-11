@@ -45,7 +45,8 @@ contract SetDeviationBoundsTest is TestBaseOracleManager {
         vm.expectRevert(
             OracleManager.OracleManager__InvalidParameter.selector
         );
-        oracleManager.setDeviationBounds(_USDC_ADDRESS, true, 150, 20);
+        // badSource too small (< MIN_DEVIATION_BOUND = 20).
+        oracleManager.setDeviationBounds(_USDC_ADDRESS, true, 150, 10);
     }
 
     function test_setDeviationBounds_fail_whenDeltaTooSmall() public {

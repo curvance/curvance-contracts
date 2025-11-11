@@ -600,7 +600,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.swapAction.slippage = 0.05e18;
 
         vm.stopPrank();
-        centralRegistry.setSlippageLimit(10000);
+        centralRegistry.setSlippageLimit(2000);
         vm.startPrank(user1);
 
         vm.expectRevert(BasePositionManager.BasePositionManager__InvalidAmount.selector);

@@ -156,7 +156,7 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(veloRouter)))
         );
 
-        centralRegistry.setSlippageLimit(60000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
     function testInitialize() public view {

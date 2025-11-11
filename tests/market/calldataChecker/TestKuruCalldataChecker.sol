@@ -26,7 +26,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
 
     KuruCalldataChecker public checker;
 
-    address public feeCollectorAddress = 0xc45F0aDD4981076928537490F8C0e24944288947;
+    address public feeCollectorAddress = 0xe661C9435ad0365E9274df9C1D142fbA004E5Ad1;
 
     SwapperLib.Swap public swapAction;
     address public recipient;
