@@ -60,7 +60,7 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 ///      all data is returned in a standardized format of 18 decimals. Prices
 ///      must be positive (> 0). When PriceGuards are configured on an adaptor,
 ///      minimum and maximum prices are enforced via the guard's `minPrice`
-///      (uint80) and `basePrice` (uint96) parameters respectively. When no
+///      (uint88) and `basePrice` (uint88) parameters respectively. When no
 ///      PriceGuard is configured, prices can range up to uint256.max with no
 ///      upper constraint beyond what the underlying oracle feed supports.
 ///      When using the Oracle Manager, verify what PriceGuard configurations

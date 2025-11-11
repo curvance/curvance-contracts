@@ -180,7 +180,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         pg.timestampStart = uint40(timestampStart);
         pg.ips = uint40(ips);
         pg.basePrice = uint88(basePrice);
-        pg.minPrice = uint80(minPrice);
+        pg.minPrice = uint88(minPrice);
 
         emit PriceGuardUpdated(pg);
     }
