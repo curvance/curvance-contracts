@@ -122,7 +122,7 @@ contract BorrowableCTokenSkimTest is TestBaseBorrowableCToken {
         borrowableCUSDC.skimAvailable();
     }
 
-    function test_skimAvailable_success_capturesRounding_singleBorrower() public {
+    function test_skimAvailable_fail_whenNoExcess_singleBorrower() public {
         deal(address(LP_wstETH_24Dec2025), borrower1, 10e18);
         vm.startPrank(borrower1);
         LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);

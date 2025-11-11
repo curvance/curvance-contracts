@@ -42,7 +42,7 @@ contract BorrowableCTokenTransferFromTest is TestBaseBorrowableCToken {
         borrowableCUSDC.approve(user1, 100e6);
 
         // Pause redemptions which should not impact transfer actions.
-        marketManagerIsolated.setRedeemPaused(address(borrowableCDAI), true);
+        marketManagerIsolated.setRedeemPaused(true);
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Transfer(address(this), user1, 100e6);

@@ -51,7 +51,7 @@ contract RedeemForTest is TestBaseMarketIsolated {
     }
 
     function test_borrowableCTokenRedeemFor_fail_whenRedemptionsAreDisabled() public {
-        marketManagerIsolated.setRedeemPaused(address(borrowableCDAI), true);
+        marketManagerIsolated.setRedeemPaused(true);
         skip(20 minutes);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);

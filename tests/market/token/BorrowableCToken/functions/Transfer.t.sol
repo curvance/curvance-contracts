@@ -34,7 +34,7 @@ contract BorrowableCTokenTransferTest is TestBaseBorrowableCToken {
         uint256 user1Balance = borrowableCUSDC.balanceOf(user1);
 
         // Pause redemptions which should not impact transfer actions.
-        marketManagerIsolated.setRedeemPaused(address(borrowableCDAI), true);
+        marketManagerIsolated.setRedeemPaused(true);
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Transfer(address(this), user1, 100e6);
