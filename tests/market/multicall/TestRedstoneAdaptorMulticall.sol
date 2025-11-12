@@ -109,7 +109,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             address(dualChainlinkAdaptor)
         );
 
-        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(redstoneAdaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(redstoneAdaptor), true, 100, 50);
 
         // Start gauge system epoch.
         vm.warp(gaugeManager.gaugeStartTime());
@@ -268,7 +268,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     }
 
     function testPositionLeverage() public {
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
 
         // provide fee to universal balance
         _prepareWBTC(user1, 0.1e8);

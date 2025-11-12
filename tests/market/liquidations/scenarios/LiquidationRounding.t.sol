@@ -25,30 +25,26 @@ contract TestLiquidationRounding is TestBaseMarketIsolated {
             _USDC_ADDRESS,
             true,
             address(mockUsdcFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
             address(mockUsdcFeed),
-            0,
-            100
+            0
         );
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
             address(mockDaiFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
             address(mockDaiFeed),
-            0,
-            100
+            0
         );
 
         // start epoch

@@ -46,38 +46,38 @@ contract TestWstETHAdaptor is TestBaseOracleManager {
             _ETH_ADDRESS,
             true,
             _CHAINLINK_ETH_USD,
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _STETH_ADDRESS,
             true,
             _CHAINLINK_ETH_USD,
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _WSTETH_ADDRESS,
             true,
             address(aggregator),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _STETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _WSTETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );

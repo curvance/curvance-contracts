@@ -75,26 +75,6 @@ interface IOracleManager {
     ///              `asset` configuration.
     function notifyFeedRemoval(address asset) external;
 
-    /// @notice Potentially removes the dependency on pricing from `adaptor`
-    ///         for `asset`, triggered by an adaptor's notification of a price
-    ///         feed's removal.
-    /// @notice Removes a pricing adaptor for `asset` triggered by an
-    ///         adaptor's notification of a price feed's removal.
-    /// @dev Requires that the adaptor is currently being used for pricing
-    ///      for `asset`.
-    ///      NOTE: This intentionally does not modify asset deviation values
-    ///            because they simply wont be used if there are less than two
-    ///            pricing adaptors in use, so no reason to delete data as
-    ///            when a second pricing adaptor is configured the deviation
-    ///            has the opportunity be to reconfigured anyway.
-    /// @param asset The address of the asset to potentially remove the
-    ///              pricing adaptor dependency from depending on current
-    ///              `asset` configuration.
-    function notifyDeviationUpdated(
-        address asset,
-        uint256 newDeviationThreshold
-    ) external;
-
     /// @notice Returns the adaptors used for pricing `asset`.
     /// @param asset The address of the asset to get pricing adaptors for.
     /// @return The current adaptor(s) used for pricing `asset`.

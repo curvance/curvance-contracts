@@ -79,12 +79,12 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             _AERO_ADDRESS,
             true,
             address(chainlinkAERO),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _AERO_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -94,12 +94,12 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             _DAI_ADDRESS,
             true,
             address(chainlinkDAI),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -109,12 +109,12 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             _USDC_ADDRESS,
             true,
             address(chainlinkUSDC),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -124,9 +124,9 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
         );
         adaptor.addAsset(_AERODROME_DAI_USDC);
         oracleManager.addApprovedAdaptor(address(adaptor));
-        oracleManager.addAssetPricingAdaptor(_AERODROME_DAI_USDC, address(adaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(_AERODROME_DAI_USDC, address(adaptor), true, 100, 50);
 
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
     function testDaiUsdcStablePool_fuzzed(uint256 amount0) public {
@@ -247,7 +247,7 @@ contract TestAerodromeStableCToken is TestBaseMarketIsolated {
             address(aeroCTokenUSDCDAI),
             type(uint256).max
         );
-        swapAction.slippage = 50e16;
+        swapAction.slippage = 0.2e18;
 
         aeroCTokenUSDCDAI.harvest(abi.encode(swapAction, 1e4));
 

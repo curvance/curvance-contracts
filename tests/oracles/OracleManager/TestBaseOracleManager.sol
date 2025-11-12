@@ -45,43 +45,37 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
             _ETH_ADDRESS,
             true,
             _CHAINLINK_ETH_USD,
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _ETH_ADDRESS,
             true,
             _CHAINLINK_ETH_USD,
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
             _CHAINLINK_USDC_USD,
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             false,
             _CHAINLINK_USDC_ETH,
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
             _CHAINLINK_USDC_USD,
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             false,
             _CHAINLINK_USDC_ETH,
-            0,
-            100
+            0
         );
 
         vm.warp(centralRegistry.genesisEpoch());
@@ -101,7 +95,7 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
             _USDC_ADDRESS
         );
         centralRegistry.transferEmergencyCouncil(address(this));
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
     function _addSinglePriceFeed() internal initMainVariables {
@@ -111,6 +105,7 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             180,
             130
         );
@@ -125,6 +120,7 @@ contract TestBaseOracleManager is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(dualChainlinkAdaptor),
+            true,
             180,
             130
         );

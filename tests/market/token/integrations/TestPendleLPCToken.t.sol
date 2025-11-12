@@ -47,10 +47,9 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
             _PENDLE,
             true,
             address(chainlinkPendleUsd),
-            0,
-            100
+            0
         );
-        oracleManager.addAssetPricingAdaptor(_PENDLE, address(chainlinkAdaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(_PENDLE, address(chainlinkAdaptor),true ,100, 50);
 
         centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
@@ -110,7 +109,7 @@ contract TestPendleLPCToken is TestBaseMarketIsolated {
         swaps[0].inputAmount = rewardAmount;
         swaps[0].outputToken = _WETH_ADDRESS;
         swaps[0].target = _UNISWAP_V3_SWAP_ROUTER;
-        swaps[0].slippage = 0.3e18;
+        swaps[0].slippage = 0.2e18;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _PENDLE;
         params.tokenOut = _WETH_ADDRESS;

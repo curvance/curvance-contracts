@@ -68,8 +68,4 @@ interface IOracleAdaptor {
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
     function adaptorType() external view returns (uint256);
-
-    /// @notice Returns an asset's price feed deviation threshold.
-    /// @return The asset's price feed deviation threshold value.
-    function deviationThreshold(address) external view returns (uint256);
 }

@@ -45,8 +45,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0,
-            100
+            0
         );
 
         // Assert asset is now supported
@@ -73,8 +72,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             false,
             address(snxEthPriceFeed),
-            180,
-            130
+            180
         );
 
         // Test native configuration
@@ -110,8 +108,9 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPricingAdaptor(
             SNX_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             180,
-            130
+            50
         );
     }
 
@@ -127,8 +126,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0,
-            100
+            0
         );
 
         vm.stopPrank();
@@ -259,8 +257,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            3600, // custom heartbeat
-            100
+            3600
         );
         
         (
@@ -289,8 +286,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            7200,
-            100
+            7200
         );
 
         // Verify updated heartbeat
@@ -311,8 +307,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            invalidHeartbeat,
-            100
+            invalidHeartbeat
         );
     }
 
@@ -327,8 +322,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0,
-            100
+            0
         );
 
         // Test negative price
@@ -345,8 +339,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0,
-            100
+            0
         );
 
         // Test stale price
@@ -368,8 +361,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0,
-            100
+            0
         );
 
         // Test zero price
@@ -391,8 +383,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0,
-            100
+            0
         );
         
         // Get USD price
@@ -414,8 +405,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             false,
             address(snxEthPriceFeed),
-            0,
-            100
+            0
         );
         
         IOracleAdaptor.PricingResult memory result =
@@ -435,8 +425,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             false,
             address(snxEthPriceFeed),
-            0,
-            100
+            0
         );
         
         // fallback to native
@@ -457,8 +446,7 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0,
-            100
+            0
         );
         
         // should fallback to USD
@@ -482,15 +470,13 @@ contract TestChainlinkAdaptor is TestBaseOracleManager {
             SNX_ADDRESS,
             true,
             address(snxUsdPriceFeed),
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             SNX_ADDRESS,
             false,
             address(snxEthPriceFeed),
-            0,
-            100
+            0
         );
         
         // Will use USD feed

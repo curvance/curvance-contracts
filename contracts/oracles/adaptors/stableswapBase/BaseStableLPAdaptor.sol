@@ -158,11 +158,6 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
         emit AssetAdded(asset, config, isUpdate);
     }
 
-    /// @notice Returns an asset's price feed deviation threshold.
-    /// @dev INTENTIONALLY RETURNS 0 AS THIS IS AN ONCHAIN COMPUTED PRICE.
-    /// @return result The asset's price feed deviation threshold value.
-    function deviationThreshold(address) external view returns (uint256 result) {}
-
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Helper function in calculating the price of an lp token.

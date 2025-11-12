@@ -72,7 +72,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         _deployMarket();
         deal(address(LP_wstETH_24Dec2025), user1, _ONE);
 
-        // try mint()
+        // try mint(), successfully.
         vm.startPrank(user1);
         LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), _ONE);
         pendleStrategyCTokenSTETH.deposit(_ONE, user1);
@@ -84,23 +84,23 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         uint256 priceDecimals = mockDaiFeed.decimals();
         (, int256 daiPrice, , , ) = mockDaiFeed.latestRoundData();
 
-        uint256 minimumBorrowAmount = (marketManagerIsolated.MIN_INITIAL_LOAN_SIZE() *
+        uint256 minimumBorrowAmount = (marketManagerIsolated.MIN_LOAN_SIZE() *
             (10 ** priceDecimals)) / uint256(daiPrice);
 
-        // try borrow() with insufficient loan size
+        // try borrow() with insufficient loan size.
         vm.expectRevert(
             LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector
         );
         borrowableCDAI.borrow(minimumBorrowAmount - 1, user1);
 
-        // try borrow()
+        // try borrow(), successfully.
         borrowableCDAI.borrow(minimumBorrowAmount, user1);
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
         assertEq(borrowableCDAI.debtBalance(user1), minimumBorrowAmount);
         assertEq(borrowableCDAI.exchangeRate(), _ONE);
 
-        // try borrow()
+        // try adding another borrow(), successfully.
         skip(1200);
         borrowableCDAI.borrow(100e18, user1);
 
@@ -111,7 +111,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         // skip min hold period
         skip(20 minutes);
 
-        // try partial repay
+        // try partial repay().
         uint256 borrowBalanceBefore = borrowableCDAI.debtBalance(user1);
         uint256 exchangeRateBefore = borrowableCDAI.exchangeRate();
         _prepareDAI(user1, 20e18);
@@ -122,19 +122,29 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         assertGt(borrowableCDAI.debtBalance(user1), borrowBalanceBefore - 20e18);
         assertGt(borrowableCDAI.exchangeRate(), exchangeRateBefore);
 
-        // skip some period
+        // skip some time.
         skip(1200);
 
-        // try repay full
         borrowBalanceBefore = borrowableCDAI.debtBalance(user1);
-        exchangeRateBefore = borrowableCDAI.exchangeRate();
         _prepareDAI(user1, borrowBalanceBefore);
         dai.approve(address(borrowableCDAI), borrowBalanceBefore);
+        // try repay(), resulting in insufficient loan size from accrued
+        // interest dust remaining.
+        vm.expectRevert(
+            LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector
+        );
         borrowableCDAI.repay(borrowBalanceBefore);
+
+        // try full repay(), including all new interest accrued in loan.
+        exchangeRateBefore = borrowableCDAI.exchangeRate();
+        borrowBalanceBefore = borrowableCDAI.debtBalanceUpdated(user1);
+        _prepareDAI(user1, borrowBalanceBefore);
+        dai.approve(address(borrowableCDAI), borrowBalanceBefore);
+        borrowableCDAI.repay(0);
         vm.stopPrank();
 
         assertEq(borrowableCDAI.balanceOf(user1), 0);
-        assertGt(borrowableCDAI.debtBalance(user1), 0);
+        assertEq(borrowableCDAI.debtBalance(user1), 0);
         assertGt(borrowableCDAI.exchangeRate(), exchangeRateBefore);
     }
 
@@ -582,45 +592,39 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             _DAI_ADDRESS,
             true,
             address(mockDaiFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
             address(mockDaiFeed),
-            0,
-            100
+            0
         );
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
             address(mockWethFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
             address(mockWethFeed),
-            0,
-            100
+            0
         );
         mockBalEthRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
         chainlinkAdaptor.addAsset(
             _BAL_WETH_RETH_ADDRESS,
             false,
             address(mockBalEthRethFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _BAL_WETH_RETH_ADDRESS,
             false,
             address(mockBalEthRethFeed),
-            0,
-            100
+            0
         );
 
         // start epoch
@@ -664,45 +668,39 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             _DAI_ADDRESS,
             true,
             address(mockDaiFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
             address(mockDaiFeed),
-            0,
-            100
+            0
         );
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
             address(mockWethFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
             address(mockWethFeed),
-            0,
-            100
+            0
         );
         mockBalEthRethFeed = new MockDataFeed(_CHAINLINK_RETH_ETH);
         chainlinkAdaptor.addAsset(
             _BAL_WETH_RETH_ADDRESS,
             false,
             address(mockBalEthRethFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _BAL_WETH_RETH_ADDRESS,
             false,
             address(mockBalEthRethFeed),
-            0,
-            100
+            0
         );
 
         // start epoch

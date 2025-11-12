@@ -4,8 +4,8 @@ pragma solidity 0.8.28;
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
-contract RemoveAssetPriceFeedTest is TestBaseOracleManager {
-    function test_removeAssetPriceFeed_fail_whenCallerIsNotAuthorized()
+contract RemoveAssetPricingAdaptorTest is TestBaseOracleManager {
+    function test_removeAssetPricingAdaptor_fail_whenCallerIsNotAuthorized()
         public
     {
         vm.prank(address(1));
@@ -17,7 +17,7 @@ contract RemoveAssetPriceFeedTest is TestBaseOracleManager {
         );
     }
 
-    function test_removeAssetPriceFeed_fail_whenNoFeedsAvailable() public {
+    function test_removeAssetPricingAdaptor_fail_whenNoFeedsAvailable() public {
         vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
         oracleManager.removeAssetPricingAdaptor(
             _USDC_ADDRESS,
@@ -25,7 +25,7 @@ contract RemoveAssetPriceFeedTest is TestBaseOracleManager {
         );
     }
 
-    function test_removeAssetPriceFeed_fail_whenSingleFeedDoesNotExist()
+    function test_removeAssetPricingAdaptor_fail_whenSingleFeedDoesNotExist()
         public
     {
         _addSinglePriceFeed();
@@ -34,14 +34,14 @@ contract RemoveAssetPriceFeedTest is TestBaseOracleManager {
         oracleManager.removeAssetPricingAdaptor(_USDC_ADDRESS, address(1));
     }
 
-    function test_removeAssetPriceFeed_fail_whenDualFeedDoesNotExist() public {
+    function test_removeAssetPricingAdaptor_fail_whenDualFeedDoesNotExist() public {
         _addDualPriceFeed();
 
         vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
         oracleManager.removeAssetPricingAdaptor(_USDC_ADDRESS, address(1));
     }
 
-    function test_removeAssetPriceFeed_success_whenRemoveSingleFeed() public {
+    function test_removeAssetPricingAdaptor_success_whenRemoveSingleFeed() public {
         _addSinglePriceFeed();
 
         address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);
@@ -59,7 +59,7 @@ contract RemoveAssetPriceFeedTest is TestBaseOracleManager {
         address shouldRevert0 = adaptorsAfter[0];
     }
 
-    function test_removeAssetPriceFeed_success_whenRemoveDualFeed() public {
+    function test_removeAssetPricingAdaptor_success_whenRemoveDualFeed() public {
         _addDualPriceFeed();
 
         address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);

@@ -105,15 +105,13 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
             _USDC_ADDRESS,
             true,
             _CHAINLINK_USDC_USD,
-            0,
-            100
+            0
         );
         thirdAdaptor.addAsset(
             _USDC_ADDRESS,
             false,
             _CHAINLINK_USDC_ETH,
-            0,
-            100
+            0
         );
 
         address[] memory adaptorsBefore = oracleManager.getPricingAdaptors(_USDC_ADDRESS);

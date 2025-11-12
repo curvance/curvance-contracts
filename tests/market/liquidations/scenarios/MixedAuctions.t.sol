@@ -53,8 +53,7 @@ contract MixedAuction is TestBaseLiquidations {
     uint256 totalBorrowsBefore;
     uint256 totalDebtRepaid;
 
-
-    event Repay(uint256 assets, address payer, address account);
+    event Repay(uint256 assets, uint256 debtAssetsOwed, address payer, address account);
     event BadDebtRecognized(uint256 assets, address liquidator);
 
     function setUp() public override {
@@ -151,9 +150,9 @@ contract MixedAuction is TestBaseLiquidations {
 
         // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Repay(auctionLiqValuesBorrower1.debtRepaid,auctionPermsUser, auctionBorrowers[0]);
+        emit Repay(auctionLiqValuesBorrower1.debtRepaid, debtBalancesPreLiquidation_auction[0] - (auctionLiqValuesBorrower1.debtRepaid + auctionLiqValuesBorrower1.badDebt), auctionPermsUser, auctionBorrowers[0]);
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Repay(auctionLiqValuesBorrower2.debtRepaid,auctionPermsUser, auctionBorrowers[1]);
+        emit Repay(auctionLiqValuesBorrower2.debtRepaid, debtBalancesPreLiquidation_auction[1] - (auctionLiqValuesBorrower2.debtRepaid + auctionLiqValuesBorrower2.badDebt), auctionPermsUser, auctionBorrowers[1]);
 
         borrowableCUSDC.liquidate(
             auctionBorrowers,
@@ -297,12 +296,14 @@ contract MixedAuction is TestBaseLiquidations {
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Repay(
             regularLiqValuesBorrower3.debtRepaid + regularLiqValuesBorrower3.badDebt,
+            debtBalancesPreLiquidation_regular[0] - (regularLiqValuesBorrower3.debtRepaid + regularLiqValuesBorrower3.badDebt),
             address(this),
             regularBorrowers[0]
         );
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
         emit Repay(
             regularLiqValuesBorrower4.debtRepaid + regularLiqValuesBorrower4.badDebt,
+            debtBalancesPreLiquidation_regular[1] - (regularLiqValuesBorrower4.debtRepaid + regularLiqValuesBorrower4.badDebt),
             address(this),
             regularBorrowers[1]
         );
@@ -349,9 +350,9 @@ contract MixedAuction is TestBaseLiquidations {
         totalBadDebtAuction = auctionLiqValuesBorrower1.badDebt + auctionLiqValuesBorrower2.badDebt;
 
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Repay(auctionLiqValuesBorrower1.debtRepaid,auctionPermsUser, auctionBorrowers[0]);
+        emit Repay(auctionLiqValuesBorrower1.debtRepaid, debtBalancesPreLiquidation_auction[0] - (auctionLiqValuesBorrower1.debtRepaid + auctionLiqValuesBorrower1.badDebt), auctionPermsUser, auctionBorrowers[0]);
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Repay(auctionLiqValuesBorrower2.debtRepaid,auctionPermsUser, auctionBorrowers[1]);
+        emit Repay(auctionLiqValuesBorrower2.debtRepaid, debtBalancesPreLiquidation_auction[1] - (auctionLiqValuesBorrower2.debtRepaid + auctionLiqValuesBorrower2.badDebt), auctionPermsUser, auctionBorrowers[1]);
 
         borrowableCUSDC.liquidate(
             auctionBorrowers,

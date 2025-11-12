@@ -412,6 +412,10 @@ contract MarketManagerIsolated is
         bool forceRedeemCollateral
     ) external returns (uint256 collateralRedeemed) {
         _checkIsToken(cToken);
+        if (redeemPaused == 2) {
+            revert MarketManager__Paused();
+        }
+
         collateralRedeemed = _canRedeem(
             cToken,
             shares,
@@ -479,6 +483,66 @@ contract MarketManagerIsolated is
     function canRepay(address cToken, address account) external view {
         _checkIsListedToken(cToken);
         _checkHoldPeriod(account);
+    }
+
+    /// @notice Checks if the account should be allowed to repay a borrow
+    ///         in the given market, may clean up positions.
+    /// @param cToken The Curvance token to verify the repayment of.
+    /// @param newNetDebt The new debt amount owed by `account` after
+    ///                   repayment.
+    /// @param debtAsset The debt asset being repaid to `cToken`.
+    /// @param decimals The decimals that `debtToken` is measured in.
+    /// @param account The account who will have their loan repaid.
+    function canRepayWithReview(
+        address cToken,
+        uint256 newNetDebt,
+        address debtAsset,
+        uint256 decimals,
+        address account
+    ) external {
+        _checkIsToken(cToken);
+        _checkHoldPeriod(account);
+
+        // Validate `account` actually has a debt position in `cToken`.
+        if (accountPositions[cToken][account] != 2) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        // If `account` is fully repaying their debt, we can close their
+        // position.
+        if (newNetDebt == 0) {
+            address[] memory assets = accountAssets[account].assets;
+            uint256 numAssets = assets.length;
+            bool[] memory positionsToClose = new bool[](numAssets);
+
+            for (uint256 i; i < numAssets; ++i) {
+                if (assets[i] == cToken) {
+                    positionsToClose[i] = true;
+                    break;
+                }
+            }
+            
+            _closePositionsIfNeeded(2, account, positionsToClose);
+            return;
+        }
+        (uint256 price, uint256 errorCode) =
+            CommonLib._oracleManager(centralRegistry)
+                .getPrice(debtAsset, true, false);
+
+        // If there an issue pricing we should bubble up an error since we
+        // cannot validate the loan size.
+        if (errorCode != 0) {
+            revert MarketManager__PriceError();
+        }
+
+        // Check `account`'s new debt position in $ and review if the loan
+        // size is too small for us to allow issuing the loan.
+        if (
+            _assetValue(newNetDebt, price, 10 ** decimals, false) <
+            MIN_LOAN_SIZE
+        ) {
+            revert LiquidityManager__InsufficientLoanSize();
+        }
     }
 
     /// @notice Validates and processes batch liquidations for multiple
@@ -590,7 +654,7 @@ contract MarketManagerIsolated is
             // waste.
             debtAmounts[i] = action.debtRepaid;
 
-            /// Update prior account to current account.
+            // Update prior account to current account.
             priorAccount = cachedAccount;
         }
 
@@ -1165,7 +1229,7 @@ contract MarketManagerIsolated is
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
     /// @dev Will natively revert if a hypothetical new borrow will result in
-    ///      a loan less than `MIN_INITIAL_LOAN_SIZE`,
+    ///      a loan less than `MIN_LOAN_SIZE`,
     ///      set in `LiquidityManager`. May emit a {PositionUpdated} event.
     /// @param debtToken The token to borrow from.
     /// @param assets The amount of underlying the account would borrow.
@@ -1267,10 +1331,6 @@ contract MarketManagerIsolated is
         bool isCollateral,
         bool forceRedeemCollateral
     ) internal returns (uint256 collateralRedeemed) {
-        if (redeemPaused == 2) {
-            revert MarketManager__Paused();
-        }
-
         _checkIsListedToken(cToken);
         _checkTransfersAllowed(account);
 
@@ -1280,7 +1340,7 @@ contract MarketManagerIsolated is
             if (forceRedeemCollateral) {
                 // Explicitly revert here if trying to redeem too much
                 // collateral rather than panic revert.
-                if (collateralRedeemed > collateralPosted) {
+                if (shares > collateralPosted) {
                     revert MarketManager__InsufficientCollateral();
                 }
 
@@ -1431,8 +1491,11 @@ contract MarketManagerIsolated is
         // Convert liqInc to WAD via `WAD_SQUARED_BPS_OFFSET` so we dont run
         // into precision loss from only multiplying into WAD_SQUARED form.
         uint256 debtToCollateral = FixedPointMathLib.fullMulDiv(
-            (aData.liqInc * tData.debtUnderlyingPrice * WAD_SQUARED_BPS_OFFSET) /
-                tData.collateralSharesPrice,
+            FixedPointMathLib.fullMulDiv(
+                aData.liqInc * tData.debtUnderlyingPrice,
+                WAD_SQUARED_BPS_OFFSET,
+                tData.collateralSharesPrice
+            ),
             tData.collateralDecimals,
             tData.debtDecimals
         );
@@ -1444,7 +1507,7 @@ contract MarketManagerIsolated is
         }
         
         // Calculate how many shares should be liquidated.
-        liquidatedShares = FixedPointMathLib.mulDiv(
+        liquidatedShares = FixedPointMathLib.fullMulDiv(
             debtAmount,
             debtToCollateral,
             WAD_SQUARED
@@ -1481,7 +1544,7 @@ contract MarketManagerIsolated is
         // more than their shares posted, there is bad debt that should be
         // socialized among lenders, calculate using the same formula we used
         // for `liquidatedShares`.
-        uint256 sharesNeeded = FixedPointMathLib.mulDiv(
+        uint256 sharesNeeded = FixedPointMathLib.fullMulDiv(
             aData.debtBalance,
             debtToCollateral,
             WAD_SQUARED
@@ -1499,7 +1562,7 @@ contract MarketManagerIsolated is
             // happen in scenarios where collateral goes to near 0.
             // If it would cause an underflow -> clamp the bad debt down,
             // siding with lenders over liquidators.
-            if (badDebt > aData.debtBalance - debtAmount) {
+            if (badDebt > aData.debtBalance) {
                 // CASE: Unhappy path, collateral went to near zero, reduce
                 // bad debt and keep liquidator's `debtAmount` consistent.
                 badDebt = aData.debtBalance - debtAmount;

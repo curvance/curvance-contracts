@@ -828,12 +828,8 @@ contract ProtocolReader {
         AccountSnapshot[] memory snapshots;
         uint256[] memory prices;
         uint256 numAssets;
-        (
-            snapshots,
-            prices,
-            numAssets,
-            result.oracleError
-        ) = _assetDataOf(mm, account, 2);
+        (snapshots, prices, numAssets, result.oracleError) =
+            _assetDataOf(mm, account, 2);
         AccountSnapshot memory snap;
         uint256 newDebt;
 

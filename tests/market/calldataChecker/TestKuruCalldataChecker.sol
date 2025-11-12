@@ -26,7 +26,7 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
 
     KuruCalldataChecker public checker;
 
-    address public feeCollectorAddress = 0xc45F0aDD4981076928537490F8C0e24944288947;
+    address public feeCollectorAddress = 0xe661C9435ad0365E9274df9C1D142fbA004E5Ad1;
 
     SwapperLib.Swap public swapAction;
     address public recipient;
@@ -74,26 +74,26 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
             USDC_ADDRESS,
             true,
             address(chainlinkUSDC_WMON),
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             WMON_ADDRESS,
             true,
             address(chainlinkWMON),
-            0,
-            100
+            0
         );
         
         oracleManager.addAssetPricingAdaptor(
             USDC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             WMON_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -176,7 +176,12 @@ contract TestKuruCalldataChecker is TestBaseMarketIsolated {
         swapAction.inputAmount = 5e6;
         swapAction.outputToken = WMON_ADDRESS;
         swapAction.target = kuruRouter;
-        swapAction.call = callData;
+        swapAction.call = _getKuruCalldata(
+            address(this),
+            USDC_ADDRESS,
+            WMON_ADDRESS,
+            5e6
+        );
 
         console2.log("dao address", centralRegistry.daoAddress());
         console2.log("this address", address(this));

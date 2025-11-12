@@ -12,7 +12,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 contract TestConvexLPCollateral is TestBaseMarketIsolated {
-    event Repay(uint256 repayAmount, address payer, address borrower);
+    event Repay(uint256 assets, uint256 debtAssetsOwed, address payer, address account);
 
     IERC20 public CONVEX_STETH_ETH_POOL =
         IERC20(0x21E27a5E5513D6e65C4f830167390997aA84843a);
@@ -47,13 +47,13 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
             address(CONVEX_STETH_ETH_POOL),
             true,
             address(chainlinkStethUsd),
-            0,
-            100
+            0
         );
 
         oracleManager.addAssetPricingAdaptor(
             address(CONVEX_STETH_ETH_POOL),
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -168,7 +168,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
         borrowableCUSDC.accrueIfNeeded();
         uint256 debtWithInterest = borrowableCUSDC.debtBalance(user1);
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Repay(debtWithInterest, user1, user1);
+        emit Repay(debtWithInterest, 0, user1, user1);
         borrowableCUSDC.repay(0);
         vm.stopPrank();
 

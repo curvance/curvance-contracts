@@ -62,6 +62,7 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
 
     /// ERRORS ///
 
+    error StrategyCToken__SlippageInputError();
     error StrategyCToken__HarvestingPaused();
     error StrategyCToken__UnapprovedAssetSwap();
 
@@ -258,6 +259,18 @@ abstract contract StrategyCToken is BaseCTokenWithYield {
     ) internal pure returns (bool result) {
         result =  uint40(vestingData >> _BITPOS_LAST_VEST) >=
             uint40(vestingData >> _BITPOS_VEST_END);
+    }
+
+    /// @notice Validates whether the inputted slippage from the harvestor is
+    ///         within the acceptable range allowed for strategy swap action.
+    /// @param slippage The amount of value-loss acceptable from swapping
+    ///                 between tokens.
+    function _checkSlippageInput(
+        uint256 slippage
+    ) internal view {
+        if (slippage > centralRegistry.slippageLimit()) {
+            revert StrategyCToken__SlippageInputError();
+        }
     }
 
     /// @notice Updates asset values for a pending deposit.

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.28;
 
+import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
@@ -118,7 +119,13 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         );
         assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
 
-        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            true, 
+            100, 
+            50
+            );
 
         // Verify price was updated correctly
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
@@ -205,7 +212,13 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         );
         assertTrue(success, "We expect that writing the price was successful from the constructed payload and 3 signers");
         
-        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            true, 
+            100, 
+            50
+            );
 
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _WBTC_ADDRESS,
@@ -217,7 +230,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
     }
 
 
-    function test_PriceGuard_success_staticCapShowsOnRead() public {
+    function test_PriceGuard_success_staticCap_basePrice_showsOnRead() public {
         // Write initial price: $60,000
         bytes memory redstonePayload = getRedstonePayload(
             "WBTC:60000:8",
@@ -241,7 +254,13 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         assertTrue(success);
 
         // Register adaptor
-        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            true, 
+            100, 
+            50
+            );
 
         // Set a static guard with basePrice below stored price
         uint256 basePrice = 55000e18;
@@ -261,9 +280,118 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
             false
         );
 
+        // Happy path, price should be the base price if current price is above base price
         assertEq(errorCode, 0);
-        // return price > pg.basePrice ? pg.basePrice : price;
-        assertEq(price, basePrice, "Price should be capped to static basePrice on read");
+        assertEq(price, basePrice);
+
+        skip(1);
+
+        // Write a price below the base price to bound read price.
+        bytes memory redstonePayloadBelow = getRedstonePayload(
+            "WBTC:50000:8",
+            redstoneSignerKeys
+        );
+        bytes memory encodedFunctionBelow = abi.encodeWithSignature(
+            "writePrice(address,bool,uint48)",
+            _WBTC_ADDRESS,
+            true,
+            uint48(block.timestamp * 1000)
+        );
+        bytes memory encodedFunctionWithRedstonePayloadBelow = abi.encodePacked(
+            encodedFunctionBelow,
+            redstonePayloadBelow
+        );
+
+        (success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayloadBelow
+        );
+        assertTrue(success);
+
+        (price, errorCode) = oracleManager.getPrice(
+            _WBTC_ADDRESS,
+            true,
+            false
+        );
+
+        // Happy path
+        assertEq(errorCode, 0, "Should have had no error code returned");
+        assertEq(price, 50_000e18, "Price should be 50k because it's below the base price and above the min price");
+    }
+
+    function test_PriceGuard_success_priceError_belowMinReturnsBadSource() public {
+        // Write initial price: $60,000
+        bytes memory redstonePayload = getRedstonePayload(
+            "WBTC:60000:8",
+            redstoneSignerKeys
+        );
+
+        bytes memory encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool,uint48)",
+            _WBTC_ADDRESS,
+            true,
+            uint48(block.timestamp * 1000)
+        );
+        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+
+        (bool success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayload
+        );
+        assertTrue(success);
+
+        // Register adaptor
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            true, 
+            100, 
+            50
+        );
+
+        uint256 basePrice = 55000e18;
+        uint256 minPrice = 54000e18;
+        adaptor.setGuardedPriceConfig(
+            _WBTC_ADDRESS,
+            true,
+            0, // static
+            0, // static
+            basePrice,
+            minPrice
+        );
+
+        skip(1);
+
+        redstonePayload = getRedstonePayload(
+            "WBTC:50000:8",
+            redstoneSignerKeys
+        );
+
+        encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool,uint48)",
+            _WBTC_ADDRESS,
+            true,
+            uint48(block.timestamp * 1000)
+        );
+        encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+
+        (success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayload
+        );
+        assertTrue(success);
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _WBTC_ADDRESS,
+            true,
+            false
+        );
+
+        assertEq(errorCode, 2);
+        assertEq(price, 0, "Price should be 0 because it's below the min price");
     }
 
     function test_PriceGuard_success_dynamicGuardShowsOnRead() public {
@@ -290,7 +418,13 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         assertTrue(success);
 
         // Register adaptor
-        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(adaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            _WBTC_ADDRESS, 
+            address(adaptor), 
+            true, 
+            100, 
+            50
+            );
 
         // Set dynamic price guard: basePrice below stored price
         uint256 basePrice = 55000e18;

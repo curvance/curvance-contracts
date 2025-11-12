@@ -74,12 +74,12 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
             _VELO_ADDRESS,
             true,
             address(chainlinkVELO),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _VELO_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -89,17 +89,17 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
             _WETH_ADDRESS,
             true,
             address(chainlinkWETH),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
 
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
     function testWethUsdcVolatilePool() public {
@@ -156,7 +156,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarketIsolated {
             address(veloCTokenWETHUSDC),
             type(uint256).max
         );
-        swapAction.slippage = 50e16;
+        swapAction.slippage = 0.2e18;
 
         veloCTokenWETHUSDC.harvest(abi.encode(swapAction, 1.407e10));
 

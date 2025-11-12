@@ -85,16 +85,15 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             _SFRAX_ADDRESS,
             _FRAX_ADDRESS,
             _CHAINLINK_FRAX_USD,
-            "100"
+            "SFRAX"
         );
         chainlinkAdaptor.addAsset(
             _SFRAX_ADDRESS,
             true,
             address(sfrxAgg),
-            0,
-            100
+            0
         );
-        oracleManager.addAssetPricingAdaptor(_SFRAX_ADDRESS, address(chainlinkAdaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(_SFRAX_ADDRESS, address(chainlinkAdaptor), true, 100, 50);
         oracleManager.addCTokenSupport(address(simpleCSFRAX));
 
         // Price FRAX
@@ -102,10 +101,9 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
             _FRAX_ADDRESS,
             true,
             _CHAINLINK_FRAX_USD,
-            0,
-            100
+            0
         );
-        oracleManager.addAssetPricingAdaptor(_FRAX_ADDRESS, address(chainlinkAdaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(_FRAX_ADDRESS, address(chainlinkAdaptor), true, 100, 50);
 
         borrowableCFRAX = _deployBorrowableCToken(_FRAX_ADDRESS);
         oracleManager.addCTokenSupport(address(borrowableCFRAX));
@@ -602,7 +600,7 @@ contract TestVaultPositionManager is TestBaseMarketIsolated {
         leverageAction.swapAction.slippage = 0.05e18;
 
         vm.stopPrank();
-        centralRegistry.setSlippageLimit(10000);
+        centralRegistry.setSlippageLimit(2000);
         vm.startPrank(user1);
 
         vm.expectRevert(BasePositionManager.BasePositionManager__InvalidAmount.selector);

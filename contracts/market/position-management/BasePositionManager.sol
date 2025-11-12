@@ -191,7 +191,7 @@ abstract contract BasePositionManager is
         assets,
         action.cToken
     ) checkSlippage(msg.sender, slippage) nonReentrant {
-        // Execute leverage operation.
+        // Execute pre deposit, then the leverage action.
         _leverage(action, msg.sender);
     }
 
@@ -218,6 +218,7 @@ abstract contract BasePositionManager is
         LeverageAction calldata action,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
+        // Execute leverage action.
         _leverage(action, msg.sender);
     }
 
@@ -251,6 +252,7 @@ abstract contract BasePositionManager is
         uint256 slippage
     ) external checkSlippage(account, slippage) nonReentrant {
         _checkDelegate(account, msg.sender);
+        // Check for delegation permissions, then the leverage action.
         _leverage(action, account);
     }
 
@@ -281,6 +283,7 @@ abstract contract BasePositionManager is
         DeleverageAction calldata action,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
+        // Execute deleverage action.
         _deleverage(action, msg.sender);
     }
 
@@ -312,6 +315,7 @@ abstract contract BasePositionManager is
         uint256 slippage
     ) external checkSlippage(account, slippage) nonReentrant {
         _checkDelegate(account, msg.sender);
+        // Check for delegation permissions, then the deleverage action.
         _deleverage(action, account);
     }
 
@@ -543,9 +547,6 @@ abstract contract BasePositionManager is
     ) internal returns (uint256) {
         // Validate that the token itself is executing the callback and
         // `cToken` is actually listed in this Market Manager.
-        // This is technically a redundant check with the checks in
-        // `_leverage` and `_deleverage` but its worth checking again incase
-        // cToken was somehow tricked into preforming arbitrary actions.
         if (msg.sender != cToken || !marketManager.isListed(cToken)) {
             revert BasePositionManager__Unauthorized();
         }
@@ -668,6 +669,7 @@ abstract contract BasePositionManager is
             token = wrappedNative;
         }
 
+        // Transfer `amount` tokens to refund to `recipient`.
         SafeTransferLib.safeTransfer(token, recipient, amount);
     }
 

@@ -59,26 +59,26 @@ contract TokensPeggedToSamePriceFeed is TestBaseMarketIsolated {
             _USDT_ADDRESS,
             true,
             address(mockUsdtFeed),
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _SUSDE_ADDRESS,
             true,
             address(sUSDeVaultAggregator),
-            0,
-            100
+            0
         );
 
         oracleManager.addAssetPricingAdaptor(
             _USDT_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _SUSDE_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );

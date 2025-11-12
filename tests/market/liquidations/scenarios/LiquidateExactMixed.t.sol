@@ -29,8 +29,8 @@ contract LiquidateExactMix is TestBaseLiquidations {
     uint256 validPenalty = 1.04e18;
     uint256 closeFactor = 0.50e18;
 
-    event BadDebtRecognized(uint256 amount, address account);
-    event Repay(uint256 amount, address payer, address account);
+    event BadDebtRecognized(uint256 assets, address liquidator);
+    event Repay(uint256 assets, uint256 debtAssetsOwed, address payer, address account);
 
     function setUp() public override {
         super.setUp();
@@ -123,7 +123,7 @@ contract LiquidateExactMix is TestBaseLiquidations {
 
         // expect events in order
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Repay(totalDebtPaid_first, first_liquidator, borrower1);
+        emit Repay(totalDebtPaid_first, remainingDebt_after_first, first_liquidator, borrower1);
         emit BadDebtRecognized(expectedLiqValues_first.badDebt, first_liquidator);
 
         borrowableCUSDC.liquidateExact(
@@ -177,7 +177,7 @@ contract LiquidateExactMix is TestBaseLiquidations {
 
         // expect events in order
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Repay(totalDebtPaid_second, second_liquidator, borrower1);
+        emit Repay(totalDebtPaid_second, remainingDebt_after_second, second_liquidator, borrower1);
         emit BadDebtRecognized(expectedLiqValues_second.badDebt, second_liquidator);
 
         // The second liquidation should have the same expected result as the first
@@ -226,7 +226,7 @@ contract LiquidateExactMix is TestBaseLiquidations {
 
         // expect bad debt emit and debt repaid
         vm.expectEmit(true, true, true, true, address(borrowableCUSDC));
-        emit Repay(totalDebtPaid_third, third_liquidator, borrower1);
+        emit Repay(totalDebtPaid_third, remainingDebt_after_third, third_liquidator, borrower1);
         emit BadDebtRecognized(expectedLiqValues_third.badDebt, third_liquidator);
 
         borrowableCUSDC.liquidate(

@@ -200,8 +200,6 @@ contract RedstoneCoreAdaptor is
 
         // Validate `price` is not at or above the maximum value allowed,
         // and `price` is not truncated or misreported with a 0 value.
-        // This is so people cannot write a bad price and brick other core
-        // price reads due to backwards timestamp price updates being blocked.
         if (price == 0 || price > type(uint200).max) {
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
@@ -371,11 +369,6 @@ contract RedstoneCoreAdaptor is
         emit SignerUpdated(currentSigner, false);
     }
 
-    /// @notice Returns an asset's price feed deviation threshold.
-    /// @dev INTENTIONALLY RETURNS 0 AS THIS IS ATTACHED TRANSACTION DATA.
-    /// @return result The asset's price feed deviation threshold value.
-    function deviationThreshold(address) external view returns (uint256 result) {}
-
     /// PUBLIC FUNCTIONS ///
 
     function getAuthorisedSignerIndex(
@@ -425,20 +418,24 @@ contract RedstoneCoreAdaptor is
 
         AssetConfig memory config = assetConfig[asset][inUSD];
         result.inUSD = inUSD;
-        
-        // Validate the price returned is not stale, we already check
-        // price == 0 in `writePrice` so we just need staleness check 
-        // for parity with baseOracleAdaptor `_verifyData`.
+
+        // Adjust price pulled, if necessary.
+        uint256 adjustedPrice =
+            _adjustPrice(asset, inUSD, config.price, config.decimals);
+
         uint256 timestampInSeconds = config.redstoneTimestamp / 1000;
+        // Validate the price returned is not stale, and that the price was
+        // not reduced to 0 by the price guard minimum price, giving us parity
+        // with BaseOracleAdaptor's `_verifyData`.
         if (
-            timestampInSeconds < block.timestamp &&
-            block.timestamp - timestampInSeconds > DEFAULT_HEARTBEAT
+            (timestampInSeconds < block.timestamp &&
+                block.timestamp - timestampInSeconds > DEFAULT_HEARTBEAT) ||
+            adjustedPrice == 0
         ) {
             result.hadError = true;
         }
 
-        // Adjust price pulled if necessary.
-        result.price = _adjustPrice(asset, inUSD, config.price, config.decimals);
+        result.price = adjustedPrice;
     }
 
     /// @dev This logic replicates RedstoneDefaultsLib.validateTimestamp

@@ -213,15 +213,13 @@ contract ExtremeDropTest is TestBaseLiquidations {
             _DAI_ADDRESS,
             true,
             address(mockDaiFeed),
-            0,
-            100
+            0
         );
         dualChainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
             address(mockDaiFeed),
-            0,
-            100
+            0
         );
 
         _refreshMockFeeds();

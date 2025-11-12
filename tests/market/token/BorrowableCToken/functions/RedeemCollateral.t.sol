@@ -33,6 +33,14 @@ contract RedeemCollateralTest is TestBaseMarketIsolated {
         vm.stopPrank();
     }
 
+    function test_borrowableCTokenRedeemCollateral_fail_whenRedemptionsAreDisabled() public {
+        marketManagerIsolated.setRedeemPaused(true);
+        skip(20 minutes);
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
+        _redeemCollateralBorrowableCDai(_ONE);
+    }
+
     function test_borrowableCTokenRedeemCollateral_fail_whenTransferIsDisabled() public {
         skip(20 minutes);
 

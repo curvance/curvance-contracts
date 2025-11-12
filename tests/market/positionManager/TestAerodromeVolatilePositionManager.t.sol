@@ -59,12 +59,12 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             _DAI_ADDRESS,
             true,
             address(chainlinkDaiUsd),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -73,12 +73,12 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             _USDC_ADDRESS,
             true,
             address(chainlinkUsdcUsd),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -88,25 +88,25 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             _ETH_ADDRESS,
             true,
             address(chainlinkEthUsd),
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
             true,
             address(chainlinkEthUsd),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -119,6 +119,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _AERODROME_WETH_USDC,
             address(adaptor),
+            true,
             100,
             50
         );
@@ -182,7 +183,7 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
             address(new MockCalldataChecker(address(aeroRouter)))
         );
 
-        centralRegistry.setSlippageLimit(60000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
     function testInitialize() public view {

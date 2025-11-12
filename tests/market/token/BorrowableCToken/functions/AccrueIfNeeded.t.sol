@@ -35,8 +35,6 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         vm.stopPrank();
 
         mockUsdcFeed.setMockAnswer(1e9);
-        mockRethFeed.setMockAnswer(2000e9);
-        mockWethFeed.setMockAnswer(2000e9);
 
         daoAddress = centralRegistry.daoAddress();
     }
@@ -555,5 +553,34 @@ contract TestAccrueIfNeeded is TestBaseMarketIsolated {
         console2.log("Sum user assets: ", sumUserAssets);
         console2.log("Total vault assets: ", totalVaultAssets);
         console2.log("Protocol asset advantage (should be >= 0): ", totalVaultAssets - sumUserAssets);
+    }
+
+    function test_assetsHeld_ignoresPendingInterest() public {
+
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(borrowableCUSDC), 5000e6);
+        borrowableCUSDC.deposit(5000e6, liquidityProvider);
+        vm.stopPrank();
+
+        deal(address(LP_wstETH_24Dec2025), user1, 10e18);
+        vm.startPrank(user1);
+        LP_wstETH_24Dec2025.approve(address(pendleStrategyCTokenSTETH), 10e18);
+        pendleStrategyCTokenSTETH.depositAsCollateral(10e18, user1);
+        vm.stopPrank();
+
+        _harvestPendleLP(1 weeks);
+
+        // Borrow
+        uint256 borrowAmount = 5000e6;
+        vm.prank(user1);
+        borrowableCUSDC.borrow(borrowAmount, user1);
+
+        uint256 heldBefore = borrowableCUSDC.assetsHeld();
+
+        // Skip a lot of time but do not accrue interest
+        skip(90 days);
+
+        uint256 heldAfter = borrowableCUSDC.assetsHeld();
+        assertEq(heldBefore, heldAfter, "assetsHeld should ignore pending interest");
     }
 }

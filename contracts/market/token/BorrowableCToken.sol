@@ -59,9 +59,10 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
     /// EVENTS ///
 
+    event DebtAccrued(uint256 newDebtAssets, uint256 protocolFeeAssets);
     event RatesAdjusted(uint256 debtPerSecond, uint256 nextAdjustment);
-    event Borrow(uint256 assets, address account);
-    event Repay(uint256 assets, address payer, address account);
+    event Borrow(uint256 assets, uint256 debtAssetsOwed, address account);
+    event Repay(uint256 assets, uint256 debtAssetsOwed, address payer, address account);
     event Flashloan(uint256 assets, uint256 assetsFee, address account);
     event BadDebtRecognized(uint256 assets, address liquidator);
     event NewIRM(address oldIRM, address newIRM, uint256 newVestingPeriod);
@@ -412,48 +413,41 @@ contract BorrowableCToken is BaseCTokenWithYield {
         result = debtBalance(account);
     }
 
-    /// @notice Returns the amount of excess underlying that can be safely
-    ///         recovered without impacting user accounting.
-    /// @dev    Computed as: marketOutstandingDebt + underlyingBalance - totalAssets.
-    /// @return excess The recoverable excess underlying amount, or 0 if none.
-    function skimAvailable() external view returns (uint256 excess) {
-        uint256 cachedAssets = _getTotalAssets();
-        uint256 debtPlusBalance = marketOutstandingDebt +
-            IERC20(_asset).balanceOf(address(this));
-        if (debtPlusBalance <= cachedAssets) {
-            return 0;
-        }
-
-        excess = debtPlusBalance - cachedAssets; 
-    }
-
     /// @notice Recovers any accumulated excess underlying from rounding or
     ///         unsolicited donations, to the DAO address.
     /// @dev Does not modify `_totalAssets` or any accounting to avoid
-    ///      donation attacks.
-    ///      Computed as: debtPlusBalance = marketOutstandingDebt + underlyingBalance
+    ///      invariant manipulation.
+    ///      Computed as:
+    ///      debtPlusBalance = marketOutstandingDebt + underlyingBalance
     ///      excess = debtPlusBalance - totalAssets.
     ///      Requires DAO permissions.
     function skim() external nonReentrant {
         _checkDaoPermissions();
+        uint256 excess = skimAvailable();
 
-        address underlying = asset();
-        uint256 cachedAssets = _getTotalAssets();
-        uint256 debtPlusBalance = marketOutstandingDebt +
-            IERC20(underlying).balanceOf(address(this));
+        address daoAddress = centralRegistry.daoAddress();
+        SafeTransferLib.safeTransfer(asset(), daoAddress, excess);
 
+        emit ExcessRecovered(excess, daoAddress);
+    }
+
+    /// PUBLIC FUNCTIONS ///
+
+    /// @notice Returns the amount of excess underlying that can be safely
+    ///         recovered without impacting user accounting.
+    /// @dev Computed as:
+    ///      marketOutstandingDebt + underlyingBalance - totalAssets.
+    /// @return excess The recoverable excess underlying amount, or 0 if none.
+    function skimAvailable() public view returns (uint256 excess) {
+        uint256 cachedAssets = _totalAssets;
+        uint256 debtPlusBalance =
+            marketOutstandingDebt + IERC20(_asset).balanceOf(address(this));
         if (debtPlusBalance <= cachedAssets) {
             revert BaseCToken__ZeroAmount();
         }
 
-        uint256 excess = debtPlusBalance - cachedAssets;
-        address recipient = centralRegistry.daoAddress();
-        SafeTransferLib.safeTransfer(underlying, recipient, excess);
-
-        emit ExcessRecovered(excess, recipient);
+        excess = debtPlusBalance - cachedAssets; 
     }
-
-    /// PUBLIC FUNCTIONS ///
 
     /// @notice Get a snapshot of the cToken and `account` data.
     /// @dev Used by marketManager to more efficiently perform
@@ -511,7 +505,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
     ///      if any.
     /// @return result The quantity of borrowable assets held by the market.
     function assetsHeld() public view returns (uint256 result) {
-        uint256 currentAssets = _getTotalAssets();
+        uint256 currentAssets = _totalAssets;
         if (currentAssets == 0) {
             revert BorrowableCToken__DepositsNotInitialized();
         }
@@ -556,9 +550,10 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         // Calculate current account debt then add `assets`.
         // Then update account exchange rate, and total borrow balances.
+        uint256 debtOf = debtBalance(owner) + assets;
         _setDebtOf(
             owner,
-            uint176(debtBalance(owner) + assets),
+            uint176(debtOf),
             uint80(_vestingData >> _BITPOS_DEBT_INDEX)
         );
         marketOutstandingDebt = uint240(marketOutstandingDebt + assets);
@@ -566,7 +561,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Transfer underlying to `receiver`.
         SafeTransferLib.safeTransfer(asset(), receiver, assets);
 
-        emit Borrow(assets, owner);
+        emit Borrow(assets, debtOf, owner);
     }
 
     /// @notice Repays an outstanding loan of `account` through repayment
@@ -585,9 +580,6 @@ contract BorrowableCToken is BaseCTokenWithYield {
         // Accrue interest if needed.
         _accrueIfNeeded();
 
-        // Validate that the payer is allowed to repay the loan.
-        marketManager.canRepay(address(this), owner);
-
         // Cache how much the account has to save gas.
         uint256 debtOf = debtBalance(owner);
 
@@ -602,10 +594,18 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         SafeTransferLib.safeTransferFrom(asset(), payer, address(this), assets);
 
-        // Update the account and market outstanding debt balance data.
+        // Validate that the payer is allowed to repay the loan, then update
+        // account data.
+        marketManager.canRepayWithReview(
+            address(this),
+            debtOf = debtOf - assets,
+            asset(),
+            decimals(),
+            owner
+        );
         _setDebtOf(
             owner,
-            uint176(debtOf - assets),
+            uint176(debtOf),
             uint80(_vestingData >> _BITPOS_DEBT_INDEX)
         );
 
@@ -618,7 +618,7 @@ contract BorrowableCToken is BaseCTokenWithYield {
             marketOutstandingDebt = uint240(marketOutstandingDebt - assets);
         }
 
-        emit Repay(assets, payer, owner);
+        emit Repay(assets, debtOf, payer, owner);
         return assets;
     }
 
@@ -685,10 +685,11 @@ contract BorrowableCToken is BaseCTokenWithYield {
 
         uint80 cachedDebtIndex = uint80(_vestingData >> _BITPOS_DEBT_INDEX);
         uint256 debtAmount;
+        uint256 debtOf;
         address account;
 
         for (uint256 i; i < numAccounts; ++i) {
-            // Cache the repayment amount.
+            // Cache the liquidation repayment amount.
             debtAmount = debtAmounts[i];
             // If theres no debt to repay for this user can
             // skip them.
@@ -701,12 +702,13 @@ contract BorrowableCToken is BaseCTokenWithYield {
             // Calculate the new `account` outstanding debt, then update the
             // account's debt balance and debt index value.
             // Update the account and market outstanding debt balance data.
+            debtOf = debtBalance(account) - debtAmount;
             _setDebtOf(
                 account,
-                uint176(debtBalance(account) - debtAmount),
+                uint176(debtOf),
                 cachedDebtIndex
             );
-            emit Repay(debtAmount, liquidator, account);
+            emit Repay(debtAmount, debtOf, liquidator, account);
         }
 
         // We need to update marketOutstandingDebt for the total debt repaid
@@ -851,6 +853,8 @@ contract BorrowableCToken is BaseCTokenWithYield {
             marketOutstandingDebt = uint240(outstandingDebt + assetsToVest);
             // Update _totalAssets based on new assets recognized by protocol.
             _totalAssets = cachedTa + assetsToVest;
+
+            emit DebtAccrued(assetsToVest, protocolFee);
         }
 
         assembly {

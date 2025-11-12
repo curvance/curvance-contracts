@@ -20,8 +20,7 @@ contract DualFeedDivergenceTest is TestBaseOracleManager {
             _USDC_ADDRESS,
             true,
             address(MockUsdcUsd),
-            0,
-            100
+            0
         );
     }
 

@@ -41,43 +41,49 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
             _ETH_ADDRESS,
             true,
             _CHAINLINK_ETH_USD,
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
             true,
             _CHAINLINK_DAI_USD,
-            0,
-            100
+            0
         );
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             true,
             _CHAINLINK_USDC_USD,
-            0,
-            100
+            0
         );
 
         oracleManager.addAssetPricingAdaptor(
             _ETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _DAI_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
-        oracleManager.addAssetPricingAdaptor(_VELODROME_DAI_USDC, address(adaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(
+            _VELODROME_DAI_USDC, 
+            address(adaptor), 
+            true, 
+            100, 
+            50
+            );
     }
 
     function testRevertWhenUnderlyingChainAssetPriceNotSet() public {

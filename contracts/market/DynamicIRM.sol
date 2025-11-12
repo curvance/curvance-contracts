@@ -84,9 +84,12 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract DynamicIRM is IDynamicIRM, ERC165 {
     /// TYPES ///
 
-    /// @title Rates Configuration
+    /// @title Rates Configuration.
     /// @notice Stores configuration data for current Dynamic Interest
     ///         Rate Model.
+    /// @dev Once this token is set it can never be changed, like an immutable
+    ///      variable, this IRM will also be depreciated if that token ever
+    ///      switches IRMs.
     /// @param baseRatePerSecond Rate at which interest is accumulated,
     ///                          before `vertexStart`, per second, in `WAD`.
     /// @param vertexRatePerSecond Rate at which interest is
@@ -110,9 +113,6 @@ contract DynamicIRM is IDynamicIRM, ERC165 {
     ///                            aka `WAD`.
     /// @param linkedToken The borrowable Curvance token linked to this
     ///                    interest rate model contract.
-    /// @dev Once this token is set it can never be changed, like an immutable
-    ///      variable, this IRM will also be depreciated if that token ever
-    ///      switches IRMs.
     struct RatesConfig {
         uint64 baseRatePerSecond;
         uint64 vertexRatePerSecond;

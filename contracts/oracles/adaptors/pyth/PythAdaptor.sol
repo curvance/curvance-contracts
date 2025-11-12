@@ -54,11 +54,6 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// @dev Token address => inUSD => Price feed configuration for `asset`.
     mapping(address => mapping(bool => AssetConfig)) public assetConfig;
 
-    /// @notice The current deviation value for an asset's configured price
-    ///         feed, in `BPS`.
-    /// @dev Token address => feed deviation threshold, in `BPS`.
-    mapping(address => uint256) internal _assetDeviationThreshold;
-
     /// EVENTS ///
 
     event AssetAdded(address asset, AssetConfig config, bool isUpdate);
@@ -66,7 +61,6 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// ERRORS ///
 
     error PythAdaptor__InvalidHeartbeat();
-    error PythAdaptor__InvalidDeviationThreshold();
 
     /// CONSTRUCTOR ///
 
@@ -90,21 +84,16 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// @notice Adds pricing support for `asset` via a new Pyth feed.
     /// @dev Should be called before `OracleManager:addAssetPricingAdaptor`
     ///      is called.
-    ///      NOTE: BE VERY CAREFUL SETTING `feedDeviationThreshold`, AN
-    ///            INCORRECT VALUE CAN LOCK LIQUIDATIONS UNINTENTIONALLY.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
     /// @param heartbeat The max amount of time allowed between price updates.
     /// @param priceId The price id of the asset to price.
-    /// @param feedDeviationThreshold The price feed deviation threshold value
-    ///                               configured by the oracle provider.
     function addAsset(
         address asset,
         bool inUSD,
         uint256 heartbeat,
-        bytes32 priceId,
-        uint256 feedDeviationThreshold
+        bytes32 priceId
     ) external {
         _checkElevatedPermissions();
 
@@ -120,11 +109,6 @@ contract PythAdaptor is BaseOracleAdaptor {
             }
         }
 
-        // Validate the deviation threshold is not too long.
-        if (feedDeviationThreshold > MAX_ALLOWED_DEVIATION_VALUE) {
-            revert PythAdaptor__InvalidDeviationThreshold();
-        }
-
         // Update `config` and make sure `isSupportedAsset` returns true
         // for `asset`.
         AssetConfig storage config = assetConfig[asset][inUSD];
@@ -133,9 +117,6 @@ contract PythAdaptor is BaseOracleAdaptor {
             heartbeat : DEFAULT_HEARTBEAT);
         config.priceId = priceId;
         config.isConfigured = true;
-        _assetDeviationThreshold[asset] = feedDeviationThreshold;
-        CommonLib._oracleManager(centralRegistry)
-            .notifyDeviationUpdated(asset, feedDeviationThreshold);
 
         // Check whether this is new or updated support for `asset`.
         bool isUpdate;
@@ -145,15 +126,6 @@ contract PythAdaptor is BaseOracleAdaptor {
 
         isSupportedAsset[asset] = true;
         emit AssetAdded(asset, config, isUpdate);
-    }
-
-    /// @notice Returns an asset's price feed deviation threshold.
-    /// @param asset The asset to return the price feed deviation threshold for.
-    /// @return result The asset's price feed deviation threshold value.
-    function deviationThreshold(
-        address asset
-    ) external view returns (uint256 result) {
-        result = _assetDeviationThreshold[asset];
     }
 
     function updateFeedsFromUniversalBalance(
@@ -240,6 +212,7 @@ contract PythAdaptor is BaseOracleAdaptor {
             return result;
         }
 
+        // Adjust price pulled, if necessary.
         uint256 adjustedPrice = _adjustPrice(
             asset,
             inUSD,

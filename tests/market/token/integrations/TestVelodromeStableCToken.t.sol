@@ -72,12 +72,12 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
             _VELO_ADDRESS,
             true,
             address(chainlinkVELO),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _VELO_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -87,17 +87,17 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
             _USDC_ADDRESS,
             true,
             address(chainlinkUSDC),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
 
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
     function testUsdcDaiStablePool() public {
@@ -154,7 +154,7 @@ contract TestVelodromeStableCToken is TestBaseMarketIsolated {
             address(veloCTokenUSDCDAI),
             type(uint256).max
         );
-        swapAction.slippage = 50e16;
+        swapAction.slippage = 0.2e18;
 
         veloCTokenUSDCDAI.harvest(abi.encode(swapAction, 1e14));
 

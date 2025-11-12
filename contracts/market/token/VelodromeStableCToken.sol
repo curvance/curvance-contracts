@@ -183,6 +183,7 @@ contract VelodromeStableCToken is StrategyCToken {
                         revert StrategyCToken__UnapprovedAssetSwap();
                     }
 
+                    _checkSlippageInput(swapAction.slippage);
                     SwapperLib._swapSafe(centralRegistry, swapAction);
                 }
             }

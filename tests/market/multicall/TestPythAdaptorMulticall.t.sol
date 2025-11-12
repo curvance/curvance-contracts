@@ -69,8 +69,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             _WBTC_ADDRESS,
             true,
             1 days,
-            0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43,
-            100
+            0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
         );
         vm.roll(23293262);
 
@@ -98,7 +97,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
             address(dualChainlinkAdaptor)
         );
         // Add the Pyth pythAdaptor as the price feed for WBTC.
-        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(pythAdaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(_WBTC_ADDRESS, address(pythAdaptor), true, 100, 50);
 
         // start epoch
         vm.warp(gaugeManager.gaugeStartTime());
@@ -234,7 +233,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
     }
 
     function testPositionLeverage() public {
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
 
         // provide fee to universal balance
         vm.deal(user1, 1 ether);

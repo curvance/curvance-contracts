@@ -68,6 +68,8 @@ abstract contract PluginDelegable is IPluginDelegable {
             revert PluginDelegable_InvalidParameter();
         }
 
+        // Validate that new delegation configuration is current allowed for
+        // the caller.
         if (centralRegistry.checkNewDelegationDisabled(msg.sender)) {
             revert PluginDelegable__DelegatingDisabled();
         }

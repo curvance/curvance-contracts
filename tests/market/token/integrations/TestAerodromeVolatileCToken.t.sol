@@ -77,12 +77,12 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             _AERO_ADDRESS,
             true,
             address(chainlinkAERO),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _AERO_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -92,12 +92,12 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             _WETH_ADDRESS,
             true,
             address(chainlinkWETH),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _WETH_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -107,12 +107,12 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             _USDC_ADDRESS,
             true,
             address(chainlinkUSDC),
-            0,
-            100
+            0
         );
         oracleManager.addAssetPricingAdaptor(
             _USDC_ADDRESS,
             address(chainlinkAdaptor),
+            true,
             100,
             50
         );
@@ -125,11 +125,12 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
         oracleManager.addAssetPricingAdaptor(
             _AERODROME_WETH_USDC,
             address(adaptor),
+            true,
             100,
             50
         );
 
-        centralRegistry.setSlippageLimit(6000);
+        centralRegistry.setSlippageLimit(2000);
     }
 
     function testWethUsdcVolatilePool_fuzzed(uint256 amount1) public {
@@ -251,7 +252,7 @@ contract TestAerodromeVolatileCToken is TestBaseMarketIsolated {
             address(aeroCTokenWETHUSDC),
             type(uint256).max
         );
-        swapAction.slippage = 50e16;
+        swapAction.slippage = 0.2e18;
 
         aeroCTokenWETHUSDC.harvest(abi.encode(swapAction, 1e7));
 

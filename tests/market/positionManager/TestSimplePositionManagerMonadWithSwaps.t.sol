@@ -8,6 +8,7 @@ import {SwapperLib} from "contracts/libraries/SwapperLib.sol";
 import {BaseSwapChecker} from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
 import {SimpleZapper} from "contracts/plugins/market/SimpleZapper.sol";
 import {BorrowableCToken} from "contracts/market/token/BorrowableCToken.sol";
+import {LiquidityManagerIsolated} from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import {ICentralRegistry} from "contracts/interfaces/ICentralRegistry.sol";
 import {MockV3Aggregator} from "contracts/mocks/MockV3Aggregator.sol";
 import {ChainlinkAdaptor} from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -35,7 +36,7 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
     SwapperLib.Swap public swapAction;
     address public recipient;
 
-    address public feeCollectorAddress = 0xc45F0aDD4981076928537490F8C0e24944288947;
+    address public feeCollectorAddress = 0xe661C9435ad0365E9274df9C1D142fbA004E5Ad1;
 
 
     receive() external payable {}
@@ -68,11 +69,11 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
 
         oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkAdaptor.addAsset(USDC_ADDRESS, true, address(chainlinkUSDC_WMON), 0, 100);
-        chainlinkAdaptor.addAsset(WMON_ADDRESS, true, address(chainlinkWMON), 0, 100);
+        chainlinkAdaptor.addAsset(USDC_ADDRESS, true, address(chainlinkUSDC_WMON), 0);
+        chainlinkAdaptor.addAsset(WMON_ADDRESS, true, address(chainlinkWMON), 0);
 
-        oracleManager.addAssetPricingAdaptor(USDC_ADDRESS, address(chainlinkAdaptor), 100, 50);
-        oracleManager.addAssetPricingAdaptor(WMON_ADDRESS, address(chainlinkAdaptor), 100, 50);
+        oracleManager.addAssetPricingAdaptor(USDC_ADDRESS, address(chainlinkAdaptor), true, 100, 50);
+        oracleManager.addAssetPricingAdaptor(WMON_ADDRESS, address(chainlinkAdaptor), true, 100, 50);
 
         oracleManager.addCTokenSupport(address(borrowableCUSDC_MONAD));
         oracleManager.addCTokenSupport(address(borrowableCWMON));
@@ -110,10 +111,10 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
     }
 
     function testLeverage_TestVaultPositionManagerMonadWithSwaps() public {
-        deal(WMON_ADDRESS, user1, 50e18);
+        deal(WMON_ADDRESS, user1, 1000e18);
         vm.startPrank(user1);
-        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 50e18);
-        borrowableCWMON.depositAsCollateral(50e18, user1);
+        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 1000e18);
+        borrowableCWMON.depositAsCollateral(1000e18, user1);
 
         (,,, uint256 maxDebtBorrowable,,) = protocolReader.hypotheticalLeverageOf(
             user1, address(borrowableCWMON), address(borrowableCUSDC_MONAD), 0, 0
@@ -208,5 +209,89 @@ contract TestSimplePositionManagerMonadWithSwaps is TestBaseMarketIsolated {
 
         uint256 excessUsdc = usdcWalletAfter - usdcWalletBefore;
         assertGt(excessUsdc, 0, "User should receive excess USDC in wallet");
+    }
+
+    function testDeleverage_belowMinLoan() public {
+        deal(WMON_ADDRESS, user1, 50e18);
+        vm.startPrank(user1);
+        IERC20(WMON_ADDRESS).approve(address(borrowableCWMON), 50e18);
+        borrowableCWMON.depositAsCollateral(50e18, user1);
+
+        (,,, uint256 maxDebtBorrowable,,) = protocolReader.hypotheticalLeverageOf(
+            user1, address(borrowableCWMON), address(borrowableCUSDC_MONAD), 0, 0
+        );
+
+        uint256 collateralBefore = borrowableCWMON.balanceOf(user1);
+        uint256 debtBefore = borrowableCUSDC_MONAD.debtBalance(user1);
+
+        uint256 bufferedBorrow = (maxDebtBorrowable * 50) / 100; // 50% of max
+
+        SimplePositionManager.LeverageAction memory leverageAction;
+        leverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC_MONAD));
+        leverageAction.borrowAssets = bufferedBorrow;
+        leverageAction.cToken = ICToken(address(borrowableCWMON));
+
+        leverageAction.swapAction.inputToken = USDC_ADDRESS;
+        leverageAction.swapAction.inputAmount = bufferedBorrow;
+        leverageAction.swapAction.outputToken = WMON_ADDRESS;
+        leverageAction.swapAction.target = address(kuruRouter);
+		leverageAction.swapAction.call = _getKuruCalldata(
+			address(positionManager),
+			USDC_ADDRESS,
+			WMON_ADDRESS,
+			bufferedBorrow
+		);
+        leverageAction.swapAction.slippage = 0.5e18;
+
+        positionManager.leverage(leverageAction, 0.5e18);
+        vm.stopPrank();
+
+        uint256 collateralAfter = borrowableCWMON.balanceOf(user1);
+        uint256 debtAfter = borrowableCUSDC_MONAD.debtBalance(user1);
+
+        assertGt(collateralAfter, collateralBefore, "Collateral should increase after leverage");
+
+        assertEq(debtBefore, 0, "Should start with no debt");
+        assertEq(debtAfter, bufferedBorrow, "Debt should equal borrowed amount");
+
+        skip(20 minutes);
+
+
+		collateralBefore = borrowableCWMON.balanceOf(user1);
+		debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
+		uint256 collateralAssetsToWithdraw = collateralBefore / 2; // withdraw 50% collateral
+		// quote prices from kuru api
+		uint256 minOutUSDC = _getKuruAmountOut(address(positionManager), WMON_ADDRESS, USDC_ADDRESS, collateralAssetsToWithdraw);
+	
+		uint256 bufferedMinOut = (minOutUSDC * 97) / 100;
+		uint256 debtToRepay = bufferedMinOut;
+
+        SimplePositionManager.DeleverageAction memory deleverageAction;
+        deleverageAction.cToken = ICToken(address(borrowableCWMON));
+        deleverageAction.collateralAssets = collateralAssetsToWithdraw;
+        deleverageAction.borrowableCToken = IBorrowableCToken(address(borrowableCUSDC_MONAD));
+        deleverageAction.repayAssets = debtToRepay;
+
+        deleverageAction.swapActions = new SwapperLib.Swap[](1);
+        deleverageAction.swapActions[0].inputToken = WMON_ADDRESS;
+        deleverageAction.swapActions[0].inputAmount = collateralAssetsToWithdraw;
+        deleverageAction.swapActions[0].outputToken = USDC_ADDRESS;
+        deleverageAction.swapActions[0].target = address(kuruRouter);
+		deleverageAction.swapActions[0].call = _getKuruCalldata(
+			address(positionManager),
+			WMON_ADDRESS,
+			USDC_ADDRESS,
+			collateralAssetsToWithdraw
+		);
+        deleverageAction.swapActions[0].slippage = 0.5e18;
+
+		collateralBefore = borrowableCWMON.balanceOf(user1);
+		debtBefore = borrowableCUSDC_MONAD.debtBalanceUpdated(user1);
+        uint256 usdcWalletBefore = IERC20(USDC_ADDRESS).balanceOf(user1);
+
+        vm.startPrank(user1);
+        vm.expectRevert(LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector);
+        positionManager.deleverage(deleverageAction, 0.5e18);
+        vm.stopPrank();
     }
 }
