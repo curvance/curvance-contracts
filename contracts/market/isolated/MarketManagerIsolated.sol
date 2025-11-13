@@ -898,7 +898,7 @@ contract MarketManagerIsolated is
         // soft liquidation.
         if (
             newConfig.collRatio >
-                (MIN_LIQUIDATION_BUFFER * / (BPS + newConfig.collReqSoft))
+            (MIN_LIQUIDATION_BUFFER / (BPS + newConfig.collReqSoft))
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
