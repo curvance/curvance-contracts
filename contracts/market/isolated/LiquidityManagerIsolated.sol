@@ -231,14 +231,19 @@ abstract contract LiquidityManagerIsolated {
     /// @dev 9950 = 99.5%. Multiplied then divided by `BPS` = 50 bps buffer
     ///                    auction liquidation priority for uncorrelated assets.
     uint256 public constant AUCTION_BUFFER_UNCORRELATED = 9950;
-    /// @notice Enforced Liquidity buffer provided to users before a liquidation
-    ///         can occur related to a maximum leverage position. This value is
-    ///         added with `AUCTION_BUFFER` to determine
-    ///         `MIN_LIQUIDATION_BUFFER_REQUIRED` inside a market, in `BPS`.
-    /// @dev 25 = 0.25%. An additional 25 basis points buffer ahead of auction
-    ///      buffer before a liquidation can trigger.
-    uint256 public constant EXTRA_BUFFER_BEFORE_LIQUIDATION = 25;
+    /// @notice Minimum Liquidity buffer provided to maximally leveraged users
+    ///         before a liquidation can occur. This value is adjusted by
+    ///         `AUCTION_BUFFER` to calculate `MIN_LIQUIDATION_BUFFER_REQUIRED`
+    ///         inside a market, in `BPS`.
+    /// @dev 9960 = 0.4% buffer. An additional 40 basis points buffer before a
+    ///      liquidation can trigger (Then modified by `AUCTION_BUFFER`).
+    uint256 public constant EXTRA_BUFFER_BEFORE_LIQUIDATION = 9960;
 
+    /// @notice Enforced buffer provided to maximally leveraged users before a
+    ///         liquidation can occur, stored in `BPS`^2.
+    /// @dev 99,500,000 = ~99.5% bps^2 = 0.5% buffer. An additional 50 basis
+    ///      points buffer before a liquidation can trigger.
+    uint256 public immutable MIN_LIQUIDATION_BUFFER;
     /// @notice Whether this market is for correlated assets or not, this
     ///         impacts auction buffer and maximum theoretical
     ///         collateralization ratio allowed.
@@ -313,12 +318,13 @@ abstract contract LiquidityManagerIsolated {
             MAX_COLL_RATIO_UNCORRELATED;
         AUCTION_BUFFER = isCorrelatedMarket ? AUCTION_BUFFER_CORRELATED :
             AUCTION_BUFFER_UNCORRELATED;
-
+        
         // Calculates the minimum liquidation buffer the market needs to give
-        // users before liquidation. E.g. 9950 auction buffer - 25 extra
-        // buffer = 9925 or 75 bps buffer from max leverage to liquidation.
-        MIN_LIQUIDATION_BUFFER_REQUIRED =
-            AUCTION_BUFFER - EXTRA_BUFFER_BEFORE_LIQUIDATION;
+        // users before liquidation. E.g. 9960 extra buffer * 10 bps auction
+        // buffer = 9960 * 9990 = 99.5 bps^2 or ~50 bps buffer from max
+        // leverage to liquidation.
+        MIN_LIQUIDATION_BUFFER =
+            EXTRA_BUFFER_BEFORE_LIQUIDATION * AUCTION_BUFFER;
     }
 
     /// @notice Determine `account`'s current status between collateral,
@@ -427,7 +433,7 @@ abstract contract LiquidityManagerIsolated {
                 if (errorCode >= action.errorCodeBreakpoint) {
                     revert LiquidityManager__PriceError();
                 }
-                
+
                 // Adjust `isCollateral` to be false since this is a debt
                 // entry not a collateral entry.
                 delete snap.isCollateral;
