@@ -24,18 +24,20 @@ async function main() {
 
     const calldata = response && response.transaction && response.transaction.calldata;
     if (mode === "amountOut") {
-        const minOut = response && (response.minOut || response.output);
-        if (!minOut || typeof minOut !== "string") {
+        const minOut = response && (response.minOut ?? response.output);
+        if (minOut === undefined || minOut === null) {
             throw new Error("Failed to get minOut/output from response");
         }
-        process.stdout.write(minOut);
+        // Force to BigInt
+        const normalizedBigInt = typeof minOut === "bigint" ? minOut : BigInt(String(minOut).trim());
+        const outHex = "0x" + normalizedBigInt.toString(16).padStart(64, "0"); // 32-byte hex
+        process.stdout.write(outHex);
     } else {
         if (!calldata || typeof calldata !== "string") {
             throw new Error("Failed to get calldata from response");
         }
         process.stdout.write(calldata);
     }
-    process.exit(0);
 }
 
 async function getJwt(wallet) {

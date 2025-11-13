@@ -1735,6 +1735,6 @@ contract TestBaseMarketIsolated is TestBase {
 		args[7] = "amountOut";
 
 		bytes memory out = vm.ffi(args);
-		return vm.parseUint(string(out));
+		return abi.decode(out, (uint256));
 	}
 }
