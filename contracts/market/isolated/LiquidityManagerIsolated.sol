@@ -286,6 +286,7 @@ abstract contract LiquidityManagerIsolated {
     /// ERRORS ///
 
     error LiquidityManager__InsufficientLoanSize();
+    error LiquidityManager__PriceError();
 
     /// @param cr The address of the Protocol Central Registry.
     /// @param minLoanSize The minimum active loan size for this isolated
@@ -418,12 +419,15 @@ abstract contract LiquidityManagerIsolated {
                 action.cTokenModified == snap.asset && snap.isCollateral &&
                 action.borrowAssets > 0
             ) {
-                // We can skip the error code check as we've already
-                // priced the share token which requires pricing the
-                // underlying token.
-                (prices[i], ) =
+                uint256 errorCode;
+                (prices[i], errorCode) =
                     CommonLib._oracleManager(centralRegistry).
                         getPrice(snap.underlying, true, false);
+
+                if (errorCode >= action.errorCodeBreakpoint) {
+                    revert LiquidityManager__PriceError();
+                }
+                
                 // Adjust `isCollateral` to be false since this is a debt
                 // entry not a collateral entry.
                 delete snap.isCollateral;
